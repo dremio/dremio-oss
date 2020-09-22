@@ -22,6 +22,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,12 +56,14 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.HiveDecimalUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -70,6 +73,7 @@ import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.Closeable;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
@@ -78,16 +82,17 @@ import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
+import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HiveClient;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
 import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
+import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
@@ -97,7 +102,8 @@ import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 
@@ -161,7 +167,7 @@ public class HiveMetadataUtils {
   }
 
   public static InputFormat<?, ?> getInputFormat(Table table, final HiveConf hiveConf) {
-    try (final ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final JobConf job = new JobConf(hiveConf);
       final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
       job.setInputFormat(inputFormatClazz);
@@ -169,29 +175,69 @@ public class HiveMetadataUtils {
     }
   }
 
-  public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf) {
+  public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf, boolean includeComplexParquetCols) {
     InputFormat<?, ?> format = getInputFormat(table, hiveConf);
     final List<Field> fields = new ArrayList<>();
     final List<String> partitionColumns = new ArrayList<>();
-    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format);
+    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols);
     return BatchSchema.newBuilder().addFields(fields).build();
+  }
+
+  public static boolean isVarcharTruncateSupported(InputFormat<?, ?> format) {
+    return MapredParquetInputFormat.class.isAssignableFrom(format.getClass());
+  }
+
+  public static boolean hasVarcharColumnInTableSchema(
+    final Table table, final HiveConf hiveConf
+  ) {
+    InputFormat<?, ?> format = getInputFormat(table, hiveConf);
+    if (!isVarcharTruncateSupported(format)) {
+      return false;
+    }
+
+    for (FieldSchema hiveField : table.getSd().getCols()) {
+      if (isFieldTypeVarchar(hiveField)) {
+        return true;
+      }
+    }
+
+    for (FieldSchema hiveField : table.getPartitionKeys()) {
+      if (isFieldTypeVarchar(hiveField)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private static boolean isFieldTypeVarchar(FieldSchema hiveField) {
+    final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
+    if (typeInfo.getCategory() == Category.PRIMITIVE) {
+      PrimitiveTypeInfo pTypeInfo = (PrimitiveTypeInfo) typeInfo;
+      if (pTypeInfo.getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.VARCHAR ||
+        pTypeInfo.getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.CHAR) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void populateFieldsAndPartitionColumns(
     final Table table,
     final List<Field> fields,
     final List<String> partitionColumns,
-    InputFormat<?, ?> format) {
+    InputFormat<?, ?> format,
+    boolean includeComplexParquetCols) {
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format);
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols);
       if (f != null) {
         fields.add(f);
       }
     }
     for (FieldSchema field : table.getPartitionKeys()) {
       Field f = HiveSchemaConverter.getArrowFieldFromHiveType(field.getName(),
-        TypeInfoUtils.getTypeInfoFromTypeString(field.getType()), format);
+        TypeInfoUtils.getTypeInfoFromTypeString(field.getType()), format, includeComplexParquetCols);
       if (f != null) {
         fields.add(f);
         partitionColumns.add(field.getName());
@@ -199,135 +245,151 @@ public class HiveMetadataUtils {
     }
   }
 
-  private static List<ColumnInfo> buildColumnInfo(final Table table) {
-    final List<ColumnInfo> columnInfos  = new ArrayList<>();
+  private static List<ColumnInfo> buildColumnInfo(final Table table, final InputFormat<?, ?> format, boolean
+    includeComplexParquetCols) {
+    final List<ColumnInfo> columnInfos = new ArrayList<>();
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      if (typeInfo.getCategory() == Category.PRIMITIVE) {
-        final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
-        switch (primitiveTypeInfo.getPrimitiveCategory()) {
-          case BOOLEAN:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.BOOLEAN)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case BYTE:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.BYTE)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case SHORT:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.SHORT)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case INT:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.INT)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case LONG:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.LONG)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case FLOAT:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.FLOAT)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case DOUBLE:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.DOUBLE)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case DATE:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.DATE)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case TIMESTAMP:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.TIMESTAMP)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case BINARY:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.BINARY)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case DECIMAL:
-            final DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.DECIMAL)
-              .setPrecision(decimalTypeInfo.getPrecision())
-              .setScale(decimalTypeInfo.getScale())
-              .build());
-            break;
-
-          case STRING:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.STRING)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case VARCHAR:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.VARCHAR)
-              .setPrecision(0)
-              .setScale(0)
-              .build());
-            break;
-
-          case CHAR:
-            columnInfos.add(ColumnInfo.newBuilder()
-              .setPrimitiveType(HivePrimitiveType.CHAR)
-              .setPrecision(((CharTypeInfo) typeInfo).getLength())
-              .setScale(0)
-              .build());
-            break;
-        }
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols);
+      if (f != null) {
+        columnInfos.add(getColumnInfo(typeInfo));
       }
     }
     return columnInfos;
+  }
+
+  private static ColumnInfo getColumnInfo(final TypeInfo typeInfo) {
+    if (typeInfo.getCategory() == Category.PRIMITIVE) {
+      final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
+      switch (primitiveTypeInfo.getPrimitiveCategory()) {
+        case BOOLEAN:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.BOOLEAN)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case BYTE:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.BYTE)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case SHORT:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.SHORT)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case INT:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.INT)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case LONG:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.LONG)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case FLOAT:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.FLOAT)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case DOUBLE:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.DOUBLE)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case DATE:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.DATE)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case TIMESTAMP:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.TIMESTAMP)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case BINARY:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.BINARY)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case DECIMAL:
+          final DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.DECIMAL)
+            .setPrecision(decimalTypeInfo.getPrecision())
+            .setScale(decimalTypeInfo.getScale())
+            .setIsPrimitive(true)
+            .build();
+
+        case STRING:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.STRING)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case VARCHAR:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.VARCHAR)
+            .setPrecision(0)
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+
+        case CHAR:
+          return ColumnInfo.newBuilder()
+            .setPrimitiveType(HivePrimitiveType.CHAR)
+            .setPrecision(((CharTypeInfo) typeInfo).getLength())
+            .setScale(0)
+            .setIsPrimitive(true)
+            .build();
+      }
+    }
+
+    return ColumnInfo.newBuilder()
+      .setPrecision(0)
+      .setScale(0)
+      .setIsPrimitive(false)
+      .build();
   }
 
   public static TableMetadata getTableMetadata(final HiveClient client,
                                                final EntityPath datasetPath,
                                                final boolean ignoreAuthzErrors,
                                                final int maxMetadataLeafColumns,
+                                               final int maxNestedLevels,
+                                               final boolean includeComplexParquetCols,
                                                final HiveConf hiveConf) throws ConnectorException {
 
     try {
@@ -347,11 +409,12 @@ public class HiveMetadataUtils {
       final List<Field> fields = new ArrayList<>();
       final List<String> partitionColumns = new ArrayList<>();
 
-      HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format);
+      HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols);
       HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
+      HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels);
       final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
-      final List<ColumnInfo> columnInfos = buildColumnInfo(table);
+      final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetCols);
 
       final TableMetadata tableMetadata = TableMetadata.newBuilder()
         .table(table)
@@ -515,8 +578,6 @@ public class HiveMetadataUtils {
     final long totalSizeOfInputSplits = inputSplitSizes.stream().mapToLong(Long::longValue).sum();
     final int estimatedRecordSize = tableMetadata.getBatchSchema().estimateRecordSize(statsParams.getListSizeEstimate(), statsParams.getVarFieldSizeEstimate());
 
-    metadataAccumulator.accumulateTotalBytesToScanFactor(totalSizeOfInputSplits);
-
     for (int i = 0; i < inputSplits.size(); i++) {
       final InputSplit inputSplit = inputSplits.get(i);
       final long inputSplitLength = inputSplitSizes.get(i);
@@ -534,10 +595,9 @@ public class HiveMetadataUtils {
       try {
         datasetSplits.add(
           DatasetSplit.of(
-            FluentIterable
-              .of(inputSplit.getLocations())
-              .transform((input) -> DatasetSplitAffinity.of(input, inputSplitLength))
-              .toList(),
+            Arrays.stream(inputSplit.getLocations())
+              .map((input) -> DatasetSplitAffinity.of(input, inputSplitLength))
+              .collect(ImmutableList.toImmutableList()),
             inputSplitSizes.get(i),
             splitEstimatedRecords,
             os -> os.write(buildHiveSplitXAttr(partitionMetadata.getPartitionId(), inputSplit).toByteArray())));
@@ -614,9 +674,9 @@ public class HiveMetadataUtils {
           size += getSize(bucket, delta);
         }
 
-        return size > 0 ? size : ONE;
+        return (size > 0) ? size : ONE;
       } catch (Exception e) {
-        logger.warn("Failed to derive the input split size of transactional Hive tables", e);
+        logger.debug("Failed to derive the input split size of transactional Hive tables", e);
         // return a non-zero number - we don't want the metadata fetch operation to fail. We could ask the customer to
         // update the stats so that they can be used as part of the planning
         return ONE;
@@ -735,14 +795,14 @@ public class HiveMetadataUtils {
   }
 
   public static PartitionMetadata getPartitionMetadata(final boolean storageImpersonationEnabled,
+                                                       final boolean enableVarcharWidth,
                                                        TableMetadata tableMetadata,
                                                        MetadataAccumulator metadataAccumulator,
                                                        Partition partition,
                                                        HiveConf hiveConf,
                                                        int partitionId,
                                                        int maxInputSplitsPerPartition) {
-
-    try (final ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final Table table = tableMetadata.getTable();
       final Properties tableProperties = tableMetadata.getTableProperties();
       final JobConf job = new JobConf(hiveConf);
@@ -814,7 +874,7 @@ public class HiveMetadataUtils {
         metastoreStats = getStatsFromProps(partitionProperties);
       }
 
-      List<PartitionValue> partitionValues = getPartitionValues(table, partition);
+      List<PartitionValue> partitionValues = getPartitionValues(table, partition, enableVarcharWidth);
 
       return PartitionMetadata.newBuilder()
         .partitionId(partitionId)
@@ -1016,7 +1076,7 @@ public class HiveMetadataUtils {
     return output;
   }
 
-  public static List<PartitionValue> getPartitionValues(Table table, Partition partition) {
+  public static List<PartitionValue> getPartitionValues(Table table, Partition partition, boolean enableVarcharWidth) {
     if (partition == null) {
       return Collections.emptyList();
     }
@@ -1025,7 +1085,7 @@ public class HiveMetadataUtils {
     final List<PartitionValue> output = new ArrayList<>();
     final List<FieldSchema> partitionKeys = table.getPartitionKeys();
     for (int i = 0; i < partitionKeys.size(); i++) {
-      final PartitionValue value = getPartitionValue(partitionKeys.get(i), partitionValues.get(i));
+      final PartitionValue value = getPartitionValue(partitionKeys.get(i), partitionValues.get(i), enableVarcharWidth);
       if (value != null) {
         output.add(value);
       }
@@ -1033,7 +1093,7 @@ public class HiveMetadataUtils {
     return output;
   }
 
-  private static PartitionValue getPartitionValue(FieldSchema partitionCol, String value) {
+  private static PartitionValue getPartitionValue(FieldSchema partitionCol, String value, boolean enableVarcharWidth) {
     final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(partitionCol.getType());
     final String name = partitionCol.getName();
 
@@ -1048,27 +1108,56 @@ public class HiveMetadataUtils {
           case BINARY:
             try {
               byte[] bytes = value.getBytes("UTF-8");
-              return PartitionValue.of(name, os -> os.write(bytes));
+              return PartitionValue.of(name, ByteBuffer.wrap(bytes));
             } catch (UnsupportedEncodingException e) {
               throw new RuntimeException("UTF-8 not supported?", e);
             }
           case BOOLEAN:
             return PartitionValue.of(name, Boolean.parseBoolean(value));
           case DOUBLE:
-            return PartitionValue.of(name, Double.parseDouble(value));
+            try {
+              return PartitionValue.of(name, Double.parseDouble(value));
+            }
+            catch (NumberFormatException ex) {
+              return PartitionValue.of(name);
+            }
           case FLOAT:
-            return PartitionValue.of(name, Float.parseFloat(value));
+            try {
+              return PartitionValue.of(name, Float.parseFloat(value));
+            }
+            catch (NumberFormatException ex) {
+              return PartitionValue.of(name);
+            }
           case BYTE:
           case SHORT:
           case INT:
-            return PartitionValue.of(name, Integer.parseInt(value));
+            try {
+              return PartitionValue.of(name, Integer.parseInt(value));
+            }
+            catch (NumberFormatException ex) {
+              return PartitionValue.of(name);
+            }
           case LONG:
-            return PartitionValue.of(name, Long.parseLong(value));
+            try {
+              return PartitionValue.of(name, Long.parseLong(value));
+            }
+            catch (NumberFormatException ex) {
+              return PartitionValue.of(name);
+            }
           case STRING:
-          case VARCHAR:
             return PartitionValue.of(name, value);
+          case VARCHAR:
+            String truncatedVarchar = value;
+            if (enableVarcharWidth && (value.length() > ((VarcharTypeInfo) typeInfo).getLength())) {
+              truncatedVarchar = value.substring(0, ((VarcharTypeInfo) typeInfo).getLength());
+            }
+            return PartitionValue.of(name, truncatedVarchar);
           case CHAR:
-            return PartitionValue.of(name, value.trim());
+            String truncatedChar = value.trim();
+            if (enableVarcharWidth && (truncatedChar.length() > ((CharTypeInfo) typeInfo).getLength())) {
+              truncatedChar = value.substring(0, ((CharTypeInfo) typeInfo).getLength());
+            }
+            return PartitionValue.of(name, truncatedChar);
           case TIMESTAMP:
             return PartitionValue.of(name, DateTimes.toMillisFromJdbcTimestamp(value));
           case DATE:
@@ -1081,10 +1170,13 @@ public class HiveMetadataUtils {
                 .build(logger);
             }
             final HiveDecimal decimal = HiveDecimalUtils.enforcePrecisionScale(HiveDecimal.create(value), decimalTypeInfo);
+            if (decimal == null) {
+              return PartitionValue.of(name);
+            }
             final BigDecimal original = decimal.bigDecimalValue();
             // we can't just use unscaledValue() since BigDecimal doesn't store trailing zeroes and we need to ensure decoding includes the correct scale.
             final BigInteger unscaled = original.movePointRight(decimalTypeInfo.scale()).unscaledValue();
-            return PartitionValue.of(name, os -> os.write(DecimalTools.signExtend16(unscaled.toByteArray())));
+            return PartitionValue.of(name, ByteBuffer.wrap(DecimalTools.signExtend16(unscaled.toByteArray())));
           default:
             HiveUtilities.throwUnsupportedHiveDataTypeError(primitiveTypeInfo.getPrimitiveCategory().toString());
         }
@@ -1110,7 +1202,7 @@ public class HiveMetadataUtils {
     // Include Table properties in final list in order to not to break SerDes that depend on
     // Table properties. For example AvroSerDe gets the schema from properties (passed as second argument)
     for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
-      if (entry.getKey() != null && entry.getKey() != null) {
+      if (entry.getKey() != null && entry.getValue() != null) {
         properties.put(entry.getKey(), entry.getValue());
       }
     }
@@ -1131,7 +1223,7 @@ public class HiveMetadataUtils {
   }
 
   public static Class<? extends InputFormat> getInputFormatClass(final JobConf job, final Table table, final Partition partition) {
-    try (final ContextClassLoaderSwapper cls = ContextClassLoaderSwapper.newInstance()) {
+    try (final Closeable cls = HivePf4jPlugin.swapClassLoader()) {
       if (partition != null) {
         if (partition.getSd().getInputFormat() != null) {
           return (Class<? extends InputFormat>) Class.forName(partition.getSd().getInputFormat());
@@ -1166,14 +1258,17 @@ public class HiveMetadataUtils {
       partition.getValues());
   }
 
-  public static int getHash(Table table) {
-    return Objects.hashCode(
-      table.getTableType(),
+  public static int getHash(Table table, boolean enforceVarcharWidth, final HiveConf hiveConf) {
+    List<Object> hashParts = Lists.newArrayList(table.getTableType(),
       table.getParameters(),
       table.getPartitionKeys(),
       table.getSd(),
       table.getViewExpandedText(),
       table.getViewOriginalText());
+    if (enforceVarcharWidth && hasVarcharColumnInTableSchema(table, hiveConf)) {
+      hashParts.add(Boolean.TRUE);
+    }
+    return Objects.hashCode(hashParts.toArray());
   }
 
   public static void checkLeafFieldCounter(int leafCounter, int maxMetadataLeafColumns, String tableName) {
@@ -1187,6 +1282,17 @@ public class HiveMetadataUtils {
       for (MetadataOption option : options) {
         if (option instanceof MaxLeafFieldCount) {
           return ((MaxLeafFieldCount) option).getValue();
+        }
+      }
+    }
+    return 0;
+  }
+
+  public static int getMaxNestedFieldLevels(MetadataOption... options) {
+    if (null != options) {
+      for (MetadataOption option : options) {
+        if (option instanceof MaxNestedFieldLevels) {
+          return ((MaxNestedFieldLevels) option).getValue();
         }
       }
     }

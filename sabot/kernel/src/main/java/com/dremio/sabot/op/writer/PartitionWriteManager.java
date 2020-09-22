@@ -23,7 +23,9 @@ import java.util.Set;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.iceberg.PartitionSpec;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.WriterPrel;
@@ -32,6 +34,8 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.iceberg.IcebergCatalog;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
 
 class PartitionWriteManager {
   /**
@@ -50,10 +54,18 @@ class PartitionWriteManager {
   private final VectorContainer maskedContainer;
 
   private WritePartition partition;
+  private boolean isIcebergWriter = false;
+  private PartitionSpec icebergPartitionSpec = null;
+  private List<CompleteType> partitionFields = new ArrayList<>();
 
   public PartitionWriteManager(WriterOptions options, VectorAccessible incoming){
+    this(options, incoming, false);
+  }
+
+  public PartitionWriteManager(WriterOptions options, VectorAccessible incoming, boolean isIcebergWriter) {
     // if we're a partitioning writer, we'll need to remove the partition number column.
     final Set<Integer> maskedIds = new HashSet<>();
+    this.isIcebergWriter = isIcebergWriter;
 
     final TypedFieldId changeDetectionField = incoming.getValueVectorId(SchemaPath.getSimplePath(WriterPrel.PARTITION_COMPARATOR_FIELD));
     if (changeDetectionField != null) {
@@ -75,15 +87,17 @@ class PartitionWriteManager {
       bucketNumber = null;
     }
 
-
     for(String column : options.getPartitionColumns()){
       final TypedFieldId partitionValueField = incoming.getValueVectorId(SchemaPath.getSimplePath(column));
       if (partitionValueField != null) {
+        partitionFields.add(partitionValueField.getFinalType());
         partitions.add(incoming.getValueAccessorById(ValueVector.class, partitionValueField.getFieldIds()).getValueVector());
       } else {
         throw new IllegalArgumentException("Incoming schema didn't include partitions even though writer was configured for partitioning.");
       }
     }
+
+
 
     maskedContainer = new VectorContainer();
     int id = 0;
@@ -95,6 +109,9 @@ class PartitionWriteManager {
       id++;
     }
     maskedContainer.buildSchema();
+    if (isIcebergWriter && partitions.size() > 0) {
+      icebergPartitionSpec = IcebergCatalog.getIcebergPartitionSpec(maskedContainer.getSchema(), options.getPartitionColumns());
+    }
   }
 
   public VectorContainer getMaskedContainer() {
@@ -109,14 +126,21 @@ class PartitionWriteManager {
   }
 
   private WritePartition getPartition(int offset){
+    IcebergPartitionData icebergPartitionData = null;
+    if (isIcebergWriter && icebergPartitionSpec != null) {
+      icebergPartitionData = new IcebergPartitionData(this.icebergPartitionSpec.partitionType());
+    }
     String[] paths = new String[partitions.size()];
     for(int i = 0; i < paths.length; i++){
       paths[i] = fromObj(partitions.get(i).getObject(offset));
+      if (icebergPartitionData != null) {
+        icebergPartitionData.set(i, partitionFields.get(i), partitions.get(i), offset);
+      }
     }
 
     final Integer bucketNumberValue = bucketNumber == null ? null : bucketNumber.get(offset);
 
-    return new WritePartition(paths, bucketNumberValue);
+    return new WritePartition(paths, bucketNumberValue, icebergPartitionData);
   }
 
 

@@ -15,6 +15,7 @@
  */
 package com.dremio.provision.yarn;
 
+import static com.dremio.provision.yarn.DacDaemonYarnApplication.DREMIO_GC_OPTS;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.DREMIO_HOME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.KEYTAB_FILE_NAME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.MAX_APP_RESTART_RETRIES;
@@ -46,6 +47,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
+import com.dremio.provision.yarn.service.YarnDefaultsConfigurator.MapRYarnDefaults;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -190,12 +192,15 @@ public class YarnController {
     // note that DremioConfig.LOCAL_WRITE_PATH_STRING is unset; YarnDaemon creates the local write path on startup
     basicJVMOptions.put(DremioConfig.DIST_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.DIST_WRITE_PATH_STRING,
       dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
-    basicJVMOptions.put("dremio.classpath.scanning.cache.enabled", "false");
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
     basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
     basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");
     basicJVMOptions.put(DremioConfig.YARN_ENABLED_BOOL, "true");
+    basicJVMOptions.put(MapRYarnDefaults.MAPR_IMPALA_RA_THROTTLE_BOOL, "true");
+    basicJVMOptions.put(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, yarnConfiguration
+      .get(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, "400"));
     basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
+    basicJVMOptions.put(DremioConfig.NETTY_REFLECTIONS_ACCESSIBLE, "true");
 
     final String kerberosPrincipal = dremioConfig.getString(DremioConfig.KERBEROS_PRINCIPAL);
     if (!Strings.isNullOrEmpty(kerberosPrincipal)) {
@@ -243,7 +248,23 @@ public class YarnController {
     basicJVMOptionsB.append(" ");
     basicJVMOptionsB.append(jvmOptions);
 
+    // If DREMIO_GC_OPTS is provided
+    // and GC option is not provided in properties from Yarn Provisioning UI,
+    // then, pass the DREMIO_GC_OPTS to executor.
+    // DREMIO_GC_OPTS can be overriden in dremio-env
+    final String dremioGCOpts = getDremioGCOpts();
+    if(dremioGCOpts != null && !dremioGCOpts.isEmpty()) {
+      if(!basicJVMOptionsB.toString().matches(".*-XX:\\+Use.*GC.*")) {
+        basicJVMOptionsB.append(" " + dremioGCOpts);
+      }
+    }
+
     return basicJVMOptionsB.toString();
+  }
+
+  @VisibleForTesting
+  protected String getDremioGCOpts() {
+    return System.getenv(DREMIO_GC_OPTS);
   }
 
   static class HadoopClassExcluder extends ClassAcceptor {

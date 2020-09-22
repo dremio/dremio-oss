@@ -16,8 +16,10 @@
 package com.dremio.sabot.exec.rpc;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
-import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
-import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
+import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -27,13 +29,14 @@ import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
+import com.dremio.services.jobresults.common.JobResultsTunnel;
 
 import io.netty.buffer.ByteBuf;
 
 /**
  * Handler for messages going from coordinator to executor.
  */
-public class ExecToCoordTunnel {
+public class ExecToCoordTunnel extends JobResultsTunnel {
 
   private final FabricCommandRunner manager;
   private final NodeEndpoint endpoint;
@@ -45,65 +48,6 @@ public class ExecToCoordTunnel {
 
   public void sendData(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch data) {
     manager.runCommand(new SendBatch(outcomeListener, data));
-  }
-
-  public void sendFragmentStatus(RpcOutcomeListener<Ack> outcomeListener, FragmentStatus status){
-    SendFragmentStatus b = new SendFragmentStatus(outcomeListener, status);
-    manager.runCommand(b);
-  }
-
-  public RpcFuture<Ack> sendFragmentStatus(FragmentStatus status){
-    SendFragmentStatusFuture b = new SendFragmentStatusFuture(status);
-    manager.runCommand(b);
-    return b.getFuture();
-  }
-
-  private static class SendFragmentStatus extends ListeningCommand<Ack, ProxyConnection> {
-    final FragmentStatus status;
-
-    public SendFragmentStatus(RpcOutcomeListener<Ack> outcomeListener, FragmentStatus status) {
-      super(outcomeListener);
-      this.status = status;
-    }
-
-    @Override
-    public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.sendUnsafe(outcomeListener, RpcType.REQ_FRAGMENT_STATUS, status, Ack.class);
-    }
-
-  }
-
-  private static class SendFragmentStatusFuture extends FutureBitCommand<Ack, ProxyConnection> {
-    final FragmentStatus status;
-
-    public SendFragmentStatusFuture(FragmentStatus status) {
-      this.status = status;
-    }
-
-    @Override
-    public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.sendUnsafe(outcomeListener, RpcType.REQ_FRAGMENT_STATUS, status, Ack.class);
-    }
-
-  }
-
-  public RpcFuture<Ack> sendNodeQueryStatus(NodeQueryStatus status){
-    SendNodeQueryStatusFuture b = new SendNodeQueryStatusFuture(status);
-    manager.runCommand(b);
-    return b.getFuture();
-  }
-
-  private static class SendNodeQueryStatusFuture extends FutureBitCommand<Ack, ProxyConnection> {
-    final NodeQueryStatus status;
-
-    public SendNodeQueryStatusFuture(NodeQueryStatus status) {
-      this.status = status;
-    }
-
-    @Override
-    public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_STATUS, status, Ack.class);
-    }
   }
 
   private class SendBatch extends ListeningCommand<Ack, ProxyConnection> {
@@ -128,5 +72,47 @@ public class ExecToCoordTunnel {
     }
   }
 
+  public RpcFuture<Ack> sendNodeQueryScreenCompletion(NodeQueryScreenCompletion completion) {
+    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
+      @Override
+      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION, completion, Ack.class);
+      }
+    };
+    manager.runCommand(cmd);
+    return cmd.getFuture();
+  }
 
+  public RpcFuture<Ack> sendNodeQueryCompletion(NodeQueryCompletion completion) {
+    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
+      @Override
+      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_COMPLETION, completion, Ack.class);
+      }
+    };
+    manager.runCommand(cmd);
+    return cmd.getFuture();
+  }
+
+  public RpcFuture<Ack> sendNodeQueryError(NodeQueryFirstError firstError) {
+    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
+      @Override
+      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_ERROR, firstError, Ack.class);
+      }
+    };
+    manager.runCommand(cmd);
+    return cmd.getFuture();
+  }
+
+  public RpcFuture<Ack> sendNodeQueryProfile(ExecutorQueryProfile profile) {
+    FutureBitCommand<Ack, ProxyConnection> cmd = new FutureBitCommand<Ack, ProxyConnection>() {
+      @Override
+      public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+        connection.sendUnsafe(outcomeListener, RpcType.REQ_NODE_QUERY_PROFILE, profile, Ack.class);
+      }
+    };
+    manager.runCommand(cmd);
+    return cmd.getFuture();
+  }
 }

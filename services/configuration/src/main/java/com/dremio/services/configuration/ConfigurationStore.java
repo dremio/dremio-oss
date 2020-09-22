@@ -15,13 +15,12 @@
  */
 package com.dremio.services.configuration;
 
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
-import com.dremio.service.reflection.store.SchemaSerializer;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.base.Preconditions;
 
@@ -30,9 +29,9 @@ import com.google.common.base.Preconditions;
  */
 public class ConfigurationStore {
   private static final String CONFIG_STORE = "configuration";
-  private final KVStore<String, ConfigurationEntry> store;
+  private final LegacyKVStore<String, ConfigurationEntry> store;
 
-  public ConfigurationStore(final KVStoreProvider storeProvider) {
+  public ConfigurationStore(final LegacyKVStoreProvider storeProvider) {
     Preconditions.checkNotNull(storeProvider, "kvStore provider required");
     store = storeProvider.getStore(ConfigurationStoreCreator.class);
   }
@@ -45,27 +44,22 @@ public class ConfigurationStore {
     return store.get(key);
   }
 
-  /**
-   * Support storage creator.
-   */
-  public static final class ConfigurationStoreCreator implements StoreCreationFunction<KVStore<String, ConfigurationEntry>> {
-    @Override
-    public KVStore<String, ConfigurationEntry> build(StoreBuildingFactory factory) {
-      return factory.<String, ConfigurationEntry>newStore()
-        .name(CONFIG_STORE)
-        .keySerializer(StringSerializer.class)
-        .valueSerializer(ConfigurationEntrySerializer.class)
-        .versionExtractor(ConfigurationEntryVersionExtractor.class)
-        .build();
-    }
+  public void delete(String key) {
+    store.delete(key);
   }
 
   /**
-   * Serializer used for serializing cluster identity.
+   * Support storage creator.
    */
-  private static final class ConfigurationEntrySerializer extends SchemaSerializer<ConfigurationEntry> {
-    ConfigurationEntrySerializer() {
-      super(ConfigurationEntry.getSchema());
+  public static final class ConfigurationStoreCreator implements LegacyKVStoreCreationFunction<String, ConfigurationEntry> {
+    @Override
+    public LegacyKVStore<String, ConfigurationEntry> build(LegacyStoreBuildingFactory factory) {
+      return factory.<String, ConfigurationEntry>newStore()
+        .name(CONFIG_STORE)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtostuff(ConfigurationEntry.class))
+        .versionExtractor(ConfigurationEntryVersionExtractor.class)
+        .build();
     }
   }
 

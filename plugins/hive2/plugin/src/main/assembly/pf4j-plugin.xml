@@ -50,9 +50,6 @@
       <unpack>true</unpack>
       <unpackOptions>
         <excludes>
-          <!-- Omit the VersionInfo from hbase-common and use the VersionInfo implemented in the shim -->
-          <exclude>org/apache/hadoop/hbase/util/VersionInfo.class</exclude>
-
           <!-- Omit Hadoop ByteBufferUtil in favor of Dremio one within Hive 2.x Plugin -->
           <exclude>org/apache/hadoop/fs/ByteBufferUtil.class</exclude>
 

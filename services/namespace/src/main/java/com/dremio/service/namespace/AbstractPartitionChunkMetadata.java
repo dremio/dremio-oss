@@ -21,6 +21,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 
 /**
@@ -91,4 +92,8 @@ public abstract class AbstractPartitionChunkMetadata implements PartitionChunkMe
     return normalizedPartitionInfo;
   }
 
+  @VisibleForTesting
+  boolean hasDatasetSplit() {
+    return partitionChunk.hasDatasetSplit();
+  }
 }

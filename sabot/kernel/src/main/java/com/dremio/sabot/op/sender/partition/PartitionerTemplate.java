@@ -28,7 +28,7 @@ import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.expression.BasePath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.sig.RuntimeOverridden;
 import com.dremio.exec.exception.SchemaChangeException;
@@ -274,10 +274,10 @@ public abstract class PartitionerTemplate implements Partitioner {
     }
 
     @RuntimeOverridden
-    protected void doSetup(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing) {};
+    protected void doSetup(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing) {}
 
     @RuntimeOverridden
-    protected void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex) { };
+    protected void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex) { }
 
     public void sendTermination() {
       final FragmentHandle handle = context.getFragmentHandle();
@@ -389,7 +389,7 @@ public abstract class PartitionerTemplate implements Partitioner {
     }
 
     @Override
-    public TypedFieldId getValueVectorId(SchemaPath path) {
+    public TypedFieldId getValueVectorId(BasePath path) {
       return vectorContainer.getValueVectorId(path);
     }
 

@@ -18,15 +18,21 @@ package com.dremio;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Lists;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @Test
   public void testConcatWithMoreThanTwoArgs() throws Exception {
     final String query = "select concat(r_name, r_name, r_name, 'f') as col \n" +
@@ -46,6 +52,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testRow_NumberInView() throws Exception {
     try {
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
       test("use dfs_test;");
       final String view1 =
           "create view TestFunctionsWithTypeExpoQueries_testViewShield1 as \n" +
@@ -73,6 +80,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
     } finally {
       test("drop view TestFunctionsWithTypeExpoQueries_testViewShield1;");
       test("drop view TestFunctionsWithTypeExpoQueries_testViewShield2;");
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     }
   }
 

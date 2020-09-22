@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
@@ -33,7 +34,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.protobuf.ByteString;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 public class FragmentWritableBatch{

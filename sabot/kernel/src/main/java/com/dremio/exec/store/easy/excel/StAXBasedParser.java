@@ -31,6 +31,7 @@ import java.util.Map;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.poi.openxml4j.opc.OPCPackage;
@@ -52,8 +53,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Implements cursor based streaming XML parser for reading an excel sheet.
@@ -472,7 +471,7 @@ public class StAXBasedParser implements ExcelParser {
         case VARCHAR:
           indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
           final byte[] b = value.getBytes(Charsets.UTF_8);
-          FieldSizeLimitExceptionHelper.checkReadSizeLimit(b.length, maxCellSize, currentColumnIndex, logger);
+          FieldSizeLimitExceptionHelper.checkSizeLimit(b.length, maxCellSize, currentColumnIndex, logger);
 
           managedBuf = managedBuf.reallocIfNeeded(b.length);
           managedBuf.setBytes(0, b);

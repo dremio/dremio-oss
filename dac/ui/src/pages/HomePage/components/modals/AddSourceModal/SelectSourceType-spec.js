@@ -15,49 +15,53 @@
  */
 import { shallow } from 'enzyme';
 
+import {sourceProperties, isExternalSourceType, isDatalakeTableSourceType} from '@app/constants/sourceTypes';
+import { expect } from 'chai';
 import SelectSourceType from './SelectSourceType';
-
-const SOURCE_LIST = [
-  {'label': 'Amazon Redshift', 'sourceType': 'REDSHIFT', 'tags': ['beta']},
-  {'label': 'Amazon S3', 'sourceType': 'S3', 'tags': ['beta']},
-  {'label': 'Elasticsearch', 'sourceType': 'ELASTIC'},
-  {'label': 'HBase', 'sourceType': 'HBASE', 'tags': ['beta']},
-  {'label': 'HDFS', 'sourceType': 'HDFS'},
-  {'label': 'Hive', 'sourceType': 'HIVE'},
-  {'label': 'MapR-FS', 'sourceType': 'MAPRFS'},
-  {'label': 'Microsoft SQL Server', 'sourceType': 'MSSQL'},
-  {'label': 'MongoDB', 'sourceType': 'MONGO', 'tags': ['beta']},
-  {'label': 'MySQL', 'sourceType': 'MYSQL'},
-  {'label': 'NAS', 'sourceType': 'NAS'},
-  {'label': 'Oracle', 'sourceType': 'ORACLE'},
-  {'label': 'PostgreSQL', 'sourceType': 'POSTGRES', 'tags': ['beta']},
-  {'label': 'Azure Data Lake Store', 'sourceType': 'ADL', 'tags': ['beta']}
-];
-
 
 describe('SelectSourceType', () => {
 
   let minimalProps;
   let commonProps;
-  let wrapper;
   beforeEach(() => {
     minimalProps = {
       onSelectSource: sinon.spy(),
       onAddSampleSource: sinon.spy(),
-      sourceTypes: SOURCE_LIST
+      sourceTypes: sourceProperties
     };
     commonProps = {
       ...minimalProps
     };
-    wrapper = shallow(<SelectSourceType {...commonProps}/>);
   });
 
   it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<SelectSourceType {...minimalProps}/>);
+    const wrapper = shallow(<SelectSourceType {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render SelectConnectionButton for each sourceType', () => {
-    expect(wrapper.find('SelectConnectionButton')).to.have.length(SOURCE_LIST.length + 1);
+  it('should render SelectConnectionButton for each external source', () => {
+    const externalSources = sourceProperties.filter(source => isExternalSourceType(source.sourceType));
+    const wrapper = shallow(<SelectSourceType {...commonProps} isExternalSource/>);
+    expect(wrapper.find('SelectConnectionButton')).to.have.length(externalSources.length);
   });
+
+  it('should render two sections for data lake list', () => {
+    const wrapper = shallow(<SelectSourceType {...commonProps}/>);
+    expect(wrapper.find('.source-type-section')).to.have.length(2);
+  });
+
+  it('should render SelectConnectionButton for each data lake file store source + sample source', () => {
+    const wrapper = shallow(<SelectSourceType {...commonProps}/>);
+    const fileStoreSources = sourceProperties.filter(source => !isExternalSourceType(source.sourceType) && !isDatalakeTableSourceType(source.sourceType));
+    // The "+ 1" is for the sample source.  Using last-child as file stores show up on bottom.
+    expect(wrapper.find('.source-type-section:last-child SelectConnectionButton')).to.have.length(fileStoreSources.length + 1);
+  });
+
+  it('should render SelectConnectionButton for each data lake table store source', () => {
+    const wrapper = shallow(<SelectSourceType {...commonProps}/>);
+    const tableSources = sourceProperties.filter(source => isDatalakeTableSourceType(source.sourceType));
+    // Using first-child as table stores show up on top.
+    expect(wrapper.find('.source-type-section:first-child SelectConnectionButton')).to.have.length(tableSources.length);
+  });
+
 });

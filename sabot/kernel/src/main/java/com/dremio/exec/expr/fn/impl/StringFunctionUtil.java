@@ -21,9 +21,10 @@ import static com.dremio.common.util.DremioStringUtils.toBinaryFromHex;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 public class StringFunctionUtil {

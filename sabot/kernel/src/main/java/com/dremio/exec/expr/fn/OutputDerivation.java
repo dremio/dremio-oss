@@ -16,6 +16,7 @@
 package com.dremio.exec.expr.fn;
 
 import static com.dremio.exec.expr.fn.DerivationShortcuts.prec;
+import static com.dremio.exec.expr.fn.DerivationShortcuts.scale;
 import static com.dremio.exec.expr.fn.DerivationShortcuts.val;
 
 import java.util.List;
@@ -30,11 +31,15 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
+import com.google.common.base.Preconditions;
 
 public interface OutputDerivation {
   OutputDerivation DECIMAL_MAX = new DecimalMax();
   OutputDerivation DECIMAL_ZERO_SCALE = new DecimalZeroScale();
-  OutputDerivation DECIMAL_SET_SCALE = new DecimalSetScale();
+  OutputDerivation DECIMAL_ZERO_SCALE_ROUND = new DecimalZeroScaleRound();
+  OutputDerivation DECIMAL_ZERO_SCALE_TRUNCATE = new DecimalZeroScaleTruncate();
+  OutputDerivation DECIMAL_SET_SCALE_ROUND = new DecimalSetScaleRound();
+  OutputDerivation DECIMAL_SET_SCALE_TRUNCATE = new DecimalSetScaleTruncate();
   OutputDerivation DECIMAL_UNION = new DecimalUnion();
   OutputDerivation DECIMAL_CAST = new DecimalCast();
 
@@ -44,6 +49,7 @@ public interface OutputDerivation {
   OutputDerivation DECIMAL_DIVIDE = new DecimalDivide();
   OutputDerivation DECIMAL_MOD =
     ((base, args) -> DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args));
+
 
   CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args);
 
@@ -122,21 +128,79 @@ public interface OutputDerivation {
   /* Used by functions like round, truncate which specify the scale for
    * the output as the second argument
    */
-  class DecimalSetScale implements OutputDerivation {
+  class DecimalSetScaleTruncate implements OutputDerivation {
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       assert (args.size() == 2) && (args.get(1) instanceof ValueExpressions.IntExpression);
-
-
-      final int precision = prec(args.get(0));
       // Get the scale from the second argument which should be a constant
       int scale = val(args.get(1));
-      if (scale < 0) {
-        // -ve scale has special semantics in round/truncate fns.
-        scale = 0;
-      }
-
-      return CompleteType.fromDecimalPrecisionScale(precision, scale);
+      ArrowType.Decimal type =  getDecimalOutputTypeForTruncate(prec(args.get(0)),
+        scale(args.get(0)), scale);
+      return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
     }
+  }
+
+  class DecimalSetScaleRound implements OutputDerivation {
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      assert (args.size() == 2) && (args.get(1) instanceof ValueExpressions.IntExpression);
+      // Get the scale from the second argument which should be a constant
+      int scale = val(args.get(1));
+      ArrowType.Decimal type =  getDecimalOutputTypeForRound(prec(args.get(0)),
+        scale(args.get(0)), scale);
+      return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
+    }
+  }
+
+  class DecimalZeroScaleRound implements OutputDerivation {
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      ArrowType.Decimal type =  getDecimalOutputTypeForRound(prec(args.get(0)),
+        scale(args.get(0)), 0);
+      return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
+    }
+  }
+
+  class DecimalZeroScaleTruncate implements OutputDerivation {
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      ArrowType.Decimal type =  getDecimalOutputTypeForTruncate(prec(args.get(0)),
+        scale(args.get(0)), 0);
+      return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
+    }
+  }
+
+  static ArrowType.Decimal getDecimalOutputTypeForTruncate(int arg1Precision, int arg1Scale,
+                                                           int destinationScale) {
+    int finalScale = Math.min(arg1Scale, destinationScale);
+    if (finalScale < 0) {
+      // -ve scale has special semantics in round/truncate fns.
+      finalScale = 0;
+    }
+    Preconditions.checkState(arg1Scale >= finalScale,
+      "Final scale " + finalScale+" cannot be greater than " +
+      "original scale of argument : " + arg1Scale);
+
+    int finalPrecision = arg1Precision - (arg1Scale - finalScale);
+    if (finalPrecision == 0) {
+      finalPrecision = 1;
+    }
+    return new ArrowType.Decimal(finalPrecision, finalScale);
+  }
+
+  static ArrowType.Decimal getDecimalOutputTypeForRound(int arg1Precision, int arg1Scale,
+                                                        int destinationScale) {
+    int finalScale = Math.min(arg1Scale, destinationScale);
+    if (finalScale < 0) {
+      // -ve scale has special semantics in round/truncate fns.
+      finalScale = 0;
+    }
+    Preconditions.checkState(arg1Scale >= finalScale,
+      "Final scale " + finalScale+" cannot be greater than " +
+        "original scale of argument : " + arg1Scale);
+
+    int finalPrecision = arg1Precision - (arg1Scale - finalScale);
+    if (finalScale < arg1Scale) {
+      finalPrecision++;
+    }
+
+    return new ArrowType.Decimal(finalPrecision, finalScale);
   }
 
   /*
@@ -256,4 +320,5 @@ public interface OutputDerivation {
       return DecimalGandivaBinaryOutput.getOutputType(OperationType.MOD, args);
     }
   }
+
 }

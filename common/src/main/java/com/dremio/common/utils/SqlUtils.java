@@ -66,7 +66,7 @@ public class SqlUtils {
   private static final CharMatcher NEWLINE_MATCHER = CharMatcher.anyOf("\n\r").precomputed();
 
   /** list of reserved keywords in parser */
-  private static final ImmutableSet<String> RESERVED_SQL_KEYWORDS;
+  public static ImmutableSet<String> RESERVED_SQL_KEYWORDS;
 
   static {
     URL parserListPath = null;

@@ -22,27 +22,30 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
   <name>Storage Plugins - Hive 2.x Plugin</name>
 
   <properties>
-    <dremio.plugins.path>pf4j-bundles</dremio.plugins.path>
+    <dremio.plugins.path>${project.build.directory}/pf4j-bundles</dremio.plugins.path>
+
     <test.source.dir>${project.build.directory}/generated-test-sources</test.source.dir>
 
-    <azure-storage.version>8.3.0</azure-storage.version>
-    <azure-datalake.version>2.3.3-201901300025380807-2bdda72</azure-datalake.version>
-    <hadoop-azure.version>2.8.5-dremio-r2-154a6398c1949158585a5f60549b3bb99789976a</hadoop-azure.version>
-    <hadoop-azure-datalake.version>2.8.3</hadoop-azure-datalake.version>
-    <aws-sdk.version>1.11.156</aws-sdk.version>
-    <hadoop.version>2.8.3</hadoop.version>
-    <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
-      specific variants of the Apache Hive 1.2. If the version is changed, make
-      sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
-    <hbase.version>1.1.3</hbase.version>
+    <azure-storage.version>${plugin.hive2.azure-storage.version}</azure-storage.version>
+    <azure-datalake.version>${plugin.hive2.azure-datalake.version}</azure-datalake.version>
+    <hadoop-azure.version>${plugin.hive2.hadoop-azure.version}</hadoop-azure.version>
+    <hadoop-azure-datalake.version>${plugin.hive2.hadoop-azure-datalake.version}</hadoop-azure-datalake.version>
+    <aws-sdk.version>${plugin.hive2.aws-sdk.version}</aws-sdk.version>
+    <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
+    <hive.version>${plugin.hive2.hive.version}</hive.version>
+    <hbase.version>${plugin.hive2.hbase.version}</hbase.version>
+    <datanucleus-api-jdo.version>${plugin.hive2.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
+    <datanucleus-core.version>${plugin.hive2.datanucleus-core.version}</datanucleus-core.version>
+    <datanucleus-rdbms.version>${plugin.hive2.datanucleus-rdbms.version}</datanucleus-rdbms.version>
+    <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
+    <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
   </properties>
 
   <dependencies>
@@ -51,6 +54,14 @@
       <groupId>com.dremio.contrib</groupId>
       <artifactId>dremio-hive2-exec-shaded</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.carrotsearch</groupId>
+      <artifactId>hppc</artifactId>
     </dependency>
     <dependency>
       <groupId>com.github.slugify</groupId>
@@ -457,6 +468,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-client</artifactId>
+      <version>${hbase.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-hbase-handler</artifactId>
       <version>${hive.version}</version>
@@ -550,61 +566,10 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-metastore</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-serde</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-shims</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.derby</groupId>
-          <artifactId>derby</artifactId>
-        </exclusion>
-
-        <exclusion>
-          <artifactId>netty-all</artifactId>
-          <groupId>io.netty</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-api</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-core</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-hbase-compat-1.0</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
+      <!--
+           hbase-server actually needed as it also contains hadoop mapreduce input/output format
+           required to read data
+      -->
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
       <version>${hbase.version}</version>
@@ -778,14 +743,6 @@
           <artifactId>commons-collections</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-hadoop-compat</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-hadoop2-compat</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.apache.htrace</groupId>
           <artifactId>htrace-core</artifactId>
         </exclusion>
@@ -814,11 +771,6 @@
       <version>2.7.2</version>
     </dependency>
     <!-- Most dependencies should only be provided or for tests-only -->
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <scope>provided</scope>
-    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
@@ -947,7 +899,7 @@
     <dependency>
       <groupId>org.pf4j</groupId>
       <artifactId>pf4j</artifactId>
-      <version>3.0.1</version>
+      <version>${pf4j.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -955,6 +907,102 @@
       <artifactId>slf4j-api</artifactId>
       <version>${slf4j.version}</version>
       <scope>provided</scope>
+    </dependency>
+    <!-- Needed to run metastore -->
+    <dependency>
+      <groupId>javax.jdo</groupId>
+      <artifactId>jdo-api</artifactId>
+      <version>${jdo-api.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-api-jdo</artifactId>
+      <version>${datanucleus-api-jdo.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-core</artifactId>
+      <version>${datanucleus-core.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-rdbms</artifactId>
+      <version>${datanucleus-rdbms.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>javax.jdo</artifactId>
+      <version>${datanucleus-jdo.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
+      <version>${hadoop.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-1.2-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j-impl</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j</artifactId>
+          <groupId>log4j</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-backend</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish</groupId>
+          <artifactId>javax.el</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-backend</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish</groupId>
+          <artifactId>javax.el</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -986,12 +1034,14 @@
                     <include>**/*.*</include>
                   </includes>
                   <excludes>
-                    <exclude>**/Hive2StoragePluginConfig.java</exclude>
+                    <exclude>**/main/assembly</exclude>
+                    <exclude>**/main/checkstyle</exclude>
+                    <!-- HivePluginOptions is part of the Hive 2 launcher -->
                     <exclude>**/HivePluginOptions.java</exclude>
                   </excludes>
                 </resource>
                 <resource>
-                  <directory>${project.basedir}/../../../common/src/main</directory>
+                  <directory>${project.basedir}/../../../sabot/kernel/src/main</directory>
                   <includes>
                     <include>**/ByteBufferUtil.java</include>
                   </includes>
@@ -1013,24 +1063,9 @@
                   <includes>
                     <include>**/*.*</include>
                   </includes>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-pf4j-resources</id>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/${dremio.plugins.path}/connectors</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>${project.build.directory}</directory>
-                  <includes>
-                    <include>${project.build.finalName}.jar</include>
-                  </includes>
+                  <excludes>
+                    <exclude>**/Hive2StoragePluginConfig.java</exclude>
+                  </excludes>
                 </resource>
               </resources>
             </configuration>
@@ -1072,6 +1107,26 @@
                 </resource>
               </resources>
               <outputDirectory>${project.build.directory}/test-classes/</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>link-pf4j-resources</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>sh</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>mkdir -p ${dremio.plugins.path}/connectors &amp;&amp; ln -sf ${project.build.directory}/${project.build.finalName}.jar ${dremio.plugins.path}/connectors</argument>
+              </arguments>
             </configuration>
           </execution>
         </executions>
@@ -1132,6 +1187,7 @@
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/src/main/java</source>
+                <source>${project.build.directory}/generated-sources/src/main/hive2</source>
                 <source>${project.build.directory}/generated-sources/fmpp</source>
                 <source>${project.build.directory}/generated-sources/protobuf</source>
               </sources>
@@ -1146,6 +1202,7 @@
             <configuration>
               <sources>
                 <source>${test.source.dir}/java</source>
+                <source>${test.source.dir}/hive2</source>
               </sources>
             </configuration>
           </execution>
@@ -1233,10 +1290,11 @@
           <argLine>
             -Xms512M
             -Xmx3G
+            -Xss2048k
             -XX:MaxDirectMemorySize=5120M
             -XX:+CMSClassUnloadingEnabled
-            -Ddremio.plugins.path=${project.build.directory}/${dremio.plugins.path}
-            ${surefire.extra.argLine}
+            -Ddremio.plugins.path=${dremio.plugins.path}
+            @{argLine}
           </argLine>
 
 
@@ -1260,69 +1318,17 @@
         </property>
       </activation>
       <dependencies>
-      <dependency>
-        <groupId>com.amazonaws.glue</groupId>
-        <artifactId>aws-glue-datacatalog-hive2-client</artifactId>
-        <version>1.10.0-201909182150580144-c83f2cb</version>
-      </dependency>      
-      <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-mapreduce-client-app</artifactId>
-          <version>${hadoop.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-glue</artifactId>
         </dependency>
         <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-yarn-server-common</artifactId>
-          <version>${hadoop.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-minicluster</artifactId>
-          <version>${hadoop.version}</version>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>commons-logging</groupId>
-              <artifactId>commons-logging</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>javax.servlet</groupId>
-              <artifactId>servlet-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>log4j-1.2-api</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.logging.log4j</groupId>
-              <artifactId>log4j-slf4j-impl</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-log4j12</artifactId>
-            </exclusion>
-            <exclusion>
-              <artifactId>log4j</artifactId>
-              <groupId>log4j</groupId>
-            </exclusion>
-          </exclusions>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-sts</artifactId>
         </dependency>
         <dependency>
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-kms</artifactId>
-          <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
@@ -1408,16 +1414,46 @@
           <name>mapr</name>
         </property>
       </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <excludes>
+                <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsFactory.java</exclude>
+                <exclude>com/dremio/plugins/s3/store/STSCredentialProviderV1.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
       <properties>
-        <hadoop.version>2.7.0-mapr-1803</hadoop.version>
-        <hive.version>2.1.1-mapr-1803-201908200826380359-c333a66</hive.version>
-        <maprfs.version>6.0.1-mapr-client-dremio-20190717</maprfs.version>
+        <hadoop.version>${plugin.hive2.mapr.hadoop.version}</hadoop.version>
+        <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>
+        <maprfs.version>${plugin.hive2.mapr.maprfs.version}</maprfs.version>
       </properties>
       <dependencies>
         <dependency>
-          <groupId>com.mapr.hadoop</groupId>
-          <artifactId>maprfs</artifactId>
-          <version>6.0.1-mapr-client-dremio-20190717</version>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-azure</artifactId>
+          <scope>compile</scope>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.contrib</groupId>
+          <artifactId>dremio-maprfs-shaded</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>com.mapr.hadoop</groupId>
+              <artifactId>maprfs</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.google.protobuf</groupId>
+              <artifactId>protobuf-java</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>

@@ -21,7 +21,7 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * SplayTree held in a single block of memory. Structure is follows:

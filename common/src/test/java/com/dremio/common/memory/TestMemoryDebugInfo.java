@@ -18,6 +18,7 @@ package com.dremio.common.memory;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.Rule;
@@ -26,8 +27,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestMemoryDebugInfo extends DremioTest {
 

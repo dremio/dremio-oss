@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.explore.model;
 
+import static com.dremio.common.utils.PathUtils.encodeURIComponent;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,7 +143,8 @@ public class Dataset implements AddressableResource {
     Map<String, String> links = new HashMap<>();
     links.put("self", datasetPath.toUrlPath());
     links.put("query", datasetPath.getQueryUrlPath());
-    links.put("edit", links.get("query") + "?mode=edit&version=" + datasetVersion);
+    links.put("edit", links.get("query") + "?mode=edit&version="
+      + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
     final JobFilters jobFilters = new JobFilters()
       .addFilter(JobIndexKeys.ALL_DATASETS, datasetPath.toString())
       .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);

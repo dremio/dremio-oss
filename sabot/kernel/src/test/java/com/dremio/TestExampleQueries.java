@@ -29,17 +29,20 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestExampleQueries extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
@@ -47,9 +50,13 @@ public class TestExampleQueries extends PlanTestBase {
   final String WORKING_PATH = TestTools.getWorkingPath();
   final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
 
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @Before
   public void setupOptions() throws Exception {
     testNoResult("ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
   }
 
   @After
@@ -238,6 +245,74 @@ public class TestExampleQueries extends PlanTestBase {
   @Test
   public void manyInList() throws Exception {
     test("select * from cp.\"tpch/lineitem.parquet\" where l_returnflag in ('a','b','c','d','e','f','g','h','i','j') or l_returnflag != 'x' limit 10");
+  }
+
+  // DX-22772
+  @Test
+  public void testGroupbyWithManyVarcharColumns() throws Exception {
+    test("select max(l_quantity) from cp.\"tpch/lineitem" +
+      ".parquet\" group by l_returnflag, " +
+      "concat(l_returnflag, '00'), " +
+      "concat(l_returnflag, '01'), " +
+      "concat(l_returnflag, '02'), " +
+      "concat(l_returnflag, '03'), " +
+      "concat(l_returnflag, '04'), " +
+      "concat(l_returnflag, '05'), " +
+      "concat(l_returnflag, '06'), " +
+      "concat(l_returnflag, '07'), " +
+      "concat(l_returnflag, '08'), " +
+      "concat(l_returnflag, '09'), " +
+      "concat(l_returnflag, '00'), " +
+      "concat(l_returnflag, '11'), " +
+      "concat(l_returnflag, '12'), " +
+      "concat(l_returnflag, '13'), " +
+      "concat(l_returnflag, '14'), " +
+      "concat(l_returnflag, '15'), " +
+      "concat(l_returnflag, '16'), " +
+      "concat(l_returnflag, '17'), " +
+      "concat(l_returnflag, '18'), " +
+      "concat(l_returnflag, '19'), " +
+      "concat(l_returnflag, '20'), " +
+      "concat(l_returnflag, '21'), " +
+      "concat(l_returnflag, '22'), " +
+      "concat(l_returnflag, '23'), " +
+      "concat(l_returnflag, '24'), " +
+      "concat(l_returnflag, '25'), " +
+      "concat(l_returnflag, '26')" +
+      "");
+  }
+
+  @Test
+  public void testGroupbyWithManyFixedColumns() throws Exception {
+    test("select max(l_quantity) from cp.\"tpch/lineitem" +
+      ".parquet\" group by l_discount, " +
+      "l_discount + 1, " +
+      "l_discount + 2, " +
+      "l_discount + 3, " +
+      "l_discount + 4, " +
+      "l_discount + 5, " +
+      "l_discount + 6, " +
+      "l_discount + 7, " +
+      "l_discount + 8, " +
+      "l_discount + 9, " +
+      "l_discount + 10, " +
+      "l_discount + 11, " +
+      "l_discount + 12, " +
+      "l_discount + 13, " +
+      "l_discount + 14, " +
+      "l_discount + 15, " +
+      "l_discount + 16, " +
+      "l_discount + 17, " +
+      "l_discount + 18, " +
+      "l_discount + 19, " +
+      "l_discount + 20, " +
+      "l_discount + 21, " +
+      "l_discount + 22, " +
+      "l_discount + 23, " +
+      "l_discount + 24, " +
+      "l_discount + 25, " +
+      "l_discount + 26" +
+      "");
   }
 
 
@@ -471,6 +546,28 @@ public class TestExampleQueries extends PlanTestBase {
         "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[.?SUM.?\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
         "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=(?:\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]|\\[\\/\\(CAST\\(CASE\\(\\=\\(\\$3, 0\\), null, \\$2\\)\\)\\:DOUBLE, \\$3\\)\\])\\)" },
         null);
+  }
+
+  @Test
+  public void testLocate() throws Exception {
+    try {
+      test("use dfs_test");
+      test("create view locateview as (select * from cp.\"customer.json\" where customer_id < 5);");
+
+
+      testBuilder()
+        .sqlQuery("select locate('Spence', lname, 1) as A from locateview")
+        .ordered()
+        .baselineColumns("A")
+        .baselineValues(0)
+        .baselineValues(0)
+        .baselineValues(0)
+        .baselineValues(1)
+        .build().run();
+
+    } finally {
+      test("drop view locateview;");
+    }
   }
 
   @Test // see DRILL-2328

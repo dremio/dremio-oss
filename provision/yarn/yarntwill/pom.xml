@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -32,16 +32,37 @@
 
   <profiles>
     <profile>
-      <id>default</id>
-    </profile>
-    <profile>
       <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
       <dependencies>
-         <dependency>
-           <groupId>com.dremio.provision</groupId>
-           <artifactId>dremio-shimloader</artifactId>
-           <version>${project.version}</version>
-         </dependency>
+        <!-- Not needed to compile but MapR-FS require those jars
+             to be configured specifically in the Yarn app classpath -->
+        <dependency>
+          <groupId>com.dremio.contrib</groupId>
+          <artifactId>dremio-maprfs-shaded</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>com.mapr.hadoop</groupId>
+              <artifactId>maprfs</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.google.protobuf</groupId>
+              <artifactId>protobuf-java</artifactId>
+            </exclusion>
+          </exclusions>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.provision</groupId>
+          <artifactId>dremio-shimloader</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+        </dependency>
       </dependencies>
     </profile>
   </profiles>

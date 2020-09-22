@@ -16,7 +16,10 @@
 package com.dremio.datastore;
 
 import java.util.List;
-import java.util.Map.Entry;
+
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.KVStore;
 
 /**
  * Noop KVStore, shouldn't ever be accessed.
@@ -29,7 +32,7 @@ public class NoopKVStore<K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public V get(K key) {
+  public Document<K, V> get(K key, GetOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
@@ -39,38 +42,38 @@ public class NoopKVStore<K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public List<V> get(List<K> keys) {
+  public List<Document<K, V>> get(List<K> keys, GetOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
   @Override
-  public void put(K key, V value) {
+  public Document<K, V> put(K key, V value, PutOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
   @Override
-  public boolean contains(K key) {
+  public boolean contains(K key, ContainsOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
   @Override
-  public void delete(K key) {
+  public void delete(K key, DeleteOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
   @Override
-  public Iterable<Entry<K, V>> find(FindByRange<K> find) {
+  public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
   @Override
-  public Iterable<Entry<K, V>> find() {
+  public Iterable<Document<K, V>> find(FindOption ... options) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 
   @Override
-  public void delete(K key, String previousVersion) {
-    throw new UnsupportedOperationException("Operation unsupported on this type of node.");
+  public String getName() {
+    return "NoopKVStore";
   }
 
 }

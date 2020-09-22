@@ -42,7 +42,7 @@ public class TestMultiNodeSupportService extends BaseTestServer {
   @ClassRule
   public static final TemporarySystemProperties properties = new TemporarySystemProperties();
 
-  @BeforeClass
+  @BeforeClass // same signature to shadow parent's #init
   public static void init() throws Exception {
     // set the log path so we can read logs and confirm that is working.
     final File jsonFolder = temp.newFolder("json");
@@ -50,6 +50,7 @@ public class TestMultiNodeSupportService extends BaseTestServer {
     Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
     System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
     System.setProperty("dremio_multinode", "true");
+    System.setProperty("dremio.service.jobs.over_socket", "true");
 
     // now start server.
     BaseTestServer.init();

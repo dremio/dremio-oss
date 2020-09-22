@@ -15,13 +15,13 @@
  */
 package com.dremio.common.map;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 /**
  * A special type of {@link Map} with {@link String}s as keys, and the case of a key is ignored for operations involving

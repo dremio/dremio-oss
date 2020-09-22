@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
@@ -69,7 +70,7 @@ import com.google.common.collect.Maps;
 
 /**
  * FileSystemWrapper is the wrapper around the actual FileSystem implementation.
- *
+ * <p>
  * If {@link com.dremio.sabot.exec.context.OperatorStats} are provided it returns an instrumented FSDataInputStream to
  * measure IO wait time and tracking file open/close operations.
  */
@@ -101,6 +102,19 @@ public class HadoopFileSystem
     return get(fs, null, enableAsync);
   }
 
+  public static FileSystem get(URI uri, Iterator<Map.Entry<String, String>> conf,
+                               boolean enableAsync) throws IOException {
+    // we are passing the conf as map<string,string> to work around
+    // Configuration objects being loaded by different class loaders.
+    Configuration fsConf = new Configuration();
+    while (conf.hasNext()) {
+      Map.Entry<String, String> property = conf.next();
+      fsConf.set(property.getKey(), property.getValue());
+    }
+    org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(uri, fsConf);
+    return get(fs, null, enableAsync);
+  }
+
   public static FileSystem get(Path path, Configuration fsConf) throws IOException {
     org.apache.hadoop.fs.FileSystem fs = toHadoopPath(path).getFileSystem(fsConf);
     return get(fs);
@@ -121,7 +135,7 @@ public class HadoopFileSystem
     return get(fs);
   }
 
-  public static HadoopFileSystem get(org.apache.hadoop.fs.FileSystem fs)  {
+  public static HadoopFileSystem get(org.apache.hadoop.fs.FileSystem fs) {
     return get(fs, null, false);
   }
 
@@ -178,7 +192,7 @@ public class HadoopFileSystem
   @Override
   public FSInputStream open(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats);
+      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats, true);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -192,7 +206,7 @@ public class HadoopFileSystem
   @Override
   public FSOutputStream create(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f)));
+      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f)), f.toString());
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -201,10 +215,10 @@ public class HadoopFileSystem
   @Override
   public FSOutputStream create(Path f, boolean overwrite) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f), overwrite));
+      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f), overwrite), f.toString());
     } catch(FSError e) {
       throw propagateFSError(e);
-    } catch(FileAlreadyExistsException e) {
+    } catch (FileAlreadyExistsException e) {
       throw new java.nio.file.FileAlreadyExistsException(e.getMessage());
     }
   }
@@ -218,7 +232,7 @@ public class HadoopFileSystem
         throw new FileNotFoundException("File " + f + " does not exist");
       }
       return new FileStatusWrapper(result);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -227,7 +241,7 @@ public class HadoopFileSystem
   public void setPermission(Path p, Set<PosixFilePermission> permissions) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setPermission(toHadoopPath(p), toFsPermission(permissions));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -235,7 +249,7 @@ public class HadoopFileSystem
   @Override
   @SuppressWarnings("unchecked")
   public <T> T unwrap(Class<T> clazz) {
-    if(clazz.isAssignableFrom(underlyingFs.getClass())) {
+    if (clazz.isAssignableFrom(underlyingFs.getClass())) {
       return (T) underlyingFs;
     }
 
@@ -246,7 +260,7 @@ public class HadoopFileSystem
   public boolean mkdirs(Path f, Set<PosixFilePermission> permissions) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.mkdirs(toHadoopPath(f), toFsPermission(permissions));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -258,7 +272,7 @@ public class HadoopFileSystem
         final StringBuffer errMsgBuilder = new StringBuffer();
 
         errMsgBuilder.append(String.format("Not all files opened using this FileSystem are closed. " + "There are" +
-            " still [%d] files open.\n", openedFiles.size()));
+          " still [%d] files open.\n", openedFiles.size()));
 
         for (DebugStackTrace stackTrace : openedFiles.values()) {
           stackTrace.addToStringBuilder(errMsgBuilder);
@@ -281,7 +295,7 @@ public class HadoopFileSystem
         throw new IOException("The specified folder path exists and is not a folder.");
       }
       return false;
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -290,7 +304,7 @@ public class HadoopFileSystem
   public DirectoryStream<FileAttributes> list(Path f) throws FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f)));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -299,17 +313,17 @@ public class HadoopFileSystem
   public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter) throws FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
 
   @Override
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
-      throws FileNotFoundException, IOException {
+    throws FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return new ArrayDirectoryStream(underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter)));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -318,7 +332,7 @@ public class HadoopFileSystem
   public boolean rename(Path src, Path dst) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.rename(toHadoopPath(src), toHadoopPath(dst));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -327,7 +341,7 @@ public class HadoopFileSystem
   public boolean delete(Path f, boolean recursive) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.delete(toHadoopPath(f), recursive);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -342,7 +356,7 @@ public class HadoopFileSystem
         forceRefresh(f);
         exists = underlyingFs.exists(p);
       }
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
     return exists;
@@ -358,7 +372,7 @@ public class HadoopFileSystem
         forceRefresh(f);
         exists = underlyingFs.isDirectory(p);
       }
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
     return exists;
@@ -374,7 +388,7 @@ public class HadoopFileSystem
         forceRefresh(f);
         exists = underlyingFs.isFile(p);
       }
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
     return exists;
@@ -398,7 +412,7 @@ public class HadoopFileSystem
     final FileStatus status = ((FileStatusWrapper) file).getFileStatus();
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(status, start, len));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -407,7 +421,7 @@ public class HadoopFileSystem
   public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -416,7 +430,7 @@ public class HadoopFileSystem
   public void access(final Path path, final Set<AccessMode> mode) throws AccessControlException, FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.access(toHadoopPath(path), toFsAction(mode));
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -487,10 +501,9 @@ public class HadoopFileSystem
   /**
    * Canonicalizes a path if supported by the filesystem
    *
-   * @param fs the filesystem to use
+   * @param fs   the filesystem to use
    * @param path the path to canonicalize
    * @return the canonicalized path, or the same path if not supported by the filesystem.
-   *
    * @throws IOException
    */
   public static Path canonicalizePath(org.apache.hadoop.fs.FileSystem fs, Path path) throws IOException {
@@ -504,7 +517,7 @@ public class HadoopFileSystem
         return fromHadoopPath(result);
       }
       return path;
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -513,7 +526,7 @@ public class HadoopFileSystem
   public Path canonicalizePath(Path p) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return canonicalizePath(underlyingFs, p);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }
@@ -536,7 +549,7 @@ public class HadoopFileSystem
 
     if (underlyingFs instanceof MayProvideAsyncStream) {
       return ((MayProvideAsyncStream) underlyingFs).supportsAsync();
-    } else if (isHDFS){
+    } else if (isHDFS) {
       // will use wrapper to emulate async APIs.
       return true;
     } else {
@@ -546,6 +559,10 @@ public class HadoopFileSystem
 
   @Override
   public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+    return getAsyncByteReader(fileKey, operatorStats);
+  }
+
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, OperatorStats operatorStats) throws IOException {
     if (!enableAsync) {
       throw new UnsupportedOperationException();
     }
@@ -555,12 +572,19 @@ public class HadoopFileSystem
       return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
     } else {
       long modificationTime = Long.parseLong(fileKey.getVersion());
-      if (underlyingFs.getFileStatus(path).getModificationTime() > modificationTime) {
+      long actualModificationTime;
+      try (WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        actualModificationTime = underlyingFs.getFileStatus(path).getModificationTime();
+      }
+      if (actualModificationTime > modificationTime) {
         throw new FileNotFoundException("mtime of file has changed " + path);
       }
 
-      // set operatorStats to null so that wait time isn't tracked here.
-      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), underlyingFs.open(path), null);
+      FSDataInputStream is;
+      try (WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        is = underlyingFs.open(path);
+      }
+      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), is, operatorStats, false);
       return new HadoopAsyncByteReader(fileKey.getPath(), inputStream);
     }
   }
@@ -570,8 +594,8 @@ public class HadoopFileSystem
 
     private ArrayDirectoryStream(FileStatus[] statuses) {
       delegate = statuses != null
-          ? ImmutableList.copyOf(Iterables.transform(Arrays.asList(statuses), FileStatusWrapper::new))
-          : Collections.emptyList();
+        ? ImmutableList.copyOf(Iterables.transform(Arrays.asList(statuses), FileStatusWrapper::new))
+        : Collections.emptyList();
     }
 
     @Override
@@ -608,10 +632,10 @@ public class HadoopFileSystem
     }
   }
 
-  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, OperatorStats stats) throws IOException {
-    FSInputStream result = FSDataInputStreamWrapper.of(is);
+  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, OperatorStats stats, boolean recordWaitTimes) throws IOException {
+    FSInputStream result;
     if (stats != null) {
-      result = FSDataInputStreamWithStatsWrapper.of(is, stats);
+      result = FSDataInputStreamWithStatsWrapper.of(is, stats, recordWaitTimes, f.toString());
     } else {
       result = FSDataInputStreamWrapper.of(is);
     }
@@ -628,10 +652,10 @@ public class HadoopFileSystem
     return result;
   }
 
-  FSOutputStream newFSDataOutputStreamWrapper(FSDataOutputStream os) throws IOException {
+  FSOutputStream newFSDataOutputStreamWrapper(FSDataOutputStream os, String path) throws IOException {
     FSOutputStream result = new FSDataOutputStreamWrapper(os);
     if (operatorStats != null) {
-      result = new FSDataOutputStreamWithStatsWrapper(result, operatorStats);
+      result = new FSDataOutputStreamWithStatsWrapper(result, operatorStats, path);
     }
 
     return result;
@@ -639,20 +663,20 @@ public class HadoopFileSystem
 
   @VisibleForTesting
   static FsAction toFsAction(Set<AccessMode> mode) {
-    final char[] perms = new char[] { '-', '-', '-'};
-    for(AccessMode m: mode) {
-      switch(m) {
-      case READ:
-        perms[0] = 'r';
-        break;
+    final char[] perms = new char[]{'-', '-', '-'};
+    for (AccessMode m : mode) {
+      switch (m) {
+        case READ:
+          perms[0] = 'r';
+          break;
 
-      case WRITE:
-        perms[1] = 'w';
-        break;
+        case WRITE:
+          perms[1] = 'w';
+          break;
 
-      case EXECUTE:
-        perms[2] = 'x';
-        break;
+        case EXECUTE:
+          perms[2] = 'x';
+          break;
       }
     }
     return FsAction.getFsAction(new String(perms));
@@ -688,7 +712,7 @@ public class HadoopFileSystem
   private static Iterable<FileBlockLocation> toFileBlockLocations(IOCallable<BlockLocation[]> call) throws IOException {
     final BlockLocation[] blocks = call.call();
     final List<FileBlockLocation> results = new ArrayList<>(blocks.length);
-    for(BlockLocation block: blocks) {
+    for (BlockLocation block : blocks) {
       results.add(new SimpleFileBlockLocation(block.getOffset(), block.getLength(), ImmutableList.copyOf(block.getHosts())));
     }
     return results;

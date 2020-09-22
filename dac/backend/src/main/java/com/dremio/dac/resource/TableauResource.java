@@ -27,16 +27,15 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.ResponseBuilder;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
  * Resource to create tableau exports for a given dataset
@@ -45,17 +44,19 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
-@Path("/tableau/{datasetPath}")
-public class TableauResource {
-  private final NamespaceService namespace;
-  private final DatasetPath datasetPath;
+@Path("/tableau/{datasetId}")
+@Options
+public class TableauResource extends BaseBIToolResource {
+  // Special option for enabling the Tableau TDS endpoint.
+  public static final TypeValidators.BooleanValidator CLIENT_TOOLS_TABLEAU
+    = new TypeValidators.BooleanValidator("client.tools.tableau", false);
 
   @Inject
   public TableauResource(
       NamespaceService namespace,
-      @PathParam("datasetPath") DatasetPath datasetPath) {
-    this.namespace = namespace;
-    this.datasetPath = datasetPath;
+      ProjectOptionManager optionManager,
+      @PathParam("datasetId") String datasetId) {
+    super(namespace, optionManager, datasetId);
   }
 
   /**
@@ -67,24 +68,11 @@ public class TableauResource {
   @GET
   @Produces({APPLICATION_TDS, APPLICATION_TDS_DRILL})
   public Response get(@HeaderParam(HttpHeaders.HOST) String host) throws DatasetNotFoundException, NamespaceException {
-    // make sure path exists
-    DatasetConfig datasetConfig = namespace.getDataset(datasetPath.toNamespaceKey());
+    return getWithHostHelper(host);
+  }
 
-    ResponseBuilder builder =  Response.ok().entity(datasetConfig);
-    if (host == null) {
-      return builder.build();
-    }
-
-    final String hostOnly;
-    int portIndex = host.indexOf(":");
-    if (portIndex == -1) {
-      hostOnly = host;
-    } else {
-      hostOnly = host.substring(0, portIndex);
-    }
-
-    builder.header(WebServer.X_DREMIO_HOSTNAME, hostOnly);
-
-    return builder.build();
+  @Override
+  protected TypeValidators.BooleanValidator getClientToolOption() {
+    return CLIENT_TOOLS_TABLEAU;
   }
 }

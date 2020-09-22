@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.Float4Vector;
@@ -72,7 +73,7 @@ public class ParquetFixedWidthDictionaryReaders {
       recordsReadInThisIteration = Math.min(pageReader.currentPageCount
           - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
       readLengthInBits = recordsReadInThisIteration * dataTypeLengthInBits;
-      readLength = (int) Math.ceil(readLengthInBits / 8.0);
+      readLength = (long) Math.ceil(readLengthInBits / 8.0);
 
       if (usingDictionary) {
         Binary currDictValToWrite = null;
@@ -84,8 +85,8 @@ public class ParquetFixedWidthDictionaryReaders {
         // Set the write Index. The next page that gets read might be a page that does not use dictionary encoding
         // and we will go into the else condition below. The readField method of the parent class requires the
         // writer index to be set correctly.
-        int writerIndex = valueVec.getDataBuffer().writerIndex();
-        valueVec.getDataBuffer().setIndex(0, writerIndex + (int)readLength);
+        long writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, LargeMemoryUtil.checkedCastToInt(writerIndex + readLength));
       } else {
         super.readField(recordsToReadInThisPass);
       }
@@ -168,8 +169,8 @@ public class ParquetFixedWidthDictionaryReaders {
         // writer index to be set correctly.
         readLengthInBits = recordsReadInThisIteration * dataTypeLengthInBits;
         readLength = (int) Math.ceil(readLengthInBits / 8.0);
-        int writerIndex = valueVec.getDataBuffer().writerIndex();
-        valueVec.getDataBuffer().setIndex(0, writerIndex + (int)readLength);
+        long writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, LargeMemoryUtil.checkedCastToInt(writerIndex + readLength));
       } else {
         super.readField(recordsToReadInThisPass);
       }

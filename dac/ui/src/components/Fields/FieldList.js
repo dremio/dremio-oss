@@ -35,11 +35,10 @@ export class AddButton extends Component {
 
   render() {
     const {addItem, style, children} = this.props;
-    const isHovered = Radium.getState(this.state, 'addItem', ':hover');
     const combinedStyle = {':hover': {}, ...styles.addButton, ...style}; // need Radium fakeout
     return <a key='addItem' className='add-item' onClick={addItem} style={combinedStyle}>
       <Art
-        src={`${isHovered ? 'AddHover' : 'Add'}.svg`}
+        src={'AddHover.svg'}
         alt={this.props.intl.formatMessage({id: 'Common.Add'})}
         style={styles.addIcon} />
       {children}
@@ -174,25 +173,25 @@ export default class FieldList extends Component {
 const styles = {
   addButton: {
     paddingTop: 10,
-    marginTop: -5,
     marginBottom: 10,
-    display: 'block',
+    display: 'flex',
     cursor: 'pointer',
     fontWeight: 400,
-    fontSize: 12,
-    color: '#999999'
+    fontSize: '13px',
+    lineHeight: '22px',
+    color: '#333'
   },
   addIcon: {
-    marginBottom: -6,
-    width: 20,
-    height: 20
+    width: 24,
+    height: 24
   },
   removeButton: {
     color: '#999',
     fontSize: '10px',
     cursor: 'pointer',
     width: buttonSize,
-    height: buttonSize
+    height: buttonSize,
+    marginTop: '6px'
   },
   empty: {
     color: '#ccc',

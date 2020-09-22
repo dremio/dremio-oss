@@ -35,8 +35,8 @@ import java.util.Set;
 import org.apache.arrow.flatbuf.Schema;
 
 import com.dremio.common.utils.PathUtils;
-import com.dremio.datastore.KVStoreProvider.DocumentConverter;
-import com.dremio.datastore.KVStoreProvider.DocumentWriter;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
@@ -58,9 +58,9 @@ import io.protostuff.ByteString;
 /**
  * Namespace search indexing. for now only support pds, vds, source and space indexing.
  */
-public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceContainer> {
+public class NamespaceConverter implements DocumentConverter<String, NameSpaceContainer> {
   @Override
-  public void convert(DocumentWriter writer, byte[] key, NameSpaceContainer container) {
+  public void convert(DocumentWriter writer, String key, NameSpaceContainer container) {
     writer.write(NamespaceIndexKeys.ENTITY_TYPE, container.getType().getNumber());
 
     final NamespaceKey nkey = new NamespaceKey(container.getFullPathList());

@@ -32,6 +32,8 @@ public interface Containers {
   int getProvisioningCount();
   int getPendingCount();
   List<Container> getDisconnectedList();
+  List<Container> getPendingList();
+  List<Container> getDecommissioningList();
 
   public static ImmutableContainers.Builder builder() {
     return new ImmutableContainers.Builder();

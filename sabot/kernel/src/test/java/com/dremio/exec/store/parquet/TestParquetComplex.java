@@ -17,8 +17,12 @@ package com.dremio.exec.store.parquet;
 
 import static java.util.Arrays.asList;
 
+import java.math.BigDecimal;
 import java.nio.file.Paths;
 
+import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.apache.arrow.vector.util.Text;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -266,5 +270,233 @@ public class TestParquetComplex extends BaseTestQuery {
   @Test
   public void testZeroRowParquetFile() throws Exception {
     test("select * from cp.\"store/parquet/complex/zero-rows.parquet\" p");
+  }
+
+  @Test
+  public void nestedComplexProjection() throws Exception {
+    String query = "SELECT col2, " +
+      "col1[0][0][0].\"f1\"[0][0][0] f1, " +
+      "col1[0][0][0].\"f2\".\"sub_f1\"[0][0][0] sub_f1, " +
+      "col1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f1\" sub_sub_f1, " +
+      "col1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f2\" sub_sub_f2 " +
+      "FROM cp.\"/parquet/very_complex.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("col2", "f1", "sub_f1", "sub_sub_f1", "sub_sub_f2")
+      .baselineValues(3, 1, 2, 1, "abc")
+      .build()
+      .run();
+  }
+
+  private void filterListsWithNulls(String columnName) throws Exception {
+    String query = "SELECT " +
+      "intcol[2] as intcol, bigintcol[2] as bigintcol, floatcol[2] as floatcol," +
+      "doublecol[2] as doublecol, decimalcol[2] as decimalcol," +
+      "charcol[2] as charcol, varcharcol[2] as varcharcol," +
+      "stringcol[2] as stringcol, datecol[2] as datecol, timestampcol[2] as timestampcol " +
+      "FROM cp.\"/parquet/list_null_test.parquet\" where " + columnName + "[2] is null";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("intcol", "bigintcol", "floatcol", "doublecol", "decimalcol",
+        "charcol", "varcharcol", "stringcol", "datecol", "timestampcol")
+      .baselineValues(null, null, null, null, null, null, null, null, null, null)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testListsWithNulls() throws Exception {
+    String query = "SELECT " +
+      "intcol[2] as intcol, bigintcol[2] as bigintcol, floatcol[2] as floatcol," +
+      "doublecol[2] as doublecol, decimalcol[2] as decimalcol," +
+      "charcol[2] as charcol, varcharcol[2] as varcharcol," +
+      "stringcol[2] as stringcol, datecol[2] as datecol, timestampcol[2] as timestampcol " +
+      "FROM cp.\"/parquet/list_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("intcol", "bigintcol", "floatcol", "doublecol", "decimalcol",
+        "charcol", "varcharcol", "stringcol", "datecol", "timestampcol")
+      .baselineValues(null, null, null, null, null, null, null, null, null, null)
+      .build()
+      .run();
+    filterListsWithNulls("intcol");
+    filterListsWithNulls("bigintcol");
+    filterListsWithNulls("floatcol");
+    filterListsWithNulls("doublecol");
+    filterListsWithNulls("decimalcol");
+    filterListsWithNulls("charcol");
+    filterListsWithNulls("varcharcol");
+    filterListsWithNulls("stringcol");
+    filterListsWithNulls("datecol");
+    filterListsWithNulls("timestampcol");
+
+    query = "SELECT " +
+      "intcol[3] as intcol, bigintcol[3] as bigintcol, floatcol[3] as floatcol," +
+      "doublecol[3] as doublecol, decimalcol[3] as decimalcol," +
+      "charcol[3] as charcol, varcharcol[3] as varcharcol," +
+      "stringcol[3] as stringcol, datecol[3] as datecol, timestampcol[3] as timestampcol " +
+      "FROM cp.\"/parquet/list_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("intcol", "bigintcol", "floatcol", "doublecol", "decimalcol",
+        "charcol", "varcharcol", "stringcol", "datecol", "timestampcol")
+      .baselineValues(new Integer(4), new Long(4), new Float("4.4"),
+        new Double("4.4"), new BigDecimal("4"), "d", "d", "d", null, null)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testListofListWithNulls() throws Exception {
+    JsonStringArrayList<Text> thirdLevelList = new JsonStringArrayList<>();
+    thirdLevelList.add(new Text("a"));
+    thirdLevelList.add(null);
+
+    JsonStringArrayList<JsonStringArrayList> secondLevelList = new JsonStringArrayList<>();
+    secondLevelList.add(thirdLevelList);
+    secondLevelList.add(null);
+
+    JsonStringArrayList<JsonStringArrayList> topLevelList = new JsonStringArrayList<>();
+    topLevelList.add(secondLevelList);
+    topLevelList.add(null);
+
+    String query = "SELECT " +
+      "col1 " +
+      "FROM cp.\"/parquet/list_list_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(topLevelList)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0] as c1, col1[1] as c2 " +
+      "FROM cp.\"/parquet/list_list_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues(secondLevelList, null)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0] as c1, col1[1] as c2 " +
+      "FROM cp.\"/parquet/list_list_null_test.parquet\" where col1[1] is null";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues(secondLevelList, null)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0][0] as c1, col1[0][1] as c2 " +
+      "FROM cp.\"/parquet/list_list_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues(thirdLevelList, null)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0][0] as c1, col1[0][1] as c2 " +
+      "FROM cp.\"/parquet/list_list_null_test.parquet\" where col1[0][1] is null";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues(thirdLevelList, null)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testListofStructWithNulls() throws Exception {
+    JsonStringArrayList<Text> thirdLevelList = new JsonStringArrayList<>();
+    thirdLevelList.add(new Text("a"));
+    thirdLevelList.add(null);
+
+    JsonStringHashMap<String, Object> secondLevelStruct = new JsonStringHashMap<String, Object>();
+    secondLevelStruct.put("f1", thirdLevelList);
+
+    JsonStringArrayList<JsonStringHashMap> topLevelList = new JsonStringArrayList<>();
+    topLevelList.add(secondLevelStruct);
+    topLevelList.add(null);
+
+    String query = "SELECT " +
+      "col1 " +
+      "FROM cp.\"/parquet/list_struct_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(topLevelList)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0] as c1, col1[1] as c2 " +
+      "FROM cp.\"/parquet/list_struct_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues(secondLevelStruct, null)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0] as c1, col1[1] as c2 " +
+      "FROM cp.\"/parquet/list_struct_null_test.parquet\" where col1[1] is null";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues(secondLevelStruct, null)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0].\"f1\" as c1 " +
+      "FROM cp.\"/parquet/list_struct_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1")
+      .baselineValues(thirdLevelList)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0].\"f1\"[0] as c1, col1[0].\"f1\"[1] as c2 " +
+      "FROM cp.\"/parquet/list_struct_null_test.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues("a", null)
+      .build()
+      .run();
+
+    query = "SELECT " +
+      "col1[0].\"f1\"[0] as c1, col1[0].\"f1\"[1] as c2 " +
+      "FROM cp.\"/parquet/list_struct_null_test.parquet\" where col1[0].\"f1\"[1] is null";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("c1", "c2")
+      .baselineValues("a", null)
+      .build()
+      .run();
   }
 }

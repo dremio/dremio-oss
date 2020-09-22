@@ -16,11 +16,13 @@
 package com.dremio.service.reflection.materialization;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import javax.inject.Provider;
 
+import com.dremio.common.FSConstants;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -33,11 +35,12 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
@@ -87,9 +90,16 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   }
 
   @Override
+  protected List<Property> getProperties() {
+    List<Property> props = new ArrayList<>();
+    props.add(new Property(FSConstants.FS_S3A_FILE_STATUS_CHECK, Boolean.toString(getConfig().isS3FileStatusCheckEnabled())));
+    return props;
+  }
+
+  @Override
   public void start() throws IOException {
     super.start();
-    materializationStore = new MaterializationStore(DirectProvider.<KVStoreProvider>wrap(getContext().getKVStoreProvider()));
+    materializationStore = new MaterializationStore(DirectProvider.<LegacyKVStoreProvider>wrap(getContext().getKVStoreProvider()));
     formatPlugin = (ParquetFormatPlugin) formatCreator.getFormatPluginByConfig(new ParquetFormatConfig());
   }
 
@@ -227,7 +237,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   }
 
   @Override
-  public void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
+  public void dropTable(List<String> tableSchemaPath, boolean isLayered, SchemaConfig schemaConfig) {
     final List<String> components = normalizeComponents(tableSchemaPath);
     if (components == null) {
       throw UserException.validationError().message("Unable to find any materialization or associated refreshes.").build(logger);
@@ -273,7 +283,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
           .addAll(PathUtils.toPathComponents(r.getPath()))
           .build();
         logger.debug("deleting refresh {}", tableSchemaPath);
-        super.dropTable(tableSchemaPath, schemaConfig);
+        super.dropTable(tableSchemaPath, false, schemaConfig);
       } catch (Exception e) {
         logger.warn("Couldn't delete refresh {}", r.getId().getId(), e);
       } finally {

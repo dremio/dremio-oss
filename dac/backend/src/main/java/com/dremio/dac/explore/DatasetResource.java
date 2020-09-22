@@ -45,20 +45,24 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
 import com.dremio.dac.model.job.JobData;
-import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.resource.BaseResourceWithAllocator;
+import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -89,17 +93,16 @@ import io.protostuff.ByteString;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/dataset/{cpath}")
-public class DatasetResource {
+public class DatasetResource extends BaseResourceWithAllocator {
 //  private static final Logger logger = LoggerFactory.getLogger(DatasetResource.class);
 
   private final DatasetVersionMutator datasetService;
   private final JobsService jobsService;
   private final SecurityContext securityContext;
+  private final ReflectionServiceHelper reflectionServiceHelper;
   private final DatasetPath datasetPath;
   private final NamespaceService namespaceService;
   private final CollaborationHelper collaborationService;
-  private ReflectionSettings reflectionSettings;
-  private ReflectionServiceHelper reflectionServiceHelper;
 
   @Inject
   public DatasetResource(
@@ -109,14 +112,15 @@ public class DatasetResource {
     @Context SecurityContext securityContext,
     ReflectionServiceHelper reflectionServiceHelper,
     CollaborationHelper collaborationService,
-    @PathParam("cpath") DatasetPath datasetPath) {
+    @PathParam("cpath") DatasetPath datasetPath,
+    BufferAllocatorFactory allocatorFactory) {
+    super(allocatorFactory);
     this.datasetService = datasetService;
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.securityContext = securityContext;
-    this.datasetPath = datasetPath;
-    this.reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     this.reflectionServiceHelper = reflectionServiceHelper;
+    this.datasetPath = datasetPath;
     this.collaborationService = collaborationService;
   }
 
@@ -149,6 +153,7 @@ public class DatasetResource {
       throw new IllegalArgumentException(msg);
     }
 
+    final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
       .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
@@ -206,6 +211,7 @@ public class DatasetResource {
       Preconditions.checkArgument(Strings.isNullOrEmpty(descriptor.getRefreshField()), "leave refresh field empty for full updates");
     }
 
+    final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final AccelerationSettings descriptorSettings = new AccelerationSettings()
       .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
@@ -253,6 +259,7 @@ public class DatasetResource {
     DatasetUI datasetUI = newDataset(virtualDataset);
 
     datasetService.deleteDataset(datasetPath, savedTag);
+    final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     reflectionSettings.removeSettings(datasetPath.toNamespaceKey());
     return datasetUI;
   }
@@ -323,20 +330,18 @@ public class DatasetResource {
   @Path("preview")
   @Produces(APPLICATION_JSON)
   public InitialDataPreviewResponse preview(@QueryParam("limit") @DefaultValue("50") Integer limit) {
-    final SqlQuery query = new SqlQuery(
-        String.format("select * from %s", datasetPath.toPathString()),
-        securityContext.getUserPrincipal().getName());
+    final SqlQuery query = JobRequestUtil.createSqlQuery(String.format("select * from %s", datasetPath.toPathString()),
+      securityContext.getUserPrincipal().getName());
 
-    final JobData jobData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
+    try {
+      final CompletionListener completionListener = new CompletionListener();
+      final JobId jobId = jobsService.submitJob(SubmitJobRequest.newBuilder()
           .setSqlQuery(query)
           .setQueryType(QueryType.UI_PREVIEW)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    );
-    try {
-      return InitialDataPreviewResponse.of(jobData.truncate(limit));
+          .build(), completionListener);
+      completionListener.awaitUnchecked();
+      final JobData jobData = new JobDataWrapper(jobsService, jobId, query.getUsername());
+      return InitialDataPreviewResponse.of(jobData.truncate(getOrCreateAllocator("preview"), limit));
     } catch(UserException e) {
       throw DatasetTool.toInvalidQueryException(e, query.getSql(), ImmutableList.of());
     }

@@ -27,14 +27,24 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
+import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.ViewCreatorFactory;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.service.users.SystemUser;
 
 /**
  * Test Search Service
@@ -43,6 +53,8 @@ public class TestSearchService extends BaseTestServer {
 
   @BeforeClass
   public static void before() throws Exception {
+    populateInitialData();
+
     NamespaceService namespaceService = newNamespaceService();
 
     SpaceConfig spaceConfig = new SpaceConfig();
@@ -158,6 +170,43 @@ public class TestSearchService extends BaseTestServer {
       CollaborationHelper collaborationHelper = getCollaborationHelper();
       collaborationHelper.setTags(dataset.getId().getId(), tagsEntity);
     }
+  }
+
+  /**
+   * Reproduction for DX-22065
+   * @throws Exception
+   */
+  @Test
+  public void testSearchAndDelete() throws Exception {
+    final SearchService searchService = getSearchService();
+    final SourceService sourceService = l(SourceService.class);
+
+    // register source
+    final SourceUI source = new SourceUI();
+    source.setName("LocalFSSearch");
+    source.setCtime(System.currentTimeMillis());
+    final NASConf nas = new NASConf();
+    nas.path = getPopulator().getPath().toFile().getPath();
+    source.setConfig(nas);
+    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
+    final SourceConfig sourceConfig = sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
+
+    // make a query
+    final SqlQuery query = new SqlQuery("select * from LocalFSSearch.\"dac-sample1.json\"", DEFAULT_USERNAME);
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build(), JobStatusListener.NO_OP);
+
+    doWakeup();
+
+    List<SearchContainer> results = searchService.search("dac-sample1.json", null);
+    assertEquals(2, results.size());
+
+    // delete source
+    sourceService.deleteSource(sourceConfig);
+
+    doWakeup();
+
+    List<SearchContainer> newResults = searchService.search("dac-sample1.json", null);
+    assertEquals(1, newResults.size());
   }
 
   private static SearchService getSearchService() {

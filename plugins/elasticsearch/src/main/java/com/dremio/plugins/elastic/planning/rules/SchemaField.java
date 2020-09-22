@@ -34,17 +34,18 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang.StringEscapeUtils;
 
+import com.dremio.common.expression.BasePath.SchemaPathVisitor;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.PathSegment.ArraySegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.expression.SchemaPath.SchemaPathVisitor;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.TypedFieldId;
-import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchConf;
+import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
@@ -80,7 +81,7 @@ public class SchemaField extends RexInputRef {
   private final boolean isPainless;
 
   private SchemaField(int index, SchemaPath path, CompleteType type, FieldAnnotation annotation, RelDataTypeFactory factory, ElasticSpecialType specialType, boolean isV5, boolean isPainless) {
-    super(index, type.toCalciteType(factory));
+    super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory));
     this.path = path;
     this.type = type;
     this.annotation = annotation;

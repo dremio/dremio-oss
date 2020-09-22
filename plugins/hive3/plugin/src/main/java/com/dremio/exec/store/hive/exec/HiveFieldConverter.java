@@ -72,8 +72,8 @@ public abstract class HiveFieldConverter {
   public HiveFieldConverter(HiveOperatorContextOptions options) {
     this.contextOptions = options;
   }
-  protected void checkReadSizeLimit(int size) {
-    FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, contextOptions.getMaxCellSize(), "", logger);
+  protected void checkSizeLimit(int size) {
+    FieldSizeLimitExceptionHelper.checkSizeLimit(size, contextOptions.getMaxCellSize(), logger);
   }
 
   // TODO (DRILL-2470)
@@ -204,7 +204,7 @@ public abstract class HiveFieldConverter {
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final byte[] value = ((BinaryObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
-      checkReadSizeLimit(value.length);
+      checkSizeLimit(value.length);
       ((VarBinaryVector) outputVV).setSafe(outputIndex, value, 0, value.length);
     }
   }
@@ -316,7 +316,7 @@ public abstract class HiveFieldConverter {
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final Text value = ((StringObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue);
       final int len = value.getLength();
-      checkReadSizeLimit(len);
+      checkSizeLimit(len);
       final byte[] valueBytes = value.getBytes();
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, len);
     }
@@ -330,7 +330,7 @@ public abstract class HiveFieldConverter {
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final Text value = ((HiveVarcharObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue).getTextValue();
       final int valueLen = value.getLength();
-      checkReadSizeLimit(valueLen);
+      checkSizeLimit(valueLen);
       final byte[] valueBytes = value.getBytes();
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, valueLen);
     }
@@ -372,7 +372,7 @@ public abstract class HiveFieldConverter {
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final Text value = ((HiveCharObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue).getStrippedValue();
       final int valueLen = value.getLength();
-      checkReadSizeLimit(valueLen);
+      checkSizeLimit(valueLen);
       final byte[] valueBytes = value.getBytes();
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, valueLen);
     }

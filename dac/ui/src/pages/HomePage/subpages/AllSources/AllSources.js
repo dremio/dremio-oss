@@ -26,6 +26,7 @@ import HomePage from 'pages/HomePage/HomePage';
 import { loadSourceListData } from 'actions/resources/sources';
 import { getSources } from 'selectors/home';
 
+import { isExternalSourceType } from '@app/constants/sourceTypes';
 import AllSourcesView from './AllSourcesView.js';
 
 @pureRender
@@ -47,12 +48,19 @@ export class AllSources extends Component {
 
   render() {
     const { location, sources, intl } = this.props;
+    const isExternalSource = location.pathname === '/sources/external/list';
+    const title = intl.formatMessage({ id: isExternalSource ? 'Source.AllExternalSources' : 'Source.AllDataLakes' });
+    const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')));
+    const externalSources = sources.filter(source => isExternalSourceType(source.get('type')));
+
     return (
       <HomePage location={location}>
-        <DocumentTitle title={intl.formatMessage({ id: 'Source.AllSources' })} />
+        <DocumentTitle title={title} />
         <AllSourcesView
+          title={title}
           filters={this.filters}
-          sources={sources}
+          isExternalSource={isExternalSource}
+          sources={isExternalSource ? externalSources : dataLakeSources}
         />
       </HomePage>
     );

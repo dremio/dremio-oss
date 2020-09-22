@@ -24,7 +24,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -48,8 +50,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Queues;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * This implementation of RawBatchBuffer starts writing incoming batches to disk once the buffer size reaches a threshold.
@@ -144,7 +144,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       final String id = String.format("spool-%s.%s.%s.%s.%s",
           qid, majorFragmentId, minorFragmentId, oppositeId, bufferIndex);
 
-      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, spillService, "spooling sorted exchange");
+      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, spillService, "spooling sorted exchange", null);
       this.spillFile = spillManager.getSpillFile("batches");
       outputStream = spillFile.create();
     } catch(Exception ex) {
@@ -361,7 +361,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         batch.getHeader().writeDelimitedTo(stream);
         buf = batch.getBody();
         if (buf != null) {
-          bodyLength = buf.capacity();
+          bodyLength = LargeMemoryUtil.checkedCastToInt(buf.capacity());
         } else {
           bodyLength = 0;
         }

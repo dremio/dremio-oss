@@ -55,17 +55,17 @@ export default class TrimWhiteSpaceOptions extends Component {
             {...action}
             radioValue='BOTH'
             label='Trim from both sides'
-            style={styles.radio}/>
+          />
           <Radio
             {...action}
             radioValue='LEFT'
             label='Trim from the start (Trim Left)'
-            style={styles.radio}/>
+          />
           <Radio
             {...action}
             radioValue='RIGHT'
             label='Trim from the end (Trim Right)'
-            style={styles.radio}/>
+          />
         </div>
       </div>
     );
@@ -81,8 +81,5 @@ const styles = {
   items: {
     display: 'flex',
     flexDirection: 'column'
-  },
-  radio: {
-    marginTop: 10
   }
 };

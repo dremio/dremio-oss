@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { replace, push } from 'react-router-redux';
+import { push, replace } from 'react-router-redux';
 import Immutable from 'immutable';
 import { normalize } from 'normalizr';
-
-import { API_URL_V2 } from '@app/constants/Api';
-import param from 'jquery-param';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import jobDetailsSchema from 'schemas/jobDetails';
 import { renderQueryState, renderQueryStateForServer } from 'utils/jobsQueryState';
 import { addNotification } from 'actions/notification';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import { addParameterToUrl } from '@app/utils/urlUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const UPDATE_JOB_DETAILS = 'UPDATE_JOB_DETAILS';
 
@@ -55,7 +52,8 @@ export const FILTER_JOBS_FAILURE = 'FILTER_JOBS_FAILURE';
 function filterJobsAction(queryState, viewId) {
   const meta = { viewId };
   const query = renderQueryStateForServer(queryState);
-  const href = `/jobs/?${query}`;
+
+  const apiCall = new APIV2Call().fullpath(`jobs/?${query}`);
 
   return {
     [RSAA]:{
@@ -65,7 +63,7 @@ function filterJobsAction(queryState, viewId) {
         {type: FILTER_JOBS_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }
@@ -81,6 +79,8 @@ export const LOAD_NEXT_JOBS_SUCCESS = 'LOAD_NEXT_JOBS_SUCCESS';
 export const LOAD_NEXT_JOBS_FAILURE = 'LOAD_NEXT_JOBS_FAILURE';
 
 function fetchNextJobs(href) {
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]:{
       types: [
@@ -89,7 +89,7 @@ function fetchNextJobs(href) {
         LOAD_NEXT_JOBS_FAILURE
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }
@@ -105,10 +105,10 @@ export const ITEMS_FOR_FILTER_JOBS_SUCCESS = 'ITEMS_FOR_FILTER_JOBS_SUCCESS';
 export const ITEMS_FOR_FILTER_JOBS_FAILURE = 'ITEMS_FOR_FILTER_JOBS_FAILURE';
 
 function fetchItemsForFilter(tag, filter = '', limit = '') {
-  let params = '';
-  if (filter || limit) {
-    params = param({filter, limit});
-  }
+  const apiCall = new APIV2Call()
+    .paths(`jobs/filters/${tag}`)
+    .params({filter, limit});
+
   return {
     [RSAA]:{
       types: [
@@ -120,7 +120,7 @@ function fetchItemsForFilter(tag, filter = '', limit = '') {
         ITEMS_FOR_FILTER_JOBS_FAILURE
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/jobs/filters/${tag}${params}`
+      endpoint: apiCall
     }
   };
 }
@@ -137,6 +137,12 @@ export const JOB_DETAILS_FAILURE = 'JOB_DETAILS_FAILURE';
 
 export function loadJobDetails(jobId, viewId) {
   const meta = { jobId, viewId };
+
+  const apiCall = new APIV2Call()
+    .path('job')
+    .path(jobId)
+    .path('details');
+
   return {
     [RSAA]:{
       types: [
@@ -145,7 +151,59 @@ export function loadJobDetails(jobId, viewId) {
         {type: JOB_DETAILS_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/job/${encodeURIComponent(jobId)}/details`
+      endpoint: apiCall
+    }
+  };
+}
+
+export const REFLECTION_JOBS_REQUEST = 'REFLECTION_JOBS_REQUEST';
+export const REFLECTION_JOBS_SUCCESS = 'REFLECTION_JOBS_SUCCESS';
+export const REFLECTION_JOBS_FAILURE = 'REFLECTION_JOBS_FAILURE';
+
+export function loadReflectionJobs(reflectionId, viewId) {
+  const meta = { reflectionId, viewId };
+
+  const apiCall = new APIV2Call()
+    .path('jobs')
+    .path('reflection')
+    .path(reflectionId);
+
+  return {
+    [RSAA]:{
+      types: [
+        {type: REFLECTION_JOBS_REQUEST, meta},
+        {type: REFLECTION_JOBS_SUCCESS, meta},
+        {type: REFLECTION_JOBS_FAILURE, meta}
+      ],
+      method: 'GET',
+      endpoint: apiCall
+    }
+  };
+}
+
+export const REFLECTION_JOB_DETAILS_REQUEST = 'REFLECTION_JOB_DETAILS_REQUEST';
+export const REFLECTION_JOB_DETAILS_SUCCESS = 'REFLECTION_JOB_DETAILS_SUCCESS';
+export const REFLECTION_JOB_DETAILS_FAILURE = 'REFLECTION_JOB_DETAILS_FAILURE';
+
+export function loadReflectionJobDetails(jobId, reflectionId, viewId) {
+  const meta = { jobId, viewId };
+
+  const apiCall = new APIV2Call()
+    .path('job')
+    .path(jobId)
+    .path('reflection')
+    .path(reflectionId)
+    .path('details');
+
+  return {
+    [RSAA]:{
+      types: [
+        {type: REFLECTION_JOB_DETAILS_REQUEST, meta},
+        schemaUtils.getSuccessActionTypeWithSchema(REFLECTION_JOB_DETAILS_SUCCESS, jobDetailsSchema, meta),
+        {type: REFLECTION_JOB_DETAILS_FAILURE, meta}
+      ],
+      method: 'GET',
+      endpoint: apiCall
     }
   };
 }
@@ -154,30 +212,65 @@ export const CANCEL_JOB_REQUEST = 'CANCEL_JOB_REQUEST';
 export const CANCEL_JOB_SUCCESS = 'CANCEL_JOB_SUCCESS';
 export const CANCEL_JOB_FAILURE = 'CANCEL_JOB_FAILURE';
 
-const cancelJob = (jobId) => ({
-  [RSAA]: {
-    types: [
-      CANCEL_JOB_REQUEST,
-      CANCEL_JOB_SUCCESS,
-      CANCEL_JOB_FAILURE
-    ],
-    method: 'POST',
-    endpoint: `${API_URL_V2}/job/${jobId}/cancel`
-  }
-});
+const cancelJob = (jobId) => {
+  const apiCall = new APIV2Call().paths(`job/${jobId}/cancel`);
+
+  return {
+    [RSAA]: {
+      types: [
+        CANCEL_JOB_REQUEST,
+        CANCEL_JOB_SUCCESS,
+        CANCEL_JOB_FAILURE
+      ],
+      method: 'POST',
+      endpoint: apiCall
+    }
+  };
+};
 
 export const cancelJobAndShowNotification = (jobId) => (dispatch) => {
   return dispatch(cancelJob(jobId))
     .then(action => dispatch(addNotification(action.payload.message, 'success' )));
 };
 
+export const CANCEL_REFLECTION_JOB_REQUEST = 'CANCEL_REFLECTION_JOB_REQUEST';
+export const CANCEL_REFLECTION_JOB_SUCCESS = 'CANCEL_REFLECTION_JOB_SUCCESS';
+export const CANCEL_REFLECTION_JOB_FAILURE = 'CANCEL_REFLECTION_JOB_FAILURE';
+
+const cancelReflectionJob = (jobId, reflectionId) => {
+  const apiCall = new APIV2Call()
+    .path('job')
+    .path(jobId)
+    .path('reflection')
+    .path(reflectionId)
+    .path('cancel');
+
+  return {
+    [RSAA]: {
+      types: [
+        CANCEL_REFLECTION_JOB_REQUEST,
+        CANCEL_REFLECTION_JOB_SUCCESS,
+        CANCEL_REFLECTION_JOB_FAILURE
+      ],
+      method: 'POST',
+      endpoint: apiCall
+    }
+  };
+};
+
+
+export const cancelReflectionJobAndShowNotification = (jobId, reflectionId) => (dispatch) => {
+  return dispatch(cancelReflectionJob(jobId, reflectionId))
+    .then(action => dispatch(addNotification(action.payload.message, 'success' )));
+};
 
 export const ASK_GNARLY_STARTED = 'ASK_GNARLY_STARTED';
 export const ASK_GNARLY_SUCCESS = 'ASK_GNARLY_SUCCESS';
 export const ASK_GNARLY_FAILURE = 'ASK_GNARLY_FAILURE';
 
 function fetchAskGnarly(jobId) {
-  const href = '/support/' + jobId;
+  const apiCall = new APIV2Call().paths(`support/${jobId}`);
+
   return {
     [RSAA]:{
       types: [
@@ -217,7 +310,7 @@ function fetchAskGnarly(jobId) {
         }
       ],
       method: 'POST',
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }
@@ -230,12 +323,35 @@ export function askGnarly(jobId) {
 
 export function showJobProfile(profileUrl) {
   return (dispatch, getState) => {
+    const apiCall = new APIV2Call()
+      .fullpath(profileUrl)
+      .param('Authorization', localStorageUtils.getAuthToken());
+
     const location = getState().routing.locationBeforeTransitions;
     return dispatch(
       push({...location, state: {
         modal: 'JobProfileModal',
-        profileUrl: `${API_URL_V2}${addParameterToUrl(profileUrl, 'Authorization',
-          localStorageUtils.getAuthToken())}`
+        profileUrl: apiCall.toString()
+      }})
+    );
+  };
+}
+
+export function showReflectionJobProfile(profileUrl, reflectionId) {
+  return (dispatch, getState) => {
+    // add the reflection id to the end of the url, but before the ? (url always has ?attemptId)
+    const split = profileUrl.split('/');
+    split[2] = split[2].replace('?', `/reflection/${reflectionId}?`);
+
+    const apiCall = new APIV2Call()
+      .fullpath(split.join('/'))
+      .param('Authorization', localStorageUtils.getAuthToken());
+
+    const location = getState().routing.locationBeforeTransitions;
+    return dispatch(
+      push({...location, state: {
+        modal: 'JobProfileModal',
+        profileUrl: apiCall.toString()
       }})
     );
   };

@@ -13,84 +13,130 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "colors.less";
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-
-  .finder-nav {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-
-    .pointer {
-      cursor: pointer;
-    }
-
-    .finder-nav-title {
-      flex: 0 0 auto;
-      padding: 10px 5px 6px 10px;
-      border: 1px solid rgba(0,0,0,.1);
-      border-width: 1px 0;
-
-      .pull-right{
-        margin: -2px 0 0;
-        cursor: pointer;
-      }
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .nav-list {
-      flex: 1 1 auto;
-      overflow: auto;
-      padding: 5px 0;
-
-      .show-more-btn{
-        color: @blue;
-        margin: 7px 0 0;
-        cursor: pointer;
-        display: inline-block;
-      }
-      .open-more{
-        position: relative;
-        padding: 0 0 23px;
-        .show-more-btn{
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
-      }
-    }
-
-    .loader{
-      min-height: 30px;
-      text-align: center;
-      .fa{
-        vertical-align: middle;
-      }
-    }
-
-    .new-item-button{
-      text-align: center;
-      padding: 25px 5px;
-      border: 2px dashed @active-icon-dark;
-      margin: 10px 0 30px;
-      button{
-        background: @blue;
-        color: @white;
-        border: 1px solid @blue;
-        border-radius: 5px;
-        font-size: 13px;
-        font-weight: bold;
-        width: 140px;
-        height: 35px;
-        &:hover{
-          background: darken(@blue, 5%);
-        }
-      }
-    }
-  }
-}
+ @import "colors.less";
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+ 
+   .finder-nav {
+     display: flex;
+     flex-direction: column;
+     height: 100%;
+ 
+     .pointer {
+       cursor: pointer;
+     }
+ 
+     .finder-nav__collapse-control {
+       display: none;
+       width: 12px;
+       font-size: 10px;
+       transform: translate(0, -1px);
+       color: #77818F;
+       cursor: pointer;
+     }
+ 
+     &.finder-nav--collapsible {
+       // Show collapse control only if the finder nav is collapsible
+       .finder-nav__collapse-control {
+         display: inline-block;
+       }
+     }
+ 
+     
+     &.finder-nav--collapsible.finder-nav--collapsed {
+       // Hide the finder content when it is collapsed
+       .nav-list {
+         display: none;
+       }
+     }
+ 
+     .finder-nav-title {
+       flex: 0 0 auto;
+       padding: 8px 5px 5px 10px;
+       border: 1px solid rgba(0,0,0,.1);
+       border-width: 1px 0;
+       font-weight: 400;
+ 
+       .finder-nav-title__add {
+         font-size: 18px;
+         color: #DDE0E3;
+ 
+         &:hover {
+           color: @blue;
+         }
+       }
+ 
+       .pull-right{
+         cursor: pointer;
+       }
+     }
+ 
+     ul {
+       list-style: none;
+       padding: 0;
+       margin: 0;
+     }
+ 
+     .nav-list {
+       flex: 1 1 auto;
+       overflow: auto;
+       padding: 5px 0;
+ 
+       .show-more-btn{
+         color: @blue;
+         margin: 7px 0 0;
+         cursor: pointer;
+         display: inline-block;
+       }
+       .open-more{
+         position: relative;
+         padding: 0 0 23px;
+         .show-more-btn{
+           position: absolute;
+           bottom: 0;
+           left: 0;
+         }
+       }
+     }
+ 
+     .loader{
+       min-height: 30px;
+       text-align: center;
+       .fa{
+         vertical-align: middle;
+       }
+     }
+ 
+     .new-item-button{
+       text-align: center;
+       padding: 25px 5px;
+       border: 2px dashed @active-icon-dark;
+       margin: 10px 0 30px;
+       button{
+         background: @blue;
+         color: @white;
+         border: 1px solid @blue;
+         border-radius: 5px;
+         font-size: 13px;
+         font-weight: 500;
+         width: 140px;
+         height: 35px;
+         &:hover{
+           background: darken(@blue, 5%);
+         }
+       }
+     }
+   }
+   @media only screen and(max-height: 600px) {
+     // Adjust the min-height for the left nav in short browser screen
+     .finder-nav .nav-list {
+       min-height: calc(25vh - 28px) !important;
+     }
+     .left-tree .left-tree-wrap {
+       min-height: 25vh !important;
+     }
+   }
+   @media all and (-ms-high-contrast:none) {
+     *::-ms-backdrop, .left-tree { min-height: 560px } /* Min-height for IE11 only */
+   }
+ }
+ 

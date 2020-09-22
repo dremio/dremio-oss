@@ -83,8 +83,8 @@ export class AllSpacesView extends PureComponent {
             }
           },
           [created.key]: {
-            node: () => (item.get('ctime')) ? moment(item.get('ctime')).format('MM/DD/YYYY') : '—',
-            value: new Date(item.get('ctime'))
+            node: () => item.get('createdAt') ? moment(item.get('createdAt')).format('MM/DD/YYYY') : '—',
+            value: () => item.get('createdAt') ? new Date(item.get('createdAt')) : ''
           },
           [action.key]: {
             node: () => (

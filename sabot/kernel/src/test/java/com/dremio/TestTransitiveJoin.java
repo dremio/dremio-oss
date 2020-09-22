@@ -17,10 +17,23 @@ package com.dremio;
 
 import java.util.regex.Pattern;
 
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestTransitiveJoin extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTransitiveJoin.class);
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  @Before
+  public void setup() {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+  }
 
   @Test
   public void testTransitiveJoin() throws Exception {

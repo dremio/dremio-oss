@@ -15,26 +15,23 @@
  */
 package com.dremio.dac.explore.model;
 
-import static com.dremio.service.jobs.RecordBatchHolder.newRecordBatchHolder;
+import static com.dremio.exec.record.RecordBatchHolder.newRecordBatchHolder;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -60,6 +57,8 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.impl.UnionWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.VarCharWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.AfterClass;
@@ -74,16 +73,13 @@ import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.model.job.JobDataFragmentWrapper.JobDataFragmentSerializer;
-import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobDataFragmentImpl;
-import com.dremio.service.jobs.JobDataImpl;
-import com.dremio.service.jobs.JobLoader;
-import com.dremio.service.jobs.RecordBatchHolder;
 import com.dremio.service.jobs.RecordBatches;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
@@ -92,8 +88,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Unittests for {@link com.dremio.dac.model.job.JobDataFragmentWrapper}. Currently it only tests the serialization aspects such as
@@ -797,7 +791,7 @@ public class TestData extends DremioTest {
   }
 
   private static Pair<NonNullableStructVector, ResultVerifier> testMapVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NonNullableStructVector colStructV = new NonNullableStructVector("colMap", allocator, null);
+    NonNullableStructVector colStructV = new NonNullableStructVector("colMap", allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null),null);
 
     ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", colStructV);
 
@@ -973,7 +967,7 @@ public class TestData extends DremioTest {
   }
 
   @Test
-  public void testDataTrunc() throws Exception {
+  public void testDataSerialization() throws Exception {
     Pair<? extends ValueVector, ResultVerifier> varChar1 = testVarCharVector(0, 0);
     Pair<? extends ValueVector, ResultVerifier> varChar2 = testVarCharVector(5, 5);
     Pair<? extends ValueVector, ResultVerifier> varChar3 = testVarCharVector(10, 10);
@@ -985,20 +979,15 @@ public class TestData extends DremioTest {
     RecordBatchData batch2 = createRecordBatch(varChar2.getKey(), date2.getKey());
     RecordBatchData batch3 = createRecordBatch(varChar3.getKey(), date3.getKey());
 
-    JobLoader jobLoader = mock(JobLoader.class);
-    when(jobLoader.load(anyInt(), anyInt())).thenReturn(
-        new RecordBatches(asList(
-            newRecordBatchHolder(batch1, 0, 5),
-            newRecordBatchHolder(batch2, 0, 5),
-            newRecordBatchHolder(batch3, 0, 5)
-        ))
-    );
-
-    try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID, new CountDownLatch(0)))) {
-      JobDataFragment truncDataInput = dataInput.truncate(10);
-      DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(truncDataInput), DataPOJO.class);
-      assertEquals(truncDataInput.getColumns().toString(), dataOutput.getColumns().toString());
-      assertEquals(truncDataInput.getReturnedRowCount(), dataOutput.getReturnedRowCount());
+    try (JobDataFragment dataInput = new JobDataFragmentWrapper(0, new JobDataFragmentImpl(
+      new RecordBatches(asList(
+        newRecordBatchHolder(batch1, 0, 5),
+        newRecordBatchHolder(batch2, 0, 5),
+        newRecordBatchHolder(batch3, 0, 5)
+      )), 0, TEST_JOB_ID))) {
+      DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(dataInput), DataPOJO.class);
+      assertEquals(dataInput.getColumns().toString(), dataOutput.getColumns().toString());
+      assertEquals(dataInput.getReturnedRowCount(), dataOutput.getReturnedRowCount());
 
       varChar1.getValue().verify(dataOutput);
       varChar2.getValue().verify(dataOutput);
@@ -1008,7 +997,7 @@ public class TestData extends DremioTest {
   }
 
   @Test
-  public void testDataRange() throws Exception {
+  public void testDataWithOffsetSerialization() throws Exception {
     Pair<? extends ValueVector, ResultVerifier> varChar1 = testVarCharVector(0, 0);
     Pair<? extends ValueVector, ResultVerifier> varChar2 = testVarCharVector(0, 5);
     Pair<? extends ValueVector, ResultVerifier> varChar3 = testVarCharVector(5, 10);
@@ -1020,20 +1009,15 @@ public class TestData extends DremioTest {
     RecordBatchData batch2 = createRecordBatch(varChar2.getKey(), date2.getKey());
     RecordBatchData batch3 = createRecordBatch(varChar3.getKey(), date3.getKey());
 
-    JobLoader jobLoader = mock(JobLoader.class);
-    when(jobLoader.load(anyInt(), anyInt())).thenReturn(
-        new RecordBatches(asList(
-            newRecordBatchHolder(batch1, 0, 5),
-            newRecordBatchHolder(batch2, 0, 5),
-            newRecordBatchHolder(batch3, 0, 5)
-        ))
-    );
-
-    try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID, new CountDownLatch(0)))) {
-      JobDataFragment rangeDataInput = dataInput.range(5, 10);
-      DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(rangeDataInput), DataPOJO.class);
-      assertEquals(rangeDataInput.getColumns().toString(), dataOutput.getColumns().toString());
-      assertEquals(rangeDataInput.getReturnedRowCount(), dataOutput.getReturnedRowCount());
+    try (JobDataFragment dataInput = new JobDataFragmentWrapper(5, new JobDataFragmentImpl(
+      new RecordBatches(asList(
+        newRecordBatchHolder(batch1, 0, 5),
+        newRecordBatchHolder(batch2, 0, 5),
+        newRecordBatchHolder(batch3, 0, 5)
+      )), 0, TEST_JOB_ID))) {
+      DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(dataInput), DataPOJO.class);
+      assertEquals(dataInput.getColumns().toString(), dataOutput.getColumns().toString());
+      assertEquals(dataInput.getReturnedRowCount(), dataOutput.getReturnedRowCount());
 
       varChar2.getValue().verify(dataOutput);
       varChar3.getValue().verify(dataOutput);
@@ -1059,7 +1043,8 @@ public class TestData extends DremioTest {
     recordBatches.add(newRecordBatchHolder(data2, 0, data2.getRecordCount()));
     recordBatches.add(newRecordBatchHolder(data3, 0, data3.getRecordCount()));
 
-    try (JobDataFragment jdf = new JobDataFragmentWrapper(0, new JobDataFragmentImpl(new RecordBatches(recordBatches), 0, TEST_JOB_ID))) {
+    try (JobDataFragment jdf = new JobDataFragmentWrapper(0, new JobDataFragmentImpl(
+      new RecordBatches(recordBatches), 0, TEST_JOB_ID))) {
 
       String value = jdf.extractString("colVarChar", 3);
       assertEquals(null, value);
@@ -1078,31 +1063,25 @@ public class TestData extends DremioTest {
         // noop
       }
 
-      JobLoader jobLoader = mock(JobLoader.class);
-      when(jobLoader.load(anyInt(), anyInt())).thenReturn(
+      try (JobDataFragment jdf2 = new JobDataFragmentWrapper(0 , new JobDataFragmentImpl(
         new RecordBatches(asList(
           newRecordBatchHolder(data1, 2, 5),
           newRecordBatchHolder(data2, 1, 3),
           newRecordBatchHolder(data3, 0, 4)
-        ))
-      );
-      try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID, new CountDownLatch(0)))) {
-        JobDataFragment rangeDataInput = dataInput.range(5, 10); // those numbers do not matter, mock holds all the truth
-        value = rangeDataInput.extractString("colVarChar", 0); // should be element #2 from first batch
+        )), 0, TEST_JOB_ID))) {
+        value = jdf2.extractString("colVarChar", 0); // should be element #2 from first batch
         assertEquals("long long long long value", value);
-        value = rangeDataInput.extractString("colVarChar", 3); // will not fit first batch - will be 1st element of the 2nd batch which element 1
+        value = jdf2.extractString("colVarChar", 3); // will not fit first batch - will be 1st element of the 2nd batch which element 1
         assertEquals("long long long long long long long long long long long long long long long long value", value);
-        value = rangeDataInput.extractString("colVarChar", 8); // last in 3rd batch (element #3)
+        value = jdf2.extractString("colVarChar", 8); // last in 3rd batch (element #3)
         assertEquals(null, value);
         try {
-          value = rangeDataInput.extractString("colVarChar", 9);
+          value = jdf2.extractString("colVarChar", 9);
           fail("Index out of bounds exception");
         } catch (IllegalArgumentException e) {
           // noop
         }
-
       }
-
     }
   }
   @AfterClass

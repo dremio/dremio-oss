@@ -22,6 +22,8 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -34,6 +36,9 @@ import com.dremio.exec.store.sys.MemoryIterator;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.telemetry.api.Telemetry;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.utils.TracerFacade;
+
+import io.opentracing.Tracer;
 
 public class BootStrapContext implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BootStrapContext.class);
@@ -41,7 +46,7 @@ public class BootStrapContext implements AutoCloseable {
   private final SabotConfig config;
   private final BufferAllocator allocator;
   private final ScanResult classpathScan;
-  private final CloseableThreadPool executor;
+  private final CloseableExecutorService executor;
   private final LogicalPlanPersistence lpPersistance;
   private final DremioConfig dremioConfig;
   private final NodeDebugContextProvider nodeDebugContextProvider;
@@ -51,12 +56,13 @@ public class BootStrapContext implements AutoCloseable {
   }
 
   public BootStrapContext(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry) {
+    registry.bind(Tracer.class, TracerFacade.INSTANCE);
+    Telemetry.startTelemetry();
 
-    Telemetry.startTelemetry(classpathScan, registry);
     this.config = config.getSabotConfig();
     this.classpathScan = classpathScan;
     this.allocator = RootAllocatorFactory.newRoot(config);
-    this.executor = new CloseableThreadPool("dremio-general-");
+    this.executor = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("dremio-general-"), registry.lookup(Tracer.class));
     this.lpPersistance = new LogicalPlanPersistence(config.getSabotConfig(), classpathScan);
     this.dremioConfig = config;
 
@@ -113,7 +119,11 @@ public class BootStrapContext implements AutoCloseable {
       logger.warn("failure resetting metrics.", e);
     }
 
-    executor.close();
+    try {
+      executor.close();
+    } catch (Exception e) {
+      logger.warn("Failure while closing dremio-general thread pool", e);
+    }
 
     AutoCloseables.closeNoChecked(allocator);
   }

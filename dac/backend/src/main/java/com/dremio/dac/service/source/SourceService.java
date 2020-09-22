@@ -59,6 +59,8 @@ import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -124,11 +126,13 @@ public class SourceService {
   }
 
   private Catalog createCatalog() {
-    return catalogService.getCatalog(SchemaConfig.newBuilder(security.getUserPrincipal().getName()).build());
+    return catalogService.getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(security.getUserPrincipal().getName())
+            .build()));
   }
 
   private Catalog createCatalog(String userName) {
-    return catalogService.getCatalog(SchemaConfig.newBuilder(userName).build());
+    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(userName).build()));
   }
 
 
@@ -152,11 +156,11 @@ public class SourceService {
     return registerSourceWithRuntime(sourceConfig, createCatalog(userName));
   }
 
-  private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, Catalog catalog,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
+  private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, SourceCatalog sourceCatalog, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
     if(sourceConfig.getTag() == null) {
-      catalog.createSource(sourceConfig, attributes);
+      sourceCatalog.createSource(sourceConfig, attributes);
     } else {
-      catalog.updateSource(sourceConfig, attributes);
+      sourceCatalog.updateSource(sourceConfig, attributes);
     }
 
     final NamespaceKey key = new NamespaceKey(sourceConfig.getName());
@@ -660,15 +664,13 @@ public class SourceService {
 
   public Source fromSourceConfig(SourceConfig sourceConfig, List<CatalogItem> children) {
     final AccelerationSettings settings = reflectionServiceHelper.getReflectionSettings().getReflectionSettings(new NamespaceKey(sourceConfig.getName()));
-    Source source = new Source(sourceConfig, settings, getConnectionReader());
+    Source source = new Source(sourceConfig, settings, getConnectionReader(), children);
 
     // we should not set fields that expose passwords and other private parts of the source
     source.getConfig().clearSecrets();
 
     SourceState state = getStateForSource(sourceConfig);
     source.setState(state);
-
-    source.setChildren(children);
 
     return source;
   }

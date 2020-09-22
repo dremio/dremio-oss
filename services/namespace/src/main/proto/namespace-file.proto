@@ -1,0 +1,128 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto2";
+package com.dremio.service.namespace.file.proto;
+
+option java_package = "com.dremio.service.namespace.file.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "FileProtobuf";
+
+
+enum FileType {
+  UNKNOWN = 0;
+  TEXT = 1;
+  JSON = 2;
+  CSV = 3;
+  TSV = 4;
+  PSV = 5;
+  AVRO = 6 [ deprecated = true ];
+  PARQUET = 7;
+  HTTP_LOG = 8;
+  EXCEL = 9;
+  XLS = 10;
+  ARROW = 11;
+  ICEBERG = 12;
+}
+
+message FileConfig {
+  repeated string fullPath = 1;
+  optional FileType type = 2 [default = UNKNOWN];
+  optional string name = 3;
+  optional string owner = 4;
+  optional int64 ctime = 5; // user uploaded files
+  optional bytes extendedConfig = 6; // encoded message specific to file type.
+  optional int64 version = 7 [deprecated = true];
+  optional string location = 8; // path where file is uploaded
+  optional string tag = 9;
+}
+
+
+message TextFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+  optional string fieldDelimiter = 1 [default=","];
+  optional bool skipFirstLine = 2 [default = false];
+  optional bool extractHeader = 3 [default = false];// for csv, tsv, psv
+  optional string quote = 4 [default="\""]; // single letter
+  optional string comment = 5 [default="#"];
+  optional string escape = 6 [default="\""];// single letter
+  optional string lineDelimiter = 7 [default="\r\n"];
+  optional bool autoGenerateColumnNames = 8 [default = true];
+  optional bool trimHeader = 9 [default = true];
+}
+
+enum HttpLogParser {
+  COMMON = 0;
+  EXTENDED = 1;
+  CUSTOM = 2;
+}
+
+message HttpLogFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+  optional HttpLogParser logParser = 1;
+  optional string customParser = 2;
+}
+
+message JsonFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+}
+
+message AvroFileConfig {
+  option deprecated = true;
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+}
+
+message ParquetFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+  optional bool autoCorrectCorruptDates = 1 [default = true];
+}
+
+message ExcelFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+  optional string sheetName = 1;
+  optional bool extractHeader = 2 [default = false];
+  optional bool hasMergedCells = 3 [default = false];
+}
+
+
+message XlsFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+  optional string sheetName = 1;
+  optional bool extractHeader = 2 [default = false];
+  optional bool hasMergedCells = 3 [default = false];
+}
+
+message ArrowFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+}
+
+message UnknownFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+}
+
+enum IcebergMetaStoreType {
+  HDFS = 1;
+}
+
+message IcebergFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+
+  repeated FileType data_format_type = 1;
+  optional IcebergMetaStoreType meta_store_type = 2;
+
+  // one of these for each supported data format types.
+  optional ParquetFileConfig parquet_data_format = 3;
+}

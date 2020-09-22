@@ -281,7 +281,7 @@ public class SchemaMerger {
           @Override
           @Nullable
           public Field apply(ElasticField input) {
-            return new MergeField(path.getChild(input.getName()), input).toField(resultToPopulate);
+            return new MergeField(path, input).toField(resultToPopulate);
           }})
           .filter(Predicates.notNull())
           .toList();

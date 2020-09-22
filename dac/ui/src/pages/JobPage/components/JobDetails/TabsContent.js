@@ -27,6 +27,7 @@ import AccelerationContent from './AccelerationContent';
 import ProfilesContent from './ProfilesContent';
 import HelpSection from './HelpSection';
 import { contentHolder } from './TabsContent.less';
+
 @Radium
 class TabsContent extends Component {
   static propTypes = {
@@ -34,6 +35,7 @@ class TabsContent extends Component {
     activeTab: PropTypes.string,
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     showJobProfile: PropTypes.func,
+    downloadJobProfile: PropTypes.func,
     style: PropTypes.object,
     className: PropTypes.string
   };
@@ -93,7 +95,10 @@ class TabsContent extends Component {
           This will stick help section to the bottom if there is extra space
         */}
         <div className={flexElementAuto}></div>
-        <HelpSection jobId={this.props.jobId} />
+        <HelpSection
+          jobId={this.props.jobId}
+          downloadFile={this.props.downloadJobProfile}
+        />
       </div>
     );
   }

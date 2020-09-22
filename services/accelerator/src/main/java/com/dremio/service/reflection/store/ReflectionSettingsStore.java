@@ -17,12 +17,12 @@ package com.dremio.service.reflection.store;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
-import com.dremio.exec.catalog.CatalogSourceDataCreator;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.google.common.base.Preconditions;
@@ -35,13 +35,13 @@ import com.google.common.base.Suppliers;
 public class ReflectionSettingsStore {
   private static final String TABLE_NAME = "reflection_settings";
 
-  private final Supplier<KVStore<NamespaceKey, AccelerationSettings>> store;
+  private final Supplier<LegacyKVStore<NamespaceKey, AccelerationSettings>> store;
 
-  public ReflectionSettingsStore(final Provider<KVStoreProvider> provider) {
+  public ReflectionSettingsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider required");
-    store = Suppliers.memoize(new Supplier<KVStore<NamespaceKey, AccelerationSettings>>() {
+    store = Suppliers.memoize(new Supplier<LegacyKVStore<NamespaceKey, AccelerationSettings>>() {
       @Override
-      public KVStore<NamespaceKey, AccelerationSettings> get() {
+      public LegacyKVStore<NamespaceKey, AccelerationSettings> get() {
         return provider.get().getStore(StoreCreator.class);
       }
     });
@@ -81,22 +81,16 @@ public class ReflectionSettingsStore {
     }
   }
 
-  private static final class AccelerationSettingsSerializer extends SchemaSerializer<AccelerationSettings> {
-    AccelerationSettingsSerializer() {
-      super(AccelerationSettings.getSchema());
-    }
-  }
-
   /**
    * {@link ReflectionSettingsStore} creator
    */
-  public static final class StoreCreator implements StoreCreationFunction<KVStore<NamespaceKey, AccelerationSettings>> {
+  public static final class StoreCreator implements LegacyKVStoreCreationFunction<NamespaceKey, AccelerationSettings> {
     @Override
-    public KVStore<NamespaceKey, AccelerationSettings> build(StoreBuildingFactory factory) {
+    public LegacyKVStore<NamespaceKey, AccelerationSettings> build(LegacyStoreBuildingFactory factory) {
       return factory.<NamespaceKey, AccelerationSettings>newStore()
         .name(TABLE_NAME)
-        .keySerializer(CatalogSourceDataCreator.NamespaceKeySerializer.class)
-        .valueSerializer(AccelerationSettingsSerializer.class)
+        .keyFormat(Format.wrapped(NamespaceKey.class, NamespaceKey::toString, NamespaceKey::new, Format.ofString()))
+        .valueFormat(Format.ofProtostuff(AccelerationSettings.class))
         .versionExtractor(AccelerationSettingsVersionExtractor.class)
         .build();
     }

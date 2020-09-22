@@ -16,13 +16,11 @@
 import { RSAA } from 'redux-api-middleware';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import { API_URL_V2 } from '@app/constants/Api';
 
 import { arrayOf } from 'normalizr';
 import userSchema from 'schemas/user';
 
-
-import {makeUncachebleURL} from 'ie11.js';
+import { APIV2Call } from '@app/core/APICall';
 
 export const SOURCE_NODES_START = 'SOURCE_NODES_START';
 export const SOURCE_NODES_SUCCESS = 'SOURCE_NODES_SUCCESS';
@@ -32,6 +30,9 @@ export const SOURCE_NODES_FAILURE = 'SOURCE_NODES_FAILURE';
 
 function fetchNodeCredentials(viewId) {
   const meta = {viewId};
+
+  const apiCall = new APIV2Call().paths('system/nodes');
+
   return {
     [RSAA]: {
       types: [
@@ -40,7 +41,7 @@ function fetchNodeCredentials(viewId) {
         {type: SOURCE_NODES_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/system/nodes`
+      endpoint: apiCall
     }
   };
 }
@@ -62,8 +63,20 @@ export const LOAD_FILTERED_USER_FAILURE = 'LOAD_FILTERED_USER_FAILURE';
 
 // todo: backend doesn't actually do filtering yet
 function fetchFilteredUsers(value = '') {
-  const encodedValue = encodeURIComponent(value);
   const meta = {viewId: USERS_VIEW_ID}; // todo: see need ability to list users from anywhere
+
+  const apiCall = new APIV2Call();
+
+  if (value) {
+    apiCall
+      .paths('users/search')
+      .params({filter: value});
+  } else {
+    apiCall
+      .paths('users/all')
+      .uncachable();
+  }
+
   return {
     [RSAA]: {
       types: [
@@ -72,7 +85,7 @@ function fetchFilteredUsers(value = '') {
         {type: LOAD_FILTERED_USER_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/users/${!encodedValue ? makeUncachebleURL('all') : `search?filter=${encodedValue}`}` // todo: why isn't the search uncacheable if 'all' is?
+      endpoint: apiCall
     }
   };
 }
@@ -98,6 +111,9 @@ export function createFirstUser(form, meta) {
     },
     form
   };
+
+  const apiCall = new APIV2Call().paths('bootstrap/firstuser');
+
   return {
     [RSAA]: {
       types: [
@@ -108,7 +124,7 @@ export function createFirstUser(form, meta) {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(form),
-      endpoint: `${API_URL_V2}/bootstrap/firstuser`
+      endpoint: apiCall
     }
   };
 }
@@ -125,6 +141,12 @@ function deleteUser(user) {
       level: 'success'
     }
   };
+
+  const apiCall = new APIV2Call()
+    .path('user')
+    .path(user.get('userName'))
+    .params({version: user.getIn(['userConfig', 'version'])});
+
   return {
     [RSAA]: {
       types: [
@@ -134,7 +156,7 @@ function deleteUser(user) {
       ],
       method: 'DELETE',
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${user.getIn(['links', 'self'])}?version=${user.getIn(['userConfig', 'version'])}`
+      endpoint: apiCall
     }
   };
 }

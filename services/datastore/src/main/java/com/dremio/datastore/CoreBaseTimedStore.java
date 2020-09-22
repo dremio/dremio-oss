@@ -18,12 +18,12 @@ package com.dremio.datastore;
 import static com.dremio.common.perf.Timer.time;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import com.dremio.common.perf.Timer.TimedBlock;
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.FindByRange;
 
 /**
  * Adds timing instrumentation to KVStore interface
@@ -41,14 +41,14 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
     return kvStore;
   }
 
-  protected String getName() {
+  public String getName() {
     return name;
   }
 
   @Override
-  public KVStoreTuple<V> get(KVStoreTuple<K> key) {
+  public Document<KVStoreTuple<K>, KVStoreTuple<V>> get(KVStoreTuple<K> key, GetOption... options) {
     try (TimedBlock b = time(name + ".get")) {
-      return kvStore.get(key);
+      return kvStore.get(key, options);
     }
   }
 
@@ -58,65 +58,44 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
-  public Iterable<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByRange<KVStoreTuple<K>> range) {
+  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByRange<KVStoreTuple<K>> range, FindOption... options) {
     try (TimedBlock b = time(getName() + ".find(FindByRange)")) {
-      return kvStore.find(range);
+      return kvStore.find(range, options);
     }
   }
 
   @Override
-  public Iterable<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>> find() {
+  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindOption... options) {
     try (TimedBlock b = time(name + ".find()")) {
-      return kvStore.find();
+      return kvStore.find(options);
     }
   }
 
   @Override
-  public void put(KVStoreTuple<K> key, KVStoreTuple<V> v) {
+  public Document<KVStoreTuple<K>, KVStoreTuple<V>> put(KVStoreTuple<K> key, KVStoreTuple<V> v, PutOption... options) {
     try (TimedBlock b = time(name + ".put")) {
-      kvStore.put(key, v);
+      return kvStore.put(key, v, options);
     }
   }
 
   @Override
-  public boolean contains(KVStoreTuple<K> key) {
+  public boolean contains(KVStoreTuple<K> key, ContainsOption... options) {
     try (TimedBlock b = time(name + ".contains")) {
-      return kvStore.contains(key);
+      return kvStore.contains(key, options);
     }
   }
 
   @Override
-  public void delete(KVStoreTuple<K> key) {
+  public void delete(KVStoreTuple<K> key, DeleteOption... options) {
     try (TimedBlock b = time(name + ".delete")) {
-      kvStore.delete(key);
+      kvStore.delete(key, options);
     }
   }
 
   @Override
-  public void delete(KVStoreTuple<K> key, String previousVersion) {
-    try (TimedBlock b = time(name + ".delete(K, long)")) {
-      kvStore.delete(key, previousVersion);
-    }
-  }
-
-  @Override
-  public List<KVStoreTuple<V>> get(List<KVStoreTuple<K>> keys) {
+  public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> get(List<KVStoreTuple<K>> keys, GetOption... options) {
     try (TimedBlock b = time(name + ".get(List)")) {
-      return kvStore.get(keys);
-    }
-  }
-
-  @Override
-  public boolean validateAndPut(KVStoreTuple<K> key, KVStoreTuple<V> newValue, ValueValidator<V> validator) {
-    try (TimedBlock b = time(name + ".validateAndPut")) {
-      return kvStore.validateAndPut(key, newValue, validator);
-    }
-  }
-
-  @Override
-  public boolean validateAndDelete(KVStoreTuple<K> key, ValueValidator<V> validator) {
-    try (TimedBlock b = time(name + ".validateAndPut")) {
-      return kvStore.validateAndDelete(key, validator);
+      return kvStore.get(keys, options);
     }
   }
 
@@ -150,9 +129,9 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
     }
 
     @Override
-    public Iterable<Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindByCondition find) {
+    public Iterable<Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindByCondition find, FindOption... options) {
       try (TimedBlock b = time(getName() + ".find(FindByCondition)")) {
-        return kvStore.find(find);
+        return kvStore.find(find, options);
       }
     }
 

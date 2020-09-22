@@ -27,8 +27,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
 
-public class OutOfBandMessage {
+import io.netty.buffer.ByteBuf;
 
+public class OutOfBandMessage {
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
   private final QueryId queryId;
@@ -36,8 +37,11 @@ public class OutOfBandMessage {
   private final List<Integer> targetMinorFragmentIds;
   private final int operatorId;
   private final int sendingMinorFragmentId;
+  private final int sendingMajorFragmentId;
+  private final int sendingOperatorId;
   private final Payload payload;
   private final boolean isOptional;
+  private volatile ByteBuf buffer;
 
   public QueryId getQueryId() {
     return queryId;
@@ -59,6 +63,24 @@ public class OutOfBandMessage {
     return sendingMinorFragmentId;
   }
 
+  public int getSendingMajorFragmentId() {
+    return sendingMajorFragmentId;
+  }
+
+  public int getSendingOperatorId() {
+    return sendingOperatorId;
+  }
+
+  public ByteBuf getBuffer() {
+    return buffer;
+  }
+
+  public void retainBufferIfPresent() {
+    if (buffer != null && buffer.capacity() > 0) {
+      buffer.retain();
+    }
+  }
+
   public <T> T getPayload(Parser<T> parser) {
     try {
       T obj = parser.parseFrom(payload.bytes);
@@ -77,15 +99,18 @@ public class OutOfBandMessage {
 
   public boolean getIsOptional() { return isOptional; }
 
-  public OutOfBandMessage(OOBMessage message) {
+  public OutOfBandMessage(final OOBMessage message, final ByteBuf body) {
     queryId = message.getQueryId();
     operatorId = message.getReceivingOperatorId();
     majorFragmentId = message.getReceivingMajorFragmentId();
+    sendingMajorFragmentId = message.getSendingMajorFragmentId();
     sendingMinorFragmentId = message.getSendingMinorFragmentId();
+    sendingOperatorId = message.getSendingOperatorId();
     targetMinorFragmentIds = message.getReceivingMinorFragmentIdList();
 
     payload = new Payload(message.getType(), message.getData().toByteArray());
     isOptional = message.hasIsOptional() ? message.getIsOptional() : true;
+    buffer = body;
   }
 
   public OOBMessage toProtoMessage() {
@@ -94,7 +119,13 @@ public class OutOfBandMessage {
     builder.setQueryId(queryId);
     builder.setReceivingOperatorId(operatorId);
     builder.setReceivingMajorFragmentId(majorFragmentId);
+    if (sendingMajorFragmentId != -1) {
+      builder.setSendingMajorFragmentId(sendingMajorFragmentId);
+    }
     builder.setSendingMinorFragmentId(sendingMinorFragmentId);
+    if (sendingOperatorId != -1) {
+      builder.setSendingOperatorId(sendingOperatorId);
+    }
     builder.addAllReceivingMinorFragmentId(targetMinorFragmentIds);
 
     builder.setData(ByteString.copyFrom(payload.bytes));
@@ -104,15 +135,29 @@ public class OutOfBandMessage {
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-      int sendingMinorFragmentId, Payload payload, boolean isOptional) {
+                          int sendingMinorFragmentId, Payload payload, boolean isOptional) {
+    this(queryId, majorFragmentId, targetMinorFragmentIds, operatorId,
+      -1, sendingMinorFragmentId, -1, payload, null, isOptional);
+  }
+
+  public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
+      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ByteBuf buffer, boolean isOptional) {
     super();
     this.queryId = queryId;
     this.majorFragmentId = majorFragmentId;
     this.targetMinorFragmentIds = targetMinorFragmentIds;
     this.operatorId = operatorId;
+    this.sendingMajorFragmentId = sendingMajorFragmentId;
     this.sendingMinorFragmentId = sendingMinorFragmentId;
+    this.sendingOperatorId = sendingOperatorId;
     this.payload = payload;
     this.isOptional = isOptional;
+    this.buffer = buffer;
+
+    // Caller is expected to release its own copy
+    if (this.buffer != null) {
+      this.buffer.retain();
+    }
   }
 
   public static class Payload {

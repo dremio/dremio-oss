@@ -20,14 +20,13 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
 import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestMemoryRetention {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestMemoryRetention.class);

@@ -25,15 +25,18 @@ export const bodySmall = {
 
 export const formLabel = {
   fontFamily: roboto,
-  fontWeight: 500,
-  fontSize: 12,
-  color: '#333333'
+  fontWeight: 400,
+  fontSize: 13,
+  color: '#7F8B95',
+  display: 'flex',
+  alignItems: 'center',
+  height: '32px'
 };
 
 export const formDefault = {
   fontFamily: roboto,
   fontWeight: 400,
-  fontSize: 12,
+  fontSize: 13,
   color: '#333333'
 };
 

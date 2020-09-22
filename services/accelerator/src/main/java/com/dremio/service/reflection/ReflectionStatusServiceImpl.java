@@ -18,8 +18,8 @@ package com.dremio.service.reflection;
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
 import static com.dremio.service.reflection.ReflectionUtils.computeDatasetHash;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -29,11 +29,11 @@ import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ReflectionRPC;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.accelerator.AccelerationUtils;
@@ -74,8 +74,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionStatusServiceImpl.class);
 
+  private final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider;
   private final Provider<NamespaceService> namespaceService;
-  private final Provider<SabotContext> sabotContext;
   private final Provider<CacheViewer> cacheViewer;
 
 
@@ -90,31 +90,42 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private static final Joiner JOINER = Joiner.on(", ");
 
   @VisibleForTesting
-  ReflectionStatusServiceImpl(Provider<NamespaceService> namespaceService, Provider<SabotContext> sabotContext,
-      Provider<CacheViewer> cacheViewer, ReflectionGoalsStore goalsStore, ReflectionEntriesStore entriesStore,
-      MaterializationStore materializationStore, ExternalReflectionStore externalReflectionStore,
-      ReflectionSettings reflectionSettings, ReflectionValidator validator) {
+  ReflectionStatusServiceImpl(
+      Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
+      Provider<NamespaceService> namespaceService,
+      Provider<CacheViewer> cacheViewer,
+      ReflectionGoalsStore goalsStore,
+      ReflectionEntriesStore entriesStore,
+      MaterializationStore materializationStore,
+      ExternalReflectionStore externalReflectionStore,
+      ReflectionSettings reflectionSettings,
+      ReflectionValidator validator) {
+    this.nodeEndpointsProvider = nodeEndpointsProvider;
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
-    this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabot context required");
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
     this.goalsStore = Preconditions.checkNotNull(goalsStore, "goals store required");
     this.entriesStore = Preconditions.checkNotNull(entriesStore, "entries store required");
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.externalReflectionStore = Preconditions.checkNotNull(externalReflectionStore, "external reflection store required");
     this.reflectionSettings = Preconditions.checkNotNull(reflectionSettings, "reflection settings required");
+
     this.validator = Preconditions.checkNotNull(validator, "validator required");
   }
 
-  public ReflectionStatusServiceImpl(final Provider<SabotContext> sabotContext, Provider<CatalogService> catalogService,
-      Provider<KVStoreProvider> storeProvider, Provider<CacheViewer> cacheViewer) {
+  public ReflectionStatusServiceImpl(
+      Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
+      Provider<NamespaceService> namespaceServiceProvider,
+      Provider<CatalogService> catalogService,
+      Provider<LegacyKVStoreProvider> storeProvider,
+      Provider<CacheViewer> cacheViewer) {
     Preconditions.checkNotNull(storeProvider, "kv store provider required");
     Preconditions.checkNotNull(catalogService, "catalog service required");
-    this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabot context required");
+    this.nodeEndpointsProvider = nodeEndpointsProvider;
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
     this.namespaceService = new Provider<NamespaceService>() {
       @Override
       public NamespaceService get() {
-        return sabotContext.get().getNamespaceService(SYSTEM_USERNAME);
+        return namespaceServiceProvider.get();
       }
     };
 
@@ -124,7 +135,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     externalReflectionStore = new ExternalReflectionStore(storeProvider);
 
     reflectionSettings = new ReflectionSettings(namespaceService, storeProvider);
-    validator = new ReflectionValidator(namespaceService, catalogService);
+    validator = new ReflectionValidator(catalogService);
   }
 
   /**
@@ -191,7 +202,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     final Materialization lastMaterializationDone = materializationStore.getLastMaterializationDone(id);
     if (lastMaterializationDone != null) {
       lastDataFetch = lastMaterializationDone.getLastRefreshFromPds();
-      expiresAt = lastMaterializationDone.getExpiration();
+      expiresAt = Optional.ofNullable(lastMaterializationDone.getExpiration()).orElse(0L);
 
       final Set<String> activeHosts = getActiveHosts();
       final long now = System.currentTimeMillis();
@@ -220,7 +231,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   }
 
   private Set<String> getActiveHosts() {
-    return Sets.newHashSet(sabotContext.get().getExecutors().stream().map(CoordinationProtos.NodeEndpoint::getAddress).collect(Collectors.toList()));
+    return Sets.newHashSet(nodeEndpointsProvider.get().stream().map(CoordinationProtos.NodeEndpoint::getAddress).collect(Collectors.toList()));
   }
 
   private ExternalReflectionStatus.STATUS computeStatus(ExternalReflection reflection) {
@@ -236,9 +247,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     // now check if the query and target datasets didn't change
     try {
-      if (!reflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService.get()))) {
+      if (!reflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService.get(), false))) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
-      } else if (!reflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService.get()))) {
+      } else if (!reflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService.get(), false))) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
       }
     } catch (NamespaceException e) {
@@ -302,7 +313,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-        null
+        null,
+        goal.getArrowCachingEnabled()
       );
     });
 
@@ -334,7 +346,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
             null,
             null,
             null,
-            targetDatasetPath
+            targetDatasetPath,
+            false
           );
       }).filter(Objects::nonNull);
     return Stream.concat(reflections, externalReflectionsInfo).collect(Collectors.toList());

@@ -1,0 +1,128 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.namespace.source.proto;
+
+import "namespace-common.proto";
+
+option java_package = "com.dremio.service.namespace.source.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "SourceProtobuf";
+
+message SourceConfig {
+  option (extends_class) = "com.dremio.service.namespace.AbstractSourceConfig<SourceConfig>";
+  optional EntityId id = 1;
+  
+  optional LegacySourceType legacy_source_type_enum = 2 [deprecated = true];
+  
+  optional string name = 3;
+  optional int64 ctime = 4;
+  optional string img = 5;
+  optional string description = 6;
+  optional bytes config = 7; // encoded message specific to SourceType.
+  optional int64 version = 8 [deprecated = true];
+  optional TimePeriod accelerationTTL = 9 [deprecated = true];
+  optional MetadataPolicy metadata_policy = 10;
+  optional int64 last_refresh_date = 11 [deprecated = true]; // last refresh date moved to its own key/value store
+  // materialization refresh period
+  optional int64 accelerationRefreshPeriod = 12;
+  // materialization grace period
+  optional int64 accelerationGracePeriod = 13;
+  optional string type = 14;
+  optional bool accelerationNeverExpire = 15 [default = false];
+  optional bool accelerationNeverRefresh = 16 [default = false];
+  optional string tag = 17;
+  optional int64 configOrdinal = 18;
+  optional bool allowCrossSourceSelection = 19 [default = false];
+}
+
+// Version notes:
+// - dataset_definition_{refresh,expire}_after_ms added in 1.1.0.
+//   On upgrade, dataset_definition_ttl_ms value stored in dataset_definition_refresh_after_ms
+//               dataset_definition_expire_after_ms computed from dataset_definition_refresh_after_ms and the default TTL value
+message MetadataPolicy {
+
+  // how often we should update the names databases/tables associated with a system.
+  optional int64 names_refresh_ms = 1;
+
+  optional UpdateMode dataset_update_mode = 2;
+
+  // how often should we fetch and cache the dataset definitions
+  optional int64 dataset_definition_ttl_ms = 3 [deprecated = true];
+
+  // how long can we cache knowledge of table access rights when using external authorization system via impersonation.
+  optional int64 auth_ttl_ms = 4;
+
+  // how often should we fetch and cache the dataset definitions
+  optional int64 dataset_definition_refresh_after_ms = 5;
+
+  // how long can we cache the definition of a dataset before re-checking its authenticity.
+  optional int64 dataset_definition_expire_after_ms = 6;
+
+  // if unavailable datasets should be deleted from the catalog
+  optional bool delete_unavailable_datasets = 7 [default = true];
+
+  optional bool auto_promote_datasets = 8 [default = false];
+}
+
+enum UpdateMode {
+  UNKNOWN = 0;
+  PREFETCH = 1;
+  PREFETCH_QUERIED = 2;
+  INLINE = 3 [deprecated = true];  // DX-16127: INLINE update mode is deprecated
+}
+
+@Deprecated
+enum LegacySourceType {
+  NAS = 0;
+  HDFS = 1;
+  MAPRFS = 2;
+  S3 = 3;
+  MONGO = 4;
+  ELASTIC = 5;
+  ORACLE = 6;
+  MYSQL = 7;
+  MSSQL = 8;
+  POSTGRES = 9;
+  REDSHIFT = 10;
+  HBASE = 11;
+  KUDU = 12;
+  AZB = 13;
+  HIVE = 14;
+  PDFS = 15;
+  UNKNOWN = 17;
+  HOME = 18;
+  CLASSPATH = 19; // test-only
+  SYS = 20;
+  INFORMATION_SCHEMA = 21;
+  ADL = 22;
+  GCS = 23;
+  INTERNAL = 24;
+  AWSGLUE = 25;
+}
+
+// Internally computed details about a source. Background tasks will routinely change this data
+message SourceInternalData {
+  // Source's name
+  optional string name = 1;
+  optional int64 version = 2 [deprecated = true];
+  // system time (in milliseconds) when this source finished a refresh of the metadata of each of its datasets
+  optional int64 last_full_refresh_date_ms = 3;
+  // system time (in milliseconds) when this source finished a refresh of the names of its datasets
+  optional int64 last_name_refresh_date_ms = 4;
+  // Version used for OCC
+  optional string tag = 5;
+}

@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.work.protector;
 
+import java.util.Optional;
+
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.google.common.base.Optional;
 
 /**
  * Tool for interacting with the foremen manager.
@@ -35,7 +36,7 @@ public interface ForemenTool {
 
     @Override
     public Optional<QueryProfile> getProfile(ExternalId id) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
   };

@@ -34,11 +34,24 @@ public class HiveConfFactory {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveConfFactory.class);
   private static final String DREMIO_SOURCE_CONFIGURATION_SOURCE = "Dremio source configuration";
 
+  public static final String HIVE_ENABLE_ASYNC = "hive.async.enabled";
+  public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE = "hive.cache.enabledForS3AndADLSG2";
+  public static final String HIVE_ENABLE_CACHE_FOR_HDFS = "hive.cache.enabledForHDFS";
+  public static final String HIVE_MAX_HIVE_CACHE_SPACE = "hive.cache.maxspace";
+
   // Hadoop properties reference: hadoop/hadoop-common-project/hadoop-common/src/main/resources/core-default.xml
 
   // S3 Hadoop file system implementation
   private static final String FS_S3_IMPL = "fs.s3.impl";
   private static final String FS_S3_IMPL_DEFAULT = "org.apache.hadoop.fs.s3a.S3AFileSystem";
+
+  private static final String FS_S3_MAXIMUM_CONNECTIONS = "fs.s3a.connection.maximum";
+  private static final String FS_S3_FAST_UPLOAD = "fs.s3a.fast.upload";
+  private static final String FS_S3_FAST_UPLOAD_BUFFER = "fs.s3a.fast.upload.buffer";
+  private static final String FS_S3_FAST_UPLOAD_ACTIVE_BLOCKS = "fs.s3a.fast.upload.active.blocks";
+  private static final String FS_S3_MAX_THREADS = "fs.s3a.threads.max";
+  private static final String FS_S3_MULTIPART_SIZE = "fs.s3a.multipart.size";
+  private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
 
   // ADL Hadoop file system implementation
   private static final ImmutableMap<String, String> ADL_PROPS = ImmutableMap.of(
@@ -106,8 +119,24 @@ public class HiveConfFactory {
       }
     }
 
+    setConf(hiveConf, HIVE_ENABLE_ASYNC, config.enableAsync);
+    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, config.isCachingEnabledForS3AndAzureStorage);
+    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_HDFS, config.isCachingEnabledForHDFS);
+    setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
+
+    addS3Properties(hiveConf);
     addUserProperties(hiveConf, config);
     return hiveConf;
+  }
+
+  private static void addS3Properties(HiveConf hiveConf) {
+    setConf(hiveConf, FS_S3_MAXIMUM_CONNECTIONS, "1000");
+    setConf(hiveConf, FS_S3_FAST_UPLOAD, "true");
+    setConf(hiveConf, FS_S3_FAST_UPLOAD_BUFFER, "disk");
+    setConf(hiveConf, FS_S3_FAST_UPLOAD_ACTIVE_BLOCKS, "4");
+    setConf(hiveConf, FS_S3_MAX_THREADS, "24");
+    setConf(hiveConf, FS_S3_MULTIPART_SIZE, "67108864");
+    setConf(hiveConf, FS_S3_MAX_TOTAL_TASKS, "30");
   }
 
   /**
@@ -165,9 +194,9 @@ public class HiveConfFactory {
       setConf(hiveConf, FS_S3_IMPL, FS_S3_IMPL_DEFAULT);
     }
 
+    ADL_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
     WASB_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
     ABFS_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
-    ADL_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
   }
 
   protected static void setConf(HiveConf configuration, String name, String value) {
@@ -184,5 +213,13 @@ public class HiveConfFactory {
 
   protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, boolean value) {
     setConf(configuration, var.varname, Boolean.toString(value));
+  }
+
+  private void setConf(HiveConf hiveConf, String intProperty, int intValue) {
+    hiveConf.setInt(intProperty, intValue);
+  }
+
+  private void setConf(HiveConf hiveConf, String propertyName, boolean booleanValue) {
+    hiveConf.setBoolean(propertyName, booleanValue);
   }
 }

@@ -22,30 +22,44 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
-import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
+import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
-import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
+import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
+import com.dremio.exec.proto.CoordExecRPC.NodeStatReq;
+import com.dremio.exec.proto.CoordExecRPC.NodeStatResp;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.rpc.Acks;
+import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.service.BindingCreator;
+import com.dremio.exec.rpc.UserRpcException;
+import com.dremio.exec.service.executor.ExecutorService;
 import com.dremio.service.Service;
+import com.dremio.service.jobresults.JobResultsRequest;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
+import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
+import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 
+import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -57,54 +71,59 @@ public class CoordExecService implements Service {
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
   private final BufferAllocator allocator;
-  private final Provider<CoordToExecHandler> coordToExec;
-  private final Provider<ExecToCoordHandler> execToCoord;
+  private final Provider<ExecutorService> executorService;
+  private final Provider<ExecToCoordResultsHandler> execResults;
+  private final Provider<ExecToCoordStatusHandler> execStatus;
   private final Provider<FabricService> fabricService;
+  private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
+  private final Provider<JobTelemetryClient> jobTelemetryClient;
   private final RpcConfig config;
+  private CloseableThreadPool rpcOffloadPool;
 
   /**
    * Create a new exec service. Note that at start time, the provider to one of
    * the handlers may be a noop implementation. This is allowed if this is a
    * single role node.
-   *
-   * @param config
+   *  @param config
    * @param allocator
-   * @param bindingCreator
    * @param fabricService
-   * @param coordToExec
-   * @param execToCoord
+   * @param executorService
+   * @param execResults
+   * @param execStatus
    */
   public CoordExecService(
-      SabotConfig config,
-      BufferAllocator allocator,
-      BindingCreator bindingCreator,
-      Provider<FabricService> fabricService,
-      Provider<CoordToExecHandler> coordToExec,
-      Provider<ExecToCoordHandler> execToCoord
-      ) {
+    SabotConfig config,
+    BufferAllocator allocator,
+    Provider<FabricService> fabricService,
+    Provider<ExecutorService> executorService,
+    Provider<ExecToCoordResultsHandler> execResults,
+    Provider<ExecToCoordStatusHandler> execStatus,
+    Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
+    Provider<JobTelemetryClient> jobTelemetryClient) {
+
     super();
-    // as part of construction, register default noop implementations for both handler.
-    bindingCreator.bind(CoordToExecHandler.class, NoCoordToExecHandler.class);
-    bindingCreator.bind(ExecToCoordHandler.class, NoExecToCoordHandler.class);
 
     this.fabricService = fabricService;
     this.allocator =  allocator.newChildAllocator("coord-exec-rpc",
-        config.getLong("dremio.exec.rpc.bit.server.memory.data.reservation"),
-        config.getLong("dremio.exec.rpc.bit.server.memory.data.maximum"));
-    this.coordToExec = coordToExec;
-    this.execToCoord = execToCoord;
+            config.getLong("dremio.exec.rpc.bit.server.memory.data.reservation"),
+            config.getLong("dremio.exec.rpc.bit.server.memory.data.maximum"));
+    this.executorService = executorService;
+    this.execResults = execResults;
+    this.execStatus = execStatus;
+    this.selfEndpoint = selfEndpoint;
+    this.jobTelemetryClient = jobTelemetryClient;
     this.config = getMapping(config);
   }
 
   @Override
   public void close() throws Exception {
-    allocator.close();
+    AutoCloseables.close(allocator, rpcOffloadPool);
   }
 
   @Override
   public void start() throws Exception {
     fabricService.get().registerProtocol(new CoordExecProtocol());
-
+    rpcOffloadPool = new CloseableThreadPool("Fabric-RPC-Offload");
     final String prefix = "rpc";
     Metrics.newGauge(prefix + "bit.control.current", allocator::getAllocatedMemory);
     Metrics.newGauge(prefix + "bit.control.peak", allocator::getPeakMemoryAllocation);
@@ -135,128 +154,216 @@ public class CoordExecService implements Service {
     @Override
     public MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
       switch (rpcType) {
-      case RpcType.ACK_VALUE:
-        return Ack.getDefaultInstance();
-      default:
-        throw new UnsupportedOperationException();
+        case RpcType.ACK_VALUE:
+          return Ack.getDefaultInstance();
+        case RpcType.RESP_NODE_STATS_VALUE:
+          return NodeStatResp.getDefaultInstance();
+        default:
+          throw new UnsupportedOperationException();
       }
     }
 
     @Override
     public void handle(
-        PhysicalConnection connection,
-        int rpcType,
-        ByteString pBody,
-        ByteBuf dBody,
-        ResponseSender sender) throws RpcException {
+            PhysicalConnection connection,
+            int rpcType,
+            ByteString pBody,
+            ByteBuf dBody,
+            ResponseSender sender) throws RpcException {
 
       if (RpcConstants.EXTRA_DEBUGGING) {
         logger.debug("Received exec > coord message of type {}", rpcType);
       }
 
+      StreamObserver<Empty> responseObserver = new StreamObserver<Empty>() {
+        @Override
+        public void onNext(Empty empty) {
+          // no-op
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+          sender.sendFailure(mapToUserRpcException(throwable));
+        }
+
+        @Override
+        public void onCompleted() {
+          sender.send(OK);
+        }
+      };
+
       switch (rpcType) {
 
-      // coordinator > executor
-      case RpcType.REQ_CANCEL_FRAGMENTS_VALUE: {
-        final CancelFragments fragments = get(pBody, CancelFragments.PARSER);
-        coordToExec.get().cancelFragments(fragments);
-        sender.send(OK);
-        break;
+        // coordinator > executor
+        case RpcType.REQ_CANCEL_FRAGMENTS_VALUE: {
+          final CancelFragments fragments = get(pBody, CancelFragments.PARSER);
+          executorService.get().cancelFragments(fragments, responseObserver);
+          break;
+        }
+
+        // coordinator > executor
+        case RpcType.REQ_START_FRAGMENTS_VALUE: {
+          final InitializeFragments fragments = get(pBody, InitializeFragments.PARSER);
+          executorService.get().startFragments(fragments, responseObserver);
+          break;
+        }
+
+        // coordinator > executor
+        case RpcType.REQ_ACTIVATE_FRAGMENTS_VALUE: {
+          final ActivateFragments fragments = get(pBody, ActivateFragments.PARSER);
+          executorService.get().activateFragment(fragments, responseObserver);
+          break;
+        }
+
+        case RpcType.REQ_NODE_STATS_VALUE:
+          StreamObserver<NodeStatResp> responseObserverStats = new StreamObserver<NodeStatResp>() {
+            private NodeStatResp nodeStatResp;
+            @Override
+            public void onNext(NodeStatResp response) {
+              nodeStatResp = response;
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+              sender.sendFailure(mapToUserRpcException(throwable));
+            }
+
+            @Override
+            public void onCompleted() {
+              sender.send(new Response(RpcType.RESP_NODE_STATS, nodeStatResp));
+            }
+          };
+          executorService.get().getNodeStats(Empty.newBuilder().build(), responseObserverStats);
+          break;
+
+        // executor > coordinator
+        case RpcType.REQ_QUERY_DATA_VALUE:
+          QueryData header = get(pBody, QueryData.PARSER);
+          execResults.get().dataArrived(header, dBody, null, sender);
+          break;
+
+        case RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION_VALUE:
+          NodeQueryScreenCompletion completion = get(pBody, NodeQueryScreenCompletion.PARSER);
+          execStatus.get().screenCompleted(completion);
+          sender.send(OK);
+          break;
+
+        // offload both node query complete and node query error to a different thread. this causes
+        // outbound rpcs to master like
+        // 1. profile update
+        // 2. wlm stats update
+        // the first is likely to cause a deadlock
+        // the second will fail and block the query
+        case RpcType.REQ_NODE_QUERY_COMPLETION_VALUE:
+          NodeQueryCompletion nodeQueryCompletion = get(pBody, NodeQueryCompletion.PARSER);
+          rpcOffloadPool.submit( () -> {
+            try {
+              logger.debug("Processing node query complete in a different thread.");
+              execStatus.get().nodeQueryCompleted(nodeQueryCompletion);
+              sender.send(OK);
+            } catch (RpcException e) {
+              sender.sendFailure(new UserRpcException(selfEndpoint.get(), "Failure processing " +
+                "node query complete.", e));
+            }
+
+          });
+          break;
+
+        case RpcType.REQ_NODE_QUERY_ERROR_VALUE:
+          NodeQueryFirstError firstError = get(pBody, NodeQueryFirstError.PARSER);
+          rpcOffloadPool.submit( () -> {
+            try {
+              logger.debug("Processing node first error in a different thread.");
+              execStatus.get().nodeQueryMarkFirstError(firstError);
+              sender.send(OK);
+            } catch (RpcException e) {
+              sender.sendFailure(new UserRpcException(selfEndpoint.get(), "Failure processing " +
+                "node first error.", e));
+            }
+          });
+          break;
+
+        case RpcType.REQ_NODE_QUERY_PROFILE_VALUE:
+          ExecutorQueryProfile profile = get(pBody, ExecutorQueryProfile.PARSER);
+          // propagate to job-telemetry service (in-process server).
+          JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub stub = jobTelemetryClient.get().getBlockingStub();
+          if (stub == null) {
+           // telemetry client/service has not been fully started. a message can still arrive
+           // if coordinator has been restarted while active queries are running in executor.
+           logger.info("Dropping a profile message from end point : " + profile.getEndpoint() +
+             ". This is harmless since the query will be terminated shortly due to coordinator " +
+             "restarting");
+          } else {
+            stub.putExecutorProfile(
+              PutExecutorProfileRequest
+                .newBuilder()
+                .setProfile(profile)
+                .build()
+            );
+          }
+          sender.send(OK);
+          break;
+
+        default:
+          throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
       }
+    }
+  }
 
-      // coordinator > executor
-      case RpcType.REQ_START_FRAGMENTS_VALUE: {
-        final InitializeFragments fragments = get(pBody, InitializeFragments.PARSER);
-        coordToExec.get().startFragments(fragments, sender);
-        break;
-      }
-
-      // coordinator > executor
-      case RpcType.REQ_ACTIVATE_FRAGMENTS_VALUE: {
-        final ActivateFragments fragments = get(pBody, ActivateFragments.PARSER);
-        coordToExec.get().activateFragments(fragments);
-        sender.send(OK);
-        break;
-      }
-
-      // executor > coordinator
-      case RpcType.REQ_FRAGMENT_STATUS_VALUE:
-        FragmentStatus status = get(pBody, FragmentStatus.PARSER);
-        execToCoord.get().fragmentStatusUpdate(status);
-        sender.send(OK);
-        break;
-
-      case RpcType.REQ_QUERY_DATA_VALUE:
-        QueryData header = get(pBody, QueryData.PARSER);
-        execToCoord.get().dataArrived(header, dBody, sender);
-        break;
-
-      case RpcType.REQ_NODE_QUERY_STATUS_VALUE:
-        NodeQueryStatus nodeQueryStatus = get(pBody, NodeQueryStatus.PARSER);
-        execToCoord.get().nodeQueryStatusUpdate(nodeQueryStatus);
-        sender.send(OK);
-        break;
-
-      default:
-        throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
-      }
+  private UserRpcException mapToUserRpcException(Throwable t) {
+    if (t instanceof UserRpcException) {
+      return (UserRpcException)t;
+    } else {
+      return new UserRpcException(selfEndpoint.get(),
+        "failure while processing message from coordinator", t);
     }
   }
 
   private static RpcConfig getMapping(SabotConfig config) {
     return RpcConfig.newBuilder()
-        .name("CoordToExec")
-        .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
-        .add(RpcType.REQ_START_FRAGMENTS, InitializeFragments.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_ACTIVATE_FRAGMENTS, ActivateFragments.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_CANCEL_FRAGMENTS, CancelFragments.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_FRAGMENT_STATUS, FragmentStatus.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_QUERY_DATA, QueryData.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_NODE_QUERY_STATUS, NodeQueryStatus.class, RpcType.ACK, Ack.class)
-        .build();
+            .name("CoordToExec")
+            .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
+            .add(RpcType.REQ_START_FRAGMENTS, InitializeFragments.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_ACTIVATE_FRAGMENTS, ActivateFragments.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_CANCEL_FRAGMENTS, CancelFragments.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_QUERY_DATA, QueryData.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION, NodeQueryScreenCompletion.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_NODE_QUERY_COMPLETION, NodeQueryCompletion.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_NODE_QUERY_ERROR, NodeQueryFirstError.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_NODE_QUERY_PROFILE, ExecutorQueryProfile.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_NODE_STATS, NodeStatReq.class, RpcType.RESP_NODE_STATS, NodeStatResp.class)
+            .build();
   }
 
-  public static final class NoCoordToExecHandler implements CoordToExecHandler {
+  public static final class NoExecToCoordResultsHandler implements ExecToCoordResultsHandler {
 
     @Inject
-    public NoCoordToExecHandler(){}
+    public NoExecToCoordResultsHandler(){}
 
     @Override
-    public void startFragments(InitializeFragments fragments, ResponseSender sender) throws RpcException {
-      throw new RpcException("This daemon doesn't support execution operations.");
+    public void dataArrived(QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender) throws RpcException {
+      throw new RpcException("This daemon doesn't support coordination operations.");
     }
-
-    @Override
-    public void activateFragments(ActivateFragments fragments) throws RpcException {
-      throw new RpcException("This daemon doesn't support execution operations.");
-    }
-
-    @Override
-    public void cancelFragments(CancelFragments fragments) throws RpcException {
-      throw new RpcException("This daemon doesn't support execution operations.");
-    }
-
   }
 
-  public static final class NoExecToCoordHandler implements ExecToCoordHandler {
+  public static final class NoExecToCoordStatusHandler implements ExecToCoordStatusHandler {
 
     @Inject
-    public NoExecToCoordHandler(){}
+    public NoExecToCoordStatusHandler(){}
 
     @Override
-    public void fragmentStatusUpdate(FragmentStatus update) throws RpcException {
+    public void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
 
     @Override
-    public void dataArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
+    public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
 
     @Override
-    public void nodeQueryStatusUpdate(NodeQueryStatus update) throws RpcException {
+    public void nodeQueryMarkFirstError(NodeQueryFirstError error) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
-
   }
 }

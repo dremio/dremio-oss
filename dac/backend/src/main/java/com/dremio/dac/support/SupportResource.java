@@ -76,7 +76,11 @@ public class SupportResource {
       throws IOException, UserNotFoundException, JobResourceNotFoundException {
     final DownloadDataResponse response;
     try {
-      response = supportService.downloadSupportRequest(context.getUserPrincipal().getName(), jobId);
+      final ImmutableSupportRequest request = new ImmutableSupportRequest.Builder()
+        .setUserId(context.getUserPrincipal().getName())
+        .setJobId(jobId)
+        .build();
+      response = supportService.downloadSupportRequest(request);
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }

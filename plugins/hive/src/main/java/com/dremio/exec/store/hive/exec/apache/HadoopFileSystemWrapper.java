@@ -1161,4 +1161,9 @@ public class HadoopFileSystemWrapper
     Throwables.propagateIfPossible(e.getCause(), IOException.class);
     return new IOException("Unexpected FSError", e);
   }
+
+  public static RuntimeException propagateFSRuntimeException(FSError e) {
+    Throwables.throwIfUnchecked(e.getCause());
+    return new RuntimeException("Unexpected FSError", e);
+  }
 }

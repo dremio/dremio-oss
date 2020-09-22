@@ -15,8 +15,8 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_EXPLORE_ENTITIES_STARTED = 'LOAD_EXPLORE_ENTITIES_STARTED';
 export const LOAD_EXPLORE_ENTITIES_SUCCESS = 'LOAD_EXPLORE_ENTITIES_SUCCESS';
@@ -24,6 +24,9 @@ export const LOAD_EXPLORE_ENTITIES_FAILURE = 'LOAD_EXPLORE_ENTITIES_FAILURE';
 
 function fetchEntities({ href, schema, viewId, uiPropsForEntity, invalidateViewIds }) {
   const meta = { viewId, invalidateViewIds, href };
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -32,7 +35,7 @@ function fetchEntities({ href, schema, viewId, uiPropsForEntity, invalidateViewI
         { type: LOAD_EXPLORE_ENTITIES_FAILURE, meta }
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }
@@ -64,6 +67,8 @@ function loadCleanDataFetch(colName, dataset) {
   const data = { colName };
   const meta = { viewId: CLEAN_DATA_VIEW_ID };
 
+  const apiCall = new APIV2Call().paths(`${dataset.getIn(['apiLinks', 'self'])}/clean`);
+
   return {
     [RSAA]: {
       types: [
@@ -74,7 +79,7 @@ function loadCleanDataFetch(colName, dataset) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-      endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/clean`
+      endpoint: apiCall
     }
   };
 }

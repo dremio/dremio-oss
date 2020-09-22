@@ -16,6 +16,12 @@
 package com.dremio.datastore;
 
 import java.io.IOException;
+import java.util.Base64;
+
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.options.VersionOption;
+import com.google.common.hash.Hashing;
 
 /**
  * A byte[], byte[] kvstore that is closeable and allows key deletions. This isn't on the main interface since it is for internal purposes.
@@ -24,18 +30,33 @@ interface ByteStore extends KVStore<byte[], byte[]>, AutoCloseable {
   void deleteAllValues() throws IOException;
 
   /**
-   * Validate the currently stored value before updating the store
+   * Validate the currently stored value before updating the store.
    *
-   * @param key the key
-   * @param newValue the new value
-   * @param validator a ByteValidator that ensures that the current item stored in the store for the key is valid
-   * @return if the validation succeeded or not
+   * @param key the key.
+   * @param newValue the new value.
+   * @param versionInfo information about the tag the caller is expecting.
+   * @param options Options for the put operation.
+   * @return a non-null Document if validation succeeded.
    */
-  boolean validateAndPut(byte[] key, byte[] newValue, ByteValidator validator);
+  Document<byte[], byte[]> validateAndPut(byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options);
 
-  boolean validateAndDelete(byte[] key, ByteValidator validator);
+  /**
+   * Validate the currently stored value before deleting the key-value entry.
+   *
+   * @param key the key.
+   * @param versionInfo the TagInfo.
+   * @param options Options for the delete operation.
+   * @return true if delete was successful, false otherwise.
+   */
+  boolean validateAndDelete(byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options);
 
-  interface ByteValidator {
-    boolean validate(byte[] oldValue);
+  /**
+   * Generates a tag by fingerprinting the value of the key-value store entry.
+   *
+   * @param value the value to fingerprint.
+   * @return a String representation of the fingerprint generated.
+   */
+  static String generateTagFromBytes(byte[] value) {
+    return Base64.getEncoder().encodeToString(Hashing.farmHashFingerprint64().hashBytes(value, 0, value.length).asBytes());
   }
 }

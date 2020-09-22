@@ -17,9 +17,9 @@ package com.dremio.exec.catalog;
 
 import java.util.Objects;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 
@@ -28,7 +28,7 @@ import com.dremio.service.namespace.PartitionChunkMetadata;
  * May be loaded lazily.
  */
 final class FilteredSplitsPointer extends LazySplitsPointer {
-  private final FindByCondition splitFilter;
+  private final LegacyFindByCondition splitFilter;
 
   FilteredSplitsPointer(
       NamespaceService namespaceService,
@@ -36,7 +36,7 @@ final class FilteredSplitsPointer extends LazySplitsPointer {
       SearchQuery partitionFilterQuery,
       int totalSplitCount) {
     super(namespaceService, splitVersion, totalSplitCount);
-    this.splitFilter = new FindByCondition().setCondition(partitionFilterQuery);
+    this.splitFilter = new LegacyFindByCondition().setCondition(partitionFilterQuery);
   }
 
   @Override

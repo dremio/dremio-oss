@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_RESOURCE_TREE_START = 'LOAD_RESOURCE_TREE_START';
 export const LOAD_RESOURCE_TREE_SUCCESS = 'LOAD_RESOURCE_TREE_SUCCESS';
@@ -22,8 +22,22 @@ export const LOAD_RESOURCE_TREE_FAILURE = 'LOAD_RESOURCE_TREE_FAILURE';
 
 const fetchResourceTree = (fullPath, { showDatasets, showSpaces, showSources, showHomes, isExpand }) => {
   const meta = { viewId: 'ResourceTree', path: fullPath, isExpand};
-  const datasetsQuery = `showDatasets=${showDatasets}`;
-  const query = `?${datasetsQuery}&showSources=${showSources}&showSpaces=${showSpaces}&showHomes=${showHomes}`;
+
+  const apiCall = new APIV2Call()
+    .path('resourcetree')
+    .paths(fullPath);
+
+  if (isExpand) {
+    apiCall.path('expand');
+  }
+
+  apiCall.params({
+    showDatasets,
+    showSources,
+    showSpaces,
+    showHomes
+  });
+
   return {
     [RSAA]: {
       types: [
@@ -32,7 +46,7 @@ const fetchResourceTree = (fullPath, { showDatasets, showSpaces, showSources, sh
         { type: LOAD_RESOURCE_TREE_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/resourcetree/${encodeURIComponent(fullPath)}${isExpand ? '/expand' : ''}${query}`
+      endpoint: apiCall
     }
   };
 };

@@ -16,16 +16,20 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import { withRouter } from 'react-router';
+import { connect } from 'react-redux';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
+import HoverHelp from '@app/components/HoverHelp';
 import DividerHr from '@app/components/Menus/DividerHr';
+import MenuItem from '@app/components/Menus/MenuItem';
+import { getJobProgress } from '@app/selectors/explore';
 
 import Menu from './Menu';
-import MenuItem from './MenuItem';
 import MenuLabel from './MenuLabel';
 import ExportMenu from './ExportMenu';
-import BiToolsMenu from './BiToolsMenu';
 
+@injectIntl
 export class CombinedActionMenu extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -33,7 +37,9 @@ export class CombinedActionMenu extends PureComponent {
     action: PropTypes.func,
     closeMenu: PropTypes.func.isRequired,
     isSettingsDisabled: PropTypes.bool,
-    isActionDisabled: PropTypes.bool,
+    intl: PropTypes.object.isRequired,
+    //connected
+    jobProgress: PropTypes.object,
     router: PropTypes.object,
     location: PropTypes.object
   };
@@ -55,8 +61,22 @@ export class CombinedActionMenu extends PureComponent {
     });
   };
 
+  renderDownloadSectionHeader = () => {
+    const {intl, jobProgress} = this.props;
+    const isRun = jobProgress && jobProgress.isRun;
+    const headerText = isRun ? la('Download (limited)') : la('Download (sample)');
+    const helpContent = isRun ?
+      intl.formatMessage({ id: 'Explore.run.warning' }) :
+      intl.formatMessage({ id: 'Explore.preview.warning' });
+    return (
+      <MenuLabel>
+        {headerText}<HoverHelp content={helpContent} placement='bottom-start' />
+      </MenuLabel>
+    );
+  };
+
   render() {
-    const { isSettingsDisabled, isActionDisabled, action, closeMenu, datasetColumns, dataset } = this.props;
+    const { isSettingsDisabled, action, datasetColumns, dataset } = this.props;
     const datasetSql = dataset.get('sql');
     return (
       <Menu>
@@ -68,13 +88,17 @@ export class CombinedActionMenu extends PureComponent {
           {la('Settings')}
         </MenuItem>
         <DividerHr />
-        <MenuLabel>{la('Download')}</MenuLabel>
+        {this.renderDownloadSectionHeader()}
         <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql}/>
-        <DividerHr />
-        <BiToolsMenu action={action} closeMenu={closeMenu} disabled={isActionDisabled}/>
       </Menu>
     );
   }
 }
 
-export default withRouter(CombinedActionMenu);
+function mapStateToProps(state) {
+  return {
+    jobProgress: getJobProgress(state)
+  };
+}
+
+export default withRouter(connect(mapStateToProps)(CombinedActionMenu));

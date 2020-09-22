@@ -25,11 +25,11 @@ import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
+import com.dremio.ssl.SSLEngineFactory;
 import com.google.protobuf.MessageLite;
 
 import io.netty.buffer.ByteBuf;

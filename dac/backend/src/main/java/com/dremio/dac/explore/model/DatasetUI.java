@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.explore.model;
 
+import static com.dremio.common.utils.PathUtils.encodeURIComponent;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -251,8 +253,10 @@ public class DatasetUI {
       queryUrlPath = new DatasetPath(displayFullPath).getQueryUrlPath();
     }
     Map<String, String> links = new HashMap<>();
-    links.put("self", queryUrlPath + "?version=" + datasetVersion);
-    links.put("edit", queryUrlPath + "?mode=edit&version=" + datasetVersion);
+    links.put("self", queryUrlPath + "?version="
+      + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
+    links.put("edit", queryUrlPath + "?mode=edit&version="
+      + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
     final JobFilters jobFilters = new JobFilters()
       .addFilter(JobIndexKeys.ALL_DATASETS, dottedFullPath)
       .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);

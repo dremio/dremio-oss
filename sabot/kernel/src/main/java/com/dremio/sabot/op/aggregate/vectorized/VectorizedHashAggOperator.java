@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.FieldVector;
@@ -44,6 +45,8 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.HashAggSpill;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
@@ -74,7 +77,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 
@@ -292,6 +294,11 @@ import io.netty.util.internal.PlatformDependent;
 
 @Options
 public class VectorizedHashAggOperator implements SingleInputOperator {
+  private static final ControlsInjector injector =
+    ControlsInjectorFactory.getInjector(VectorizedHashAggOperator.class);
+
+  @VisibleForTesting
+  public static final String INJECTOR_SETUP_OOM_ERROR = "setupOOMError";
 
   public static final PowerOfTwoLongValidator VECTORIZED_HASHAGG_NUMPARTITIONS = new PowerOfTwoLongValidator("exec.operator.aggregate.vectorize.num_partitions", 32, 8);
   /* concept of batch internal to vectorized hashagg operator and hashtable to manage the memory allocation.
@@ -464,6 +471,9 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
+
+    injector.injectChecked(context.getExecutionControls(), INJECTOR_SETUP_OOM_ERROR,
+      OutOfMemoryException.class);
 
     debug.setInfoBeforeInit(allocator.getInitReservation(), allocator.getLimit(),
                             maxVariableBlockLength,

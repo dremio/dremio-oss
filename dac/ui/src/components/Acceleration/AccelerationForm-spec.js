@@ -201,7 +201,7 @@ describe('AccelerationForm', () => {
       const instance = shallow(<AccelerationForm {...props}/>).instance();
       values.rawReflections.length = 1;
       values.rawReflections[0].shouldDelete = true;
-      return instance.submitForm(values).then(data => {
+      return instance.submitForm(values).then(() => {
         expect(commonProps.putReflection).to.have.been.calledWith(values.aggregationReflections[0]);
         expect(commonProps.postReflection).to.have.been.calledWith(values.aggregationReflections[1]);
         expect(commonProps.deleteReflection).to.have.been.calledWith(values.rawReflections[0]);

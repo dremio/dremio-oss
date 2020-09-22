@@ -17,7 +17,6 @@ package com.dremio.exec.store.hive.pf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +31,7 @@ import org.pf4j.util.FileUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Customized plugin classloader that extracts native libraries before loading them from a plugin
@@ -40,31 +40,37 @@ import com.google.common.base.Preconditions;
 public class NativeLibPluginClassLoader extends PluginClassLoader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NativeLibPluginClassLoader.class);
 
+  private static ImmutableList<String> PACKAGE_WHITELIST = ImmutableList.<String> builder()
+      .add("java/")
+      .add("javax/")
+      // Too broad of a package but until we have a proper API/SDK
+      .add("com/dremio/")
+      .add("com/fasterxml/jackson/")
+      .add("com/google/protobuf/")
+      .add("com/sun/")
+      .add("io/netty/buffer/ArrowBuf")
+      .add("io/protostuff/")
+      .add("org/apache/arrow/")
+      .add("org/apache/calcite/")
+      .add("org/apache/parquet/")
+      .add("org/ietf/jgss/")
+      .add("org/pf4j/")
+      .add("org/slf4j/")
+      // Are part of JRE, but are extended by xml-apis
+      .add("org/w3c/")
+      .add("org/xml/")
+      .add("sun/")
+      .build();
+
   private final Path pluginPath;
   private volatile Path tempDirectory;
 
   public NativeLibPluginClassLoader(Path pluginPath, PluginManager pluginManager,
                                     PluginDescriptor pluginDescriptor, ClassLoader parent) {
-    super(pluginManager, pluginDescriptor, parent);
+    super(pluginManager, pluginDescriptor, WhitelistClassLoader.of(parent, PACKAGE_WHITELIST), false);
     this.pluginPath = pluginPath;
   }
 
-  @Override
-  public Enumeration<URL> getResources(String name) throws IOException {
-    // Overrode ClassLoader - getResources to prevent getting parent's resources recursively when
-    // loading org.apache.hadoop.fs.FileSystem FileSystem implementations
-    switch(name) {
-      case "META-INF/services/org.apache.hadoop.fs.FileSystem":
-      case "META-INF/services/org.apache.hadoop.io.compress.CompressionCodec":
-      case "META-INF/services/org.apache.hadoop.security.token.SecurityInfo":
-      case "META-INF/services/org.apache.hadoop.security.token.TokenIdentifier":
-      case "META-INF/services/org.apache.hadoop.security.token.TokenRenewer":
-        return findResources(name);
-
-      default:
-        return super.getResources(name);
-    }
-  }
 
   @Override
   protected String findLibrary(String libname) {

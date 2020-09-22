@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexUtil;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
@@ -70,18 +71,27 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     return prel.accept(INSTANCE, null);
   }
 
-  private Prel renameAsNecessary(RelDataType expectedRowType, Prel initialInput) {
-    if(RelOptUtil.areRowTypesEqual(initialInput.getRowType(), expectedRowType, false) && !RelOptUtil.areRowTypesEqual(initialInput.getRowType(), expectedRowType, true)) {
-      final List<RexNode> refs = new ArrayList<>();
-      final List<RelDataTypeField> fields = expectedRowType.getFieldList();
-      final RexBuilder rb = initialInput.getCluster().getRexBuilder();
-      for(int i = 0; i < expectedRowType.getFieldCount(); i++) {
-        refs.add(rb.makeInputRef(fields.get(i).getType(), i));
-      }
-      return ProjectPrel.create(initialInput.getCluster(), initialInput.getTraitSet(), initialInput, refs, expectedRowType);
+  private Prel renameAsNecessary(RelDataType expectedRowType, Prel initialInput, WriterOptions.IcebergWriterOperation icebergWriterOperation) {
+    boolean typesAndNamesExactMatch = RelOptUtil.areRowTypesEqual(initialInput.getRowType(), expectedRowType, true);
+    boolean compatibleTypes;
+    if (icebergWriterOperation == WriterOptions.IcebergWriterOperation.INSERT) {
+      compatibleTypes = MoreRelOptUtil.areRowTypesCompatibleForInsert(initialInput.getRowType(), expectedRowType, false, true);
     } else {
+      compatibleTypes = MoreRelOptUtil.areRowTypesCompatible(initialInput.getRowType(), expectedRowType, false, true);
+    }
+
+    // schemas match exactly, or no chance of matching
+    // we don't need to do any transformation or there is no use of transformation
+    if (typesAndNamesExactMatch || !compatibleTypes) {
       return initialInput;
     }
+
+    final RexBuilder rexBuilder = initialInput.getCluster().getRexBuilder();
+    final List<RexNode> castExps =
+      RexUtil.generateCastExpressions(rexBuilder, expectedRowType, initialInput.getRowType());
+
+    return ProjectPrel.create(initialInput.getCluster(), initialInput.getTraitSet(), initialInput,
+      castExps, expectedRowType);
   }
 
   @Override
@@ -89,7 +99,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     final WriterOptions options = initialPrel.getCreateTableEntry().getOptions();
     final Prel initialInput = ((Prel) initialPrel.getInput()).accept(this, null);
 
-    final Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput);
+    final Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput, options.getIcebergWriterOperation());
     final WriterPrel prel = initialPrel.copy(initialPrel.getTraitSet(), ImmutableList.<RelNode>of(input));
 
     if(options.hasDistributions()){

@@ -18,6 +18,7 @@ package com.dremio.services.fabric;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.slf4j.Logger;
@@ -37,7 +38,6 @@ import com.dremio.services.fabric.proto.FabricProto.RpcType;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
 
@@ -62,15 +62,16 @@ class FabricMessageHandler {
         AllocatorUtil.ensureHeadroom(allocator, buf.getPossibleMemoryConsumed());
       } catch (OutOfMemoryException e) {
         String msg = String.format(
-            "Message of length %d arrived at node %s:%d, send from %s:%d. Unfortunately, local memory for protocol %d is insufficient for this message. Message rejected.\n%s\n",
+            "Message of length %d arrived at node %s:%d, send from %s:%d. Unfortunately, local memory for protocol %d is insufficient for this message. Message rejected.\n",
             buf.getPossibleMemoryConsumed(),
             remoteIdentity.getAddress(),
             remoteIdentity.getPort(),
             localIdentity.getAddress(),
             localIdentity.getPort(),
-            protocolId,
-            MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator));
-        throw new RpcException(msg, e);
+            protocolId);
+        OutOfMemoryException oomWithDebugInfo = new OutOfMemoryException(String.format("%s\n%s\n", e.getMessage(),
+                MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator)));
+        throw new RpcException(msg, oomWithDebugInfo);
       }
 
       // Transfer data to protocol allocator. Disabled until we get shutdown ordering correct.

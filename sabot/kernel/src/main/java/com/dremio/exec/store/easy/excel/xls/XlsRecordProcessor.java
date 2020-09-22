@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.poi.hssf.OldExcelFormatException;
@@ -42,7 +43,7 @@ import org.apache.poi.hssf.record.RecordFactoryInputStream;
 import org.apache.poi.hssf.record.SSTRecord;
 import org.apache.poi.hssf.record.aggregates.FormulaRecordAggregate;
 import org.apache.poi.hssf.record.aggregates.RowRecordsAggregate;
-import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.FormulaError;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -59,8 +60,6 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * XLS parser based on Apache POI.<br>
@@ -453,14 +452,23 @@ public class XlsRecordProcessor implements ExcelParser {
     if (cell instanceof FormulaRecordAggregate) {
       FormulaRecordAggregate fra = (FormulaRecordAggregate) cell;
       FormulaRecord fr = fra.getFormulaRecord();
-      switch (fr.getCachedResultType()) {
-        case HSSFCell.CELL_TYPE_BOOLEAN:
+      CellType type;
+      try {
+        type = CellType.forInt(fr.getCachedResultType());
+      } catch (IllegalArgumentException e) {
+        throw UserException.dataReadError(e)
+          .message("Unexpected formula result type at cell (%d, %d)", cell.getRow(), cell.getColumn())
+          .build(logger);
+      }
+
+      switch (type) {
+        case BOOLEAN:
           return fr.getCachedBooleanValue();
-        case HSSFCell.CELL_TYPE_STRING:
+        case STRING:
           return fra.getStringValue();
-        case HSSFCell.CELL_TYPE_NUMERIC:
+        case NUMERIC:
           return fr.getValue();
-        case HSSFCell.CELL_TYPE_ERROR:
+        case ERROR:
           return FormulaError.forInt(fr.getCachedErrorValue()).getString();
         default:
           throw UserException.dataReadError()
@@ -537,7 +545,7 @@ public class XlsRecordProcessor implements ExcelParser {
 
   private void writeVarChar(final String columnName, final String value) {
     final byte[] b = value.getBytes(Charsets.UTF_8);
-    FieldSizeLimitExceptionHelper.checkReadSizeLimit(b.length, maxCellSize, columnName, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(b.length, maxCellSize, columnName, logger);
 
     managedBuf = managedBuf.reallocIfNeeded(b.length);
     managedBuf.setBytes(0, b);

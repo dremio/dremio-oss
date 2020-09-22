@@ -31,13 +31,16 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 
+import com.dremio.common.util.DremioEdition;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
+import com.dremio.dac.server.models.AnalyzeTools;
 import com.dremio.dac.server.models.ServerData;
 import com.dremio.dac.service.admin.CommitInfo;
 import com.dremio.dac.service.admin.VersionInfo;
 import com.dremio.dac.support.SupportService;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.options.OptionManager;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.io.Resources;
@@ -135,7 +138,10 @@ public class DremioServlet implements Servlet {
       .setTdsMimeType(options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE))
       .setWhiteLabelUrl(options.getOption(UIOptions.WHITE_LABEL_URL))
       .setClusterId(supportService.get().getClusterId().getIdentity())
-      .setVersionInfo(getVersionInfo());
+      .setVersionInfo(getVersionInfo())
+      .setEdition(DremioEdition.getAsString())
+      .setAnalyzeTools(AnalyzeTools.from(options))
+      .setCrossSourceDisabled(options.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT));
   }
 
   protected Provider<SupportService> getSupportService() {

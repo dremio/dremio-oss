@@ -18,6 +18,7 @@ package com.dremio.common.memory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.After;
@@ -30,8 +31,6 @@ import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.UserExceptionMatcher;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Unit test for the DremioRootAllocator

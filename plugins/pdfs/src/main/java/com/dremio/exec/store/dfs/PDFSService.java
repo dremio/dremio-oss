@@ -24,13 +24,18 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.CloseableThreadPool;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.Service;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
+import com.google.common.annotations.VisibleForTesting;
+
+import io.opentracing.Tracer;
+import io.opentracing.noop.NoopTracerFactory;
 
 /**
  * A simple service to register PDFS Remote FS fabric protocol
@@ -42,62 +47,42 @@ public class PDFSService implements Service {
   private final Provider<NodeEndpoint> identityProvider;
   private final Provider<Iterable<NodeEndpoint>> nodeProvider;
   private final boolean allowLocalAccess;
-  private CloseableThreadPool pool;
+  private final Tracer tracer;
+  private CloseableExecutorService pool;
 
   public PDFSService(
       Provider<FabricService> fabricService,
       Provider<NodeEndpoint> identityProvider,
       Provider<Iterable<NodeEndpoint>> nodeProvider,
+      Tracer tracer,
       SabotConfig config,
       BufferAllocator allocator,
       PDFSMode mode) {
     this.fabricService = fabricService;
     this.identityProvider = identityProvider;
     this.nodeProvider = nodeProvider;
+    this.tracer = tracer;
     this.config = config;
     this.allocator = allocator.newChildAllocator("pdfs-allocator", 0, Long.MAX_VALUE);
     this.allowLocalAccess = mode == PDFSMode.DATA;
   }
 
+  @VisibleForTesting
   public PDFSService(
-      final Provider<SabotContext> contextProvider,
       Provider<FabricService> fabricService,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      Provider<Iterable<NodeEndpoint>> executorsProvider,
       SabotConfig config,
-      BufferAllocator allocator) {
-    this(contextProvider, fabricService, config, allocator, PDFSMode.DATA);
-  }
-
-  public PDFSService(
-      final Provider<SabotContext> contextProvider,
-      Provider<FabricService> fabricService,
-      SabotConfig config,
-      BufferAllocator allocator,
-      PDFSMode mode) {
-    final Provider<Iterable<NodeEndpoint>> nodeProvider = new Provider<Iterable<NodeEndpoint>>(){
-      @Override
-      public Iterable<NodeEndpoint> get() {
-        return contextProvider.get().getExecutors();
-      }};
-
-    Provider<NodeEndpoint> identityProvider = new Provider<NodeEndpoint>(){
-      @Override
-      public NodeEndpoint get() {
-        return contextProvider.get().getEndpoint();
-      }};
-    this.fabricService = fabricService;
-
-    this.identityProvider = identityProvider;
-    this.nodeProvider = nodeProvider;
-    this.config = config;
-    this.allocator = allocator.newChildAllocator("pdfs-allocator", 0, Long.MAX_VALUE);
-    this.allowLocalAccess = mode == PDFSMode.DATA;
+      BufferAllocator allocator
+  ) {
+    this(fabricService, nodeEndpointProvider, executorsProvider, NoopTracerFactory.create(), config, allocator, PDFSMode.DATA);
   }
 
   @Override
   public void start() throws Exception {
     FabricService fabricService = this.fabricService.get();
 
-    pool = new CloseableThreadPool("pdfs");
+    pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("pdfs"), tracer);
 
     FabricRunnerFactory factory = fabricService.registerProtocol(PDFSProtocol.newInstance(identityProvider.get(), this.config, allocator, allowLocalAccess));
 

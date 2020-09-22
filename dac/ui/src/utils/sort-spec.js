@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { humanSorter } from './sort';
+import { humanSorter, getSortValue } from './sort';
 
 describe('humanSorter', () => {
   it('should compare strings', () => {
@@ -39,5 +39,33 @@ describe('humanSorter', () => {
   });
   it('should handle non strings/numbers', () => {
     expect(humanSorter({a: 'a'}, {a: 'b'})).to.equal(0);
+  });
+});
+
+describe('getSortValue', () => {
+  it('should return undefind if item does not have a value', () => {
+    expect(getSortValue(null)).to.be.undefined;
+    expect(getSortValue({}, 'a')).to.be.undefined;
+    expect(getSortValue({data: {}}, 'a')).to.be.undefined;
+    expect(getSortValue({data: {b: 'b'}}, 'a')).to.be.undefined;
+    expect(getSortValue({data: {a: 'a'}}, 'a')).to.be.undefined;
+    expect(getSortValue({data: {a: {value: 'a'}}}, 'a')).not.to.be.undefined;
+  });
+  it('should return value if provided', () => {
+    expect(getSortValue({data: {a: {value: 'abc'}}}, 'a')).to.equal('abc');
+  });
+  it('should return function result', () => {
+    expect(getSortValue({data: {a: {node: () => 'result'}}}, 'a')).to.equal('result');
+  });
+  it('should return value is both value and node function are provided', () => {
+    expect(getSortValue({data: {a: {
+      node: () => 'result',
+      value: 'abc'
+    }}}, 'a')).to.equal('abc');
+  });
+  it('should return value function result', () => {
+    expect(getSortValue({data: {a: {
+      value: () => 'abc'}}
+    }, 'a', 'DESC')).to.equal('abc');
   });
 });

@@ -68,8 +68,13 @@ public class DremioConfig extends NestedConfig {
   public static final String WEB_TOKEN_CACHE_EXPIRATION = "services.coordinator.web.tokens.cache.expiration_minutes";
   public static final String TASK_ON_IDLE_LOAD_SHED = "debug.task.on_idle_load_shed";
   public static final String TASK_RESCHEDULE_ON_UNBLOCK = "debug.task.reschedule_on_unblock";
+  public static final String TASK_EAGER_LOAD_SHED = "debug.task.eager_load_shed";
   public static final String KERBEROS_PRINCIPAL = "services.kerberos.principal";
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
+
+  public static final String JOBS_ENABLED_BOOL = "services.jobs.enabled";
+  public static final String NO_OP_CLUSTER_COORDINATOR_ENABLED = "debug.noop.cluster" +
+    ".coordinator.enabled";
 
   /**
    * Path where ui config is located
@@ -79,10 +84,12 @@ public class DremioConfig extends NestedConfig {
   /**
    * Config values related to plugins
    */
-  public static final String PLUGINS_ROOT_PATH_PROPERTY = "dremio.plugins.path";;
+  public static final String PLUGINS_ROOT_PATH_PROPERTY = "dremio.plugins.path";
+  public static final String LEGACY_STORE_VIEWS_ENABLED = "legacy.dremio.store.views.enabled";
 
   public static final String CLIENT_PORT_INT = "services.coordinator.client-endpoint.port";
   public static final String SERVER_PORT_INT = "services.fabric.port";
+  public static final String CONDUIT_PORT_INT = "services.conduit.port";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
 
@@ -97,6 +104,9 @@ public class DremioConfig extends NestedConfig {
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
+  public static final String ZK_CLIENT_RETRY_UNLIMITED = "zk.client.retry.unlimited";
+  public static final String ZK_CLIENT_RETRY_LIMIT = "zk.client.retry.limit";
+  public static final String ZK_CLIENT_INITIAL_TIMEOUT_MS = "zk.client.retry.initial_timeout_ms";
 
   // Provisioning options
   public static final String YARN_ENABLED_BOOL = "provisioning.yarn.enabled";
@@ -104,6 +114,11 @@ public class DremioConfig extends NestedConfig {
   public static final String YARN_CLASSPATH = "provisioning.yarn.classpath";
   public static final String YARN_APP_CLASSPATH = "provisioning.yarn.app.classpath";
   public static final String YARN_APP_CLASSPATH_PREFIX = "provisioning.yarn.app.classpath-prefix";
+  public static final String EC2_EFS_MOUNT_TARGET_IP_ADDRESS = "provisioning.ec2.efs.mountTargetIpAddress";
+  public static final String MIGRATION_ENABLED = "provisioning.migration.enabled";
+
+  // netty options
+  public static final String NETTY_REFLECTIONS_ACCESSIBLE = "io.netty.tryReflectionSetAccessible";
 
   /**
    * Path where debug options are located
@@ -132,6 +147,7 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_SCRATCH_ASYNC_ENABLED = "debug.scratch.async.enabled";
   public static final String DEBUG_DOWNLOAD_ASYNC_ENABLED = "debug.download.async.enabled";
   public static final String DEBUG_LOGS_ASYNC_ENABLED = "debug.logs.async.enabled";
+  public static final String DEBUG_DIST_S3_FILE_STATUS_CHECK = "debug.dist.s3_file_status_check.enabled";
 
   public static final String FABRIC_MEMORY_RESERVATION = "services.fabric.memory.reservation";
 
@@ -163,6 +179,8 @@ public class DremioConfig extends NestedConfig {
   public static final String MISSED_POLLS_BEFORE_KILL = "provisioning.yarn.watchdog.missed.polls.before.kill";
   public static final String MAX_KILL_ATTEMPTS = "provisioning.yarn.watchdog.max.kill.attempts";
   public static final String KILL_REATTEMPT_INTERVAL_MS = "provisioning.yarn.watchdog.kill.reattempt.interval";
+
+  public static final String REMOTE_DATASTORE_RPC_TIMEOUT_SECS = "debug.remote.datastore.rpc_timeout_seconds";
 
   private final Config unresolved;
   private final Config reference;

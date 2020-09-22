@@ -169,6 +169,8 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
         }
       });
       completed = true;
+    } catch (IllegalStateException e) {
+      listener.failed(new RpcException("Failure sending message. " + e.getMessage(), RpcExceptionStatus.CONNECTION_INVALID, null, e));
     } catch (Exception | AssertionError e) {
       listener.failed(new RpcException("Failure sending message.", e));
     } finally {

@@ -15,12 +15,13 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 import com.dremio.common.util.Numbers;
 import com.google.common.annotations.VisibleForTesting;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class VariableBlockVector implements AutoCloseable {
@@ -107,10 +108,10 @@ public class VariableBlockVector implements AutoCloseable {
   }
 
   int getCapacity() {
-    return buf != null ? buf.capacity() : 0;
+    return buf != null ? LargeMemoryUtil.checkedCastToInt(buf.capacity()) : 0;
   }
 
   public int getBufferLength() {
-    return buf.writerIndex();
+    return LargeMemoryUtil.checkedCastToInt(buf.writerIndex());
   }
 }

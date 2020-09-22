@@ -209,17 +209,17 @@ class SqlAccessorWrapper implements Accessor {
 
   @Override
   public Date getDate(Calendar calendar) throws SQLException {
-    return underlyingAccessor.getDate(getCurrentRecordNumber());
+    return underlyingAccessor.getDate(getCurrentRecordNumber(), calendar);
   }
 
   @Override
   public Time getTime(Calendar calendar) throws SQLException {
-    return underlyingAccessor.getTime(getCurrentRecordNumber());
+    return underlyingAccessor.getTime(getCurrentRecordNumber(), calendar);
   }
 
   @Override
   public Timestamp getTimestamp(Calendar calendar) throws SQLException {
-    return underlyingAccessor.getTimestamp(getCurrentRecordNumber());
+    return underlyingAccessor.getTimestamp(getCurrentRecordNumber(), calendar);
   }
 
   @Override

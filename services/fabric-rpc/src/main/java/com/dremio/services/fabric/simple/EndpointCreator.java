@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.ArrowBuf;
+
+import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
@@ -31,7 +34,6 @@ import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.NettyArrowBuf;
 
 /**
@@ -83,12 +85,12 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
 
       if (timeout > 0) {
         try {
-          response = future.checkedGet(timeout, TimeUnit.MILLISECONDS);
+          response = DremioFutures.getChecked(future, RpcException.class, timeout, TimeUnit.MILLISECONDS, RpcException::mapException);
         } catch (TimeoutException ex) {
           throw new RpcException(ex);
         }
       } else {
-        response = future.checkedGet();
+        response = DremioFutures.getChecked(future, RpcException.class, RpcException::mapException);
       }
       final ArrowBuf body = future.getBuffer() != null ? ((NettyArrowBuf) future.getBuffer())
         .arrowBuf() : null;

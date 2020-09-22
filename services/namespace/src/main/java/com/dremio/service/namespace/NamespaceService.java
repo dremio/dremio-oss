@@ -19,9 +19,9 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStore.FindByRange;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.EntityId;
@@ -77,12 +77,13 @@ public interface NamespaceService {
 
   /**
    * Create a dataset metadata saver for the given dataset.
-   * @param datasetPath      dataset path
-   * @param datasetId        dataset id
-   * @param splitCompression compression to be used on the (multi-)splits in the K/V store
-   * @return                 dataset metadata saver
+   * @param datasetPath              dataset path
+   * @param datasetId                dataset id
+   * @param splitCompression         compression to be used on the (multi-)splits in the K/V store
+   * @param maxSinglePartitionChunks maximum number of single split partition chunks allowed to be saved together
+   * @return                         dataset metadata saver
    */
-  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression);
+  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks);
 
   //// GET
   boolean exists(NamespaceKey key, Type type);
@@ -189,7 +190,7 @@ public interface NamespaceService {
    * @param condition
    * @return List of Key/Container entries.
    */
-  Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(FindByCondition condition);
+  Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(LegacyFindByCondition condition);
 
   String dump();
 
@@ -198,15 +199,15 @@ public interface NamespaceService {
   /**
    * Search for splits for given condition.
    */
-  Iterable<PartitionChunkMetadata> findSplits(FindByCondition condition);
-  Iterable<PartitionChunkMetadata> findSplits(FindByRange<PartitionChunkId> range);
+  Iterable<PartitionChunkMetadata> findSplits(LegacyFindByCondition condition);
+  Iterable<PartitionChunkMetadata> findSplits(LegacyFindByRange<PartitionChunkId> range);
 
   /**
    * Count total number of partition chunks for a given condition
    * @param condition
    * @return
    */
-  int getPartitionChunkCount(FindByCondition condition);
+  int getPartitionChunkCount(LegacyFindByCondition condition);
 
   /**
    * Delete any orphaned splits from the Namespace.

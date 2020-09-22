@@ -48,9 +48,9 @@ import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonOutput;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ColumnValueCount;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
-import com.dremio.service.namespace.file.proto.FileType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
@@ -116,7 +116,7 @@ public class ConvertCountToDirectScan extends Prule {
       return false;
     }
     // we only support accurate counts when using Parquet, everything else is executed normally.
-    return scan.getPluginId().getType().equals(type) && scan.getTableMetadata().getFormatSettings().getType() == FileType.PARQUET;
+    return scan.getPluginId().getType().equals(type) && DatasetHelper.hasParquetDataFiles(scan.getTableMetadata().getFormatSettings());
   }
 
   private static long getAccurateRowCount(Iterator<PartitionChunkMetadata> splits){

@@ -23,6 +23,7 @@ import javax.validation.constraints.Min;
 
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.StoragePlugin;
 
@@ -67,6 +68,28 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
    */
   @Tag(5)
   public List<Property> propertyList;
+
+  @Tag(11)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable asynchronous access for Parquet datasets")
+  public boolean enableAsync = true;
+
+  @Tag(12)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable local caching for Amazon S3 and Azure Storage datasets")
+  public boolean isCachingEnabledForS3AndAzureStorage = true;
+
+  @Tag(13)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable local caching for HDFS")
+  public boolean isCachingEnabledForHDFS = false;
+
+  @Tag(14)
+  @NotMetadataImpacting
+  @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
+  public int maxCacheSpacePct = 100;
 
   /**
    * Gets the plugin identifier for the PF4J module. This can return null if no external bundle is to be used,

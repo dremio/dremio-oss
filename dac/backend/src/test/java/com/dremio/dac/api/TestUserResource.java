@@ -89,13 +89,14 @@ public class TestUserResource extends BaseTestServer {
    */
   private static class UserInfoRequest extends User {
     public UserInfoRequest(String id,
-      String name,
-      String firstName,
-      String lastName,
-      String email,
-      String version,
-      String password) {
-      super(id, name, firstName, lastName, email, version, password);
+                           String name,
+                           String firstName,
+                           String lastName,
+                           String email,
+                           String version,
+                           String password,
+                           String extra) {
+      super(id, name, firstName, lastName, email, version, password, extra);
     }
 
     @Override
@@ -108,7 +109,7 @@ public class TestUserResource extends BaseTestServer {
   @Test
   public void testCreateUser() throws Exception {
     UserInfoRequest userInfo = new UserInfoRequest(null, "test_new_user", "test", "new user",
-      "bla@bla.bla", "0", "123some_password");
+      "bla@bla.bla", "0", "123some_password", null);
     User savedUser = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH))
       .buildPost(Entity.json(userInfo)), User.class);
 
@@ -117,8 +118,8 @@ public class TestUserResource extends BaseTestServer {
     assertEquals(savedUser.getFirstName(), userInfo.getFirstName());
     assertEquals(savedUser.getLastName(), userInfo.getLastName());
     assertEquals(savedUser.getEmail(), userInfo.getEmail());
-    assertEquals(savedUser.getTag(), userInfo.getTag());
     assertNull("Password should not be sent to a data consumer", savedUser.getPassword());
+    assertNotNull(savedUser.getTag());
 
     final UserService userService = l(UserService.class);
     userService.deleteUser(savedUser.getName(), savedUser.getTag());
@@ -127,7 +128,7 @@ public class TestUserResource extends BaseTestServer {
   @Test
   public void testCreateUserWithExistingName() throws Exception {
     UserInfoRequest userInfo = new UserInfoRequest(null, createdUser.getUserName(), "test", "new user",
-      "bla@bla.bla", "0", "123some_password");
+      "bla@bla.bla", "0", "123some_password", null);
 
     // should not allow to create a user with a name of existing user
     expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getPublicAPI(3).path(USER_PATH).path("createUser"))
@@ -138,7 +139,7 @@ public class TestUserResource extends BaseTestServer {
   @Test
   public void testUpdateUser() {
     UserInfoRequest userInfo = new UserInfoRequest(createdUser.getUID().getId(), createdUser.getUserName(),
-      "a new firstName", " a new last name", "new_email@mail.com", createdUser.getVersion(), null);
+      "a new firstName", " a new last name", "new_email@mail.com", createdUser.getVersion(), null, null);
 
     User savedUser = expectSuccess(getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))
       .buildPut(Entity.json(userInfo)), User.class);
@@ -161,7 +162,7 @@ public class TestUserResource extends BaseTestServer {
   @Test
   public void testUserNameChange() {
     UserInfoRequest userInfo = new UserInfoRequest(createdUser.getUID().getId(), createdUser.getUserName() + "2",
-      "a new firstName", " a new last name", "new_email@mail.com", createdUser.getVersion(), null);
+      "a new firstName", " a new last name", "new_email@mail.com", createdUser.getVersion(), null, null);
 
     // should not allow to change a user name
     expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getPublicAPI(3).path(USER_PATH).path(createdUser.getUID().getId()))

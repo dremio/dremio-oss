@@ -15,9 +15,10 @@
  */
 package com.dremio.dac.daemon;
 
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static com.dremio.dac.server.test.SampleDataPopulator.getFileContentsFromClassPath;
-import static com.dremio.service.namespace.TestNamespaceService.addFolder;
+import static com.dremio.service.namespace.NamespaceTestUtils.addFolder;
 import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedWriter;
@@ -27,23 +28,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.model.folder.FolderName;
-import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.util.JSONUtil;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -53,6 +52,18 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
  * Test spaces storage plugin.
  */
 public class TestSpacesStoragePlugin extends BaseTestServer {
+
+  private BufferAllocator allocator;
+
+  @Before
+  public void prepare() {
+    allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+  }
+
+  @After
+  public void clear() {
+    allocator.close();
+  }
 
   public static void setup(DACDaemon dremioDaemon) throws Exception {
     getPopulator().populateTestUsers();
@@ -137,83 +148,74 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
     namespaceService.deleteSpace(new SpacePath("testB").toNamespaceKey(), namespaceService.getSpace(new SpacePath("testB").toNamespaceKey()).getTag());
   }
 
-  private JobData runExternalQuery(String sql) {
-    return JobUI.getJobData(jobsService.submitJob(JobRequest.newBuilder()
+  private JobDataFragment runExternalQueryAndGetData(String sql, int limit) {
+    return submitJobAndGetData(l(JobsService.class), JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(sql, Collections.singletonList("@" + DEFAULT_USER_NAME), DEFAULT_USER_NAME))
-        .build(), NoOpJobStatusListener.INSTANCE));
-  }
-
-  private JobsService jobsService;
-
-  @Before
-  public void setUpQueryExecutor() {
-    jobsService = l(JobsService.class);
+        .build(),
+      0, limit, allocator);
   }
 
   @Test
   public void testSpacesPlugin() throws Exception {
     setup(getCurrentDremioDaemon());
     // update storage plugin
-    JobDataFragment results;
 
-    results = runExternalQuery("select * from testA.dsA1").truncate(1000);
-    //System.out.println(JSONUtil.toString(results));
-    assertEquals(1000, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1", 1000)) {
+      assertEquals(1000, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from testB.dsB1").truncate(500);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(500, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testB.dsB1", 500)) {
+      assertEquals(500, results.getReturnedRowCount());
+    }
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA2", 250)) {
+      assertEquals(250, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from testA.dsA2").truncate(250);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(250, results.getReturnedRowCount());
+    try(final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1 t1 where t1.A >= 400", 600)) {
+      assertEquals(600, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from testA.dsA1 t1 where t1.A >= 400").truncate(600);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(600, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData(
+      "select * from testA.dsA1 t1 inner join testB.dsB1 t2 on t1.A = t2.C inner join testA.dsA2 t3 on t2.C = t3.E where t3.F >= 900", 100) ) {
+      assertEquals(100, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery(
-            "select * from testA.dsA1 t1 inner join testB.dsB1 t2 on t1.A = t2.C inner join testA.dsA2 t3 on t2.C = t3.E where t3.F >= 900").truncate(100);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(100, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA3", 10)) {
+      assertEquals(10, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from testA.dsA3").truncate(10);
-    System.out.println(JSONUtil.toString(results));
-    assertEquals(10, results.getReturnedRowCount());
-
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.dsA1", 1000)) {
+      assertEquals(1000, results.getReturnedRowCount());
+    }
     // folder/subschemas
-    results = runExternalQuery("select * from testA.F1.dsA1").truncate(1000);
-    //System.out.println(JSONUtil.toString(results));
-    assertEquals(1000, results.getReturnedRowCount());
 
-    results = runExternalQuery("select * from testA.F1.F2.dsB1").truncate(500);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(500, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.dsB1", 500)) {
+      assertEquals(500, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from testA.F1.F2.F3.dsA2").truncate(250);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(250, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.F3.dsA2", 250)) {
+      assertEquals(250, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from testA.F1.F2.F3.F4.dsA3").truncate(10);
-    //System.out.println(JSONUtil.toString(results));
-    assertEquals(10, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.F3.F4.dsA3", 10)) {
+      assertEquals(10, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from \"@"+DEFAULT_USER_NAME+"\".F1.dsA1").truncate(1000);
-    //System.out.println(JSONUtil.toString(results));
-    assertEquals(1000, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.dsA1", 1000)) {
+      assertEquals(1000, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.dsB1").truncate(500);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(500, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.dsB1", 500)) {
+      assertEquals(500, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.dsA2").truncate(250);
-    //System.out.println(PrettyJSON.toString(results));
-    assertEquals(250, results.getReturnedRowCount());
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.dsA2", 250)) {
+      assertEquals(250, results.getReturnedRowCount());
+    }
 
-    results = runExternalQuery("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.F4.dsA3").truncate(10);
-//    System.out.println(JSONUtil.toString(results));
-    assertEquals(10, results.getReturnedRowCount());
-
+    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.F4.dsA3", 10)) {
+      assertEquals(10, results.getReturnedRowCount());
+    }
 
     cleanup(getCurrentDremioDaemon());
   }

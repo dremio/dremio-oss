@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.shared;
 
 option java_package = "com.dremio.exec.proto";
@@ -196,6 +197,12 @@ message DremioPBError{
      */
     JSON_FIELD_CHANGE = 1018;
 
+    /* Resource timeout exception
+     * This is mainly used for re-attempting the query
+     * This is a new error type not present in Apache Drill
+     */
+    RESOURCE_TIMEOUT = 1019;
+
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -335,6 +342,27 @@ message QueryProfile {
   optional ResourceSchedulingProfile resource_scheduling_profile = 34;
   optional string cancel_reason = 35;
   optional int64 command_pool_wait_millis = 36;
+  optional bytes serialized_plan = 37;
+  repeated AttemptEvent state_list = 38;
+}
+
+message AttemptEvent {
+	enum State {
+    INVALID_STATE = 0;
+    PENDING = 1;
+    METADATA_RETRIEVAL = 2;
+    PLANNING = 3;
+    QUEUED = 4;
+    ENGINE_START = 5;
+    EXECUTION_PLANNING = 6;
+    STARTING = 7;
+    RUNNING = 8;
+    COMPLETED = 9;
+    CANCELED = 10;
+    FAILED = 11;
+  }
+  optional State state = 1;
+  optional int64 start_time = 2;
 }
 
 message ResourceSchedulingProfile {
@@ -479,11 +507,20 @@ message ExpressionSplitInfo {
   optional bool in_gandiva = 2;
   optional string output_name = 3;
   repeated string depends_on = 4;
+  optional bool optimize = 5;
+}
+
+message SlowIOInfo {
+  optional string file_path = 1;
+  optional int64 io_time = 2;
+  optional int64 io_size = 3;
+  optional int64 io_offset = 4;
 }
 
 // Non-metric Operator level details that show up in the profile
 message OperatorProfileDetails {
   repeated ExpressionSplitInfo split_infos = 1;
+  repeated SlowIOInfo slow_io_infos = 2;
 }
 
 message OperatorProfile {
@@ -585,6 +622,7 @@ enum CoreOperatorType {
   DICTIONARY_LOOKUP = 48;
   WRITER_COMMITTER = 49;
   ROUND_ROBIN_SENDER = 50;
+  BOOST_PARQUET = 51;
 }
 message MetricDef {
   optional int32 id = 1;

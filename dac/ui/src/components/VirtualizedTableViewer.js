@@ -16,14 +16,14 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { AutoSizer, Table, Column } from 'react-virtualized';
+import { AutoSizer, Column, Table } from 'react-virtualized';
 import classNames from 'classnames';
 import Immutable from 'immutable';
 
-import {humanSorter} from 'utils/sort';
+import { humanSorter, getSortValue } from '@app/utils/sort';
 
 const ROW_HEIGHT = 30;
-const HEADER_HEIGHT = 39;
+const HEADER_HEIGHT = 30;
 
 export const SortDirection = {
   ASC: 'ASC',
@@ -44,27 +44,27 @@ export default class VirtualizedTableViewer extends Component {
     style: PropTypes.object,
     resetScrollTop: PropTypes.bool
     // other props passed into react-virtualized Table
-  }
+  };
 
   static defaultProps = {
     tableData: Immutable.List()
-  }
+  };
 
   state = {
     sortBy: this.props.defaultSortBy,
     sortDirection: this.props.defaultSortDirection
-  }
+  };
 
-  lastScrollTop = 0
-  lastScrollTime = Date.now()
-  lastSpeed = 0
+  lastScrollTop = 0;
+  lastScrollTime = Date.now();
+  lastSpeed = 0;
 
   sort = ({ sortBy, sortDirection }) => {
     this.setState({
       sortBy,
       sortDirection
     });
-  }
+  };
 
   rowClassName(rowData, index) {
     return ((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even');
@@ -81,7 +81,7 @@ export default class VirtualizedTableViewer extends Component {
     this.lastScrollTop = scrollTop;
     this.lastScrollTime = Date.now();
     this.lastSpeed = speed;
-  }
+  };
 
   renderHeader = ({ label, dataKey, sortBy, sortDirection },
     /* column */ { style, infoContent, headerStyle }) => {
@@ -103,9 +103,9 @@ export default class VirtualizedTableViewer extends Component {
         </span>}
       </div>
     );
-  }
+  };
 
-  renderCell({rowData, rowIndex, isScrolling}, column) {
+  renderCell({rowData, isScrolling}, column) {
     // NOTE: factoring in this.lastSpeed here is too slow
     return <DeferredRenderer defer={isScrolling} render={() => rowData.data[column].node()}/>;
   }
@@ -114,17 +114,9 @@ export default class VirtualizedTableViewer extends Component {
     const { tableData, columns, style, resetScrollTop, ...tableProps } = this.props;
     const { sortBy, sortDirection } = this.state;
 
-    const getSortValue = (item) => {
-      const value = item.data[sortBy].value;
-      if (typeof value === 'function') {
-        return value.call(item.data[sortBy], sortDirection, sortBy);
-      }
-      return value;
-    };
-
     const sortedTableData = sortBy
       ? tableData
-        .sortBy(item => getSortValue(item), humanSorter)
+        .sortBy(item => getSortValue(item, sortBy, sortDirection), humanSorter)
         .update(table =>
           sortDirection === SortDirection.DESC
             ? table.reverse()
@@ -158,7 +150,7 @@ export default class VirtualizedTableViewer extends Component {
                   <Column
                     key={item.key}
                     dataKey={item.key}
-                    className={item.className}
+                    className={item.className || 'column-' + item.key}
                     headerClassName={item.headerClassName}
                     label={item.label}
                     style={item.style}
@@ -205,13 +197,13 @@ export class DeferredRenderer extends Component {
   static propTypes = {
     render: PropTypes.func.isRequired,
     defer: PropTypes.bool
-  }
+  };
   static defaultProps = {
     defer: true
   };
   state = {
     initial: this.props.defer
-  }
+  };
   componentWillMount() {
     if (this.props.defer) this.constructor._deferredRendererSet.add(this);
   }

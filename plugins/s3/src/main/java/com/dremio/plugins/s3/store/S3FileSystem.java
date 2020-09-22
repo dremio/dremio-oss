@@ -19,19 +19,25 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.apache.hadoop.conf.Configuration;
@@ -40,83 +46,82 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
 import org.apache.hadoop.fs.s3a.Constants;
-import org.apache.hadoop.fs.s3a.S3ClientFactoryHelper;
+import org.apache.hadoop.fs.s3a.DefaultS3ClientFactory;
+import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.Region;
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.FinalizablePhantomReference;
 import com.google.common.base.FinalizableReference;
 import com.google.common.base.FinalizableReferenceQueue;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
-import software.amazon.awssdk.services.sts.model.StsException;
 
 /**
  * FileSystem implementation that treats multiple s3 buckets as a unified namespace
  */
 public class S3FileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
-
+  public static final String S3_PERMISSION_ERROR_MSG = "Access was denied by S3";
   static final String COMPATIBILITY_MODE = "dremio.s3.compat";
   static final String REGION_OVERRIDE = "dremio.s3.region";
 
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);
   private static final String S3_URI_SCHEMA = "s3a://";
   private static final URI S3_URI = URI.create("s3a://aws"); // authority doesn't matter here, it is just to avoid exceptions
+  private static final String S3_ENDPOINT_END = ".amazonaws.com";
+  private static final String S3_CN_ENDPOINT_END = S3_ENDPOINT_END + ".cn";
 
-  // Used to close the S3AsyncClient objects
+  private final Retryer retryer = new Retryer.Builder()
+    .retryIfExceptionOfType(SdkClientException.class)
+    .retryIfExceptionOfType(software.amazon.awssdk.core.exception.SdkClientException.class)
+    .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
+    .setMaxRetries(10).build();
+
+  // Used to close the S3 client objects
   // Lifecycle of an S3AsyncClient object:
   // - created by the LoadingCache on first access
-  //   - inserted in the set of async client references, below, upon creation
+  //   - inserted in the set of client references, below, upon creation
   // - accessed by readers, and potentially held longer than it takes for the LoadingCache to evict
   // - evicted from the LoadingCache some time after last access
-  // - once both the LoadingCache and the reader finish using the S3AsyncClient, the only outstanding reference
-  //   is the one in the async client reference set
-  // - GC is allowed to reap such objects. Upon finalize, the S3AsyncClient is closed, and removed from the
-  //   async client reference set
+  // - once both the LoadingCache and the reader finish using the s3 clients, the only outstanding reference
+  //   is the one in the client reference set
+  // - GC is allowed to reap such objects. Upon finalize, the S3 client is closed, and removed from the
+  //   client reference set
   private static final FinalizableReferenceQueue FINALIZABLE_REFERENCE_QUEUE = new FinalizableReferenceQueue();
-
-  // TODO: why static?
-  private static final LoadingCache<S3ClientKey, AmazonS3> clientCache = CacheBuilder
-          .newBuilder()
-          .expireAfterAccess(1,TimeUnit.HOURS)
-          .maximumSize(20)
-          .build(new CacheLoader<S3ClientKey, AmazonS3>() {
-            @Override
-            public AmazonS3 load(S3ClientKey clientKey) throws Exception {
-              logger.debug("Opening S3 client connection for {}", clientKey);
-              return S3ClientFactoryHelper.createS3ClientHelper(clientKey.s3Config, S3_URI);
-            }
-          }); // Looks like there is no close/cleanup for AmazonS3Client
-
-  @SuppressWarnings("MismatchedQueryAndUpdateOfCollection") // intentionally just updating and not querying. See large comment above
-  private final Set<FinalizableReference> asyncClientReferences = Sets.newConcurrentHashSet();
-  private final Set<FinalizableReference> syncClientReferences = Sets.newConcurrentHashSet();
+  private static final Set<FinalizableReference> REFERENCES = Sets.newConcurrentHashSet(); // To hold references until queued
 
   private final DremioFileSystemCache fsCache = new DremioFileSystemCache();
 
@@ -126,31 +131,97 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     .build(new CacheLoader<String, S3Client>() {
       @Override
       public S3Client load(String bucket) {
-        return newSyncClientReference(bucket);
+        final S3Client syncClient = configClientBuilder(S3Client.builder(), bucket).build();
+        return registerReference(S3Client.class, syncClient, client -> {
+          try {
+            syncClient.close();
+          } catch (Exception e) {
+            logger.warn("Failed to close the S3 sync client for bucket {}", e);
+          }
+        });
       }
     });
 
-  private AmazonS3 s3;
+  private final LoadingCache<S3ClientKey, AmazonS3> clientCache = CacheBuilder
+    .newBuilder()
+    .expireAfterAccess(1,TimeUnit.HOURS)
+    .maximumSize(20)
+    .build(new CacheLoader<S3ClientKey, AmazonS3>() {
+      @Override
+      public AmazonS3 load(S3ClientKey clientKey) throws Exception {
+        logger.debug("Opening S3 client connection for {}", clientKey);
+        DefaultS3ClientFactory clientFactory = new DefaultS3ClientFactory();
+        clientFactory.setConf(clientKey.s3Config);
+        final AWSCredentialProviderList credentialsProvider = S3AUtils.createAWSCredentialProviderSet(S3_URI, clientKey.s3Config);
+        final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, "", credentialsProvider);
+
+        return registerReference(AmazonS3.class, s3Client, client -> {
+          client.shutdown();
+
+          try {
+            // Note that AWS SDKv1 client will NOT close the credentials provider when being closed so it has to be done ourselves
+            // Because client still holds a reference to credentials provider, it won't be garbage collected until the client is garbage collected itself
+            if (credentialsProvider instanceof AutoCloseable) {
+              ((AutoCloseable) credentialsProvider).close();
+            }
+          } catch (Exception e) {
+              logger.warn("Failed to close AWS credentials provider", e);
+          }
+        });
+      }
+    });
+
+  @VisibleForTesting
+  protected AmazonS3 s3;
+
   private boolean useWhitelistedBuckets;
 
-  private S3Client newSyncClientReference(final String bucket) {
-    S3Client syncClient = configClientBuilder(S3Client.builder(), bucket).build();
-    FinalizableReference ref = new FinalizablePhantomReference<S3Client>(syncClient, FINALIZABLE_REFERENCE_QUEUE) {
+  /**
+   * Register an object with a callback to clean up the object once no hard reference to the object
+   * exists and get a proxy to the object to be used for the cache
+   *
+   * @param <T>
+   * @param iface the object interface to be proxied
+   * @param value
+   * @param finalizer method invoked when the value is ready to be finalized
+   * @return a facade to the object to be used instead of value
+   */
+  private static <T> T registerReference(Class<T> iface, T value, Consumer<T> finalizer) {
+    assert iface.isInterface();
+
+    @SuppressWarnings("unchecked")
+    final T proxy = (T) Proxy.newProxyInstance(iface.getClassLoader(), new Class<?>[] { iface },
+        (object, method, args) -> {
+          try {
+            return method.invoke(value, args);
+          } catch (InvocationTargetException e) {
+            throw e.getCause();
+          }
+        });
+
+    // Proxy object is intended to be cached and used by code.
+    // Once proxy is finalized, reference will be added to the queue and finalizeReference will be called, giving us a chance
+    // to finalize properly value
+    // Note that value cannot be garbaged collected since there's a strong reference between value and reference (captured by
+    // the anonymous instance
+    final FinalizablePhantomReference<T> reference = new FinalizablePhantomReference<T>(proxy, FINALIZABLE_REFERENCE_QUEUE) {
       @Override
       public void finalizeReferent() {
-        try {
-          syncClient.close();
-        } catch (Exception e) {
-          logger.warn(String.format("Failed to close the S3 sync client for bucket %s", bucket), e);
-        }
+        // remove reference from reference list (references) to avoid it to grow constantly over time
+        // it will also allow for value to be garbage collected after the method returns
+        REFERENCES.remove(this);
+        finalizer.accept(value);
       }
     };
-    syncClientReferences.add(ref);
-    return syncClient;
+
+    // Register the reference -  important to make sure that reference is not garbaged collected
+    REFERENCES.add(reference);
+
+    return proxy;
   }
 
   public S3FileSystem() {
-    super("dremioS3", "bucket", ELIMINATE_PARENT_DIRECTORY);
+    super(FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme(), "bucket", ELIMINATE_PARENT_DIRECTORY);
   }
 
   // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169
@@ -174,14 +245,14 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
       }
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
-      if (cause instanceof IOException) {
-        throw (IOException) cause;
-      } else if (cause instanceof RuntimeException) {
-        throw (RuntimeException) cause;
-      } else if (cause != null) {
-        throw new RuntimeException(cause);
+      if (cause == null) {
+        throw new RuntimeException(e);
       }
-      throw new RuntimeException(e);
+
+      Throwables.throwIfInstanceOf(cause, IOException.class);
+      Throwables.throwIfUnchecked(cause);
+
+      throw new RuntimeException(cause);
     }
   }
 
@@ -189,16 +260,20 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
    * Checks if credentials are valid using GetCallerIdentity API call.
    */
   protected void verifyCredentials(Configuration conf) throws RuntimeException {
-    AwsCredentialsProvider awsCredentialsProvider = getAsync2Provider(conf);
-    final StsClientBuilder stsClientBuilder = StsClient.builder()
-      .credentialsProvider(awsCredentialsProvider)
-      .region(getAWSRegionFromConfigurationOrDefault(conf));
-    try (StsClient stsClient = stsClientBuilder.build()) {
-      GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
-      stsClient.getCallerIdentity(request);
-    } catch (StsException e) {
-      throw new RuntimeException(String.format("Credential Verification failed. Exception: %s ", e.getLocalizedMessage()), e);
-    }
+      AwsCredentialsProvider awsCredentialsProvider = getAsync2Provider(conf);
+      final StsClientBuilder stsClientBuilder = StsClient.builder()
+        // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
+        .credentialsProvider(awsCredentialsProvider)
+        .region(getAWSRegionFromConfigurationOrDefault(conf));
+      try (StsClient stsClient = stsClientBuilder.build()) {
+        retryer.call(() -> {
+          GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
+          stsClient.getCallerIdentity(request);
+          return true;
+        });
+      } catch (Retryer.OperationFailedAfterRetriesException e) {
+        throw new RuntimeException("Credential Verification failed.", e);
+      }
   }
 
   @Override
@@ -208,40 +283,50 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   @Override
   protected Stream<ContainerCreator> getContainerCreators() throws IOException {
-    FluentIterable<String> buckets = getBucketNamesFromConfigurationProperty(S3StoragePlugin.EXTERNAL_BUCKETS);
+    Stream<String> buckets = getBucketNamesFromConfigurationProperty(S3StoragePlugin.EXTERNAL_BUCKETS);
     if (!NONE_PROVIDER.equals(getConf().get(Constants.AWS_CREDENTIALS_PROVIDER))) {
       if (!useWhitelistedBuckets) {
         // if we have authentication to access S3, add in owner buckets.
-        buckets = buckets.append(FluentIterable.from(s3.listBuckets()).transform(input -> input.getName()));
+        buckets = Stream.concat(buckets, s3.listBuckets().stream().map(Bucket::getName));
       } else {
         // Only add the buckets provided in the configuration.
-        buckets = buckets.append(FluentIterable.from(getBucketNamesFromConfigurationProperty(S3StoragePlugin.WHITELISTED_BUCKETS)));
+        buckets = Stream.concat(buckets, getBucketNamesFromConfigurationProperty(S3StoragePlugin.WHITELISTED_BUCKETS));
       }
     }
-    return buckets.toSet() // Remove duplicate bucket names.
-        .stream()
+    return buckets.distinct() // Remove duplicate bucket names.
         .map(input -> new BucketCreator(getConf(), input));
   }
 
-  private FluentIterable<String> getBucketNamesFromConfigurationProperty(String bucketConfigurationProperty) {
+  private Stream<String> getBucketNamesFromConfigurationProperty(String bucketConfigurationProperty) {
     String bucketList = getConf().get(bucketConfigurationProperty,"");
-    return FluentIterable.of(bucketList.split(","))
-            .transform(input -> input.trim())
-            .filter(input -> !Strings.isNullOrEmpty(input));
+    return Arrays.stream(bucketList.split(","))
+      .map(String::trim)
+      .filter(input -> !Strings.isNullOrEmpty(input));
   }
 
   @Override
-  protected ContainerHolder getUnknownContainer(String name) {
-    // no lazy loading
-
+  protected ContainerHolder getUnknownContainer(String containerName) throws IOException {
     // Per docs, if invalid security credentials are used to execute
     // AmazonS3#doesBucketExist method, the client is not able to distinguish
     // between bucket permission errors and invalid credential errors, and the
     // method could return an incorrect result.
 
-    // New S3 buckets will be visible on the next refresh.
-
-    return null;
+    // Coordinator node gets the new bucket information by overall refresh in the containerMap
+    // This method is implemented only for the cases when executor is falling behind.
+    boolean containerFound = false;
+    try {
+      // getBucketLocation ensures that given user account has permissions for the bucket.
+      containerFound = s3.doesBucketExistV2(containerName) &&
+        s3.getBucketAcl(containerName).getGrantsAsList().stream()
+          .anyMatch(g -> g.getGrantee().getIdentifier().equals(s3.getS3AccountOwner().getId()));
+    } catch (AmazonS3Exception e) {
+      if (e.getMessage().contains("Access Denied")) {
+        // Ignorable because user doesn't have permissions. We'll omit this case.
+        logger.info("Ignoring \"" + containerName + "\" because of logged in AWS account doesn't have access rights on this bucket." + e.getMessage());
+      }
+      logger.error("Error while looking up for the unknown container " + containerName, e);
+    }
+    return containerFound ? new BucketCreator(getConf(), containerName).toContainerHolder() : null;
   }
 
   private software.amazon.awssdk.regions.Region getAWSBucketRegion(String bucketName) throws SdkClientException {
@@ -257,26 +342,26 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   @Override
   public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
     final String bucket = ContainerFileSystem.getContainerName(path);
-    //return new S3AsyncByteReader(getAsyncClient(bucket), bucket,
-    //  ContainerFileSystem.pathWithoutContainer(path).toString());
-    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket,
-      ContainerFileSystem.pathWithoutContainer(path).toString(), version);
+    String pathStr = ContainerFileSystem.pathWithoutContainer(path).toString();
+    // The AWS HTTP client re-encodes a leading slash resulting in invalid keys, so strip them.
+    pathStr = (pathStr.startsWith("/")) ? pathStr.substring(1) : pathStr;
+    //return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr);
+    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr, version, isRequesterPays());
   }
 
   private S3Client getSyncClient(String bucket) throws IOException {
     try {
       return syncClientCache.get(bucket);
     } catch (ExecutionException | SdkClientException e ) {
-      Throwable toChain = e;
-      if (e.getCause() != null) {
-        Throwable cause = e.getCause();
-        if (cause instanceof UserException) {
-          throw (UserException) cause;
-        } else if (e.getCause() instanceof IOException) {
-          throw (IOException) e.getCause();
-        } else {
-          toChain = e.getCause();
-        }
+      final Throwable cause = e.getCause();
+      final Throwable toChain;
+      if (cause == null) {
+        toChain = e;
+      } else {
+        Throwables.throwIfInstanceOf(cause, UserException.class);
+        Throwables.throwIfInstanceOf(cause, IOException.class);
+
+        toChain = cause;
       }
 
       throw new IOException(String.format("Unable to create a sync S3 client for bucket %s", bucket), toChain);
@@ -286,16 +371,30 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   @Override
   public void close() throws IOException {
     fsCache.closeAll(true);
+
+    // invalidating cache of clients
+    // all clients (including this.s3) will be closed just before being evicted by GC.
+    invalidateCache(clientCache);
+    invalidateCache(syncClientCache);
+
     super.close();
   }
 
-  private AwsCredentialsProvider getAsync2Provider(Configuration config) {
+  private static final void invalidateCache(Cache<?, ?> cache) {
+    cache.invalidateAll();
+    cache.cleanUp();
+  }
+
+  // AwsCredentialsProvider might also implement SdkAutoCloseable
+  // Make sure to close if using directly (or let client close it for you).
+  @VisibleForTesting
+  protected AwsCredentialsProvider getAsync2Provider(Configuration config) {
     switch(config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(
           config.get(Constants.ACCESS_KEY), config.get(Constants.SECRET_KEY)));
       case EC2_METADATA_PROVIDER:
-        return InstanceProfileCredentialsProvider.create();
+        return new SharedInstanceProfileCredentialsProvider();
       case NONE_PROVIDER:
         return AnonymousCredentialsProvider.create();
       case ASSUME_ROLE_PROVIDER:
@@ -333,29 +432,39 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
             // if this is compatibility mode and we have an endpoint, just use that.
             targetEndpoint = endpoint.get();
           } else {
-            final String bucketRegion = s3.getBucketLocation(bucketName);
-            final String fallbackEndpoint = endpoint.orElseGet(() -> String.format("%ss3.%s.amazonaws.com", getHttpScheme(getConf()), bucketRegion));
-
-            String regionEndpoint = fallbackEndpoint;
             try {
-              Region region = Region.fromValue(bucketRegion);
-              com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
-              if (awsRegion != null) {
-                regionEndpoint = awsRegion.getServiceEndpoint("s3");
+              final String bucketRegion = s3.getBucketLocation(bucketName);
+              final String fallbackEndpoint = endpoint.orElseGet(() -> String.format("%ss3.%s.amazonaws.com", getHttpScheme(getConf()), bucketRegion));
+
+              String regionEndpoint = fallbackEndpoint;
+              try {
+                Region region = Region.fromValue(bucketRegion);
+                com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
+                if (awsRegion != null) {
+                  regionEndpoint = awsRegion.getServiceEndpoint("s3");
+                }
+              } catch (IllegalArgumentException iae) {
+                // try heuristic mapping if not found
+                regionEndpoint = fallbackEndpoint;
+                logger.warn("Unknown or unmapped region {} for bucket {}. Will use following endpoint: {}",
+                  bucketRegion, bucketName, regionEndpoint);
               }
-            } catch (IllegalArgumentException iae) {
-              // try heuristic mapping if not found
-              regionEndpoint = fallbackEndpoint;
-              logger.warn("Unknown or unmapped region {} for bucket {}. Will use following endpoint: {}",
-                bucketRegion, bucketName, regionEndpoint);
+              // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
+              // not sure if latter is possible
+              if (regionEndpoint == null) {
+                logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: {} ",
+                  bucketName, fallbackEndpoint);
+              }
+              targetEndpoint = (regionEndpoint != null) ? regionEndpoint : fallbackEndpoint;
+
+            } catch (AmazonS3Exception aex) {
+              if (aex.getStatusCode() == 403) {
+                throw UserException.permissionError(aex)
+                  .message(S3_PERMISSION_ERROR_MSG)
+                  .build(logger);
+              }
+              throw aex;
             }
-            // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
-            // not sure if latter is possible
-            if (regionEndpoint == null) {
-              logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
-                bucketName, fallbackEndpoint);
-            }
-            targetEndpoint = (regionEndpoint != null) ? regionEndpoint : fallbackEndpoint;
           }
 
           String location = S3_URI_SCHEMA + bucketName + "/";
@@ -365,7 +474,6 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         }
       });
     }
-
   }
 
   /**
@@ -401,7 +509,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         S3FileSystem.COMPATIBILITY_MODE,
         S3FileSystem.REGION_OVERRIDE,
         Constants.ASSUMED_ROLE_ARN,
-        Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER
+        Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER,
+        Constants.ALLOW_REQUESTER_PAYS
       );
 
 
@@ -439,7 +548,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     public int hashCode() {
       int hash = 1;
       for(String prop : UNIQUE_PROPS) {
-        hash = Objects.hash(hash, s3Config.get(prop));
+        Object value = s3Config.get(prop);
+        hash = 31 * hash + (value != null ? value.hashCode() : 0);
       }
 
       return hash;
@@ -454,15 +564,17 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private <T extends AwsClientBuilder<?,?>> T configClientBuilder(T builder, String bucket) {
     final Configuration conf = getConf();
+    // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
     builder.credentialsProvider(getAsync2Provider(conf));
     Optional<String> endpoint = getEndpoint(conf);
-    if (endpoint.isPresent()) {
-      try {
-        builder.endpointOverride(new URI(endpoint.get()));
-      } catch (URISyntaxException use) {
-        throw UserException.sourceInBadState(use).build(logger);
-      }
-    }
+
+    endpoint.ifPresent(e -> {
+        try {
+          builder.endpointOverride(new URI(e));
+        } catch (URISyntaxException use) {
+          throw UserException.sourceInBadState(use).build(logger);
+        }
+    });
 
     if (!isCompatMode()) {
       // normal s3/govcloud mode.
@@ -474,16 +586,25 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   }
 
   static software.amazon.awssdk.regions.Region getAWSRegionFromConfigurationOrDefault(Configuration conf) {
-    if (conf.get(REGION_OVERRIDE) != null) {
-      // a region override is set.
-      String regionOverride = conf.getTrimmed(REGION_OVERRIDE);
-      if (!regionOverride.isEmpty()) {
-        // set the region to what the user provided unless they provided an empty string.
-        return software.amazon.awssdk.regions.Region.of(regionOverride);
-      }
+    final String regionOverride = conf.getTrimmed(REGION_OVERRIDE);
+    if (!Strings.isNullOrEmpty(regionOverride)) {
+      // set the region to what the user provided unless they provided an empty string.
+      return software.amazon.awssdk.regions.Region.of(regionOverride);
     }
-    // default to the US_EAST_1 if no region is set.
-    return software.amazon.awssdk.regions.Region.US_EAST_1;
+
+    return getAwsRegionFromEndpoint(conf.get(Constants.ENDPOINT));
+  }
+
+  static software.amazon.awssdk.regions.Region getAwsRegionFromEndpoint(String endpoint) {
+    // Determine if one of the known AWS regions is contained within the given endpoint, and return that region if so.
+    return Optional.ofNullable(endpoint)
+      .map(e -> e.toLowerCase(Locale.ROOT)) // lower-case the endpoint for easy detection
+      .filter(e -> e.endsWith(S3_ENDPOINT_END) || e.endsWith(S3_CN_ENDPOINT_END)) // omit any semi-malformed endpoints
+      .flatMap(e -> software.amazon.awssdk.regions.Region.regions()
+        .stream()
+        .filter(region -> e.contains(region.id()))
+        .findFirst()) // map the endpoint to the region contained within it, if any
+      .orElse(software.amazon.awssdk.regions.Region.US_EAST_1); // default to US_EAST_1 if no regions are found.
   }
 
   static Optional<String> getEndpoint(Configuration conf) {
@@ -502,5 +623,9 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private boolean isCompatMode() {
     return getConf().getBoolean(COMPATIBILITY_MODE, false);
+  }
+
+  private boolean isRequesterPays() {
+    return getConf().getBoolean(ALLOW_REQUESTER_PAYS, false);
   }
 }

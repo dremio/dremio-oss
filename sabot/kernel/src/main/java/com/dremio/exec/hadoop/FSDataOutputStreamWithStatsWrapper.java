@@ -16,41 +16,55 @@
 package com.dremio.exec.hadoop;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import com.dremio.io.FSOutputStream;
 import com.dremio.io.FilterFSOutputStream;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
+import com.google.common.base.Stopwatch;
 
 /**
  * Wrapper around FSDataOutputStream to collect IO Stats.
  */
 public class FSDataOutputStreamWithStatsWrapper extends FilterFSOutputStream {
   private final OperatorStats operatorStats;
+  private final String filePath;
 
-  public FSDataOutputStreamWithStatsWrapper(FSOutputStream os, OperatorStats operatorStats) throws IOException {
-    super(os);
+  public FSDataOutputStreamWithStatsWrapper(FSOutputStream out,  OperatorStats operatorStats, String filePath) {
+    super(out);
+    this.filePath = filePath;
     this.operatorStats = operatorStats;
+    operatorStats.createWriteIOStats();
   }
 
   @Override
   public void write(int b) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      Stopwatch watch = Stopwatch.createStarted();
       super.write(b);
+      watch.stop();
+      operatorStats.updateWriteIOStats(watch.elapsed(TimeUnit.NANOSECONDS), filePath, 1, getPosition());
     }
   }
 
   @Override
   public void write(byte[] b) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      Stopwatch watch = Stopwatch.createStarted();
       super.write(b);
+      watch.stop();
+      operatorStats.updateWriteIOStats(watch.elapsed(TimeUnit.NANOSECONDS), filePath, b.length, getPosition());
     }
   }
 
   @Override
   public void write(byte[] b, int off, int len) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      Stopwatch watch = Stopwatch.createStarted();
       super.write(b, off, len);
+      watch.stop();
+      operatorStats.updateWriteIOStats(watch.elapsed(TimeUnit.NANOSECONDS), filePath, len, getPosition());
     }
   }
 

@@ -20,6 +20,7 @@ import PropTypes from 'prop-types';
 
 import SelectConnectionButton from 'components/SelectConnectionButton';
 import { sourceTypesIncludeS3 } from 'utils/sourceUtils';
+import { isExternalSourceType, isDatalakeTableSourceType } from '@app/constants/sourceTypes.js';
 
 import 'pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less';
 
@@ -28,7 +29,8 @@ export default class SelectSourceType extends Component {
   static propTypes = {
     onSelectSource: PropTypes.func,
     sourceTypes: PropTypes.array,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    isExternalSource: PropTypes.bool
   };
 
   getEnabledSourceTypes(allTypes) {
@@ -40,15 +42,16 @@ export default class SelectSourceType extends Component {
   }
 
   renderSourceTypes(connections) {
+    const { intl } = this.props;
     return connections.map((item) => {
       let pillText = '';
       let isCommunity = false;
       if (item.disabled) {
-        pillText = la('coming soon');
+        pillText = intl.formatMessage({ id: 'Source.CommingSoonTag' });
       } else if (item.tags && item.tags.includes('beta')) {
-        pillText = la('beta');
+        pillText = intl.formatMessage({ id: 'Source.BetaTag' });
       } else if (item.tags && item.tags.includes('community')) {
-        pillText = la('community');
+        pillText = intl.formatMessage({ id: 'Source.CommunityTag' });
         isCommunity = true;
       }
 
@@ -71,20 +74,52 @@ export default class SelectSourceType extends Component {
       onClick={this.props.onSelectSource.bind(this, { sourceType: 'SampleSource'})}/>;
   }
 
-  render() {
+  renderExternalSources() {
     const { sourceTypes } = this.props;
+    const externalSources = sourceTypes.filter(source => isExternalSourceType(source.sourceType));
     return (
       <div className='SelectSourceType'>
         <div className='main'>
           <div className='source-type-section'>
-            { this.renderSourceTypes(this.getEnabledSourceTypes(sourceTypes)) }
-            { sourceTypesIncludeS3(sourceTypes) && this.renderSampleSource() }
+            { this.renderSourceTypes(this.getEnabledSourceTypes(externalSources)) }
           </div>
           <div className='source-type-section'>
-            { this.renderSourceTypes(this.getDisabledSourceTypes(sourceTypes)) }
+            { this.renderSourceTypes(this.getDisabledSourceTypes(externalSources)) }
           </div>
         </div>
       </div>
     );
+  }
+
+  renderDataLakeSources() {
+    const { sourceTypes, intl } = this.props;
+    const fileStoreSources = sourceTypes.filter(source => !isExternalSourceType(source.sourceType) && !isDatalakeTableSourceType(source.sourceType));
+    const tableStoreSources = sourceTypes.filter(source => isDatalakeTableSourceType(source.sourceType));
+    return (
+      <div className='SelectSourceType'>
+        <div className='main'>
+          <div className='source-type-section'>
+            <div className='source-type-header'>
+              {intl.formatMessage({ id: 'Source.TableStores' })}
+            </div>
+            { this.renderSourceTypes(this.getEnabledSourceTypes(tableStoreSources)) }
+            { this.renderSourceTypes(this.getDisabledSourceTypes(tableStoreSources)) }
+          </div>
+          <div className='source-type-section'>
+            <div className='source-type-header'>
+              {intl.formatMessage({ id: 'Source.FileStores' })}
+            </div>
+            { this.renderSourceTypes(this.getEnabledSourceTypes(fileStoreSources)) }
+            { sourceTypesIncludeS3(sourceTypes) && this.renderSampleSource() }
+            { this.renderSourceTypes(this.getDisabledSourceTypes(fileStoreSources)) }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  render() {
+    const { isExternalSource } = this.props;
+    return isExternalSource ? this.renderExternalSources() : this.renderDataLakeSources();
   }
 }

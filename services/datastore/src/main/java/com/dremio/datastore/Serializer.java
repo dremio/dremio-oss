@@ -21,16 +21,17 @@ import io.protostuff.Message;
 import io.protostuff.Schema;
 
 /**
- * converter to bytes used in the key-value store to serialize keys and values
- * @param <T> the type to be converted to byte[]
+ * An abstract serializer is capable of ser/de as well as backing up/restoring data to/from json.
+ * @param <IN> Input type. User's type.
+ * @param <OUT> Format used for storage.
  */
-public abstract class Serializer<T> extends Converter<T, byte[]> {
+public abstract class Serializer<IN, OUT> extends Converter<IN, OUT> {
 
-  public final byte[] serialize(T t) {
+  public final OUT serialize(IN t) {
     return convert(t);
   }
 
-  public final T deserialize(byte[] bytes) {
+  public final IN deserialize(OUT bytes) {
     return revert(bytes);
   }
 
@@ -38,16 +39,59 @@ public abstract class Serializer<T> extends Converter<T, byte[]> {
    * Convert value in bytes to json string.
    * @return json sting
    */
-  public abstract String toJson(T v) throws IOException;
+  public abstract String toJson(IN v) throws IOException;
 
   /**
    * Convert json string to value
    * @return json string
    */
-  public abstract T fromJson(String v) throws IOException;
+  public abstract IN fromJson(String v) throws IOException;
 
-  public static <T extends Message<T>> Serializer<T> of(Schema<T> schema) {
+  public static <IN extends Message<IN>> Serializer<IN, byte[]> of(Schema<IN> schema) {
     return new ProtostuffSerializer<>(schema);
   }
 
+  /**
+   * A serializer that converts an IN type to a MID that is serialized to an OUT.
+   * @param <IN> Input type.
+   * @param <MID> Actually serializable type.
+   * @param <OUT> Serialized data.
+   */
+  private static final class WrappedSerializer<IN, MID, OUT> extends Serializer<IN, OUT> {
+
+    private final Serializer<MID, OUT> midoutSerializer;
+    private final Converter<IN, MID> in2mid;
+
+
+    @Override
+    public OUT convert(IN v) {
+      return midoutSerializer.serialize(in2mid.convert(v));
+    }
+
+    @Override
+    public IN revert(OUT v) {
+      return in2mid.revert(midoutSerializer.deserialize(v));
+    }
+
+    private WrappedSerializer(Converter<IN, MID> in2mid, Serializer<MID, OUT> serializer) {
+      this.midoutSerializer = serializer;
+      this.in2mid = in2mid;
+    }
+
+    @Override
+    public String toJson(IN v) throws IOException {
+      return midoutSerializer.toJson(in2mid.convert(v));
+    }
+
+
+    @Override
+    public IN fromJson(String v) throws IOException {
+      return in2mid.revert(midoutSerializer.fromJson(v));
+    }
+  }
+
+  public static <IN, MID, OUT> Serializer<IN, OUT> wrap(
+    Converter<IN, MID> in2mid, Serializer<MID, OUT> mid2out) {
+    return new WrappedSerializer<>(in2mid, mid2out);
+  }
 }

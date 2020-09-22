@@ -23,7 +23,6 @@ import java.util.Set;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 
@@ -54,9 +53,9 @@ public class OptionList extends ArrayList<OptionValue>{
    * only merge options from list that are not already set locally
    */
   public void mergeIfNotPresent(OptionList list) {
-    Set<String> options = Sets.newHashSet(Iterables.transform(this, EXTRACT_OPTION_NAME));
+    final Set<OptionValue> options = Sets.newTreeSet(this);
     for (OptionValue optionValue : list) {
-      if (!options.contains(optionValue.getName())) {
+      if (options.add(optionValue)) {
         this.add(optionValue);
       }
     }

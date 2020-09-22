@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from 'immutable';
 import FileUtils, { FileDownloadError } from './FileUtils';
 
 describe('FileUtils', () => {
@@ -135,6 +136,20 @@ describe('FileUtils', () => {
       expect(FileUtils.getFormattedBytes(NaN)).to.be.eql('');
       expect(FileUtils.getFormattedBytes()).to.be.eql('');
       expect(FileUtils.getFormattedBytes('blabla')).to.be.eql('');
+    });
+  });
+
+  describe('getDatasetIdForClientTools', () => {
+    it('should default to empty string', () => {
+      expect(FileUtils.getDatasetIdForClientTools()).to.equal('');
+    });
+
+    it('should return entityId if provided', () => {
+      expect(FileUtils.getDatasetIdForClientTools(Immutable.fromJS({entityId: 'abc', id: 'aaa'}))).to.equal('abc');
+    });
+
+    it('should return id if entityId is not provided', () => {
+      expect(FileUtils.getDatasetIdForClientTools(Immutable.fromJS({id: 'aaa'}))).to.equal('aaa');
     });
   });
 });

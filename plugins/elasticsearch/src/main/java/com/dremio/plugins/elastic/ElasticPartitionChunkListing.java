@@ -119,8 +119,8 @@ class ElasticPartitionChunkListing implements PartitionChunkListing {
           hosts.add(host.getAsString());
         }
       }
-      Preconditions.checkArgument(shard.size() == 1, "Expected one shard, received %d.", shard.size());
-      Preconditions.checkArgument(index.size() == 1, "Expected one index, received %d.", index.size());
+      Preconditions.checkArgument(shard.size() == 1, "Expected one shard, received %s.", shard.size());
+      Preconditions.checkArgument(index.size() == 1, "Expected one index, received %s.", index.size());
 
       final String onlyIndex = index.iterator().next();
       final int onlyShard = shard.iterator().next();

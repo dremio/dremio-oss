@@ -24,6 +24,7 @@ import java.sql.SQLWarning;
 
 import org.apache.calcite.avatica.AvaticaParameter;
 import org.apache.calcite.avatica.AvaticaPreparedStatement;
+import org.apache.calcite.avatica.AvaticaSite;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.Meta.StatementHandle;
 
@@ -62,6 +63,12 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
     }
   }
 
+  @Override
+  protected AvaticaSite getSite(int param) throws SQLException {
+    throwIfClosed();
+    return super.getSite(param);
+  }
+
   /**
    * Throws AlreadyClosedSqlException <i>iff</i> this PreparedStatement is closed.
    *
@@ -82,14 +89,8 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   // called ResultSet.)
 
   @Override
-  public DremioConnectionImpl getConnection() {
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getConnection() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public DremioConnectionImpl getConnection() throws SQLException {
+    throwIfClosed();
     return (DremioConnectionImpl) super.getConnection();
   }
 
@@ -162,15 +163,15 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public long getLargeMaxRows() {
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getLargeMaxRows() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public long getLargeMaxRows() throws SQLException {
+    throwIfClosed();
     return super.getLargeMaxRows();
+  }
+
+  @Override
+  public long getLargeUpdateCount() throws SQLException {
+    throwIfClosed();
+    return super.getLargeUpdateCount();
   }
 
   @Override
@@ -267,14 +268,8 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public int getFetchDirection(){
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getFetchDirection() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public int getFetchDirection() throws SQLException {
+    throwIfClosed();
     return super.getFetchDirection();
   }
 
@@ -285,14 +280,8 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public int getFetchSize() {
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getFetchSize() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public int getFetchSize() throws SQLException {
+    throwIfClosed();
     return super.getFetchSize();
   }
 
@@ -330,14 +319,8 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public void clearBatch(){
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaPreparedStatement
-      // clearBatch() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public void clearBatch() throws SQLException {
+    throwIfClosed();
     super.clearBatch();
   }
 
@@ -576,14 +559,8 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   // - setArray(int, Array)
 
   @Override
-  public ResultSetMetaData getMetaData() {
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getMetaData() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public ResultSetMetaData getMetaData() throws SQLException {
+    throwIfClosed();
     return super.getMetaData();
   }
 

@@ -31,11 +31,11 @@ class AggregateForm extends Component {
     'columnsDimensions[].column',
     'columnsMeasures[].measure',
     'columnsMeasures[].column'
-  ])
+  ]);
 
   static validate = () => {
     return {};
-  }
+  };
 
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map), // NOTE: some users pass a fake DS with just displayFullPath
@@ -55,7 +55,7 @@ class AggregateForm extends Component {
   static defaultProps = {
     canSelectMeasure: true,
     canUseFieldAsBothDimensionAndMeasure: true
-  }
+  };
 
   constructor(props) {
     super(props);
@@ -70,7 +70,7 @@ class AggregateForm extends Component {
       isDragInProgress: true,
       dragItem: new ColumnDragItem(e.id, e.type)
     });
-  }
+  };
 
   handleDrop = (dragOrigin, dropData) => {
     const {columns, fields} = this.props;
@@ -99,7 +99,7 @@ class AggregateForm extends Component {
 
 
     this.stopDrag();
-  }
+  };
 
   addAnother = (type) => {
     const { fields } = this.props;
@@ -108,54 +108,46 @@ class AggregateForm extends Component {
     } else {
       fields.columnsDimensions.addField({});
     }
-  }
+  };
 
-  // TODO: ugly hack, we run into timing issues where columsn are re-added as we are removing since its atomic removal
+  // ugly hack, we run into timing issues where columns are re-added as we are removing since its atomic removal
+  // this hack is used instead of fields.forEach(() => fields.removeField());
+  removeAllFields = (fields) => {
+    const target = fields.length;
+    let count = 0;
+
+    function doit() {
+      const promise = fields.removeField();
+      if (promise && promise.then) {
+        promise.then(() => {
+          count++;
+          if (count < target) {
+            doit();
+          }
+        });
+      }
+    }
+    if (target) {
+      doit();
+    }
+  };
+
   handleClearAllDimensions = () => {
     const { fields: { columnsDimensions } } = this.props;
+    this.removeAllFields(columnsDimensions);
+  };
 
-    const target = columnsDimensions.length;
-    let count = 0;
-
-    function doit() {
-      columnsDimensions.removeField().then(() => {
-        count++;
-
-        if (count < target) {
-          doit();
-        }
-      });
-    }
-
-    doit();
-  }
-
-  // TODO: ugly hack, we run into timing issues where columsn are re-added as we are removing since its atomic removal
   handleClearAllMeasures = () => {
     const { fields: { columnsMeasures } } = this.props;
-
-    const target = columnsMeasures.length;
-    let count = 0;
-
-    function doit() {
-      columnsMeasures.removeField().then(() => {
-        count++;
-
-        if (count < target) {
-          doit();
-        }
-      });
-    }
-
-    doit();
-  }
+    this.removeAllFields(columnsMeasures);
+  };
 
   stopDrag = () => {
     this.setState({
       isDragInProgress: false,
       dragItem: new ColumnDragItem()
     });
-  }
+  };
 
   render() {
     return (

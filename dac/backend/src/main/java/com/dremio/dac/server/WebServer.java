@@ -15,40 +15,19 @@
  */
 package com.dremio.dac.server;
 
-import java.net.URISyntaxException;
 import java.security.KeyStore;
-import java.util.EnumSet;
 
 import javax.inject.Provider;
-import javax.servlet.DispatcherType;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.eclipse.jetty.http.MimeTypes;
-import org.eclipse.jetty.server.HttpConfiguration;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.ErrorHandler;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
-import org.eclipse.jetty.servlet.DefaultServlet;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.GzipFilter;
-import org.eclipse.jetty.util.resource.Resource;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
 
 import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.daemon.ServerHealthMonitor;
-import com.dremio.dac.server.socket.SocketServlet;
-import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.Service;
 import com.dremio.service.SingletonRegistry;
-import com.dremio.service.jobs.JobsService;
 import com.google.common.annotations.VisibleForTesting;
+
+import io.opentracing.Tracer;
 
 /**
  * Dremio web server.
@@ -94,6 +73,11 @@ public class WebServer implements Service {
      * Tableau TDS media type (for Native Drill Connector)
      */
     public static final MediaType APPLICATION_TDS_DRILL_TYPE = new MediaType("application", "tds+drill");
+
+    /**
+     * Power BI DS media type
+     */
+    public static final String APPLICATION_PBIDS = "application/pbids";
   }
 
   /**
@@ -116,17 +100,15 @@ public class WebServer implements Service {
   private final SingletonRegistry registry;
   private final Provider<RestServerV2> restServerProvider;
   private final Provider<APIServer> apiServerProvider;
-  private final Server embeddedJetty = new Server();
+  private final DremioServer server;
   private final Provider<ServerHealthMonitor> serverHealthMonitor;
   private final DACConfig config;
   private final Provider<NodeEndpoint> endpointProvider;
   private final Provider<SabotContext> context;
+  private final DremioBinder dremioBinder;
+  private final Tracer tracer;
   private final String uiType;
   private final boolean isInternalUS;
-
-  private KeyStore trustStore;
-  private AccessLogFilter accessLogFilter;
-  private int port = -1;
 
   public WebServer(
       SingletonRegistry registry,
@@ -136,6 +118,9 @@ public class WebServer implements Service {
       Provider<SabotContext> context,
       Provider<RestServerV2> restServer,
       Provider<APIServer> apiServer,
+      Provider<DremioServer> server,
+      DremioBinder dremioBinder,
+      Tracer tracer,
       String uiType,
       boolean isInternalUS) {
     this.config = config;
@@ -145,129 +130,36 @@ public class WebServer implements Service {
     this.context = context;
     this.restServerProvider = restServer;
     this.apiServerProvider = apiServer;
+    this.dremioBinder = dremioBinder;
+    this.tracer = tracer;
     this.uiType = uiType;
     this.isInternalUS = isInternalUS;
+    this.server = server.get();
   }
 
   public AccessLogFilter getAccessLogFilter() {
-    return accessLogFilter;
+    return server.getAccessLogFilter();
   }
 
   @Override
   public void start() throws Exception {
-    final ServerConnector serverConnector;
-    if (config.webSSLEnabled()) {
-      Pair<ServerConnector, KeyStore> connectorTrustStorePair =
-          new HttpsConnectorGenerator().createHttpsConnector(embeddedJetty, config.getConfig(),
-              config.thisNode, endpointProvider.get().getAddress());
-      serverConnector = connectorTrustStorePair.getLeft();
-      trustStore = connectorTrustStorePair.getRight();
-    } else {
-      serverConnector = new ServerConnector(embeddedJetty, new HttpConnectionFactory(new HttpConfiguration()));
-    }
-    if (!config.autoPort) {
-      serverConnector.setPort(config.getHttpPort());
-    }
-
-    embeddedJetty.addConnector(serverConnector);
-
-    // root handler with request logging
-    final RequestLogHandler rootHandler = new RequestLogHandler();
-    embeddedJetty.setHandler(rootHandler);
-    RequestLogImpl_Jetty_Fix requestLogger = new RequestLogImpl_Jetty_Fix();
-    requestLogger.setResource("/logback-access.xml");
-    rootHandler.setRequestLog(requestLogger);
-
-    // servlet handler for everything (to manage path mapping)
-    final ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-    servletContextHandler.setContextPath("/");
-    rootHandler.setHandler(servletContextHandler);
-
-    // error handler
-    final ErrorHandler errorHandler = new ErrorHandler();
-    errorHandler.setShowStacks(true);
-    errorHandler.setShowMessageInTitle(true);
-    servletContextHandler.setErrorHandler(errorHandler);
-
-    // gzip filter.
-    servletContextHandler.addFilter(GzipFilter.class.getName(), "/*", EnumSet.of(DispatcherType.REQUEST));
-
-    // security header filters
-    servletContextHandler.addFilter(SecurityHeadersFilter.class.getName(), "/*", EnumSet.of(DispatcherType.REQUEST));
-
-    // add the font mime type.
-    final MimeTypes mimeTypes = servletContextHandler.getMimeTypes();
-    mimeTypes.addMimeMapping("woff2", "application/font-woff2; charset=utf-8");
-    servletContextHandler.setMimeTypes(mimeTypes);
-
-    // WebSocket API
-    final SocketServlet servlet = new SocketServlet(registry.lookup(JobsService.class), registry.lookup(TokenManager.class));
-    final ServletHolder wsHolder = new ServletHolder(servlet);
-    wsHolder.setInitOrder(3);
-    servletContextHandler.addServlet(wsHolder, "/apiv2/socket");
-
-    // Rest API
-    ResourceConfig restServer = restServerProvider.get();
-
-    restServer.property(RestServerV2.ERROR_STACKTRACE_ENABLE, config.sendStackTraceToClient);
-    restServer.property(RestServerV2.TEST_API_ENABLE, config.allowTestApis);
-    restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);
-
-    restServer.register(new DremioBinder(registry));
-
-    final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
-    restHolder.setInitOrder(2);
-    servletContextHandler.addServlet(restHolder, "/apiv2/*");
-
-    // Public API
-    ResourceConfig apiServer = apiServerProvider.get();
-    apiServer.register(new DremioBinder(registry));
-
-    final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
-    apiHolder.setInitOrder(3);
-    servletContextHandler.addServlet(apiHolder, "/api/v3/*");
-
-    if (config.verboseAccessLog) {
-      accessLogFilter = new AccessLogFilter();
-      servletContextHandler.addFilter(
-          new FilterHolder(accessLogFilter),
-          "/*",
-          EnumSet.of(DispatcherType.REQUEST));
-    }
-
-    if (config.serveUI) {
-      final String basePath = "rest/dremio_static/";
-      final String markerPath = String.format("META-INF/%s.properties", uiType);
-
-      final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", registry.lookup(DremioServlet.class));
-      addStaticPath(fallbackServletHolder, basePath, markerPath);
-      servletContextHandler.addServlet(fallbackServletHolder, "/*");
-
-      // TODO DX-1556 - temporary static asset serving for showing Profiles
-      final String baseStaticPath = "rest/static/";
-      final String arrowDownResourceRelativePath = "rest/static/img/arrow-down-small.svg";
-      ServletHolder restStaticHolder = new ServletHolder("static", DefaultServlet.class);
-      // Get resource URL for legacy static assets, based on where some image is located
-      addStaticPath(restStaticHolder, baseStaticPath, arrowDownResourceRelativePath);
-      servletContextHandler.addServlet(restStaticHolder, "/static/*");
-    }
-
-    embeddedJetty.start();
-
-    port = serverConnector.getLocalPort();
-    logger.info("Started on {}://localhost:" + port, config.webSSLEnabled() ? "https" : "http");
-  }
-
-  private void addStaticPath(ServletHolder holder, String basePath, String relativeMarkerPathToResource) throws URISyntaxException {
-    String path = Resource.newClassPathResource(relativeMarkerPathToResource).getURL().toString();
-    final String fullBasePath = path.substring(0, path.length() - relativeMarkerPathToResource.length()) + basePath;
-    holder.setInitParameter("dirAllowed", "false");
-    holder.setInitParameter("pathInfoOnly", "true");
-    holder.setInitParameter("resourceBase", fullBasePath);
+    server.startDremioServer(
+      registry,
+      config,
+      serverHealthMonitor,
+      endpointProvider,
+      context,
+      restServerProvider,
+      apiServerProvider,
+      dremioBinder,
+      tracer,
+      uiType,
+      isInternalUS
+    );
   }
 
   public int getPort() {
-    return port;
+    return server.getPort();
   }
 
   /**
@@ -277,11 +169,11 @@ public class WebServer implements Service {
    */
   @VisibleForTesting
   KeyStore getTrustStore() {
-    return trustStore;
+    return server.getTrustStore();
   }
 
   @Override
   public void close() throws Exception {
-    embeddedJetty.stop();
+    server.close();
   }
 }

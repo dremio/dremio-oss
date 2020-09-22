@@ -42,6 +42,7 @@ import java.util.stream.StreamSupport;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -50,6 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -199,8 +201,8 @@ public class TestHadoopFileSystemWrapper {
     FileSystem dfs = null;
     InputStream is = null;
     Configuration conf = new Configuration();
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
-    OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
+    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE /*operatorType*/, 0 /*inputCount*/);
+    OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/, 0);
 
     // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
     stats.startProcessing();
@@ -224,8 +226,25 @@ public class TestHadoopFileSystemWrapper {
       }
     }
 
-    OperatorProfile operatorProfile = stats.getProfile();
+    OperatorProfile operatorProfile = stats.getProfile(true);
     assertTrue("Expected wait time is non-zero, but got zero wait time", operatorProfile.getWaitNanos() > 0);
+    OperatorStats.IOStats ioStats = stats.getReadIOStats();
+    long minIOReadTime = ioStats.minIOTime.longValue();
+    long maxIOReadTime = ioStats.maxIOTime.longValue();
+    long avgIOReadTime = ioStats.totalIOTime.longValue() / ioStats.numIO.get();
+    long numIORead = ioStats.totalIOTime.get();
+
+    assertTrue(minIOReadTime > 0);
+    assertTrue(maxIOReadTime > 0);
+    assertTrue(avgIOReadTime > 0);
+    assertTrue(numIORead > 0);
+    assertTrue(avgIOReadTime >= minIOReadTime && avgIOReadTime <= maxIOReadTime);
+
+    assertTrue(ioStats.slowIOInfoList.size() > 0);
+    UserBitShared.SlowIOInfo slowIOInfo = ioStats.slowIOInfoList.get(0);
+    assertTrue(slowIOInfo.getFilePath().equals(tempFilePath));
+    assertTrue(slowIOInfo.getIoTime() >= minIOReadTime && slowIOInfo.getIoTime() <= maxIOReadTime);
+    assertTrue(slowIOInfo.getIoSize() > 0);
   }
 
   @Test
@@ -233,8 +252,8 @@ public class TestHadoopFileSystemWrapper {
     FileSystem dfs = null;
     OutputStream os = null;
     Configuration conf = new Configuration();
-    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
-    OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
+    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, UserBitShared.CoreOperatorType.PARQUET_WRITER_VALUE /*operatorType*/, 0 /*inputCount*/);
+    OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/, 0);
 
     // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
     stats.startProcessing();
@@ -259,8 +278,62 @@ public class TestHadoopFileSystemWrapper {
       }
     }
 
-    OperatorProfile operatorProfile = stats.getProfile();
+    OperatorProfile operatorProfile = stats.getProfile(true);
     assertTrue("Expected wait time is non-zero, but got zero wait time", operatorProfile.getWaitNanos() > 0);
+    OperatorStats.IOStats ioStats = stats.getWriteIOStats();
+    long minIOWriteTime = ioStats.minIOTime.longValue();
+    long maxIOWriteTime = ioStats.maxIOTime.longValue();
+    long avgIOWriteTime = ioStats.totalIOTime.longValue() / ioStats.numIO.get();
+    long numIOWrite = ioStats.totalIOTime.get();
+
+    Assert.assertTrue(minIOWriteTime > 0);
+    Assert.assertTrue(maxIOWriteTime > 0);
+    Assert.assertTrue(avgIOWriteTime > 0);
+    Assert.assertTrue(avgIOWriteTime >= minIOWriteTime && avgIOWriteTime <= maxIOWriteTime);
+    Assert.assertTrue(numIOWrite > 0);
+
+    assertTrue(ioStats.slowIOInfoList.size() > 0);
+    UserBitShared.SlowIOInfo slowIOInfo = ioStats.slowIOInfoList.get(0);
+    Assert.assertTrue(slowIOInfo.getIoSize() > 0);
+    Assert.assertTrue(slowIOInfo.getIoTime() >= minIOWriteTime && slowIOInfo.getIoTime() <= maxIOWriteTime);
+    Assert.assertTrue(slowIOInfo.getFilePath().contains("dremioFSWriteTest.txt"));
+  }
+
+  @Test
+  public void testNoWaitTime() throws Exception {
+    FileSystem dfs = null;
+    InputStream is = null;
+    Configuration conf = new Configuration();
+    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
+    OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
+
+    // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
+    stats.startProcessing();
+
+    try {
+      org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.getLocal(conf);
+      dfs = HadoopFileSystem.get(fs, stats, true);
+      Path path = Path.of(tempFilePath);
+      org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(path.toURI());
+      is = ((HadoopFileSystem) dfs).newFSDataInputStreamWrapper(Path.of(tempFilePath), fs.open(hadoopPath) , stats, false);
+
+      byte[] buf = new byte[8000];
+      while (is.read(buf, 0, buf.length) != -1) {
+      }
+    } finally {
+      stats.stopProcessing();
+
+      if (is != null) {
+        is.close();
+      }
+
+      if (dfs != null) {
+        dfs.close();
+      }
+    }
+
+    OperatorProfile operatorProfile = stats.getProfile();
+    assertTrue("Expected wait time is zero, but got non-zero wait time", operatorProfile.getWaitNanos() == 0);
   }
 
   @Test

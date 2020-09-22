@@ -16,10 +16,10 @@
 import { RSAA } from 'redux-api-middleware';
 import { push, replace } from 'react-router-redux';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import { performNextAction } from 'actions/explore/nextAction';
+import { APIV2Call } from '@app/core/APICall';
 
 export const REAPPLY_DATASET_START   = 'REAPPLY_DATASET_START';
 export const REAPPLY_DATASET_SUCCESS = 'REAPPLY_DATASET_SUCCESS';
@@ -33,6 +33,9 @@ export function editOriginalSql(previousDatasetId, selfApiUrl) {
 
 function fetchOriginalSql(previousDatasetId, selfApiUrl, viewId) {
   const meta = { viewId, previousId: previousDatasetId };
+
+  const apiCall = new APIV2Call().paths(`${selfApiUrl}/editOriginalSql`);
+
   return {
     [RSAA]: {
       types: [
@@ -42,7 +45,7 @@ function fetchOriginalSql(previousDatasetId, selfApiUrl, viewId) {
       ],
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      endpoint: `${API_URL_V2}${selfApiUrl}/editOriginalSql` // look here
+      endpoint: apiCall
     }
   };
 }

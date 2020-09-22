@@ -35,7 +35,7 @@ describe('notification reducer', () => {
   });
 
   it('should set notification from errorMessage and default moreInfo if error = true and notification = true', () => {
-    const defaultMoreInfo = 'Something went wrong.';
+    const defaultMoreInfo = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
     const result = notification(initialState, {
       type: 'bla',
       error: true,
@@ -64,7 +64,7 @@ describe('notification reducer', () => {
   });
 
   it('should set notification with default message when error = true and notification = true', () => {
-    const defaultMessage = 'Something went wrong.';
+    const defaultMessage = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
     const result = notification(initialState, {
       type: 'bla',
       error: true,

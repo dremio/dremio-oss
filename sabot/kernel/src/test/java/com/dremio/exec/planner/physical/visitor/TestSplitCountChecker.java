@@ -17,7 +17,6 @@ package com.dremio.exec.planner.physical.visitor;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,12 +47,14 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -78,17 +79,19 @@ public class TestSplitCountChecker {
 
   @Before
   public void setup() throws Exception {
+    OptionList optionList = new OptionList();
+    optionList.add(ExecConstants.SLICE_TARGET_OPTION.getDefault());
+    optionList.add(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
+    optionList.add(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
     final OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(eq(ExecConstants.SLICE_TARGET)))
-      .thenReturn(ExecConstants.SLICE_TARGET_OPTION.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
-      .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))
-      .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
+    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
+
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    final PlannerSettings plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
+    final PlannerSettings plannerSettings =
+      new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, () -> info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 

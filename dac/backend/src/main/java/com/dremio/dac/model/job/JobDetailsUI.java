@@ -45,7 +45,7 @@ import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.job.proto.SpillJobDetails;
 import com.dremio.service.job.proto.TableDatasetProfile;
 import com.dremio.service.job.proto.TopOperation;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -170,37 +170,39 @@ public class JobDetailsUI {
     this.spillDetails = spillDetails;
   }
 
-  public static JobDetailsUI of(Job job) {
-    JobInfo jobInfo = job.getJobAttempt().getInfo();
-    List<JobAttempt> attempts = job.getAttempts();
-    AccelerationDetails accelerationDetails = deserialize(Util.last(attempts).getAccelerationDetails());
+  public static JobDetailsUI of(com.dremio.service.job.JobDetails jobDetails) {
+    final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream()
+      .map(JobsProtoUtil::toStuff)
+      .collect(Collectors.toList());
+    final JobAttempt lastJobAttempt = Util.last(attempts);
+    final JobInfo jobInfo = lastJobAttempt.getInfo();
 
+    final AccelerationDetails accelerationDetails = deserialize(Util.last(attempts).getAccelerationDetails());
+    final JobId jobId = JobsProtoUtil.toStuff(jobDetails.getJobId());
     return new JobDetailsUI(
-        job.getJobId(),
-        job.getJobAttempt().getDetails(),
-        JobResource.getPaginationURL(job.getJobId()),
+        jobId,
+        lastJobAttempt.getDetails(),
+        JobResource.getPaginationURL(jobId),
         attempts,
-        JobResource.getDownloadURL(job),
-        toJobFailureInfo(jobInfo),
-        toJobCancellationInfo(Util.last(attempts)),
-        job.getJobAttempt().getInfo().getDatasetVersion(),
-        job.hasResults(),
+        JobResource.getDownloadURL(jobDetails),
+        toJobFailureInfo(jobInfo.getFailureInfo(), jobInfo.getDetailedFailureInfo()),
+        toJobCancellationInfo(lastJobAttempt.getState(), lastJobAttempt.getInfo().getCancellationInfo()),
+        lastJobAttempt.getInfo().getDatasetVersion(),
+        jobDetails.getHasResults(),
         accelerationDetails,
         jobInfo.getSpillJobDetails());
   }
 
-  public static JobFailureInfo toJobFailureInfo(JobInfo jobInfo) {
-    if (jobInfo.getDetailedFailureInfo() == null) {
-      // backward compatibility
-      return new JobFailureInfo(jobInfo.getFailureInfo(), JobFailureType.UNKNOWN, null);
+  public static JobFailureInfo toJobFailureInfo(String jobFailureInfo, com.dremio.service.job.proto.JobFailureInfo detailedJobFailureInfo) {
+    if (detailedJobFailureInfo == null) {
+      return new JobFailureInfo(jobFailureInfo, JobFailureType.UNKNOWN, null);
     }
 
-    com.dremio.service.job.proto.JobFailureInfo failureInfo = jobInfo.getDetailedFailureInfo();
     final JobFailureType failureType;
-    if (failureInfo.getType() == null) {
+    if (detailedJobFailureInfo.getType() == null) {
       failureType = JobFailureType.UNKNOWN;
     } else {
-      switch(failureInfo.getType()) {
+      switch(detailedJobFailureInfo.getType()) {
       case PARSE:
         failureType = JobFailureType.PARSE;
         break;
@@ -219,28 +221,26 @@ public class JobDetailsUI {
     }
 
     final List<QueryError> errors;
-    if (failureInfo.getErrorsList() == null) {
+    if (detailedJobFailureInfo.getErrorsList() == null) {
       errors = null;
     } else {
       errors = new ArrayList<>();
-      for(com.dremio.service.job.proto.JobFailureInfo.Error error: failureInfo.getErrorsList()) {
+      for(com.dremio.service.job.proto.JobFailureInfo.Error error: detailedJobFailureInfo.getErrorsList()) {
         errors.add(new QueryError(error.getMessage(), toRange(error)));
       }
     }
 
-    return new JobFailureInfo(failureInfo.getMessage(), failureType, errors);
+    return new JobFailureInfo(detailedJobFailureInfo.getMessage(), failureType, errors);
   }
 
-  public static JobCancellationInfo toJobCancellationInfo(JobAttempt jobAttempt) {
-    if (jobAttempt.getState() != JobState.CANCELED) {
+  public static JobCancellationInfo toJobCancellationInfo(JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
+    if (jobState != JobState.CANCELED) {
       return null;
     }
 
-    final com.dremio.service.job.proto.JobCancellationInfo cancellationInfo =
-        jobAttempt.getInfo().getCancellationInfo();
-    return new JobCancellationInfo(cancellationInfo == null ?
-        "Query was cancelled" : // backward compatibility
-        cancellationInfo.getMessage());
+    return new JobCancellationInfo(jobCancellationInfo == null ?
+      "Query was cancelled" : //backward compatibility
+      jobCancellationInfo.getMessage());
   }
 
   public static boolean wasSnowflakeAccelerated(AccelerationDetails details) {

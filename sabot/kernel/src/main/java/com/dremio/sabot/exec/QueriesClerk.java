@@ -31,11 +31,9 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 @ThreadSafe
 public class QueriesClerk {
 
-  private final ExecToCoordTunnelCreator tunnelCreator;
   private final WorkloadTicketDepot workloadTicketDepot;
 
-  QueriesClerk(final WorkloadTicketDepot workloadTicketDepot, ExecToCoordTunnelCreator tunnelCreator) {
-    this.tunnelCreator = tunnelCreator;
+  QueriesClerk(final WorkloadTicketDepot workloadTicketDepot) {
     this.workloadTicketDepot = workloadTicketDepot;
   }
 
@@ -54,7 +52,7 @@ public class QueriesClerk {
       final long queryMaxAllocation = workloadTicket.getChildMaxAllocation(firstFragment.getMajor().getContext().getQueryMaxAllocation());
 
       workloadTicket.buildAndStartQuery(queryId, queryMaxAllocation, firstFragment.getMajor().getForeman(), firstFragment.getMinor().getAssignment(),
-        tunnelCreator, queryStarter);
+        queryStarter);
     } finally {
       workloadTicket.release();
     }

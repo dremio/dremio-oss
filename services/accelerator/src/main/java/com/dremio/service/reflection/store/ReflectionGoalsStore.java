@@ -32,20 +32,22 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.KVStoreProvider.DocumentConverter;
+import org.apache.arrow.util.VisibleForTesting;
+
 import com.dremio.datastore.KVUtil;
 import com.dremio.datastore.SearchQueryUtils;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
-import com.dremio.service.reflection.store.Serializers.ReflectionGoalSerializer;
-import com.dremio.service.reflection.store.Serializers.ReflectionIdSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -66,13 +68,13 @@ public class ReflectionGoalsStore {
       }
     };
 
-  private final Supplier<IndexedStore<ReflectionId, ReflectionGoal>> store;
+  private final Supplier<LegacyIndexedStore<ReflectionId, ReflectionGoal>> store;
 
-  public ReflectionGoalsStore(final Provider<KVStoreProvider> provider) {
+  public ReflectionGoalsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider cannot be null");
-    this.store = Suppliers.memoize(new Supplier<IndexedStore<ReflectionId, ReflectionGoal>>() {
+    this.store = Suppliers.memoize(new Supplier<LegacyIndexedStore<ReflectionId, ReflectionGoal>>() {
       @Override
-      public IndexedStore<ReflectionId, ReflectionGoal> get() {
+      public LegacyIndexedStore<ReflectionId, ReflectionGoal> get() {
         return provider.get().getStore(StoreCreator.class);
       }
     });
@@ -84,6 +86,9 @@ public class ReflectionGoalsStore {
       goal.setCreatedAt(currentTime);
     }
     goal.setModifiedAt(currentTime);
+    // Invalidate the old tag, which might have been carried over from a version of Dremio
+    // before the KVStore interface revisions (pre 4.2.0).
+    goal.setVersion(null);
     store.get().put(goal.getId(), goal);
   }
 
@@ -92,7 +97,7 @@ public class ReflectionGoalsStore {
   }
 
   public Iterable<ReflectionGoal> getAllNotDeleted() {
-    final FindByCondition condition = new FindByCondition().setCondition(
+    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(
       or(
         newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
         newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DISABLED.name())
@@ -103,7 +108,7 @@ public class ReflectionGoalsStore {
   }
 
   public Iterable<ReflectionGoal> getModifiedOrCreatedSince(final long time) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(or(
         newRangeLong(REFLECTION_GOAL_MODIFIED_AT.getIndexFieldName(), time, Long.MAX_VALUE, true, false),
         newRangeLong(CREATED_AT.getIndexFieldName(), time, Long.MAX_VALUE, true, false)
@@ -114,7 +119,7 @@ public class ReflectionGoalsStore {
   }
 
   public Iterable<ReflectionGoal> getDeletedBefore(final long time) {
-    final FindByCondition condition = new FindByCondition().setCondition(
+    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(
       and(
         newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.DELETED.name()),
         newRangeLong(REFLECTION_GOAL_MODIFIED_AT.getIndexFieldName(), Long.MIN_VALUE, time, false, true)));
@@ -124,7 +129,7 @@ public class ReflectionGoalsStore {
   }
 
   public Iterable<ReflectionGoal> getByDatasetId(final String datasetId) {
-    final FindByCondition condition = new FindByCondition().setCondition(
+    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(
       and(
         or(
           newTermQuery(REFLECTION_GOAL_STATE, ReflectionGoalState.ENABLED.name()),
@@ -151,18 +156,8 @@ public class ReflectionGoalsStore {
     store.get().delete(id);
   }
 
-
-  private static final class ReflectionGoalVersionExtractor implements VersionExtractor<ReflectionGoal> {
-    @Override
-    public Long getVersion(ReflectionGoal value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(ReflectionGoal value, Long version) {
-      value.setVersion(version);
-    }
-
+  @VisibleForTesting
+  static final class ReflectionGoalVersionExtractor implements VersionExtractor<ReflectionGoal> {
     @Override
     public String getTag(ReflectionGoal value) {
       return value.getTag();
@@ -170,13 +165,25 @@ public class ReflectionGoalsStore {
 
     @Override
     public void setTag(ReflectionGoal value, String tag) {
+      // Back up the existing tag, which might be a number if the reflection goal
+      // was upgraded from a build pre-dating the revised KVStore API (pre-4.2.0).
+      try {
+        // Old tags are long values. Verify that it's convertible to a long before writing it.
+        value.setVersion(Long.valueOf(value.getTag()));
+      } catch (NumberFormatException ex) {
+        // This is normal. It means that we aren't holding a legacy tag in value anymore, so
+        // we shouldn't use this.
+        value.setVersion(null);
+      }
+
       value.setTag(tag);
     }
   }
 
+
   private static final class StoreConverter implements DocumentConverter<ReflectionId, ReflectionGoal> {
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, ReflectionId key, ReflectionGoal record) {
+    public void convert(DocumentWriter writer, ReflectionId key, ReflectionGoal record) {
       writer.write(REFLECTION_ID, key.getId());
       writer.write(DATASET_ID, record.getDatasetId());
       writer.write(CREATED_AT, record.getCreatedAt());
@@ -189,16 +196,16 @@ public class ReflectionGoalsStore {
   /**
    * Reflection user store creator
    */
-  public static class StoreCreator implements StoreCreationFunction<IndexedStore<ReflectionId, ReflectionGoal>> {
+  public static class StoreCreator implements LegacyIndexedStoreCreationFunction<ReflectionId, ReflectionGoal> {
 
     @Override
-    public IndexedStore<ReflectionId, ReflectionGoal> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<ReflectionId, ReflectionGoal> build(LegacyStoreBuildingFactory factory) {
       return factory.<ReflectionId, ReflectionGoal>newStore()
         .name(TABLE_NAME)
-        .keySerializer(ReflectionIdSerializer.class)
-        .valueSerializer(ReflectionGoalSerializer.class)
+        .keyFormat(Format.ofProtostuff(ReflectionId.class))
+        .valueFormat(Format.ofProtostuff(ReflectionGoal.class))
         .versionExtractor(ReflectionGoalVersionExtractor.class)
-        .buildIndexed(StoreConverter.class);
+        .buildIndexed(new StoreConverter());
     }
   }
 

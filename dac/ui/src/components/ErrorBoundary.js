@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PureComponent, forwardRef } from 'react';
+import { Component, forwardRef, PureComponent } from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import { showAppError } from 'actions/prodError';
@@ -30,21 +30,21 @@ export class ErrorBoundary extends PureComponent {
     children: PropTypes.any,
     // connected
     showAppError: PropTypes.func.isRequired
-  }
+  };
 
   state = {
     hasError: false
   };
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error) {
     if (!isProd) {
       debugger; // eslint-disable-line no-debugger
     }
-    // This line must be here as in case DREMIO_RELEASE=true Raven does not not catch a error
+    // This line must be here as in case DREMIO_RELEASE=true Sentry does not not catch a error
     sentryUtil.logException(error);
     this.props.showAppError(error);
   }

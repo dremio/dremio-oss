@@ -26,7 +26,7 @@ import com.google.protobuf.Parser;
  * a Serializer implementation for protostuff generated classes
  * @param <T> a protostuff generated class
  */
-public class ProtobufSerializer<T extends Message> extends Serializer<T> {
+public class ProtobufSerializer<T extends Message> extends Serializer<T, byte[]> {
   private final Class<T> clazz;
   private final Parser<T> parser;
 

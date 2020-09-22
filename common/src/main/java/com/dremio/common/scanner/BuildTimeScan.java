@@ -41,8 +41,8 @@ public class BuildTimeScan {
   private static final String REGISTRY_FILE = "META-INF/dremio-module-scan/registry.json";
 
   private static final ObjectMapper mapper = new ObjectMapper().enable(INDENT_OUTPUT);
-  private static final ObjectReader reader = mapper.reader(ScanResult.class);
-  private static final ObjectWriter writer = mapper.writerWithType(ScanResult.class);
+  private static final ObjectReader reader = mapper.readerFor(ScanResult.class);
+  private static final ObjectWriter writer = mapper.writerFor(ScanResult.class);
 
   /**
    * @return paths that have the prescanned registry file in them
@@ -85,14 +85,13 @@ public class BuildTimeScan {
     if (result != null) {
       if (logger.isInfoEnabled()) {
         StringBuilder sb = new StringBuilder();
-        sb.append(format("Loaded prescanned packages %s from locations:\n", result.getScannedPackages()));
         for (URL u : preScanned) {
           sb.append('\t');
           sb.append(u.toExternalForm());
           sb.append('\n');
         }
+        logger.info(format("Loaded prescanned packages %s from locations:\n%s", result.getScannedPackages(), sb));
       }
-      logger.info(format("Loaded prescanned packages %s from locations %s", result.getScannedPackages(), preScanned));
       return result;
     } else {
       return ClassPathScanner.emptyResult();

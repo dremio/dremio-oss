@@ -107,7 +107,7 @@ public class TestJSONJobDataFilter {
   @Test
   public void testJSONGeneratorUntouched() throws IOException {
     JSONJobDataFilter filter = new JSONJobDataFilter();
-    ContainerRequestBuilder request = ContainerRequestBuilder.from("http://localhost/foo/bar", "GET");
+    ContainerRequestBuilder request = ContainerRequestBuilder.from("http://localhost/foo/bar", "GET", null);
     if (testData.getHeaderKey() != null) {
       request.header(testData.getHeaderKey(), testData.getHeaderValue());
     }

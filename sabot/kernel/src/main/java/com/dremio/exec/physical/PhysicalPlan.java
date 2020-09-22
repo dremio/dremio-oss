@@ -16,6 +16,7 @@
 package com.dremio.exec.physical;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.common.graph.Graph;
 import com.dremio.common.graph.GraphAlgos;
@@ -38,10 +39,18 @@ public class PhysicalPlan {
   PlanProperties properties;
   Graph<PhysicalOperator, Root, Leaf> graph;
 
+  @JsonIgnore
+  Runnable committer;
+
   @JsonCreator
-  public PhysicalPlan(@JsonProperty("head") PlanProperties properties, @JsonProperty("graph") List<PhysicalOperator> operators){
+  public PhysicalPlan(@JsonProperty("head") PlanProperties properties, @JsonProperty("graph") List<PhysicalOperator> operators) {
     this.properties = properties;
     this.graph = Graph.newGraph(operators, Root.class, Leaf.class);
+  }
+
+  public PhysicalPlan(PlanProperties properties, List<PhysicalOperator> operators, Runnable committer) {
+    this(properties, operators);
+    this.committer = committer;
   }
 
   @JsonProperty("graph")
@@ -87,4 +96,8 @@ public class PhysicalPlan {
     }
   }
 
+
+  public Optional<Runnable> getCommitter() {
+    return Optional.ofNullable(committer);
+  }
 }

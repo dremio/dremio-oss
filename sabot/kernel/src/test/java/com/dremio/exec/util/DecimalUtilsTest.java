@@ -17,6 +17,7 @@ package com.dremio.exec.util;
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.junit.After;
@@ -28,8 +29,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ArrowBuf;
 
 public class DecimalUtilsTest extends DremioTest {
   public static final String MIN_HALF = "-9999999999999999999";

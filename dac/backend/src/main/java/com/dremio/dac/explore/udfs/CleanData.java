@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -48,8 +49,6 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * UDFs to clean data

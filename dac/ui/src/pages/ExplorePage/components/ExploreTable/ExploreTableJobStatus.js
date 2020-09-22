@@ -17,8 +17,10 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
+import { injectIntl } from 'react-intl';
 
 import DropdownMenu from '@app/components/Menus/DropdownMenu';
+import HoverHelp from '@app/components/HoverHelp';
 import RealTimeTimer from '@app/components/RealTimeTimer';
 import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
@@ -37,7 +39,14 @@ export const JOB_STATUS = {
   canceled: 'CANCELED',
   failed: 'FAILED',
   cancellationRequested: 'CANCELLATION_REQUESTED',
-  enqueued: 'ENQUEUED'
+  enqueued: 'ENQUEUED',
+  pending: 'PENDING',
+  planning: 'PLANNING',
+  metadataRetrieval: 'METADATA_RETRIEVAL',
+  engineStart: 'ENGINE_START',
+  queued: 'QUEUED',
+  executionPlanning: 'EXECUTION_PLANNING'
+
 };
 
 export const isWorking = (status) => {
@@ -45,9 +54,16 @@ export const isWorking = (status) => {
     JOB_STATUS.starting,
     JOB_STATUS.enqueued,
     JOB_STATUS.running,
-    JOB_STATUS.cancellationRequested].includes(status);
+    JOB_STATUS.cancellationRequested,
+    JOB_STATUS.pending,
+    JOB_STATUS.metadataRetrieval,
+    JOB_STATUS.planning,
+    JOB_STATUS.engineStart,
+    JOB_STATUS.queued,
+    JOB_STATUS.executionPlanning].includes(status);
 };
 
+@injectIntl
 export class ExploreTableJobStatus extends Component {
   static propTypes = {
     approximate: PropTypes.bool,
@@ -57,6 +73,7 @@ export class ExploreTableJobStatus extends Component {
     haveRows: PropTypes.bool,
     outputRecords: PropTypes.number,
     cancelJob: PropTypes.func,
+    intl: PropTypes.object.isRequired,
     //withRouter props
     location: PropTypes.object.isRequired
   };
@@ -69,7 +86,13 @@ export class ExploreTableJobStatus extends Component {
     [JOB_STATUS.canceled]: la('Canceled'),
     [JOB_STATUS.failed]: la('Failed'),
     [JOB_STATUS.cancellationRequested]: la('Cancellation Requested'),
-    [JOB_STATUS.enqueued]: la('Enqueued')
+    [JOB_STATUS.enqueued]: la('Enqueued'),
+    [JOB_STATUS.pending]: la('Pending'),
+    [JOB_STATUS.metadataRetrieval]: la('Metadata Retrieval'),
+    [JOB_STATUS.planning]: la('Planning'),
+    [JOB_STATUS.engineStart]: la('Engine Start'),
+    [JOB_STATUS.queued]: la('Queued'),
+    [JOB_STATUS.executionPlanning]: la('Execution Planning')
   };
 
   doButtonAction = (actionType) => {
@@ -106,10 +129,29 @@ export class ExploreTableJobStatus extends Component {
     return null;
   };
 
+  renderHoverHelp = (isRun) => {
+    const {intl} = this.props;
+    const helpContent = isRun ?
+      intl.formatMessage({ id: 'Explore.run.warning' }) :
+      intl.formatMessage({ id: 'Explore.preview.warning' });
+    return <HoverHelp
+      content={helpContent}
+      placement='bottom-start'
+      tooltipStyle={styles.helpTooltip}
+      tooltipInnerStyle={styles.helpInnerTooltip}
+    />;
+  };
+
   getCancellable = jobStatus => {
     return jobStatus === JOB_STATUS.running
       || jobStatus === JOB_STATUS.starting
-      || jobStatus === JOB_STATUS.enqueued;
+      || jobStatus === JOB_STATUS.enqueued
+      || jobStatus === JOB_STATUS.pending
+      || jobStatus === JOB_STATUS.metadataRetrieval
+      || jobStatus === JOB_STATUS.planning
+      || jobStatus === JOB_STATUS.engineStart
+      || jobStatus === JOB_STATUS.queued
+      || jobStatus === JOB_STATUS.executionPlanning;
   };
 
   render() {
@@ -127,25 +169,26 @@ export class ExploreTableJobStatus extends Component {
     return (
       <div style={styles.wrapper}>
         <span style={styles.label}>{la('Job: ')}</span>
-        <span style={styles.value}>{jobTypeLabel}</span>
+        <span style={styles.value}>{jobTypeLabel}{this.renderHoverHelp(jobProgress.isRun)}</span>
         <span style={styles.divider}> | </span>
         <span style={styles.label}>{jobStatusLabel}</span>
         <span style={styles.value}>
           {!jobId && <span style={styles.text}>{jobStatusName}</span>}
           {jobId &&
-          <DropdownMenu
-            className='explore-job-status-button'
-            hideArrow
-            hideDivider
-            style={styles.textLink}
-            text={jobStatusName}
-            menu={<JobStatusMenu action={this.doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
+            <DropdownMenu
+              className='explore-job-status-button'
+              hideArrow
+              hideDivider
+              style={styles.textLink}
+              textStyle={styles.menuText}
+              text={jobStatusName}
+              menu={<JobStatusMenu action={this.doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
           }
           <ExploreTableJobStatusSpinner jobProgress={jobProgress} jobId={jobId}/>
         </span>
         <span style={styles.divider}> | </span>
         <span style={styles.label}>{la('Time: ')}</span>
-        <span style={styles.value}>
+        <span style={styles.timeValue}>
           {this.renderTime(jobProgress)}
         </span>
       </div>
@@ -195,6 +238,9 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center'
   },
+  timeValue: {
+    minWidth: 30
+  },
   divider: {
     display: 'inline-box',
     padding: '7px 5px',
@@ -206,5 +252,14 @@ const styles = {
   },
   text: {
     marginRight: 6
+  },
+  helpTooltip: {
+    zIndex: 10001
+  },
+  helpInnerTooltip: {
+    width: 240
+  },
+  menuText: {
+    marginRight: 0
   }
 };

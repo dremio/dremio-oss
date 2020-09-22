@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -24,8 +25,6 @@ import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class NullableVarLengthValuesColumn<V extends ValueVector> extends VarLengthValuesColumn<V> {
 

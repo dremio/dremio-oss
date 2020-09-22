@@ -64,34 +64,34 @@ describe('TextFormatForm', () => {
 
       onDelimiterChange('\\n');
       expect(fieldDelimiter.onChange).to.be.calledWith('\n');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('\\t\\n');
       expect(fieldDelimiter.onChange).to.be.calledWith('\t\n');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('\t');
       expect(fieldDelimiter.onChange).to.be.calledWith('\t');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('"');
       expect(fieldDelimiter.onChange).to.be.calledWith('"');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('\\u0000');
       expect(fieldDelimiter.onChange).to.be.calledWith('\u0000');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('\\\\u0000');
       expect(fieldDelimiter.onChange).to.be.calledWith('\\u0000');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
     });
     it('should treat all-slashes as plain text', () => {
       const onDelimiterChange = instance.onDelimiterChange(fieldDelimiter);
 
       onDelimiterChange('\\\\');
       expect(fieldDelimiter.onChange).to.be.calledWith('\\\\');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
     });
 
     it('should treat invalid JSON as plain text', () => {
@@ -99,11 +99,11 @@ describe('TextFormatForm', () => {
 
       onDelimiterChange('\\"');
       expect(fieldDelimiter.onChange).to.be.calledWith('\\"');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('\\uBADX');
       expect(fieldDelimiter.onChange).to.be.calledWith('\\uBADX');
-      fieldDelimiter.onChange.reset();
+      fieldDelimiter.onChange.resetHistory();
     });
 
   });

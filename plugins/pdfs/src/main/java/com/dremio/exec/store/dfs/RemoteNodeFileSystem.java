@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
+import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.dfs.proto.DFS;
 import com.dremio.exec.dfs.proto.DFS.ListStatusContinuationHandle;
 import com.dremio.exec.rpc.FutureBitCommand;
@@ -412,7 +413,9 @@ class RemoteNodeFileSystem extends FileSystem {
 
       RpcFuture<DFS.GetFileDataResponse> future = command.getFuture();
       try {
-        DFS.GetFileDataResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+        DFS.GetFileDataResponse response = DremioFutures.getChecked(
+          future, RpcException.class, rpcTimeoutMs, TimeUnit.MILLISECONDS, RpcException::mapException
+        );
         eof = (response.getRead() == -1);
         buf = future.getBuffer();
         if (buf == null) {
@@ -420,10 +423,9 @@ class RemoteNodeFileSystem extends FileSystem {
         }
         in = new ByteBufInputStream(buf);
       } catch(TimeoutException e) {
-        throw new IOException("Timeout occured during I/O request for " + uri, e);
+        throw new IOException("Timeout occurred during I/O request for " + uri, e);
       } catch(RpcException e) {
         RpcException.propagateIfPossible(e, IOException.class);
-
         throw e;
       }
     }
@@ -464,13 +466,14 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.RenameResponse> future = command.getFuture();
     try {
-      DFS.RenameResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+      DFS.RenameResponse response = DremioFutures.getChecked(
+        future, RpcException.class, rpcTimeoutMs, TimeUnit.MILLISECONDS, RpcException::mapException
+      );
       return response.getValue();
     } catch(TimeoutException e) {
-      throw new IOException("Timeout occured during I/O request for " + uri, e);
+      throw new IOException("Timeout occurred during I/O request for " + uri, e);
     } catch(RpcException e) {
       RpcException.propagateIfPossible(e, IOException.class);
-
       throw e;
     }
   }
@@ -485,13 +488,14 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.DeleteResponse> future = command.getFuture();
     try {
-      DFS.DeleteResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+      DFS.DeleteResponse response = DremioFutures.getChecked(
+        future, RpcException.class, rpcTimeoutMs, TimeUnit.MILLISECONDS, RpcException::mapException
+      );
       return response.getValue();
     } catch(TimeoutException e) {
-      throw new IOException("Timeout occured during I/O request for " + uri, e);
-    } catch(RpcException e) {
+      throw new IOException("Timeout occurred during I/O request for " + uri, e);
+    } catch (RpcException e) {
       RpcException.propagateIfPossible(e, IOException.class);
-
       throw e;
     }
   }
@@ -558,17 +562,18 @@ class RemoteNodeFileSystem extends FileSystem {
 
         RpcFuture<DFS.ListStatusResponse> future = command.getFuture();
         try {
-          DFS.ListStatusResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+          DFS.ListStatusResponse response = DremioFutures.getChecked(
+            future, RpcException.class, rpcTimeoutMs, TimeUnit.MILLISECONDS, RpcException::mapException
+          );
           handle = response.hasHandle() ? response.getHandle() : null;
 
           List<DFS.FileStatus> protoStatuses = getListOrEmpty(response.getStatusesList());
 
           currentIterator = protoStatuses.stream().map(s -> { return fromProtoFileStatus(s); }).iterator();
         } catch(TimeoutException e) {
-          throw new IOException("Timeout occured during I/O request for " + uri, e);
+          throw new IOException("Timeout occurred during I/O request for " + uri, e);
         } catch(RpcException e) {
           RpcException.propagateIfPossible(e, IOException.class);
-
           throw e;
         }
       }
@@ -602,13 +607,14 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.MkdirsResponse> future = command.getFuture();
     try {
-      DFS.MkdirsResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+      DFS.MkdirsResponse response = DremioFutures.getChecked(
+        future, RpcException.class, rpcTimeoutMs, TimeUnit.MILLISECONDS, RpcException::mapException
+      );
       return response.getValue();
     } catch(TimeoutException e) {
-      throw new IOException("Timeout occured during I/O request for " + uri, e);
+      throw new IOException("Timeout occurred during I/O request for " + uri, e);
     } catch(RpcException e) {
       RpcException.propagateIfPossible(e, IOException.class);
-
       throw e;
     }
   }
@@ -623,15 +629,15 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.GetFileStatusResponse> future = command.getFuture();
     try {
-      DFS.GetFileStatusResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+      DFS.GetFileStatusResponse response = DremioFutures.getChecked(
+        future, RpcException.class, rpcTimeoutMs, TimeUnit.MILLISECONDS, RpcException::mapException);
       return fromProtoFileStatus(response.getStatus());
     } catch(TimeoutException e) {
-      throw new IOException("Timeout occured during I/O request for " + uri, e);
+      throw new IOException("Timeout occurred during I/O request for " + uri, e);
     } catch(RpcException e) {
       RpcException.propagateIfPossible(e, IOException.class);
 
       throw e;
     }
   }
-
 }

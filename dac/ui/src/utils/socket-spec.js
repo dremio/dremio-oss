@@ -121,7 +121,7 @@ describe('Socket', () => {
     it('should resend listen messages', () => {
       sinon.stub(socket, '_sendMessage');
       socket.sendListenMessage(message);
-      socket._sendMessage.reset();
+      socket._sendMessage.resetHistory();
 
       socket._handleConnectionEstablished();
       expect(socket._sendMessage).to.be.calledOnce;

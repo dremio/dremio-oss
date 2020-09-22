@@ -15,16 +15,16 @@
  */
 package com.dremio.sabot.op.sort.external;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
-
-import io.netty.buffer.ArrowBuf;
 
 public interface SplaySorterInterface extends AutoCloseable {
   static TemplateClassDefinition<SplaySorterInterface> TEMPLATE_DEFINITION =

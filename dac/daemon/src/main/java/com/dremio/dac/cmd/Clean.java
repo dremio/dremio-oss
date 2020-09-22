@@ -22,13 +22,16 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.LocalJobsService.DeleteResult;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
 
@@ -72,6 +75,7 @@ public class Clean {
        * @param value Value of parameter
        * @throws ParameterException
        */
+      @Override
       public void validate(String name, String value) throws ParameterException {
 
         try {
@@ -154,26 +158,27 @@ public class Clean {
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
 
-
+      if (provider.getStores().size() == 0) {
+        AdminLogger.log("No store stats available");
+      }
       if(options.hasActiveOperation()) {
         AdminLogger.log("Initial Store Status.");
-
       } else {
-        AdminLogger.log("No operation requested, printing store Stats.");
+        AdminLogger.log("No operation requested. ");
       }
 
-      for(StoreWithId id : provider) {
+      for(StoreWithId<?, ?> id : provider) {
         KVAdmin admin = id.getStore().getAdmin();
         AdminLogger.log(admin.getStats());
       }
 
       if(options.deleteOrphans) {
-        deleteSplitOrphans(provider);
-        deleteCollaborationOrphans(provider);
+        deleteSplitOrphans(provider.asLegacy());
+        deleteCollaborationOrphans(provider.asLegacy());
       }
 
       if(options.maxJobDays < Integer.MAX_VALUE) {
-        deleteOldJobs(provider, options.maxJobDays);
+        deleteOldJobs(provider.asLegacy(), options.maxJobDays);
       }
 
       if(options.reindexData) {
@@ -186,7 +191,7 @@ public class Clean {
 
       if(options.hasActiveOperation()) {
         AdminLogger.log("\n\nFinal Store Status.");
-        for(StoreWithId id : provider) {
+        for(StoreWithId<?, ?> id : provider.unwrap(LocalKVStoreProvider.class)) {
           KVAdmin admin = id.getStore().getAdmin();
           AdminLogger.log(admin.getStats());
         }
@@ -206,21 +211,23 @@ public class Clean {
   }
 
 
-  private static void deleteOldJobs(LocalKVStoreProvider provider, int maxDays) {
+  private static void deleteOldJobs(LegacyKVStoreProvider provider, int maxDays) {
     AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
     DeleteResult result = LocalJobsService.deleteOldJobs(provider, TimeUnit.DAYS.toMillis(maxDays));
+    for (AttemptId attemptId : result.getDeletedAttemptIds()) {
+      LocalProfileStore.deleteOldProfile(provider, attemptId);
+    }
     AdminLogger.log("Completed. Deleted {} jobs and {} profiles.", result.getJobsDeleted(), result.getProfilesDeleted());
-
   }
 
-  private static void deleteSplitOrphans(LocalKVStoreProvider provider) {
+  private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
     AdminLogger.log("Completed. Deleted {} orphans.",
       service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY));
   }
 
-  private static void deleteCollaborationOrphans(LocalKVStoreProvider provider) {
+  private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting collaboration orphans... ");
     AdminLogger.log("Completed. Deleted {} orphans.", CollaborationHelper.pruneOrphans(provider));
   }

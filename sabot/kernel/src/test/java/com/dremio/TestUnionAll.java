@@ -19,6 +19,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
@@ -27,6 +28,8 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.FileUtils;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Lists;
 
 public class TestUnionAll extends BaseTestQuery{
@@ -38,6 +41,9 @@ public class TestUnionAll extends BaseTestQuery{
   private static final String defaultDistribute = "alter session reset \"planner.enable_unionall_distribute\"";
   private static final String enableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = true";
   private static final String disableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = false";
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test  // Simple Union-All over two scans
   public void testUnionAll1() throws Exception {
@@ -196,20 +202,22 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test
   public void testUnionAllViewExpandableStar() throws Exception {
-    test("use dfs_test");
-    test("create view nation_view_testunionall as select n_name, n_nationkey from cp.\"tpch/nation.parquet\";");
-    test("create view region_view_testunionall as select r_name, r_regionkey from cp.\"tpch/region.parquet\";");
-
-    String query1 = "(select * from dfs_test.\"nation_view_testunionall\") " +
-                    "union all " +
-                    "(select * from dfs_test.\"region_view_testunionall\") ";
-
-    String query2 =  "(select r_name, r_regionkey from cp.\"tpch/region.parquet\") " +
-                     "union all " +
-                     "(select * from dfs_test.\"nation_view_testunionall\")";
-
     try {
-      testBuilder()
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      test("use dfs_test");
+      test("create view nation_view_testunionall as select n_name, n_nationkey from cp.\"tpch/nation.parquet\";");
+      test("create view region_view_testunionall as select r_name, r_regionkey from cp.\"tpch/region.parquet\";");
+
+      String query1 = "(select * from dfs_test.\"nation_view_testunionall\") " +
+        "union all " +
+        "(select * from dfs_test.\"region_view_testunionall\") ";
+
+      String query2 = "(select r_name, r_regionkey from cp.\"tpch/region.parquet\") " +
+        "union all " +
+        "(select * from dfs_test.\"nation_view_testunionall\")";
+
+      try {
+        testBuilder()
           .sqlQuery(query1)
           .unOrdered()
           .csvBaselineFile("testframework/testUnionAllQueries/q11.tsv")
@@ -217,16 +225,19 @@ public class TestUnionAll extends BaseTestQuery{
           .baselineColumns("n_name", "n_nationkey")
           .build().run();
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(query2)
           .unOrdered()
           .csvBaselineFile("testframework/testUnionAllQueries/q12.tsv")
           .baselineTypes(MinorType.VARCHAR, MinorType.INT)
           .baselineColumns("r_name", "r_regionkey")
           .build().run();
+      } finally {
+        test("drop view nation_view_testunionall");
+        test("drop view region_view_testunionall");
+      }
     } finally {
-      test("drop view nation_view_testunionall");
-      test("drop view region_view_testunionall");
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     }
   }
 

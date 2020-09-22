@@ -298,7 +298,7 @@ public class ReflectionExpander {
   }
 
   private RelDataTypeField getField(final String name) {
-    return Preconditions.checkNotNull(mappings.get(name), String.format("unable to find field %s in the view", name));
+    return Preconditions.checkNotNull(mappings.get(name), String.format("Unable to find column %s in the virtual dataset.", name));
   }
 
 }

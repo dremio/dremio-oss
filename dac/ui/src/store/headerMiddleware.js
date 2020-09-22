@@ -16,6 +16,7 @@
 import { RSAA } from 'redux-api-middleware';
 
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import APICall from '@app/core/APICall';
 
 function headerMiddleware() {
   return () => next => action => {
@@ -28,6 +29,11 @@ function headerMiddleware() {
       };
       const method = apiCall.method;
       const token = localStorageUtils.getAuthToken();
+
+      if (apiCall.endpoint instanceof APICall) {
+        apiCall.endpoint = apiCall.endpoint.toString();
+      }
+
       if (method === 'GET' || method === 'POST' || method === 'PUT' || method === 'DELETE') {
         const { isFileUpload } = action;
         const defaultHeaders = {

@@ -16,7 +16,7 @@
 syntax="proto2";
 package com.dremio.dac.proto.model.dataset;
 
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "dataset.proto";
 
 option java_package = "com.dremio.dac.proto.model.dataset";
 option optimize_for = SPEED;

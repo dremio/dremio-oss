@@ -16,7 +16,9 @@
 package com.dremio.dac.resource;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
@@ -81,6 +83,7 @@ public class TestSourceResource extends BaseTestServer {
     source.setName(sourceName);
     source.setCtime(System.currentTimeMillis());
     source.setConfig(nas);
+    source.setAllowCrossSourceSelection(true);
 
     expectSuccess(
         getBuilder(getAPIv2().path(String.format("/source/%s", sourceName)))
@@ -94,6 +97,7 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(source.getFullPathList(), result.getFullPathList());
     assertNotNull(result.getAccelerationRefreshPeriod());
     assertNotNull(result.getAccelerationGracePeriod());
+    assertTrue(result.getAllowCrossSourceSelection());
 
     newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }
@@ -127,4 +131,125 @@ public class TestSourceResource extends BaseTestServer {
 
     newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }
+
+  @Test
+  public void testHomeSourceCrossSelectOption() throws Exception {
+    final SourceUI result = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__home"))).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(result.getAllowCrossSourceSelection());
+    result.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__home")))
+        .buildPut(Entity.entity(result, JSON)));
+    final SourceUI updateResult = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__home"))).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(result.getAllowCrossSourceSelection());
+    assertTrue(updateResult.getAllowCrossSourceSelection());
+
+  }
+
+  @Test
+  public void testSystemSourceCrossSelectOption() throws Exception {
+    final SourceUI resultAccel = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(resultAccel.getAllowCrossSourceSelection());
+    resultAccel.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator")))
+        .buildPut(Entity.entity(resultAccel, JSON)));
+    final SourceUI updateResultAccel = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__accelerator"))).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(resultAccel.getAllowCrossSourceSelection());
+    assertTrue(updateResultAccel.getAllowCrossSourceSelection());
+
+    final SourceUI resultJob = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore"))).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(resultJob.getAllowCrossSourceSelection());
+    resultJob.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore")))
+        .buildPut(Entity.entity(resultJob, JSON)));
+    final SourceUI updateResultJob = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__jobResultsStore"))).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(resultJob.getAllowCrossSourceSelection());
+    assertTrue(updateResultJob.getAllowCrossSourceSelection());
+
+    final SourceUI resultScratch = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch"))).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(resultScratch.getAllowCrossSourceSelection());
+    resultScratch.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch")))
+        .buildPut(Entity.entity(resultScratch, JSON)));
+    final SourceUI updateResultScratch = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "$scratch"))).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(resultScratch.getAllowCrossSourceSelection());
+    assertTrue(updateResultScratch.getAllowCrossSourceSelection());
+
+    final SourceUI resultDownload = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload"))).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(resultDownload.getAllowCrossSourceSelection());
+    resultDownload.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload")))
+        .buildPut(Entity.entity(resultDownload, JSON)));
+    final SourceUI updateResultDownload = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__datasetDownload"))).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(resultDownload.getAllowCrossSourceSelection());
+    assertTrue(updateResultDownload.getAllowCrossSourceSelection());
+
+    final SourceUI resultSupport = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__support"))).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(resultSupport.getAllowCrossSourceSelection());
+    resultSupport.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__support")))
+        .buildPut(Entity.entity(resultSupport, JSON)));
+    final SourceUI updateResultSupport = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__support"))).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(resultSupport.getAllowCrossSourceSelection());
+    assertTrue(updateResultSupport.getAllowCrossSourceSelection());
+
+    final SourceUI resultLogs = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__logs")).queryParam("includeContents", false)).buildGet(),
+      SourceUI.class
+    );
+    assertTrue(resultLogs.getAllowCrossSourceSelection());
+    resultLogs.setAllowCrossSourceSelection(false);
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__logs")))
+        .buildPut(Entity.entity(resultLogs, JSON)));
+    final SourceUI updateResultLogs = expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/source/%s", "__logs")).queryParam("includeContents", false)).buildGet(),
+      SourceUI.class
+    );
+    assertFalse(resultLogs.getAllowCrossSourceSelection());
+    assertTrue(updateResultLogs.getAllowCrossSourceSelection());
+
+  }
+
 }

@@ -24,23 +24,26 @@ import FormTab from '@app/components/Forms/FormTab';
 import { applyValidators, isRequired } from '@app/utils/validation';
 import FormTabConfig from '@app/utils/FormUtils/FormTabConfig';
 import EC2FormMixin, { getInitValuesFromVlh } from 'dyn-load/pages/AdminPage/components/forms/provisioning/EC2FormMixin';
-import { DREMIO_CUSTOM_REGION } from '@app/constants/provisioningPage/provisioningConstants';
+import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
 import { EC2_FIELDS } from 'dyn-load/constants/provisioningPage/provisioningConstants';
 import { loadAwsDefaults } from '@app/actions/resources/provisioning';
 import { getAwsDefaults } from '@app/selectors/provision';
 import {
   isEditMode,
-  isRestartRequired,
+  isRestartRequired
+} from '@app/pages/AdminPage/components/forms/provisioning/provisioningFormUtil';
+import {
   getInitValuesFromProvision,
   prepareProvisionValuesForSave
-} from '@app/pages/AdminPage/components/forms/provisioning/provisioningFormUtil';
+} from 'dyn-load/pages/AdminPage/components/forms/provisioning/provisioningFormUtil';
 
 const FUNCTIONAL_ELEMENTS_EMPTY = [];
 
 function getInitialValues(provision, awsDefaults) {
   const initValuesFromVlh = getInitValuesFromVlh();
   if (awsDefaults) {
-    getInitValuesFromProvision(awsDefaults, initValuesFromVlh); //mutates 2nd arg
+    //mutates 2nd arg; last arg isDefault
+    getInitValuesFromProvision(awsDefaults, initValuesFromVlh, true);
   }
   if (provision && provision.size) {
     const initValuesFromProvision = getInitValuesFromProvision(provision);
@@ -52,10 +55,7 @@ function getInitialValues(provision, awsDefaults) {
 function validate(values) {
   let validators = {...applyValidators(values, [
     isRequired('name', la('Name')),
-    isRequired('containerCount', la('Instance Count')),
-    isRequired('sshKeyName', la('SSH Key Name')),
-    isRequired('nodeIamInstanceProfile', la('IAM Role for S3 Access')),
-    isRequired('securityGroupId', la('Security Group ID'))
+    isRequired('sshKeyName', la('SSH Key Name'))
   ])};
   if (values.authMode === 'SECRET') {
     validators = {
@@ -63,13 +63,6 @@ function validate(values) {
       ...applyValidators(values, [
         isRequired('accessKey', la('Access Key')),
         isRequired('secretKey', la('Secret'))
-      ])};
-  }
-  if (values.region === DREMIO_CUSTOM_REGION) {
-    validators = {
-      ...validators,
-      ...applyValidators(values, [
-        isRequired('endpoint', la('Endpoint'))
       ])};
   }
   return validators;
@@ -108,7 +101,7 @@ export class EC2Form extends Component {
     if (isEditMode(provision)) {
       payload.id = provision.get('id');
       payload.tag = provision.get('tag');
-      payload.desiredState = provision.get('desiredState');
+      payload.desiredState = CLUSTER_STATE.running;
     }
     return payload;
   };
@@ -119,13 +112,14 @@ export class EC2Form extends Component {
   };
 
   render() {
-    const { fields, handleSubmit, onCancel, style } = this.props;
+    const {fields, handleSubmit, onCancel, style, provision} = this.props;
+    const btnText = (isEditMode(provision)) ? la('Save') : la('Save & Launch');
     return (
       <ModalForm
         {...(modalFormProps(this.props) || {})}
         onSubmit={handleSubmit(this.submit)}
         onCancel={onCancel}
-        confirmText={la('Save & Launch')}
+        confirmText={btnText}
       >
         <FormBody style={style}>
           <FormTab fields={fields} tabConfig={this.config}/>

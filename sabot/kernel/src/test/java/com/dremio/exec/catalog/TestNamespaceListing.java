@@ -33,13 +33,14 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.sample.SampleSourceMetadata;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
@@ -50,12 +51,13 @@ import com.google.common.collect.Iterators;
  */
 public class TestNamespaceListing {
 
-  private KVStoreProvider kvStoreProvider;
+  private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    kvStoreProvider =
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider);
   }
@@ -127,8 +129,9 @@ public class TestNamespaceListing {
                   .addAll(datasetHandle.getDatasetPath().getComponents())
                   .build();
               try {
-                namespaceService.addOrUpdateDataset(new NamespaceKey(canonicalComponents),
-                    MetadataObjectsUtils.newShallowConfig(datasetHandle));
+                DatasetConfig config = MetadataObjectsUtils.newShallowConfig(datasetHandle);
+                config.setFullPathList(canonicalComponents);
+                namespaceService.addOrUpdateDataset(new NamespaceKey(canonicalComponents), config);
               } catch (NamespaceException e) {
                 throw new RuntimeException(e);
               }

@@ -26,32 +26,25 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <artifactId>dremio-s3-plugin</artifactId>
   <name>Plugins - S3 Plugin</name>
   <packaging>jar</packaging>
-  <properties>
-    <surefire.extra.argLine>-Ds3mock.reserved.port=${s3mock.reserved.port}</surefire.extra.argLine>
-  </properties>
 
   <dependencies>
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-s3</artifactId>
-      <version>${aws-sdk.version}</version>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-dynamodb</artifactId>
-      <version>${aws-sdk.version}</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>apache-client</artifactId>
-      <version>${aws-sdk-2.version}</version>
       <exclusions>
         <exclusion>
           <groupId>commons-logging</groupId>
@@ -72,6 +65,10 @@
       <artifactId>hadoop-aws</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+    </dependency>
+    <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>s3</artifactId>
     </dependency>
@@ -82,16 +79,6 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-sts</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>gcs-connector</artifactId>
-      <version>1.6.1-hadoop2</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-storage</artifactId>
-      <version>1.8.0</version>
     </dependency>
     <!-- test dependencies -->
     <dependency>
@@ -159,6 +146,15 @@
   </profiles>
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <s3mock.reserved.port>${s3mock.reserved.port}</s3mock.reserved.port>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>

@@ -17,8 +17,11 @@ package com.dremio.dac.model.job;
 
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.proto.model.dataset.DataType;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -82,4 +85,26 @@ public interface JobDataFragment extends AutoCloseable {
 
   @JsonIgnore
   DataType extractType(String column, int index);
+
+  /**
+   * Returns the arrow fields.
+   *
+   * @return - list of arrow fields
+   */
+  @JsonIgnore
+  List<Field> getFields();
+
+  /**
+   * Returns the record batches.
+   *
+   * @return = list of record batches.
+   */
+  @JsonIgnore
+  List<RecordBatchHolder> getRecordBatches();
+
+  /**
+   * Close this JobDataFragment
+   */
+  @Override
+  void close();
 }

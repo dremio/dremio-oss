@@ -15,11 +15,9 @@
  */
 package com.dremio.datastore.indexed;
 
-
-import java.util.Map;
-
-import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.KVStoreTuple;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
 
 /**
  * Auxilary index for a KV store.  The auxiliary index uses the same key as the KV store but uses a separate
@@ -32,5 +30,5 @@ import com.dremio.datastore.KVStoreTuple;
 public interface AuxiliaryIndex<K, V, T> {
   void index(K key, T indexValue);
 
-  Iterable<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>> find(IndexedStore.FindByCondition condition);
+  Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByCondition condition);
 }

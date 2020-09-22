@@ -32,6 +32,7 @@ import java.util.List;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
@@ -43,19 +44,22 @@ import org.junit.Test;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationTestUtil;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.reflection.ReflectionMonitor;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.proto.PartitionDistributionStrategy;
+import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.users.SystemUser;
@@ -105,7 +109,8 @@ public class TestReflectionResource extends AccelerationTestUtil {
       l(ReflectionService.class),
       l(ReflectionStatusService.class),
       l(MaterializationDescriptorProvider.class),
-      new MaterializationStore(p(KVStoreProvider.class)),
+      l(JobsService.class),
+      new MaterializationStore(p(LegacyKVStoreProvider.class)),
       SECONDS.toMillis(1),
       SECONDS.toMillis(10)
     );
@@ -187,6 +192,30 @@ public class TestReflectionResource extends AccelerationTestUtil {
   }
 
   @Test
+  public void testBoostToggleOnRawReflection() {
+    Reflection newReflection = createReflection();
+
+    Reflection response = expectSuccess(getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH)).buildPost(Entity.entity(newReflection, JSON)), Reflection.class);
+    assertFalse(response.isArrowCachingEnabled());
+    response.setArrowCachingEnabled(true);
+
+    response = expectSuccess(getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId())).buildPut(Entity.entity(response, JSON)), Reflection.class);
+    assertTrue(response.isArrowCachingEnabled());
+  }
+
+  @Test
+  public void testBoostToggleOnAggReflection() {
+    Reflection newReflection = createAggReflection();
+
+    Reflection response = expectSuccess(getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH)).buildPost(Entity.entity(newReflection, JSON)), Reflection.class);
+    assertFalse(response.isArrowCachingEnabled());
+    response.setArrowCachingEnabled(true);
+
+    response = expectSuccess(getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH).path(response.getId())).buildPut(Entity.entity(response, JSON)), Reflection.class);
+    assertTrue(response.isArrowCachingEnabled());
+  }
+
+  @Test
   public void testDeleteReflection() {
     Reflection newReflection = createReflection();
     Reflection response = expectSuccess(getBuilder(getPublicAPI(3).path(REFLECTIONS_PATH)).buildPost(Entity.entity(newReflection, JSON)), Reflection.class);
@@ -196,17 +225,36 @@ public class TestReflectionResource extends AccelerationTestUtil {
     assertFalse(newReflectionServiceHelper().getReflectionById(response.getId()).isPresent());
   }
 
+  private Reflection createAggReflection() {
+    // create an agg reflection
+    List<ReflectionDimensionField> dimensionFields = new ArrayList<>();
+
+    DremioTable table = newCatalogService().getCatalog(
+      MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()))
+      .getTable(datasetId);
+    for (int i = 0; i < table.getSchema().getFieldCount(); i++) {
+      Field field = table.getSchema().getColumn(i);
+      if (field.getType().getTypeID() == ArrowType.ArrowTypeID.Utf8) {
+        dimensionFields.add(new ReflectionDimensionField(field.getName()));
+      }
+    }
+
+    return Reflection.newAggReflection(null, "My Agg", null, null, null, table.getDatasetConfig().getId().getId(), null, null, true, false, null, dimensionFields, null, null, null, null, PartitionDistributionStrategy.CONSOLIDATED);
+  }
+
   private Reflection createReflection() {
     // create a reflection
     List<ReflectionField> displayFields = new ArrayList<>();
 
-    DremioTable table = newCatalogService().getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()).getTable(datasetId);
+    DremioTable table = newCatalogService().getCatalog(
+        MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()))
+        .getTable(datasetId);
     for (int i = 0; i < table.getSchema().getFieldCount(); i++) {
       Field field = table.getSchema().getColumn(i);
       displayFields.add(new ReflectionField(field.getName()));
     }
 
-    return Reflection.newRawReflection(null, "My Raw", null, null, null, table.getDatasetConfig().getId().getId(), null, null, true, null, displayFields, null, null, null, PartitionDistributionStrategy.CONSOLIDATED);
+    return Reflection.newRawReflection(null, "My Raw", null, null, null, table.getDatasetConfig().getId().getId(), null, null, true, false, null, displayFields, null, null, null, PartitionDistributionStrategy.CONSOLIDATED);
   }
 
   private Dataset createDataset() {

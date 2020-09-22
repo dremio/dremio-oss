@@ -17,6 +17,9 @@ package com.dremio.service.namespace;
 
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.file.proto.FileConfig;
+import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.base.Preconditions;
 
 import io.protostuff.ByteString;
 
@@ -49,6 +52,45 @@ public final class DatasetHelper {
     return t == DatasetType.PHYSICAL_DATASET ||
       t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE ||
       t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
+  }
+
+  /**
+   * Checks if datafile is from an iceberg dataset
+   *
+   * @param fileConfig file to check
+   * @return true if file is from an iceberg dataset
+   */
+  public static boolean isIcebergFile(FileConfig fileConfig) {
+    if (fileConfig == null) {
+      return false;
+    }
+
+    return fileConfig.getType() == FileType.ICEBERG;
+  }
+
+  /**
+   * Checks if dataset is iceberg dataset
+   *
+   * @param dataset Dataset to check
+   * @return true if dataset is an iceberg dataset
+   */
+  public static boolean isIcebergDataset(DatasetConfig dataset) {
+    if (dataset.getPhysicalDataset() == null) {
+      return false;
+    }
+
+    return DatasetHelper.isIcebergFile(dataset.getPhysicalDataset().getFormatSettings());
+  }
+
+  /**
+   * Checks if the data files are of type parquet.
+   *
+   * @param fileConfig config
+   * @return true if data files of type parquet.
+   */
+  public static boolean hasParquetDataFiles(FileConfig fileConfig) {
+    Preconditions.checkNotNull(fileConfig);
+    return fileConfig.getType() == FileType.ICEBERG || fileConfig.getType() == FileType.PARQUET;
   }
 
 }

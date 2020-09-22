@@ -37,6 +37,7 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObje
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivilegeObjectType;
 import org.apache.hadoop.hive.ql.session.SessionState;
 
+import com.dremio.common.util.Closeable;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
@@ -57,7 +58,7 @@ public class HiveAuthorizationHelper {
       return;
     }
 
-    try (final ContextClassLoaderSwapper cls = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final HiveConf hiveConfCopy = new HiveConf(hiveConf);
       hiveConfCopy.set("user.name", user);
       hiveConfCopy.set("proxy.user.name", user);

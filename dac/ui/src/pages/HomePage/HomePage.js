@@ -18,13 +18,13 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 
-import { getSortedSources } from 'selectors/home';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import { sourceTypesIncludeS3 } from 'utils/sourceUtils';
-import { loadSourceListData } from 'actions/resources/sources';
+import {getSortedSources} from '@app/selectors/home';
+import ApiUtils from '@app/utils/apiUtils/apiUtils';
+import {sourceTypesIncludeS3} from '@app/utils/sourceUtils';
+import {loadSourceListData} from '@app/actions/resources/sources';
 
-import { getViewState } from 'selectors/resources';
-import { page } from 'uiTheme/radium/general';
+import {getViewState} from '@app/selectors/resources';
+import {page} from '@app/uiTheme/radium/general';
 
 import QlikStateModal from '../ExplorePage/components/modals/QlikStateModal';
 import MainHeader from './../../components/MainHeader';
@@ -36,7 +36,7 @@ class HomePage extends Component {
   static contextTypes = {
     location: PropTypes.object.isRequired,
     routeParams: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     userInfo: PropTypes.object,
@@ -47,7 +47,7 @@ class HomePage extends Component {
     loadSourceListData: PropTypes.func,
     children: PropTypes.node,
     style: PropTypes.object
-  }
+  };
 
   state = {
     sourceTypes: []
@@ -68,12 +68,12 @@ class HomePage extends Component {
   }
 
   setStateWithSourceTypesFromServer() {
-    ApiUtils.fetch('source/type').then(response => {
-      response.json().then((result) => {
-        this.setState({sourceTypes: result.data});
-      });
+    ApiUtils.fetchJson('source/type', (json) => {
+      this.setState({sourceTypes: json.data});
     }, () => {
-      console.error('Failed to load source types.');
+      console.error(
+        la('Failed to load source types. Can not check if S3 is supported. Will not show "Add Sample Source".')
+      );
     });
   }
 

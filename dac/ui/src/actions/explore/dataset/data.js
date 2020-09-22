@@ -15,8 +15,8 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const PAGE_SIZE = 100;
 
@@ -26,6 +26,9 @@ export const LOAD_NEXT_ROWS_FAILURE = 'LOAD_NEXT_ROWS_FAILURE';
 
 const fetchNextRows = (datasetVersion, paginationUrl, offset) => {
   const href = `${paginationUrl}?offset=${offset}&limit=${PAGE_SIZE}`;
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -36,7 +39,7 @@ const fetchNextRows = (datasetVersion, paginationUrl, offset) => {
       ],
       method: 'GET',
       headers: apiUtils.getJobDataNumbersAsStringsHeader(),
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 };
@@ -56,6 +59,9 @@ export const CLEAR_FULL_CELL_VALUE = 'CLEAR_FULL_CELL_VALUE';
 
 export const loadFullCellValue = ({ href }) => {
   const meta = { viewId: FULL_CELL_VIEW_ID };
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -64,7 +70,7 @@ export const loadFullCellValue = ({ href }) => {
         { type: LOAD_FULL_CELL_VALUE_FAILURE, meta }
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 };

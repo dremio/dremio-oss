@@ -18,7 +18,9 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -27,9 +29,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.expr.TypeHelper;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
-
-import io.netty.buffer.ArrowBuf;
+import com.google.common.collect.ImmutableList;
 
 /**
  *
@@ -213,7 +213,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
    * @return deserialized length for fixed width data.
    */
   public int getReadableBytesForFixedWidthData() {
-    return fixedKeyColPivotedData.readableBytes();
+    return LargeMemoryUtil.checkedCastToInt(fixedKeyColPivotedData.readableBytes());
   }
 
   /**
@@ -223,7 +223,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
    * @return deserialized length for variable width data.
    */
   public int getReadableBytesForVariableWidthData() {
-    return variableKeyColPivotedData.readableBytes();
+    return LargeMemoryUtil.checkedCastToInt(variableKeyColPivotedData.readableBytes());
   }
 
   /**
@@ -314,7 +314,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close((Iterable<AutoCloseable>) (Object) FluentIterable.of(postSpillAccumulatorVectors).toList());
+    AutoCloseables.close(ImmutableList.copyOf(postSpillAccumulatorVectors));
     if (variableKeyColPivotedData != null) {
       variableKeyColPivotedData.close();
       variableKeyColPivotedData = null;

@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.poi.util.IOUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -30,8 +31,6 @@ import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestXlsInputStream extends BaseTestQuery {
 

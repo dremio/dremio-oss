@@ -15,18 +15,24 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserProtos.CatalogMetadata;
 import com.dremio.exec.proto.UserProtos.ColumnMetadata;
 import com.dremio.exec.proto.UserProtos.GetCatalogsReq;
@@ -37,27 +43,29 @@ import com.dremio.exec.proto.UserProtos.GetSchemasReq;
 import com.dremio.exec.proto.UserProtos.GetSchemasResp;
 import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.GetTablesResp;
+import com.dremio.exec.proto.UserProtos.LikeFilter;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.SchemaMetadata;
 import com.dremio.exec.proto.UserProtos.TableMetadata;
 import com.dremio.exec.rpc.ResponseSender;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.ischema.tables.CatalogsTable.Catalog;
-import com.dremio.exec.store.ischema.tables.ColumnsTable.Column;
-import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
-import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
-import com.dremio.exec.store.ischema.tables.TablesTable.Table;
 import com.dremio.exec.work.protector.ResponseSenderHandler;
-import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.catalog.Catalog;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
+import com.dremio.service.catalog.ListCatalogsRequest;
+import com.dremio.service.catalog.ListSchemataRequest;
+import com.dremio.service.catalog.ListTableSchemataRequest;
+import com.dremio.service.catalog.ListTablesRequest;
+import com.dremio.service.catalog.Schema;
+import com.dremio.service.catalog.SearchQuery;
+import com.dremio.service.catalog.Table;
+import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -71,28 +79,21 @@ public class MetadataProvider {
   /**
    * Super class for all metadata provider runnable classes.
    */
-  public abstract static class MetadataCommand<R> implements CommandRunner<R> {
-    protected final UserSession session;
-    protected final SabotContext dContext;
-    protected final DatasetListingService datasetListing;
-    protected final String username;
-    protected final String catalogName;
-    protected final InfoSchemaTable table;
+  private abstract static class MetadataCommand<R> implements CommandRunner<R> {
+
+    protected final InformationSchemaServiceBlockingStub catalogStub;
+    protected final MetadataCommandParameters parameters;
 
     protected MetadataCommand(
-        final UserSession session,
-        final SabotContext dContext,
-        final InfoSchemaTable table) {
-      this.session = Preconditions.checkNotNull(session);
-      this.dContext = Preconditions.checkNotNull(dContext);
-      this.datasetListing = dContext.getDatasetListing();
-      this.username = session.getCredentials().getUserName();
-      this.catalogName = session.getCatalogName();
-      this.table = table;
+      InformationSchemaServiceBlockingStub catalogStub,
+      MetadataCommandParameters parameters
+    ) {
+      this.catalogStub = Preconditions.checkNotNull(catalogStub);
+      this.parameters = Preconditions.checkNotNull(parameters);
     }
 
     @Override
-    public double plan() throws Exception {
+    public double plan() {
       return 1;
     }
 
@@ -107,7 +108,7 @@ public class MetadataProvider {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
       // no-op
     }
   }
@@ -132,59 +133,53 @@ public class MetadataProvider {
    * Runnable that fetches the catalog metadata for given {@link GetCatalogsReq} and sends response at the end.
    */
   public static class CatalogsProvider extends MetadataCommand<GetCatalogsResp> {
+
     private static final Ordering<CatalogMetadata> CATALOGS_ORDERING = new Ordering<CatalogMetadata>() {
       @Override
       public int compare(CatalogMetadata left, CatalogMetadata right) {
         return Ordering.natural().compare(left.getCatalogName(), right.getCatalogName());
       }
     };
+
     private final GetCatalogsReq req;
     private final QueryId queryId;
 
     public CatalogsProvider(
-        final QueryId queryId,
-        final UserSession session,
-        final SabotContext dContext,
-        final GetCatalogsReq req) {
-      super(session, dContext, InfoSchemaTable.CATALOGS);
+      InformationSchemaServiceBlockingStub catalogStub,
+      MetadataCommandParameters parameters,
+      GetCatalogsReq req
+    ) {
+      super(catalogStub, parameters);
       this.req = Preconditions.checkNotNull(req);
-      this.queryId = queryId;
+      this.queryId = parameters.getQueryId();
     }
 
     @Override
     public GetCatalogsResp execute() throws Exception {
-      final GetCatalogsResp.Builder respBuilder = GetCatalogsResp.newBuilder();
-
       final Predicate<String> catalogNamePred = MetadataProviderConditions
-          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
-      final Iterable<Catalog> records =
-          FluentIterable.<Catalog>from(table.<Catalog>asIterable(catalogName, username, datasetListing, null))
-              .filter(new Predicate<Catalog>() {
-                @Override
-                public boolean apply(Catalog input) {
-                  return catalogNamePred.apply(input.CATALOG_NAME);
-                }
-              });
+        .getCatalogNamePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
 
-      List<CatalogMetadata> metadata = new ArrayList<>();
-      for(Catalog c : records) {
-        final CatalogMetadata.Builder catBuilder = CatalogMetadata.newBuilder();
-        catBuilder.setCatalogName(c.CATALOG_NAME);
-        catBuilder.setDescription(c.CATALOG_DESCRIPTION);
-        catBuilder.setConnect(c.CATALOG_CONNECT);
-        metadata.add(catBuilder.build());
-      }
+      final ListCatalogsRequest catalogsRequest = ListCatalogsRequest.newBuilder()
+        .setUsername(parameters.getUsername())
+        .build();
 
-      // Reorder results according to JDBC spec
-      Collections.sort(metadata, CATALOGS_ORDERING);
+      final Iterator<Catalog> catalogs = catalogStub.listCatalogs(catalogsRequest);
 
+      final List<CatalogMetadata> catalogMetadata =
+        StreamSupport.stream(Spliterators.spliteratorUnknownSize(catalogs, Spliterator.ORDERED), false)
+          .map(catalog -> MetadataProviderUtils.toCatalogMetadata(catalog, parameters.getCatalogName()))
+          .filter(catalog -> catalogNamePred.test(catalog.getCatalogName()))
+          .sorted(CATALOGS_ORDERING) // reorder results according to JDBC spec
+          .collect(Collectors.toList());
+
+      final GetCatalogsResp.Builder respBuilder = GetCatalogsResp.newBuilder();
       respBuilder.setQueryId(queryId);
-      respBuilder.addAllCatalogs(metadata);
+      respBuilder.addAllCatalogs(catalogMetadata);
       respBuilder.setStatus(RequestStatus.OK);
       return respBuilder.build();
     }
-  }
 
+  }
 
   public static class SchemasHandler extends ResponseSenderHandler<GetSchemasResp> {
 
@@ -206,63 +201,55 @@ public class MetadataProvider {
    * Runnable that fetches the schema metadata for given {@link GetSchemasReq} and sends response at the end.
    */
   public static class SchemasProvider extends MetadataCommand<GetSchemasResp> {
+
     private static final Ordering<SchemaMetadata> SCHEMAS_ORDERING = new Ordering<SchemaMetadata>() {
       @Override
       public int compare(SchemaMetadata left, SchemaMetadata right) {
         return ComparisonChain.start()
-            .compare(left.getCatalogName(), right.getCatalogName())
-            .compare(left.getSchemaName(), right.getSchemaName())
-            .result();
-      };
+          .compare(left.getCatalogName(), right.getCatalogName())
+          .compare(left.getSchemaName(), right.getSchemaName())
+          .result();
+      }
     };
-    private final QueryId queryId;
+
     private final GetSchemasReq req;
+    private final QueryId queryId;
 
     public SchemasProvider(
-        final QueryId queryId,
-        final UserSession session,
-        final SabotContext dContext,
-        final GetSchemasReq req) {
-      super(session, dContext, InfoSchemaTable.SCHEMATA);
+      InformationSchemaServiceBlockingStub catalogStub,
+      MetadataCommandParameters parameters,
+      GetSchemasReq req
+    ) {
+      super(catalogStub, parameters);
       this.req = Preconditions.checkNotNull(req);
-      this.queryId = queryId;
+      this.queryId = parameters.getQueryId();
     }
 
     @Override
     public GetSchemasResp execute() throws Exception {
-      final GetSchemasResp.Builder respBuilder = GetSchemasResp.newBuilder();
-
-      final SearchQuery filter = MetadataProviderConditions.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
-
       final Predicate<String> catalogNamePred = MetadataProviderConditions
-          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
-      final Iterable<Schema> records =
-          FluentIterable.<Schema>from(table.<Schema>asIterable(catalogName, username, datasetListing, filter))
-              .filter(new Predicate<Schema>() {
-                @Override
-                public boolean apply(Schema input) {
-                  return catalogNamePred.apply(input.CATALOG_NAME);
-                }
-              });
+        .getCatalogNamePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
 
-      List<SchemaMetadata> metadata = new ArrayList<>();
-      for(Schema s : records) {
-        final SchemaMetadata.Builder schemaBuilder = SchemaMetadata.newBuilder();
-        schemaBuilder.setCatalogName(s.CATALOG_NAME);
-        schemaBuilder.setSchemaName(s.SCHEMA_NAME);
-        schemaBuilder.setOwner(s.SCHEMA_OWNER);
-        schemaBuilder.setType(s.TYPE);
-        schemaBuilder.setMutable(s.IS_MUTABLE);
+      final Optional<SearchQuery> searchQuery = MetadataProviderConditions
+        .createConjunctiveQuery(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
 
-        metadata.add(schemaBuilder.build());
-      }
-      // Reorder results according to JDBC spec
-      Collections.sort(metadata, SCHEMAS_ORDERING);
+      final ListSchemataRequest.Builder requestBuilder = ListSchemataRequest.newBuilder()
+        .setUsername(parameters.getUsername());
+      searchQuery.ifPresent(requestBuilder::setQuery);
 
+      final Iterator<Schema> schemata = catalogStub.listSchemata(requestBuilder.build());
+
+      final List<SchemaMetadata> schemaMetadata =
+        StreamSupport.stream(Spliterators.spliteratorUnknownSize(schemata, Spliterator.ORDERED), false)
+          .map(schema -> MetadataProviderUtils.toSchemaMetadata(schema, parameters.getCatalogName()))
+          .filter(schema -> catalogNamePred.test(schema.getCatalogName()))
+          .sorted(SCHEMAS_ORDERING) // reorder results according to JDBC spec
+          .collect(Collectors.toList());
+
+      final GetSchemasResp.Builder respBuilder = GetSchemasResp.newBuilder();
       respBuilder.setQueryId(queryId);
-      respBuilder.addAllSchemas(metadata);
+      respBuilder.addAllSchemas(schemaMetadata);
       respBuilder.setStatus(RequestStatus.OK);
-
       return respBuilder.build();
     }
   }
@@ -287,71 +274,67 @@ public class MetadataProvider {
    * Runnable that fetches the table metadata for given {@link GetTablesReq} and sends response at the end.
    */
   public static class TablesProvider extends MetadataCommand<GetTablesResp> {
+
     private static final Ordering<TableMetadata> TABLES_ORDERING = new Ordering<TableMetadata>() {
       @Override
       public int compare(TableMetadata left, TableMetadata right) {
         return ComparisonChain.start()
-            .compare(left.getType(), right.getType())
-            .compare(left.getCatalogName(), right.getCatalogName())
-            .compare(left.getSchemaName(), right.getSchemaName())
-            .compare(left.getTableName(), right.getTableName())
-            .result();
+          .compare(left.getType(), right.getType())
+          .compare(left.getCatalogName(), right.getCatalogName())
+          .compare(left.getSchemaName(), right.getSchemaName())
+          .compare(left.getTableName(), right.getTableName())
+          .result();
       }
     };
 
-    private final QueryId queryId;
     private final GetTablesReq req;
+    private final QueryId queryId;
 
     public TablesProvider(
-        final QueryId queryId,
-        final UserSession session,
-        final SabotContext dContext,
-        final GetTablesReq req) {
-      super(session, dContext, InfoSchemaTable.TABLES);
+      InformationSchemaServiceBlockingStub catalogStub,
+      MetadataCommandParameters parameters,
+      GetTablesReq req
+    ) {
+      super(catalogStub, parameters);
       this.req = Preconditions.checkNotNull(req);
-      this.queryId = queryId;
+      this.queryId = parameters.getQueryId();
     }
 
     @Override
     public GetTablesResp execute() throws Exception {
-      final GetTablesResp.Builder respBuilder = GetTablesResp.newBuilder();
-
       final Predicate<String> catalogNamePred = MetadataProviderConditions
-          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
-      final Predicate<String> tableTypeFilter = MetadataProviderConditions.getTableTypePredicate(req.getTableTypeFilterList());
-      final SearchQuery filter = MetadataProviderConditions.createFilter(req.hasSchemaNameFilter()
-          ? req.getSchemaNameFilter()
-          : null,
+        .getCatalogNamePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
+      final java.util.function.Predicate<String> tableTypePred = MetadataProviderConditions
+        .getTableTypePredicate(req.getTableTypeFilterList());
+
+      final Optional<SearchQuery> searchQuery = MetadataProviderConditions
+        .createConjunctiveQuery(
+          req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null,
           req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      FluentIterable<Table> records =
-          FluentIterable.<Table>from(table.<Table>asIterable(catalogName, username, datasetListing, filter))
-              .filter(new Predicate<Table>() {
-                @Override
-                public boolean apply(Table input) {
-                  return catalogNamePred.apply(input.TABLE_CATALOG) && tableTypeFilter.apply(input.TABLE_TYPE);
-                }
-              });
-      if (session.getMaxMetadataCount() > 0) {
-        records = records.limit(session.getMaxMetadataCount());
+      final ListTablesRequest.Builder requestBuilder = ListTablesRequest.newBuilder()
+        .setUsername(parameters.getUsername());
+      searchQuery.ifPresent(requestBuilder::setQuery);
+
+      final Iterator<Table> tables = catalogStub.listTables(requestBuilder.build());
+
+      Stream<TableMetadata> tableStream =
+        StreamSupport.stream(Spliterators.spliteratorUnknownSize(tables, Spliterator.ORDERED), false)
+          .map(table -> MetadataProviderUtils.toTableMetadata(table, parameters.getCatalogName()))
+          .filter(table -> catalogNamePred.test(table.getCatalogName()) &&
+            tableTypePred.test(table.getType()));
+
+      if (parameters.getMaxMetadataCount() > 0) {
+        tableStream = tableStream.limit(parameters.getMaxMetadataCount());
       }
 
-      List<TableMetadata> metadata = new ArrayList<>();
-      for (Table t : records) {
-        final TableMetadata.Builder tableBuilder = TableMetadata.newBuilder();
-        tableBuilder.setCatalogName(t.TABLE_CATALOG);
-        tableBuilder.setSchemaName(t.TABLE_SCHEMA);
-        tableBuilder.setTableName(t.TABLE_NAME);
-        tableBuilder.setType(t.TABLE_TYPE);
+      final List<TableMetadata> tableMetadata =
+        tableStream.sorted(TABLES_ORDERING)  // reorder results according to JDBC/ODBC spec
+          .collect(Collectors.toList());
 
-        metadata.add(tableBuilder.build());
-      }
-
-      // Reorder results according to JDBC/ODBC spec
-      Collections.sort(metadata, TABLES_ORDERING);
-
+      final GetTablesResp.Builder respBuilder = GetTablesResp.newBuilder();
       respBuilder.setQueryId(queryId);
-      respBuilder.addAllTables(metadata);
+      respBuilder.addAllTables(tableMetadata);
       respBuilder.setStatus(RequestStatus.OK);
       return respBuilder.build();
     }
@@ -377,141 +360,80 @@ public class MetadataProvider {
    * Runnable that fetches the column metadata for given {@link GetColumnsReq} and sends response at the end.
    */
   public static class ColumnsProvider extends MetadataCommand<GetColumnsResp> {
+
     private static final Ordering<ColumnMetadata> COLUMNS_ORDERING = new Ordering<ColumnMetadata>() {
       @Override
       public int compare(ColumnMetadata left, ColumnMetadata right) {
         return ComparisonChain.start()
-            .compare(left.getCatalogName(), right.getCatalogName())
-            .compare(left.getSchemaName(), right.getSchemaName())
-            .compare(left.getTableName(), right.getTableName())
-            .compare(left.getOrdinalPosition(), right.getOrdinalPosition())
-            .result();
+          .compare(left.getCatalogName(), right.getCatalogName())
+          .compare(left.getSchemaName(), right.getSchemaName())
+          .compare(left.getTableName(), right.getTableName())
+          .compare(left.getOrdinalPosition(), right.getOrdinalPosition())
+          .result();
       }
     };
 
-    private final QueryId queryId;
+    private final CatalogService catalogService;
     private final GetColumnsReq req;
+    private final QueryId queryId;
 
     public ColumnsProvider(
-        final QueryId queryId,
-        final UserSession session,
-        final SabotContext dContext,
-        final GetColumnsReq req) {
-      super(session, dContext, InfoSchemaTable.COLUMNS);
+      InformationSchemaServiceBlockingStub catalogStub,
+      MetadataCommandParameters parameters,
+      CatalogService catalogService,
+      GetColumnsReq req
+    ) {
+      super(catalogStub, parameters);
+      this.catalogService = catalogService;
       this.req = Preconditions.checkNotNull(req);
-      this.queryId = queryId;
+      this.queryId = parameters.getQueryId();
     }
 
     @Override
     public GetColumnsResp execute() throws Exception {
-      final GetColumnsResp.Builder respBuilder = GetColumnsResp.newBuilder();
-
       final Predicate<String> catalogNamePred = MetadataProviderConditions
-          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
-      final Predicate<String> columnNameFilter = MetadataProviderConditions
-          .getLikePredicate(req.hasColumnNameFilter() ? req.getColumnNameFilter() : null);
-      final SearchQuery filter = MetadataProviderConditions.createFilter(
+        .getCatalogNamePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
+      final Predicate<String> columnNamePred = MetadataProviderConditions
+        .getCatalogNamePredicate(req.hasColumnNameFilter() ? req.getColumnNameFilter() : null);
+
+      final Optional<SearchQuery> searchQuery = MetadataProviderConditions
+        .createConjunctiveQuery(
           req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null,
           req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      final Iterable<Column> originalColumns = table.<Column>asIterable(catalogName, username, datasetListing, filter);
+      final ListTableSchemataRequest.Builder requestBuilder = ListTableSchemataRequest.newBuilder()
+        .setUsername(parameters.getUsername());
+      searchQuery.ifPresent(requestBuilder::setQuery);
 
-      Iterable<Column> records = Collections.emptyList();
-      if (originalColumns.iterator().hasNext()) {
-        records = FluentIterable.<Column>from(originalColumns).filter(new Predicate<Column>() {
-          @Override
-          public boolean apply(Column input) {
-            return catalogNamePred.apply(input.TABLE_CATALOG) && columnNameFilter.apply(input.COLUMN_NAME);
-          }
-        });
-      }
+      Iterator<TableSchema> schemata = catalogStub.listTableSchemata(requestBuilder.build());
+      final boolean hasUnfilteredResponses = schemata.hasNext();
 
-      if (!originalColumns.iterator().hasNext()
-          && !records.iterator().hasNext()
-          && req.hasSchemaNameFilter()
-          && req.hasTableNameFilter()) {
-        // if we could not get the columns
-        // if we can figure table name we are going to get table
+      // if there are no responses and if the request is a point lookup, refresh inline and request again
+      if (!hasUnfilteredResponses && req.hasSchemaNameFilter() && req.hasTableNameFilter()) {
+        final NamespaceKey tableKey = getTableKeyFromFilter(req.getSchemaNameFilter(), req.getTableNameFilter());
 
-        NamespaceKey tableName = fromFilter(
-          req.getSchemaNameFilter(),
-          req.getTableNameFilter());
-        if (tableName != null ) {
-          dContext.getCatalogService().getCatalog(SchemaConfig.newBuilder(session.getCredentials().getUserName()).build())
-            .getTable(tableName);
+        if (tableKey != null) {
+          catalogService.getCatalog(MetadataRequestOptions.of(
+            SchemaConfig.newBuilder(parameters.getUsername()).build()))
+            .getTable(tableKey);
 
-          records = FluentIterable.<Column>from(table.<Column>asIterable(catalogName, username, datasetListing,
-            filter)).filter(new Predicate<Column>() {
-            @Override
-            public boolean apply(Column input) {
-              return catalogNamePred.apply(input.TABLE_CATALOG) && columnNameFilter.apply(input.COLUMN_NAME);
-            }
-          });
+          schemata = catalogStub.listTableSchemata(requestBuilder.build());
         }
       }
 
-      List<ColumnMetadata> metadata = new ArrayList<>();
-      for (Column c : records) {
-        final ColumnMetadata.Builder columnBuilder = ColumnMetadata.newBuilder();
-        columnBuilder.setCatalogName(c.TABLE_CATALOG);
-        columnBuilder.setSchemaName(c.TABLE_SCHEMA);
-        columnBuilder.setTableName(c.TABLE_NAME);
-        columnBuilder.setColumnName(c.COLUMN_NAME);
-        columnBuilder.setOrdinalPosition(c.ORDINAL_POSITION);
-        if (c.COLUMN_DEFAULT != null) {
-          columnBuilder.setDefaultValue(c.COLUMN_DEFAULT);
-        }
+      final List<ColumnMetadata> columnMetadata =
+        StreamSupport.stream(Spliterators.spliteratorUnknownSize(schemata, Spliterator.ORDERED), false)
+          .flatMap((Function<TableSchema, Stream<ColumnMetadata>>) tableSchema ->
+            MetadataProviderUtils.toColumnMetadata(tableSchema, parameters.getCatalogName()))
+          .filter(column ->
+            catalogNamePred.test(column.getCatalogName()) &&
+              columnNamePred.test(column.getColumnName()))
+          .sorted(COLUMNS_ORDERING) // reorder results according to JDBC/ODBC spec
+          .collect(Collectors.toList());
 
-        if ("YES".equalsIgnoreCase(c.IS_NULLABLE)) {
-          columnBuilder.setIsNullable(true);
-        } else {
-          columnBuilder.setIsNullable(false);
-        }
-        columnBuilder.setDataType(c.DATA_TYPE);
-        if (c.CHARACTER_MAXIMUM_LENGTH != null) {
-          columnBuilder.setCharMaxLength(c.CHARACTER_MAXIMUM_LENGTH);
-        }
-
-        if (c.CHARACTER_OCTET_LENGTH != null) {
-          columnBuilder.setCharOctetLength(c.CHARACTER_OCTET_LENGTH);
-        }
-
-        if (c.NUMERIC_SCALE != null) {
-          columnBuilder.setNumericScale(c.NUMERIC_SCALE);
-        }
-
-        if (c.NUMERIC_PRECISION != null) {
-          columnBuilder.setNumericPrecision(c.NUMERIC_PRECISION);
-        }
-
-        if (c.NUMERIC_PRECISION_RADIX != null) {
-          columnBuilder.setNumericPrecisionRadix(c.NUMERIC_PRECISION_RADIX);
-        }
-
-        if (c.DATETIME_PRECISION != null) {
-          columnBuilder.setDateTimePrecision(c.DATETIME_PRECISION);
-        }
-
-        if (c.INTERVAL_TYPE != null) {
-          columnBuilder.setIntervalType(c.INTERVAL_TYPE);
-        }
-
-        if (c.INTERVAL_PRECISION != null) {
-          columnBuilder.setIntervalPrecision(c.INTERVAL_PRECISION);
-        }
-
-        if (c.COLUMN_SIZE != null) {
-          columnBuilder.setColumnSize(c.COLUMN_SIZE);
-        }
-
-        metadata.add(columnBuilder.build());
-      }
-
-      // Reorder results according to JDBC/ODBC spec
-      Collections.sort(metadata, COLUMNS_ORDERING);
-
+      final GetColumnsResp.Builder respBuilder = GetColumnsResp.newBuilder();
       respBuilder.setQueryId(queryId);
-      respBuilder.addAllColumns(metadata);
+      respBuilder.addAllColumns(columnMetadata);
       respBuilder.setStatus(RequestStatus.OK);
       return respBuilder.build();
     }
@@ -519,9 +441,10 @@ public class MetadataProvider {
 
   /**
    * Helper method to create {@link DremioPBError} for client response message.
+   *
    * @param failedFunction Brief description of the failed function.
-   * @param ex Exception thrown
-   * @return
+   * @param ex             Exception thrown
+   * @return pb error
    */
   public static DremioPBError createPBError(final String failedFunction, final Throwable ex) {
     final String errorId = UUID.randomUUID().toString();
@@ -540,20 +463,24 @@ public class MetadataProvider {
   }
 
   private static final String SQL_LIKE_SPECIALS = "_%";
-  /** Helper method to convert schema and table filters into NamespaceKey
-   * This method creates NamespaceKey only if there are no any wildcard characters
-   * Needed to be able to get metadata for a particular table if metadata is being queried
-   * @param schemaFilter
-   * @param tableFilter
+
+  /**
+   * Helper method to convert schema and table filters into NamespaceKey.
+   * <p>
+   * This method creates NamespaceKey only if there are no any wildcard characters.
+   * Needed to be able to get metadata for a particular table if metadata is being queried.
+   *
+   * @param schemaFilter schema filter
+   * @param tableFilter  table filter
    * @return NamespaceKey (can return null in case there are wildcard characters in any of the filters)
    */
   @VisibleForTesting
-  static NamespaceKey fromFilter(UserProtos.LikeFilter schemaFilter, UserProtos.LikeFilter tableFilter) {
+  static NamespaceKey getTableKeyFromFilter(LikeFilter schemaFilter, LikeFilter tableFilter) {
     final StringBuilder sb = new StringBuilder();
     final List<String> paths = Lists.newArrayList();
-    final List<UserProtos.LikeFilter> filters = ImmutableList.of(schemaFilter, tableFilter);
+    final List<LikeFilter> filters = ImmutableList.of(schemaFilter, tableFilter);
 
-    for (UserProtos.LikeFilter filter : filters) {
+    for (LikeFilter filter : filters) {
       final String pattern = filter.getPattern();
       if (pattern.isEmpty()) {
         // should have both schema and table filter
@@ -567,7 +494,7 @@ public class MetadataProvider {
       for (int i = 0; i < pattern.length(); i++) {
         char c = pattern.charAt(i);
 
-        if(escaped) {
+        if (escaped) {
           sb.append(c);
           escaped = false;
           continue;
@@ -578,7 +505,7 @@ public class MetadataProvider {
           continue;
         }
 
-        if (SQL_LIKE_SPECIALS.indexOf(c) >=0) {
+        if (SQL_LIKE_SPECIALS.indexOf(c) >= 0) {
           // unable to deal with likecards
           return null;
         }
@@ -592,5 +519,4 @@ public class MetadataProvider {
     }
     return null;
   }
-
 }

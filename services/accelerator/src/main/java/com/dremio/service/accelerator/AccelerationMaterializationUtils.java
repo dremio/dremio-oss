@@ -40,7 +40,7 @@ import com.dremio.service.reflection.store.MaterializationStore;
  */
 public class AccelerationMaterializationUtils {
   private static final Logger logger = LoggerFactory.getLogger(AccelerationMaterializationUtils.class);
-  private static final Serializer<JoinAnalysis> JOIN_ANALYSIS_SERIALIZER = ProtostuffSerializer.of(JoinAnalysis.getSchema());
+  private static final Serializer<JoinAnalysis, byte[]> JOIN_ANALYSIS_ABSTRACT_SERIALIZER = ProtostuffSerializer.of(JoinAnalysis.getSchema());
 
   private static String dataPartitionsToString(List<DataPartition> partitions) {
     if (partitions == null || partitions.isEmpty()) {
@@ -68,7 +68,7 @@ public class AccelerationMaterializationUtils {
           String joinAnalysisJson = null;
           try {
             if (materialization.getJoinAnalysis() != null) {
-              joinAnalysisJson = JOIN_ANALYSIS_SERIALIZER.toJson(materialization.getJoinAnalysis());
+              joinAnalysisJson = JOIN_ANALYSIS_ABSTRACT_SERIALIZER.toJson(materialization.getJoinAnalysis());
             }
           } catch (IOException e) {
             logger.debug("Failed to serialize join analysis", e);

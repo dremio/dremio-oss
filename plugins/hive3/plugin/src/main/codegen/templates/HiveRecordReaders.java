@@ -39,9 +39,10 @@ import java.util.Collection;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.hive.Hive3PluginOptions;
+import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.exec.HiveProxyingOrcScanFilter;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
@@ -141,7 +142,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
     final Reader.Options options = new Reader.Options();
     Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
-    Boolean useDirectMemory = context.getOptions().getOption(Hive3PluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
+    final boolean useDirectMemory = new HiveSettings(context.getOptions()).useDirectMemoryForOrcReaders();
     dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
       .withBufferSize(hiveReader.getCompressionSize())
       .withCompression(hiveReader.getCompressionKind())
@@ -149,7 +150,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
       .withPath(path)
       .withTypeCount(types.size())
       .withZeroCopy(zeroCopy)
-      .build(), useDirectMemory);
+      .build(), useDirectMemory, context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY));
     options.dataReader(dataReader);
     reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
 <#else>

@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
+import javax.servlet.Servlet;
+
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
@@ -49,14 +51,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.dropwizard.DropwizardExports;
+import io.prometheus.client.exporter.MetricsServlet;
+
 /**
  * Dremio main metrics class
  */
 public final class Metrics {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metrics.class);
   private static final int DECAY_CHUNKS = 10;
-  private static final boolean[] shouldWarnOnReadMiss = {true};
-
 
   /**
    * Container for Metrics Registry holder and the reporter manager.
@@ -76,6 +80,24 @@ public final class Metrics {
       REGISTRY.registerAll(scoped("buffer-pool", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer())));
       REGISTRY.registerAll(scoped("memory", new MemoryUsageGaugeSet()));
       REGISTRY.registerAll(scoped("threads", new ThreadStatesGaugeSet()));
+    }
+  }
+
+  /**
+   * Helper class for constructing MetricServlets.
+   * This is a separate factory class to avoid introducing a dependency on Servlet
+   * to the enclosing Metrics class.
+   */
+  public static class MetricServletFactory {
+    /**
+     * Creates a custom Prometheus Collector registry, registers
+     * the dropwizard metrics with this registry, and attaches
+     * it to a MetricsServlet, which is returned to the caller.
+     */
+    public static Servlet createMetricsServlet() {
+      CollectorRegistry registry = new CollectorRegistry();
+      registry.register(new DropwizardExports(RegistryHolder.REGISTRY));
+      return new MetricsServlet(registry);
     }
   }
 
@@ -151,7 +173,7 @@ public final class Metrics {
     }
   }
 
-  private static synchronized Counter registerWindowCounter(String name, WindowCounter counter) {
+  private static Counter registerWindowCounter(String name, WindowCounter counter) {
     RegistryHolder.REGISTRY.register(name, (Gauge<Long>) counter::getSum);
     return new Counter() {
 

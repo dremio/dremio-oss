@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 
 // todo: s/dataSettings/datasetSettings/ in project
 
@@ -28,11 +28,13 @@ export const ACCELERATION_UPDATE_SUCCESS = 'ACCELERATION_UPDATE_SUCCESS';
 export const ACCELERATION_UPDATE_FAILURE = 'ACCELERATION_UPDATE_FAILURE';
 
 function fetchAccelerationData(cpath) {
+  const apiCall = new APIV2Call().paths(`acceleration/${cpath}`);
+
   return {
     [RSAA]: {
       types: [ACCELERATION_DATA_START, ACCELERATION_DATA_SUCCESS, ACCELERATION_DATA_FAILURE], // todo: should get a schema up in here
       method: 'GET',
-      endpoint: `${API_URL_V2}/acceleration/${cpath}`
+      endpoint: apiCall
     }
   };
 }
@@ -44,13 +46,15 @@ export function loadAccelerationData(cpath) {
 }
 
 function putAccelerationSchedule(cpath, config) {
+  const apiCall = new APIV2Call().paths(`acceleration/${cpath}`);
+
   return {
     [RSAA]: {
       types: [ACCELERATION_UPDATE_START, ACCELERATION_UPDATE_SUCCESS, ACCELERATION_UPDATE_FAILURE],
       method: 'PUT',
       body: JSON.stringify(config),
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}/acceleration/${cpath}`
+      endpoint: apiCall
     }
   };
 }

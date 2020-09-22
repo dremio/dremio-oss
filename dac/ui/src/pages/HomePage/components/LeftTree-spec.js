@@ -89,27 +89,27 @@ describe('LeftTree', () => {
     });
   });
 
-  describe('#getInitialSourcesContent()', () => {
-    it("only sample source(s), user can't add: show nothing", () => {
+  describe('Data Lake List: #getInitialSourcesContent()', () => {
+    it("only sample source(s), user can't add; do not show the empty state", () => {
       context.loggedInUser.admin = false;
       sinon.stub(sourcesActions, 'isSampleSource').returns(true);
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      expect(instance.getInitialSourcesContent()).to.be.null;
+      expect(instance.getInitialSourcesContent(commonProps.sources, false)).to.be.null;
       sourcesActions.isSampleSource.restore();
     });
-    it('have a non-sample source: show nothing', () => {
+    it('have a non-sample source; do not show the empty state', () => {
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      expect(instance.getInitialSourcesContent()).to.be.null;
+      expect(instance.getInitialSourcesContent(commonProps.sources, false)).to.be.null;
     });
-    it('no sources, user can add: show text and both buttons', () => {
+    it('no data lakes, user can add: show text and both buttons', () => {
       commonProps.sources = Immutable.fromJS([]);
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      const sourcesContent = shallow(instance.getInitialSourcesContent());
+      const sourcesContent = shallow(instance.getInitialSourcesContent(commonProps.sources, false));
       const formattedMessages = sourcesContent.find('FormattedMessage');
       expect(
         formattedMessages
       ).to.have.length(3);
-      const expectedIds = ['Source.NoSources', 'Source.AddSampleSource', 'Source.AddSource'];
+      const expectedIds = ['Source.NoDataLakes', 'Source.AddSampleSource', 'Source.AddDataLake'];
       expectedIds.forEach((id, i) => {
         expect(
           formattedMessages.get(i).props.id
@@ -122,11 +122,11 @@ describe('LeftTree', () => {
         sourcesContent.find('LinkButton')
       ).to.have.length(1);
     });
-    it("no sources, user can't add: show text", () => {
+    it("no data lakes, user can't add: show text", () => {
       commonProps.sources = Immutable.fromJS([]);
       context.loggedInUser.admin = false;
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      const sourcesContent = shallow(instance.getInitialSourcesContent());
+      const sourcesContent = shallow(instance.getInitialSourcesContent(commonProps.sources, false));
       const formatMessage = sourcesContent.find('FormattedMessage');
       expect(
         formatMessage
@@ -134,20 +134,20 @@ describe('LeftTree', () => {
       expect(
         formatMessage.prop('id')
       ).to.be.equal(
-        'Source.NoSources'
+        'Source.NoDataLakes'
       );
     });
     it('only sample source(s), user can add: show text and add button', () => {
       sinon.stub(sourcesActions, 'isSampleSource').returns(true);
 
       const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      const sourcesContent = shallow(instance.getInitialSourcesContent());
+      const sourcesContent = shallow(instance.getInitialSourcesContent(commonProps.sources, false));
       const formattedMessages = sourcesContent.find('FormattedMessage');
       expect(
         formattedMessages
       ).to.have.length(2);
 
-      const expectedIds = ['Source.AddOwnSource', 'Source.AddSource'];
+      const expectedIds = ['Source.AddOwnSource', 'Source.AddDataLake'];
       expectedIds.forEach((id, i) => {
         expect(
           formattedMessages.get(i).props.id
@@ -157,4 +157,41 @@ describe('LeftTree', () => {
       sourcesActions.isSampleSource.restore();
     });
   });
+
+  describe('External Source List: #getInitialSourcesContent()', () => {
+    it('no external sources, user can add: show text and both buttons', () => {
+      commonProps.sources = Immutable.fromJS([]);
+      const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
+      const sourcesContent = shallow(instance.getInitialSourcesContent(commonProps.sources, true));
+      const formattedMessages = sourcesContent.find('FormattedMessage');
+      expect(
+        formattedMessages
+      ).to.have.length(2);
+      const expectedIds = ['Source.NoExternalSources', 'Source.AddExternalSource'];
+      expectedIds.forEach((id, i) => {
+        expect(
+          formattedMessages.get(i).props.id
+        ).to.be.equal(id);
+      });
+      expect(
+        sourcesContent.find('LinkButton')
+      ).to.have.length(1);
+    });
+    it("no external sources, user can't add: show text", () => {
+      commonProps.sources = Immutable.fromJS([]);
+      context.loggedInUser.admin = false;
+      const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
+      const sourcesContent = shallow(instance.getInitialSourcesContent(commonProps.sources, true));
+      const formatMessage = sourcesContent.find('FormattedMessage');
+      expect(
+        formatMessage
+      ).to.have.length(1);
+      expect(
+        formatMessage.prop('id')
+      ).to.be.equal(
+        'Source.NoExternalSources'
+      );
+    });
+  });
+
 });

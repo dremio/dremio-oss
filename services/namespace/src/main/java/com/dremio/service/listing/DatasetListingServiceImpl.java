@@ -16,15 +16,12 @@
 package com.dremio.service.listing;
 
 import java.util.List;
-import java.util.Map.Entry;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
 /**
@@ -46,13 +43,6 @@ public class DatasetListingServiceImpl implements DatasetListingService {
   @Override
   public void close() {
     // no op
-  }
-
-  @Override
-  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(String username, FindByCondition condition) {
-    return factoryProvider.get()
-        .get(username)
-        .find(condition);
   }
 
   @Override

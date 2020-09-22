@@ -22,8 +22,9 @@ describe('resourceDecorators', function() {
       total: 0,
       active: 0,
       pending: 0,
-      decommissioning: 0,
       disconnected: 0,
+      decommissioning: 0,
+      provisioning: 0,
       totalRAM: 0,
       totalCores: 0
     };
@@ -84,8 +85,9 @@ describe('resourceDecorators', function() {
           total: 3,
           active: 1,
           pending: 1,
-          decommissioning: 1,
           disconnected: 1,
+          decommissioning: 1,
+          provisioning: 1,
           totalRAM: 30,
           totalCores: 3
         }
@@ -166,8 +168,9 @@ describe('resourceDecorators', function() {
           total: 3,
           active: 3,
           pending: 0,
-          decommissioning: 0,
           disconnected: 0,
+          decommissioning: 0,
+          provisioning: 0,
           totalRAM: 10,
           totalCores: 2
         }

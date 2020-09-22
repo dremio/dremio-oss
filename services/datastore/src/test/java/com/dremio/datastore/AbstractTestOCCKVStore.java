@@ -15,229 +15,173 @@
  */
 package com.dremio.datastore;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.util.ConcurrentModificationException;
+import java.util.Arrays;
+import java.util.Collection;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.test.DremioTest;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.primitives.Longs;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.StoreCreationFunction;
+import com.dremio.datastore.generator.ByteContainerStoreGenerator;
+import com.dremio.datastore.generator.DataGenerator;
+import com.dremio.datastore.generator.ProtobufStoreGenerator;
+import com.dremio.datastore.generator.ProtostuffStoreGenerator;
+import com.dremio.datastore.generator.RawByteStoreGenerator;
+import com.dremio.datastore.generator.StringStoreGenerator;
+import com.dremio.datastore.generator.UUIDStoreGenerator;
+import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
+import com.dremio.datastore.stores.ByteContainerStore;
+import com.dremio.datastore.stores.ProtobufStore;
+import com.dremio.datastore.stores.ProtostuffStore;
+import com.dremio.datastore.stores.RawByteStore;
+import com.dremio.datastore.stores.StringStore;
+import com.dremio.datastore.stores.UUIDStore;
 
 /**
  * Tests OCCKVStore
  */
-public abstract class AbstractTestOCCKVStore {
+@RunWith(Parameterized.class)
+public abstract class AbstractTestOCCKVStore<K, V> {
+  private static final String TAG_ASSERT_FAILURE_MSG = "All documents should have a non-null, non-empty tag";
 
-  private KVStore<String, Value> s;
-  private KVStoreProvider p;
+  private KVStore<K, V> kvStore;
+  private KVStoreProvider provider;
 
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
+  // CHECKSTYLE:OFF VisibilityModifier
+  @Parameterized.Parameter
+  public Class<? extends StoreCreationFunction<K, V, KVStore<K, V>>> storeCreationFunction;
 
-  private static class Value {
-    private String tag;
-    private Long version;
+  @Parameterized.Parameter(1)
+  public DataGenerator<K, V> gen;
 
-    public Value(String tag) {
-      super();
-      this.tag = tag;
-    }
-
-    public String getTag() {
-      return tag;
-    }
-
-    public void setTag(String tag) {
-      this.tag = tag;
-    }
-
-    public void setVersion(Long version) {
-      this.version = version;
-    }
-
-    public Long getVersion() {
-      return version;
-    }
+  // CHECKSTYLE:ON VisibilityModifier
+  @Parameterized.Parameters(name = "Table: {0}")
+  public static Collection<Object[]> parameters() {
+    return Arrays.asList(new Object[][]{
+      {UUIDStore.class, new UUIDStoreGenerator()},
+      {ProtobufStore.class, new ProtobufStoreGenerator()},
+      {ProtostuffStore.class, new ProtostuffStoreGenerator()},
+      //Variable-length
+      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      //Fixed-length
+      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)}
+    });
   }
 
-  private static final class ValueSerializer extends Serializer<Value> {
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    public ValueSerializer() {
-    }
-
-    @Override
-    public String toJson(Value v) throws IOException {
-      return objectMapper.writeValueAsString(v);
-    }
-
-    @Override
-    public Value fromJson(String v) throws IOException {
-      return objectMapper.readValue(v, Value.class);
-    }
-
-    @Override
-    public byte[] convert(Value v) {
-      return v.tag == null? Longs.toByteArray(-1) : Longs.toByteArray(Long.valueOf(v.tag));
-    }
-
-    @Override
-    public Value revert(byte[] v) {
-      long version = Longs.fromByteArray(v);
-      return new Value(version == -1 ? null : Long.toString(version));
-    }
+  protected abstract KVStoreProvider createKVStoreProvider() throws Exception;
+  protected void closeResources() throws Exception {
   }
-
-  private static final class ValueVersionExtractor implements VersionExtractor<Value> {
-    @Override
-    public String getTag(Value value) {
-      return value.getTag();
-    }
-
-    @Override
-    public void setTag(Value value, String tag) {
-      value.setTag(tag);
-    }
-
-    @Override
-    public void setVersion(Value value, Long version) {
-      value.setVersion(version);
-    }
-
-    @Override
-    public Long getVersion(Value value) {
-      return value.getVersion();
-    }
-
-  }
-
-  abstract KVStoreProvider createKKStoreProvider() throws Exception;
 
   @SuppressWarnings("resource")
   @Before
   public void before() throws Exception {
-    ScanResult r = DremioTest.CLASSPATH_SCAN_RESULT;
-    p = createKKStoreProvider();
-    s = p.getStore(TestOCCBuilder.class);
-
-  }
-
-  /**
-   * Test builder.
-   */
-  public static class TestOCCBuilder implements StoreCreationFunction<KVStore<String, Value>> {
-
-    @Override
-    public KVStore<String, Value> build(StoreBuildingFactory factory) {
-      return factory.<String, Value>newStore()
-        .name("test-occ")
-        .keySerializer(StringSerializer.class)
-        .valueSerializer(ValueSerializer.class)
-        .versionExtractor(ValueVersionExtractor.class)
-        .build();
-    }
-
+    provider = createKVStoreProvider();
+    kvStore = provider.getStore(storeCreationFunction);
+    gen.reset();
   }
 
   @After
   public void after() throws Exception {
-    p.close();
+    closeResources();
+    provider.close();
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testShouldNotPutNulls() {
+    OCCKVStoreTests.testShouldNotPutNulls(kvStore, gen);
   }
 
   @Test
-  public void testMissingPrevious() {
-    exception.expect(ConcurrentModificationException.class);
-    s.put("a", new Value("0"));
+  public void testPutWithoutCreateOptionIsValid() {
+    OCCKVStoreTests.testPutWithoutCreateOptionIsValid(kvStore, gen);
   }
 
   @Test
-  public void testCreate() {
-    s.put("a", new Value(null));
+  public void testPutWithCreateOption() {
+    OCCKVStoreTests.testPutWithCreateOption(kvStore, gen);
   }
 
   @Test
-  public void testUpdate() {
-    Value v = new Value(null);
-    s.put("a", v);
-    assertEquals("0", v.getTag());
-    s.put("a", v);
-    assertEquals("1", v.getTag());
-    s.put("a", v);
-    assertEquals("2", v.getTag());
+  public void testPutWithCreateOptionFailsToOverwrite() {
+    OCCKVStoreTests.testPutWithCreateOptionFailsToOverwrite(kvStore, gen);
   }
 
   @Test
-  public void testConcurrentUpdate() {
-    Value v0 = new Value(null);
-    s.put("a", v0);
-    Value v1 = new Value(v0.getTag());
-    assertEquals("0", v0.getTag());
-    s.put("a", v0);
-    assertEquals("1", v0.getTag());
-
-    boolean threw = false;
-    final String previousVersion = v1.getTag();
-    try {
-      s.put("a", v1);
-    } catch (ConcurrentModificationException e) {
-      threw = true;
-    }
-
-    assertTrue(threw);
-
-    // ensure that v1 doesn't get mutated if the update fails
-    assertEquals(previousVersion, v1.getTag());
+  public void testModificationWithoutOptionsAlwaysOverwrites() {
+    OCCKVStoreTests.testModificationWithoutOptionsAlwaysOverwrites(kvStore, gen);
   }
 
   @Test
-  public void testDelete() {
-    Value v = new Value(null);
-    s.put("a", v);
-    assertEquals("0", v.getTag());
-    s.delete("a", v.getTag());
-    assertFalse(s.contains("a"));
+  public void testPutAfterDeleteWithoutOptions() {
+    OCCKVStoreTests.testPutAfterDeleteWithoutOptions(kvStore, gen);
   }
 
   @Test
-  public void testDeleteBadVersion() {
-    Value v0 = new Value(null);
-    s.put("a", v0);
-    assertEquals("0", v0.getTag());
-    Value v1 = new Value(v0.getTag());
-    s.put("a", v1);
-    assertEquals("1", v1.getTag());
-
-    exception.expect(ConcurrentModificationException.class);
-    s.delete("a", v0.getTag());
+  public void testPutAlwaysUsingOptionsShouldUpdate() {
+    OCCKVStoreTests.testPutAlwaysUsingOptionsShouldUpdate(kvStore, gen);
   }
 
   @Test
-  public void testOnFlyUpdateToString() {
-    //Set only long version and save to store
-    Value v0 = new Value(null);
-    v0.setVersion(0L);
+  public void testPutLateOptionAdoptionShouldStillUpdate() {
+    OCCKVStoreTests.testPutLateOptionAdoptionShouldStillUpdate(kvStore, gen);
+  }
 
-    KVStoreTuple<Value> tuple = new KVStoreTuple(new ValueSerializer(), new ValueVersionExtractor());
-    tuple.setObject(v0);
-    assertEquals("0", tuple.getTag());
+  @Test
+  public void testPutLateOptionAdoptionShouldStillProtectFromCM() {
+    OCCKVStoreTests.testPutLateOptionAdoptionShouldStillProtectFromCM(kvStore, gen);
+  }
 
-    // Make sure that the inline upgrade doesn't overwrite an existing tag
-    Value v1 = new Value(null);
-    v1.setVersion(0L);
-    v1.setTag("1");
+  @Test
+  public void testCreateWithManyOptionsFails() {
+    OCCKVStoreTests.testCreateWithManyOptionsFails(kvStore, gen);
+  }
 
-    KVStoreTuple<Value> tuple1 = new KVStoreTuple(new ValueSerializer(), new ValueVersionExtractor());
-    tuple1.setObject(v1);
-    assertEquals("1", tuple1.getTag());
+  @Test
+  public void testPutWithMultipleVersionsFails() {
+    OCCKVStoreTests.testPutWithMultipleVersionsFails(kvStore, gen);
+  }
+
+  @Test
+  public void testPutWithOutdatedVersionFails() {
+    OCCKVStoreTests.testPutWithOutdatedVersionFails(kvStore, gen);
+  }
+
+  @Test
+  public void testDeleteWithoutTagAlwaysDeletes() {
+    OCCKVStoreTests.testDeleteWithoutTagAlwaysDeletes(kvStore, gen);
+  }
+
+  @Test
+  public void testDeleteWithOutdatedVersionFails() {
+    OCCKVStoreTests.testDeleteWithOutdatedVersionFails(kvStore, gen);
+  }
+
+  @Test
+  public void testDeleteWithLateOptionShouldStillProtectFromCM() {
+    OCCKVStoreTests.testDeleteWithLateOptionShouldStillProtectFromCM(kvStore, gen);
+  }
+
+  @Test
+  public void testDeleteWithLatestVersionShouldDelete() {
+    OCCKVStoreTests.testDeleteWithLatestVersionShouldDelete(kvStore, gen);
+  }
+
+  @Test
+  public void testDeleteWithLateVersionAdoptionShouldDelete() {
+    OCCKVStoreTests.testDeleteWithLateVersionAdoptionShouldDelete(kvStore, gen);
+  }
+
+  @Test
+  public void testDeleteWithManyVersionsFails() {
+    OCCKVStoreTests.testDeleteWithManyVersionsFails(kvStore, gen);
   }
 }

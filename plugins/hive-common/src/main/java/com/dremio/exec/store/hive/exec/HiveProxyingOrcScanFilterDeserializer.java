@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.hive.StoragePluginCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.fasterxml.jackson.core.JsonParser;
@@ -52,7 +53,8 @@ public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveP
     final CatalogService catalogService = (CatalogService) deserializationContext
       .findInjectableValue(CatalogService.class.getName(), null, null);
 
-    final StoragePluginCreator.PF4JStoragePlugin plugin = catalogService.getSource(pluginName);
+    final SupportsPF4JStoragePlugin pf4JStoragePlugin = catalogService.getSource(pluginName);
+    final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
     final Class<? extends HiveProxiedOrcScanFilter> scanClazz = plugin.getOrcScanFilterClass();
 
     final JavaType scanType = deserializationContext.getTypeFactory().constructType(scanClazz);

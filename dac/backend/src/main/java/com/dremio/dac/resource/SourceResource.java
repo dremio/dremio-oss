@@ -21,7 +21,6 @@ import java.util.Objects;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
-import javax.inject.Provider;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -50,6 +49,7 @@ import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
@@ -59,8 +59,9 @@ import com.dremio.dac.service.errors.SourceFileNotFoundException;
 import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.SourceCatalog;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.server.ContextService;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
@@ -75,7 +76,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.reflection.ReflectionService;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 
 /**
  * Rest resource for sources.
@@ -84,36 +85,38 @@ import com.dremio.service.reflection.ReflectionService;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/source/{sourceName}")
-public class SourceResource {
+public class SourceResource extends BaseResourceWithAllocator {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceResource.class);
 
   private final QueryExecutor executor;
   private final NamespaceService namespaceService;
-  private final Provider<ReflectionService> reflectionService;
+  private final ReflectionAdministrationService.Factory reflectionService;
   private final SourceService sourceService;
   private final SourceName sourceName;
   private final SecurityContext securityContext;
   private final SourcePath sourcePath;
   private final DatasetsResource datasetsResource;
   private final ConnectionReader cReader;
-  private final Catalog catalog;
+  private final SourceCatalog sourceCatalog;
   private final FormatTools formatTools;
   private final ContextService context;
 
   @Inject
   public SourceResource(
       NamespaceService namespaceService,
-      Provider<ReflectionService> reflectionService,
+      ReflectionAdministrationService.Factory reflectionService,
       SourceService sourceService,
       @PathParam("sourceName") SourceName sourceName,
       QueryExecutor executor,
       SecurityContext securityContext,
       DatasetsResource datasetsResource,
       ConnectionReader cReader,
-      Catalog catalog,
+      SourceCatalog sourceCatalog,
       FormatTools formatTools,
-      ContextService context
+      ContextService context,
+      BufferAllocatorFactory allocatorFactory
       ) throws SourceNotFoundException {
+    super(allocatorFactory);
     this.namespaceService = namespaceService;
     this.reflectionService = reflectionService;
     this.sourceService = sourceService;
@@ -123,7 +126,7 @@ public class SourceResource {
     this.sourcePath = new SourcePath(sourceName);
     this.executor = executor;
     this.cReader = cReader;
-    this.catalog = catalog;
+    this.sourceCatalog = sourceCatalog;
     this.formatTools = formatTools;
     this.context = context;
   }
@@ -151,7 +154,7 @@ public class SourceResource {
 
       source.setState(sourceState);
 
-      final AccelerationSettings settings = reflectionService.get().getReflectionSettings().getReflectionSettings(sourcePath.toNamespaceKey());
+      final AccelerationSettings settings = reflectionService.get(ReflectionContext.SYSTEM_USER_CONTEXT).getReflectionSettings().getReflectionSettings(sourcePath.toNamespaceKey());
       if (settings != null) {
         source.setAccelerationRefreshPeriod(settings.getRefreshPeriod());
         source.setAccelerationGracePeriod(settings.getGracePeriod());
@@ -178,7 +181,7 @@ public class SourceResource {
       if(!Objects.equals(config.getTag(), version)) {
         throw new ConcurrentModificationException(String.format("Unable to delete source, expected version %s, received version %s.", config.getTag(), version));
       }
-      catalog.deleteSource(config);
+      sourceCatalog.deleteSource(config);
     } catch (NamespaceNotFoundException nfe) {
       throw new SourceNotFoundException(sourcePath.getSourceName().getName(), nfe);
     }
@@ -297,7 +300,7 @@ public class SourceResource {
       return formatTools.previewData(format, asFilePath(path), false);
     }
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
-    return executor.previewPhysicalDataset(filePath.toString(), format);
+    return executor.previewPhysicalDataset(filePath.toString(), format, getOrCreateAllocator("previewFileFormat"));
   }
 
   @POST
@@ -311,7 +314,7 @@ public class SourceResource {
     }
 
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    return executor.previewPhysicalDataset(folderPath.toString(), format);
+    return executor.previewPhysicalDataset(folderPath.toString(), format, getOrCreateAllocator("previewFolderFormat"));
   }
 
   @DELETE

@@ -15,8 +15,8 @@
  */
 package com.dremio.dac.proto.model.job;
 
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
-import "../../../../../sabot/kernel/src/main/protobuf/attempts.proto";
+import "job.proto";
+import "attempts.proto";
 
 
 option java_package = "com.dremio.dac.proto.model.job";

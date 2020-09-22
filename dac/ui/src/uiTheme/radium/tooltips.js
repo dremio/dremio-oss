@@ -40,7 +40,7 @@ export default function getTooltipStyles(type) {
       // Note: multiple tooltips in the same context will still respect DOM order
       // e.g. problematic for persistent tooltips like errors
       // (DX-9150 Tooltip appears behind other text)
-      zIndex: 1
+      zIndex: 10
     },
 
     inner: {
@@ -48,7 +48,7 @@ export default function getTooltipStyles(type) {
       backgroundColor: bgColor,
       width: 180,
       borderRadius: 5,
-      padding: 10,
+      padding: '9px 10px',
       ...(type === 'status' ? bodyWhite : null)
     },
 

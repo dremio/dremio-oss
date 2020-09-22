@@ -17,6 +17,8 @@ package com.dremio.plugins.s3.store;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
+import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
+import static org.apache.hadoop.fs.s3a.Constants.CREATE_FILE_STATUS_CHECK;
 import static org.apache.hadoop.fs.s3a.Constants.FAST_UPLOAD;
 import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.MAX_THREADS;
@@ -52,6 +54,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -161,6 +164,10 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       finalProperties.add(new Property(SECURE_CONNECTIONS, Boolean.TRUE.toString()));
     }
 
+    finalProperties.add(new Property(ALLOW_REQUESTER_PAYS, Boolean.toString(config.requesterPays)));
+    finalProperties.add(new Property(CREATE_FILE_STATUS_CHECK, Boolean.toString(config.enableFileStatusCheck)));
+    logger.debug("getProperties: Create file status check: {}", config.enableFileStatusCheck);
+
     return finalProperties;
   }
 
@@ -174,6 +181,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     try {
       ensureDefaultName();
       S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
+      //This next call is just to validate that the path specified is valid
+      getSystemUserFS().list(getConfig().getPath());
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
       if(failures.isEmpty()) {
@@ -205,20 +214,23 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
 
   @Override
   public CreateTableEntry createNewTable(
-      SchemaConfig config,
-      NamespaceKey key,
-      WriterOptions writerOptions,
-      Map<String, Object> storageOptions
+    SchemaConfig config,
+    NamespaceKey key,
+    IcebergTableProps icebergTableProps,
+    WriterOptions writerOptions,
+    Map<String, Object> storageOptions
   ) {
     Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    final String containerName = key.getPathComponents().get(1);
-    if (key.size() == 2) {
+    final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
+    final String containerName = resolvedPath.get(0);
+    if (resolvedPath.size() == 1) {
       throw UserException.validationError()
-          .message("Creating buckets is not supported", containerName)
-          .build(logger);
+        .message("Creating buckets is not supported", containerName)
+        .build(logger);
     }
 
-    final CreateTableEntry entry = super.createNewTable(config, key, writerOptions, storageOptions);
+    final CreateTableEntry entry = super.createNewTable(config, key,
+      icebergTableProps, writerOptions, storageOptions);
 
     final S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
 

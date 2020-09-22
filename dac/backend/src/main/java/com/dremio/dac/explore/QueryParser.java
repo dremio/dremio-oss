@@ -46,6 +46,7 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -73,7 +74,7 @@ public final class QueryParser {
   // use of this outside of test code that we should get rid of. Marking deprecated to avoid accumulating
   // new uses of this method.
   @Deprecated
-  public static QueryMetadata extract(SqlQuery query, SabotContext context){
+  public static QueryMetadata extract(SqlQuery query, SabotContext context) {
     QueryParser parser = new QueryParser(context);
     return parser.extract(query);
   }
@@ -81,12 +82,15 @@ public final class QueryParser {
   private QueryContext newQueryContext(SqlQuery query) {
     try (TimedBlock b = time("initParser")) {
       QueryId queryId = QueryId.newBuilder().setPart1(ID_MAJOR).setPart2(ID_MINOR.incrementAndGet()).build();
+
       UserSession session = UserSession.Builder.newBuilder()
-          .withCredentials(UserCredentials.newBuilder()
-              .setUserName(query.getUsername())
-              .build())
+        .withSessionOptionManager(
+          new SessionOptionManagerImpl(sabotContext.getOptionValidatorListing()),
+          sabotContext.getOptionManager())
+        .withCredentials(UserCredentials.newBuilder()
+          .setUserName(query.getUsername())
+          .build())
           .withUserProperties(UserProperties.getDefaultInstance())
-          .withOptionManager(sabotContext.getOptionManager())
           .build();
       return new QueryContext(session, sabotContext, queryId);
     }
@@ -130,8 +134,11 @@ public final class QueryParser {
     try{
       // inner try to make sure query context is closed.
       try(QueryContext context = newQueryContext(query)) {
+        context.setGroupResourceInformation(sabotContext.getClusterResourceInformation());
 
-        QueryMetadata.Builder builder = QueryMetadata.builder(sabotContext.getNamespaceService(query.getUsername()));
+        QueryMetadata.Builder builder = QueryMetadata.builder(sabotContext.getNamespaceService(query.getUsername()))
+          .addQuerySql(query.getSql())
+          .addQueryContext(query.getContext());
         AttemptObserver observer = new MetadataCollectingObserver(builder);
 
         final SqlConverter converter = getNewConverter(context, query, observer);
@@ -215,6 +222,5 @@ public final class QueryParser {
       builder.addRowType(rowType);
       builder.addParsedSql(node);
     }
-
   }
 }

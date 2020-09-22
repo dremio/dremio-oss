@@ -40,12 +40,8 @@ import com.dremio.dac.model.spaces.Space;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -189,18 +185,14 @@ public class TestDatasetProfiles extends BaseTestServer {
     return p(NamespaceService.class).get();
   }
 
-  private static QueryProfile getQueryProfile(final String query) throws JobNotFoundException {
-    final Job job = JobsServiceUtil.waitForJobCompletion(
-      getJobsService().submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_INTERNAL_RUN)
-          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-          .setDatasetVersion(DatasetVersion.NONE)
-          .build(),
-        new NoOpJobStatusListener())
-    );
-    return getJobsService().getProfile(job.getJobId(), 0);
+  private static QueryProfile getQueryProfile(final String query) throws Exception {
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+      .setQueryType(QueryType.UI_INTERNAL_RUN)
+      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+      .setDatasetVersion(DatasetVersion.NONE)
+      .build();
+    return JobsServiceTestUtils.getQueryProfile(l(JobsService.class), request);
   }
 
   private static String addJsonTable(String tableName, String... jsonData) throws Exception {

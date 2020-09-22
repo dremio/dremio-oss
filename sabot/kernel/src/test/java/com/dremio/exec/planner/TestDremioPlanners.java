@@ -42,7 +42,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.test.DremioTest;
@@ -97,8 +99,18 @@ public class TestDremioPlanners {
 
   public PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
     OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption("planner.timeout_per_phase_ms")).thenReturn(OptionValue.createLong(OptionType.QUERY, "planner.timeout_per_phase_ms", timeoutMillis));
-    when(optionManager.getOption("planner.max_nodes_per_plan")).thenReturn(OptionValue.createLong(OptionType.QUERY, "planner.max_nodes_per_plan", maxNodes));
+    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+
+    OptionValue plannerTimeout = OptionValue.createLong(OptionType.QUERY, "planner.timeout_per_phase_ms", timeoutMillis);
+    OptionValue plannerMaxNodes = OptionValue.createLong(OptionType.QUERY, "planner.max_nodes_per_plan", maxNodes);
+
+    OptionList optionList = new OptionList();
+    optionList.add(plannerTimeout);
+    optionList.add(plannerMaxNodes);
+
+    when(optionManager.getOption("planner.timeout_per_phase_ms")).thenReturn(plannerTimeout);
+    when(optionManager.getOption("planner.max_nodes_per_plan")).thenReturn(plannerMaxNodes);
+    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
 
     return new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, null);
   }

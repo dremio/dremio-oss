@@ -199,15 +199,15 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public long getLargeMaxRows() {
-    try {
-      throwIfClosed();
-    } catch (SQLException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getMaxRows() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public long getLargeMaxRows() throws SQLException {
+    throwIfClosed();
     return super.getLargeMaxRows();
+  }
+
+  @Override
+  public long getLargeUpdateCount() throws SQLException {
+    throwIfClosed();
+    return super.getLargeUpdateCount();
   }
 
   @Override
@@ -286,14 +286,8 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public int getFetchDirection() {
-    try {
-      throwIfClosed();
-    } catch (SQLException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getFetchDirection() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public int getFetchDirection() throws SQLException {
+    throwIfClosed();
     return super.getFetchDirection();
   }
 
@@ -304,14 +298,8 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public int getFetchSize() {
-    try {
-      throwIfClosed();
-    } catch (SQLException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getFetchSize() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public int getFetchSize() throws SQLException {
+    throwIfClosed();
     return super.getFetchSize();
   }
 

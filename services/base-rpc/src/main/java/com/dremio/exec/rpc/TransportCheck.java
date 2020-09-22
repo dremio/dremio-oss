@@ -15,7 +15,11 @@
  */
 package com.dremio.exec.rpc;
 
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Locale;
+import java.util.concurrent.ThreadFactory;
+
+import com.dremio.common.concurrent.NamedThreadFactory;
 
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -28,12 +32,10 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.internal.SystemPropertyUtil;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
-
 /**
  * TransportCheck decides whether or not to use the native EPOLL mechanism for communication.
  */
-public class TransportCheck {
+public final class TransportCheck {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TransportCheck.class);
 
   private static final String USE_LINUX_EPOLL = "dremio.exec.enable-epoll";
@@ -50,6 +52,8 @@ public class TransportCheck {
       SUPPORTS_EPOLL = false;
     }
   }
+
+  private TransportCheck() {}
 
   public static Class<? extends ServerSocketChannel> getServerSocketChannel(){
     if(SUPPORTS_EPOLL){
@@ -69,9 +73,22 @@ public class TransportCheck {
 
   public static EventLoopGroup createEventLoopGroup(int nThreads, String prefix) {
      if(SUPPORTS_EPOLL){
-       return new EpollEventLoopGroup(nThreads, new NamedThreadFactory(prefix));
+       return new EpollEventLoopGroup(nThreads, newThreadFactory(prefix));
      }else{
-       return new NioEventLoopGroup(nThreads, new NamedThreadFactory(prefix));
+       return new NioEventLoopGroup(nThreads, newThreadFactory(prefix));
      }
+  }
+
+  private static final UncaughtExceptionHandler UNCAUGHT_EXCEPTION_HANDLER = (thread, t) -> logger.error("Uncaught exception in thread {}", thread.getName(), t);
+  private static ThreadFactory newThreadFactory(String prefix) {
+    final ThreadFactory namedThreadFactory = new NamedThreadFactory(prefix);
+
+    // Adding an uncaught exception handler to make sure threads are logged using slf4j
+    return (runnable) -> {
+      final Thread result = namedThreadFactory.newThread(runnable);
+      result.setUncaughtExceptionHandler(UNCAUGHT_EXCEPTION_HANDLER);
+
+      return result;
+    };
   }
 }

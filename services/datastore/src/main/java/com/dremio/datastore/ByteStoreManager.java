@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -49,7 +48,8 @@ import org.rocksdb.TransactionLogIterator;
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
 import com.dremio.datastore.RocksDBStore.BlobNotFoundException;
-import com.dremio.datastore.RocksDBStore.RocksBlobManager;
+import com.dremio.datastore.RocksDBStore.RocksMetaManager;
+import com.dremio.datastore.api.Document;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -135,11 +135,13 @@ class ByteStoreManager implements AutoCloseable {
 
   private RocksDBStore newRocksDBStore(String name, ColumnFamilyDescriptor columnFamilyDescriptor,
                                        ColumnFamilyHandle handle) {
+    final RocksMetaManager rocksManager;
     if (BLOB_WHITELIST.contains(name)) {
-      final RocksBlobManager rocksBlobManager = new RocksBlobManager(baseDirectory, name, FILTER_SIZE_IN_BYTES);
-      return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount, rocksBlobManager);
+      rocksManager = new RocksMetaManager(baseDirectory, name, FILTER_SIZE_IN_BYTES);
+    } else {
+      rocksManager = new RocksMetaManager(baseDirectory, name, Long.MAX_VALUE);
     }
-    return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
+    return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount, rocksManager);
   }
 
   // Validates that the first file found in the DB directory is owned by the currently running user.
@@ -224,7 +226,7 @@ class ByteStoreManager implements AutoCloseable {
 
 
       registerMetrics(dboptions);
-      db = openDB(dboptions, path, Lists.transform(families, func), familyHandles);
+      db = openDB(dboptions, path, new ArrayList<>(Lists.transform(families, func)), familyHandles);
     }
     // create an output list to be populated when we open the db.
 
@@ -362,7 +364,7 @@ class ByteStoreManager implements AutoCloseable {
       ByteStore store = getStore(tableName);
       Preconditions.checkState(store instanceof RocksDBStore);
       try {
-        final byte[] value = ((RocksDBStore) store).resolvePtrOrValue(ptrOrValue);
+        final byte[] value = (((RocksDBStore) store).resolvePtrOrValue(ptrOrValue).getData());
         replayHandler.put(tableName, key, value);
       } catch (BlobNotFoundException e) {
         // Could not find the blob file when resolving a ptr.  This could be because the replayed event's pointer is no
@@ -436,7 +438,7 @@ class ByteStoreManager implements AutoCloseable {
    * Implementation that manages metadata with {@link RocksDB}.
    */
   final class StoreMetadataManagerImpl implements StoreMetadataManager {
-    private final Serializer<StoreMetadata> valueSerializer = Serializer.of(StoreMetadata.getSchema());
+    private final Serializer<StoreMetadata, byte[]> valueSerializer = Serializer.of(StoreMetadata.getSchema());
 
     // in-memory holder of the latest transaction numbers. The second-to-last transaction number is persisted
     private final ConcurrentMap<String, Long> latestTransactionNumbers = Maps.newConcurrentMap();
@@ -543,8 +545,8 @@ class ByteStoreManager implements AutoCloseable {
      */
     long getLowestTransactionNumber(Predicate<String> predicate) {
       final long[] lowest = {Long.MAX_VALUE};
-      for (Map.Entry<byte[], byte[]> tuple : metadataStore.find()) {
-        final Optional<StoreMetadata> value = getValue(tuple.getValue());
+      for (Document<byte[], byte[]> tuple : metadataStore.find()) {
+        final Optional<StoreMetadata> value = getValue(tuple);
         value.filter(storeMetadata -> predicate.test(storeMetadata.getTableName()))
             .ifPresent(storeMetadata -> {
               final long transactionNumber = storeMetadata.getLatestTransactionNumber();
@@ -573,8 +575,8 @@ class ByteStoreManager implements AutoCloseable {
       return valueSerializer.convert(info);
     }
 
-    private Optional<StoreMetadata> getValue(byte[] info) {
-      return Optional.ofNullable(info).map(valueSerializer::revert);
+    private Optional<StoreMetadata> getValue(Document<byte[], byte[]> info) {
+      return Optional.ofNullable(info).map(doc -> valueSerializer.revert(doc.getValue()));
     }
   }
 }

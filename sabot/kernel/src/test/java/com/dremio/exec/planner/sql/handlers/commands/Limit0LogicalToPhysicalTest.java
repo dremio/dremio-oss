@@ -37,6 +37,8 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
+import com.dremio.exec.maestro.AbstractMaestroObserver;
+import com.dremio.exec.maestro.planner.ExecutionPlanCreator;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -53,6 +55,7 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionValue;
@@ -152,7 +155,8 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
       CoordinationProtos.NodeEndpoint.getDefaultInstance(),
       DirectProvider.wrap(Mockito.mock(CatalogService.class)), context);
 
-    ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan,
+    ExecutionPlan exec = ExecutionPlanCreator
+      .getExecutionPlan(queryContext, pPlanReader, AbstractMaestroObserver.NOOP, plan,
       QueueType.SMALL);
     List<PlanFragmentFull> fragments  = exec.getFragments();
 
@@ -168,9 +172,11 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
 
   private static UserSession session() {
     return UserSession.Builder.newBuilder()
+      .withSessionOptionManager(
+        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+        getSabotContext().getOptionManager())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
       .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
-      .withOptionManager(getSabotContext().getOptionManager())
       .setSupportComplexTypes(true)
       .build();
   }

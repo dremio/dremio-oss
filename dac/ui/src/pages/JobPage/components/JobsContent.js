@@ -16,28 +16,29 @@
 import { PureComponent } from 'react';
 import $ from 'jquery';
 import classNames from 'classnames';
-import Immutable  from 'immutable';
+import Immutable from 'immutable';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
-
 import socket from 'utils/socket';
 import { flexColumnContainer } from '@app/uiTheme/less/layout.less';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import ViewCheckContent from 'components/ViewCheckContent';
-import jobUtils from 'utils/jobsUtils';
+import JobsContentMixin, {
+  MIN_LEFT_PANEL_WIDTH,
+  SEPARATOR_WIDTH
+} from '@app/pages/JobPage/components/JobsContentMixin';
 import JobTable from './JobsTable/JobTable';
-import JobDetails from './JobDetails/JobDetails';
+import JobDetailsWrapper from './JobDetails/JobDetailsWrapper';
 import JobsFilters from './JobsFilters/JobsFilters';
 
 // export this for calculate min width of table tr in JobTable.js
-export const SEPARATOR_WIDTH = 10;
-export const MIN_LEFT_PANEL_WIDTH = 500;
-const MIN_RIGHT_PANEL_WIDTH = 330;
+export { SEPARATOR_WIDTH, MIN_LEFT_PANEL_WIDTH };
 
 @injectIntl
 @Radium
+@JobsContentMixin
 export default class JobsContent extends PureComponent {
 
   static propTypes = {
@@ -70,6 +71,11 @@ export default class JobsContent extends PureComponent {
     this.handleResizeJobs = this.handleResizeJobs.bind(this);
     this.getActiveJob = this.getActiveJob.bind(this);
     this.handleMouseReleaseOutOfBrowser = this.handleMouseReleaseOutOfBrowser.bind(this);
+
+    this.handleStartResize = this.handleStartResize.bind(this);
+    this.handleEndResize = this.handleEndResize.bind(this);
+    this.setActiveJob = this.setActiveJob.bind(this);
+
     this.state = {
       isResizing: false,
       width: 'calc(50% - 22px)',
@@ -98,69 +104,13 @@ export default class JobsContent extends PureComponent {
     this.runActionForJobs(this.props.jobs, true, (jobId) => socket.stopListenToJobProgress(jobId));
   }
 
-  getActiveJob() {
-    const { jobId } = this.props;
-    if (jobId) {
-      return this.findCurrentJob(this.props, jobId);
-    }
-  }
-
-  setActiveJob = (jobData, isReplaceUrl) => {
-    const { location } = this.props;
-    const router = this.context.router[isReplaceUrl ? 'replace' : 'push'];
-    if (jobData) {
-      router({...location, hash: `#${jobData.get('id')}`});
-    } else {
-      router({...location, hash: ''});
-    }
-  };
-
-  findCurrentJob(props, jobId) {
-    return props.jobs.size && props.jobs.find((item) => item.get('id') === jobId);
-  }
-
-  runActionForJobs(jobs, isStop, callback) {
-    jobs.forEach((job) => {
-      const jobId = job.get('id');
-      const jobState = job.get('state');
-      if (isStop || jobUtils.isJobRunning(jobState)) {
-        return callback(jobId);
-      }
-    });
-  }
-
-  handleMouseReleaseOutOfBrowser() {
-    if (this.state.isResizing) {
-      this.handleEndResize();
-    }
-  }
-
-  handleStartResize = () => this.setState({ isResizing: true })
-
-  handleEndResize = () => {
-    this.setState({
-      isResizing: false,
-      width: typeof this.state.left === 'number' ? this.state.left - SEPARATOR_WIDTH : this.state.width });
-  }
-
-  handleResizeJobs(e) {
-    const left = e && (e.clientX - SEPARATOR_WIDTH / 2);
-    if (this.state.isResizing && left > MIN_LEFT_PANEL_WIDTH) {
-      const width = document.body.offsetWidth - left;
-      if ( width > MIN_RIGHT_PANEL_WIDTH) {
-        this.setState({
-          left
-        });
-      }
-    }
-  }
-
   render() {
     const {
       jobId, jobs, queryState, onUpdateQueryState,
       viewState, location, intl, className
     } = this.props;
     const query = location.query || {};
+    const styles = this.styles;
     const resizeStyle = this.state.isResizing ? styles.noSelection : {};
 
     return (
@@ -197,7 +147,7 @@ export default class JobsContent extends PureComponent {
                 onMouseDown={this.handleStartResize}>
               </div>
 
-              <JobDetails
+              <JobDetailsWrapper
                 ref='jobDetails'
                 jobId={jobId}
                 location={this.props.location}
@@ -209,44 +159,3 @@ export default class JobsContent extends PureComponent {
     );
   }
 }
-
-const styles = {
-  base: {
-    position: 'relative',
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%'
-  },
-  viewState: {
-    display: 'flex',
-    // this is needed to force a view state wrapper fit to parent and do not overflow it
-    // as this cause a scrollbar to appear
-    minHeight: 0
-  },
-  filters: {
-    flexShrink: 0
-  },
-  jobWrapper: {
-    flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
-    display: 'flex',
-    backgroundColor: '#ccc',
-    padding: '10px'
-  },
-  separator: {
-    width: 10,
-    background: '#ccc',
-    cursor: 'col-resize',
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    zIndex: 999,
-    left: '50%',
-    opacity: '.6'
-  },
-  noSelection: {
-    userSelect: 'none'
-  }
-};

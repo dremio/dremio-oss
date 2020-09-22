@@ -19,8 +19,6 @@ import { Link } from 'react-router';
 import Immutable  from 'immutable';
 import classNames from 'classnames';
 
-import FontIcon from 'components/Icon/FontIcon';
-
 import './FinderNav.less';
 
 import FinderNavSection from './FinderNavSection';
@@ -34,25 +32,52 @@ export default class FinderNav extends Component {
     addTooltip: PropTypes.string,
     navItems: PropTypes.instanceOf(Immutable.List).isRequired,
     isInProgress: PropTypes.bool,
+    isCollapsible: PropTypes.bool,
+    isCollapsed: PropTypes.bool,
+    onToggle: PropTypes.func,
     addHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     children: PropTypes.node
   };
 
+  state = {
+    collapsed: true
+  }
+
+  onToggleClick = () => {
+    const { onToggle } = this.props;
+    if (onToggle) {
+      onToggle();
+    }
+  }
+
   render() {
-    const { title, addTooltip, navItems, isInProgress, addHref, listHref, children } = this.props;
-    const wrapClass = classNames('finder-nav', `${title.toLowerCase()}-wrap`); // todo: don't use ui-string for code keys
+    const { title, addTooltip, navItems, isInProgress, addHref, listHref, children, isCollapsible, isCollapsed } = this.props;
+    const wrapClass = classNames(
+      'finder-nav',
+      `${title.toLowerCase()}-wrap`,
+      {'finder-nav--collapsible': isCollapsible},
+      {'finder-nav--collapsed': isCollapsible && isCollapsed}
+    ); // todo: don't use ui-string for code keys
 
     return (
       <div className={wrapClass}>
         <h4 className='finder-nav-title' data-qa={title}>
+          {isCollapsible && (
+            <i
+              className={
+                classNames('finder-nav__collapse-control', 'fa', {'fa-angle-right': isCollapsible && isCollapsed}, {'fa-angle-down': isCollapsible && !isCollapsed})
+              }
+              onClick={this.onToggleClick}
+            />
+          )}
           {listHref ? <Link className='pointer' to={listHref}>{title} »</Link> : title }
           {addHref && (
             <Link
               className='pull-right'
               data-qa={`add-${title.toLowerCase()}`}
               to={addHref}>
-              <FontIcon type='Add' hoverType='AddHover' tooltip={addTooltip} theme={styles.fontIcon}/>
+              <i className='fa fa-plus-circle finder-nav-title__add' title={addTooltip} />
             </Link>
           )}
         </h4>
@@ -72,16 +97,3 @@ export default class FinderNav extends Component {
     );
   }
 }
-
-const styles = {
-  fontIcon: {
-    Icon: {
-      width: 20,
-      height: 20
-    },
-    Container: {
-      height: 20,
-      verticalAlign: 'middle'
-    }
-  }
-};

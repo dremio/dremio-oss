@@ -17,11 +17,14 @@ package com.dremio.sabot.op.join.vhash;
 
 import static com.dremio.sabot.op.join.vhash.VectorizedProbe.SKIP;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.SimpleBigIntVector;
 
+import com.dremio.exec.util.BloomFilter;
 import com.dremio.sabot.op.common.ht2.BlockChunk;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashComputation;
@@ -107,6 +110,18 @@ public class BlockJoinTable implements JoinTable {
   @Override
   public long getProbeHashComputationTime(TimeUnit unit){
     return probeHashComputationWatch.elapsed(unit);
+  }
+
+  /**
+   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
+   * the consumer. Instead, they get an empty optional.
+   * @param fieldNames
+   * @param sizeDynamically Size the filter according to the number of entries in table.
+   * @return
+   */
+  @Override
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+    return table.prepareBloomFilter(fieldNames, sizeDynamically);
   }
 
   @Override

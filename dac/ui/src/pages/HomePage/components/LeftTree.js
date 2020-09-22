@@ -29,14 +29,16 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
 import SpacesSection from '@app/pages/HomePage/components/SpacesSection';
 
+import { isExternalSourceType } from '@app/constants/sourceTypes';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import {createSampleSource, isSampleSource} from 'actions/resources/sources';
+import {toggleExternalSourcesExpanded} from 'actions/ui/ui';
 
 import Radium from 'radium';
 
-import { emptyContainer } from './LeftTree.less';
+import { emptyContainer, shortEmptyContainer } from './LeftTree.less';
 
 @injectIntl
 @Radium
@@ -53,7 +55,9 @@ export class LeftTree extends PureComponent {
     sourceTypesIncludeS3: PropTypes.bool,
     sourcesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     createSampleSource: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    externalSourcesExpanded: PropTypes.bool,
+    toggleExternalSourcesExpanded: PropTypes.func
   };
 
   state = {
@@ -82,13 +86,13 @@ export class LeftTree extends PureComponent {
     };
   }
 
-  getInitialSourcesContent() {
-    const addHref = this.getAddSourceHref();
-    const count = this.props.sources.size;
+  getInitialSourcesContent(sources, isExternalSourceList) {
+    const addHref = this.getAddSourceHref(isExternalSourceList);
+    const count = sources.size;
 
     const isEmpty = count === 0;
-    const haveOnlySampleSource = !isEmpty && this.props.sources.toJS().every(isSampleSource);
-    const haveNonSampleSource = this.props.sources.toJS().some(e => !isSampleSource(e));
+    const haveOnlySampleSource = isExternalSourceList ? false : !isEmpty && sources.toJS().every(isSampleSource);
+    const haveNonSampleSource = isExternalSourceList ? !isEmpty : sources.toJS().some(e => !isSampleSource(e));
 
     // situations...
 
@@ -102,10 +106,10 @@ export class LeftTree extends PureComponent {
     // - no sources, user can't add: show text
     // - only sample source(s), user can add: show text and add button
     return <EmptyStateContainer
-      className={emptyContainer}
-      title={isEmpty ? <FormattedMessage id='Source.NoSources'/>
+      className={isExternalSourceList ? shortEmptyContainer : emptyContainer}
+      title={isEmpty ? <FormattedMessage id={isExternalSourceList ? 'Source.NoExternalSources' : 'Source.NoDataLakes'}/>
         : <FormattedMessage id='Source.AddOwnSource'/>}>
-      {this.getCanAddSource() && isEmpty && this.props.sourceTypesIncludeS3 && <SimpleButton
+      {this.getCanAddSource() && isEmpty && !isExternalSourceList && this.props.sourceTypesIncludeS3 && <SimpleButton
         buttonStyle='primary'
         submitting={this.state.isAddingSampleSource}
         style={{padding: '0 12px'}}
@@ -116,7 +120,7 @@ export class LeftTree extends PureComponent {
         buttonStyle='primary'
         data-qa={'add-sources'}
         to={addHref}>
-        <FormattedMessage id='Source.AddSource'/>
+        <FormattedMessage id={isExternalSourceList ? 'Source.AddExternalSource' : 'Source.AddDataLake'}/>
       </LinkButton>}
     </EmptyStateContainer>;
   }
@@ -125,16 +129,17 @@ export class LeftTree extends PureComponent {
     return this.context.loggedInUser.admin;
   }
 
-  getAddSourceHref() {
+  getAddSourceHref(isExternalSource) {
     return this.getCanAddSource() ?
-      {...this.context.location, state: {modal: 'AddSourceModal'}} : undefined;
+      {...this.context.location, state: {modal: 'AddSourceModal', isExternalSource}} : undefined;
   }
 
   render() {
-    const { className, sources, sourcesViewState, intl } = this.props;
+    const { className, sources, sourcesViewState, intl, externalSourcesExpanded, toggleExternalSourcesExpanded: handleToggle } = this.props;
     const classes = classNames('left-tree', className);
     const homeItem = this.getHomeObject();
-
+    const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')));
+    const externalSources = sources.filter(source => isExternalSourceType([source.get('type')]));
     return (
       <div className={classes} style={[styles.leftTreeHolder]}>
         <h3 style={[styles.headerViewer]}>
@@ -145,19 +150,41 @@ export class LeftTree extends PureComponent {
         </ul>
         <SpacesSection />
         <div className='left-tree-wrap' style={{
-          ...styles.columnFlex,
-          flex: '1 1 0%',
-          overflow: 'hidden' // for FF (no worries, subsection will scroll)
+          minHeight: '175px',
+          maxHeight: 'calc(100vh - 430px)',
+          overflow: 'hidden',
+          height: dataLakeSources && dataLakeSources.size ? '100%' : 'auto'
         }}>
-          <ViewStateWrapper viewState={sourcesViewState} style={{...styles.columnFlex}}>
+          <ViewStateWrapper viewState={sourcesViewState}>
             <FinderNav
-              navItems={sources}
-              title={intl.formatMessage({ id: 'Source.Sources' })}
-              addTooltip={intl.formatMessage({ id: 'Source.AddSource'})}
+              navItems={dataLakeSources}
+              title={intl.formatMessage({ id: 'Source.DataLakes' })}
+              addTooltip={intl.formatMessage({ id: 'Source.AddDataLake' })}
               isInProgress={sourcesViewState.get('isInProgress')}
-              addHref={this.getAddSourceHref()}
-              listHref='/sources/list'
-              children={this.getInitialSourcesContent()}
+              addHref={this.getAddSourceHref(false)}
+              listHref='/sources/datalake/list'
+              children={this.getInitialSourcesContent(dataLakeSources, false)}
+            />
+          </ViewStateWrapper>
+        </div>
+        <div className='left-tree-wrap' style={{
+          minHeight: '150px',
+          maxHeight: 'calc(100vh - 455px)',
+          overflow: 'hidden',
+          height: externalSources && externalSources.size ? '100%' : 'auto'
+        }}>
+          <ViewStateWrapper viewState={sourcesViewState}>
+            <FinderNav
+              navItems={externalSources}
+              title={intl.formatMessage({ id: 'Source.ExternalSources' })}
+              addTooltip={intl.formatMessage({ id: 'Source.AddExternalSource' })}
+              isInProgress={sourcesViewState.get('isInProgress')}
+              addHref={this.getAddSourceHref(true)}
+              isCollapsible
+              isCollapsed={!externalSourcesExpanded}
+              onToggle={handleToggle}
+              listHref='/sources/external/list'
+              children={this.getInitialSourcesContent(externalSources, true)}
             />
           </ViewStateWrapper>
         </div>
@@ -166,13 +193,19 @@ export class LeftTree extends PureComponent {
   }
 }
 
-export default connect(null, {createSampleSource})(LeftTree);
+function mapStateToProps(state) {
+  return {
+    externalSourcesExpanded: state.ui.get('externalSourcesExpanded')
+  };
+}
+
+export default connect(mapStateToProps, {createSampleSource, toggleExternalSourcesExpanded})(LeftTree);
 
 const styles = {
   leftTreeHolder: {
     width: '250px',
     flexShrink: '0',
-    overflow: 'auto',
+    overflow: 'hidden',
     borderRight: '1px solid rgba(0,0,0,.1)',
     display: 'flex',
     flexDirection: 'column',
@@ -217,7 +250,7 @@ const styles = {
     padding: '0 10px'
   },
   columnFlex: { // we need this in a number of places to keep the DOM tree in flex mode
-    display: 'flex',
-    flexDirection: 'column'
+    flex: '2',
+    minHeight: '25vh'
   }
 };

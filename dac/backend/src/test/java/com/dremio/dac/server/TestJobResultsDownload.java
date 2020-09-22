@@ -27,10 +27,11 @@ import org.junit.Test;
 
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
+import com.dremio.dac.model.job.ResultOrder;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.UserService;
 
@@ -80,20 +81,20 @@ public class TestJobResultsDownload extends BaseTestServer {
       .buildGet());
 
     // search for last submitted job by the user.
-    Iterable<Job> jobs = jobsService.searchJobs(SearchJobsRequest.newBuilder()
-      .setUsername(user1name)
+    Iterable<JobSummary> jobs = jobsService.searchJobs(SearchJobsRequest.newBuilder()
+      .setUserName(user1name)
       .setLimit(1)
       .setSortColumn("st") // start time
-      .setResultOrder(SearchJobsRequest.ResultOrder.DESCENDING)
+      .setSortOrder(ResultOrder.DESCENDING.toSortOrder())
       .build());
 
     // there must be a job. Take the first one
-    final Job jobSummary = jobs.iterator().next();
+    final JobSummary jobSummary = jobs.iterator().next();
 
     assertEquals("Last submitted job by a user should be a UI export job", QueryType.UI_EXPORT,
-      jobSummary.getJobAttempt().getInfo().getQueryType());
-    logger.debug("Last job query is: {}", jobSummary.getJobAttempt().getInfo().getSql());
-    assertTrue("query must contains a query of form sys.job_results.\"{job id}\"", jobSummary.getJobAttempt().getInfo().getSql()
+      jobSummary.getQueryType());
+    logger.debug("Last job query is: {}", jobSummary.getSql());
+    assertTrue("query must contains a query of form sys.job_results.\"{job id}\"", jobSummary.getSql()
       .contains(String.format("sys.job_results.\"%s\"", jobId)));
   }
 

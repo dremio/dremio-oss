@@ -63,6 +63,8 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.BitSets;
 
 import com.dremio.common.expression.CompleteType;
@@ -102,7 +104,6 @@ import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.github.slugify.Slugify;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
@@ -261,7 +262,19 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     final FindSimpleFilters.StateHolder holder = pruneCondition.accept(new FindSimpleFilters(builder, true));
     TableMetadata datasetPointer = scanRel.getTableMetadata();
 
-    if(!holder.hasConditions()){
+    // index based matching does not support decimals, the values(literal/index) are not scaled
+    // at this point. TODO : DX-17748
+    Pointer<Boolean> hasDecimalCols = new Pointer<>(false);
+    holder.getConditions().stream().forEach(condition -> condition.getOperands().stream().forEach(
+            (operand -> {
+              if(operand.getKind().equals(SqlKind.INPUT_REF) && operand.getType().getSqlTypeName
+                      ().equals(SqlTypeName.DECIMAL)){
+                hasDecimalCols.value = true;
+              }
+            })));
+
+
+    if(!holder.hasConditions() || hasDecimalCols.value) {
       datasetOutput.value = datasetPointer;
       outputCondition.value = pruneCondition;
       return false;
@@ -516,7 +529,8 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
 
       // do index-based pruning
       Stopwatch stopwatch = Stopwatch.createStarted();
-      final boolean sargPruned = doSargPruning(filterRel, pruneCondition, scanRel, fieldMap, dataset, outputCondition);
+      boolean sargPruned = doSargPruning(filterRel, pruneCondition, scanRel, fieldMap,
+                dataset, outputCondition);
       stopwatch.stop();
       logger.debug("Partition pruning using search index took {} ms", stopwatch.elapsed(TimeUnit.MILLISECONDS));
       final boolean evalPruned;
@@ -719,7 +733,6 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         DecimalVector decimal = (DecimalVector) vv;
         if(pv.hasBinaryValue()){
           byte[] bytes = pv.getBinaryValue().toByteArray();
-          Preconditions.checkArgument(bytes.length == 16, "Expected 16 bytes, received %d", bytes.length);
           /* set the bytes in LE format in the buffer of decimal vector, we will swap
            * the bytes while writing into the vector.
            */

@@ -30,7 +30,9 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.TypedFieldId;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -80,6 +82,9 @@ public class ExpressionSplit implements Closeable {
   // The number of extra if expressions created due to this split
   private int numExtraIfExprs;
 
+  // Should the llvm build be optimised if the split evaluated in gandiva
+  private boolean optimize;
+
   final private TypedFieldId typedFieldId;
   private String toStr = null;
 
@@ -91,7 +96,7 @@ public class ExpressionSplit implements Closeable {
 
   ExpressionSplit(NamedExpression namedExpression, SplitDependencyTracker helper, TypedFieldId fieldId,
                   CodeGenContext readExprContext, ValueVector vvOut, boolean isOriginalExpression, SupportedEngines.Engine
-    executionEngine, int numExtraIfExprs) {
+                  executionEngine, int numExtraIfExprs, OperatorContext operatorContext) {
     LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
     this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
     this.executionEngine = executionEngine;
@@ -103,6 +108,8 @@ public class ExpressionSplit implements Closeable {
     this.dependsOnSplits.addAll(helper.getNamesOfDependencies());
     this.transfersIn.addAll(helper.getTransfersIn());
     this.numExtraIfExprs = numExtraIfExprs;
+    this.optimize = executionEngine.equals(SupportedEngines.Engine.GANDIVA) && expression.accept(new ExpressionWorkEstimator(), null) < operatorContext.getOptions()
+      .getOption(ExecConstants.EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD);
   }
 
   public String toString() {
@@ -207,6 +214,10 @@ public class ExpressionSplit implements Closeable {
     this.execIteration = iteration;
   }
 
+  public boolean getOptimize() {
+    return optimize;
+  }
+
   @Override
   public void close() throws IOException {
     transfersIn.clear();
@@ -241,7 +252,7 @@ public class ExpressionSplit implements Closeable {
 
     @Override
     public Double visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
-      double result = 1.0;
+      double result = op.args.size() - 1;
 
       for(LogicalExpression arg : op.args) {
         result += arg.accept(this, null);

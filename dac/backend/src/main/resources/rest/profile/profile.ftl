@@ -105,6 +105,20 @@
       renderTable(details, data.fields, data.data);
     }
 
+    function toggleHostMetrics(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const metrics = container.querySelector(".hostMetrics-table");
+
+      if (metrics.hasChildNodes()) {
+        // has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.operatorProfiles[id].hostMetrics;
+      renderTable(metrics, data.fields, data.data);
+    }
+
     function renderTable(container, fields, data) {
       // build the fragment table
       const table = document.createElement("table");
@@ -413,18 +427,38 @@
   <h3>Job Summary</h3>
   <dl class="dl-horizontal info-list">
     <dt>State:</dt>
-    <dd>${model.getProfile().getState().name()}</dd>
+    <dd>${model.getStateName()}</dd>
     <dt>Coordinator:</dt>
     <dd>${model.getProfile().getForeman().getAddress()}</dd>
     <dt>Threads:</dt>
     <dd>${model.getProfile().getTotalFragments()}</dd>
     <dt>Command Pool Wait:</dt>
     <dd>${model.getCommandPoolWaitMillis()}</dd>
-    <dt>Planning Time:</dt>
-    <dd>${model.getPlanningTime()}</dd>
-    <dt>Resource Scheduling Time:</dt>
-    <dd>${model.getQueueTime()}</dd>
+    <dt>Total Query Time:</dt>
+    <dd>${model.getTotalTime()}</dd>
   </dl>
+
+  <h3>State Durations</h3>
+    <dl class="dl-horizontal info-list">
+      <dt>Pending:</dt>
+      <dd>${model.getPendingTime()}</dd>
+      <dt>Metadata Retrieval:</dt>
+      <dd>${model.getMetadataRetrievalTime()}</dd>
+      <dt>Planning:</dt>
+      <dd>${model.getPlanningTime()}</dd>
+      <dt>Engine Start:</dt>
+      <dd>${model.getEngineStartTime()}</dd>
+      <dt>Queued:</dt>
+      <dd>${model.getQueuedTime()}</dd>
+      <dt>Execution Planning:</dt>
+      <dd>${model.getExecutionPlanningTime()}</dd>
+      <dt>Starting:</dt>
+      <dd>${model.getStartingTime()}</dd>
+      <dt>Running:</dt>
+      <dd>${model.getRunningTime()}</dd>
+    </dl>
+
+
   <h3>Threads</h3>
   <div class="panel-group" id="fragment-accordion">
     <div class="panel panel-default">
@@ -567,6 +601,22 @@
               </div>
             </div>
            </div>
+
+          <div class="panel panel-default">
+            <div class="panel-heading" onclick="toggleHostMetrics('${op.getId()}')">
+              <h4 class="panel-title">
+                <a data-toggle="collapse" href="#${op.getId()}-hostMetrics" class="collapsed">
+                  Host Metrics
+                </a>
+              </h4>
+            </div>
+            <div id="${op.getId()}-hostMetrics" class="panel-collapse collapse">
+              <div class="panel-body">
+                <div class="hostMetrics-table"></div>
+              </div>
+            </div>
+           </div>
+
         </div>
       </div>
     </div>

@@ -36,4 +36,9 @@ public abstract class NameValuePair<V> {
 
   public abstract Populator createPopulator();
 
+  // Return Integer.MAX_VALUE for variable-sized types
+  public abstract int getValueTypeSize();
+
+  public abstract byte[] getValueBytes();
+
 }

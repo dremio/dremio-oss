@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.explore.model;
 
+import static com.dremio.common.utils.PathUtils.encodeURIComponent;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +130,8 @@ public class DatasetSummary {
     links.put("query", datasetPath.getQueryUrlPath());
     links.put("jobs", this.getJobsUrl());
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
-      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version=" + datasetVersion);
+      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version="
+        + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
     }
     return links;
   }
@@ -144,7 +147,9 @@ public class DatasetSummary {
     switch (datasetType) {
       case VIRTUAL_DATASET:
         links.put("edit", "/dataset/" + dottedFullPath + "/version/" + datasetVersion + "/preview"); // edit dataset
-        links.put("run", "/datasets/new_untitled?parentDataset=" + dottedFullPath + "&newVersion=" + DatasetVersion.newVersion()); //create new dataset
+        final DatasetVersion datasetVersion = DatasetVersion.newVersion();
+        links.put("run", "/datasets/new_untitled?parentDataset=" + dottedFullPath + "&newVersion="
+          + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString()))); //create new dataset
         break;
       case PHYSICAL_DATASET_HOME_FILE:
         links.put("run", "/home/" + fullPath.get(0) + "new_untitled_from_file" + fullPathString);

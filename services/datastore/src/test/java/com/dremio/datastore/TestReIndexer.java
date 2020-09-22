@@ -23,13 +23,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.Collections;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Term;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
 
@@ -44,32 +47,31 @@ public class TestReIndexer {
   private static final IndexKey indexKey = IndexKey.newBuilder("test", "TEST", String.class).setStored(true)
     .build();
 
-  private static class TestConverter implements KVStoreProvider.DocumentConverter<String, String> {
+  private static class TestConverter implements DocumentConverter<String, String> {
 
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, String key, String record) {
+    public void convert(DocumentWriter writer, String key, String record) {
       writer.write(indexKey, key);
     }
   }
 
   private static ReIndexer reIndexer;
   private static IndexManager indexManager;
-  private static CoreIndexedStore store;
+  private static CoreIndexedStore<String, String> store;
 
   @BeforeClass
   public static void setup() {
     indexManager = mock(IndexManager.class);
     store = mock(CoreIndexedStore.class);
 
-    StoreBuilderConfig storeConfig = new StoreBuilderConfig();
-    storeConfig.setDocumentConverterClassName(TestConverter.class.getName());
-    storeConfig.setKeySerializerClassName(StringSerializer.class.getName());
-    storeConfig.setValueSerializerClassName(StringSerializer.class.getName());
+    final StoreBuilderHelper<String, String> helper = new StoreBuilderHelper<String, String>()
+      .name(storeName)
+      .documentConverter(new TestConverter())
+      .keyFormat(Format.ofString())
+      .valueFormat(Format.ofString());
 
     reIndexer = new ReIndexer(indexManager,
-        new HashMap<String, CoreStoreProviderImpl.StoreWithId>() {{
-          put(storeName, new CoreStoreProviderImpl.StoreWithId(storeConfig, store));
-        }});
+        Collections.singletonMap(storeName, new CoreStoreProviderImpl.StoreWithId<String, String>(helper, store)));
   }
 
   @Test

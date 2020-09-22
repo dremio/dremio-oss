@@ -22,6 +22,7 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,8 +38,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<?>> {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestOutputMutator.class);
@@ -137,8 +136,11 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     return container;
   }
 
-  @Override
-  public boolean isSchemaChanged() {
+  public boolean getAndResetSchemaChanged() {
+    return false;
+  }
+
+  public boolean getSchemaChanged() {
     return false;
   }
 

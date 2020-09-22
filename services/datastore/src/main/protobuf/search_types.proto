@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package com.dremio.datastore;
 
 option java_package = "com.dremio.datastore";
@@ -38,6 +39,7 @@ message SearchQuery {
         DOES_NOT_EXIST = 16;
         BOOST = 17;
         CONTAINS = 18;
+        PREFIX = 19;
     }
 
     enum BooleanOp {
@@ -142,6 +144,11 @@ message SearchQuery {
       required string value = 2;
     }
 
+    message Prefix {
+      required string field = 1;
+      required string value = 2;
+    }
+
     required Type           type = 1;
     optional MatchAll       matchAll = 2;
     optional Boolean        boolean = 3;
@@ -160,6 +167,7 @@ message SearchQuery {
     optional Exists         exists = 16;
     optional Boost          boost = 17;
     optional Contains       containsText = 18;
+    optional Prefix         prefix = 19;
 }
 
 enum SortOrder {

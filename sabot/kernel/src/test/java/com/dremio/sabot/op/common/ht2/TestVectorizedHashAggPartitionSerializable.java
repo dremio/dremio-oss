@@ -27,7 +27,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
@@ -45,9 +47,10 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.work.AttemptId;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
@@ -67,7 +70,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 
@@ -459,7 +461,8 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
         LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
         VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
           (accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets, false);
-        final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
+        OptionManager optionManager = mock(OptionManager.class);
+        final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, optionManager, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
         hashAggPartitions[0] = hashAggPartition;
 
         final long keyFixedVectorAddr = fbv.getMemoryAddress();
@@ -501,8 +504,8 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
          * testing, we save state about buffers to compare later after reading spilled
          * data.
          */
-        final int fixedWidthPivotedDataLength = sourceFixedBuffers.get(0).readableBytes();
-        final int varWidthPivotedDataLength = sourceVarBuffers.get(0).readableBytes();
+        final long fixedWidthPivotedDataLength = sourceFixedBuffers.get(0).readableBytes();
+        final long varWidthPivotedDataLength = sourceVarBuffers.get(0).readableBytes();
         try(final ArrowBuf sourceFixedBuffer = allocator.buffer(fixedWidthPivotedDataLength);
             final ArrowBuf sourceVarBuffer = allocator.buffer(varWidthPivotedDataLength)) {
           PlatformDependent.copyMemory(sourceFixedBuffers.get(0).memoryAddress(), sourceFixedBuffer.memoryAddress(), fixedWidthPivotedDataLength);
@@ -539,14 +542,14 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
                */
               long addr1 = sourceFixedBuffer.memoryAddress();
               long addr2 = fixedWidthPivotedData.memoryAddress();
-              assertTrue(memcmp(addr1, addr2, sourceFixedBuffers.get(0).readableBytes()));
+              assertTrue(memcmp(addr1, addr2, LargeMemoryUtil.checkedCastToInt(sourceFixedBuffers.get(0).readableBytes())));
 
               /* compare bytes of variable width pivoted hash table data loaded from disk to the in-memory
                * contents that were spilled.
                */
               addr1 = sourceVarBuffer.memoryAddress();
               addr2 = variableWidthPivotedData.memoryAddress();
-              assertTrue(memcmp(addr1, addr2, sourceFixedBuffers.get(0).readableBytes()));
+              assertTrue(memcmp(addr1, addr2, LargeMemoryUtil.checkedCastToInt(sourceFixedBuffers.get(0).readableBytes())));
 
               /* check accumulator data */
               verifyAccumulators(accumulatorVectors, sum, max, min, counts, counts1, nullsInAccumulator, numRecordsInBatch);

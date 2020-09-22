@@ -20,7 +20,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -29,6 +31,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
+import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
@@ -37,9 +40,11 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomHashAggDataGenerator;
 import com.dremio.sabot.CustomHashAggDataGeneratorDecimal;
+import com.dremio.sabot.CustomHashAggDataGeneratorLargeAccum;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
@@ -81,6 +86,24 @@ public class TestSpillingHashAgg extends BaseTestOperator {
                              true,
                              1f,
                               hashTableBatchSize);
+  }
+
+  private HashAggregate getHashAggregateWithLargeAccum(long reserve, long max, int hashTableBatchSize, int numAccum) {
+    OpProps props = PROPS.cloneWithNewReserve(reserve).cloneWithMemoryExpensive(true);
+    props.setMemLimit(max);
+    List<NamedExpression> aggExpr = new ArrayList<>();
+    for (int i = 0; i < numAccum; ++i) {
+      aggExpr.add(n("sum(INT_MEASURE_" + i + " )", "SUM_INT"));
+    }
+
+    return new HashAggregate(props, null,
+      Arrays.asList(n("INT_KEY"), n("BIGINT_KEY"), n("VARCHAR_KEY"),
+        n("FLOAT_KEY"), n("DOUBLE_KEY"), n("BOOLEAN_KEY"), n("DECIMAL_KEY")),
+      aggExpr,
+      true,
+      true,
+      1f,
+      hashTableBatchSize);
   }
 
   private HashAggregate getHashAggregate(long reserve, long max) {
@@ -347,6 +370,24 @@ public class TestSpillingHashAgg extends BaseTestOperator {
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_ENABLE_MICRO_SPILLS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
+      }
+    }
+  }
+
+  @Test
+  public void testSpill3KWithLargeAccum() throws Exception {
+    final int numAccum = 128;
+    final HashAggregate agg = getHashAggregateWithLargeAccum(1_000_000, 4_000_000, 990, numAccum);
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true);
+         AutoCloseable numpartitions = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_NUMPARTITIONS, 1);
+         AutoCloseable maxHashTableBatchSizeBytes = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 128 * 1024)) {
+      try (CustomHashAggDataGeneratorLargeAccum generator = new CustomHashAggDataGeneratorLargeAccum(8000, getTestAllocator(), numAccum);
+           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, null, 3000);
+        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
+
+        //it must spill
+        assertTrue(stats.getSpills() > 0);
       }
     }
   }
@@ -619,6 +660,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
     try (BufferAllocator allocator = allocatorRule.newAllocator("test-spilling-hashagg", 0, Long.MAX_VALUE)) {
       when(context.getAllocator()).thenReturn(allocator);
       OptionManager optionManager = mock(OptionManager.class);
+      when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
       try (BufferAllocator alloc = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), alloc, optionManager, 1000);
           final VectorizedHashAggOperator op = new VectorizedHashAggOperator(agg, operatorContext)) {

@@ -39,6 +39,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.google.common.collect.ImmutableList;
@@ -133,9 +134,11 @@ public class TestProjectedFieldsInJoin extends BaseTestQuery {
 
   private static UserSession session() {
     return UserSession.Builder.newBuilder()
+      .withSessionOptionManager(
+        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+        getSabotContext().getOptionManager())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
       .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
-      .withOptionManager(getSabotContext().getOptionManager())
       .setSupportComplexTypes(true)
       .build();
   }

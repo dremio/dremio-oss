@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.inject.Inject;
@@ -31,11 +32,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.ext.MessageBodyWriter;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -50,6 +49,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.EnumValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.CharMatcher;
@@ -62,7 +62,7 @@ import com.google.common.collect.ImmutableMap;
  */
 @Produces({APPLICATION_TDS, APPLICATION_TDS_DRILL})
 @Options
-public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetConfig> {
+public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator {
   public static final String CUSTOMIZATION_ENABLED = "dremio.tableau.customization.enabled";
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TableauMessageBodyGenerator.class);
@@ -129,24 +129,46 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
       .build();
 
   /**
+   * Enum for the different types of Tableau export available within Dremio.
+   */
+  public enum TableauExportType {
+    ODBC,
+    NATIVE
+  }
+
+  /**
    * Option to add extra connection properties to ODBC string. Should follow ODBC connection
    * string format.
    */
   public static final StringValidator EXTRA_CONNECTION_PROPERTIES = new StringValidator(
-      "export.tableau.extra-odbc-connection-properties", "");
+    "export.tableau.extra-odbc-connection-properties", "");
+
+  /**
+   * Option to add extra connection properties to NATIVE connection. Should follow JDBC connection
+   * string format.
+   */
+  public static final StringValidator EXTRA_NATIVE_CONNECTION_PROPERTIES = new StringValidator(
+    "export.tableau.extra-native-connection-properties", "");
+
+  /**
+   * Option to switch between ODBC/TDC and JDBC/SDK connectors for Tableau.
+   */
+  public static final EnumValidator<TableauExportType> TABLEAU_EXPORT_TYPE =
+    new EnumValidator<>("export.tableau.export-type", TableauExportType.class, TableauExportType.ODBC);
 
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
-  private final NodeEndpoint endpoint;
-  private final String masterNode;
   private final boolean customizationEnabled;
+  private final TableauExportType exportType;
   private final OptionManager optionManager;
 
   @Inject
   public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager) {
-    this.endpoint = endpoint;
-    this.masterNode = MoreObjects.firstNonNull(endpoint.getAddress(), "localhost");
+    super(endpoint);
     this.customizationEnabled = MoreObjects.firstNonNull((Boolean) configuration.getProperty(CUSTOMIZATION_ENABLED), false);
     this.optionManager = optionManager;
+
+    // The EnumValidator lower-cases the enum for some reason, so we upper case it to match our enum values again.
+    this.exportType = TableauExportType.valueOf(optionManager.getOption(TABLEAU_EXPORT_TYPE).toUpperCase(Locale.ROOT));
   }
 
   @Override
@@ -163,22 +185,13 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
   public void writeTo(DatasetConfig datasetConfig, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType,
       MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream)
       throws IOException, WebApplicationException {
-    final String hostname;
-    if (httpHeaders.containsKey(WebServer.X_DREMIO_HOSTNAME)) {
-      hostname = (String) httpHeaders.getFirst(WebServer.X_DREMIO_HOSTNAME);
-    } else {
-      hostname = masterNode;
-    }
 
-    // Change headers to force download and suggest a filename.
-    String fullPath = Joiner.on(".").join(datasetConfig.getFullPathList());
-    httpHeaders.putSingle(HttpHeaders.CONTENT_DISPOSITION, format("attachment; filename=\"%s.tds\"", fullPath));
-
+    addTargetOutputFileHeader(datasetConfig, "tds", httpHeaders);
     try {
       final XMLStreamWriter xmlStreamWriter = xmlOutputFactory.createXMLStreamWriter(entityStream, "UTF-8");
 
       xmlStreamWriter.writeStartDocument("utf-8", "1.0");
-      writeDatasource(xmlStreamWriter, datasetConfig, hostname, mediaType);
+      writeDatasource(xmlStreamWriter, datasetConfig, getHostname(httpHeaders), mediaType);
       xmlStreamWriter.writeEndDocument();
 
       xmlStreamWriter.close();
@@ -198,7 +211,11 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
     xmlStreamWriter.writeAttribute("version", EMPTY_VERSION);
 
     if (WebServer.MediaType.APPLICATION_TDS_TYPE.equals(mediaType)) {
-      writeConnection(xmlStreamWriter, datasetConfig, hostname);
+      if (TableauExportType.NATIVE == exportType) {
+        writeSdkConnection(xmlStreamWriter, datasetConfig, hostname);
+      } else {
+        writeOdbcConnection(xmlStreamWriter, datasetConfig, hostname);
+      }
     } else if (WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE.equals(mediaType)) {
       writeNativeDrillConnection(xmlStreamWriter, datasetConfig, hostname);
     } else {
@@ -208,7 +225,32 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
     xmlStreamWriter.writeEndElement();
   }
 
-  private void writeConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
+  private void writeSdkConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
+    final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
+
+    xmlStreamWriter.writeStartElement("connection");
+
+    xmlStreamWriter.writeAttribute("class", "dremio");
+    xmlStreamWriter.writeAttribute("dbname", InfoSchemaConstants.IS_CATALOG_NAME);
+
+    // It has to match what is returned by the driver/Tableau
+    xmlStreamWriter.writeAttribute("schema", dataset.toParentPath());
+    xmlStreamWriter.writeAttribute("port", String.valueOf(getEndpoint().getUserPort()));
+    xmlStreamWriter.writeAttribute("server", hostname);
+    xmlStreamWriter.writeAttribute("username", "");
+
+    String customExtraProperties = optionManager.getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES);
+    customExtraProperties = customExtraProperties.replace(" ", "").toLowerCase(Locale.ROOT);
+
+    // The "parsing" here is rudimentary, and is not meant to be advanced. We simply need a flag to determine if SSL
+    // is enabled to allow Tableau to do the right thing. As more options are added, this may need to be more complex.
+    xmlStreamWriter.writeAttribute("sslmode", customExtraProperties.contains("ssl=true") ? "required" : "");
+
+    writeRelation(xmlStreamWriter, datasetConfig);
+    xmlStreamWriter.writeEndElement();
+  }
+
+  private void writeOdbcConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
     DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
 
     xmlStreamWriter.writeStartElement("connection");
@@ -234,7 +276,7 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
     xmlStreamWriter.writeAttribute("odbc-suppress-connection-pooling", "");
     xmlStreamWriter.writeAttribute("odbc-use-connection-pooling", "");
     xmlStreamWriter.writeAttribute("schema", dataset.toParentPath());
-    xmlStreamWriter.writeAttribute("port", String.valueOf(endpoint.getUserPort()));
+    xmlStreamWriter.writeAttribute("port", String.valueOf(getEndpoint().getUserPort()));
     xmlStreamWriter.writeAttribute("server", "");
     xmlStreamWriter.writeAttribute("username", "");
 
@@ -257,7 +299,7 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
     xmlStreamWriter.writeAttribute("odbc-connect-string-extras", "");
     // It has to match what is returned by the driver/Tableau
     xmlStreamWriter.writeAttribute("schema", dataset.toParentPath());
-    xmlStreamWriter.writeAttribute("port", String.valueOf(endpoint.getUserPort()));
+    xmlStreamWriter.writeAttribute("port", String.valueOf(getEndpoint().getUserPort()));
     xmlStreamWriter.writeAttribute("server", hostname);
 
     writeRelation(xmlStreamWriter, datasetConfig);

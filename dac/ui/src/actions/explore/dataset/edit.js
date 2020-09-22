@@ -19,13 +19,12 @@ import { datasetWithoutData } from 'schemas/v2/fullDataset';
 
 import { loadExploreEntities } from './get';
 
-// this action creator is used only in performLoadDataset saga. We do not expect data in initial response
-// the data should be load as separate call using 'loadNextRows' action. See code of performLoadDataset saga
-// for details
-export const loadExistingDataset = (dataset, viewId, tipVersion) =>
+// this is used only in performLoadDataset saga. We do not expect data in initial response. The data should be
+// loaded in a separate call using 'loadNextRows' action. See code of performLoadDataset saga for details
+export const loadExistingDataset = (dataset, viewId, tipVersion, forceDataLoad) =>
   (dispatch) => {
     const jobId = dataset.get('jobId');
-    const href = jobId
+    const href = (!forceDataLoad && jobId)
       ? exploreUtils.getReviewLink(dataset, tipVersion)
       : exploreUtils.getPreviewLink(dataset, tipVersion);
     return dispatch(

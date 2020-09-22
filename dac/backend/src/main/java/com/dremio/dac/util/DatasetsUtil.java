@@ -51,6 +51,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
@@ -74,19 +75,15 @@ public class DatasetsUtil {
 
   /**
    * Helper method which gets the completed preview data job for given query on given dataset path and version.
-   *
-   * @param query
-   * @param datasetPath
-   * @param version
-   * @return
    */
   public static JobData getDatasetPreviewJob(QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
     // In most cases we should already have a preview job that ran on the given dataset version. If not it will trigger a job.
-    JobData jobData = executor.runQuery(query, QueryType.UI_PREVIEW, datasetPath, version);
+    CompletionListener completionListener = new CompletionListener();
+    JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, datasetPath, version, completionListener);
 
     // Wait for the job to complete (will return immediately if the job already exists, otherwise a blocking call until
     // the job completes).
-    jobData.loadIfNecessary();
+    completionListener.awaitUnchecked();
 
     return jobData;
   }

@@ -15,7 +15,8 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
+
 import io.netty.util.internal.PlatformDependent;
 
 public class XXHashByteBuf {

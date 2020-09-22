@@ -29,6 +29,7 @@ import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 
 public abstract class AbstractRecordReader implements RecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractRecordReader.class);
@@ -39,14 +40,14 @@ public abstract class AbstractRecordReader implements RecordReader {
   private Collection<SchemaPath> columns = null;
   private boolean isStarQuery = false;
   private boolean isSkipQuery = false;
-  protected long numRowsPerBatch;
+  protected int numRowsPerBatch;
   protected long numBytesPerBatch;
   protected final OperatorContext context;
 
   public AbstractRecordReader(final OperatorContext context, final List<SchemaPath> columns) {
     this.context = context;
     if (context == null) {
-      this.numRowsPerBatch = ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getNumVal();
+      this.numRowsPerBatch = Ints.saturatedCast(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getNumVal());
     } else {
       this.numRowsPerBatch = context.getTargetBatchSize();
     }

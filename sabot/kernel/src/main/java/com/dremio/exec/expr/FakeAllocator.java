@@ -19,10 +19,10 @@ import java.util.Collection;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocatorL;
 import io.netty.buffer.UnsafeDirectLittleEndian;
@@ -33,7 +33,7 @@ import io.netty.buffer.UnsafeDirectLittleEndian;
 public class FakeAllocator implements BufferAllocator {
 
   private static final UnsafeDirectLittleEndian emptyUdle = (new PooledByteBufAllocatorL()).empty;
-  private static ArrowBuf empty = new ArrowBuf(null, null, 0, 0, true);
+  private static ArrowBuf empty = new ArrowBuf(null, null, 0, 0);
   public static BufferAllocator INSTANCE = new FakeAllocator();
 
   private FakeAllocator() {}
@@ -44,12 +44,12 @@ public class FakeAllocator implements BufferAllocator {
   }
 
   @Override
-  public ArrowBuf buffer(int arg0) {
+  public ArrowBuf buffer(long arg0) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public ArrowBuf buffer(int arg0, BufferManager arg1) {
+  public ArrowBuf buffer(long arg0, BufferManager arg1) {
     throw new UnsupportedOperationException();
   }
 

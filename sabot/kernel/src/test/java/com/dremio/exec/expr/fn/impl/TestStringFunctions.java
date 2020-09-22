@@ -27,8 +27,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.common.exceptions.UserException;
 
 public class TestStringFunctions extends BaseTestQuery {
 
@@ -88,11 +87,19 @@ public class TestStringFunctions extends BaseTestQuery {
         .baselineColumns("l1", "l2")
         .baselineValues(0, 0)
         .go();
+
+    testBuilder()
+        .sqlQuery("SELECT LOCATE('bar', a, 4) l1 FROM (VALUES('ççbarbar')) tbl(a)")
+        .ordered()
+        .baselineColumns("l1")
+        .baselineValues(6)
+        .go();
   }
 
   @Test
   public void invalidLocate() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(ErrorType.FUNCTION, "Start index (0) must be greater than 0"));
+    thrownException.expect(UserException.class);
+    thrownException.expectMessage("must be greater than 0");
     test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)");
   }
 
@@ -494,7 +501,7 @@ public class TestStringFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("res1", "res2")
         .baselineValues(true, false)
-        .baselineValues(false, true)
+        .baselineValues(true, true)
         .build()
         .run();
   }
@@ -646,5 +653,16 @@ public class TestStringFunctions extends BaseTestQuery {
       .sqlBaselineQuery(expected)
       .build()
       .run();
+  }
+
+  @Test
+  public void testReverse() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT full_name, reverse(substring(full_name, 2, 5)) AS reverse_sub_name "
+        + "FROM cp.\"employee.json\" LIMIT 1")
+      .unOrdered()
+      .baselineColumns("full_name", "reverse_sub_name")
+      .baselineValues("Sheri Nowmer", " ireh")
+      .go();
   }
 }

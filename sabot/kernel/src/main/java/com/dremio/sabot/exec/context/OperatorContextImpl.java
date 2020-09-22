@@ -15,15 +15,23 @@
  */
 package com.dremio.sabot.exec.context;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
+import javax.inject.Provider;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
@@ -32,21 +40,24 @@ import com.dremio.exec.expr.ClassProducerImpl;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordExecRPC.MajorFragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
-import io.netty.buffer.ArrowBuf;
 
 @VisibleForTesting
 public class OperatorContextImpl extends OperatorContext implements AutoCloseable {
@@ -61,6 +72,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final PhysicalOperator popConfig;
   private final OperatorStats stats;
   private final BufferManager manager;
+  private final FragmentExecutorBuilder fragmentExecutorBuilder;
   private final ExecutorService executor;
   private final TunnelProvider tunnelProvider;
   private final List<FragmentAssignment> assignments;
@@ -68,36 +80,40 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final ClassProducer producer;
   private final OptionManager optionManager;
   private final int targetBatchSize;
-  private final NamespaceService ns;
   private final NodeDebugContextProvider nodeDebugContextProvider;
+  private final Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
   private final SpillService spillService;
   private final EndpointsIndex endpointsIndex;
+  private final Map<Integer, MajorFragmentAssignment> majorFragmentAssignments;
 
   public OperatorContextImpl(
-      SabotConfig config,
-      FragmentHandle handle,
-      PhysicalOperator popConfig,
-      BufferAllocator allocator,
-      BufferAllocator fragmentOutputAllocator,
-      CodeCompiler compiler,
-      OperatorStats stats,
-      ExecutionControls executionControls,
-      ExecutorService executor,
-      FunctionLookupContext functions,
-      ContextInformation contextInformation,
-      final OptionManager optionManager,
-      NamespaceService namespaceService,
-      SpillService spillService,
-      NodeDebugContextProvider nodeDebugContextProvider,
-      int targetBatchSize,
-      TunnelProvider tunnelProvider,
-      List<FragmentAssignment> assignments,
-      EndpointsIndex endpointsIndex) throws OutOfMemoryException {
+    SabotConfig config,
+    FragmentHandle handle,
+    PhysicalOperator popConfig,
+    BufferAllocator allocator,
+    BufferAllocator fragmentOutputAllocator,
+    CodeCompiler compiler,
+    OperatorStats stats,
+    ExecutionControls executionControls,
+    FragmentExecutorBuilder fragmentExecutorBuilder,
+    ExecutorService executor,
+    FunctionLookupContext functions,
+    ContextInformation contextInformation,
+    final OptionManager optionManager,
+    SpillService spillService,
+    NodeDebugContextProvider nodeDebugContextProvider,
+    int targetBatchSize,
+    TunnelProvider tunnelProvider,
+    List<FragmentAssignment> assignments,
+    List<MajorFragmentAssignment> majorFragmentAssignments,
+    Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
+    EndpointsIndex endpointsIndex) throws OutOfMemoryException {
     this.config = config;
     this.handle = handle;
     this.allocator = allocator;
     this.fragmentOutputAllocator = fragmentOutputAllocator;
     this.popConfig = popConfig;
+    this.nodeEndpointProvider = nodeEndpointProvider;
 
     //some unit test cases pass null optionManager
     final int bufCapacity = (optionManager != null) ?
@@ -106,16 +122,19 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
 
     this.stats = stats;
     this.executionControls = executionControls;
+    this.fragmentExecutorBuilder = fragmentExecutorBuilder;
     this.executor = executor;
     this.optionManager = optionManager;
     this.targetBatchSize = targetBatchSize;
-    this.ns = namespaceService;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager);
     this.spillService = spillService;
     this.tunnelProvider = tunnelProvider;
     this.assignments = assignments;
     this.endpointsIndex = endpointsIndex;
+    this.majorFragmentAssignments = Optional.ofNullable(majorFragmentAssignments)
+            .map(f -> f.stream().collect(Collectors.toMap(MajorFragmentAssignment::getMajorFragmentId, v -> v)))
+            .orElse(Collections.emptyMap());
   }
 
   public OperatorContextImpl(
@@ -125,8 +144,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       int targetBatchSize
       ) {
 
-    this(config, null, null, allocator, allocator, null, null, null, null, null, null,
-      optionManager, null, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), null);
+    this(config, null, null, allocator, allocator, null, null, null, null, null, null, null,
+      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null);
   }
 
   @Override
@@ -163,13 +182,39 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   }
 
   @Override
+  public QueryId getQueryIdForLocalQuery() {
+    if (fragmentExecutorBuilder == null) {
+      throw new UnsupportedOperationException("Operator context does not support generating QueryId");
+    }
+    return fragmentExecutorBuilder.getFragmentExecutors().getQueryIdForLocalQuery();
+  }
+
+  public LogicalPlanPersistence getLpPersistence() {
+    Preconditions.checkNotNull(fragmentExecutorBuilder, "Cannot get LogicalPlanPersistence without initializing FragmentExecutorBuilder");
+    return fragmentExecutorBuilder.getPlanReader().getLpPersistance();
+  }
+
+  @Override
+  public CoordinationProtos.NodeEndpoint getNodeEndPoint() {
+    Preconditions.checkNotNull(fragmentExecutorBuilder, "Cannot get NodeEndpoint without initializing FragmentExecutorBuilder");
+    return fragmentExecutorBuilder.getNodeEndpoint();
+  }
+
+  @Override
+  public void startFragmentOnLocal(PlanFragmentFull planFragmentFull) {
+    if (fragmentExecutorBuilder == null) {
+      throw new UnsupportedOperationException("Operator context does not support starting fragments");
+    }
+    fragmentExecutorBuilder.getFragmentExecutors().startFragmentOnLocal(planFragmentFull, fragmentExecutorBuilder);
+  }
+
+  @Override
   public BufferAllocator getAllocator() {
     if (allocator == null) {
       throw new UnsupportedOperationException("Operator context does not have an allocator");
     }
     return allocator;
   }
-
 
   public TunnelProvider getTunnelProvider() {
     return tunnelProvider;
@@ -181,6 +226,16 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
 
   public EndpointsIndex getEndpointsIndex() {
     return endpointsIndex;
+  }
+
+  @Override
+  public MajorFragmentAssignment getExtMajorFragmentAssignments(int extMajorFragment) {
+    return majorFragmentAssignments.get(extMajorFragment);
+  }
+
+  @Override
+  public Provider<CoordinationProtos.NodeEndpoint> getNodeEndpointProvider() {
+    return nodeEndpointProvider;
   }
 
   @Override
@@ -259,10 +314,6 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return producer;
   }
 
-  @Override
-  public NamespaceService getNamespaceService() {
-    return ns;
-  }
 
   @Override
   public  NodeDebugContextProvider getNodeDebugContextProvider() {

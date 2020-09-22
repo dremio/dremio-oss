@@ -165,10 +165,10 @@ describe('performLoadDataset saga', () => {
       shouldWatchApiAction(
         {...location, query: {...location.query, mode: 'edit'}},
         datasetWithoutVersion,
-        call(loadExistingDataset, datasetWithoutVersion, viewId, location.query.tipVersion)
+        call(loadExistingDataset, datasetWithoutVersion, viewId, location.query.tipVersion, undefined)
       );
       shouldWatchApiAction(location, dataset, call(loadExistingDataset, dataset, viewId,
-        location.query.tipVersion));
+        location.query.tipVersion, undefined));
     });
 
     it('should performWatchedTransform if neither of the above are true', () => {

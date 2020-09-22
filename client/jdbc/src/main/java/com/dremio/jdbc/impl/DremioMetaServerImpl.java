@@ -40,6 +40,7 @@ import org.apache.calcite.avatica.MetaImpl.MetaColumn;
 import org.apache.calcite.avatica.MetaImpl.MetaSchema;
 import org.apache.calcite.avatica.MetaImpl.MetaTable;
 
+import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserProtos.CatalogMetadata;
 import com.dremio.exec.proto.UserProtos.ColumnMetadata;
@@ -118,7 +119,7 @@ class DremioMetaServerImpl implements DremioMeta {
     MetaResultSet getMeta(RpcFuture<Response> future) throws SQLException {
       final Response response;
       try {
-        response = future.checkedGet();
+        response = DremioFutures.getChecked(future, RpcException.class, RpcException::mapException);
       } catch (RpcException e) {
         throw new SQLException("Failure getting metadata", e);
       }

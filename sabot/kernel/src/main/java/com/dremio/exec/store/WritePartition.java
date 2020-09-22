@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.io.file.Path;
 
 public class WritePartition {
@@ -23,16 +24,21 @@ public class WritePartition {
 
   private final String[] paths;
   private final Integer distributionOrdinal;
+  private final IcebergPartitionData icebergPartitionData;
 
-  public WritePartition(String[] paths){
-    this.paths = paths;
-    this.distributionOrdinal = null;
+  public WritePartition(String[] paths) {
+    this(paths, null, null);
   }
 
   public WritePartition(String[] paths, Integer distributionOrdinal) {
+    this(paths, distributionOrdinal, null);
+  }
+
+  public WritePartition(String[] paths, Integer distributionOrdinal, IcebergPartitionData icebergPartitionData) {
     super();
     this.paths = paths;
     this.distributionOrdinal = distributionOrdinal;
+    this.icebergPartitionData = icebergPartitionData;
   }
 
   public boolean isSinglePartition(){
@@ -63,5 +69,9 @@ public class WritePartition {
     }
 
     return path.resolve(name);
+  }
+
+  public IcebergPartitionData getIcebergPartitionData() {
+    return icebergPartitionData;
   }
 }

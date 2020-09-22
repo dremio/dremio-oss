@@ -66,6 +66,51 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
       .go();
   }
 
+  @Test
+  public void testDecimalSumAggNonZeroNullValues() throws Exception {
+
+    final String query = "SELECT CASE WHEN t1.val < 0 THEN t1.key ELSE t2.key END, SUM(t1.val + t2.val) FROM " +
+      "cp.\"parquet/decimals/dec1p0s.parquet\" t1 , cp" +
+      ".\"parquet/decimals/dec10p10s.parquet\" t2 GROUP BY 1";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0", "EXPR$1")
+      .baselineValues("001: min decimal(1,0)", new BigDecimal("-45.0000000000"))
+      .baselineValues("null", null)
+      .baselineValues("001: min decimal(10,10)", new BigDecimal("8.0000000004"))
+      .baselineValues("002: -two",new BigDecimal("-10.0000000000"))
+      .baselineValues("005: max decimal(10,10)", new BigDecimal("15.9999999996"))
+      .baselineValues("004: max decimal(1,1)", new BigDecimal("15.6000000000"))
+      .baselineValues("002: min decimal(1,1)", new BigDecimal("8.4000000000"))
+      .baselineValues("003: -one", new BigDecimal("-5.0000000000"))
+      .baselineValues("003: zero", new BigDecimal("12.0000000000"))
+      .go();
+  }
+
+  @Test
+  public void testDecimalSumZeroAggNonZeroNullValues() throws Exception {
+
+    final String query = "SELECT CASE WHEN t1.val < 0 THEN t1.key ELSE t2.key END, $SUM0(t1.val +" +
+      " t2.val) FROM " +
+      "cp.\"parquet/decimals/dec1p0s.parquet\" t1 , cp" +
+      ".\"parquet/decimals/dec10p10s.parquet\" t2 GROUP BY 1";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0", "EXPR$1")
+      .baselineValues("001: min decimal(1,0)", new BigDecimal("-45.0000000000"))
+      .baselineValues("null", new BigDecimal(0))
+      .baselineValues("001: min decimal(10,10)", new BigDecimal("8.0000000004"))
+      .baselineValues("002: -two",new BigDecimal("-10.0000000000"))
+      .baselineValues("005: max decimal(10,10)", new BigDecimal("15.9999999996"))
+      .baselineValues("004: max decimal(1,1)", new BigDecimal("15.6000000000"))
+      .baselineValues("002: min decimal(1,1)", new BigDecimal("8.4000000000"))
+      .baselineValues("003: -one", new BigDecimal("-5.0000000000"))
+      .baselineValues("003: zero", new BigDecimal("12.0000000000"))
+      .go();
+  }
+
   /**
    * Test that we are able to increase precision upto 38.
    * @throws Exception

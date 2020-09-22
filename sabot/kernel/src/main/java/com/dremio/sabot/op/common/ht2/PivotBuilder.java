@@ -33,7 +33,7 @@ public class PivotBuilder {
   public static final int BIT_OFFSET_MASK = 31;
 
   public static PivotDef getBlockDefinition(FieldVectorPair... fieldVectors) {
-    return getBlockDefinition(FluentIterable.of(fieldVectors).toList());
+    return getBlockDefinition(ImmutableList.copyOf(fieldVectors));
   }
 
   public static PivotDef getBlockDefinition(Iterable<FieldVectorPair> fieldVectors) {
@@ -216,15 +216,18 @@ public class PivotBuilder {
   }
 
   public static enum FieldType {
-    BIT(FieldMode.BIT),
-    FOUR_BYTE(FieldMode.FIXED),
-    EIGHT_BYTE(FieldMode.FIXED),
-    SIXTEEN_BYTE(FieldMode.FIXED),
-    VARIABLE(FieldMode.VARIABLE);
+    BIT(FieldMode.BIT, -1),
+    FOUR_BYTE(FieldMode.FIXED, 4),
+    EIGHT_BYTE(FieldMode.FIXED,8),
+    SIXTEEN_BYTE(FieldMode.FIXED, 16),
+    VARIABLE(FieldMode.VARIABLE, -1);
 
     public final FieldMode mode;
-    FieldType(FieldMode mode){
+    public final int byteSize; // Applicable only in FIXED mode. Will be -1 otherwise.
+
+    FieldType(FieldMode mode, int byteSize){
       this.mode = mode;
+      this.byteSize = byteSize;
     }
   }
 

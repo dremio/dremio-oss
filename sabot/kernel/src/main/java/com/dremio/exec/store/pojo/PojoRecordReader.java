@@ -28,10 +28,12 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.rel.type.RelDataType;
+import org.joda.time.DateTime;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -106,7 +108,7 @@ public class PojoRecordReader<T> extends AbstractRecordReader implements Iterabl
         w = new EnumWriter(f, output.getManagedBuffer());
       } else if(type == String.class) {
         w = new StringWriter(f, output.getManagedBuffer());
-      } else if (type == Timestamp.class) {
+      } else if (type == Timestamp.class || type == DateTime.class) {
         w = new TimeStampMilliWriter(f);
       } else {
         throw new ExecutionSetupException(String.format("PojoRecord reader doesn't yet support conversions from type [%s].", type));
@@ -190,7 +192,7 @@ public class PojoRecordReader<T> extends AbstractRecordReader implements Iterabl
   public static BatchSchema getSchema(Class<?> pojoClass){
     RecordDataType dataType = new PojoDataType(pojoClass);
     RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
-    return BatchSchema.fromCalciteRowType(type);
+    return CalciteArrowHelper.fromCalciteRowType(type);
 
   }
 }

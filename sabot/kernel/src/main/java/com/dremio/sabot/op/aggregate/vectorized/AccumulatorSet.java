@@ -21,14 +21,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.Numbers;
 import com.dremio.sabot.op.common.ht2.ResizeListener;
 import com.google.common.annotations.VisibleForTesting;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Represents the set of accumulators of type {@link BaseSingleAccumulator}.

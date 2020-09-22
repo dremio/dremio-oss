@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <groupId>com.dremio.contrib</groupId>
@@ -32,7 +32,6 @@
 
   <modules>
     <module>hive2-exec-shade</module>
-    <module>slim-shade</module>
   </modules>
 
   <profiles>
@@ -45,6 +44,17 @@
       </activation>
       <modules>
         <module>hive3-exec-shade</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <modules>
+        <module>maprfs-shade</module>
       </modules>
     </profile>
   </profiles>

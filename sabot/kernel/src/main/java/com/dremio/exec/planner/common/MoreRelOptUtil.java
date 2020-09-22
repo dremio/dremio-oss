@@ -121,12 +121,31 @@ public final class MoreRelOptUtil {
     return minDepth + 1;
   }
 
-  // Similar to RelOptUtil.areRowTypesEqual() with the additional check for allowSubstring
+
+
+  public static boolean areRowTypesCompatibleForInsert(
+    RelDataType rowType1,
+    RelDataType rowType2,
+    boolean compareNames,
+    boolean allowSubstring) {
+    return checkRowTypesCompatiblity(rowType1, rowType2, compareNames, allowSubstring, true);
+  }
+
   public static boolean areRowTypesCompatible(
+    RelDataType rowType1,
+    RelDataType rowType2,
+    boolean compareNames,
+    boolean allowSubstring) {
+    return checkRowTypesCompatiblity(rowType1, rowType2, compareNames, allowSubstring, false);
+  }
+
+  // Similar to RelOptUtil.areRowTypesEqual() with the additional check for allowSubstring
+  private static boolean checkRowTypesCompatiblity(
       RelDataType rowType1,
       RelDataType rowType2,
       boolean compareNames,
-      boolean allowSubstring) {
+      boolean allowSubstring,
+      boolean insertOp) {
     if (rowType1 == rowType2) {
       return true;
     }
@@ -148,19 +167,32 @@ public final class MoreRelOptUtil {
         || type2.getSqlTypeName() == SqlTypeName.ANY) {
         continue;
       }
-      if (type1.getSqlTypeName() != type2.getSqlTypeName()) {
+      if (!(type1.toString().equals(type2.toString()))) {
         if (allowSubstring
             && (type1.getSqlTypeName() == SqlTypeName.CHAR && type2.getSqlTypeName() == SqlTypeName.CHAR)
             && (type1.getPrecision() <= type2.getPrecision())) {
-          return true;
+          continue;
         }
 
         // Check if Dremio implicit casting can resolve the incompatibility
         List<TypeProtos.MinorType> types = Lists.newArrayListWithCapacity(2);
-        types.add(Types.getMinorTypeFromName(type1.getSqlTypeName().getName()));
-        types.add(Types.getMinorTypeFromName(type2.getSqlTypeName().getName()));
-        if(TypeCastRules.getLeastRestrictiveType(types) != null) {
-          return true;
+        TypeProtos.MinorType minorType1 = Types.getMinorTypeFromName(type1.getSqlTypeName().getName());
+        TypeProtos.MinorType minorType2 = Types.getMinorTypeFromName(type2.getSqlTypeName().getName());
+        types.add(minorType1);
+        types.add(minorType2);
+        if (insertOp) {
+          // Insert is more strict than normal select in terms of implicit casts
+          // Return false if TypeCastRules do not allow implicit cast
+          if (TypeCastRules.isCastable(minorType1, minorType2, true) &&
+            TypeCastRules.getLeastRestrictiveTypeForInsert(types) != null) {
+            if (TypeCastRules.isCastSafeFromDataTruncation(type1, type2)) {
+              continue;
+            }
+          }
+        } else {
+          if (TypeCastRules.getLeastRestrictiveType(types) != null) {
+            continue;
+          }
         }
 
         return false;

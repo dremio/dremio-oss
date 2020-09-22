@@ -13,7 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export QlikStateModal from './QlikStateModal';
-export SaveAsDatasetModal from './SaveAsDatasetModal';
-export DatasetSettingsModal from 'pages/HomePage/components/modals/DatasetSettings/DatasetSettingsModal';
-export UpdateDataset from 'pages/HomePage/components/modals/UpdateDataset/UpdateDataset';
+import DatasetSettingsModal from 'pages/HomePage/components/modals/DatasetSettings/DatasetSettingsModal';
+import UpdateDataset from 'pages/HomePage/components/modals/UpdateDataset/UpdateDataset';
+import QlikStateModal from './QlikStateModal';
+import SaveAsDatasetModal from './SaveAsDatasetModal';
+
+export {
+  QlikStateModal,
+  SaveAsDatasetModal,
+  DatasetSettingsModal,
+  UpdateDataset
+};

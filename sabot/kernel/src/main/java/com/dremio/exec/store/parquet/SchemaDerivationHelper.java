@@ -38,13 +38,18 @@ public class SchemaDerivationHelper {
   private final DateCorruptionStatus dateCorruptionStatus;
   private final boolean noSchemaLearning;
   private final BatchSchema schemaFromTableMetadata;
+  private final boolean allowMixedDecimals;
+  private final boolean limitListItems;
 
   private SchemaDerivationHelper(final boolean readInt96AsTimeStamp, final DateCorruptionStatus dateCorruptionStatus,
-      final boolean noSchemaLearning, final BatchSchema schemaFromTableMetadata) {
+      final boolean noSchemaLearning, final boolean allowMixedDecimals,
+      final BatchSchema schemaFromTableMetadata, final boolean limitListItems) {
     this.readInt96AsTimeStamp = readInt96AsTimeStamp;
     this.dateCorruptionStatus = dateCorruptionStatus;
     this.noSchemaLearning = noSchemaLearning;
     this.schemaFromTableMetadata = schemaFromTableMetadata;
+    this.allowMixedDecimals = allowMixedDecimals;
+    this.limitListItems = limitListItems;
   }
 
   /**
@@ -81,6 +86,21 @@ public class SchemaDerivationHelper {
   }
 
   /**
+   *
+   * @return returns true if reader is capable of handling mixed decimals
+   */
+  public boolean isAllowMixedDecimals() {
+    return this.allowMixedDecimals;
+  }
+
+  /**
+   *
+   * @return true if number of list items should be limited
+   */
+  public boolean isLimitListItems() {
+    return limitListItems;
+  }
+  /**
    * Get builder class
    * @return
    */
@@ -88,11 +108,22 @@ public class SchemaDerivationHelper {
     return new Builder();
   }
 
+  /**
+   * Schema handle for readers to handle precision and scale compatibility
+   * @param filteredColumn
+   * @return
+   */
+  public CompleteType getType(String filteredColumn) {
+    return schemaFromTableMetadata.getFieldId(new SchemaPath(filteredColumn)).getFinalType();
+  }
+
   public static class Builder {
     private boolean readInt96AsTimeStamp;
     private DateCorruptionStatus dateCorruptionStatus;
     private boolean noSchemaLearning;
     private BatchSchema schemaFromTableMetadata;
+    private boolean allowMixedDecimals = false;
+    private boolean limitListItems = false;
 
     private Builder() { }
 
@@ -106,6 +137,11 @@ public class SchemaDerivationHelper {
       return this;
     }
 
+    public Builder allowMixedDecimals(boolean allowMixedDecimals) {
+      this.allowMixedDecimals = allowMixedDecimals;
+      return this;
+    }
+
     public Builder noSchemaLearning(BatchSchema schemaFromTableMetadata) {
       Preconditions.checkNotNull(schemaFromTableMetadata, "Expected a non-null schema from table metadata");
       this.noSchemaLearning = true;
@@ -113,9 +149,14 @@ public class SchemaDerivationHelper {
       return this;
     }
 
+    public Builder limitListItems(boolean limitListItems) {
+      this.limitListItems = limitListItems;
+      return this;
+    }
+
     public SchemaDerivationHelper build() {
       return new SchemaDerivationHelper(readInt96AsTimeStamp, dateCorruptionStatus, noSchemaLearning,
-          schemaFromTableMetadata);
+          allowMixedDecimals, schemaFromTableMetadata, limitListItems);
     }
   }
 }

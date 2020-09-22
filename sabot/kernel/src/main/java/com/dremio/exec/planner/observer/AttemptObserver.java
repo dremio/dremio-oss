@@ -31,6 +31,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -41,6 +42,12 @@ import com.dremio.exec.work.protector.UserResult;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public interface AttemptObserver {
+
+  /**
+   * Called to report the beginning of a new state.
+   * Called multiple times during a query lifetime
+   */
+  void beginState(AttemptEvent event);
 
   /**
    * Query was started.
@@ -263,4 +270,11 @@ public interface AttemptObserver {
    * @param resourceSchedulingDecisionInfo
    */
   void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo);
+
+  static AttemptEvent toEvent(AttemptEvent.State state) {
+    return AttemptEvent.newBuilder()
+      .setState(state)
+      .setStartTime(System.currentTimeMillis())
+      .build();
+  }
 }

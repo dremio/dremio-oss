@@ -18,11 +18,11 @@ package com.dremio.security;
 import java.io.IOException;
 import java.net.URI;
 
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -74,22 +74,20 @@ public class AwsSecretsManager implements Vault {
      * to EC2 machine. This will be further enhanced, once we have more requirements on it.
      */
     AwsCredentialsProvider awsCredentialsProvider = getAwsCredentials();
-    SecretsManagerClient secretsManagerClient = SecretsManagerClient.builder()
-      .region(Region.of(region)).credentialsProvider(awsCredentialsProvider).build();
     GetSecretValueRequest secretValueRequest = GetSecretValueRequest.builder().secretId(secretName)
       .versionStage(AWS_CURRENT).build();
-    GetSecretValueResponse secretValueResponse;
 
-    try {
-      secretValueResponse = secretsManagerClient.getSecretValue(secretValueRequest);
+    try (final SecretsManagerClient secretsManagerClient = SecretsManagerClient.builder()
+          .region(Region.of(region))
+          .credentialsProvider(awsCredentialsProvider)
+          .build()) {
+      final GetSecretValueResponse secretValueResponse = secretsManagerClient.getSecretValue(secretValueRequest);
+      return (secretValueResponse.secretString() != null) ?
+        secretValueResponse.secretString() : secretValueResponse.secretBinary().toString();
     } catch (SdkException e) {
       logger.debug("Unable to retrieve secret for secret {} as {}", secretName, e.getMessage());
       throw new IOException(e.getMessage(), e);
     }
-
-    return  (secretValueResponse.secretString() != null) ?
-      secretValueResponse.secretString() : secretValueResponse.secretBinary().toString();
-
   }
 
   private String getSecretName(String secret) {
@@ -107,7 +105,7 @@ public class AwsSecretsManager implements Vault {
   }
 
   private AwsCredentialsProvider getAwsCredentials() {
-    return InstanceProfileCredentialsProvider.create();
+    return new SharedInstanceProfileCredentialsProvider();
   }
 
   /*

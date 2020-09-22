@@ -56,7 +56,7 @@ describe('actionUtils', () => {
     });
 
     it('should set notification with default when there is no errorMessage and payload is empty ', () => {
-      const defaultMessage = 'Something went wrong.';
+      const defaultMessage = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
       const payload = {};
       const result = {
         message: Immutable.Map({ message: defaultMessage }),

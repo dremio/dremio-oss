@@ -15,37 +15,77 @@
  */
 package com.dremio.exec.server.options;
 
-import java.util.Map;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.SortedSet;
 
-import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
-import com.google.common.collect.Maps;
+import com.google.common.collect.TreeMultimap;
 
 /**
  * {@link OptionManager} that holds options within a fragment.
  */
-public class FragmentOptionManager extends InMemoryOptionManager {
+public class FragmentOptionManager extends BaseOptionManager {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentOptionManager.class);
 
-  public FragmentOptionManager(OptionManager systemOptions, OptionList options) {
-    super(systemOptions, getMapFromOptionList(options));
+  private final TreeMultimap<String, OptionValue> optionMap;
+
+  public FragmentOptionManager(OptionValidatorListing optionValidatorListing, OptionList nonDefaultOptions) {
+    super(optionValidatorListing);
+    this.optionMap = getMapFromOptionList(nonDefaultOptions);
   }
 
-  private static Map<String, OptionValue> getMapFromOptionList(final OptionList options) {
-    final Map<String, OptionValue> tmp = Maps.newHashMap();
-    for (final OptionValue value : options) {
-      tmp.put(value.getName(), value);
-    }
-    return CaseInsensitiveMap.newImmutableMap(tmp);
+  /**
+   * Convert this OptionList to a Map from name to OptionValue
+   */
+  private static TreeMultimap<String, OptionValue> getMapFromOptionList(final OptionList list) {
+    final TreeMultimap<String, OptionValue> optionMap = TreeMultimap.create();
+    list.forEach(value -> optionMap.put(value.getName(), value));
+    return optionMap;
   }
 
-  @Override
   protected boolean supportsOptionType(OptionType type) {
     throw new UnsupportedOperationException("FragmentOptionManager does not support the given option value.");
   }
 
+  @Override
+  public boolean setOption(OptionValue value) {
+    throw new UnsupportedOperationException("FragmentOptionManager does not support options mutation.");
+  }
+
+  @Override
+  public boolean deleteOption(String name, OptionType type) {
+    throw new UnsupportedOperationException("FragmentOptionManager does not support options deletion.");
+  }
+
+  @Override
+  public boolean deleteAllOptions(OptionType type) {
+    throw new UnsupportedOperationException("FragmentOptionManager does not support options deletions for all.");
+  }
+
+  @Override
+  public OptionValue getOption(final String name) {
+    final SortedSet<OptionValue> values = optionMap.get(name.toLowerCase(Locale.ROOT));
+    if (!values.isEmpty()) {
+      return values.last();
+    }
+    return null;
+  }
+
+  @Override
+  public OptionList getNonDefaultOptions() {
+    final OptionList result = new OptionList();
+    result.addAll(optionMap.values());
+    return result;
+  }
+
+  @Override
+  public Iterator<OptionValue> iterator() {
+    return getNonDefaultOptions().iterator();
+  }
 
 }

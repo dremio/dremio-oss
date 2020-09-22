@@ -22,17 +22,19 @@ import FormElement from 'components/Forms/FormElement';
 import HoverHelp from 'components/HoverHelp';
 import Art from '@app/components/Art';
 import SourceIcon from 'components/Icon/SourceIcon';
+import config from 'dyn-load/utils/config';
 
-import { sectionLabel, sectionBody, inlineHelp } from 'uiTheme/less/forms.less';
+import { inlineHelp, sectionBody, sectionLabel } from 'uiTheme/less/forms.less';
 import { flexColumnContainer } from 'uiTheme/less/layout.less';
 import {
-  sectionWithIcon,
-  elementsWithIcon,
-  linkContainer,
-  groupLayoutRow,
-  elementLayoutRow,
+  elementLayoutFull,
   elementLayoutHalf,
-  elementLayoutFull
+  elementLayoutRow,
+  elementLayoutRowFixed,
+  elementsWithIcon,
+  groupLayoutRow,
+  linkContainer,
+  sectionWithIcon
 } from './FormSection.less';
 
 export default class FormSection extends Component {
@@ -76,13 +78,22 @@ export default class FormSection extends Component {
         <div className={groupStyleClass}>
           {
             sectionConfig.getDirectElements().map((elementConfig, index) => {
-              const { size } = elementConfig.getConfig();
+              const { size, visibilityControl} = elementConfig.getConfig();
+
+              if (visibilityControl && config[visibilityControl.config] !== visibilityControl.showCondition) {
+                return;
+              }
+
               const isFixedSize = typeof size === 'number' && size > 0;
               const isHalfWidth = size === 'half';
-              const style = isFixedSize ? { width: size } : null;
+              let style = null;
+              if (isHalfWidth) {
+                style = {flex: 'none'};
+              }
 
               const fieldClass = classNames({
-                [elementLayoutRow]: isLayoutRow,
+                [elementLayoutRow]: isLayoutRow && !isFixedSize,
+                [elementLayoutRowFixed]: isLayoutRow && isFixedSize,
                 [elementLayoutHalf]: !isFixedSize && isHalfWidth,
                 [elementLayoutFull]: !isFixedSize && !isHalfWidth // full width by default
               });
@@ -117,10 +128,10 @@ export default class FormSection extends Component {
     if (!sectionConfigJson.collapsible) return null;
 
     const {collapsed} = this.state;
-    const iconType = collapsed ? 'TriangleRight.svg' : 'TriangleDown.svg';
+    const iconType = collapsed ? 'ArrowRight.svg' : 'ArrowDownSmall.svg';
     const iconAlt = collapsed ? 'Expand Section' : 'Collapse Section';
 
-    return <div data-qa='section-toggle' style={styles.collapser}>
+    return <div data-qa='section-toggle'>
       <Art src={iconType} alt={iconAlt} style={styles.iconStyle}/>
     </div>;
   }
@@ -144,7 +155,7 @@ export default class FormSection extends Component {
     const help = sectionConfigJson.help;
     const link = sectionConfigJson.link;
 
-    let sectionLabelStyle = (sectionConfigJson.collapsible) ? {cursor: 'pointer'} : null;
+    let sectionLabelStyle = (sectionConfigJson.collapsible) ? styles.collapsibleLabel : null;
     // style overwrites for sub-section
     sectionLabelStyle = (sectionLevel) ? {...sectionLabelStyle, fontSize: '14px'} : sectionLabelStyle;
     const sectionBodyStyle = (sectionLevel) ? {marginBottom: 15} : null;
@@ -153,11 +164,11 @@ export default class FormSection extends Component {
       <div className={sectionBody} style={{...style, ...sectionBodyStyle}}>
         {sectionConfigJson.name &&
           <div className={sectionLabel} style={sectionLabelStyle} onClick={this.toggleCollapse}>
+            {this.renderCollapser(sectionConfigJson)}
             {sectionConfigJson.name}
             {sectionConfigJson.tooltip &&
             <HoverHelp content={sectionConfigJson.tooltip} />
             }
-            {this.renderCollapser(sectionConfigJson)}
           </div>
         }
         {!this.state.collapsed && <Fragment>
@@ -189,11 +200,12 @@ export default class FormSection extends Component {
 
 const styles = {
   iconStyle: {
-    width: 24,
-    height: 24
+    width: 26,
+    height: 26
   },
-  collapser: {
-    marginLeft: 10,
-    paddingTop: 5
+  collapsibleLabel: {
+    cursor: 'pointer',
+    paddingTop: 5,
+    borderTop: '1px solid rgba(0,0,0,0.1)'
   }
 };

@@ -22,7 +22,6 @@ import FormUtils from '@app/utils/FormUtils/FormUtils';
 export const getInitValuesFromVlh = () => {
   const initValues = {};
   FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.authMode, 'AUTO');
-  FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.region, 'us-west-2');
   FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.useClusterPlacementGroup, true);
   FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.instanceType, 'm5d.8xlarge');
   return initValues;

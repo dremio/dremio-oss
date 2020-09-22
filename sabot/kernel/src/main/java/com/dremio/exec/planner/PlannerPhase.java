@@ -38,6 +38,7 @@ import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
+import org.apache.calcite.rel.rules.FilterCorrelateRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
@@ -133,6 +134,8 @@ import com.dremio.exec.planner.physical.UnionAllPrule;
 import com.dremio.exec.planner.physical.ValuesPrule;
 import com.dremio.exec.planner.physical.WindowPrule;
 import com.dremio.exec.planner.physical.WriterPrule;
+import com.dremio.exec.planner.tablefunctions.ExternalQueryScanPrule;
+import com.dremio.exec.planner.tablefunctions.ExternalQueryScanRule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -217,6 +220,10 @@ public enum PlannerPhase {
         // This can't run here because even though it is heuristic, it causes acceleration matches to fail.
         // PushProjectIntoScanRule.INSTANCE
       );
+
+      if (context.getPlannerSettings().isRelPlanningEnabled()) {
+        b.add(LOGICAL_FILTER_CORRELATE_RULE);
+      }
 
       if (context.getPlannerSettings().isTransitiveFilterPushdownEnabled()) {
         b.add(CompositeFilterJoinRule.NO_TOP_FILTER,
@@ -318,11 +325,9 @@ public enum PlannerPhase {
       if(context.getPlannerSettings().isProjectLogicalCleanupEnabled()) {
         moreRules.add(MergeProjectRule.CALCITE_INSTANCE);
         moreRules.add(ProjectRemoveRule.INSTANCE);
+      }
 
-      }
-      if(moreRules.isEmpty()) {
-        return LOGICAL_RULE_SET;
-      }
+      moreRules.add(ExternalQueryScanRule.INSTANCE);
 
       return PlannerPhase.mergedRuleSets(LOGICAL_RULE_SET, RuleSets.ofList(moreRules));
     }
@@ -438,7 +443,7 @@ public enum PlannerPhase {
    * Planner rule that pushes a {@link Filter} past a
    * {@link org.apache.calcite.rel.core.SetOp}.
    */
-  static final FilterSetOpTransposeRule FILTER_SET_OP_TRANSPOSE_CALCITE_RULE =
+  public static final FilterSetOpTransposeRule FILTER_SET_OP_TRANSPOSE_CALCITE_RULE =
     new FilterSetOpTransposeRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
@@ -460,6 +465,8 @@ public enum PlannerPhase {
       LogicalJoin.class,
       ExprCondition.TRUE,
       DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+
+  public static final RelOptRule LOGICAL_FILTER_CORRELATE_RULE = new FilterCorrelateRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   private static final class LogicalFilterJoinRule extends FilterJoinRule {
     private LogicalFilterJoinRule() {
@@ -506,7 +513,7 @@ public enum PlannerPhase {
     }
   }
 
-  private static final JoinPushExpressionsRule JOIN_PUSH_EXPRESSIONS_RULE = new JoinPushExpressionsRule(LogicalJoin.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  public static final JoinPushExpressionsRule JOIN_PUSH_EXPRESSIONS_RULE = new JoinPushExpressionsRule(LogicalJoin.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
   private static final JoinPushExpressionsRule JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE = new JoinPushExpressionsRule(JoinRel.class, DremioRelFactories.LOGICAL_BUILDER);
 
 
@@ -522,7 +529,7 @@ public enum PlannerPhase {
    * Planner rule that pushes a {@link org.apache.calcite.rel.core.Filter}
    * past a {@link org.apache.calcite.rel.core.Aggregate}.
    */
-  static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE = new FilterAggregateTransposeRule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER, LogicalAggregate.class);
+  public static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE = new FilterAggregateTransposeRule(LogicalFilter.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER, LogicalAggregate.class);
 
   static final FilterAggregateTransposeRule FILTER_AGGREGATE_TRANSPOSE_DRULE = new FilterAggregateTransposeRule(FilterRel.class, DremioRelFactories.LOGICAL_BUILDER, AggregateRel.class);
 
@@ -703,6 +710,7 @@ public enum PlannerPhase {
     ruleList.add(ValuesPrule.INSTANCE);
     ruleList.add(EmptyPrule.INSTANCE);
     ruleList.add(PushLimitToPruneableScan.INSTANCE);
+    ruleList.add(ExternalQueryScanPrule.INSTANCE);
 
     if (ps.isHashAggEnabled()) {
       ruleList.add(HashAggPrule.INSTANCE);

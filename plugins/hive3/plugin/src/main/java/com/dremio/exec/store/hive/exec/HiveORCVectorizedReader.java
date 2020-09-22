@@ -24,6 +24,7 @@ import java.util.ListIterator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.dremio.exec.ExecConstants;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -66,9 +67,8 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.hive.Hive3PluginOptions;
+import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.exec.store.hive.exec.HiveORCCopiers.ORCCopier;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
@@ -310,8 +310,8 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     getIncludedColumnsFromTableSchema(finalOI, fSplit.isOriginal() ? 0 : TRANS_ROW_COLUMN_INDEX + 1, childCounts, include);
     include[0] = true; // always include root. reader always includes, but setting it explicitly here.
 
-    Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
-    Boolean useDirectMemory = context.getOptions().getOption(Hive3PluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
+    final Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
+    final boolean useDirectMemory = new HiveSettings(context.getOptions()).useDirectMemoryForOrcReaders();
     options.include(fSplit.isOriginal() ? include : Arrays.copyOfRange(include, TRANS_ROW_COLUMN_INDEX + 1, include.length));
     dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
       .withBufferSize(hiveReader.getCompressionSize())
@@ -320,7 +320,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
       .withPath(path)
       .withTypeCount(types.size())
       .withZeroCopy(zeroCopy)
-      .build(), useDirectMemory);
+      .build(), useDirectMemory, context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY));
     options.dataReader(dataReader);
 
     String[] selectedColNames = getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);

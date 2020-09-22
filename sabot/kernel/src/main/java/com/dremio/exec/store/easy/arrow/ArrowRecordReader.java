@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -53,8 +54,6 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * {@link RecordReader} implementation for reading Arrow format files. Currently this reader can only read files written

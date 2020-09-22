@@ -172,11 +172,11 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
       for (int i = 1; i < ops.size(); i++) {
         StateHolder b = ops.get(i).accept(this);
         if(a.type == Type.CONDITION && b.type == Type.CONDITION) {
-          a = new StateHolder(Type.CONDITION, a.node).add(a.conditions).add(b.conditions);
+          a = new StateHolder(Type.CONDITION, composeConjunction(a.node, b.node)).add(a.conditions).add(b.conditions);
         } else if(a.type == Type.CONDITION) {
           a = new StateHolder(Type.CONDITION, composeConjunction(a.node, b.node)).add(a.conditions);
         } else if(b.type == Type.CONDITION) {
-          a = new StateHolder(Type.CONDITION, a.node).add(b.conditions);
+          a = new StateHolder(Type.CONDITION, composeConjunction(a.node, b.node)).add(b.conditions);
         } else {
           a = new StateHolder(a.type, composeConjunction(a.node, b.node));
         }

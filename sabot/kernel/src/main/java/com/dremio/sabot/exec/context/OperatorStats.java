@@ -16,8 +16,13 @@
 package com.dremio.sabot.exec.context;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -33,6 +38,7 @@ import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile.Builder;
 import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
+import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
@@ -70,6 +76,8 @@ public class OperatorStats {
 
   private int inputCount;
 
+  private long warnIOTimeThreshold;
+
   // misc operator details that are saved in the profile.
   private OperatorProfileDetails profileDetails;
 
@@ -86,8 +94,45 @@ public class OperatorStats {
   // Note that the close for this not idempotent.
   private WaitRecorder recorder = () -> { stopWait(); };
 
+  public class IOStats {
+    public final AtomicLong minIOTime = new AtomicLong(Long.MAX_VALUE);
+    public final AtomicLong maxIOTime = new AtomicLong(0);
+    public final AtomicLong totalIOTime = new AtomicLong(0);
+    public final AtomicInteger numIO = new AtomicInteger(0);
+    public final List<SlowIOInfo> slowIOInfoList = new ArrayList<>();
+  }
+
+  private IOStats readIOStats;
+  private IOStats writeIOStats;
+
+  public void createReadIOStats() {
+    if (this.readIOStats != null) {
+      return;
+    }
+    this.readIOStats = new IOStats();
+  }
+
+  public void createWriteIOStats() {
+    if (this.writeIOStats != null) {
+      return;
+    }
+    this.writeIOStats = new IOStats();
+  }
+
+  public IOStats getReadIOStats() {
+    return readIOStats;
+  }
+
+  public IOStats getWriteIOStats() {
+    return writeIOStats;
+  }
+
   public OperatorStats(OpProfileDef def, BufferAllocator allocator){
-    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator);
+    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, Long.MAX_VALUE);
+  }
+
+  public OperatorStats(OpProfileDef def, BufferAllocator allocator, long warnIOTimeThreshold){
+    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, warnIOTimeThreshold);
   }
 
   /**
@@ -98,7 +143,7 @@ public class OperatorStats {
    * @param isClean - flag to indicate whether to start with clean state indicators or inherit those from original object
    */
   public OperatorStats(OperatorStats original, boolean isClean) {
-    this(original.operatorId, original.operatorType, original.inputCount, original.allocator);
+    this(original.operatorId, original.operatorType, original.inputCount, original.allocator, original.warnIOTimeThreshold);
 
     if ( !isClean ) {
       currentState = original.currentState;
@@ -108,7 +153,7 @@ public class OperatorStats {
     }
   }
 
-  private OperatorStats(int operatorId, int operatorType, int inputCount, BufferAllocator allocator) {
+  private OperatorStats(int operatorId, int operatorType, int inputCount, BufferAllocator allocator, long warnIOTimeThreshold) {
     super();
     this.allocator = allocator;
     this.operatorId = operatorId;
@@ -117,6 +162,7 @@ public class OperatorStats {
     this.recordsReceivedByInput = new long[inputCount];
     this.batchesReceivedByInput = new long[inputCount];
     this.sizeInBytesReceivedByInput = new long[inputCount];
+    this.warnIOTimeThreshold = warnIOTimeThreshold;
   }
 
   public int getOperatorId(){
@@ -216,6 +262,11 @@ public class OperatorStats {
     // revert to the saved state
     startState(savedState);
     savedState = State.NONE;
+  }
+
+  public void moveProcessingToWait(long nanos) {
+    this.stateNanos[State.WAIT.ordinal()]+=nanos;
+    this.stateNanos[State.PROCESSING.ordinal()]-=nanos;
   }
 
   /*
@@ -376,7 +427,7 @@ public class OperatorStats {
 
     final V2_AsciiTable outputTable = new V2_AsciiTable();
     outputTable.addRule();
-    outputTable.addRow(String.format("Metrics for operator %s", CoreOperatorType.values()[operatorType], operatorId), String.format("id: %d.", operatorId));
+    outputTable.addRow(String.format("Metrics for operator %s", CoreOperatorType.values()[operatorType]), String.format("id: %d.", operatorId));
     outputTable.addRule();
     outputTable.addRow("metric", "value");
     outputTable.addRow("Setup time", NumberFormat.getInstance().format(getSetupNanos()) + " ns");
@@ -427,6 +478,36 @@ public class OperatorStats {
     } else {
       return operatorStats.recorder;
     }
+  }
+
+  private void updateIOStats(IOStats ioStats, long elapsed, String filePath, long n, long offset){
+    if (ioStats == null) {
+      return;
+    }
+
+    ioStats.minIOTime.getAndAccumulate(elapsed, Math::min);
+    ioStats.maxIOTime.getAndAccumulate(elapsed, Math::max);
+    ioStats.totalIOTime.addAndGet(elapsed);
+    ioStats.numIO.incrementAndGet();
+
+    if (elapsed >= TimeUnit.MILLISECONDS.toNanos(warnIOTimeThreshold)) {
+      synchronized (ioStats.slowIOInfoList) {
+        ioStats.slowIOInfoList.add(SlowIOInfo.newBuilder()
+          .setFilePath(filePath)
+          .setIoTime(elapsed)
+          .setIoSize(n)
+          .setIoOffset(offset)
+          .build());
+      }
+    }
+  }
+
+  public void updateReadIOStats(long elapsed, String filePath, long n, long offset) {
+    updateIOStats(readIOStats, elapsed, filePath, n, offset);
+  }
+
+  public void updateWriteIOStats(long elapsed, String filePath, long n, long offset) {
+    updateIOStats(writeIOStats, elapsed, filePath, n, offset);
   }
 
 }

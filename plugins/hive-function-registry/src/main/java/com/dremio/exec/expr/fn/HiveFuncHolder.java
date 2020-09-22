@@ -33,8 +33,8 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
+import com.dremio.exec.expr.CodeModelArrowHelper;
 import com.dremio.exec.expr.HiveFuncHolderExpr;
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.impl.hive.DeferredObject;
 import com.dremio.exec.expr.fn.impl.hive.ObjectInspectorHelper;
 import com.sun.codemodel.JBlock;
@@ -162,7 +162,7 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
     workspaceJVars[1] = g.declareClassField("udfInstance", g.getModel()._ref(GenericUDF.class));
     workspaceJVars[2] = g.declareClassField("deferredObjects", g.getModel()._ref(DeferredObject[].class));
     workspaceJVars[3] = g.declareClassField("arguments", g.getModel()._ref(DeferredObject[].class));
-    workspaceJVars[4] = g.declareClassField("returnValueHolder", TypeHelper.getHolderType(g.getModel(), returnType.toMinorType(), DataMode.OPTIONAL));
+    workspaceJVars[4] = g.declareClassField("returnValueHolder", CodeModelArrowHelper.getHolderType(g.getModel(), returnType.toMinorType(), DataMode.OPTIONAL));
 
     return workspaceJVars;
   }

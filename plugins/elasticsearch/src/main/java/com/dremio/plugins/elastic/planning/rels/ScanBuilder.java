@@ -15,13 +15,11 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.exec.physical.base.OpProps;
 import org.apache.calcite.plan.RelOptTable;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionFuture;
@@ -43,7 +41,9 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
@@ -151,7 +151,7 @@ public class ScanBuilder {
     return ImmutableMap.copyOf(map);
   }
 
-  protected void applyFilter(SearchRequestBuilder searchRequest, ElasticIntermediateScanPrel scan, ElasticsearchFilter filter, ElasticTableXattr tableAttributes) throws ExpressionNotAnalyzableException, IOException {
+  protected void applyFilter(SearchRequestBuilder searchRequest, ElasticIntermediateScanPrel scan, ElasticsearchFilter filter, ElasticTableXattr tableAttributes) throws ExpressionNotAnalyzableException {
 
     QueryBuilder b = null;
     if (tableAttributes.hasAliasFilter()) {
@@ -204,7 +204,7 @@ public class ScanBuilder {
       includesOrderedByOriginalTable = new String[0];
     } else {
       includesOrderedByOriginalTable =
-          scan.getBatchSchema().mask(scan.getProjectedColumns(), false)
+          CalciteArrowHelper.wrap(scan.getBatchSchema().mask(scan.getProjectedColumns(), false))
             .toCalciteRecordType(scan.getCluster().getTypeFactory()).getFieldNames().toArray(new String[0]);
     }
 
@@ -244,9 +244,7 @@ public class ScanBuilder {
       this.spec = scanSpec;
       this.scan = scan;
     } catch (ExpressionNotAnalyzableException e) {
-      throw UserException.dataReadError(e).message("Elastic pushdown failed to late to recover query.").build(logger);
-    } catch (IOException e) {
-      throw UserException.dataReadError(e).message("Failure while attempting to create Elastic query.").build(logger);
+      throw UserException.dataReadError(e).message("Elastic pushdown failed. Too late to recover query.").build(logger);
     }
   }
 

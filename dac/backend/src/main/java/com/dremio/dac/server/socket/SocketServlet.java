@@ -44,9 +44,10 @@ import com.dremio.dac.server.socket.SocketMessage.Payload;
 import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.ExternalStatusListener;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -159,7 +160,16 @@ public class SocketServlet extends WebSocketServlet {
         } else if (msg instanceof ListenRecords) {
           JobId id = ((ListenRecords) msg).getId();
           jobsService.registerListener(id, new RecordsListener(id, this));
+        } else if (msg instanceof SocketMessage.ListenReflectionJobDetails) {
+          JobId id = ((SocketMessage.ListenReflectionJobDetails) msg).getId();
+          String reflectionId = ((SocketMessage.ListenReflectionJobDetails) msg).getReflectionId();
+          jobsService.registerReflectionJobListener(id, user.getName(), reflectionId, new DetailsListener(id, this));
+        } else if (msg instanceof SocketMessage.ListenReflectionJobProgress) {
+          JobId id = ((SocketMessage.ListenReflectionJobProgress) msg).getId();
+          String reflectionId = ((SocketMessage.ListenReflectionJobProgress) msg).getReflectionId();
+          jobsService.registerReflectionJobListener(id, user.getName(), reflectionId, new ProgressListener(id, this));
         }
+
       } catch (Exception e) {
         logger.warn("Failure handling socket message of {}.", message, e);
         send(new SocketMessage.ErrorPayload(e.getMessage()));
@@ -206,14 +216,14 @@ public class SocketServlet extends WebSocketServlet {
     }
 
     @Override
-    public void profileUpdated(Job job) {
-      final JobDetailsUpdate update = new JobDetailsUpdate(job.getJobId());
+    public void queryProgressed(JobSummary jobSummary) {
+      final JobDetailsUpdate update = new JobDetailsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()));
       socket.send(update);
     }
 
     @Override
-    public void queryCompleted(Job job) {
-      final JobDetailsUpdate update = new JobDetailsUpdate(job.getJobId());
+    public void queryCompleted(JobSummary jobSummary) {
+      final JobDetailsUpdate update = new JobDetailsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()));
       socket.send(update);
     }
   }
@@ -230,14 +240,14 @@ public class SocketServlet extends WebSocketServlet {
     }
 
     @Override
-    public void profileUpdated(Job job) {
-      final JobProgressUpdate update = new JobProgressUpdate(job);
+    public void queryProgressed(JobSummary jobSummary) {
+      final JobProgressUpdate update = new JobProgressUpdate(jobSummary);
       socket.send(update);
     }
 
     @Override
-    public void queryCompleted(Job job) {
-      final JobProgressUpdate update = new JobProgressUpdate(job);
+    public void queryCompleted(JobSummary jobSummary) {
+      final JobProgressUpdate update = new JobProgressUpdate(jobSummary);
       socket.send(update);
     }
   }
@@ -254,8 +264,8 @@ public class SocketServlet extends WebSocketServlet {
     }
 
     @Override
-    public void reportRecordCount(Job jobId, long recordCount) {
-      final JobRecordsUpdate update = new JobRecordsUpdate(jobId.getJobId(), recordCount);
+    public void queryProgressed(JobSummary jobSummary) {
+      final JobRecordsUpdate update = new JobRecordsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
       socket.send(update);
     }
   }

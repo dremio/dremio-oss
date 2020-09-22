@@ -30,7 +30,6 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
 
 /**
  * Handler for <code>FORGET TABLE tblname</code> command.
@@ -39,12 +38,10 @@ public class ForgetTableHandler extends SimpleDirectHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
 
   private final static int MAX_RETRIES = 5;
-  private final NamespaceService namespaceService;
   private final Catalog catalog;
 
-  public ForgetTableHandler(Catalog catalog, NamespaceService namespaceService) {
+  public ForgetTableHandler(Catalog catalog) {
     this.catalog = catalog;
-    this.namespaceService = namespaceService;
   }
 
   @Override
@@ -65,7 +62,7 @@ public class ForgetTableHandler extends SimpleDirectHandler {
       }
 
       try {
-        namespaceService.deleteDataset(table.getPath(), table.getVersion());
+        catalog.deleteDataset(table.getPath(), table.getVersion());
         return singletonList(successful(String.format("Successfully removed table '%s' from namespace.", table.getPath())));
       } catch (NamespaceNotFoundException ex) {
         logger.debug("Table to delete not found", ex);
@@ -77,7 +74,5 @@ public class ForgetTableHandler extends SimpleDirectHandler {
         }
       }
     }
-
-
   }
 }

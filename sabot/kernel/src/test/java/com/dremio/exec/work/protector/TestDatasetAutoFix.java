@@ -25,7 +25,9 @@ import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.io.Files;
 
 /**
@@ -36,8 +38,12 @@ public class TestDatasetAutoFix extends BaseTestQuery {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @Before
   public void before() {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
     setSessionOption(ExecConstants.ENABLE_REATTEMPTS, "true");
   }
 

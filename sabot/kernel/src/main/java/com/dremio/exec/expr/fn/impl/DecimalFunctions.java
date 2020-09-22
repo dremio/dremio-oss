@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.DecimalHolder;
@@ -29,6 +30,7 @@ import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.AggrFunction;
@@ -43,10 +45,10 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
 import com.dremio.exec.expr.fn.OutputDerivation;
 
-import io.netty.buffer.ArrowBuf;
-
 
 public class DecimalFunctions {
+
+  public static final String DECIMAL_CAST_NULL_ON_OVERFLOW = "castDECIMALNullOnOverflow";
 
   @SuppressWarnings("unused")
   @FunctionTemplate(names = {"castVARCHAR"}, scope = FunctionScope.SIMPLE, nulls= NullHandling.NULL_IF_NULL)
@@ -130,11 +132,167 @@ public class DecimalFunctions {
     public void eval() {
       String s = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
       java.math.BigDecimal bd = new java.math.BigDecimal(s).setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
+
+      // Decimal value will be 0 if there is precision overflow.
+      // This is similar to DecimalFunctions:CastDecimalDecimal
+      if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(bd, (int) precision.value)) {
+        bd = new java.math.BigDecimal("0.0");
+      }
+
       try {
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(bd, buffer, 0);
       } catch (RuntimeException e) {
         throw errorContext.error(e)
             .build();
+      }
+      out.buffer = buffer;
+      out.precision = (int) precision.value;
+      out.scale = (int) scale.value;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(names = {DECIMAL_CAST_NULL_ON_OVERFLOW}, derivation = OutputDerivation.DecimalCast.class, nulls= NullHandling.INTERNAL)
+  public static class CastVarcharDecimalNullOnOverflow implements SimpleFunction {
+
+    @Param
+    NullableVarCharHolder in;
+    @Param(constant = true)
+    BigIntHolder precision;
+    @Param(constant = true)
+    BigIntHolder scale;
+    @Output
+    NullableDecimalHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
+    @Workspace
+    IntHolder expectedSignificantDigits;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+      expectedSignificantDigits.value = (int)(precision.value - scale.value);
+    }
+
+    @Override
+    public void eval() {
+      out.isSet = in.isSet;
+      if (in.isSet == 1) {
+        String s = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
+        java.math.BigDecimal originalValue = new java.math.BigDecimal(s);
+        java.math.BigDecimal convertedValue = originalValue.setScale((int) scale.value, java.math.RoundingMode
+          .HALF_UP);
+        int significantDigitsConverted = convertedValue.precision() - convertedValue.scale();
+
+        if (significantDigitsConverted > expectedSignificantDigits.value) {
+          out.isSet = 0;
+        } else {
+          out.isSet = 1;
+          try {
+            org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(convertedValue, buffer, 0);
+          } catch (RuntimeException e) {
+            throw errorContext.error(e)
+              .build();
+          }
+          out.buffer = buffer;
+          out.precision = (int) precision.value;
+          out.scale = (int) scale.value;
+        }
+      }
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(names = {DECIMAL_CAST_NULL_ON_OVERFLOW}, derivation = OutputDerivation.DecimalCast
+          .class, nulls= NullHandling.INTERNAL)
+  public static class CastDecimalDecimalNullOnOverflow implements SimpleFunction {
+
+    @Param
+    NullableDecimalHolder in;
+    @Param(constant = true)
+    BigIntHolder precision;
+    @Param(constant = true)
+    BigIntHolder scale;
+    @Output
+    NullableDecimalHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      out.isSet = in.isSet;
+      if (in.isSet == 1) {
+        int index = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+        java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, index, in.scale);
+        java.math.BigDecimal result = input.setScale((int) scale.value, java.math.RoundingMode.HALF_UP);
+        boolean overflow = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result,
+          (int) precision.value);
+        if (overflow) {
+          out.isSet = 0;
+        } else {
+          out.isSet = 1;
+          try {
+            org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+          } catch (RuntimeException e) {
+            throw errorContext.error(e)
+              .build();
+          }
+          out.buffer = buffer;
+          out.precision = (int) precision.value;
+          out.scale = (int) scale.value;
+        }
+      }
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(names = {"castDECIMAL"}, derivation = OutputDerivation.DecimalCast.class, nulls= NullHandling.NULL_IF_NULL)
+  public static class CastDecimalDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder in;
+    @Param(constant = true)
+    BigIntHolder precision;
+    @Param(constant = true)
+    BigIntHolder scale;
+    @Output
+    DecimalHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, index, in.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithPositiveScale(input,
+              (int) scale.value, java.math.RoundingMode.HALF_UP);
+
+      if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result, (int) precision.value)) {
+        result = new java.math.BigDecimal("0.0");
+      }
+
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+                .build();
       }
       out.buffer = buffer;
       out.precision = (int) precision.value;
@@ -716,6 +874,10 @@ public class DecimalFunctions {
     return in.precision() > 38 ? new BigDecimal(0) : in;
   }
 
+  public static boolean checkOverflow(BigDecimal in, int precision) {
+    return in.precision() > precision;
+  }
+
   public static BigDecimal addOrSubtract(boolean isSubtract, BigDecimal left, BigDecimal right,
                                    int outPrecision, int outScale) {
 
@@ -1211,14 +1373,16 @@ public class DecimalFunctions {
     return result;
   }
 
-  private static BigDecimal roundWithPositiveScale(BigDecimal input, int scale, java.math.RoundingMode roundingMode) {
+  public static BigDecimal roundWithPositiveScale(BigDecimal input, int scale, java.math
+          .RoundingMode roundingMode) {
     java.math.BigDecimal result = input.setScale(scale, roundingMode);
     result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
     return result;
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScale.class)
+  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls =
+    NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScaleRound.class)
   public static class RoundDecimalWithScale implements SimpleFunction {
 
     @Param
@@ -1242,9 +1406,13 @@ public class DecimalFunctions {
     public void eval() {
       int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
       java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
-
-      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, scale.value, java.math.RoundingMode.HALF_UP);
-      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      java.math.BigDecimal result;
+      if (scale.value > input.scale()) {
+        result = input;
+      } else {
+        result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, scale.value, java.math.RoundingMode.HALF_UP);
+        result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      }
       try {
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
       } catch (RuntimeException e) {
@@ -1253,7 +1421,7 @@ public class DecimalFunctions {
       }
       resultHolder.buffer = buffer;
       com.dremio.common.expression.CompleteType outputType =
-        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_SET_SCALE.getOutputType(
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_SET_SCALE_ROUND.getOutputType(
           com.dremio.common.expression.CompleteType.DECIMAL,
           java.util.Arrays.asList(
             new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale),
@@ -1264,7 +1432,8 @@ public class DecimalFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls =
+    NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScaleRound.class)
   public static class RoundDecimal implements SimpleFunction {
 
     @Param
@@ -1297,7 +1466,7 @@ public class DecimalFunctions {
       }
       resultHolder.buffer = buffer;
       com.dremio.common.expression.CompleteType outputType =
-        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE.getOutputType(
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE_ROUND.getOutputType(
           com.dremio.common.expression.CompleteType.DECIMAL,
           java.util.Arrays.asList(
             new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale)));
@@ -1307,7 +1476,8 @@ public class DecimalFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "truncate", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScale.class)
+  @FunctionTemplate(names = {"truncate", "trunc"}, scope = FunctionScope.SIMPLE, nulls =
+    NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScaleTruncate.class)
   public static class TruncateDecimalWithScale implements SimpleFunction {
 
     @Param
@@ -1331,9 +1501,13 @@ public class DecimalFunctions {
     public void eval() {
       int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
       java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
-
-      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, scale.value, java.math.RoundingMode.DOWN);
-      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      java.math.BigDecimal result;
+      if (scale.value > input.scale()) {
+        result = input;
+      } else {
+        result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, scale.value, java.math.RoundingMode.DOWN);
+        result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      }
       try {
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
       } catch (RuntimeException e) {
@@ -1342,7 +1516,7 @@ public class DecimalFunctions {
       }
       resultHolder.buffer = buffer;
       com.dremio.common.expression.CompleteType outputType =
-        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_SET_SCALE.getOutputType(
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_SET_SCALE_TRUNCATE.getOutputType(
           com.dremio.common.expression.CompleteType.DECIMAL,
           java.util.Arrays.asList(
             new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale),
@@ -1353,7 +1527,8 @@ public class DecimalFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "truncate", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  @FunctionTemplate(names = {"truncate", "trunc"}, scope = FunctionScope.SIMPLE, nulls =
+    NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScaleTruncate.class)
   public static class TruncateDecimal implements SimpleFunction {
 
     @Param
@@ -1386,7 +1561,7 @@ public class DecimalFunctions {
       }
       resultHolder.buffer = buffer;
       com.dremio.common.expression.CompleteType outputType =
-        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE.getOutputType(
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE_TRUNCATE.getOutputType(
           com.dremio.common.expression.CompleteType.DECIMAL,
           java.util.Arrays.asList(
             new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale)));

@@ -23,7 +23,7 @@ import { FormattedMessage, injectIntl } from 'react-intl';
 
 import Art from 'components/Art';
 
-import ChatItem from 'dyn-load/components/HeaderItemsTypes/ChatItem';
+import ChatItem from '@inject/components/HeaderItemsTypes/ChatItem';
 
 import MainHeaderItem from './MainHeaderItem';
 import HeaderLink from './HeaderItemsTypes/HeaderLink';

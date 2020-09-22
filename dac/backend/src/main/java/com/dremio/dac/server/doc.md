@@ -10,7 +10,7 @@
 ## Resource defined by class com.dremio.dac.resource.BackupResource
 
  - POST /backup   
-   > `=>` String   
+   > `=>` [com.dremio.dac.util.BackupRestoreUtil$BackupOptions](#class-comdremiodacutilbackuprestoreutil$backupoptions)   
    > `<=` [com.dremio.dac.util.BackupRestoreUtil$BackupStats](#class-comdremiodacutilbackuprestoreutil$backupstats)   
 
 
@@ -300,6 +300,13 @@
  - GET /job/{jobId}/r/{rowNum}/c/{columnName} (path params: jobId={com.dremio.service.job.proto.JobId}, rowNum={int}, columnName={String})   
    > `<=` java.lang.Object   
 
+ - POST /job/{jobId}/reflection/{reflectionId}/cancel (path params: jobId={String}, reflectionId={String})   
+   > `=>`   
+   > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
+
+ - GET /job/{jobId}/reflection/{reflectionId}/details (path params: jobId={String}, reflectionId={String})   
+   > `<=` [com.dremio.dac.model.job.JobDetailsUI](#class-comdremiodacmodeljobjobdetailsui)   
+
  - POST /job/{jobId}/cancel (path params: jobId={String})   
    > `=>`   
    > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
@@ -310,7 +317,10 @@
 
 ## Resource defined by class com.dremio.dac.resource.JobsResource
 
- - GET /jobs?filter={String}&sort={String}&order={com.dremio.service.jobs.SearchJobsRequest$ResultOrder}&offset={int}0&limit={int}100   
+ - GET /jobs?filter={String}&sort={String}&order={com.dremio.dac.model.job.ResultOrder}&offset={int}0&limit={int}100   
+   > `<=` [com.dremio.dac.model.job.JobsUI](#class-comdremiodacmodeljobjobsui)   
+
+ - GET /jobs/reflection/{reflectionId}?offset={int}0&limit={int}100 (path params: reflectionId={String})   
    > `<=` [com.dremio.dac.model.job.JobsUI](#class-comdremiodacmodeljobjobsui)   
 
 
@@ -338,16 +348,33 @@
    > `<=` javax.ws.rs.core.Response   
 
 
+## Resource defined by class com.dremio.dac.resource.PowerBIResource
+
+ - GET /powerbi/{datasetId}   
+   > `=>`   
+   > Host: {String}   
+   > `<=` javax.ws.rs.core.Response   
+
+
 ## Resource defined by class com.dremio.dac.admin.ProfileResource
 
  - GET /profiles/cancel/{queryid} (path params: queryid={String})   
    > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
+
+ - GET /profiles/cancel/{queryid}/reflection/{reflectionId} (path params: queryid={String}, reflectionId={String})   
+   > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
+
+ - GET /profiles/reflection/{reflectionId}/{queryid}.json?attempt={int}0 (path params: queryid={String}, reflectionId={String})   
+   > `<=` String   
 
  - GET /profiles/{queryid}?attempt={int}0 (path params: queryid={String})   
    > `<=` [org.glassfish.jersey.server.mvc.Viewable](#class-orgglassfishjerseyservermvcviewable)   
 
  - GET /profiles/{queryid}.json?attempt={int}0 (path params: queryid={String})   
    > `<=` String   
+
+ - GET /profiles/{queryid}/reflection/{reflectionId}?attempt={int}0 (path params: queryid={String}, reflectionId={String})   
+   > `<=` [org.glassfish.jersey.server.mvc.Viewable](#class-orgglassfishjerseyservermvcviewable)   
 
 
 ## Resource defined by class com.dremio.provision.resource.ProvisioningResource
@@ -376,8 +403,10 @@
 
 ## Resource defined by class com.dremio.dac.explore.bi.QlikResource
 
- - GET /qlik/{datasetPath}   
-   > `<=` [com.dremio.service.namespace.dataset.proto.DatasetConfig](#class-comdremioservicenamespacedatasetprotodatasetconfig)   
+ - GET /qlik/{datasetId}   
+   > `=>`   
+   > Host: {String}   
+   > `<=` javax.ws.rs.core.Response   
 
 
 ## Resource defined by class com.dremio.dac.resource.ResourceTreeResource
@@ -573,7 +602,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.TableauResource
 
- - GET /tableau/{datasetPath}   
+ - GET /tableau/{datasetId}   
    > `=>`   
    > Host: {String}   
    > `<=` javax.ws.rs.core.Response   
@@ -745,7 +774,7 @@
           ...
         ],
         level: 1,
-        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -762,7 +791,7 @@
           ...
         ],
         level: 1,
-        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -858,7 +887,7 @@
     owner: "abc",
     preview: true | false,
     recordsReturned: 1,
-    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
     transformDescription: "abc",
     versionedResourcePath: "abc",
   },
@@ -907,7 +936,7 @@
       "abc",
       ...
     ],
-    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     displayFullPath: [
       "abc",
       ...
@@ -933,7 +962,7 @@
           ...
         ],
         level: 1,
-        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -953,7 +982,7 @@
   apiLinks: {
     abc: "abc", ...
   },
-  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   datasetVersion: "abc",
   descendants: 1,
   fields: [
@@ -988,7 +1017,7 @@
     "abc",
     ...
   ],
-  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   datasetVersion: "abc",
   descendants: 1,
   displayFullPath: [
@@ -1023,7 +1052,7 @@
       "abc",
       ...
     ],
-    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1055,7 +1084,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1104,7 +1133,7 @@
       owner: "abc",
       preview: true | false,
       recordsReturned: 1,
-      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
       transformDescription: "abc",
       versionedResourcePath: "abc",
     },
@@ -1190,7 +1219,7 @@
       "abc",
       ...
     ],
-    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1232,7 +1261,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1262,7 +1291,7 @@
       "abc",
       ...
     ],
-    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1294,7 +1323,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1323,7 +1352,7 @@
       "abc",
       ...
     ],
-    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1355,7 +1384,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1398,7 +1427,7 @@
 - Example:
 ```
 {
-  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   fullPath: [
     "abc",
     ...
@@ -1619,7 +1648,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -1636,7 +1665,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -1732,7 +1761,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -1806,7 +1835,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
             version: 1,
           },
           fullPathList: [
@@ -1816,7 +1845,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -1885,7 +1914,7 @@
             "abc",
             ...
           ],
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
         materialization: {
           id: "abc",
@@ -1963,12 +1992,19 @@
   attemptDetails: [
     {
       commandPoolWaitTime: 1,
-      enqueuedTime: 1,
+      engineStartTime: 1,
+      executionPlanningTime: 1,
       executionTime: 1,
+      metadataRetrievalTime: 1,
+      pendingTime: 1,
       planningTime: 1,
       profileUrl: "abc",
+      queuedTime: 1,
       reason: "abc",
-      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
+      runningTime: 1,
+      startingTime: 1,
+      totalTime: 1,
     },
     ...
   ],
@@ -1981,7 +2017,7 @@
     "abc",
     ...
   ],
-  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   datasetVersion: "abc",
   description: "abc",
   downloadUrl: "abc",
@@ -2050,7 +2086,7 @@
         "abc",
         ...
       ],
-      type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+      type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     },
     ...
   ],
@@ -2075,7 +2111,7 @@
   spilled: true | false,
   sql: "abc",
   startTime: 1,
-  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
   stats: {
     inputBytes: 1,
     inputRecords: 1,
@@ -2202,9 +2238,14 @@
       ],
       waitInClient: 1,
     },
-    endpoint: {
+    endpoint: { /** NodeEndpoint **/
       address: "abc",
       availableCores: 1,
+      conduitPort: 1,
+      dremioVersion: "abc",
+      engineId: {
+        id: "abc",
+      },
       fabricPort: 1,
       maxDirectMemory: 1,
       nodeTag: "abc",
@@ -2218,6 +2259,9 @@
         sqlQuery: true | false,
       },
       startTime: 1,
+      subEngineId: {
+        id: "abc",
+      },
       userPort: 1,
     },
     info: {
@@ -2299,7 +2343,7 @@
             ...
           ],
           level: 1,
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
         ...
       ],
@@ -2389,7 +2433,7 @@
             "abc",
             ...
           ],
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
         ...
       ],
@@ -2451,6 +2495,32 @@
           },
           path: "abc",
           recordCount: 1,
+          screenNodeEndpoint: { /** NodeEndpoint **/
+            address: "abc",
+            availableCores: 1,
+            conduitPort: 1,
+            dremioVersion: "abc",
+            engineId: {
+              id: "abc",
+            },
+            fabricPort: 1,
+            maxDirectMemory: 1,
+            nodeTag: "abc",
+            provisionId: "abc",
+            roles: {
+              distributedCache: true | false,
+              javaExecutor: true | false,
+              logicalPlan: true | false,
+              master: true | false,
+              physicalPlan: true | false,
+              sqlQuery: true | false,
+            },
+            startTime: 1,
+            subEngineId: {
+              id: "abc",
+            },
+            userPort: 1,
+          },
         },
         ...
       ],
@@ -2472,8 +2542,8 @@
       startTime: 1,
       user: "abc",
     },
-    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE",
-    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE" | "RESOURCE_TIMEOUT",
+    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
     stats: {
       inputBytes: 1,
       inputRecords: 1,
@@ -2503,7 +2573,7 @@
         "abc",
         ...
       ],
-      datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+      datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       datasetVersion: "abc",
       description: "abc",
       endTime: 1,
@@ -2531,7 +2601,7 @@
       snowflakeAccelerated: true | false,
       spilled: true | false,
       startTime: 1,
-      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
       user: "abc",
     },
     ...
@@ -2581,7 +2651,7 @@
       name: "abc",
       owner: "abc",
       tag: "abc",
-      type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+      type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
       version: 1,
     },
     fullPathList: [
@@ -2591,7 +2661,7 @@
     id: "abc",
     name: "abc",
     tag: "abc",
-    type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     version: 1,
   },
   datasetName: "abc",
@@ -2615,6 +2685,7 @@
   accelerationNeverExpire: true | false,
   accelerationNeverRefresh: true | false,
   accelerationRefreshPeriod: 1,
+  allowCrossSourceSelection: true | false,
   config: {
   },
   contents: { /** NamespaceTree **/
@@ -2671,7 +2742,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -2688,7 +2759,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -2784,7 +2855,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -2883,7 +2954,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
             version: 1,
           },
           fullPathList: [
@@ -2893,7 +2964,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -2962,6 +3033,7 @@
       accelerationNeverExpire: true | false,
       accelerationNeverRefresh: true | false,
       accelerationRefreshPeriod: 1,
+      allowCrossSourceSelection: true | false,
       config: {
       },
       contents: { /** NamespaceTree **/
@@ -3018,7 +3090,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -3035,7 +3107,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -3131,7 +3203,7 @@
               owner: "abc",
               preview: true | false,
               recordsReturned: 1,
-              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
               transformDescription: "abc",
               versionedResourcePath: "abc",
             },
@@ -3230,7 +3302,7 @@
                 name: "abc",
                 owner: "abc",
                 tag: "abc",
-                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
                 version: 1,
               },
               fullPathList: [
@@ -3240,7 +3312,7 @@
               id: "abc",
               name: "abc",
               tag: "abc",
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
               version: 1,
             },
             datasetName: "abc",
@@ -3360,7 +3432,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3377,7 +3449,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3473,7 +3545,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -3572,7 +3644,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
             version: 1,
           },
           fullPathList: [
@@ -3582,7 +3654,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -3686,7 +3758,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3703,7 +3775,7 @@
                 ...
               ],
               level: 1,
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3799,7 +3871,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -3898,7 +3970,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
             version: 1,
           },
           fullPathList: [
@@ -3908,7 +3980,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -4001,7 +4073,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -4018,7 +4090,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -4114,7 +4186,7 @@
               owner: "abc",
               preview: true | false,
               recordsReturned: 1,
-              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
               transformDescription: "abc",
               versionedResourcePath: "abc",
             },
@@ -4213,7 +4285,7 @@
                 name: "abc",
                 owner: "abc",
                 tag: "abc",
-                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
+                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
                 version: 1,
               },
               fullPathList: [
@@ -4223,7 +4295,7 @@
               id: "abc",
               name: "abc",
               tag: "abc",
-              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
               version: 1,
             },
             datasetName: "abc",
@@ -4263,16 +4335,20 @@
 - Example:
 ```
 {
-  cpu: "abc",
+  cpu: 1.0,
   host: "abc",
   ip: "abc",
+  isCompatible: true | false,
   isCoordinator: true | false,
   isExecutor: true | false,
-  memory: "abc",
+  isMaster: true | false,
+  memory: 1.0,
   name: "abc",
   nodeTag: "abc",
-  port: "abc",
+  port: 1,
+  start: any,
   status: "abc",
+  version: "abc",
 }
 ```
 
@@ -4282,6 +4358,7 @@
 {
   createdAt: 1,
   email: "abc",
+  extra: "abc",
   firstName: "abc",
   lastName: "abc",
   modifiedAt: 1,
@@ -4316,6 +4393,7 @@
   userConfig: {
     createdAt: 1,
     email: "abc",
+    extra: "abc",
     firstName: "abc",
     lastName: "abc",
     modifiedAt: 1,
@@ -4344,6 +4422,7 @@
       userConfig: {
         createdAt: 1,
         email: "abc",
+        extra: "abc",
         firstName: "abc",
         lastName: "abc",
         modifiedAt: 1,
@@ -4526,6 +4605,16 @@ any
 }
 ```
 
+## `class com.dremio.dac.util.BackupRestoreUtil$BackupOptions`
+- Example:
+```
+{
+  backupDir: "abc",
+  binary: true | false,
+  includeProfiles: true | false,
+}
+```
+
 ## `class com.dremio.dac.util.BackupRestoreUtil$BackupStats`
 - Example:
 ```
@@ -4572,183 +4661,6 @@ any
     ...
   ],
   urlPath: "abc",
-}
-```
-
-## `class com.dremio.service.namespace.dataset.proto.DatasetConfig`
-- Example:
-```
-{
-  accelerationId: "abc",
-  createdAt: 1,
-  datasetFieldsList: [
-    {
-      fieldName: "abc",
-      fieldSchema: { /** ByteString **/
-        empty: true | false,
-      },
-    },
-    ...
-  ],
-  fullPathList: [
-    "abc",
-    ...
-  ],
-  id: {
-    id: "abc",
-  },
-  lastModified: 1,
-  name: "abc",
-  owner: "abc",
-  physicalDataset: {
-    accelerationSettings: {
-      accelerationTTL: {
-        duration: 1,
-        unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-      },
-      gracePeriod: 1,
-      method: "FULL" | "INCREMENTAL",
-      neverExpire: true | false,
-      neverRefresh: true | false,
-      refreshField: "abc",
-      refreshPeriod: 1,
-      tag: "abc",
-      version: 1,
-    },
-    allowApproxStats: true | false,
-    deprecatedDatasetSchema: { /** ByteString **/
-      empty: true | false,
-    },
-    formatSettings: {
-      ctime: 1,
-      extendedConfig: { /** ByteString **/
-        empty: true | false,
-      },
-      fullPathList: [
-        "abc",
-        ...
-      ],
-      location: "abc",
-      name: "abc",
-      owner: "abc",
-      tag: "abc",
-      type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
-      version: 1,
-    },
-    isAppendOnly: true | false,
-  },
-  readDefinition: {
-    extendedProperty: { /** ByteString **/
-      empty: true | false,
-    },
-    lastRefreshDate: 1,
-    partitionColumnsList: [
-      "abc",
-      ...
-    ],
-    readSignature: { /** ByteString **/
-      empty: true | false,
-    },
-    scanStats: {
-      cpuCost: 1.0,
-      diskCost: 1.0,
-      recordCount: 1,
-      scanFactor: 1.0,
-      type: "NO_EXACT_ROW_COUNT" | "EXACT_ROW_COUNT",
-    },
-    sortColumnsList: [
-      "abc",
-      ...
-    ],
-    splitVersion: 1,
-  },
-  recordSchema: { /** ByteString **/
-    empty: true | false,
-  },
-  schemaVersion: 1,
-  tag: "abc",
-  totalNumSplits: 1,
-  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-  version: 1,
-  virtualDataset: {
-    calciteFieldsList: [
-      { /** ViewFieldType **/
-        endUnit: "abc",
-        fractionalSecondPrecision: 1,
-        isNullable: true | false,
-        name: "abc",
-        precision: 1,
-        scale: 1,
-        startUnit: "abc",
-        type: "abc",
-        typeFamily: "abc",
-      },
-      ...
-    ],
-    contextList: [
-      "abc",
-      ...
-    ],
-    fieldOriginsList: [
-      {
-        name: "abc",
-        originsList: [
-          {
-            columnName: "abc",
-            derived: true | false,
-            tableList: [
-              "abc",
-              ...
-            ],
-          },
-          ...
-        ],
-      },
-      ...
-    ],
-    grandParentsList: [
-      { /** ParentDataset **/
-        datasetPathList: [
-          "abc",
-          ...
-        ],
-        level: 1,
-        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-      },
-      ...
-    ],
-    parentsList: [
-      { /** ParentDataset **/
-        datasetPathList: [
-          "abc",
-          ...
-        ],
-        level: 1,
-        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-      },
-      ...
-    ],
-    requiredFieldsList: [
-      "abc",
-      ...
-    ],
-    sql: "abc",
-    sqlFieldsList: [
-      { /** ViewFieldType **/
-        endUnit: "abc",
-        fractionalSecondPrecision: 1,
-        isNullable: true | false,
-        name: "abc",
-        precision: 1,
-        scale: 1,
-        startUnit: "abc",
-        type: "abc",
-        typeFamily: "abc",
-      },
-      ...
-    ],
-    version: "abc",
-  },
 }
 ```
 
@@ -4824,6 +4736,13 @@ any
   allowAutoStop: true | false,
   awsProps: {
     amiId: "abc",
+    awsTags: [
+      {
+        key: "abc",
+        value: "abc",
+      },
+      ...
+    ],
     connectionProps: {
       accessKey: "abc",
       assumeRole: "abc",
@@ -4847,6 +4766,7 @@ any
     containerCount: 1,
   },
   name: "abc",
+  shutdownInterval: 1,
   yarnProps: {
     distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
     memoryMB: 1,
@@ -4873,6 +4793,13 @@ any
   allowAutoStop: true | false,
   awsProps: {
     amiId: "abc",
+    awsTags: [
+      {
+        key: "abc",
+        value: "abc",
+      },
+      ...
+    ],
     connectionProps: {
       accessKey: "abc",
       assumeRole: "abc",
@@ -4898,6 +4825,7 @@ any
   },
   id: "abc",
   name: "abc",
+  shutdownInterval: 1,
   tag: "abc",
   yarnProps: {
     distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
@@ -4925,6 +4853,13 @@ any
   allowAutoStop: true | false,
   awsProps: {
     amiId: "abc",
+    awsTags: [
+      {
+        key: "abc",
+        value: "abc",
+      },
+      ...
+    ],
     connectionProps: {
       accessKey: "abc",
       assumeRole: "abc",
@@ -4946,6 +4881,20 @@ any
   clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
   containers: {
     decommissioningCount: 1,
+    decommissioningList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
     disconnectedList: [
       { /** Container **/
         containerId: "abc",
@@ -4961,6 +4910,20 @@ any
       ...
     ],
     pendingCount: 1,
+    pendingList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
     provisioningCount: 1,
     runningList: [
       { /** Container **/
@@ -4986,6 +4949,8 @@ any
   error: "abc",
   id: "abc",
   name: "abc",
+  shutdownInterval: 1,
+  stateChangeTime: 1,
   tag: "abc",
   yarnProps: {
     distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
@@ -5015,6 +4980,13 @@ any
       allowAutoStop: true | false,
       awsProps: {
         amiId: "abc",
+        awsTags: [
+          {
+            key: "abc",
+            value: "abc",
+          },
+          ...
+        ],
         connectionProps: {
           accessKey: "abc",
           assumeRole: "abc",
@@ -5036,6 +5008,20 @@ any
       clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
       containers: {
         decommissioningCount: 1,
+        decommissioningList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
         disconnectedList: [
           { /** Container **/
             containerId: "abc",
@@ -5051,6 +5037,20 @@ any
           ...
         ],
         pendingCount: 1,
+        pendingList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
         provisioningCount: 1,
         runningList: [
           { /** Container **/
@@ -5076,6 +5076,8 @@ any
       error: "abc",
       id: "abc",
       name: "abc",
+      shutdownInterval: 1,
+      stateChangeTime: 1,
       tag: "abc",
       yarnProps: {
         distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
@@ -5109,6 +5111,7 @@ any
 
 
 #V2 Others: 
+## class com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator
 ## class com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator
 ## class com.dremio.dac.explore.bi.TableauMessageBodyGenerator
 ## class com.dremio.dac.server.DACAuthFilterFeature

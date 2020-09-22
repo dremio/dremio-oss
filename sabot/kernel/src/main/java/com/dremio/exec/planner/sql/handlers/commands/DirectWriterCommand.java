@@ -204,7 +204,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
 
     final CreateTableEntry createTableEntry = context.getCatalog()
         .resolveCatalog(SystemUser.SYSTEM_USERNAME)
-        .createNewTable(new NamespaceKey(storeTable), WriterOptions.DEFAULT, storageOptions);
+        .createNewTable(new NamespaceKey(storeTable), null, WriterOptions.DEFAULT, storageOptions);
     return createTableEntry.getWriter(new OpProps(0, SystemUser.SYSTEM_USERNAME, 0, Long.MAX_VALUE, 0, 0, false, 4095, RecordWriter.SCHEMA, false, 0.0d, false), null);
   }
 
@@ -226,16 +226,17 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         stats,
         null,
         null,
+        null,
         context.getFunctionRegistry(),
         null,
         context.getOptions(),
-        context.getNamespaceService(),
         null,
         NodeDebugContextProvider.NOOP,
         60000,
         null,
         ImmutableList.of(),
-        new EndpointsIndex());
+        ImmutableList.of(),
+       null, new EndpointsIndex());
     return oc;
   }
 }

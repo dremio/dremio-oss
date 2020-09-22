@@ -46,7 +46,7 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
                           WriteStatsListener statsListener) throws IOException {
     this.incoming = incoming;
     this.listener = listener;
-    this.writeStatsListener = writeStatsListener;
+    this.writeStatsListener = statsListener;
     setup();
   }
   

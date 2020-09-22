@@ -15,12 +15,11 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVectorHelper;
 
 import com.dremio.common.util.Closeable;
-
-import io.netty.buffer.ArrowBuf;
 
 class MatchedVector implements Closeable {
   private ArrowBuf buffer;

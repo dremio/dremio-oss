@@ -23,7 +23,7 @@ const resourceName = 'setting';
 const actions = crudFactory(resourceName);
 
 /**
- *
+ * load settings
  * @param {string[]} requiredSettings - a list of setting keys that must be returned from server
  * @param {bool} includeSetSettings - set to true, if you neeed to receive a settings that were *
  * changed by any user
@@ -38,21 +38,28 @@ export const getDefinedSettings = (requiredSettings, includeSetSettings, viewId)
   const meta = { viewId };
   dispatch({type: `${prefix}_START`, meta});
 
-  try {
-    const response = await ApiUtils.fetch('settings/', {
-      method: 'POST', body: JSON.stringify({
-        requiredSettings,
-        includeSetSettings
-      })
-    }, 2);
-    const json = await response.json();
+  const options = {
+    method: 'POST', body: JSON.stringify({
+      requiredSettings,
+      includeSetSettings
+    })
+  };
+  return ApiUtils.fetchJson('settings/', json => {
     dispatch({
       type: `${prefix}_SUCCESS`,
       meta: { ...meta, entityClears: [resourceName]},
       payload: Immutable.fromJS(normalize(json, actions.listSchema))
     });
-  } catch (e) {
-    dispatch({type: `${prefix}_FAILURE`, meta});
-  }
+  }, () => {
+    dispatch({
+      type: `${prefix}_FAILURE`,
+      meta: {
+        ...meta, notification: {
+          level: 'error',
+          message: la('Failed to load settings from the server. ')
+        }
+      }
+    });
+  }, options, 2);
 };
 export default actions;

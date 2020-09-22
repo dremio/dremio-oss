@@ -19,19 +19,19 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Named;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.SplayTree.SplayIterator;
 import com.google.common.base.Stopwatch;
-
-import io.netty.buffer.ArrowBuf;
 
 
 public abstract class SplaySorterTemplate implements SplaySorterInterface {

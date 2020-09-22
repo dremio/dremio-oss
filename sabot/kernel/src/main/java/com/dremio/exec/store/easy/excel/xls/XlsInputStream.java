@@ -19,10 +19,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Off-heap buffered InputStream that keeps all read buffers in memory until the stream is closed.

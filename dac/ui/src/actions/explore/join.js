@@ -18,13 +18,13 @@ import fullDatasetSchema from 'schemas/v2/fullDataset';
 import { constructFullPath } from 'utils/pathUtils';
 
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 import { postDatasetOperation } from './dataset/common';
 
 export const UPDATE_JOIN_DATASET_VERSION = 'UPDATE_JOIN_DATASET_VERSION';
 export const CLEAR_JOIN_DATASET = 'CLEAR_JOIN_DATASET';
 
-export const loadJoinDataset = (datasetPathList, viewId) => (dispatch, getStore) => {
+export const loadJoinDataset = (datasetPathList, viewId) => (dispatch) => {
   // do not encode the path as getHrefForUntitledDatasetConfig will do that for us
   const fullPath = constructFullPath(datasetPathList);
   const newVersion = exploreUtils.getNewDatasetVersion();
@@ -76,6 +76,9 @@ export const LOAD_RECOMMENDED_JOIN_FAILURE = 'LOAD_RECOMMENDED_JOIN_FAILURE';
 
 function fetchRecommendedJoin({href}) {
   const meta = {viewId: 'RecommendedJoins'};
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -85,7 +88,7 @@ function fetchRecommendedJoin({href}) {
       ],
       method: 'GET',
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }

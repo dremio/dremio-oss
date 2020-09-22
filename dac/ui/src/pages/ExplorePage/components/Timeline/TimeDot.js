@@ -69,18 +69,18 @@ export class TimeDot extends Component {
         open: false
       });
     }, this.props.hideDelay);
-  }
+  };
 
   componentWillUnmount() {
     clearTimeout(this.hideTimeout);
   }
 
-  handleMouseEnter = (e) => {
+  handleMouseEnter = () => {
     clearTimeout(this.hideTimeout);
     this.setState({
       open: true
     });
-  }
+  };
 
   renderCompletedContent = (wrap = true) => {
     const { historyItem } = this.props;
@@ -90,7 +90,7 @@ export class TimeDot extends Component {
       <span style={[h5White]}>{owner ? owner : ''}</span>
     </div>;
     return wrap ? <div>{node}</div> : node;
-  }
+  };
 
   renderContent() {
     const { historyItem, activeVersion } = this.props;

@@ -133,7 +133,7 @@ public class TestUserServices extends BaseTestServer {
 
     doc("delete with bad version");
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 1");
+    assertErrorMessage(errorDelete2, "Unable to delete source");
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", u2.getUser().getVersion())).buildDelete());

@@ -45,7 +45,6 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -109,7 +108,7 @@ public class ParquetGroupScanUtils {
     List<SchemaPath> columns,
     BatchSchema schema,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
-    List<ParquetFilterCondition> conditions, SystemOptionManager optionManager)
+    List<ParquetFilterCondition> conditions, OptionManager optionManager)
       throws IOException {
     this.schema = schema;
     this.formatPlugin = formatPlugin;
@@ -375,26 +374,8 @@ public class ParquetGroupScanUtils {
         }
         RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getFileAttributes(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
 
-        EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
-        for (HostAndPort host : rg.getHostAffinity().keySet()) {
-          HostAndPort endpoint = null;
-          if (!host.hasPort()) {
-            if (hostEndpointMap.contains(host)) {
-              endpoint = host;
-            }
-          } else {
-            // multi executor deployment and affinity provider is sensitive to the port
-            // picking the map late as it allows a source that contains files in HDFS and S3
-            if (hostPortEndpointMap.contains(host)) {
-              endpoint = host;
-            }
-          }
-
-          if (endpoint != null) {
-            endpointByteMap
-                .add(endpoint, (long) (rg.getHostAffinity().get(host) * rg.getLength()));
-          }
-        }
+        EndpointByteMap endpointByteMap = buildEndpointByteMap(hostEndpointMap, hostPortEndpointMap, rg.getHostAffinity(),
+          rg.getLength());
         rowGroupInfo.setEndpointByteMap(endpointByteMap);
         rgIndex++;
         rowGroupInfos.add(rowGroupInfo);
@@ -488,6 +469,32 @@ public class ParquetGroupScanUtils {
 
     logger.debug("Table: {}, partition columns {}", selectionRoot, columnTypeMap.keySet());
     logger.debug("Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
+  }
+
+  public static EndpointByteMap buildEndpointByteMap(
+    Set<HostAndPort> activeHostMap, Set<HostAndPort> activeHostPortMap,
+    Map<com.google.common.net.HostAndPort, Float> affinities, long totalLength) {
+
+    EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
+    for (HostAndPort host : affinities.keySet()) {
+      HostAndPort endpoint = null;
+      if (!host.hasPort()) {
+        if (activeHostMap.contains(host)) {
+          endpoint = host;
+        }
+      } else {
+        // multi executor deployment and affinity provider is sensitive to the port
+        // picking the map late as it allows a source that contains files in HDFS and S3
+        if (activeHostPortMap.contains(host)) {
+          endpoint = host;
+        }
+      }
+
+      if (endpoint != null) {
+        endpointByteMap.add(endpoint, (long) (affinities.get(host) * totalLength));
+      }
+    }
+    return endpointByteMap;
   }
 
   private void eliminateSomePartitionColumns() {

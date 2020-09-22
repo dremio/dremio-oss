@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.RegistrationHandle;
@@ -55,8 +56,13 @@ public class TestExecutorSelectionServiceSet implements ServiceSet {
   }
 
   void testAddNode(String address) {
+     testAddNode(address, DremioVersionInfo.getVersion());
+  }
+
+  void testAddNode(String address, String dremioVersion) {
     NodeEndpoint newNode = NodeEndpoint.newBuilder()
       .setAddress(address)
+      .setDremioVersion(dremioVersion)
       .build();
     endpoints.add(newNode);
     if (listener != null) {
@@ -65,8 +71,13 @@ public class TestExecutorSelectionServiceSet implements ServiceSet {
   }
 
   void testRemoveNode(String address) {
+    testRemoveNode(address, DremioVersionInfo.getVersion());
+  }
+
+  void testRemoveNode(String address, String dremioVersion) {
     NodeEndpoint removedNode = NodeEndpoint.newBuilder()
       .setAddress(address)
+      .setDremioVersion(dremioVersion)
       .build();
     endpoints.remove(removedNode);
     if (listener != null) {

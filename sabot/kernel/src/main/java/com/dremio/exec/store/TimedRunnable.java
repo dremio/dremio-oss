@@ -110,6 +110,26 @@ public abstract class TimedRunnable<V> implements Runnable {
    * @throws IOException All exceptions are coerced to IOException since this was build for storage system tasks initially.
    */
   public static <V> List<V> run(final String activity, final Logger logger, final List<TimedRunnable<V>> runnables, int parallelism) throws IOException {
+    return run(activity, logger, runnables, parallelism, getDefaultTimeout(runnables.size(), parallelism));
+  }
+
+
+  /**
+   * Execute the list of runnables with the given parallelization.  At end, return values and report completion time
+   * stats to provided logger. Each runnable can perform one or more tasks. And each task is allowed a certain timeout.
+   * If the timeout exceeds, existing/pending tasks will be cancelled and a {@link UserException} is thrown.
+   * @param activity Name of activity for reporting in logger.
+   * @param logger The logger to use to report results.
+   * @param runnables List of runnables that should be executed and timed.  If this list has one item, task will be
+   *                  completed in-thread. Runnable must handle {@link InterruptedException}s.
+   * @param parallelism  The number of threads that should be run to complete this task.
+   * @param timeout Timeout overrides
+   * @param <V>
+   * @return The list of outcome objects.
+   * @throws IOException All exceptions are coerced to IOException since this was build for storage system tasks initially.
+   */
+  public static <V> List<V> run(final String activity, final Logger logger, final List<TimedRunnable<V>> runnables,
+                                int parallelism, long timeout) throws IOException {
     Stopwatch watch = Stopwatch.createStarted();
     long timedRunnableStart=System.nanoTime();
     if(runnables.size() == 1){
@@ -117,14 +137,13 @@ public abstract class TimedRunnable<V> implements Runnable {
       runnables.get(0).run();
     }else{
       parallelism = Math.min(parallelism,  runnables.size());
+      timeout = Math.max(timeout, getDefaultTimeout(runnables.size(), parallelism));
       final ExtendedLatch latch = new ExtendedLatch(runnables.size());
       final ExecutorService threadPool = Executors.newFixedThreadPool(parallelism);
       try{
         for(TimedRunnable<V> runnable : runnables){
           threadPool.submit(new LatchedRunnable(latch, runnable));
         }
-
-        final long timeout = (long)Math.ceil((TIMEOUT_PER_RUNNABLE_IN_MSECS * runnables.size())/parallelism);
         if (!latch.awaitUninterruptibly(timeout)) {
           // Issue a shutdown request. This will cause existing threads to interrupt and pending threads to cancel.
           // It is highly important that the task Runnables are handling interrupts correctly.
@@ -143,7 +162,7 @@ public abstract class TimedRunnable<V> implements Runnable {
           final String errMsg = String.format("Waited for %dms, but tasks for '%s' are not complete. " +
               "Total runnable size %d, parallelism %d.", timeout, activity, runnables.size(), parallelism);
           logger.error(errMsg);
-          throw UserException.resourceError()
+          throw UserException.resourceTimeoutError()
               .message(errMsg)
               .build(logger);
         }
@@ -210,6 +229,10 @@ public abstract class TimedRunnable<V> implements Runnable {
     }
 
     return values;
+  }
 
+  private static long getDefaultTimeout(int runnablesSize, int parallelism) {
+    parallelism = Math.min(runnablesSize, parallelism);
+    return (long)Math.ceil((TIMEOUT_PER_RUNNABLE_IN_MSECS * runnablesSize)/parallelism);
   }
 }

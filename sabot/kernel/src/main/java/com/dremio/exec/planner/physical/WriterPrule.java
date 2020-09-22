@@ -110,10 +110,12 @@ public class WriterPrule extends Prule {
       );
 
       final RelNode newChild = convert(childWithTempPath, traits);
-      return new WriterCommitterPrel(writer.getCluster(), traits, newChild, plugin, tempPath, finalPath, userName);
+      return new WriterCommitterPrel(writer.getCluster(),
+        traits, newChild, plugin, tempPath, finalPath, userName, fileEntry);
     } else {
       final RelNode newChild = convert(child, traits);
-      return new WriterCommitterPrel(writer.getCluster(), traits, newChild, plugin, null, finalPath, userName);
+      return new WriterCommitterPrel(writer.getCluster(),
+        traits, newChild, plugin, null, finalPath, userName, fileEntry);
     }
   }
 }

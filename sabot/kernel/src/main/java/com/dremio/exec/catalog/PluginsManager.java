@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,13 +26,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import javax.inject.Provider;
+
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.concurrent.Runnables;
-import com.dremio.datastore.KVStore;
+import com.dremio.config.DremioConfig;
+import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.util.DebugCheck;
+import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceAttribute;
@@ -63,34 +68,47 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PluginsManager.class);
 
-  private final ConnectionReader reader;
   private final SabotContext context;
+  private final OptionManager optionManager;
+  private final DremioConfig config;
+  private final ConnectionReader reader;
   private final SchedulerService scheduler;
   private final CloseableThreadPool executor = new CloseableThreadPool("source-management");
   private final DatasetListingService datasetListing;
   private final ConcurrentHashMap<String, ManagedStoragePlugin> plugins = new ConcurrentHashMap<>();
   private final Set<String> beingCreatedSources = Sets.newConcurrentHashSet();
   private final long startupWait;
-  private final KVStore<NamespaceKey, SourceInternalData> sourceDataStore;
+  private final LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
   private final CatalogServiceMonitor monitor;
   private Cancellable refresher;
   private final NamespaceService systemNamespace;
+  private final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
 
   public PluginsManager(
-      SabotContext context,
-      KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
-      SchedulerService scheduler,
-      ConnectionReader reader,
-      CatalogServiceMonitor monitor
-      ) {
+    SabotContext context,
+    NamespaceService systemNamespace,
+    DatasetListingService datasetListingService,
+    OptionManager optionManager,
+    DremioConfig config,
+    EnumSet<Role> roles,
+    LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
+    SchedulerService scheduler,
+    ConnectionReader reader,
+    CatalogServiceMonitor monitor,
+    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
+  ) {
+    // context should only be used for MangedStoragePlugin
+    this.context = context;
+    this.optionManager = optionManager;
+    this.config = config;
     this.reader = reader;
     this.sourceDataStore = sourceDataStore;
-    this.context = context;
-    this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    this.systemNamespace = systemNamespace;
     this.scheduler = scheduler;
-    this.datasetListing = context.getDatasetListing();
-    this.startupWait = DebugCheck.IS_DEBUG ? TimeUnit.DAYS.toMillis(365) : context.getOptionManager().getOption(CatalogOptions.STARTUP_WAIT_MAX);
+    this.datasetListing = datasetListingService;
+    this.startupWait = VM.isDebugEnabled() ? TimeUnit.DAYS.toMillis(365) : optionManager.getOption(CatalogOptions.STARTUP_WAIT_MAX);
     this.monitor = monitor;
+    this.broadcasterProvider = broadcasterProvider;
   }
 
   ConnectionReader getReader() {
@@ -238,19 +256,20 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
   private ManagedStoragePlugin newPlugin(SourceConfig config) {
     final boolean isVirtualMaster = context.isMaster() ||
-      (context.getDremioConfig().isMasterlessEnabled() && context.isCoordinator());
+      (this.config.isMasterlessEnabled() && context.isCoordinator());
 
     final ManagedStoragePlugin msp = new ManagedStoragePlugin(
         context,
         executor,
         isVirtualMaster,
         scheduler,
-        context.getNamespaceService(SystemUser.SYSTEM_USERNAME),
+        systemNamespace,
         sourceDataStore,
         config,
-        context.getOptionManager(),
+        optionManager,
         reader,
-        monitor.forPlugin(config.getName())
+        monitor.forPlugin(config.getName()),
+        broadcasterProvider
         );
     return msp;
   }
@@ -353,10 +372,10 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   }
 
   private long createWaitMillis() {
-    if(DebugCheck.IS_DEBUG) {
+    if (VM.isDebugEnabled()) {
       return TimeUnit.DAYS.toMillis(365);
     }
-    return context.getOptionManager().getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
+    return optionManager.getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
   }
 
   /**

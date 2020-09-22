@@ -63,6 +63,7 @@ public class DacDaemonYarnApplication implements TwillApplication {
   public static final int MAX_APP_RESTART_RETRIES = 5;
 
   public static final String DREMIO_HOME = "DREMIO_HOME";
+  public static final String DREMIO_GC_OPTS = "DREMIO_GC_OPTS";
 
   private final YarnConfiguration yarnConfig;
 

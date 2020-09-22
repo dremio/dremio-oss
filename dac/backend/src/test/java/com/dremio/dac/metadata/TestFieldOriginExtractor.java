@@ -24,9 +24,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
@@ -34,7 +36,6 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.planner.observer.RemoteAttemptObserver;
 import com.dremio.exec.planner.observer.RemoteQueryObserverFactory;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.protector.UserResponseHandler;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -42,6 +43,7 @@ import com.dremio.service.jobs.metadata.FieldOriginExtractor;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.google.common.collect.ImmutableList;
+import com.google.inject.AbstractModule;
 
 /**
  * Test the FieldOriginExtractor
@@ -51,38 +53,48 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
   public static final ImmutableList<String> REGION_PARQUET = ImmutableList.of("cp","tpch/region.parquet");
   public static final ImmutableList<String> NATION_PARQUET = ImmutableList.of("cp","tpch/nation.parquet");
 
-  private List<FieldOrigin> fields;
+  private static List<FieldOrigin> fields;
+
+  @BeforeClass
+  public static void setupDefaultTestCluster() throws Exception {
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(QueryObserverFactory.class).toInstance(new QueryObserverFactory() {
+          @Override
+          public QueryObserver createNewQueryObserver(final ExternalId id, UserSession session, final UserResponseHandler connection) {
+            return new RemoteQueryObserverFactory.RemoteQueryObserver(id, connection) {
+
+              @Override
+              public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
+                return new RemoteAttemptObserver(id, connection) {
+                  private RelDataType rowType;
+
+                  @Override
+                  public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
+                    this.rowType = rowType;
+                  }
+
+                  @Override
+                  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+                    if (phase == PlannerPhase.LOGICAL) {
+                      fields = FieldOriginExtractor.getFieldOrigins(before, rowType);
+                    }
+                  }
+                };
+              }
+            };
+          }
+        });
+      }
+    });
+
+    BaseTestQuery.setupDefaultTestCluster();
+  }
 
   @Before
   public void beforeTest() {
     fields = null;
-    nodes[0].getBindingCreator().replace(QueryObserverFactory.class, new QueryObserverFactory() {
-      @Override
-      public QueryObserver createNewQueryObserver(final ExternalId id, UserSession session, final UserResponseHandler connection) {
-        return new RemoteQueryObserverFactory.RemoteQueryObserver(id, connection) {
-
-          @Override
-          public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
-            return new RemoteAttemptObserver(id, connection) {
-              private RelDataType rowType;
-
-              @Override
-              public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
-                this.rowType = rowType;
-              }
-
-              @Override
-              public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
-                if (phase == PlannerPhase.LOGICAL) {
-                  fields = FieldOriginExtractor.getFieldOrigins(before, rowType);
-                }
-              }
-            };
-          }
-
-        };
-      }
-    });
   }
 
   @Test

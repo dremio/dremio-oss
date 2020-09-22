@@ -31,7 +31,7 @@ import com.dremio.exec.expr.annotations.Param;
 import org.apache.arrow.vector.holders.*;
 import org.apache.arrow.vector.complex.impl.*;
 import javax.inject.Inject;
-import io.netty.buffer.ArrowBuf;
+        import org.apache.arrow.memory.ArrowBuf;
 
 /*
  * This class is generated using freemarker and the ${.template_name} template.

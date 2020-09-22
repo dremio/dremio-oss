@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
 import { arrayOf } from 'normalizr';
-
-import { makeUncachebleURL } from 'ie11.js';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
@@ -26,7 +23,8 @@ import sourceSchema from 'dyn-load/schemas/source';
 import sourcesMapper from 'utils/mappers/sourcesMapper';
 import { getUniqueName } from 'utils/pathUtils';
 import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
-import { getSpaceNames, getSourceNames } from '@app/selectors/home';
+import { getSourceNames, getSpaceNames } from '@app/selectors/home';
+import { APIV2Call } from '@app/core/APICall';
 
 export const ADD_NEW_SOURCE_START = 'ADD_NEW_SOURCE_START';
 export const ADD_NEW_SOURCE_SUCCESS = 'ADD_NEW_SOURCE_SUCCESS';
@@ -39,6 +37,11 @@ function postCreateSource(sourceModel, meta, _shouldShowFailureNotification = fa
     invalidateViewIds: ['AllSources']
   };
   const failureMeta = _shouldShowFailureNotification ? { ...meta, notification: true } : meta;
+
+  const apiCall = new APIV2Call()
+    .paths(`source/${encodeURIComponent(sourceModel.name)}`)
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -49,7 +52,7 @@ function postCreateSource(sourceModel, meta, _shouldShowFailureNotification = fa
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(sourceModel),
-      endpoint: makeUncachebleURL(`${API_URL_V2}/source/${encodeURIComponent(sourceModel.name)}`)
+      endpoint: apiCall
     }
   };
 }
@@ -106,6 +109,11 @@ export const SOURCES_LIST_LOAD_FAILURE = 'SOURCES_LIST_LOAD_FAILURE';
 
 function fetchSourceListData() {
   const meta = {viewId: 'AllSources', mergeEntities: true};
+
+  const apiCall = new APIV2Call()
+    .path('sources')
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -114,7 +122,7 @@ function fetchSourceListData() {
         {type: SOURCES_LIST_LOAD_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: API_URL_V2 + makeUncachebleURL('/sources')
+      endpoint: apiCall
     }
   };
 }
@@ -140,6 +148,12 @@ function fetchRemoveSource(source) {
   const entityRemovePaths = [['source', source.get('id')]];
 
   const errorMessage = la('There was an error removing the source.');
+
+  const apiCall = new APIV2Call()
+    .paths(source.getIn(['links', 'self']))
+    .params({version: source.get('tag')})
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -159,7 +173,7 @@ function fetchRemoveSource(source) {
         }
       ],
       method: 'DELETE',
-      endpoint: makeUncachebleURL(`${API_URL_V2}${source.getIn(['links', 'self'])}?version=${source.get('tag')}`)
+      endpoint: apiCall
     }
   };
 }
@@ -175,6 +189,10 @@ export const RENAME_SOURCE_SUCCESS = 'RENAME_SOURCE_SUCCESS';
 export const RENAME_SOURCE_FAILURE = 'RENAME_SOURCE_FAILURE';
 
 function fetchRenameSource(oldName, newName) {
+  const apiCall = new APIV2Call()
+    .paths(`source/${oldName}/rename`)
+    .params({renameTo: newName});
+
   return {
     [RSAA]: {
       types: [
@@ -192,7 +210,7 @@ function fetchRenameSource(oldName, newName) {
         }
       ],
       method: 'POST',
-      endpoint: `${API_URL_V2}/source/${oldName}/rename?renameTo=${newName}`
+      endpoint: apiCall
     }
   };
 }
@@ -211,6 +229,11 @@ export const GET_CREATED_SOURCE_FAILURE = 'GET_CREATED_SOURCE_FAILURE';
 
 export function loadSource(sourceName, viewId) {
   const meta = {viewId};
+
+  const apiCall = new APIV2Call()
+    .paths(`source/${sourceName}`)
+    .params({includeContents: false});
+
   return {
     [RSAA]: {
       types: [
@@ -219,7 +242,9 @@ export function loadSource(sourceName, viewId) {
         {type: GET_CREATED_SOURCE_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/source/${sourceName}?includeContents=false`
+      endpoint: apiCall
     }
   };
 }
+
+//http://localhost:3005/apiv2/%2Fsource%2FSamples%20(3)/?version=rVXBksYxreA%3D&nocache=1584400214778 404 (Not Found)

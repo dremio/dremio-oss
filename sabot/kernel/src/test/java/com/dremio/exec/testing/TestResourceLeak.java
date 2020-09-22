@@ -24,6 +24,7 @@ import java.util.Properties;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -47,8 +48,6 @@ import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
-
-import io.netty.buffer.ArrowBuf;
 
 /*
  * TODO(DRILL-3170)

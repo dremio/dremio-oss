@@ -38,7 +38,6 @@ import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
-import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
@@ -50,6 +49,7 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.CompleteFileWork;
@@ -78,7 +78,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.net.HostAndPort;
 
@@ -97,7 +96,7 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
   private final PreviousDatasetInfo oldConfig;
   private final int maxLeafColumns;
 
-  private List<PartitionChunk> cachedSplits;
+  private PartitionChunkListingImpl partitionChunkListing;
   private long recordCount;
   private EasyDatasetXAttr extended;
   private List<String> partitionColumns;
@@ -116,6 +115,7 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
     this.formatPlugin = formatPlugin;
     this.oldConfig = oldConfig;
     this.maxLeafColumns = maxLeafColumns;
+    this.partitionChunkListing = new PartitionChunkListingImpl();
   }
 
   @Override
@@ -180,7 +180,7 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
       throw new ConnectorException(e);
     }
 
-    return () -> cachedSplits.iterator();
+    return partitionChunkListing;
   }
 
   @Override
@@ -206,8 +206,8 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
           .setLength(Long.MAX_VALUE)
           .setPath(file.getPath().toString())
           .build();
-      try (RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin) formatPlugin)
-          .getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection))) {
+      try (RecordReader reader = new AdditionalColumnsRecordReader(operatorContext, ((EasyFormatPlugin) formatPlugin)
+          .getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection), sampleAllocator)) {
         reader.setup(mutator);
         Map<String, ValueVector> fieldVectorMap = new HashMap<>();
         int i = 0;
@@ -227,14 +227,13 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
   }
 
   private void buildIfNecessary() throws Exception {
-    if (cachedSplits != null) {
+    if (partitionChunkListing.computed()) {
       return;
     }
     final EasyGroupScanUtils easyGroupScanUtils = ((EasyFormatPlugin) formatPlugin).getGroupScan(SYSTEM_USERNAME, fsPlugin, fileSelection, GroupScan.ALL_COLUMNS);
     extended = EasyDatasetXAttr.newBuilder().setSelectionRoot(fileSelection.getSelectionRoot()).build();
     recordCount = easyGroupScanUtils.getScanStats().getRecordCount();
 
-    final List<PartitionChunk> splits = Lists.newArrayList();
     final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
     final List<CompleteFileWork> work = easyGroupScanUtils.getChunks();
     final List<List<NameValuePair<?>>> pairs = finder.getImplicitFields(easyGroupScanUtils.getSelectionRoot(), work);
@@ -278,10 +277,10 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
       }
       long splitRecordCount = 0; // unknown.
       DatasetSplit split = DatasetSplit.of(affinities, size, splitRecordCount, splitExtended::writeTo);
-      splits.add(PartitionChunk.of(partitionValues, Collections.singletonList(split)));
+      partitionChunkListing.put(partitionValues, split);
     }
     partitionColumns = ImmutableList.copyOf(allImplicitColumns);
-    this.cachedSplits = splits;
+    partitionChunkListing.computePartitionChunks();
   }
 
   @Override

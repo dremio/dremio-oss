@@ -26,10 +26,10 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.text.StrTokenizer;
+import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
-import org.apache.hadoop.fs.Path;
 import com.github.slugify.Slugify;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;

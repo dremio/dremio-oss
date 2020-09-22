@@ -42,7 +42,6 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 
-
 /**
  * Functions to extract a regular expression pattern
  */

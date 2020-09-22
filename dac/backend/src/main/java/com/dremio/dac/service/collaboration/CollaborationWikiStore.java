@@ -20,15 +20,16 @@ import java.util.Map;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
-import com.dremio.service.reflection.store.SchemaSerializer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -55,9 +56,9 @@ public class CollaborationWikiStore {
     .build();
 
   private static final String WIKI_STORE = "collaboration_wiki";
-  private final Supplier<IndexedStore<String, CollaborationWiki>> wikiStore;
+  private final Supplier<LegacyIndexedStore<String, CollaborationWiki>> wikiStore;
 
-  public CollaborationWikiStore(final KVStoreProvider storeProvider) {
+  public CollaborationWikiStore(final LegacyKVStoreProvider storeProvider) {
     Preconditions.checkNotNull(storeProvider, "kvStore provider required");
     wikiStore = Suppliers.memoize(() -> storeProvider.getStore(CollaborationWikiStore.CollaborationWikiStoreStoreCreator.class));
   }
@@ -92,7 +93,7 @@ public class CollaborationWikiStore {
   }
 
   public Optional<CollaborationWiki> getLatestWikiForEntityId(String id) {
-    final IndexedStore.FindByCondition findByCondition = new IndexedStore.FindByCondition()
+    final LegacyIndexedStore.LegacyFindByCondition findByCondition = new LegacyIndexedStore.LegacyFindByCondition()
       .addSorting(LATEST_WIKI)
       .setOffset(0)
       .setLimit(1)
@@ -106,26 +107,20 @@ public class CollaborationWikiStore {
   /**
    * store creator
    */
-  public static final class CollaborationWikiStoreStoreCreator implements StoreCreationFunction<IndexedStore<String, CollaborationWiki>> {
+  public static final class CollaborationWikiStoreStoreCreator implements LegacyIndexedStoreCreationFunction<String, CollaborationWiki> {
     @Override
-    public IndexedStore<String, CollaborationWiki> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<String, CollaborationWiki> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, CollaborationWiki>newStore()
         .name(WIKI_STORE)
-        .keySerializer(StringSerializer.class)
-        .valueSerializer(CollaborationWikiStore.CollaborationWikiSerializer.class)
-        .buildIndexed(CollaborationWikiStore.CollaborationWikiConverter.class);
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtostuff(CollaborationWiki.class))
+        .buildIndexed(new CollaborationWikiStore.CollaborationWikiConverter());
     }
   }
 
-  private static final class CollaborationWikiSerializer extends SchemaSerializer<CollaborationWiki> {
-    CollaborationWikiSerializer() {
-      super(CollaborationWiki.getSchema());
-    }
-  }
-
-  private static final class CollaborationWikiConverter implements KVStoreProvider.DocumentConverter<String, CollaborationWiki> {
+  private static final class CollaborationWikiConverter implements DocumentConverter<String, CollaborationWiki> {
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, String id, CollaborationWiki record) {
+    public void convert(DocumentWriter writer, String id, CollaborationWiki record) {
       writer.write(ENTITY_ID, record.getEntityId());
       writer.write(CREATED_AT, record.getCreatedAt());
     }

@@ -18,6 +18,8 @@ package com.dremio.exec.work.rpc;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
+import com.dremio.exec.proto.CoordExecRPC.NodeStatReq;
+import com.dremio.exec.proto.CoordExecRPC.NodeStatResp;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -55,6 +57,12 @@ public class CoordToExecTunnel {
     manager.runCommand(b);
   }
 
+  public void requestNodeStats(RpcOutcomeListener<NodeStatResp> outcomeListener) {
+    NodeStatReq nodeStatReq = NodeStatReq.newBuilder().build();
+    RequestNodeStat b = new RequestNodeStat(nodeStatReq, outcomeListener);
+    manager.runCommand(b);
+  }
+
   private static class SignalFragment extends ListeningCommand<Ack, ProxyConnection> {
     final RpcType type;
     final MessageLite message;
@@ -87,5 +95,20 @@ public class CoordToExecTunnel {
       connection.send(outcomeListener, type, message, Ack.class);
     }
 
+  }
+
+  public static class RequestNodeStat extends ListeningCommand<NodeStatResp, ProxyConnection> {
+    private final NodeStatReq nodeStatRequest;
+
+    public RequestNodeStat(NodeStatReq nodeStatRequest, RpcOutcomeListener<NodeStatResp> outcomeListener) {
+      super(outcomeListener);
+      this.nodeStatRequest = nodeStatRequest;
+    }
+
+    @Override
+    public void doRpcCall(RpcOutcomeListener<NodeStatResp> outcomeListener, ProxyConnection
+      connection) {
+      connection.send(outcomeListener, RpcType.REQ_NODE_STATS, nodeStatRequest, NodeStatResp.class);
+    }
   }
 }

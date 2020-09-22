@@ -15,8 +15,16 @@
  */
 package com.dremio.sabot.op.project;
 
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -42,6 +50,7 @@ import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.fn.CastFunctions;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.CodeGenContext;
@@ -66,8 +75,13 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 
 public class ProjectOperator implements SingleInputOperator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectOperator.class);
@@ -89,6 +103,8 @@ public class ProjectOperator implements SingleInputOperator {
   private Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
 
   public static enum EvalMode {DIRECT, COMPLEX, EVAL};
+
+  private static Set<ExpressionHashKey> exprHashSet = ConcurrentHashMap.newKeySet();
 
   public ProjectOperator(final OperatorContext context, final Project config) throws OutOfMemoryException {
     this.config = config;
@@ -115,8 +131,9 @@ public class ProjectOperator implements SingleInputOperator {
 
     final IntHashSet transferFieldIds = new IntHashSet();
 
+    List<NamedExpression> nonDirectExprs = new ArrayList<>();
     splitter = createSplitterWithExpressions(incoming, exprs, transfers, cg, transferFieldIds,
-      context, projectorOptions, outgoing, null);
+      context, projectorOptions, outgoing, null, nonDirectExprs);
 
     outgoing.buildSchema(SelectionVectorMode.NONE);
     outgoing.setInitialCapacity(context.getTargetBatchSize());
@@ -155,7 +172,58 @@ public class ProjectOperator implements SingleInputOperator {
     );
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
+
+    cacheExpressions(nonDirectExprs);
     return outgoing;
+  }
+
+  /*
+   *  Each file contains a BatchSchema and a list of NamedExpressions corresponding to a project operation
+   *   serialized in json format as bytes.
+   *  File Format:
+   *  4 bytes : SchemaLen
+   *  {SchemaLen} bytes : Serialized BatchSchema
+   *  4 bytes : ExprsLen
+   *  {ExprsLem} bytes : Serialized list of NamedExpressions
+   */
+  private void cacheExpressions(List<NamedExpression> nonDirectExprs) {
+    if (context.getOptions().getOption(ExecConstants.EXEC_CODE_CACHE_SAVE_EXPR)
+      && !nonDirectExprs.isEmpty()
+      && (context.getFragmentHandle().getMinorFragmentId() == 0)) { // only save in one minor fragment to avoid duplicate files
+      String loc = System.getProperty(ExecConstants.CODE_CACHE_LOCATION_PROP);
+      if (loc != null && !loc.isEmpty()) {
+        ExpressionHashKey expressionHashKey = new ExpressionHashKey(nonDirectExprs, incoming.getSchema());
+        if (exprHashSet.add(expressionHashKey)) {
+          Path directory = Paths.get(loc);
+          if (Files.isDirectory(directory)) {
+            try {
+              String fileName = QueryIdHelper.getQueryIdentifier(context.getFragmentHandle()) + ":" + this.config.getId();
+              Path file = Paths.get(directory.toString(), fileName);
+              ObjectMapper objectMapper = new ObjectMapper();
+              byte[] schemaBytes = objectMapper.writeValueAsBytes(incoming.getSchema());
+              byte[] exprsBytes = objectMapper.writeValueAsBytes(nonDirectExprs);
+              RandomAccessFile stream = new RandomAccessFile(file.toString(), "rw");
+              FileChannel channel = stream.getChannel();
+              ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.BYTES + schemaBytes.length + Integer.BYTES + exprsBytes.length);
+              byteBuffer.putInt(schemaBytes.length);
+              byteBuffer.put(schemaBytes);
+              byteBuffer.putInt(exprsBytes.length);
+              byteBuffer.put(exprsBytes);
+              byteBuffer.flip();
+              channel.write(byteBuffer);
+              channel.close();
+              stream.close();
+            } catch (Exception ex) {
+              logger.error("Failed to save the expression", ex);
+            }
+          } else {
+            logger.warn("Provided expression save directory is not a directory");
+          }
+        }
+      } else {
+        logger.warn("Prewarm cache directory to save expression is not set");
+      }
+    }
   }
 
 
@@ -319,11 +387,23 @@ public class ProjectOperator implements SingleInputOperator {
                                                                  IntHashSet transferFieldIds, OperatorContext context,
                                                                  ExpressionEvaluationOptions options, VectorContainer outgoing,
                                                                  BatchSchema targetSchema) throws Exception {
+    return createSplitterWithExpressions(incoming, exprs, transfers, cg, transferFieldIds, context, options, outgoing, targetSchema, null);
+  }
+
+    public static ExpressionSplitter createSplitterWithExpressions(VectorAccessible incoming,
+                                                                 List<NamedExpression> exprs,
+                                                                 List<TransferPair> transfers, ClassGenerator<Projector> cg,
+                                                                 IntHashSet transferFieldIds, OperatorContext context,
+                                                                 ExpressionEvaluationOptions options, VectorContainer outgoing,
+                                                                 BatchSchema targetSchema, List<NamedExpression> nonDirectExprs) throws Exception {
     ExpressionSplitter splitter = new ExpressionSplitter(context, incoming,
             options, context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
 
     for (int i = 0; i < exprs.size(); i++) {
       final NamedExpression namedExpression = exprs.get(i);
+      if (namedExpression == null) {
+        continue;
+      }
       // it is possible that a filter removed all output or the shard has no data, so we don't have any incoming vectors
       // applies only for coercion readers
       if (targetSchema != null && incoming.getValueVectorId(SchemaPath.getSimplePath(targetSchema
@@ -341,6 +421,9 @@ public class ProjectOperator implements SingleInputOperator {
           // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
           ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
           cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          if (nonDirectExprs != null) {
+            nonDirectExprs.add(namedExpression);
+          }
           break;
         }
 
@@ -359,6 +442,9 @@ public class ProjectOperator implements SingleInputOperator {
 
         case EVAL: {
           splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()));
+          if (nonDirectExprs != null) {
+            nonDirectExprs.add(namedExpression);
+          }
           break;
         }
         default:
@@ -367,5 +453,34 @@ public class ProjectOperator implements SingleInputOperator {
 
     }
     return splitter;
+  }
+
+  class ExpressionHashKey {
+    HashCode hash;
+    int javaHashCode;
+
+    ExpressionHashKey(List<NamedExpression> namedExpressionList, BatchSchema schema) {
+      HashFunction hf = Hashing.murmur3_128();
+      Hasher hasher = hf.newHasher();
+      namedExpressionList.forEach(e -> {
+        hasher.putUnencodedChars(e.toString());
+      });
+      hasher.putUnencodedChars(schema.toString());
+      hash = hasher.hash();
+      javaHashCode = hash.hashCode();
+    }
+
+    @Override
+    public int hashCode() {
+      return javaHashCode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof ExpressionHashKey)) {
+        return false;
+      }
+      return hash.equals(((ExpressionHashKey) obj).hash);
+    }
   }
 }

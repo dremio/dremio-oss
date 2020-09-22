@@ -15,16 +15,14 @@
  */
 import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 import { saveAsDataset } from 'actions/explore/dataset/save';
 
-import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirmation';
-import { POWER_BI_MANUAL } from '@app/constants/links.json';
+import { hideConfirmationDialog, showConfirmationDialog } from 'actions/confirmation';
 
-import FileUtils from 'utils/FileUtils';
+import FileUtils from '@app/utils/FileUtils';
 import config from 'dyn-load/utils/config';
 import jobsUtils from 'utils/jobsUtils';
-import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 export const START_DATASET_DOWNLOAD = 'START_DATASET_DOWNLOAD';
 
@@ -41,6 +39,11 @@ export const DOWNLOAD_DATASET_FAILURE = 'DOWNLOAD_DATASET_FAILURE';
 const fetchDownloadDataset = (dataset, format) => {
   const meta = { dataset, notification: true };
   const href = dataset.getIn(['apiLinks', 'self']) + '/download';
+
+  const apiCall = new APIV2Call()
+    .fullpath(href)
+    .params({downloadFormat: format});
+
   return {
     [RSAA]: {
       types: [
@@ -50,7 +53,7 @@ const fetchDownloadDataset = (dataset, format) => {
       ],
       method: 'GET',
       headers: {Accept: 'application/json'},
-      endpoint: `${API_URL_V2}${href}?downloadFormat=${format}`
+      endpoint: apiCall
     }
   };
 };
@@ -115,26 +118,30 @@ export const LOAD_TABLEAU_START   = 'LOAD_TABLEAU_START';
 export const LOAD_TABLEAU_SUCCESS = 'LOAD_TABLEAU_SUCCESS';
 export const LOAD_TABLEAU_FAILURE = 'LOAD_TABLEAU_FAILURE';
 
-const fetchDownloadTableau = ({ href }) => ({
-  [RSAA]: {
-    types: [
-      LOAD_TABLEAU_START,
-      {type: LOAD_TABLEAU_SUCCESS, payload: (action, state, res) => FileUtils.getFileDownloadConfigFromResponse(res)},
-      {
-        type: LOAD_TABLEAU_FAILURE,
-        meta: {
-          notification: {
-            message: la('There was an error preparing for Tableau.'),
-            level: 'error'
+const fetchDownloadTableau = ({ href }) => {
+  const apiCall = new APIV2Call().fullpath(href);
+
+  return {
+    [RSAA]: {
+      types: [
+        LOAD_TABLEAU_START,
+        {type: LOAD_TABLEAU_SUCCESS, payload: (action, state, res) => FileUtils.getFileDownloadConfigFromResponse(res)},
+        {
+          type: LOAD_TABLEAU_FAILURE,
+          meta: {
+            notification: {
+              message: la('There was an error preparing for Tableau.'),
+              level: 'error'
+            }
           }
         }
-      }
-    ],
-    headers: { Accept: config.tdsMimeType },
-    method: 'GET',
-    endpoint: `${API_URL_V2}${href}`
-  }
-});
+      ],
+      headers: {Accept: config.tdsMimeType},
+      method: 'GET',
+      endpoint: apiCall
+    }
+  };
+};
 
 export const openTableau = (dataset) => {
   return (dispatch) => {
@@ -142,8 +149,7 @@ export const openTableau = (dataset) => {
       return dispatch(saveAsDataset('OPEN_TABLEAU'));
     }
 
-    const displayFullPath = dataset.get('displayFullPath') || dataset.get('fullPathList');
-    const href = `/tableau/${constructFullPathAndEncode(displayFullPath)}`;
+    const href = `/tableau/${FileUtils.getDatasetIdForClientTools(dataset)}`;
     return dispatch(downloadTableau({ href }))
       .then((response) => {
         if (!response.error) {
@@ -153,20 +159,50 @@ export const openTableau = (dataset) => {
   };
 };
 
-export const openPowerBI = () => {
+
+export const downloadPowerBI = ({ href }) => (dispatch) => dispatch(fetchDownloadPowerBI({ href }));
+export const LOAD_POWER_BI_START = 'LOAD_POWER_BI_START';
+export const LOAD_POWER_BI_SUCCESS = 'LOAD_POWER_BI_SUCCESS';
+export const LOAD_POWER_BI_FAILURE = 'LOAD_POWER_BI_FAILURE';
+
+const fetchDownloadPowerBI = ({ href }) => {
+  const apiCall = new APIV2Call().fullpath(href);
+
+  return {
+    [RSAA]: {
+      types: [
+        LOAD_POWER_BI_START,
+        {type: LOAD_POWER_BI_SUCCESS, payload: (action, state, res) => FileUtils.getFileDownloadConfigFromResponse(res)},
+        {
+          type: LOAD_POWER_BI_FAILURE,
+          meta: {
+            notification: {
+              message: la('There was an error preparing for Power BI.'),
+              level: 'error'
+            }
+          }
+        }
+      ],
+      headers: {Accept: 'application/pbids'},
+      method: 'GET',
+      endpoint: apiCall
+    }
+  };
+};
+
+
+export const openPowerBI = (dataset) => {
   return (dispatch) => {
-    return dispatch(showConfirmationDialog({
-      hideCancelButton: true,
-      title: la('Power BI'),
-      text: (
-        <span>
-          {la('Please follow the') + ' '}
-          <a href={POWER_BI_MANUAL} target='_blank'>
-            {la('instructions in the documentation')}
-          </a>
-          {' ' + la('to connect to this Dataset with Power BI.')}
-        </span>
-      )
-    }));
+    if (needsSaveBeforeBI(dataset)) {
+      return dispatch(saveAsDataset('OPEN_POWER_BI'));
+    }
+
+    const href = `/powerbi/${FileUtils.getDatasetIdForClientTools(dataset)}`;
+    return dispatch(downloadPowerBI({ href }))
+      .then((response) => {
+        if (!response.error) {
+          FileUtils.downloadFile(response.payload);
+        }
+      });
   };
 };

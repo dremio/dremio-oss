@@ -17,10 +17,10 @@ import { RSAA } from 'redux-api-middleware';
 import invariant from 'invariant';
 import { debounce } from 'lodash/function';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import exploreUtils from 'utils/explore/exploreUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const RUN_DATASET_START = 'RUN_DATASET_START';
 export const RUN_DATASET_SUCCESS = 'RUN_DATASET_SUCCESS';
@@ -28,7 +28,13 @@ export const RUN_DATASET_FAILURE = 'RUN_DATASET_FAILURE';
 
 function fetchRunDataset(dataset, viewId) {
   const tipVersion = dataset.get('tipVersion');
-  const href = `${dataset.getIn(['apiLinks', 'self'])}/run` + (tipVersion ? `?tipVersion=${tipVersion}` : '');
+
+  const apiCall = new APIV2Call()
+    .paths(`${dataset.getIn(['apiLinks', 'self'])}/run`);
+
+  if (tipVersion) {
+    apiCall.params({tipVersion});
+  }
 
   const meta = { dataset, viewId };
   return {
@@ -42,7 +48,7 @@ function fetchRunDataset(dataset, viewId) {
       headers: {
         'Content-Type': 'application/json'
       },
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }
@@ -61,7 +67,10 @@ export const transformAndRunActionTypes = [
 function fetchTransformAndRun(dataset, transformData, viewId) {
   invariant(dataset.get('datasetVersion'), 'Can\'t run new dataset. Create dataset with newUntitled first');
   const newVersion = exploreUtils.getNewDatasetVersion();
-  const href = `${dataset.getIn(['apiLinks', 'self'])}/transformAndRun?newVersion=${newVersion}`;
+
+  const apiCall = new APIV2Call()
+    .paths(`${dataset.getIn(['apiLinks', 'self'])}/transformAndRun`)
+    .params({newVersion});
 
   const meta = { viewId, entity: dataset};
   return {
@@ -76,7 +85,7 @@ function fetchTransformAndRun(dataset, transformData, viewId) {
       headers: {
         'Content-Type': 'application/json'
       },
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }

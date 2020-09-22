@@ -38,8 +38,7 @@ import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.proto.model.dataset.Join;
 import com.dremio.dac.proto.model.dataset.Order;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
-import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.google.common.base.Joiner;
 
 /**
@@ -57,8 +56,8 @@ class DatasetStateMutator {
     this.preview = preview;
   }
 
-  public void setSql(SqlQuery query, QueryMetadata metadata) {
-    virtualDatasetState = QuerySemantics.extract(query, metadata);
+  public void setSql(QueryMetadata metadata) {
+    virtualDatasetState = QuerySemantics.extract(metadata);
   }
 
   public void addColumn(int index, Column column) {

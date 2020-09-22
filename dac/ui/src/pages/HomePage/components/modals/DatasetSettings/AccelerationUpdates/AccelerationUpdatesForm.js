@@ -44,6 +44,7 @@ export class AccelerationUpdatesForm extends Component {
     accelerationSettings: PropTypes.instanceOf(Immutable.Map),
     datasetFields: PropTypes.instanceOf(Immutable.List),
     entityType: PropTypes.string,
+    fileFormatType: PropTypes.string,
     entityId: PropTypes.string
   };
 
@@ -53,6 +54,9 @@ export class AccelerationUpdatesForm extends Component {
     }
     if (this.props.entityType === 'file') {
       return la('Incremental updating is not available for file-based datasets.');
+    }
+    if (this.props.fileFormatType === 'Iceberg') {
+      return la('Incremental updating is not available for Iceberg datasets.');
     }
     return undefined;
   }

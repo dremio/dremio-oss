@@ -27,9 +27,9 @@ import java.util.stream.StreamSupport;
 
 import org.junit.Test;
 
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
@@ -49,10 +49,10 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
   @Test
   public void test() throws Exception {
-    try (final KVStoreProvider kvStoreProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try (final LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT)){
       kvStoreProvider.start();
-      final IndexedStore<byte[], NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-      final IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore = kvStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
+      final LegacyIndexedStore<String, NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore = kvStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
       final DatasetConfig ds1 = addDataset(namespace, partitionChunksStore, "foo_bar", Arrays.asList("test", "foo_bar"), 10);
       final DatasetConfig ds2 = addDataset(namespace, partitionChunksStore, "foo%bar", Arrays.asList("test", "foo%bar"), 20);
@@ -130,8 +130,8 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
   }
 
-  private DatasetConfig addDataset(IndexedStore<byte[], NameSpaceContainer> namespace, IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
-      String id, List<String> path, int splits) {
+  private DatasetConfig addDataset(LegacyIndexedStore<String, NameSpaceContainer> namespace, LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
+                                   String id, List<String> path, int splits) {
     DatasetConfig ds = new DatasetConfig()
         .setId(new EntityId(id))
         .setName(last(path))

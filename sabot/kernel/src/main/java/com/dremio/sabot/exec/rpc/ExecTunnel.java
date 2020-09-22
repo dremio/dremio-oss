@@ -18,7 +18,6 @@ package com.dremio.sabot.exec.rpc;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
-import com.dremio.exec.proto.ExecRPC.OOBMessage;
 import com.dremio.exec.proto.ExecRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.record.FragmentWritableBatch;
@@ -32,7 +31,7 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 
 public class ExecTunnel {
-//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecTunnel.class);
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecTunnel.class);
 
   private final FabricCommandRunner manager;
 
@@ -49,7 +48,7 @@ public class ExecTunnel {
   }
 
   public void sendOOBMessage(RpcOutcomeListener<Ack> outcomeListener, OutOfBandMessage message) {
-    manager.runCommand(new SendOOBMessage(outcomeListener, message.toProtoMessage()));
+    manager.runCommand(new SendOOBMessage(outcomeListener, message));
   }
 
   private static void checkFragmentHandle(FragmentHandle handle) {
@@ -111,26 +110,24 @@ public class ExecTunnel {
   }
 
   private class SendOOBMessage extends ListeningCommand<Ack, ProxyConnection> {
-    private final OOBMessage message;
+    private final OutOfBandMessage message;
 
-    public SendOOBMessage(RpcOutcomeListener<Ack> listener, OOBMessage message) {
+    public SendOOBMessage(RpcOutcomeListener<Ack> listener, OutOfBandMessage message) {
       super(listener);
       this.message = message;
     }
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message, Ack.class);
+      ByteBuf[] buffers = (message.getBuffer()==null) ? new ByteBuf[0]:new ByteBuf[]{message.getBuffer()};
+      connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message.toProtoMessage(), Ack.class, buffers);
     }
 
     @Override
     public String toString() {
       return "Send OOBMessage [" + message + "]";
     }
-
   }
-
-
 
   public static class ReceiverFinished extends ListeningCommand<Ack, ProxyConnection> {
     final FinishedReceiver finishedReceiver;

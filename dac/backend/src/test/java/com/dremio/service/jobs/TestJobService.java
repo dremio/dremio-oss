@@ -15,9 +15,9 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
-import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
+import static com.dremio.dac.server.JobsServiceTestUtils.toSubmitJobRequest;
 import static java.util.Arrays.asList;
+import static java.util.UUID.randomUUID;
 import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,10 +27,12 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Assert;
+import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -38,33 +40,38 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.InitialPreviewResponse;
-import com.dremio.dac.explore.model.InitialTransformAndRunResponse;
 import com.dremio.dac.model.job.AttemptDetailsUI;
 import com.dremio.dac.model.job.AttemptsUIHelper;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobFailureInfo;
 import com.dremio.dac.model.job.JobFailureType;
 import com.dremio.dac.model.job.JobFilters;
-import com.dremio.dac.proto.model.dataset.TransformSort;
+import com.dremio.dac.model.job.ResultOrder;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.resource.NotificationResponse;
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.server.socket.TestWebSocket;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchTypes.SortOrder;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.service.job.JobCountsRequest;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.JobsWithParentDatasetRequest;
+import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
@@ -72,13 +79,13 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Tests for job service.
@@ -88,34 +95,162 @@ public class TestJobService extends BaseTestServer {
   public ExpectedException thrown = ExpectedException.none();
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-  private LocalJobsService jobsService;
+  private HybridJobsService jobsService;
+  private LocalJobsService localJobsService;
 
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    jobsService = (LocalJobsService) l(JobsService.class);
+    jobsService = (HybridJobsService) l(JobsService.class);
+    localJobsService = l(LocalJobsService.class);
+  }
+
+  private com.dremio.service.job.JobDetails getJobDetails(Job job) {
+    JobDetailsRequest request = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(job.getJobId()))
+      .build();
+    try {
+      return jobsService.getJobDetails(request);
+    } catch (JobNotFoundException e) {
+      throw new IllegalArgumentException("Job Not Found", e);
+    }
+  }
+
+  public static void failFunction() {
+    throw UserException.dataReadError().message("expected failure").buildSilently();
   }
 
   @Test
   public void testCancel() throws Exception {
-    final InitialPreviewResponse resp = createDatasetFromSQL(TestWebSocket.LONG_TEST_QUERY, null);
-    final InitialTransformAndRunResponse runResp = expectSuccess(
-        getBuilder(
-            getAPIv2()
-                .path(versionedResourcePath(resp.getDataset()))
-                .path("transformAndRun")
-                .queryParam("newVersion", newVersion())
-        ).buildPost(entity(new TransformSort("id", ASC), JSON)), InitialTransformAndRunResponse.class);
-    JobId job = runResp.getJobId();
+    final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
+    final CompletionListener completionListener = new CompletionListener();
+    final String testKey = TestingFunctionHelper.newKey(() -> {});
+
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener));
+    jobSubmittedListener.await();
+
     NotificationResponse response = expectSuccess(
-        getBuilder(
-            getAPIv2()
-                .path("job")
-                .path(job.getId())
-                .path("cancel")
-        ).buildPost(entity(null, JSON)), NotificationResponse.class);
+      getBuilder(
+        getAPIv2()
+          .path("job")
+          .path(jobId.getId())
+          .path("cancel")
+      ).buildPost(entity(null, JSON)), NotificationResponse.class);
+    completionListener.await();
+    TestingFunctionHelper.trigger(testKey);
+
     assertEquals("Job cancellation requested", response.getMessage());
     assertEquals(NotificationResponse.ResponseType.OK, response.getType());
+  }
+
+  @Test
+  public void testJobPlanningTime() throws Exception {
+    final UserBitShared.ExternalId externalId = ExternalIdHelper.generateExternalId();
+
+    // first attempt is FAILED
+    final Job job = createJob("A1", Arrays.asList("space1", "ds1"), "v1", "A", "space1", JobState.FAILED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 110L, QueryType.UI_RUN);
+    AttemptId attemptId = AttemptId.of(externalId);
+    job.getJobAttempt()
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.FAILED)
+      .setDetails(new JobDetails());
+
+    // second attempt is STARTING
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt1 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.STARTING)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt1);
+
+    // third attempt is CANCELED
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt2 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.CANCELED)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt2);
+
+    // fourth attempt is FAILED
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt3 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.FAILED)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt3);
+
+    // fifth attempt is RUNNING
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt4 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.RUNNING)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt4);
+
+    // sixth attempt is COMPLETED
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt5 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.COMPLETED)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt5);
+
+    // seventh attempt is PLANNING
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt6 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.PLANNING)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt6);
+
+    // eighth attempt is CANCELLATION_REQUESTED
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt7 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.CANCELLATION_REQUESTED)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt7);
+
+    // final attempt is ENQUEUED
+    attemptId = attemptId.nextAttempt();
+    final JobAttempt jobAttempt8 = new JobAttempt()
+      .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 10000, 0, null, System.currentTimeMillis(), 0L))
+      .setAttemptId(AttemptIdUtils.toString(attemptId))
+      .setState(JobState.ENQUEUED)
+      .setDetails(new JobDetails());
+    job.addAttempt(jobAttempt8);
+
+    localJobsService.storeJob(job);
+
+    // retrieve the UI jobDetails
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(getJobDetails(job)), null, null, null, false, null, null);
+
+    assertEquals("Enqueued time of second attempt was not 0.", (long)detailsUI.getAttemptDetails().get(1).getQueuedTime(), 0L);
+    assertEquals("Planning time of second attempt was not 0.", (long)detailsUI.getAttemptDetails().get(1).getPlanningTime(), 0L);
+    assertEquals("Enqueued time of third attempt was not 0.", (long)detailsUI.getAttemptDetails().get(2).getQueuedTime(), 0L);
+    assertEquals("Planning time of third attempt was not 0.", (long)detailsUI.getAttemptDetails().get(2).getPlanningTime(), 0L);
+    assertEquals("Enqueued time of fourth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(3).getQueuedTime(), 0L);
+    assertEquals("Planning time of fourth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(3).getPlanningTime(), 0L);
+    assertEquals("Enqueued time of fifth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(4).getQueuedTime(), 0L);
+    assertEquals("Planning time of fifth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(4).getPlanningTime(), 0L);
+    assertEquals("Enqueued time of sixth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(5).getQueuedTime(), 0L);
+    assertEquals("Planning time of sixth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(5).getPlanningTime(), 0L);
+    assertEquals("Enqueued time of seventh attempt was not 0.", (long)detailsUI.getAttemptDetails().get(6).getQueuedTime(), 0L);
+    assertEquals("Planning time of seventh attempt was not 0.", (long)detailsUI.getAttemptDetails().get(6).getPlanningTime(), 0L);
+    assertEquals("Enqueued time of eighth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(7).getQueuedTime(), 0L);
+    assertEquals("Planning time of eighth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(7).getPlanningTime(), 0L);
+    assertTrue("Enqueued time of final attempt was less than 0.", detailsUI.getAttemptDetails().get(8).getQueuedTime() >= 0);
+    assertEquals("Planning time of final attempt was not 0.", (long)detailsUI.getAttemptDetails().get(8).getPlanningTime(), 0L);
   }
 
   @Ignore
@@ -127,126 +262,200 @@ public class TestJobService extends BaseTestServer {
     final DatasetPath ds2 = new DatasetPath("s.ds2");
     final DatasetPath ds3 = new DatasetPath("s.ds3");
 
-    final CompletableFuture<Job> job1v0 = jobsService.submitJob(
+    submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds1.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v1")).build(),
-      NoOpJobStatusListener.INSTANCE);
-    final CompletableFuture<Job> job2v0 = jobsService.submitJob(
+        .setDatasetVersion(new DatasetVersion("v1")).build()
+    );
+    submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds2.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v1")).build(),
-      NoOpJobStatusListener.INSTANCE);
-    final CompletableFuture<Job> job3v0 = jobsService.submitJob(
+        .setDatasetVersion(new DatasetVersion("v1")).build()
+    );
+    submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds3.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v1")).build(),
-      NoOpJobStatusListener.INSTANCE);
+        .setDatasetVersion(new DatasetVersion("v1")).build()
+    );
 
-    JobsServiceUtil.waitForJobCompletion(job1v0);
-    JobsServiceUtil.waitForJobCompletion(job2v0);
-    JobsServiceUtil.waitForJobCompletion(job3v0);
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds1.toNamespaceKey().getPathComponents()))
+        .build())
+        .getCountList()
+        .get(0));
 
-    assertEquals(1, jobsService.getJobsCount(ds1.toNamespaceKey()));
-    assertEquals(1, jobsService.getJobsCount(ds2.toNamespaceKey()));
-    assertEquals(1, jobsService.getJobsCount(ds3.toNamespaceKey()));
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds2.toNamespaceKey().getPathComponents()))
+        .build())
+        .getCountList()
+        .get(0));
 
-    final CompletableFuture<Job> job1v2 = jobsService.submitJob(
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds3.toNamespaceKey().getPathComponents()))
+        .build())
+        .getCountList()
+        .get(0));
+
+    submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds1.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v1")).build(),
-      NoOpJobStatusListener.INSTANCE);
-    final CompletableFuture<Job> job1v3 = jobsService.submitJob(
+        .setDatasetVersion(new DatasetVersion("v1")).build()
+    );
+    submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds1.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v2")).build(),
-      NoOpJobStatusListener.INSTANCE);
-    final CompletableFuture<Job> job2v2 = jobsService.submitJob(
+        .setDatasetVersion(new DatasetVersion("v2")).build()
+    );
+    submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds2.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v2")).build(),
-      NoOpJobStatusListener.INSTANCE);
+        .setDatasetVersion(new DatasetVersion("v2")).build()
+    );
 
-    JobsServiceUtil.waitForJobCompletion(job1v2);
-    JobsServiceUtil.waitForJobCompletion(job1v3);
-    JobsServiceUtil.waitForJobCompletion(job2v2);
+    assertEquals(3, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds1.toNamespaceKey().getPathComponents()))
+        .build())
+        .getCountList()
+        .get(0));
 
-    assertEquals(3, jobsService.getJobsCount(ds1.toNamespaceKey()));
-    assertEquals(2, jobsService.getJobsCount(ds2.toNamespaceKey()));
-    assertEquals(1, jobsService.getJobsCount(ds3.toNamespaceKey()));
+    assertEquals(2, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds2.toNamespaceKey().getPathComponents()))
+        .build())
+        .getCountList()
+        .get(0));
 
-    assertEquals(2, jobsService.getJobsCountForDataset(ds1.toNamespaceKey(), new DatasetVersion("1")));
-    assertEquals(1, jobsService.getJobsCountForDataset(ds1.toNamespaceKey(), new DatasetVersion("2")));
-    assertEquals(1, jobsService.getJobsCountForDataset(ds2.toNamespaceKey(), new DatasetVersion("1")));
-    assertEquals(1, jobsService.getJobsCountForDataset(ds2.toNamespaceKey(), new DatasetVersion("2")));
-    assertEquals(1, jobsService.getJobsCountForDataset(ds3.toNamespaceKey(), new DatasetVersion("1")));
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds3.toNamespaceKey().getPathComponents()))
+        .build())
+        .getCountList()
+        .get(0));
 
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
+    assertEquals(2, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds1.toNamespaceKey().getPathComponents())
+            .setVersion(new DatasetVersion("1").getVersion()))
+        .build())
+        .getCountList()
+        .get(0));
+
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds1.toNamespaceKey().getPathComponents())
+            .setVersion(new DatasetVersion("2").getVersion()))
+        .build())
+        .getCountList()
+        .get(0));
+
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds2.toNamespaceKey().getPathComponents())
+            .setVersion(new DatasetVersion("1").getVersion()))
+        .build())
+        .getCountList()
+        .get(0));
+
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds2.toNamespaceKey().getPathComponents())
+            .setVersion(new DatasetVersion("2").getVersion()))
+        .build())
+        .getCountList()
+        .get(0));
+
+    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+        .addDatasets(VersionedDatasetPath.newBuilder()
+            .addAllPath(ds3.toNamespaceKey().getPathComponents())
+            .setVersion(new DatasetVersion("1").getVersion()))
+        .build())
+        .getCountList()
+        .get(0));
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
         .setDatasetPath(ds1.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("v1")).build(),
-        NoOpJobStatusListener.INSTANCE)
+        .setDatasetVersion(new DatasetVersion("v1")).build()
     );
-    List<Job> jobs = ImmutableList.copyOf(jobsService.getAllJobs());
+    List<Job> jobs = ImmutableList.copyOf(localJobsService.getAllJobs());
     assertEquals(7, jobs.size());
 
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setDatasetPath(ds1.toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(ds1.toPathList())
+          .build())
         .build();
-    jobs = ImmutableList.copyOf(jobsService.searchJobs(request));
-    assertEquals(4, jobs.size());
+    List<JobSummary> jobSummaries = ImmutableList.copyOf(jobsService.searchJobs(request));
+    assertEquals(4, jobSummaries.size());
 
     final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(ds1.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("1"))
-        .build();
-    jobs = ImmutableList.copyOf(jobsService.searchJobs(request1));
-    assertEquals(3, jobs.size());
+      .setDataset(VersionedDatasetPath.newBuilder()
+        .addAllPath(ds1.toPathList())
+        .setVersion(new DatasetVersion("1").getVersion())
+        .build())
+      .build();
+    jobSummaries = ImmutableList.copyOf(jobsService.searchJobs(request1));
+    assertEquals(3, jobSummaries.size());
 
-    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+    jobSummaries = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==s.ds1,ds==s.ds2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
-    assertEquals(6, jobs.size());
+    assertEquals(6, jobSummaries.size());
 
-    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+    jobSummaries = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==s.ds3;dsv==v1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
-    assertEquals(1, jobs.size());
+    assertEquals(1, jobSummaries.size());
 
-    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+    jobSummaries = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==s.ds3;dsv==v2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
-    assertEquals(0, jobs.size());
+    assertEquals(0, jobSummaries.size());
   }
 
   @Test
   public void testJobCompleted() throws Exception {
     populateInitialData();
     final DatasetPath ds1 = new DatasetPath("s.ds1");
-    final CompletableFuture<Job> jobFuture = jobsService.submitJob(
+    final JobId jobId = submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1")).build(),
-      NoOpJobStatusListener.INSTANCE);
-    Job job = JobsServiceUtil.waitForJobCompletion(jobFuture);
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1"))
+        .build()
+    );
 
     // get the latest version of the job entry
-    GetJobRequest request = GetJobRequest.newBuilder()
-      .setJobId(job.getJobId())
-      .build();
-    job = jobsService.getJob(request);
+    final JobDetailsRequest request1 = JobDetailsRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setProvideResultInfo(true)
+        .build();
+    final com.dremio.service.job.JobDetails jobDetails1 = jobsService.getJobDetails(request1);
     // and make sure it's marked as completed
-    assertTrue("job should be marked as 'completed'", job.isCompleted());
+    assertTrue("job should be marked as 'completed'", jobDetails1.getCompleted());
+    assertTrue(jobDetails1.getHasResults());
+    assertFalse(jobDetails1.getJobResultTableName().isEmpty());
+
+    final JobDetailsRequest request2 = JobDetailsRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .build();
+    final com.dremio.service.job.JobDetails jobDetails2 = jobsService.getJobDetails(request2);
+    // and make sure it's marked as completed
+    assertTrue("job should be marked as 'completed'", jobDetails2.getCompleted());
+    assertFalse(jobDetails2.getHasResults()); // although results are available, request did not ask for the info
+    assertTrue(jobDetails2.getJobResultTableName().isEmpty());
   }
 
   private Job createJob(final String id, final List<String> datasetPath, final String version, final String user,
@@ -278,15 +487,15 @@ public class TestJobService extends BaseTestServer {
   // TODO (Amit H): DX-1563 We should be using analyzer to match both rather than indexing twice.
   public void testUnquotedJobFilter() throws Exception {
     Job jobA1 = createJob("A1", Arrays.asList("Prod-Sample", "ds-1"), "v1", "A", "Prod-Sample", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 110L, QueryType.UI_RUN);
-    jobsService.storeJob(jobA1);
-    List<Job> jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+    localJobsService.storeJob(jobA1);
+    List<JobSummary> jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ads==Prod-Sample.ds-1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==Prod-Sample.ds-1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(0, jobs.size());
   }
@@ -311,11 +520,11 @@ public class TestJobService extends BaseTestServer {
     completed += 3;
     canceled += 1;
 
-    jobsService.storeJob(jobA1);
-    jobsService.storeJob(jobA2);
-    jobsService.storeJob(jobA3);
-    jobsService.storeJob(jobA4);
-    jobsService.storeJob(jobA5);
+    localJobsService.storeJob(jobA1);
+    localJobsService.storeJob(jobA2);
+    localJobsService.storeJob(jobA3);
+    localJobsService.storeJob(jobA4);
+    localJobsService.storeJob(jobA5);
 
     Job jobB1 = createJob("B1", Arrays.asList("space1", "ds2"), "v1", "B", "space1", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 120L, QueryType.UI_PREVIEW);
     Job jobB2 = createJob("B2", Arrays.asList("space1", "ds2"), "v2", "B", "space1", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 230L, 290L, QueryType.UI_PREVIEW);
@@ -326,87 +535,87 @@ public class TestJobService extends BaseTestServer {
     running += 1;
     completed += 4;
 
-    jobsService.storeJob(jobB1);
-    jobsService.storeJob(jobB2);
-    jobsService.storeJob(jobB3);
-    jobsService.storeJob(jobB4);
-    jobsService.storeJob(jobB5);
+    localJobsService.storeJob(jobB1);
+    localJobsService.storeJob(jobB2);
+    localJobsService.storeJob(jobB3);
+    localJobsService.storeJob(jobB4);
+    localJobsService.storeJob(jobB5);
 
     Job jobC1 = createJob("C1", Arrays.asList("space2", "ds3"), "v1", "C", "space2", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 400L, 500L, QueryType.UI_RUN);
     Job jobC2 = createJob("C2", Arrays.asList("space2", "ds3"), "v1", "C", "space2", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 500L, 600L, QueryType.UI_RUN);
     Job jobC3 = createJob("C3", Arrays.asList("space2", "ds3"), "v2", "C", "space2", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 600L, 700L, QueryType.UI_PREVIEW);
 
     completed += 3;
-    jobsService.storeJob(jobC1);
-    jobsService.storeJob(jobC2);
-    jobsService.storeJob(jobC3);
+    localJobsService.storeJob(jobC1);
+    localJobsService.storeJob(jobC2);
+    localJobsService.storeJob(jobC3);
 
     Job jobD1 = createJob("D1", Arrays.asList("space3","ds4"), "v4", "D", "space3", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 10L, 7000L, QueryType.REST);
-    jobsService.storeJob(jobD1);
+    localJobsService.storeJob(jobD1);
     completed += 1;
 
     // search by spaces
-    List<Job> jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+    List<JobSummary> jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("spc==space1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(10, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("spc==space2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("spc==space3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
     // search by query type
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==UI_RUN")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(5, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==UI_INTERNAL_PREVIEW")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(2, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==UI_PREVIEW")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(4, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==REST")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==UNKNOWN")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(2, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==UI")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(9, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==EXTERNAL")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==ACCELERATION")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(0, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("qt==INTERNAL")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(4, jobs.size());
     //TODO: uncomment after DX-2330 fix
@@ -416,104 +625,104 @@ public class TestJobService extends BaseTestServer {
     // search by users
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("usr==A")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(5, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("usr==B")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(5, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("usr==C")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("usr==D")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
     // search by job ids
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("job==A1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("job==B3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
     // search by dataset and version
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(5, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds1;dsv==v1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(2, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds1;dsv==v2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(2, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds1;dsv==v3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(5, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds2;dsv==v1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds2;dsv==v2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space1.ds2;dsv==v3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space2.ds3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space2.ds3;dsv==v1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(2, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space2.ds3;dsv==v2")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space3.ds4")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("ds==space3.ds4;dsv==v4")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
 
@@ -529,38 +738,38 @@ public class TestJobService extends BaseTestServer {
     // search by job state
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("jst==COMPLETED")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(completed, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("jst==RUNNING")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(running, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("jst==CANCELED")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(canceled, jobs.size());
 
     // filter by start and finish time
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("et=gt=0")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(completed + canceled, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("st=ge=300;et=lt=1000")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(6, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("st=ge=0")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(14, jobs.size());
 
@@ -568,66 +777,66 @@ public class TestJobService extends BaseTestServer {
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("st=ge=0")
         .setSortColumn("st")
-        .setResultOrder(SearchJobsRequest.ResultOrder.ASCENDING)
-        .setUsername(DEFAULT_USERNAME)
+        .setSortOrder(ResultOrder.ASCENDING.toSortOrder())
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(14, jobs.size());
-    assertEquals(jobD1.getJobId(), jobs.get(0).getJobId());
+    assertEquals(jobD1.getJobId(), JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("st=ge=0")
         .setSortColumn("st")
-        .setResultOrder(SearchJobsRequest.ResultOrder.DESCENDING)
-        .setUsername(DEFAULT_USERNAME)
+        .setSortOrder(ResultOrder.DESCENDING.toSortOrder())
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(14, jobs.size());
-    assertEquals(jobB4.getJobId(), jobs.get(0).getJobId());
+    assertEquals(jobB4.getJobId(), JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("et=ge=0")
         .setSortColumn("et")
-        .setResultOrder(SearchJobsRequest.ResultOrder.ASCENDING)
-        .setUsername(DEFAULT_USERNAME)
+        .setSortOrder(ResultOrder.ASCENDING.toSortOrder())
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(12, jobs.size());
-    assertEquals(jobA1.getJobId(), jobs.get(0).getJobId());
+    assertEquals(jobA1.getJobId(), JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("et=ge=0")
         .setSortColumn("et")
-        .setResultOrder(SearchJobsRequest.ResultOrder.DESCENDING)
-        .setUsername(DEFAULT_USERNAME)
+        .setSortOrder(ResultOrder.DESCENDING.toSortOrder())
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(12, jobs.size());
-    assertEquals(jobD1.getJobId(), jobs.get(0).getJobId());
+    assertEquals(jobD1.getJobId(), JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("blah=contains=COMPLETED")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(completed, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("*=contains=ds3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("*=contains=space1")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(10, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("*=contains=space*.ds3")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
 
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("*=contains=space2.ds?")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(3, jobs.size());
 
@@ -635,10 +844,10 @@ public class TestJobService extends BaseTestServer {
     jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("st=ge=0")
         .setSortColumn("st")
-        .setResultOrder(SearchJobsRequest.ResultOrder.ASCENDING)
+        .setSortOrder(ResultOrder.ASCENDING.toSortOrder())
         .setOffset(0)
         .setLimit(Integer.MAX_VALUE)
-        .setUsername("A").build()));
+        .setUserName("A").build()));
     assertEquals(14, jobs.size());
   }
 
@@ -653,9 +862,14 @@ public class TestJobService extends BaseTestServer {
             .setTableList(asList("LocalFS1", "dac-sample1.json"))
             ))
         ));
-    jobsService.storeJob(jobA1);
+    localJobsService.storeJob(jobA1);
 
-    List<Job> jobsForParent = ImmutableList.copyOf(jobsService.getJobsForParent(new NamespaceKey(asList("LocalFS1", "dac-sample1.json")), Integer.MAX_VALUE));
+    JobsWithParentDatasetRequest jobsWithParentDatasetRequest = JobsWithParentDatasetRequest.newBuilder()
+      .setDataset(VersionedDatasetPath.newBuilder()
+        .addAllPath(asList("LocalFS1", "dac-sample1.json")))
+      .setLimit(Integer.MAX_VALUE)
+      .build();
+    List<com.dremio.service.job.JobDetails> jobsForParent = ImmutableList.copyOf(jobsService.getJobsForParent(jobsWithParentDatasetRequest));
     assertFalse(jobsForParent.isEmpty());
   }
 
@@ -663,13 +877,11 @@ public class TestJobService extends BaseTestServer {
   public void testCTASAndDropTable() throws Exception {
     // Create a table
     SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select * from cp.\"json/users.json\" LIMIT 1");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(ctas)
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
 
     FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class).getSource("$scratch");
@@ -681,13 +893,11 @@ public class TestJobService extends BaseTestServer {
 
     // Now drop the table
     SqlQuery dropTable = getQueryFromSQL("DROP TABLE \"$scratch\".\"ctas\"");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(dropTable)
-          .setQueryType(QueryType.ACCELERATOR_DROP)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(dropTable)
+        .setQueryType(QueryType.ACCELERATOR_DROP)
+        .build()
     );
 
     // Make sure the table data directory is deleted
@@ -701,8 +911,12 @@ public class TestJobService extends BaseTestServer {
     Job job = createJob("A1", Arrays.asList("space1", "ds1"), "v1", "A", "space1", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 110L, QueryType.UI_RUN);
     job.getJobAttempt().setDetails(new JobDetails());
     job.getJobAttempt().setAttemptId(attemptId);
+    localJobsService.storeJob(job);
 
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, null, true, null, null);
+    JobDetailsRequest request = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(job.getJobId()))
+      .build();
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(jobsService.getJobDetails(request)), null, null, null, true, null, null);
 
     assertEquals("", detailsUI.getAttemptsSummary());
     assertEquals(1, detailsUI.getAttemptDetails().size());
@@ -715,12 +929,9 @@ public class TestJobService extends BaseTestServer {
 
   @Test
   public void testJobResultsCleanup() throws Exception {
-    jobsService = (LocalJobsService) l(JobsService.class);
+    jobsService = (HybridJobsService) l(JobsService.class);
     SqlQuery ctas = getQueryFromSQL("SHOW SCHEMAS");
-    Job job = JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder().setSqlQuery(ctas).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(ctas).build());
 
     SabotContext context = l(SabotContext.class);
     OptionValue days = OptionValue.createLong(OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 0);
@@ -730,16 +941,16 @@ public class TestJobService extends BaseTestServer {
 
     Thread.sleep(20);
 
-    LocalJobsService.JobResultsCleanupTask cleanupTask = jobsService.new JobResultsCleanupTask();
+    LocalJobsService.JobResultsCleanupTask cleanupTask = localJobsService.createCleanupTask();
     cleanupTask.cleanup();
 
     //make sure that the job output directory is gone
-    assertFalse(jobsService.getJobResultsStore().jobOutputDirectoryExists(job.getJobId()));
-    GetJobRequest request = GetJobRequest.newBuilder()
-      .setJobId(job.getJobId())
+    assertFalse(localJobsService.getJobResultsStore().jobOutputDirectoryExists(jobId));
+    JobDetailsRequest request = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId))
       .build();
-    job = jobsService.getJob(request);
-    assertFalse(JobDetailsUI.of(job).getResultsAvailable());
+    com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(request);
+    assertFalse(JobDetailsUI.of(jobDetails).getResultsAvailable());
 
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 30));
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS.getOptionName(), 0));
@@ -747,29 +958,30 @@ public class TestJobService extends BaseTestServer {
 
   @Test
   public void testJobProfileCleanup() throws Exception {
-    jobsService = (LocalJobsService) l(JobsService.class);
+    jobsService = (HybridJobsService) l(JobsService.class);
     SqlQuery ctas = getQueryFromSQL("SHOW SCHEMAS");
-    Job job = JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(ctas).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(ctas).build());
+    final com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
 
     Thread.sleep(20);
 
-    KVStoreProvider provider = l(KVStoreProvider.class);
+    LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
 
-    LocalJobsService.DeleteResult deleteResult = LocalJobsService.deleteOldJobs(provider, 10);
+    LocalJobsService.DeleteResult deleteResult =
+      l(LocalJobsService.class).deleteOldJobsAndProfiles(10);
     assertEquals(1, deleteResult.getJobsDeleted());
     assertEquals(1, deleteResult.getProfilesDeleted());
 
-    KVStore<AttemptId, UserBitShared.QueryProfile> profileStore = provider.getStore(LocalJobsService.JobsProfileCreator.class);
-    UserBitShared.QueryProfile queryProfile = profileStore.get(AttemptIdUtils.fromString(job.getJobAttempt().getAttemptId()));
+    LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profileStore =
+      provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+    UserBitShared.QueryProfile queryProfile = profileStore.get(AttemptIdUtils.fromString(JobsProtoUtil.getLastAttempt(jobDetails).getAttemptId()));
     assertEquals(null, queryProfile);
 
     thrown.expect(JobNotFoundException.class);
-    GetJobRequest request = GetJobRequest.newBuilder()
-      .setJobId(job.getJobId())
+    JobDetailsRequest request = JobDetailsRequest.newBuilder()
+      .setJobId(jobDetails.getJobId())
       .build();
-    jobsService.getJob(request);
+    jobsService.getJobDetails(request);
   }
 
   @Test
@@ -779,8 +991,9 @@ public class TestJobService extends BaseTestServer {
     Job job = createJob("A1", Arrays.asList("space1", "ds1"), "v1", "A", "space1", JobState.FAILED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 110L, QueryType.UI_RUN);
     job.getJobAttempt().setDetails(new JobDetails());
     job.getJobAttempt().setAttemptId(attemptId);
+    localJobsService.storeJob(job);
 
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), new JobFailureInfo("Some error message", JobFailureType.UNKNOWN, null), null, null, false, null, null);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(getJobDetails(job)), new JobFailureInfo("Some error message", JobFailureType.UNKNOWN, null), null, null, false, null, null);
 
     assertEquals("", detailsUI.getAttemptsSummary());
     assertEquals(1, detailsUI.getAttemptDetails().size());
@@ -824,9 +1037,10 @@ public class TestJobService extends BaseTestServer {
             .setReason(AttemptReason.SCHEMA_CHANGE)
             .setDetails(new JobDetails());
     job.addAttempt(jobAttempt);
+    localJobsService.storeJob(job);
 
     // retrieve the UI jobDetails
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, null, false, null, null);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(getJobDetails(job)), null, null, null, false, null, null);
 
     assertEquals(JobState.COMPLETED, detailsUI.getState());
     assertEquals(Long.valueOf(100L), detailsUI.getStartTime());
@@ -846,11 +1060,22 @@ public class TestJobService extends BaseTestServer {
 
   private static JobInfo newJobInfo(final JobInfo templateJobInfo, long start, long end, String failureInfo) {
     return new JobInfo(templateJobInfo.getJobId(), templateJobInfo.getSql(), templateJobInfo.getDatasetVersion(), templateJobInfo.getQueryType())
+      .setSpace(templateJobInfo.getSpace())
+      .setUser(templateJobInfo.getUser())
+      .setStartTime(start)
+      .setFinishTime(end)
+      .setFailureInfo(failureInfo)
+      .setDatasetPathList(templateJobInfo.getDatasetPathList());
+  }
+
+  private static JobInfo newJobInfo(final JobInfo templateJobInfo, long start, long end, String failureInfo, long schedulingStart, long schedulingEnd) {
+    return new JobInfo(templateJobInfo.getJobId(), templateJobInfo.getSql(), templateJobInfo.getDatasetVersion(), templateJobInfo.getQueryType())
         .setSpace(templateJobInfo.getSpace())
         .setUser(templateJobInfo.getUser())
         .setStartTime(start)
         .setFinishTime(end)
         .setFailureInfo(failureInfo)
+        .setResourceSchedulingInfo(new ResourceSchedulingInfo().setResourceSchedulingStart(schedulingStart).setResourceSchedulingEnd(schedulingEnd))
         .setDatasetPathList(templateJobInfo.getDatasetPathList());
   }
 
@@ -861,27 +1086,21 @@ public class TestJobService extends BaseTestServer {
   }
 
   @Test
-  public void testExplain() {
+  public void testExplain() throws Exception {
     final SqlQuery query = getQueryFromSQL("EXPLAIN PLAN FOR SELECT * FROM sys.version");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
-  public void testAlterOption() {
+  public void testAlterOption() throws Exception {
     final SqlQuery query = getQueryFromSQL("alter session set \"planner.enable_multiphase_agg\"=true");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
   public void testAliasedQuery() throws Exception {
     final SqlQuery query = getQueryFromSQL("SHOW SCHEMAS");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
@@ -904,65 +1123,147 @@ public class TestJobService extends BaseTestServer {
     newNamespaceService().addOrUpdateSpace(namespaceKey, spaceConfig);
 
     SqlQuery ctas = getQueryFromSQL("CREATE OR REPLACE VIEW ctasSpace.ctastest AS select * from (VALUES (1))");
-    Job ctasJob = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(ctas)
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
-
-    waitForCompletion(ctasJob);
 
     ctas = getQueryFromSQL("CREATE OR REPLACE VIEW ctasSpace.ctastest AS select * from (VALUES (2))");
-    ctasJob = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(ctas)
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
-
-    waitForCompletion(ctasJob);
 
     newNamespaceService().deleteSpace(namespaceKey, newNamespaceService().getSpace(namespaceKey).getTag());
   }
 
+  /**
+   * This test verifies that metadata is available after listener registration and ExternalListenerManager#metadataAvailable
+   * is called within attemptObserver
+   * @throws Exception
+   */
   @Test
-  public void testMetadataAwaitingValidQuery() {
-    Job job = JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder()
-      .setSqlQuery(getQueryFromSQL("SELECT * FROM (VALUES(1234))"))
-      .build(), NoOpJobStatusListener.INSTANCE));
-
-    job.getData().waitForMetadata();
-    assertEquals("batch schema is not empty after awaiting",true, job.getJobAttempt().getInfo().getBatchSchema() != null);
+  public void testMetadataAwaitingValidQuery() throws Exception {
+    final JobId jobId = submitAndWaitUntilSubmitted(
+      JobRequest.newBuilder().setSqlQuery(getQueryFromSQL("SELECT * FROM (VALUES(1234))")).build()
+    );
+    JobDataClientUtils.waitForBatchSchema(jobsService, jobId);
+    com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertEquals("batch schema is not empty after awaiting",true, JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getBatchSchema() != null);
+    JobDataClientUtils.waitForFinalState(jobsService, jobId);
   }
 
   @Test
-  public void testMetadataAwaitingInvalidQuery() {
-    Job job = Futures.getUnchecked(
-      jobsService.submitJob(JobRequest.newBuilder()
-      .setSqlQuery(getQueryFromSQL("SELECT * FROM_1 (VALUES(1234))"))
-      .build(), NoOpJobStatusListener.INSTANCE));
-
-    // this is also tests that latch is released in case of error. waitForMetadata should not hang in that case
-    job.getData().waitForMetadata();
-    assertEquals("batch schema should be empty for invalid query",true, job.getJobAttempt().getInfo().getBatchSchema() == null);
+  public void testMetadataAwaitingInvalidQuery() throws Exception {
+    final JobId jobId = submitAndWaitUntilSubmitted(
+      JobRequest.newBuilder().setSqlQuery(getQueryFromSQL("SELECT * FROM_1 (VALUES(1234))")).build()
+    );
+    try {
+      JobDataClientUtils.waitForFinalState(jobsService, jobId);
+    } catch (Exception e) {
+      assertEquals(RuntimeException.class, e.getClass());
+    }
+    com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertEquals("batch schema should be empty for invalid query",true, JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getBatchSchema() == null);
   }
 
-  private void waitForCompletion(Job job) throws Exception {
-    while (true) {
-      JobState state = job.getJobAttempt().getState();
+  @Test
+  public void testExceptionPropagation() throws Exception {
+    final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
+    final CompletionListener completionListener = new CompletionListener();
+    final String testKey = TestingFunctionHelper.newKey(TestJobService::failFunction);
 
-      Assert.assertTrue("expected job to success successfully", Arrays.asList(JobState.PLANNING, JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING, JobState.COMPLETED).contains(state));
-      if (state == JobState.COMPLETED) {
-        break;
-      } else {
-        Thread.sleep(TimeUnit.MILLISECONDS.toMillis(100));
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener));
+    jobSubmittedListener.await();
+
+    // Try to get job data while job is still running. The getJobData call implicitly waits for the Job to complete.
+    // We expect the exception to be propagated through Arrow Flight and automatically converted to UserException
+    final Throwable[] throwable = new Throwable[1];
+    Thread t1 = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try (JobDataFragment jobDataFragment = JobDataClientUtils.getJobData(
+          jobsService, l(BufferAllocator.class), jobId, 0, 1)) {
+          throwable[0] = new AssertionError("Job data call should not have succeeded");
+        } catch (Exception e) {
+          throwable[0] = e;
+        }
       }
+    });
+    t1.start();
+
+    // release testLatch so the job can fail
+    TestingFunctionHelper.trigger(testKey);
+    t1.join();
+
+    // check that the exception is from the failed job
+    try {
+      throw throwable[0];
+    } catch (UserException uex) {
+      assertEquals("expected failure", uex.getOriginalMessage());
+    } catch (Throwable t) {
+      throw new AssertionError(String.format(
+        "Got exception of type %s instead of UserRemoteException", t.getClass().getName()));
+    }
+  }
+
+  /**
+   * Factory for providing latches and runnables to Functions
+   */
+  public static class TestingFunctionHelper {
+    private static final Map<String, CountDownLatch> latches = new ConcurrentHashMap<>();
+    private static final Map<String, Runnable> runnables = new ConcurrentHashMap<>();
+
+    /**
+     * Get a new key and register a new latch and provided runnable to it
+     */
+    public static String newKey(Runnable runnable) {
+      final String key = randomUUID().toString();
+      final CountDownLatch latch = new CountDownLatch(1);
+      latches.put(key, latch);
+      runnables.put(key, runnable);
+      return key;
+    }
+
+    /**
+     * For a given key, wait on its latch, then run its runnable
+     */
+    public static void tryRun(String key, long timeout, TimeUnit unit) {
+      final CountDownLatch latch = latches.get(key);
+      final Runnable runnable = runnables.get(key);
+      if (latch == null) {
+        throw new AssertionError("Latch not registered or already used");
+      }
+      if (runnable == null) {
+        throw new AssertionError("Runnable not registered or already used");
+      }
+
+      try {
+        latch.await(timeout, unit);
+      } catch (InterruptedException e) {
+        throw new AssertionError("latch timed out");
+      }
+      runnable.run();
+      latches.remove(key);
+      runnables.remove(key);
+    }
+
+    /**
+     * For a given key, count down its latch
+     */
+    public static void trigger(String key) {
+      final CountDownLatch latch = latches.get(key);
+      if (latch == null) {
+        throw new AssertionError("Latch not registered or already used");
+      }
+      latch.countDown();
     }
   }
 }

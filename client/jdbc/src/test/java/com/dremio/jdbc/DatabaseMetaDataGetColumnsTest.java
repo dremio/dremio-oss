@@ -1102,6 +1102,7 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
                 equalTo( 20 ) );  // "P12DT12H12M12.12345S"
   }
 
+  @Test
   public void test_COLUMN_SIZE_hasINTERIMValue_mdrReqINTERVAL_2D_S5() throws SQLException {
     assertThat( "When DRILL-3244 fixed, un-ignore above method and purge this.",
                 getIntOrNull( mdrReqINTERVAL_2D_S5, "COLUMN_SIZE" ),

@@ -20,7 +20,7 @@ import static java.util.Collections.singletonList;
 import java.util.Comparator;
 import java.util.List;
 
-import javax.inject.Inject;
+import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.dac.explore.Recommender.TransformRuleWrapper;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -70,7 +70,6 @@ public class Recommenders {
 
   private final CardGenerator cardGenerator;
 
-  @Inject
   public Recommenders(final QueryExecutor executor, final DatasetPath datasetPath, final DatasetVersion version) {
     this.extract = new ExtractRecommender();
     this.replace = new ReplaceRecommender();
@@ -80,78 +79,78 @@ public class Recommenders {
     this.cardGenerator = new CardGenerator(executor, datasetPath, version);
   }
 
-  public List<Card<ExtractRule>> recommendExtract(Selection selection, SqlQuery datasetSql)
+  public List<Card<ExtractRule>> recommendExtract(Selection selection, SqlQuery datasetSql, BufferAllocator allocator)
       throws DatasetVersionNotFoundException {
 
     List<TransformRuleWrapper<ExtractRule>> ruleWrappers = getRuleWrappers(extract, selection, DataType.TEXT);
 
     return cardGenerator.generateCards(datasetSql, selection.getColName(), ruleWrappers,
-        Recommenders.<ExtractRule>genericComparator());
+        Recommenders.<ExtractRule>genericComparator(), allocator);
   }
 
-  public Card<ExtractRule> generateExtractCard(ExtractRule rule, String colName, SqlQuery datasetSql) {
+  public Card<ExtractRule> generateExtractCard(ExtractRule rule, String colName, SqlQuery datasetSql, BufferAllocator allocator) {
     final TransformRuleWrapper<ExtractRule> ruleWrapper = extract.wrapRule(rule);
 
-    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null).get(0);
+    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null, allocator).get(0);
   }
 
-  public List<Card<ReplacePatternRule>> recommendReplace(Selection selection, DataType selColType, SqlQuery datasetSql)
+  public List<Card<ReplacePatternRule>> recommendReplace(Selection selection, DataType selColType, SqlQuery datasetSql, BufferAllocator allocator)
       throws DatasetVersionNotFoundException {
 
     final List<TransformRuleWrapper<ReplacePatternRule>> ruleWrappers = getRuleWrappers(replace, selection, selColType);
 
     final List<Card<ReplacePatternRule>> cards = cardGenerator.generateCards(datasetSql, selection.getColName(),
-        ruleWrappers, REPLACE_RULE_COMPARATOR);
+        ruleWrappers, REPLACE_RULE_COMPARATOR, allocator);
 
     return cards;
   }
 
-  public Card<ReplacePatternRule> generateReplaceCard(ReplacePatternRule rule, String colName, SqlQuery datasetSql) {
+  public Card<ReplacePatternRule> generateReplaceCard(ReplacePatternRule rule, String colName, SqlQuery datasetSql, BufferAllocator allocator) {
     final TransformRuleWrapper<ReplacePatternRule> ruleWrapper = replace.wrapRule(rule);
 
-    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null).get(0);
+    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null, allocator).get(0);
   }
 
-  public List<Card<SplitRule>> recommendSplit(Selection selection, SqlQuery datasetSql)
+  public List<Card<SplitRule>> recommendSplit(Selection selection, SqlQuery datasetSql, BufferAllocator allocator)
       throws DatasetVersionNotFoundException {
 
     List<TransformRuleWrapper<SplitRule>> ruleWrappers = getRuleWrappers(split, selection, DataType.TEXT);
     return cardGenerator.generateCards(datasetSql, selection.getColName(), ruleWrappers,
-        Recommenders.<SplitRule>genericComparator());
+        Recommenders.<SplitRule>genericComparator(), allocator);
   }
 
-  public Card<SplitRule> generateSplitCard(SplitRule rule, String colName, SqlQuery datasetSql) {
+  public Card<SplitRule> generateSplitCard(SplitRule rule, String colName, SqlQuery datasetSql, BufferAllocator allocator) {
     final TransformRuleWrapper<SplitRule> ruleWrapper = split.wrapRule(rule);
 
-    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null).get(0);
+    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null, allocator).get(0);
   }
 
-  public List<Card<ExtractMapRule>> recommendExtractMap(MapSelection selection, SqlQuery datasetSql)
+  public List<Card<ExtractMapRule>> recommendExtractMap(MapSelection selection, SqlQuery datasetSql, BufferAllocator allocator)
       throws DatasetVersionNotFoundException {
 
     List<TransformRuleWrapper<ExtractMapRule>> ruleWrappers = getRuleWrappers(extractMap, selection, DataType.MAP);
     return cardGenerator.generateCards(datasetSql, selection.getColName(), ruleWrappers,
-        Recommenders.<ExtractMapRule>genericComparator());
+        Recommenders.<ExtractMapRule>genericComparator(), allocator);
   }
 
-  public Card<ExtractMapRule> generateExtractMapCard(ExtractMapRule rule, String colName, SqlQuery datasetSql) {
+  public Card<ExtractMapRule> generateExtractMapCard(ExtractMapRule rule, String colName, SqlQuery datasetSql, BufferAllocator allocator) {
     final TransformRuleWrapper<ExtractMapRule> ruleWrapper = extractMap.wrapRule(rule);
 
-    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null).get(0);
+    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null, allocator).get(0);
   }
 
-  public List<Card<ExtractListRule>> recommendExtractList(Selection selection, SqlQuery datasetSql)
+  public List<Card<ExtractListRule>> recommendExtractList(Selection selection, SqlQuery datasetSql, BufferAllocator allocator)
       throws DatasetVersionNotFoundException {
 
     List<TransformRuleWrapper<ExtractListRule>> ruleWrappers = getRuleWrappers(extractList, selection, DataType.LIST);
     return cardGenerator.generateCards(datasetSql, selection.getColName(), ruleWrappers,
-        Recommenders.<ExtractListRule>genericComparator());
+        Recommenders.<ExtractListRule>genericComparator(), allocator);
   }
 
-  public Card<ExtractListRule> generateExtractListCard(ExtractListRule rule, String colName, SqlQuery datasetSql) {
+  public Card<ExtractListRule> generateExtractListCard(ExtractListRule rule, String colName, SqlQuery datasetSql, BufferAllocator allocator) {
     final TransformRuleWrapper<ExtractListRule> ruleWrapper = extractList.wrapRule(rule);
 
-    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null).get(0);
+    return cardGenerator.generateCards(datasetSql, colName, singletonList(ruleWrapper), null, allocator).get(0);
   }
 
   private static <T, U> List<TransformRuleWrapper<T>> getRuleWrappers(Recommender<T, U> recommender, U selection, DataType selColType) {

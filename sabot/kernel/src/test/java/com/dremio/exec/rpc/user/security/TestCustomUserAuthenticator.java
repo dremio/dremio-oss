@@ -33,6 +33,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.users.UserService;
+import com.google.inject.AbstractModule;
 
 public class TestCustomUserAuthenticator extends BaseTestQuery {
 
@@ -40,7 +41,12 @@ public class TestCustomUserAuthenticator extends BaseTestQuery {
   public static void setupDefaultTestCluster() throws Exception {
     // Create a test implementation of UserService
     // and inject it in SabotNode.
-    BINDER_RULE.bind(UserService.class, new UserServiceTestImpl());
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(UserService.class).toInstance(new UserServiceTestImpl());
+      }
+    });
 
     BaseTestQuery.setupDefaultTestCluster();
   }

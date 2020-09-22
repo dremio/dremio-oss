@@ -50,14 +50,15 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
-import com.dremio.options.OptionValue.OptionType;
+import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -75,22 +76,31 @@ public class TestSimpleLimitExchangeRemover {
   private static final RexBuilder rexBuilder = new RexBuilder(typeFactory);
 
   private OptionManager optionManager;
+  private OptionList optionList;
   private PlannerSettings plannerSettings;
   private RelOptCluster cluster;
 
   @Before
   public void setup() {
+    optionList = new OptionList();
+    optionList.add(ExecConstants.SLICE_TARGET_OPTION.getDefault());
+    optionList.add(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
+    optionList.add(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
     optionManager = mock(OptionManager.class);
+
+    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
     when(optionManager.getOption(eq(ExecConstants.SLICE_TARGET)))
-        .thenReturn(ExecConstants.SLICE_TARGET_OPTION.getDefault());
+      .thenReturn(ExecConstants.SLICE_TARGET_OPTION.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
-        .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
+      .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))
-        .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
+      .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
+    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG,
+      optionManager, () -> info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 
@@ -135,31 +145,28 @@ public class TestSimpleLimitExchangeRemover {
 
   @Test
   public void simpleSelectWithLimitWithSoftScanWithLeafLimitsEnabled() {
-    when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
-        .thenReturn(OptionValue.createBoolean(OptionType.QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true));
+    OptionValue optionEnabled = OptionValue.createBoolean(OptionValue.OptionType.QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true);
+    when(optionManager.getOption(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())).thenReturn(optionEnabled);
+    optionList.remove(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
+    optionList.add(optionEnabled);
 
-    try {
-      Prel input =
-          newScreen(
+    Prel input =
+      newScreen(
+        newLimit(0, 10,
+          newProject(exprs(), rowType(),
+            newUnionExchange(
               newLimit(0, 10,
-                  newProject(exprs(), rowType(),
-                      newUnionExchange(
-                          newLimit(0, 10,
-                              newProject(exprs(), rowType(),
-                                  newSoftScan(rowType())
-                              )
-                          )
-                      )
-                  )
+                newProject(exprs(), rowType(),
+                  newSoftScan(rowType())
+                )
               )
-          );
+            )
+          )
+        )
+      );
 
-      Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
-      verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
-    } finally {
-      when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
-          .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
-    }
+    Prel output = SimpleLimitExchangeRemover.apply(plannerSettings, input);
+    verifyOutput(output, "Screen", "Limit", "Project", "UnionExchange", "Limit", "Project", "SystemScan");
   }
 
   @Test

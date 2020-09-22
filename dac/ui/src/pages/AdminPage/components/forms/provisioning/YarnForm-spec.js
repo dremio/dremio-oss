@@ -212,7 +212,7 @@ describe('YarnForm', () => {
     });
 
     it('should return "NameNode" by default and all other distro types', () => {
-      const { MAPR, ...other} = PROVISION_DISTRIBUTIONS;
+      const { MAPR, ...other} = PROVISION_DISTRIBUTIONS; // eslint-disable-line @typescript-eslint/no-unused-vars
       Object.keys(other).forEach(distroType => {
         expect(YarnForm.hostNameLabel({distroType})).to.be.eql('NameNode');
       });
@@ -225,7 +225,7 @@ describe('YarnForm', () => {
     });
 
     it('should return empty string by default and all other distro types', () => {
-      const { MAPR, ...other} = PROVISION_DISTRIBUTIONS;
+      const { MAPR, ...other} = PROVISION_DISTRIBUTIONS; // eslint-disable-line @typescript-eslint/no-unused-vars
       Object.keys(other).forEach(distroType => {
         expect(YarnForm.hostNamePrefix(distroType)).to.be.eql('');
       });
@@ -238,7 +238,7 @@ describe('YarnForm', () => {
     });
 
     it('should return "file:///var/log/dremio" by default and all other distro types', () => {
-      const { MAPR, ...other} = PROVISION_DISTRIBUTIONS;
+      const { MAPR, ...other} = PROVISION_DISTRIBUTIONS; // eslint-disable-line @typescript-eslint/no-unused-vars
       Object.keys(other).forEach(distroType => {
         expect(YarnForm.distributionDirectory(distroType)).to.be.eql('file:///var/log/dremio');
       });

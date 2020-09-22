@@ -70,6 +70,9 @@ public class DremioCost implements RelOptCost {
   // cost of copying data (per cell)
   public static final int COPY_COST = 1 * BASE_CPU_COST;
 
+  // Default cost for unknown cost and row count.
+  public static final double BIG_ROW_COUNT = 1_000_000_000D;
+
   /** For the costing formulas in computeSelfCost(), assume the following notations:
   * Let
   *   C = Cost per node.

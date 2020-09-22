@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.parquet2;
 
+import static com.dremio.common.exceptions.FieldSizeLimitExceptionHelper.createListChildrenLimitException;
+
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +31,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -42,8 +46,13 @@ class LogicalListL2Converter extends ParquetGroupConverter {
   private static final Logger logger = LoggerFactory.getLogger(LogicalListL2Converter.class);
 
   private final WriterProvider writerProvider;
+  private int childCount;
+  private final long maxChildrenAllowed;
+  private final String fieldName;
 
   LogicalListL2Converter(
+      ParquetColumnResolver columnResolver,
+      String fieldName,
       final WriterProvider writerProvider,
       OutputMutator mutator,
       GroupType schema,
@@ -52,7 +61,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
       List<Field> arrowSchema,
       SchemaDerivationHelper schemaHelper) {
     super(
-        mutator,
+      columnResolver, mutator,
         schema,
         columns,
         options,
@@ -65,6 +74,10 @@ class LogicalListL2Converter extends ParquetGroupConverter {
         },
         schemaHelper);
 
+    this.fieldName = fieldName.split("\\.")[0];
+    maxChildrenAllowed = schemaHelper.isLimitListItems() ?
+     options.getOption(ExecConstants.PARQUET_LIST_ITEMS_THRESHOLD) : Integer.MAX_VALUE;
+    childCount = 0;
     this.writerProvider = writerProvider;
 
     if (!isSupportedSchema(schema)) {
@@ -74,7 +87,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
         .build(logger);
     }
 
-    convertChildren();
+    convertChildren(fieldName);
   }
 
   private boolean isSupportedSchema(GroupType schema) {
@@ -87,24 +100,49 @@ class LogicalListL2Converter extends ParquetGroupConverter {
   }
 
   @Override
-  protected void addChildConverter(OutputMutator mutator, List<Field> arrowSchema, Iterator<SchemaPath> colIterator, Type type, Function<String, String> childNameResolver) {
+  protected void addChildConverter(String fieldName, OutputMutator mutator, List<Field> arrowSchema, Iterator<SchemaPath> colIterator, Type type, Function<String, String> childNameResolver) {
     final String nameForChild = "inner";
+    // Column name to ID mapping creates child entry as 'columnName'.list.element
+    // So, we will append 'list.element' so that name to ID matching works correctly
+    final String fullChildName = fieldName.concat(".").concat("list.element");
     if (type.isPrimitive()) {
-      converters.add( getConverterForType(nameForChild, type.asPrimitiveType()));
+      converters.add( getConverterForType(fullChildName, type.asPrimitiveType()));
     } else {
       final GroupType groupType = type.asGroupType();
       Collection<SchemaPath> c = Lists.newArrayList(colIterator);
       if (arrowSchema != null) {
-        converters.add( groupConverterFromArrowSchema(nameForChild, "$data$", groupType, c));
+        converters.add( groupConverterFromArrowSchema(fullChildName, "$data$", groupType, c));
       } else {
-        converters.add( defaultGroupConverter(mutator, groupType, nameForChild, c, null));
+        converters.add( defaultGroupConverter(fullChildName, mutator, groupType, c, null));
       }
     }
   }
 
   @Override
-  public void start() {}
+  public void start() {
+    // list will have only one child.
+    ParquetListElementConverter childConverter = (ParquetListElementConverter)converters.get(0);
+    // signal start of writing an element
+    childConverter.startElement();
+    childCount++;
+    if (childCount > maxChildrenAllowed) {
+      throw createListChildrenLimitException(fieldName, maxChildrenAllowed);
+    }
+  }
 
   @Override
-  public void end() {}
+  public void end() {
+    // list will have only one child. signal end of writing an element
+    ParquetListElementConverter childConverter = (ParquetListElementConverter)converters.get(0);
+    if(!childConverter.hasWritten()) {
+      // if no element was written, then write null element
+      childConverter.writeNullListElement();
+    }
+    // signal end of writing an element
+    childConverter.endElement();
+  }
+
+  public void startList() {
+    childCount = 0;
+  }
 }

@@ -39,18 +39,20 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-
 import com.dremio.common.types.MinorType;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting.FieldType;
 import com.dremio.datastore.SearchTypes.SortOrder;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.reflection.proto.Materialization;
@@ -97,8 +99,8 @@ public class MaterializationStore {
     .setOrder(SortOrder.ASCENDING)
     .build();
 
-  private final Supplier<IndexedStore<MaterializationId, Materialization>> materializationStore;
-  private final Supplier<IndexedStore<RefreshId, Refresh>> refreshStore;
+  private final Supplier<LegacyIndexedStore<MaterializationId, Materialization>> materializationStore;
+  private final Supplier<LegacyIndexedStore<RefreshId, Refresh>> refreshStore;
 
   private static final Function<Map.Entry<MaterializationId, Materialization>, Materialization> GET_MATERIALIZATION = new Function<Map.Entry<MaterializationId, Materialization>, Materialization>() {
     @Nullable
@@ -110,18 +112,18 @@ public class MaterializationStore {
     }
   };
 
-  public MaterializationStore(final Provider<KVStoreProvider> provider) {
+  public MaterializationStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    this.materializationStore = Suppliers.memoize(new Supplier<IndexedStore<MaterializationId, Materialization>>() {
+    this.materializationStore = Suppliers.memoize(new Supplier<LegacyIndexedStore<MaterializationId, Materialization>>() {
       @Override
-      public IndexedStore<MaterializationId, Materialization> get() {
+      public LegacyIndexedStore<MaterializationId, Materialization> get() {
         return provider.get().getStore(MaterializationStoreCreator.class);
       }
     });
 
-    this.refreshStore = Suppliers.memoize(new Supplier<IndexedStore<RefreshId, Refresh>>() {
+    this.refreshStore = Suppliers.memoize(new Supplier<LegacyIndexedStore<RefreshId, Refresh>>() {
       @Override
-      public IndexedStore<RefreshId, Refresh> get() {
+      public LegacyIndexedStore<RefreshId, Refresh> get() {
         return provider.get().getStore(RefreshStoreCreator.class);
       }
     });
@@ -129,7 +131,7 @@ public class MaterializationStore {
 
   private Iterable<Materialization> findByIndex(IndexKey key, String value) {
     final SearchTypes.SearchQuery query = newTermQuery(key, value);
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(query);
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
@@ -161,7 +163,7 @@ public class MaterializationStore {
       return Collections.emptyList();
     }
 
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(and(
         newTermQuery(REFRESH_REFLECTION_ID, id.getId()),
         newTermQuery(REFRESH_SERIES_ID, seriesId)
@@ -179,7 +181,7 @@ public class MaterializationStore {
     if(seriesId == null) {
       return null;
     }
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
         .addSorting(LAST_REFRESH)
         .setLimit(1)
         .setCondition(and(
@@ -206,7 +208,7 @@ public class MaterializationStore {
   }
 
   public FluentIterable<Refresh> getRefreshesByReflectionId(ReflectionId reflectionId) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(
         newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, reflectionId.getId()));
 
@@ -222,7 +224,7 @@ public class MaterializationStore {
     if(seriesId == null) {
       return null;
     }
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .addSorting(LAST_REFRESH_SUBMIT)
       .setLimit(1)
       .setCondition(and(
@@ -248,7 +250,7 @@ public class MaterializationStore {
       return FluentIterable.from(ImmutableList.<Refresh>of());
     }
 
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
         .setCondition(and(
           newTermQuery(ReflectionIndexKeys.REFRESH_REFLECTION_ID, materialization.getReflectionId().getId()),
           newTermQuery(ReflectionIndexKeys.REFRESH_SERIES_ID, seriesId),
@@ -289,12 +291,16 @@ public class MaterializationStore {
     return findLastMaterializationByState(id, MaterializationState.DONE);
   }
 
+  public Materialization getLastMaterializationFailed(final ReflectionId id) {
+    return findLastMaterializationByState(id, MaterializationState.FAILED);
+  }
+
   public Materialization getLastMaterializationCompacted(final ReflectionId id) {
     return findLastMaterializationByState(id, MaterializationState.COMPACTED);
   }
 
   public Materialization getLastMaterialization(final ReflectionId id) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .addSorting(LAST_REFRESH_SUBMIT)
       .setLimit(1)
       .setCondition(and(
@@ -324,7 +330,7 @@ public class MaterializationStore {
   }
 
   private Materialization findLastMaterializationByState(final ReflectionId id, final MaterializationState state) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .addSorting(LAST_REFRESH_SUBMIT)
       .setLimit(1)
       .setCondition(and(
@@ -346,7 +352,7 @@ public class MaterializationStore {
    * @return all DONE materializations that expire after the passed timestamp
    */
   public Iterable<Materialization> getAllDoneWhen(long expiresAfter) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(and(
         newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
         newRangeLong(MATERIALIZATION_EXPIRATION.getIndexFieldName(), expiresAfter, Long.MAX_VALUE, false, true)
@@ -358,7 +364,7 @@ public class MaterializationStore {
    * @return all DONE materializations that expire before the passed timestamp
    */
   public Iterable<Materialization> getAllExpiredWhen(long expiresBefore) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(and(
         newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
         newRangeLong(MATERIALIZATION_EXPIRATION.getIndexFieldName(), 0L, expiresBefore, true, true)
@@ -367,7 +373,7 @@ public class MaterializationStore {
   }
 
   public Iterable<Materialization> getAllDone(ReflectionId id) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(and(
         newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
         newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId())
@@ -376,7 +382,7 @@ public class MaterializationStore {
   }
 
   public Iterable<Materialization> getAllDone(ReflectionId id, long expiresAfter) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(and(
         newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
         newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId()),
@@ -389,7 +395,7 @@ public class MaterializationStore {
    * @return all materializations deprecated before the passed timestamp
    */
   public Iterable<Materialization> getDeletableEntriesModifiedBefore(long timestamp, int numEntries) {
-    final FindByCondition condition = new FindByCondition()
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
       .addSorting(MATERIALIZATION_MODIFIED_AT_SORT)
       .setLimit(numEntries)
       .setCondition(and(
@@ -469,9 +475,9 @@ public class MaterializationStore {
     }
   }
 
-  private static final class MaterializationConverter implements KVStoreProvider.DocumentConverter<MaterializationId, Materialization> {
+  private static final class MaterializationConverter implements DocumentConverter<MaterializationId, Materialization> {
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, MaterializationId key, Materialization record) {
+    public void convert(DocumentWriter writer, MaterializationId key, Materialization record) {
       writer.write(MATERIALIZATION_ID, key.getId());
       writer.write(MATERIALIZATION_STATE, record.getState().name());
       writer.write(MATERIALIZATION_REFLECTION_ID, record.getReflectionId().getId());
@@ -482,9 +488,9 @@ public class MaterializationStore {
     }
   }
 
-  private static final class RefreshConverter implements KVStoreProvider.DocumentConverter<RefreshId, Refresh> {
+  private static final class RefreshConverter implements DocumentConverter<RefreshId, Refresh> {
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, RefreshId key, Refresh record) {
+    public void convert(DocumentWriter writer, RefreshId key, Refresh record) {
       writer.write(ReflectionIndexKeys.REFRESH_REFLECTION_ID, record.getReflectionId().getId());
       writer.write(ReflectionIndexKeys.REFRESH_SERIES_ID, record.getSeriesId());
       writer.write(ReflectionIndexKeys.REFRESH_CREATE, record.getCreatedAt());
@@ -495,29 +501,29 @@ public class MaterializationStore {
   /**
    * {@link MaterializationStore} creator
    */
-  public static final class MaterializationStoreCreator implements StoreCreationFunction<IndexedStore<MaterializationId, Materialization>> {
+  public static final class MaterializationStoreCreator implements LegacyIndexedStoreCreationFunction<MaterializationId, Materialization> {
     @Override
-    public IndexedStore<MaterializationId, Materialization> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<MaterializationId, Materialization> build(LegacyStoreBuildingFactory factory) {
       return factory.<MaterializationId, Materialization>newStore()
         .name(MATERIALIZATION_TABLE_NAME)
-        .keySerializer(Serializers.MaterializationIdSerializer.class)
-        .valueSerializer(Serializers.MaterializationSerializer.class)
+        .keyFormat(Format.ofProtostuff(MaterializationId.class))
+        .valueFormat(Format.ofProtostuff(Materialization.class))
         .versionExtractor(MaterializationVersionExtractor.class)
-        .buildIndexed(MaterializationConverter.class);
+        .buildIndexed(new MaterializationConverter());
     }
   }
 
   /**
    * {@link Refresh} store creator
    */
-  public static final class RefreshStoreCreator implements StoreCreationFunction<IndexedStore<RefreshId, Refresh>> {
+  public static final class RefreshStoreCreator implements LegacyIndexedStoreCreationFunction<RefreshId, Refresh> {
     @Override
-    public IndexedStore<RefreshId, Refresh> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<RefreshId, Refresh> build(LegacyStoreBuildingFactory factory) {
       return factory.<RefreshId, Refresh>newStore()
         .name(REFRESH_TABLE_NAME)
-        .keySerializer(Serializers.RefreshIdSerializer.class)
-        .valueSerializer(Serializers.RefreshSerializer.class)
-        .buildIndexed(RefreshConverter.class);
+        .keyFormat(Format.ofProtostuff(RefreshId.class))
+        .valueFormat(Format.ofProtostuff(Refresh.class))
+        .buildIndexed(new RefreshConverter());
     }
   }
 

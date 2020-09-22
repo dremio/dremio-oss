@@ -65,8 +65,25 @@ describe('Checkbox', () => {
 
   describe('#renderDummyCheckbox', () => {
     it('should render ✔ only if isChecked', () => {
-      expect(shallow(instance.renderDummyCheckbox(false)).text()).to.not.contain('✔');
-      expect(shallow(instance.renderDummyCheckbox(true)).text()).to.contain('✔');
+      expect(shallow(instance.renderDummyCheckbox(false)).html()).to.not.contain('fa-check');
+      expect(shallow(instance.renderDummyCheckbox(true)).html()).to.contain('fa-check');
+    });
+  });
+
+  describe('render on/off switch', () => {
+    it('should use dummy w/o isOnOffSwitch', () => {
+      sinon.spy(instance, 'renderDummyCheckbox');
+      sinon.spy(instance, 'renderOnOffSwitch');
+      wrapper.setProps({value: true});
+      expect(instance.renderDummyCheckbox).to.be.called;
+      expect(instance.renderOnOffSwitch).to.not.be.called;
+    });
+    it('should use isOnOffSwitch param', () => {
+      sinon.spy(instance, 'renderDummyCheckbox');
+      sinon.spy(instance, 'renderOnOffSwitch');
+      wrapper.setProps({isOnOffSwitch: true});
+      expect(instance.renderDummyCheckbox).to.not.be.called;
+      expect(instance.renderOnOffSwitch).to.be.called;
     });
   });
 });

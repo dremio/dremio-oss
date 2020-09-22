@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.explore.model;
 
+import static com.dremio.common.utils.PathUtils.encodeURIComponent;
+
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
@@ -156,7 +158,8 @@ public class DatasetSearchUI {
 
     // TODO: Do we need to send browser link for run/new untitled?
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
-      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version=" + datasetVersion);
+      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version="
+        + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
     }
     return links;
   }
@@ -170,7 +173,9 @@ public class DatasetSearchUI {
     switch (datasetType) {
       case VIRTUAL_DATASET:
         links.put("edit", "/dataset/" + dottedFullPath + "/version/" + datasetVersion + "?view=explore"); //edit dataset
-        links.put("run", "/datasets/new_untitled?parentDataset=" + dottedFullPath + "&newVersion=" + DatasetVersion.newVersion()); //create new dataset
+        final DatasetVersion datasetVersion = DatasetVersion.newVersion();
+        links.put("run", "/datasets/new_untitled?parentDataset=" + dottedFullPath + "&newVersion="
+          + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString()))); //create new dataset
         break;
       case PHYSICAL_DATASET_HOME_FILE:
         links.put("run", "/home/" + fullPath.get(0) + "new_untitled_from_file" + fullPathString);

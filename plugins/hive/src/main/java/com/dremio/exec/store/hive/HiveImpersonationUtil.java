@@ -45,14 +45,14 @@ public final class HiveImpersonationUtil {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveImpersonationUtil.class);
 
   private static final LoadingCache<Key, UserGroupInformation> CACHE = CacheBuilder.newBuilder()
-      .maximumSize(100)
-      .expireAfterAccess(60, TimeUnit.MINUTES)
-      .build(new CacheLoader<Key, UserGroupInformation>() {
-        @Override
-        public UserGroupInformation load(Key key) throws Exception {
-          return UserGroupInformation.createProxyUser(key.proxyUserName, key.loginUser);
-        }
-      });
+    .maximumSize(100)
+    .expireAfterAccess(60, TimeUnit.MINUTES)
+    .build(new CacheLoader<Key, UserGroupInformation>() {
+      @Override
+      public UserGroupInformation load(Key key) throws Exception {
+        return UserGroupInformation.createProxyUser(key.proxyUserName, key.loginUser);
+      }
+    });
 
   private static class Key {
     final String proxyUserName;

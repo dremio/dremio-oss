@@ -18,6 +18,9 @@ package com.dremio.plugins.elastic;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -37,6 +40,8 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
   private static final String NESTED_TYPE_DATA = "/json/nested-type/data-1/";
   private static final String NESTED_TYPE_DATA_1 = "/json/nested-type/data-1/nested-type-data-1.json";
   private static final String NESTED_TYPE_DATA_2 = "/json/nested-type/data-1/nested-type-data-2.json";
+
+  private static final DateTimeFormatter EXPECTED_RESULTS_FORMATTER =  DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss.SSSZ");
 
   @Test
   public void testNestedType_SelectNamedTopLevel() throws Exception {
@@ -61,13 +66,14 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
                     1,
                     "andrew",
                     mapOf(
+                      "zip", 94026,
                             "city", "menlo park",
-                            "state", "ca",
-                            "zip", 94026,
                             "street", "1 santa cruz",
                             "phones", mapOf(
                                     "mobile", 4152568900L,
-                                    "office", 4156263434L)
+                                    "office", 4156263434L),
+                            "state", "ca",
+                            "creationDate", parseLocalDateTime("20180112T072408.617+0000")
                     ))
             .go();
   }
@@ -131,22 +137,24 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
                     "alexa",
                     listOf(
                             mapOf(
-                                    "city", "palo alto",
-                                    "state", "ca",
                                     "zip", 94301,
+                                    "city", "palo alto",
                                     "street", "1 hamilton st.",
                                     "phones", mapOf(
                                             "mobile", 6504501234L,
-                                            "office", 6504809876L)
+                                            "office", 6504809876L),
+                                    "state", "ca",
+                                    "creationDate", parseLocalDateTime("20161112T025252.139+0000")
                             ),
                             mapOf(
+                                   "zip", 94040,
                                     "city", "mountain view",
-                                    "state", "ca",
-                                    "zip", 94040,
                                     "street", "1 california ave.",
                                     "phones", mapOf(
                                             "mobile", 6504443212L,
-                                            "office", 4083456789L)
+                                            "office", 4083456789L),
+                                    "state", "ca",
+                                    "creationDate", parseLocalDateTime("20200112T022252.149+0000")
                             )
                     ))
             .go();
@@ -253,5 +261,9 @@ public class ITTestNestedType extends ElasticBaseTestQuery {
                             )
                     ))
             .go();
+  }
+
+  private static LocalDateTime parseLocalDateTime(String value) {
+    return LocalDateTime.parse(value, EXPECTED_RESULTS_FORMATTER);
   }
 }

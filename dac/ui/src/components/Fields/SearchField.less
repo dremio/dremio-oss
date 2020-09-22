@@ -18,15 +18,29 @@
 .base {
   clear: both;
   display: flex;
+  align-items: center;
   position: relative;
   width: 100%;
-  padding: 3px;
+  z-index: 2;
 }
 
 .search-input {
-  composes: form-placeholder from '@app/uiTheme/less/typography.less';
+  composes: form-placeholder from '~@app/uiTheme/less/typography.less';
   display: block;
-  border: 1px solid @TABLE_BORDER;
+  border: 1px solid #E5E5E5;
   width: 100%;
-  padding: 5px 10px 5px 25px;
+  padding: 5px 10px 5px 27px;
+  height: 32px;
+  border-radius: 4px;
+  outline: none;
+  font-size: 13px;
+
+  &:hover {
+    border: 1px solid #A1DBE4;
+  }
+
+  &:focus {
+    border: 1px solid #A1DBE4;
+    background-color: #F5FCFF; 
+  }
 }

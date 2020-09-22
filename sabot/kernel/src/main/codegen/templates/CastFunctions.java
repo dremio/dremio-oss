@@ -33,7 +33,7 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import org.apache.arrow.vector.holders.*;
 import javax.inject.Inject;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * generated from ${.template_name} ${type.from} ${type.to} ${type.major}

@@ -16,22 +16,27 @@
  @import "~@app/uiTheme/less/color-schema.less";
 
  .dummy {
-  @size: 14px;
+  @size: 18px;
   flex-shrink: 0;
   width: @size;
   height: @size;
-  margin-right: 5px;
-  padding: 2px;
-  border: 1px solid #bbb;
-  border-radius: 50%;
-  background: #fff
+  margin-right: 7px;
+  border: 1px solid #d0d0d0;
+  border-radius: 100%;
+  background: #fff;
+  position: relative;
+  &.checked {
+    background: @BLUE;
+  }
 }
 
 .dot {
-  @size: 100%;
-  background: @BLUE;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  @size: 8px;
+  background: #fff;
   width: @size;
   height: @size;
-  border-radius: 51%; //1 extra percent to make sure, that border is rendered as circle
-  position: relative;
+  border-radius: 100%;
 }

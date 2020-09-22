@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import javax.inject.Provider;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,6 +34,8 @@ import org.junit.Test;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ExecutorSetService;
+import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -43,6 +47,13 @@ public class TestExecutorSelectionService {
   private OptionManager optionManager;
   private ExecutorSelectorProvider executorSelectorProvider;
   private ExecutorSelectionService selectionService;
+  private ExecutorSetService executorSetService;
+  private boolean versionCheckEnabled = true;
+
+  public void simulateRestartCoordinator(boolean versionCheckEnabled) throws Exception {
+    this.versionCheckEnabled = versionCheckEnabled;
+    setup();
+  }
 
   @Before
   public void setup() throws Exception {
@@ -52,11 +63,16 @@ public class TestExecutorSelectionService {
 
     optionManager = mock(OptionManager.class);
     when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("default");
+    when(optionManager.getOption(eq(ExecutorSetService.DREMIO_VERSION_CHECK))).thenReturn(versionCheckEnabled);
 
     final ExecutorSelectorFactory executorSelectorFactory = new TestExecutorSelectorFactory();
     executorSelectorProvider = new ExecutorSelectorProvider();
-    selectionService = new ExecutorSelectionServiceImpl(() -> clusterCoordinator,
-        () -> optionManager,
+    Provider<OptionManager> optionManagerProvider = () -> optionManager;
+    executorSetService = new LocalExecutorSetService(() -> clusterCoordinator,
+                                                     optionManagerProvider);
+    selectionService = new ExecutorSelectionServiceImpl(
+        () -> executorSetService,
+        optionManagerProvider,
         () -> executorSelectorFactory,
         executorSelectorProvider);
     selectionService.start();
@@ -65,6 +81,7 @@ public class TestExecutorSelectionService {
   @After
   public void cleanup() throws Exception {
     selectionService.close();
+    executorSetService.close();
   }
 
   // A mock executor selector
@@ -154,5 +171,81 @@ public class TestExecutorSelectionService {
     TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("two", "secondService"));
     serviceSet.testRemoveNode("two");
     TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
+  }
+
+  /**
+   * Test adding and removing nodes, some with compatible version and some with inCompatible version.
+   * Verify whether the selectionService excludes inCompatible versions because version check is enabled.
+   * @throws Exception
+   */
+  @Test
+  public void testDremioVersionCheckEnabled() throws Exception {
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("default"));
+
+    // Start populating nodes, make sure we get them back
+    serviceSet.testAddNode("one");
+    // NB: the TestExecutorSelector adds 'default'. It is *not* part of the TestSet
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "one"));
+    serviceSet.testAddNode("two", "incompatible");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "one"));
+    serviceSet.testRemoveNode("one");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("default"));
+    serviceSet.testRemoveNode("two", "incompatible");
+    serviceSet.testAddNode("two");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
+
+    // Switching to a new service will get the nodes of the old one
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("secondService");
+    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous TestExecutorSelector,
+    // and is it was *not* part of the TestSet. As such, it doesn't get transferred.
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "two"));
+    serviceSet.testRemoveNode("two");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
+    serviceSet.testAddNode("one", "incompatible");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
+    serviceSet.testRemoveNode("one", "incompatible");
+    serviceSet.testAddNode("one");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "one"));
+  }
+
+  /**
+   * Test adding and removing nodes, some with compatible version and some with inCompatible version.
+   * Verify whether the selectionService does NOT excludes inCompatible versions because version check is disabled.
+   * @throws Exception
+   */
+  @Test
+  public void testDremioVersionCheckDisabled() throws Exception {
+    // Since we are disabling version check (which is enabled by default), we need coordinator restart
+    simulateRestartCoordinator(false);
+
+    // Initial state in the service: a single 'default' node
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("default"));
+
+    // Start populating nodes, make sure we get them back
+    serviceSet.testAddNode("one");
+    // NB: the TestExecutorSelector adds 'default'. It is *not* part of the TestSet
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "one"));
+    serviceSet.testAddNode("two", "incompatible");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 3, ImmutableSet.of("default", "one", "two"));
+    serviceSet.testRemoveNode("one");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
+    serviceSet.testRemoveNode("two", "incompatible");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("default"));
+    serviceSet.testAddNode("two");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("default", "two"));
+
+    // Switching to a new service will get the nodes of the old one
+    when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("secondService");
+    // NB: the TestExecutorSelector adds 'secondService'. 'default' was part of the previous TestExecutorSelector,
+    // and is it was *not* part of the TestSet. As such, it doesn't get transferred.
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "two"));
+    serviceSet.testRemoveNode("two");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
+    serviceSet.testAddNode("one", "incompatible");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "one"));
+    serviceSet.testRemoveNode("one", "incompatible");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 1, ImmutableSet.of("secondService"));
+    serviceSet.testAddNode("one");
+    TestExecutorSelectorUtil.checkExecutors(selectionService, 2, ImmutableSet.of("secondService", "one"));
   }
 }

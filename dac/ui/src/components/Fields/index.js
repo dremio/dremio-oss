@@ -13,17 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export Checkbox from './Checkbox';
-export DateInput from './DateInput';
-export FieldWithError from './FieldWithError';
-export FileField from './FileField';
-export FormatField from './FormatField';
-export Radio from './Radio';
-export Select from './Select';
-export TextField from './TextField';
-export PasswordField from './PasswordField';
-export TextArea from './TextArea';
-export Toggle from './Toggle';
-export PrevalidatedTextField from './PrevalidatedTextField';
-export FieldSelect from './FieldSelect';
-export SearchField from './SearchField';
+import Checkbox from './Checkbox';
+import DateInput from './DateInput';
+import FieldWithError from './FieldWithError';
+import FileField from './FileField';
+import FormatField from './FormatField';
+import Radio from './Radio';
+import Select from './Select';
+import TextField from './TextField';
+import PasswordField from './PasswordField';
+import TextArea from './TextArea';
+import Toggle from './Toggle';
+import PrevalidatedTextField from './PrevalidatedTextField';
+import FieldSelect from './FieldSelect';
+import SearchField from './SearchField';
+
+export {
+  Checkbox,
+  DateInput,
+  FieldWithError,
+  FileField,
+  FormatField,
+  Radio,
+  Select,
+  TextField,
+  PasswordField,
+  TextArea,
+  Toggle,
+  PrevalidatedTextField,
+  FieldSelect,
+  SearchField
+};

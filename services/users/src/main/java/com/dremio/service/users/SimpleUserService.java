@@ -29,22 +29,23 @@ import java.util.regex.Pattern;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.KVStoreProvider.DocumentWriter;
 import com.dremio.datastore.KVUtil;
-import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.SearchTypes.SortOrder;
-import com.dremio.datastore.Serializer;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.users.proto.UID;
 import com.dremio.service.users.proto.UserAuth;
@@ -86,44 +87,20 @@ public class SimpleUserService implements UserService {
   private static final Pattern PASSWORD_MATCHER = Pattern.compile("(?=.*[0-9])(?=.*[a-zA-Z]).{8,}");
   private static final SearchFieldSorting DEFAULT_SORTER = UserIndexKeys.NAME.toSortField(SortOrder.ASCENDING);
 
-  private IndexedStore<UID, UserInfo> userStore;
+  private LegacyIndexedStore<UID, UserInfo> userStore;
 
   // when we call hasAnyUser() we cache the result in here so we never hit the kvStore once the value is true
   private final AtomicBoolean anyUserFound = new AtomicBoolean();
 
   @Inject
-  public SimpleUserService(KVStoreProvider kvStoreProvider) {
-    this.userStore = kvStoreProvider.getStore(UserGroupStoreBuilder.class);
-  }
-
-  private static final class UserInfoSerializer extends Serializer<UserInfo> {
-    private final Serializer<UserInfo> serializer = ProtostuffSerializer.of(UserInfo.getSchema());
-
-    @Override
-    public String toJson(UserInfo v) throws IOException {
-      return serializer.toJson(v);
-    }
-
-    @Override
-    public UserInfo fromJson(String v) throws IOException {
-      return serializer.fromJson(v);
-    }
-
-    @Override
-    public byte[] convert(UserInfo v) {
-      return serializer.convert(v);
-    }
-
-    @Override
-    public UserInfo revert(byte[] v) {
-      return serializer.revert(v);
-    }
+  public SimpleUserService(Provider<LegacyKVStoreProvider> kvStoreProvider) {
+    this.userStore = kvStoreProvider.get().getStore(UserGroupStoreBuilder.class);
   }
 
   private UserInfo findUserByUserName(String userName) {
-    final FindByCondition condition = new FindByCondition()
-        .setCondition(SearchQueryUtils.newTermQuery(UserIndexKeys.NAME, userName))
-        .setLimit(1);
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
+      .setCondition(SearchQueryUtils.newTermQuery(UserIndexKeys.NAME, userName))
+      .setLimit(1);
 
     final List<UserInfo> userInfos = Lists.newArrayList(KVUtil.values(userStore.find(condition)));
     return userInfos.size() == 0 ? null : userInfos.get(0);
@@ -162,10 +139,10 @@ public class SimpleUserService implements UserService {
     }
     validatePassword(authKey);
     UserConfig newUser = toUserConfig(userConfig)
-        .setUid(new UID(UUID.randomUUID().toString()))
-        .setCreatedAt(System.currentTimeMillis())
-        .setModifiedAt(userConfig.getCreatedAt())
-        .setTag(null);
+      .setUid(new UID(UUID.randomUUID().toString()))
+      .setCreatedAt(System.currentTimeMillis())
+      .setModifiedAt(userConfig.getCreatedAt())
+      .setTag(null);
     UserInfo userInfo = new UserInfo();
     userInfo.setConfig(newUser);
     userInfo.setAuth(buildUserAuth(newUser.getUid(), authKey));
@@ -303,7 +280,7 @@ public class SimpleUserService implements UserService {
 
   @Override
   public Iterable<? extends User> searchUsers(String searchTerm, String sortColumn, SortOrder order,
-      Integer limit) throws IOException {
+                                              Integer limit) throws IOException {
     limit = limit == null ? 10000 : limit;
 
     if (searchTerm == null || searchTerm.isEmpty()) {
@@ -311,20 +288,20 @@ public class SimpleUserService implements UserService {
     }
 
     final SearchQuery query = SearchQueryUtils.or(
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.NAME, searchTerm),
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.FIRST_NAME, searchTerm),
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.LAST_NAME, searchTerm),
-        SearchQueryUtils.newContainsTerm(UserIndexKeys.EMAIL, searchTerm));
+      SearchQueryUtils.newContainsTerm(UserIndexKeys.NAME, searchTerm),
+      SearchQueryUtils.newContainsTerm(UserIndexKeys.FIRST_NAME, searchTerm),
+      SearchQueryUtils.newContainsTerm(UserIndexKeys.LAST_NAME, searchTerm),
+      SearchQueryUtils.newContainsTerm(UserIndexKeys.EMAIL, searchTerm));
 
-    final FindByCondition conditon = new FindByCondition()
-        .setCondition(query)
-        .setLimit(limit)
-        .addSorting(buildSorter(sortColumn, order));
+    final LegacyFindByCondition conditon = new LegacyFindByCondition()
+      .setCondition(query)
+      .setLimit(limit)
+      .addSorting(buildSorter(sortColumn, order));
 
     return Lists.transform(Lists.newArrayList(KVUtil.values(userStore.find(conditon))), infoConfigTransformer);
   }
 
-  private static final class UserConverter implements KVStoreProvider.DocumentConverter<UID, UserInfo>{
+  private static final class UserConverter implements DocumentConverter<UID, UserInfo> {
     @Override
     public void convert(DocumentWriter writer, UID key, UserInfo userInfo) {
       UserConfig userConfig = userInfo.getConfig();
@@ -426,27 +403,27 @@ public class SimpleUserService implements UserService {
 
   protected UserConfig toUserConfig(User user) {
     return new UserConfig()
-        .setUid(user.getUID())
-        .setUserName(user.getUserName())
-        .setFirstName(user.getFirstName())
-        .setLastName(user.getLastName())
-        .setEmail(user.getEmail())
-        .setCreatedAt(user.getCreatedAt())
-        .setModifiedAt(user.getModifiedAt())
-        .setTag(user.getVersion());
+      .setUid(user.getUID())
+      .setUserName(user.getUserName())
+      .setFirstName(user.getFirstName())
+      .setLastName(user.getLastName())
+      .setEmail(user.getEmail())
+      .setCreatedAt(user.getCreatedAt())
+      .setModifiedAt(user.getModifiedAt())
+      .setTag(user.getVersion());
   }
 
   protected User fromUserConfig(UserConfig userConfig) {
     return SimpleUser.newBuilder()
-        .setUID(userConfig.getUid())
-        .setUserName(userConfig.getUserName())
-        .setFirstName(userConfig.getFirstName())
-        .setLastName(userConfig.getLastName())
-        .setEmail(userConfig.getEmail())
-        .setCreatedAt(userConfig.getCreatedAt())
-        .setModifiedAt(userConfig.getModifiedAt())
-        .setVersion(userConfig.getTag())
-        .build();
+      .setUID(userConfig.getUid())
+      .setUserName(userConfig.getUserName())
+      .setFirstName(userConfig.getFirstName())
+      .setLastName(userConfig.getLastName())
+      .setEmail(userConfig.getEmail())
+      .setCreatedAt(userConfig.getCreatedAt())
+      .setModifiedAt(userConfig.getModifiedAt())
+      .setVersion(userConfig.getTag())
+      .build();
   }
 
   private static final class UserVersionExtractor implements VersionExtractor<UserInfo> {
@@ -475,16 +452,16 @@ public class SimpleUserService implements UserService {
   /**
    * Class for creating kvstore.
    */
-  public static class UserGroupStoreBuilder implements StoreCreationFunction<IndexedStore<UID, UserInfo>> {
+  public static class UserGroupStoreBuilder implements LegacyIndexedStoreCreationFunction<UID, UserInfo> {
 
     @Override
-    public IndexedStore<UID, UserInfo> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<UID, UserInfo> build(LegacyStoreBuildingFactory factory) {
       return factory.<UID, UserInfo>newStore()
-          .name(USER_STORE)
-          .keySerializer(UIDSerializer.class)
-          .valueSerializer(UserInfoSerializer.class)
-          .versionExtractor(UserVersionExtractor.class)
-          .buildIndexed(UserConverter.class);
+        .name(USER_STORE)
+        .keyFormat(Format.wrapped(UID.class, UID::getId, UID::new, Format.ofString()))
+        .valueFormat(Format.ofProtostuff(UserInfo.class))
+        .versionExtractor(UserVersionExtractor.class)
+        .buildIndexed(new UserConverter());
     }
 
   }

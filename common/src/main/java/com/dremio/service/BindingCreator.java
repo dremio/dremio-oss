@@ -15,6 +15,8 @@
  */
 package com.dremio.service;
 
+import javax.inject.Provider;
+
 public interface BindingCreator {
 
   <IFACE> IFACE bindSelf(IFACE impl);
@@ -31,4 +33,7 @@ public interface BindingCreator {
 
   <IFACE> void replace(Class<IFACE> iface, Class<? extends IFACE> impl);
 
+  <IFACE> void bindProvider(Class<IFACE> iface, Provider<? extends IFACE> provider);
+
+  <IFACE> void replaceProvider(Class<IFACE> iface, Provider<? extends IFACE> provider);
 }

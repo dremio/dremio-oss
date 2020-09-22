@@ -32,18 +32,20 @@ public class LayoutDefinition {
   private final List<String> sort;
   private final List<String> distribution;
   private final List<String> partition;
+  private final Boolean arrowCachingEnabled;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final String name;
 
   public LayoutDefinition(
-      String name, Type type,
-      List<String> display,
-      List<NameAndGranularity> dimension,
-      List<NameAndMeasures> measure,
-      List<String> sort,
-      List<String> distribution,
-      List<String> partition,
-      PartitionDistributionStrategy partitionDistributionStrategy) {
+    String name, Type type,
+    List<String> display,
+    List<NameAndGranularity> dimension,
+    List<NameAndMeasures> measure,
+    List<String> sort,
+    List<String> distribution,
+    List<String> partition,
+    Boolean arrowCachingEnabled,
+    PartitionDistributionStrategy partitionDistributionStrategy) {
     super();
     this.name = name;
     this.type = type;
@@ -53,6 +55,7 @@ public class LayoutDefinition {
     this.sort = sort;
     this.distribution = distribution;
     this.partition = partition;
+    this.arrowCachingEnabled = arrowCachingEnabled;
     this.partitionDistributionStrategy = partitionDistributionStrategy;
   }
 
@@ -93,6 +96,8 @@ public class LayoutDefinition {
   public List<String> getPartition() {
     return partition;
   }
+
+  public Boolean getArrowCachingEnabled() { return arrowCachingEnabled; }
 
   public PartitionDistributionStrategy getPartitionDistributionStrategy() {
     return partitionDistributionStrategy;

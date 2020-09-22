@@ -31,6 +31,6 @@ export const tableStyles = {
   },
   searchField: {
     width: 200,
-    height: 30
+    marginRight: '6px'
   }
 };

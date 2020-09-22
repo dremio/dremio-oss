@@ -90,7 +90,7 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
     }
 
     try {
-      return ReflectionUtils.computeDatasetHash(dataset, namespace);
+      return ReflectionUtils.computeDatasetHash(dataset, namespace, false);
     } catch (NamespaceException e) {
       return null;
     }

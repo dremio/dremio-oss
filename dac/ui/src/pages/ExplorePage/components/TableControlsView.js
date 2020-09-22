@@ -164,7 +164,6 @@ export const styles = {
     opacity: 0.7
   },
   innerTextStyle: {
-    top: '-7px',
     textAlign: 'left'
   },
   activeButton: {
@@ -181,7 +180,6 @@ export const styles = {
   },
   iconContainer: {
     marginRight: 1,
-    lineHeight: '24px',
     width: 24,
     position: 'relative'
   },

@@ -48,7 +48,7 @@ public class TestMediaTypeFilter {
   @Test
   public void testHeaderChange() throws IOException {
     MediaTypeFilter filter = new MediaTypeFilter();
-    ContainerRequest request = ContainerRequestBuilder.from("http://localhost/foo/bar?format=unit/test", "GET").accept("random/media").build();
+    ContainerRequest request = ContainerRequestBuilder.from("http://localhost/foo/bar?format=unit/test", "GET", null).accept("random/media").build();
     filter.filter(request);
 
     assertEquals(1, request.getAcceptableMediaTypes().size());
@@ -58,7 +58,7 @@ public class TestMediaTypeFilter {
   @Test
   public void testHeaderIsUntouched() throws IOException {
     MediaTypeFilter filter = new MediaTypeFilter();
-    ContainerRequest request = ContainerRequestBuilder.from("http://localhost/foo/bar", "GET").accept("random/media").build();
+    ContainerRequest request = ContainerRequestBuilder.from("http://localhost/foo/bar", "GET", null).accept("random/media").build();
     filter.filter(request);
 
     assertEquals(1, request.getAcceptableMediaTypes().size());

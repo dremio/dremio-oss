@@ -15,31 +15,22 @@
  */
 package com.dremio.service.listing;
 
-import java.util.AbstractMap;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.RemoteDataStoreUtils;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.namespace.DatasetListingRPC.DLFindRequest;
-import com.dremio.namespace.DatasetListingRPC.DLFindResponse;
 import com.dremio.namespace.DatasetListingRPC.DLGetSourceRequest;
 import com.dremio.namespace.DatasetListingRPC.DLGetSourceResponse;
 import com.dremio.namespace.DatasetListingRPC.DLGetSourcesRequest;
 import com.dremio.namespace.DatasetListingRPC.DLGetSourcesResponse;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.RemoteNamespaceException;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.simple.AbstractReceiveHandler;
@@ -49,7 +40,6 @@ import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.ByteString;
 
-import io.netty.buffer.ArrowBuf;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 
@@ -62,7 +52,7 @@ import io.protostuff.ProtobufIOUtil;
  * in situ {@link DatasetListingServiceImpl listing service}.
  */
 public class DatasetListingInvoker implements DatasetListingService {
-  private static final int TYPE_DL_FIND = 1;
+  private static final int TYPE_DL_FIND = 1; // no longer supported
   private static final int TYPE_DL_SOURCE = 2;
   private static final int TYPE_DL_SOURCES = 3;
 
@@ -72,7 +62,6 @@ public class DatasetListingInvoker implements DatasetListingService {
   private final BufferAllocator allocator;
   private final DatasetListingService datasetListing;
 
-  private SendEndpointCreator<DLFindRequest, DLFindResponse> findEndpointCreator; // used on server and client side
   private SendEndpointCreator<DLGetSourceRequest, DLGetSourceResponse> getSourceEndpointCreator; // used on server and client side
   private SendEndpointCreator<DLGetSourcesRequest, DLGetSourcesResponse> getSourcesEndpointCreator; // used on server and client side
 
@@ -98,39 +87,6 @@ public class DatasetListingInvoker implements DatasetListingService {
         .allocator(allocator)
         .name("dataset-listing-rpc")
         .timeout(10 * 1000);
-
-    this.findEndpointCreator = builder.register(TYPE_DL_FIND,
-        new AbstractReceiveHandler<DLFindRequest, DLFindResponse>(
-            DLFindRequest.getDefaultInstance(), DLFindResponse.getDefaultInstance()) {
-          @Override
-          public SentResponseMessage<DLFindResponse> handle(DLFindRequest findRequest, ArrowBuf dBody) {
-            final FindByCondition findByCondition = !findRequest.hasRequest() ? null :
-                RemoteDataStoreUtils.getConditionFromRequest(findRequest.getRequest());
-
-            final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
-            try {
-              searchResults = datasetListing.find(findRequest.getUsername(), findByCondition);
-            } catch (NamespaceException e) {
-              return new SentResponseMessage<>(
-                  DLFindResponse.newBuilder()
-                      .setFailureMessage(e.getMessage())
-                      .build());
-            }
-
-            final LinkedBuffer buffer = LinkedBuffer.allocate();
-            final Iterable<ByteString> containersAsBytes = StreamSupport.stream(searchResults.spliterator(), false)
-                .map(input -> {
-                    final ByteString bytes = input.getValue().clone(buffer);
-                    buffer.clear();
-                    return bytes;
-                }).collect(Collectors.toList());
-
-            return new SentResponseMessage<>(
-                DLFindResponse.newBuilder()
-                    .addAllResponse(containersAsBytes)
-                    .build());
-          }
-        });
 
     this.getSourceEndpointCreator = builder.register(TYPE_DL_SOURCE,
         new AbstractReceiveHandler<DLGetSourceRequest, DLGetSourceResponse>(
@@ -201,15 +157,6 @@ public class DatasetListingInvoker implements DatasetListingService {
     datasetListing.close();
   }
 
-  private SendEndpoint<DLFindRequest, DLFindResponse> newFindEndpoint() throws RpcException {
-    final NodeEndpoint master = masterEndpoint.get();
-    if (master == null) {
-      throw new RpcException("master node is down");
-    }
-    // TODO(DX-10861): separate server-side and client-side code, when the ticket is resolved
-    return findEndpointCreator.getEndpoint(master.getAddress(), master.getFabricPort());
-  }
-
   private SendEndpoint<DLGetSourcesRequest, DLGetSourcesResponse> newGetSourcesEndpoint() throws RpcException {
     final NodeEndpoint master = masterEndpoint.get();
     if (master == null) {
@@ -226,44 +173,6 @@ public class DatasetListingInvoker implements DatasetListingService {
     }
     // TODO(DX-10861): separate server-side and client-side code, when the ticket is resolved
     return getSourceEndpointCreator.getEndpoint(master.getAddress(), master.getFabricPort());
-  }
-
-  @Override
-  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(
-      String username,
-      FindByCondition condition
-  ) throws NamespaceException {
-    if (isMaster) { // RPC calls unless running on master
-      return datasetListing.find(username, condition);
-    }
-
-    final DLFindRequest.Builder requestBuilder = DLFindRequest.newBuilder();
-    requestBuilder.setUsername(username);
-    if (condition != null) {
-      requestBuilder.setRequest(
-          RemoteDataStoreUtils.getRequestFromCondition(NamespaceServiceImpl.DAC_NAMESPACE,
-              condition));
-    }
-
-    final DLFindResponse findResponse;
-    try {
-      findResponse = newFindEndpoint()
-          .send(requestBuilder.build())
-          .getBody();
-    } catch (RpcException e) {
-      throw new RemoteNamespaceException("dataset listing failed: " + e.getMessage());
-    }
-    if (findResponse.hasFailureMessage()) {
-      throw new RemoteNamespaceException(findResponse.getFailureMessage());
-    }
-
-    return findResponse.getResponseList().stream()
-        .map(input -> {
-            // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-            final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.from(input);
-            return new AbstractMap.SimpleEntry<>(
-                new NamespaceKey(nameSpaceContainer.getFullPathList()), nameSpaceContainer);
-        }).collect(Collectors.toList());
   }
 
   @Override

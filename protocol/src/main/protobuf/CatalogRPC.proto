@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.catalog;
 
 option java_package = "com.dremio.exec.proto";

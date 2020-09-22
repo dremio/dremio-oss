@@ -15,6 +15,8 @@
  */
 package com.dremio.provision;
 
+import java.util.List;
+
 import javax.validation.constraints.NotNull;
 
 import org.hibernate.validator.constraints.URL;
@@ -26,6 +28,9 @@ import com.dremio.common.SentinelSecure;
 import com.dremio.provision.resource.ProvisioningResource;
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.internal.util.EC2MetadataUtils;
 
 /**
  * AWS Props
@@ -45,6 +50,7 @@ public interface AwsPropsApi {
   @NotNull String getInstanceType();
   @NotNull AwsConnectionPropsApi getConnectionProps();
   String getExtraConfProps();
+  List<AwsTagApi> getAwsTags();
 
   /**
    * Type of AWS auth
@@ -71,7 +77,7 @@ public interface AwsPropsApi {
     String getAccessKey();
 
     @Redacted @SentinelSecure(ProvisioningResource.USE_EXISTING_SECRET_VALUE) String getSecretKey();
-    String getRegion();
+    @Default default String getRegion() { return getEc2Region(); }
 
     @URL
     String getEndpoint();
@@ -82,6 +88,30 @@ public interface AwsPropsApi {
     public static ImmutableAwsConnectionPropsApi.Builder builder() {
       return new ImmutableAwsConnectionPropsApi.Builder();
     }
+
+    static String getEc2Region() {
+      String region = null;
+      try {
+        region = EC2MetadataUtils.getEC2InstanceRegion();
+      } catch (Exception ignored) {}
+      if (region == null) {
+        region = Region.US_EAST_1.id();
+      }
+      return region;
+    }
   }
 
+  /**
+   * Tag
+   */
+  @JsonDeserialize(builder = ImmutableAwsTagApi.Builder.class)
+  @Immutable
+  public interface AwsTagApi {
+    @NotNull String getKey();
+    @NotNull String getValue();
+
+    public static ImmutableAwsTagApi.Builder builder() {
+      return new ImmutableAwsTagApi.Builder();
+    }
+  }
 }

@@ -32,6 +32,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
@@ -68,7 +69,6 @@ class HistogramGenerator {
   private final QueryExecutor executor;
 
   public HistogramGenerator(QueryExecutor executor) {
-    super();
     this.executor = executor;
   }
 
@@ -93,7 +93,7 @@ class HistogramGenerator {
   }
 
   public Histogram<HistogramValue> getHistogram(final DatasetPath datasetPath, DatasetVersion version, Selection selection,
-                                                DataType colType, SqlQuery datasetQuery) {
+                                                DataType colType, SqlQuery datasetQuery, BufferAllocator allocator) {
     final String datasetPreviewJobResultsTable = DatasetsUtil
       .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
       .getJobResultsTable();
@@ -138,8 +138,8 @@ class HistogramGenerator {
           final SqlQuery prelimQuery = datasetQuery.cloneWithNewSql(prelimValuesQueryBuilder.toString());
           // need to get values and calculate everything
           prelimData = executor
-            .runQuery(prelimQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version)
-            .range(offset, BATCH_SIZE);
+            .runQueryAndWaitForCompletion(prelimQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version)
+            .range(allocator, offset, BATCH_SIZE);
         } catch (Throwable t) {
           logger.error(format("Exception while trying to get histogram. Reverting to simple group %s by value", colNameClean), t);
         }
@@ -147,189 +147,191 @@ class HistogramGenerator {
       default:
         break;
     }
+    try {
+      if (prelimData != null &&
+        (colType == DataType.TIME ||
+          colType == DataType.DATE ||
+          colType == DataType.DATETIME)) {
+        try {
+          // Read the values in batches - should be a single row
+          if (prelimData.getReturnedRowCount() > 0) {
+            // need to map type to SqlTypeName to get only Numeric family
+            // deal separately with dates (can use UNIX_TIMESTAMP)
+            LocalDateTime min = (LocalDateTime) prelimData.extractValue("colMin", 0);
 
-    if (prelimData != null &&
-      (colType == DataType.TIME ||
-        colType == DataType.DATE ||
-        colType == DataType.DATETIME)) {
-      try {
-        // Read the values in batches - should be a single row
-        if (prelimData.getReturnedRowCount() > 0) {
-          // need to map type to SqlTypeName to get only Numeric family
-          // deal separately with dates (can use UNIX_TIMESTAMP)
-          LocalDateTime min = (LocalDateTime) prelimData.extractValue("colMin", 0);
+            LocalDateTime max = (LocalDateTime) prelimData.extractValue("colMax", 0);
 
-          LocalDateTime max = (LocalDateTime) prelimData.extractValue("colMax", 0);
+            long duration = toMillis(max) - toMillis(min);
+            range = duration / 1000L; // get seconds
+            range /= myBuckets;
+            range = Math.round(range);
 
-          long duration = toMillis(max) - toMillis(min);
-          range = duration / 1000L; // get seconds
-          range /= myBuckets;
-          range = Math.round(range);
+            TruncEvalEnum trucateTo = TruncEvalEnum.SECOND;
 
-          TruncEvalEnum trucateTo = TruncEvalEnum.SECOND;
-
-          if (range > 1) {
-            for (TruncEvalEnum value : TruncEvalEnum.getSortedAscValues()) {
-              double tmpRange = range / value.getDivisor();
-              if (tmpRange <= 1) {
-                trucateTo = value;
-                break;
+            if (range > 1) {
+              for (TruncEvalEnum value : TruncEvalEnum.getSortedAscValues()) {
+                double tmpRange = range / value.getDivisor();
+                if (tmpRange <= 1) {
+                  trucateTo = value;
+                  break;
+                }
               }
             }
-          }
 
-          produceRanges(ranges, min, max, trucateTo);
+            produceRanges(ranges, min, max, trucateTo);
 
         /* Example of the query
         select count(*), date_trunc('DAY', B)
         from yellow_tripdata_2009_01_100000_conv_full group by date_trunc('DAY', B)
         */
 
-          hgQueryBuilder.setLength(0);
-          hgQueryBuilder.append("SELECT\n");
-          hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s) as %s,\n", trucateTo.name, colNameClean, projectedColName));
-          hgQueryBuilder.append("COUNT(*) as dremio_value_count\n");
-          hgQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
-          hgQueryBuilder.append(format("GROUP BY\n"));
-          hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s)\n", trucateTo.name, colNameClean));
-          hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
-          isBinned = true;
-        } else {
-          throw new ClientErrorException("no data returned for query: " + prelimValuesQueryBuilder.toString());
+            hgQueryBuilder.setLength(0);
+            hgQueryBuilder.append("SELECT\n");
+            hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s) as %s,\n", trucateTo.name, colNameClean, projectedColName));
+            hgQueryBuilder.append("COUNT(*) as dremio_value_count\n");
+            hgQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
+            hgQueryBuilder.append(format("GROUP BY\n"));
+            hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s)\n", trucateTo.name, colNameClean));
+            hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
+            isBinned = true;
+          } else {
+            throw new ClientErrorException("no data returned for query: " + prelimValuesQueryBuilder.toString());
+          }
+        } catch (Throwable t) {
+          logger.error(format("Exception while trying to get histogram. Reverting to simple group %s by value", colNameClean), t);
         }
-      } catch (Throwable t) {
-        logger.error(format("Exception while trying to get histogram. Reverting to simple group %s by value", colNameClean), t);
       }
-    }
 
-    if (prelimData != null &&
-      (colType == DataType.FLOAT ||
-        colType == DataType.INTEGER)) {
-      try {
-        // Read the values in batches - should be a single row
-        Double min;
-        Double max;
-        if (prelimData.getReturnedRowCount() > 0) {
-          min = Double.parseDouble(prelimData.extractString("colMin", 0));
-          max = Double.parseDouble(prelimData.extractString("colMax", 0));
-        } else {
-          throw new ClientErrorException("no data returned for query: " + prelimValuesQueryBuilder.toString());
-        }
-
-        upperBoundary = max;
-        lowerBoundary = min;
-        double value = lowerBoundary;
-
-        double boundaries = Math.abs(upperBoundary - lowerBoundary); // make sure it is > 0, though it should be in any case
-        if (boundaries == 0.0d) {
-          ranges.add(value);
-        }
-        range = boundaries / myBuckets;
-        long roundedRange = Math.round(range);
-        if (colType == DataType.INTEGER) {
-          if (roundedRange == 0L) {
-            if (boundaries > 1d) {
-              roundedRange = 1L;
-            } else {
-              ranges.add(value);
-            }
+      if (prelimData != null &&
+        (colType == DataType.FLOAT ||
+          colType == DataType.INTEGER)) {
+        try {
+          // Read the values in batches - should be a single row
+          Double min;
+          Double max;
+          if (prelimData.getReturnedRowCount() > 0) {
+            min = Double.parseDouble(prelimData.extractString("colMin", 0));
+            max = Double.parseDouble(prelimData.extractString("colMax", 0));
+          } else {
+            throw new ClientErrorException("no data returned for query: " + prelimValuesQueryBuilder.toString());
           }
-          range = roundedRange;
-        }
-        if ( ranges.isEmpty()) {
-          while (value < upperBoundary) {
+
+          upperBoundary = max;
+          lowerBoundary = min;
+          double value = lowerBoundary;
+
+          double boundaries = Math.abs(upperBoundary - lowerBoundary); // make sure it is > 0, though it should be in any case
+          if (boundaries == 0.0d) {
             ranges.add(value);
-            value += range;
           }
-          ranges.add(upperBoundary);
-          // adding one more range to avoid boundary conditions for exact numbers
-          ranges.add(upperBoundary+range);
-        }
+          range = boundaries / myBuckets;
+          long roundedRange = Math.round(range);
+          if (colType == DataType.INTEGER) {
+            if (roundedRange == 0L) {
+              if (boundaries > 1d) {
+                roundedRange = 1L;
+              } else {
+                ranges.add(value);
+              }
+            }
+            range = roundedRange;
+          }
+          if (ranges.isEmpty()) {
+            while (value < upperBoundary) {
+              ranges.add(value);
+              value += range;
+            }
+            ranges.add(upperBoundary);
+            // adding one more range to avoid boundary conditions for exact numbers
+            ranges.add(upperBoundary + range);
+          }
 
-        if (range > 0.0d) {
-          hgQueryBuilder.setLength(0);
-          hgQueryBuilder.append("SELECT\n");
-          hgQueryBuilder.append(format("  ROUND(CAST(dremio_values_table.%s AS DOUBLE)/%f)*%f as %s,\n  COUNT(*) as dremio_value_count\n", colNameClean, range, range, projectedColName));
-          hgQueryBuilder.append(format("FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
-          //hgQueryBuilder.append(format(" WHERE %s < %s AND %s > %s\n", colNameClean, upperBoundary, colNameClean, lowerBoundary));
-          hgQueryBuilder.append(format(" GROUP BY ROUND(CAST(dremio_values_table.%s AS DOUBLE)/%f)*%f\n", colNameClean, range, range));
-          hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
-          isBinned = true;
+          if (range > 0.0d) {
+            hgQueryBuilder.setLength(0);
+            hgQueryBuilder.append("SELECT\n");
+            hgQueryBuilder.append(format("  ROUND(CAST(dremio_values_table.%s AS DOUBLE)/%f)*%f as %s,\n  COUNT(*) as dremio_value_count\n", colNameClean, range, range, projectedColName));
+            hgQueryBuilder.append(format("FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
+            //hgQueryBuilder.append(format(" WHERE %s < %s AND %s > %s\n", colNameClean, upperBoundary, colNameClean, lowerBoundary));
+            hgQueryBuilder.append(format(" GROUP BY ROUND(CAST(dremio_values_table.%s AS DOUBLE)/%f)*%f\n", colNameClean, range, range));
+            hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
+            isBinned = true;
+          }
+        } catch (Throwable t) {
+          logger.error(format("Exception while trying to get histogram. Reverting to simple group %s by value", colNameClean), t);
         }
-      } catch (Throwable t) {
-        logger.error(format("Exception while trying to get histogram. Reverting to simple group %s by value", colNameClean), t);
+      }
+    } finally {
+      if (prelimData != null) {
+        prelimData.close();
       }
     }
       // we got rounding number
     final SqlQuery hgQuery = datasetQuery.cloneWithNewSql(hgQueryBuilder.toString());
 
-    final JobData completeJobData = executor.runQuery(hgQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version);
+    final JobData completeJobData = executor.runQueryAndWaitForCompletion(hgQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version);
 
     final List<HistogramValue> values = new ArrayList<>();
     long total = 0;
     offset = 0;
-    JobDataFragment data = completeJobData.range(offset, BATCH_SIZE);
 
-    // Read the values in batches
-    while(data.getReturnedRowCount() > 0) {
-      //final Column selected = data.getColumn(colName);
-      final String countCol = "dremio_value_count";
-     // if (selected == null) {
-     //   throw new ClientErrorException("column not found in data: " + colName);
-     // }
-
-      int rangeCount = 1;
-      for (int i = 0; i < data.getReturnedRowCount(); i++) {
-        total += (Long) data.extractValue(countCol, i);
-
-        DataType type = data.getColumn(projectedColName).getType();
-        if (type == null) {
-          type = data.extractType(projectedColName, i);
+    while (true) {
+      try (JobDataFragment data = completeJobData.range(allocator, offset, BATCH_SIZE)) {
+        if (data.getReturnedRowCount() <= 0) {
+          break;
         }
-        String dataValueStr = data.extractString(projectedColName, i);
+        final String countCol = "dremio_value_count";
+        int rangeCount = 1;
+        for (int i = 0; i < data.getReturnedRowCount(); i++) {
+          total += (Long) data.extractValue(countCol, i);
 
-        HistogramValue.ValueRange valueRange = null;
-        if (isBinned) {
-          if (dataValueStr == null) {
-            continue;
+          DataType type = data.getColumn(projectedColName).getType();
+          if (type == null) {
+            type = data.extractType(projectedColName, i);
           }
-          if (rangeCount >= ranges.size()) {
-            logger.error("Number of ranges %d is not enough to cover full spectrum. Could be because of boundary conditions", rangeCount);
-            throw new ClientErrorException("Number of ranges %d is not enough to cover full spectrum " + rangeCount + " . Could be because of boundary conditions");
-          }
+          String dataValueStr = data.extractString(projectedColName, i);
 
-          // fill out empty bins as well
-          if (type == DataType.FLOAT) {
-            double dataValue = Double.parseDouble(dataValueStr);
-            while (dataValue >= (Double) ranges.get(rangeCount)) {
-              valueRange = new HistogramValue.ValueRange(ranges.get(rangeCount-1), ranges.get(rangeCount));
-              values.add(new HistogramValue(colType, ranges.get(rangeCount-1).toString(), /*percent=*/ 0.0, 0, valueRange));
-              rangeCount++;
+          HistogramValue.ValueRange valueRange = null;
+          if (isBinned) {
+            if (dataValueStr == null) {
+              continue;
             }
-          } else if (colType == DataType.TIME ||
-            colType == DataType.DATE ||
-            colType == DataType.DATETIME) {
-            LocalDateTime dataValue = (LocalDateTime) data.extractValue(projectedColName, i);
-            while (toMillis(dataValue) >= (Long) ranges.get(rangeCount)) {
-              valueRange = new HistogramValue.ValueRange(ranges.get(rangeCount-1), ranges.get(rangeCount));
-              values.add(new HistogramValue(colType, ranges.get(rangeCount-1).toString(), /*percent=*/ 0.0, 0, valueRange));
-              rangeCount++;
+            if (rangeCount >= ranges.size()) {
+              logger.error("Number of ranges %d is not enough to cover full spectrum. Could be because of boundary conditions", rangeCount);
+              throw new ClientErrorException("Number of ranges %d is not enough to cover full spectrum " + rangeCount + " . Could be because of boundary conditions");
             }
-            dataValueStr = Long.toString(toMillis(dataValue));
+
+            // fill out empty bins as well
+            if (type == DataType.FLOAT) {
+              double dataValue = Double.parseDouble(dataValueStr);
+              while (dataValue >= (Double) ranges.get(rangeCount)) {
+                valueRange = new HistogramValue.ValueRange(ranges.get(rangeCount-1), ranges.get(rangeCount));
+                values.add(new HistogramValue(colType, ranges.get(rangeCount-1).toString(), /*percent=*/ 0.0, 0, valueRange));
+                rangeCount++;
+              }
+            } else if (colType == DataType.TIME ||
+              colType == DataType.DATE ||
+              colType == DataType.DATETIME) {
+              LocalDateTime dataValue = (LocalDateTime) data.extractValue(projectedColName, i);
+              while (toMillis(dataValue) >= (Long) ranges.get(rangeCount)) {
+                valueRange = new HistogramValue.ValueRange(ranges.get(rangeCount-1), ranges.get(rangeCount));
+                values.add(new HistogramValue(colType, ranges.get(rangeCount-1).toString(), /*percent=*/ 0.0, 0, valueRange));
+                rangeCount++;
+              }
+              dataValueStr = Long.toString(toMillis(dataValue));
+            }
+            valueRange = new HistogramValue.ValueRange(ranges.get(rangeCount-1), ranges.get(rangeCount));
+            rangeCount++;
           }
-          valueRange = new HistogramValue.ValueRange(ranges.get(rangeCount-1), ranges.get(rangeCount));
-          rangeCount++;
+          long countValue = (long) data.extractValue(countCol, i);
+
+          // Set the percent later once all the rows are examined.
+          values.add(new HistogramValue(colType, dataValueStr, /*percent=*/ 0.0, countValue,
+            (valueRange == null) ? new HistogramValue.ValueRange(dataValueStr, dataValueStr) : valueRange));
         }
-        long countValue = (long) data.extractValue(countCol, i);
 
-        // Set the percent later once all the rows are examined.
-        values.add(new HistogramValue(colType, dataValueStr, /*percent=*/ 0.0, countValue,
-          (valueRange == null) ? new HistogramValue.ValueRange(dataValueStr, dataValueStr) : valueRange));
+        // Move onto next set of records
+        offset += data.getReturnedRowCount();
       }
-
-      // Move onto next set of records
-      offset += data.getReturnedRowCount();
-      data = completeJobData.range(offset, BATCH_SIZE);
     }
 
     // Set the percent values once all rows in dataset preview output are examined.
@@ -539,7 +541,7 @@ class HistogramGenerator {
     return "dremio_is_clean_" + (cast ? "cast_" : "") + type.name();
   }
 
-  public Histogram<CleanDataHistogramValue> getCleanDataHistogram(final DatasetPath datasetPath, DatasetVersion version, String colName, SqlQuery datasetQuery) {
+  public Histogram<CleanDataHistogramValue> getCleanDataHistogram(final DatasetPath datasetPath, DatasetVersion version, String colName, SqlQuery datasetQuery, BufferAllocator allocator) {
 
     final String datasetPreviewJobResultsTable = DatasetsUtil
       .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
@@ -584,45 +586,46 @@ class HistogramGenerator {
     sb.append(" ORDER BY dremio_value_count DESC");
 
     // get the result
-    JobData completeJobData = executor.runQuery(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version);
+    JobData completeJobData = executor.runQueryAndWaitForCompletion(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version);
 
     final String colCount = "dremio_value_count";
     long total = 0;
     int offset = 0;
-    JobDataFragment data = completeJobData.range(offset, BATCH_SIZE);
-
     List<CleanDataHistogramValue> values = new ArrayList<>();
 
-    // Read the values in batches
-    while(data.getReturnedRowCount() > 0) {
-      Column selected = data.getColumn("dremio_value");
-      if (selected == null) {
-        throw new ClientErrorException("column not found in data: " + colName);
-      }
+    while (true) {
+      try (final JobDataFragment data = completeJobData.range(allocator, offset, BATCH_SIZE)) {
+        if (data.getReturnedRowCount() <= 0) {
+          break;
+        }
+        Column selected = data.getColumn("dremio_value");
+        if (selected == null) {
+          throw new ClientErrorException("column not found in data: " + colName);
+        }
 
-      for (int i = 0; i < data.getReturnedRowCount(); i++) {
-        Map<String, Boolean> isCleanMap = new HashMap<>();
-        for (DataType dataType : types) {
-          for (boolean c : casts) {
-            String cleanFieldName = isCleanFieldName(c, dataType);
-            isCleanMap.put(cleanFieldName, (Boolean) data.extractValue(cleanFieldName, i));
+        for (int i = 0; i < data.getReturnedRowCount(); i++) {
+          Map<String, Boolean> isCleanMap = new HashMap<>();
+          for (DataType dataType : types) {
+            for (boolean c : casts) {
+              String cleanFieldName = isCleanFieldName(c, dataType);
+              isCleanMap.put(cleanFieldName, (Boolean) data.extractValue(cleanFieldName, i));
+            }
           }
-        }
-        DataType type = data.extractType(selected.getName(), i);
-        if (type == null) {
-          type = selected.getType();
-        }
-        long countValue = (long) data.extractValue(colCount, i);
+          DataType type = data.extractType(selected.getName(), i);
+          if (type == null) {
+            type = selected.getType();
+          }
+          long countValue = (long) data.extractValue(colCount, i);
 
-        total += countValue;
+          total += countValue;
 
-        // Set the percent later once all the rows are examined.
-        values.add(new CleanDataHistogramValue(type, data.extractString(selected.getName(), i), /*percent=*/0.0d, countValue, isCleanMap));
+          // Set the percent later once all the rows are examined.
+          values.add(new CleanDataHistogramValue(type, data.extractString(selected.getName(), i), /*percent=*/0.0d, countValue, isCleanMap));
+        }
+
+        // Move onto next set of records
+        offset += data.getReturnedRowCount();
       }
-
-      // Move onto next set of records
-      offset += data.getReturnedRowCount();
-      data = completeJobData.range(offset, BATCH_SIZE);
     }
 
     // Set the percent values once all rows in dataset preview output are examined.
@@ -633,7 +636,7 @@ class HistogramGenerator {
     return new Histogram<>(values, total);
   }
 
-  public Map<DataType, Long> getTypeHistogram(final DatasetPath datasetPath, DatasetVersion version, String colName, SqlQuery datasetQuery) {
+  public Map<DataType, Long> getTypeHistogram(final DatasetPath datasetPath, DatasetVersion version, String colName, SqlQuery datasetQuery, BufferAllocator allocator) {
     final String datasetPreviewJobTableResults = DatasetsUtil
       .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
       .getJobResultsTable();
@@ -642,47 +645,48 @@ class HistogramGenerator {
     String newSql = format("SELECT typeOf(dremio_values_table.%s) AS dremio_value_type, COUNT(*) as dremio_type_count FROM %s AS dremio_values_table GROUP BY typeOf(dremio_values_table.%s)",
         quotedColName, datasetPreviewJobTableResults, quotedColName);
 
-    JobData completeJobData = executor.runQuery(datasetQuery.cloneWithNewSql(newSql), QueryType.UI_INTERNAL_RUN, datasetPath, version);
+    JobData completeJobData = executor.runQueryAndWaitForCompletion(datasetQuery.cloneWithNewSql(newSql), QueryType.UI_INTERNAL_RUN, datasetPath, version);
 
     final Map<DataType, Long> values = new LinkedHashMap<>();
 
     int offset = 0;
-    JobDataFragment data = completeJobData.range(offset, BATCH_SIZE);
-
-    // Read the values in batches
-    while(data.getReturnedRowCount() > 0) {
-      for (int i = 0; i < data.getReturnedRowCount(); i++) {
-        String typeName = data.extractString("dremio_value_type", i);
-        DataType dataType = DataTypeUtil.getDataType(MinorType.valueOf(typeName));
-        Long existing = values.get(dataType);
-        if (existing == null) {
-          existing = Long.valueOf(0);
+    while(true) {
+      try (final JobDataFragment data = completeJobData.range(allocator, offset, BATCH_SIZE)) {
+        if (data.getReturnedRowCount() <= 0) {
+          break;
         }
-        Long newValue = (Long) data.extractValue("dremio_type_count", i);
-        // there are fewer DataTypes than MinorTypes
-        values.put(dataType, existing + newValue);
-      }
+        for (int i = 0; i < data.getReturnedRowCount(); i++) {
+          String typeName = data.extractString("dremio_value_type", i);
+          DataType dataType = DataTypeUtil.getDataType(MinorType.valueOf(typeName));
+          Long existing = values.get(dataType);
+          if (existing == null) {
+            existing = Long.valueOf(0);
+          }
+          Long newValue = (Long) data.extractValue("dremio_type_count", i);
+          // there are fewer DataTypes than MinorTypes
+          values.put(dataType, existing + newValue);
+        }
 
-      // Move onto next set of records
-      offset += data.getReturnedRowCount();
-      data = completeJobData.range(offset, BATCH_SIZE);
+        // Move onto next set of records
+        offset += data.getReturnedRowCount();
+      }
     }
     return values;
   }
 
   @VisibleForTesting
   protected enum TruncEvalEnum {
-    SECOND("SECOND",1),
-    MINUTE("MINUTE", 60),
-    HOUR("HOUR", 3600),
-    DAY("DAY", 24*3600),
-    WEEK("WEEK", 24*3600*7),
-    MONTH("MONTH", 24*3600*30),
-    QUARTER("QUARTER", 24*3600*30*4),
-    YEAR("YEAR", 24*3600*365),
-    DECADE("DECADE", 24*3600*365*10),
-    CENTURY("CENTURY", 24*3600*365*10*10),
-    MILLENNIUM("MILLENNIUM", 24*3600*365*10*10*10);
+    SECOND("SECOND",1L),
+    MINUTE("MINUTE", 60L),
+    HOUR("HOUR", 3600L),
+    DAY("DAY", 24L*3600),
+    WEEK("WEEK", 24L*3600*7),
+    MONTH("MONTH", 24L*3600*30),
+    QUARTER("QUARTER", 24L*3600*30*4),
+    YEAR("YEAR", 24L*3600*365),
+    DECADE("DECADE", 24L*3600*365*10),
+    CENTURY("CENTURY", 24L*3600*365*10*10),
+    MILLENNIUM("MILLENNIUM", 24L*3600*365*10*10*10);
 
     private String name;
     private long divisor;
@@ -715,9 +719,9 @@ class HistogramGenerator {
   }
 
   public long getSelectionCount(final DatasetPath datasetPath, final DatasetVersion version,
-      final SqlQuery datasetQuery, final DataType dataType, final String colName, Set<String> selectedValues) {
+      final SqlQuery datasetQuery, final DataType dataType, final String colName, Set<String> selectedValues, BufferAllocator allocator) {
 
-    List<String> filteredSelValue = new ArrayList<String>();
+    List<String> filteredSelValue = new ArrayList<>();
     for(String selectedValue : selectedValues) {
       if (selectedValue != null && selectedValue.isEmpty()) {
         if (dataType == TEXT) {
@@ -761,11 +765,13 @@ class HistogramGenerator {
         )
     );
 
-    final JobDataFragment dataFragment = executor
-      .runQuery(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version)
-      .truncate(1);
+    try (final JobDataFragment dataFragment = executor
+      .runQueryAndWaitForCompletion(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version)
+      .truncate(allocator,1)) {
 
-    return (Long)dataFragment.extractValue("dremio_selection_count", 0);
+      Long selectionCount = (Long) dataFragment.extractValue("dremio_selection_count", 0);
+      return selectionCount;
+    }
   }
 
   private String quoteLiteral(String value, DataType type) {

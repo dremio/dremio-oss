@@ -45,7 +45,14 @@ unaryMathFunctions : [
       {input: "Float8", outputType: "Float8", castType: "double"},
      ]
    	},
-    {className: "Trunc", funcName: "truncate", types: [
+    {className: "Truncate", funcName: "truncate", types: [
+      {input: "Int",  outputType: "Int", castType: "int"},
+      {input: "BigInt",  outputType: "BigInt", castType: "long"},
+      {input: "Float4", outputType: "Float4", castType: "float", roundingRequired: "true"},
+      {input: "Float8", outputType: "Float8", castType: "double", roundingRequired: "true"},
+     ]
+   	},
+    {className: "Trunc", funcName: "trunc", types: [
       {input: "Int",  outputType: "Int", castType: "int"},
       {input: "BigInt",  outputType: "BigInt", castType: "long"},
       {input: "Float4", outputType: "Float4", castType: "float", roundingRequired: "true"},
@@ -80,7 +87,14 @@ unaryMathFunctions : [
     }
   ],
   otherMathFunctions : [
-  	{className: "Truncate", funcName: "truncate", mode: "DOWN", types: [
+  	{className: "Truncate2", funcName: "truncate", mode: "DOWN", types: [
+      {dataType: "Int", castType: "int"},
+      {dataType: "BigInt", castType: "long" },
+      {dataType: "Float4", castType: "float" },
+      {dataType: "Float8", castType: "double" },
+     ]
+   	},
+  	{className: "Trunc2", funcName: "trunc", mode: "DOWN", types: [
       {dataType: "Int", castType: "int"},
       {dataType: "BigInt", castType: "long" },
       {dataType: "Float4", castType: "float" },

@@ -41,7 +41,7 @@ public final class ProtobufUtils {
    * field names
    */
   @SuppressWarnings("serial")
-  private static final PropertyNamingStrategy PROTOBUF_TO_CAMEL_STRATEGY = new PropertyNamingStrategy.PropertyNamingStrategyBase() {
+  public static final PropertyNamingStrategy PROTOBUF_TO_CAMEL_STRATEGY = new PropertyNamingStrategy.PropertyNamingStrategyBase() {
     @Override
     public String translate(String propertyName) {
       if (propertyName == null || propertyName.isEmpty()) {

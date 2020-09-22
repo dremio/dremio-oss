@@ -44,13 +44,16 @@ import javax.ws.rs.core.MediaType;
 import org.modelmapper.AbstractConverter;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
+import org.modelmapper.protobuf.ProtobufModule;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.provision.AwsProps;
 import com.dremio.provision.AwsProps.AwsConnectionProps;
+import com.dremio.provision.AwsProps.AwsTag;
 import com.dremio.provision.AwsPropsApi.AwsConnectionPropsApi;
+import com.dremio.provision.AwsPropsApi.AwsTagApi;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterCreateRequest;
@@ -66,6 +69,7 @@ import com.dremio.provision.ClusterType;
 import com.dremio.provision.DynamicConfig;
 import com.dremio.provision.ImmutableAwsConnectionPropsApi;
 import com.dremio.provision.ImmutableAwsPropsApi;
+import com.dremio.provision.ImmutableAwsTagApi;
 import com.dremio.provision.ImmutableClusterResponse;
 import com.dremio.provision.ImmutableYarnPropsApi;
 import com.dremio.provision.Property;
@@ -90,14 +94,20 @@ public class ProvisioningResource {
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProvisioningResource.class);
   private static final ModelMapper MODEL_MAPPER;
+
   static {
-    MODEL_MAPPER = new ModelMapper();
+    MODEL_MAPPER = new ModelMapper().registerModule(new ProtobufModule());
     MODEL_MAPPER.addConverter(new AbstractConverter<AwsConnectionProps, AwsConnectionPropsApi>(){
       @Override
       protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
         return MODEL_MAPPER.map(source, ImmutableAwsConnectionPropsApi.Builder.class).build();
       }});
-    MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE);
+    MODEL_MAPPER.addConverter(new AbstractConverter<AwsTag, AwsTagApi>(){
+      @Override
+      protected AwsTagApi convert(AwsTag source) {
+        return MODEL_MAPPER.map(source, ImmutableAwsTagApi.Builder.class).build();
+      }});
+    MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE).setSkipNullEnabled(true);
   }
 
   private final ProvisioningService service;
@@ -129,7 +139,7 @@ public class ProvisioningResource {
     ClusterConfig clusterConfig = getClusterConfig(clusterCreateRequest);
     ClusterEnriched cluster = service.createCluster(clusterConfig);
     return toClusterResponse(cluster);
-   }
+  }
 
   public ClusterConfig getClusterConfig(ClusterCreateRequest clusterCreateRequest) {
     ClusterConfig clusterConfig = new ClusterConfig();
@@ -138,13 +148,12 @@ public class ProvisioningResource {
 
     clusterConfig.setAllowAutoStart(clusterCreateRequest.isAllowAutoStart());
     clusterConfig.setAllowAutoStop(clusterCreateRequest.isAllowAutoStop());
+    clusterConfig.setShutdownInterval(clusterCreateRequest.getShutdownInterval());
 
     if(clusterCreateRequest.getClusterType() == ClusterType.YARN) {
       YarnPropsApi props = clusterCreateRequest.getYarnProps();
       Preconditions.checkNotNull(props);
-      Preconditions.checkNotNull(props.getMemoryMB());
       Preconditions.checkNotNull(props.getDistroType());
-      Preconditions.checkNotNull(props.isSecure());
 
       if(props.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
         throw new IllegalArgumentException("Minimum memory required should be greater or equal than: " +
@@ -252,6 +261,9 @@ public class ProvisioningResource {
     ImmutableClusterResponse.Builder response = ClusterResponse.builder();
 
     response.setCurrentState(cluster.getState());
+    if(cluster.getStateChangeTime() != null) {
+      response.setStateChangeTime(cluster.getStateChangeTime());
+    }
     if (cluster.getError() != null) {
       response.setError(cluster.getError());
     }
@@ -262,6 +274,7 @@ public class ProvisioningResource {
 
     response.setIsAllowAutoStart(cluster.getClusterConfig().getAllowAutoStart());
     response.setIsAllowAutoStop(cluster.getClusterConfig().getAllowAutoStop());
+    response.setShutdownInterval(config.getShutdownInterval());
     response.setDynamicConfig(DynamicConfig.builder()
         .setContainerCount(cluster.getClusterConfig().getClusterSpec().getContainerCount())
         .build());
@@ -322,6 +335,7 @@ public class ProvisioningResource {
 
     clusterConfig.setAllowAutoStart(clusterModifyRequest.isAllowAutoStart());
     clusterConfig.setAllowAutoStop(clusterModifyRequest.isAllowAutoStop());
+    clusterConfig.setShutdownInterval(clusterModifyRequest.getShutdownInterval());
 
     int onHeap = 0;
     if (clusterConfig.getSubPropertyList() != null) {

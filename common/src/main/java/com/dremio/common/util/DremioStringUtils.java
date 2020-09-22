@@ -15,11 +15,11 @@
  */
 package com.dremio.common.util;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.joda.time.Period;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 public class DremioStringUtils {

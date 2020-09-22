@@ -29,19 +29,33 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @Options
 @JsonTypeName("screen")
 public class Screen extends AbstractStore implements Root {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Screen.class);
+
+  private boolean silent;
+
+  public Screen(
+    OpProps props,
+    PhysicalOperator child
+  ) {
+    super(props, child);
+  }
 
   @JsonCreator
   public Screen(
-      @JsonProperty("props") OpProps props,
-      @JsonProperty("child") PhysicalOperator child
-      ) {
-    super(props, child);
+    @JsonProperty("props") OpProps props,
+    @JsonProperty("child") PhysicalOperator child,
+    @JsonProperty("silent") boolean silent
+  ) {
+    this(props, child);
+    this.silent = silent;
+  }
+
+  public boolean getSilent() {
+    return silent;
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new Screen(props, child);
+    return new Screen(props, child, silent);
   }
 
   @Override

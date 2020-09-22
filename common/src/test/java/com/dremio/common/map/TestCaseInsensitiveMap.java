@@ -27,6 +27,7 @@ import org.junit.Test;
 
 public class TestCaseInsensitiveMap {
 
+  @SuppressWarnings("CollectionIncompatibleType")
   @Test
   public void putAndGet() {
     final CaseInsensitiveMap<Integer> map = CaseInsensitiveMap.newConcurrentMap();
@@ -39,6 +40,7 @@ public class TestCaseInsensitiveMap {
     assertEquals(3, map.size());
     assertTrue(map.containsKey("dremio"));
     assertEquals(2, (long) map.get("BabY"));
+    // invalid type
     assertNull(map.get(2));
 
     assertEquals(3, (long) map.remove("DremiO!"));

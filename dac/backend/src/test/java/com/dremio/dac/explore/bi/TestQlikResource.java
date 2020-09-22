@@ -15,11 +15,19 @@
  */
 package com.dremio.dac.explore.bi;
 
+import java.util.Arrays;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.exec.server.ContextService;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
  * Smoke test for {@code QlikResource}
@@ -29,6 +37,11 @@ public class TestQlikResource extends BaseTestServer {
   @Before
   public void setUp() throws Exception {
     BaseTestServer.populateInitialData();
+
+    final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
+
+    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, QlikResource.ALLOW_QLIK.getOptionName(), true));
+    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, QlikResource.CLIENT_TOOLS_QLIK.getOptionName(), true));
   }
 
   @After
@@ -38,18 +51,21 @@ public class TestQlikResource extends BaseTestServer {
 
   @Test
   public void testQlikExportVirtualDataset() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("qlik/Prod-Sample.ds1")).accept("text/plain+qlik-app").buildGet());
+    final DatasetConfig ds = l(NamespaceService.class).getDataset(new NamespaceKey(Arrays.asList("Prod-Sample", "ds1")));
+    expectSuccess(getBuilder(getAPIv2().path("qlik/" + ds.getId().getId())).accept("text/plain+qlik-app").buildGet());
   }
 
   @Test
   public void testQlikExportPhysicalDataset() throws Exception {
     // This dataset has already been queried and schema should be available
-    expectSuccess(getBuilder(getAPIv2().path("qlik/LocalFS1.\"dac-sample1.json\"")).accept("text/plain+qlik-app").buildGet());
+    final DatasetConfig ds = l(NamespaceService.class).getDataset(new NamespaceKey(Arrays.asList("LocalFS1", "dac-sample1.json")));
+    expectSuccess(getBuilder(getAPIv2().path("qlik/" + ds.getId().getId())).accept("text/plain+qlik-app").buildGet());
   }
 
   @Test
   public void testQlikExportAllTypesPhysicalDataset() throws Exception {
     expectSuccess(getBuilder(getAPIv2().path("dataset/LocalFS1.\"all_types_dremio.json\"/preview")).buildGet());
-    expectSuccess(getBuilder(getAPIv2().path("qlik/LocalFS1.\"all_types_dremio.json\"")).accept("text/plain+qlik-app").buildGet());
+    final DatasetConfig ds = l(NamespaceService.class).getDataset(new NamespaceKey(Arrays.asList("LocalFS1", "all_types_dremio.json")));
+    expectSuccess(getBuilder(getAPIv2().path("qlik/" + ds.getId().getId())).accept("text/plain+qlik-app").buildGet());
   }
 }

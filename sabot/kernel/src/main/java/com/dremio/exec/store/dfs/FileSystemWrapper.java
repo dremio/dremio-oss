@@ -28,8 +28,8 @@ import com.dremio.sabot.exec.context.OperatorContext;
 public interface FileSystemWrapper extends Closeable {
   String FILE_SYSTEM_WRAPPER_CLASS = "dremio.filesystemwrapper.class";
 
-  FileSystem wrap(FileSystem fs, String storageId, FileSystemConf<?, ?> conf, OperatorContext context,
-      boolean enableAsync, boolean isMetadataRefresh) throws IOException;
+  FileSystem wrap(FileSystem fs, String storageId, AsyncStreamConf conf, OperatorContext context,
+                  boolean enableAsync, boolean isMetadataRefresh) throws IOException;
 
   @Override
   default void close() throws IOException {

@@ -171,4 +171,12 @@ describe('SqlAutoComplete', () => {
       expect(instance.insertFullPath).to.have.been.calledWith(data.id);
     });
   });
+
+  describe('#resetValue', () => {
+    it('should handle invalid sqlEditor', () => {
+      instance.sqlEditor = null;
+      //should not give error
+      instance.resetValue();
+    });
+  });
 });

@@ -16,6 +16,7 @@
 import { Component } from 'react';
 import invariant from 'invariant';
 import Immutable from 'immutable';
+import Linkify from 'linkifyjs/react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
@@ -39,6 +40,10 @@ export default class Message extends Component {
 
   // must be a superset of the notification system `level` options
   static MESSAGE_TYPES = ['info', 'success', 'warning', 'error'];
+
+  static URLS_ALLOWED = {
+    'https://docs.dremio.com/advanced-administration/log-files.html': true
+  };
 
   static defaultProps = {
     messageType: 'info',
@@ -133,7 +138,7 @@ export default class Message extends Component {
   renderIcon(messageType) {
     switch (messageType) {
     case 'error':
-      return <FontIcon type='Error' style={styles.icon}/>;
+      return <FontIcon type='ErrorSolid' style={styles.icon}/>;
     case 'warning':
       return <FontIcon type='Warning' style={styles.icon}/>;
     case 'info':
@@ -274,13 +279,20 @@ export default class Message extends Component {
     }
 
     const details = this.renderDetails();
+    const linkOptions = {
+      validate: {
+        url: (url) => {
+          return Message.URLS_ALLOWED[url];
+        }
+      }
+    };
 
     return (
       <div className={`message ${messageType}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
         <div style={[styles.base, styles[messageType]]} ref='messagePanel'>
           {this.renderIcon(messageType)}
           <span className='message-content' style={{...styles.messageText, ...messageTextStyle}} onMouseUp={this.prevent}>
-            {this.renderErrorMessageText()}
+            <Linkify options={linkOptions}>{this.renderErrorMessageText()}</Linkify>
           </span>
           {details && this.renderShowMoreToggle()}
           {this.props.isDismissable && <div style={styles.close}>
@@ -346,7 +358,8 @@ const styles = {
     alignItems: 'center',
     height: 24,
     width: 24,
-    padding: 5
+    padding: 5,
+    marginTop: 5
   },
   icon: {
     marginRight: 5,

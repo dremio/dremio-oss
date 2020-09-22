@@ -15,13 +15,21 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
+import static org.apache.arrow.util.Preconditions.checkArgument;
+
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
+import org.apache.commons.collections.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.util.BloomFilter;
 import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.google.common.base.Preconditions;
@@ -31,6 +39,7 @@ import com.koloboke.collect.hash.HashConfig;
 import io.netty.util.internal.PlatformDependent;
 
 public class EightByteInnerLeftProbeOff implements JoinTable {
+  private static final Logger logger = LoggerFactory.getLogger(EightByteInnerLeftProbeOff.class);
 
   public static int FOUR_BYTE = 4;
   public static int EIGHT_BYTE = 8;
@@ -336,5 +345,22 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
     return "";
   }
 
+  @Override
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+    try {
+      if (CollectionUtils.isEmpty(fieldNames)) {
+        return Optional.empty();
+      }
+      checkArgument(fieldNames.size() == 1, "VECTORIZED_BIGINT mode supports only a single field of type bigint. Found more - {}.", fieldNames);
+      if (!fieldNames.get(0).equalsIgnoreCase(build.getName())) {
+        logger.debug("The required field name {} is not available in the build pivot fields {}. Skipping the filter.", fieldNames.get(0), build.getName());
+        return Optional.empty();
+      }
 
+      return map.prepareBloomFilter(sizeDynamically);
+    } catch (Exception e) {
+      logger.warn("Error while creating bloomfilter for " + fieldNames, e);
+      return Optional.empty();
+    }
+  }
 }

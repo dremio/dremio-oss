@@ -1,0 +1,606 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!-- 3rd party dev dependencies from npm packages -->
+
+  <!-- kind-of -->
+  <suppress>
+    <notes><![CDATA[
+   file name: kind-of:3.2.2
+   Validation Bypass vulnerability.
+   Since the objects used by kind-of come only from webpack, webpack-cli,
+   and http-proxy-middleware during internal build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/kind\-of@.*$</packageUrl>
+    <vulnerabilityName>1490</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: kind-of:6.0.2
+   Attribute overwrite; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/kind\-of@.*$</packageUrl>
+    <vulnerabilityName>CVE-2019-20149</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: kind-of:6.0.2
+   Special elements; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/kind\-of@.*$</packageUrl>
+    <vulnerabilityName>CWE-74: Improper Neutralization of Special Elements in Output Used by a Downstream Component ('Injection')</vulnerabilityName>
+  </suppress>
+
+  <!-- minimist -->
+  <suppress>
+    <notes><![CDATA[
+   file name: minimist:1.2.5
+   Prototype pollution vulnerability.
+   Since the arguments of minimist are set by our build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/minimist@.*$</packageUrl>
+    <vulnerabilityName>1179</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: minimist:0.0.8
+   Code Injection. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/minimist@.*$</packageUrl>
+    <vulnerabilityName>CWE-94: Improper Control of Generation of Code ('Code Injection')</vulnerabilityName>
+  </suppress>
+
+  <!-- hapi/hoek -->
+  <suppress>
+    <notes><![CDATA[
+   file name: @hapi/hoek:8.5.0
+   Prototype pollution vulnerability.
+   Since the arguments of hapi/hoek are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/%40hapi%2Fhoek@.*$</packageUrl>
+    <vulnerabilityName>1468</vulnerabilityName>
+  </suppress>
+
+  <!-- acorn -->
+  <suppress>
+    <notes><![CDATA[
+   file name: acorn:6.4.0
+   Regular Expression Denial of Service.
+   Since the arguments of acorn are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/acorn@.*$</packageUrl>
+    <vulnerabilityName>1488</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: acorn:6.4.0
+   Resource Exhaustion;
+   Since the arguments of acorn are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/acorn@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: acorn:2.7.0
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/acorn@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: acorn:5.7.3
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/acorn@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: acorn:7.1.0
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/acorn@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- brace-expansion -->
+  <suppress>
+    <notes><![CDATA[
+   file name: brace-expansion:1.1.6
+   Regular Expression Denial of Service.
+   Since the arguments of brace-expansion are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/brace-expansion@.*$</packageUrl>
+    <vulnerabilityName>338</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: brace-expansion:1.1.6
+   Regex DOS; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/brace\-expansion@.*$</packageUrl>
+    <vulnerabilityName>CVE-2017-18077</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: brace-expansion:1.1.6
+   Regex; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/brace\-expansion@.*$</packageUrl>
+    <vulnerabilityName>CWE-185: Incorrect Regular Expression</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: brace-expansion:1.1.6
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/brace\-expansion@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- cryptiles -->
+  <suppress>
+    <notes><![CDATA[
+   file name: cryptiles:2.0.5
+   Insufficient Entropy.
+   Since cryptiles are used by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/cryptiles@.*$</packageUrl>
+    <vulnerabilityName>1464</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: cryptiles:2.0.5
+   Insufficient Entropy. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/cryptiles@.*$</packageUrl>
+    <vulnerabilityName>CVE-2018-1000620</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: cryptiles:2.0.5
+   Randomness. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/cryptiles@.*$</packageUrl>
+    <vulnerabilityName>CWE-330: Use of Insufficiently Random Values</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: cryptiles:2.0.5
+   Insufficient Entropy. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/cryptiles@.*$</packageUrl>
+    <vulnerabilityName>CWE-331: Insufficient Entropy</vulnerabilityName>
+  </suppress>
+
+  <!-- extend -->
+  <suppress>
+    <notes><![CDATA[
+   file name: extend:3.0.0
+   Prototype Pollution.
+   Since extend is used by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/extend@.*$</packageUrl>
+    <vulnerabilityName>996</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: extend:3.0.0
+   Injection. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/extend@.*$</packageUrl>
+    <vulnerabilityName>CWE-74: Improper Neutralization of Special Elements in Output Used by a Downstream Component ('Injection')</vulnerabilityName>
+  </suppress>
+
+  <!-- fstream -->
+  <suppress>
+    <notes><![CDATA[
+   file name: fstream:1.0.10
+   Arbitrary File Overwrite.
+   Since fstream is used by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/fstream@.*$</packageUrl>
+    <vulnerabilityName>886</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: fstream:1.0.10
+   Arbitrary File Overwrite.; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/fstream@.*$</packageUrl>
+    <vulnerabilityName>CVE-2019-13173</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: fstream:1.0.10
+   Link; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/fstream@.*$</packageUrl>
+    <vulnerabilityName>CWE-62: UNIX Hard Link</vulnerabilityName>
+  </suppress>
+
+  <!-- hoek -->
+  <suppress>
+    <notes><![CDATA[
+   file name: hoek:2.16.3
+   Prototype pollution vulnerability.
+   Since the arguments of hoek are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/hoek@.*$</packageUrl>
+    <vulnerabilityName>566</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: hoek:2.16.3
+   MAID; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.;
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/hoek@.*$</packageUrl>
+    <vulnerabilityName>CVE-2018-3728</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: hoek:2.16.3
+   MAID; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.;
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/hoek@.*$</packageUrl>
+    <vulnerabilityName>CWE-471: Modification of Assumed-Immutable Data (MAID)</vulnerabilityName>
+  </suppress>
+
+  <!-- http-proxy -->
+  <suppress>
+    <notes><![CDATA[
+   file name: http-proxy:1.17.0, http-proxy:1.18.0
+   Denial of Service.
+   Since http-proxy is not used to run our app and doe not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/http-proxy@.*$</packageUrl>
+    <vulnerabilityName>1486</vulnerabilityName>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- is-my-json-valid -->
+  <suppress>
+    <notes><![CDATA[
+   file name: is-my-json-valid:2.13.1
+   Regular Expression Denial of Service.
+   Since the arguments of is-my-json-valid are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/is-my-json-valid@.*$</packageUrl>
+    <vulnerabilityName>572</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: is-my-json-valid:2.13.1
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/is\-my\-json\-valid@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- marked -->
+  <suppress>
+    <notes><![CDATA[
+   file name: marked:0.3.19
+   Regular Expression Denial of Service.
+   Since the arguments of marked are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/marked@.*$</packageUrl>
+    <vulnerabilityName>812</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: marked:0.3.19
+   Incorrect regex; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/marked@.*$</packageUrl>
+    <vulnerabilityName>CWE-185: Incorrect Regular Expression</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: marked:0.3.19
+   Resource Exhaustion. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/marked@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- mocha -->
+  <suppress>
+    <notes><![CDATA[
+   file name: mocha:4.0.1
+   Resource Exhaustion. Used only in dev mode testing. Can not be exploited in deployment.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/mocha@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- npm -->
+  <suppress>
+    <notes><![CDATA[
+   file name: npm:2.15.12
+   Arbitrary File Write;
+   Since npm is used by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/npm@.*$</packageUrl>
+    <vulnerabilityName>1434</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: npm:2.15.12
+   symlink reference outside of node_modules;
+   Since npm is used by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/npm@.*$</packageUrl>
+    <vulnerabilityName>1436</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: npm:2.15.12
+   Global node_modules Binary Overwrite
+   Since npm is used by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/npm@.*$</packageUrl>
+    <vulnerabilityName>1437</vulnerabilityName>
+  </suppress>
+
+  <!-- qs -->
+  <suppress>
+    <notes><![CDATA[
+   file name: qs:6.5.2
+   Prototype pollution vulnerability.
+   Since the arguments of qs are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/qs@.*$</packageUrl>
+    <vulnerabilityName>1469</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: qs:6.2.1
+   DoS; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/qs@.*$</packageUrl>
+    <vulnerabilityName>CVE-2017-1000048</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: qs:6.2.1
+   Improper validation. The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/qs@.*$</packageUrl>
+    <vulnerabilityName>CWE-20: Improper Input Validation</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: qs:6.2.1
+   Prototype override; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/qs@.*$</packageUrl>
+    <vulnerabilityName>Prototype override protection bypass</vulnerabilityName>
+  </suppress>
+
+  <!-- serialize-javascript -->
+  <suppress>
+    <notes><![CDATA[
+   file name: serialize-javascript:1.9.1
+   Cross-Site Scripting (XSS).
+   Since the arguments of serialize-javascript are set by the build and do not accept any user input,
+   an attacker can not exploit serialized regular expressions vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/serialize-javascript@.*$</packageUrl>
+    <vulnerabilityName>1426</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: serialize-javascript:1.9.1
+   Input neutralization; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/serialize\-javascript@.*$</packageUrl>
+    <vulnerabilityName>CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</vulnerabilityName>
+  </suppress>
+
+  <!-- sshpk -->
+  <suppress>
+    <notes><![CDATA[
+   file name: sshpk:1.16.1
+   Regular Expression Denial of Service.
+   Since the arguments of sshpk are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/sshpk@.*$</packageUrl>
+    <vulnerabilityName>606</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: sshpk:1.9.2
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/sshpk@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- stringstream -->
+  <suppress>
+    <notes><![CDATA[
+   file name: stringstream:0.0.5
+   out-of-bounds read.
+   Since the stringstream is used only by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/stringstream@.*$</packageUrl>
+    <vulnerabilityName>664</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: stringstream:0.0.5
+   Out of bounds read. The The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/stringstream@.*$</packageUrl>
+    <vulnerabilityName>CWE-125: Out-of-bounds Read</vulnerabilityName>
+  </suppress>
+
+  <!-- tar -->
+  <suppress>
+    <notes><![CDATA[
+   file name: tar:2.2.2
+   Arbitrary File Overwrite.
+   Since the tar is used only by the build and does not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tar@.*$</packageUrl>
+    <vulnerabilityName>803</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: tar:2.2.1
+   File Overwrite; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tar@.*$</packageUrl>
+    <vulnerabilityName>CVE-2018-20834</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: tar:2.2.1
+   Unix hard link; The The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tar@.*$</packageUrl>
+    <vulnerabilityName>CWE-62: UNIX Hard Link</vulnerabilityName>
+  </suppress>
+
+  <!-- tough-cookie -->
+  <suppress>
+    <notes><![CDATA[
+   file name: tough-cookie:2.5.0
+   Regular Expression Denial of Service.
+   Since the arguments of tough-cookie are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tough-cookie@.*$</packageUrl>
+    <vulnerabilityName>525</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: tough-cookie:2.3.1
+   Incorrect regex. The The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tough\-cookie@.*$</packageUrl>
+    <vulnerabilityName>CWE-185: Incorrect Regular Expression</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: tough-cookie:2.3.1
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tough\-cookie@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- tunnel-agent -->
+  <suppress>
+    <notes><![CDATA[
+   file name: tunnel-agent:0.6.0
+   Regular Expression Denial of Service.
+   Since the arguments of tunnel-agent are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tunnel-agent@.*$</packageUrl>
+    <vulnerabilityName>598</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: tunnel-agent:0.4.3
+   Input validation. The The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/tunnel\-agent@.*$</packageUrl>
+    <vulnerabilityName>CWE-20: Improper Input Validation</vulnerabilityName>
+  </suppress>
+
+  <!-- ws -->
+  <suppress>
+    <notes><![CDATA[
+   file name: ws:1.1.5
+   Insufficient entropy. Used only in build process. Can not be exploited when deployed.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/ws@.*$</packageUrl>
+    <vulnerabilityName>CWE-331: Insufficient Entropy</vulnerabilityName>
+  </suppress>
+
+  <!-- yargs-parser -->
+  <suppress>
+    <notes><![CDATA[
+   file name: yargs-parser:13.1.1, yargs-parser:13.1.2
+   Prototype pollution vulnerability.
+   Since the arguments of yargs-parser are set by the build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/yargs-parser@.*$</packageUrl>
+    <vulnerabilityName>1500</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: yargs-parser:10.1.0
+   Prototype vulnerability; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/yargs\-parser@.*$</packageUrl>
+    <vulnerabilityName>CVE-2020-7608</vulnerabilityName>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: yargs-parser:10.1.0
+   Resource Exhaustion; The package is used during internal build, does not accept any user input,
+and an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/yargs\-parser@.*$</packageUrl>
+    <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+</suppressions>

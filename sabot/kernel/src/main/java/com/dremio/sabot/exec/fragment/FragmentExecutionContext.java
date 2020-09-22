@@ -17,6 +17,7 @@ package com.dremio.sabot.exec.fragment;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
@@ -30,12 +31,14 @@ public class FragmentExecutionContext {
   private final NodeEndpoint foreman;
   private final CatalogService sources;
   private final ListenableFuture<Boolean> cancelled;
+  private final CoordExecRPC.QueryContextInformation queryContextInformation;
 
-  public FragmentExecutionContext(NodeEndpoint foreman, CatalogService sources, ListenableFuture<Boolean> cancelled) {
+  public FragmentExecutionContext(NodeEndpoint foreman, CatalogService sources, ListenableFuture<Boolean> cancelled, CoordExecRPC.QueryContextInformation context) {
     super();
     this.foreman = foreman;
     this.sources = sources;
     this.cancelled = cancelled;
+    this.queryContextInformation = context;
   }
 
   public NodeEndpoint getForemanEndpoint(){
@@ -53,5 +56,9 @@ public class FragmentExecutionContext {
       return null;
     }
     return (T) plugin;
+  }
+
+  public CoordExecRPC.QueryContextInformation getQueryContextInformation() {
+    return queryContextInformation;
   }
 }

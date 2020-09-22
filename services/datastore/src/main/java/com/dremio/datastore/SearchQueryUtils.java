@@ -215,6 +215,21 @@ public final class SearchQueryUtils {
   }
 
   /**
+   * Create a prefix query.
+   *
+   * @param field the field to scan.
+   * @param value the prefix value.
+   * @return a query instance.
+   * @throws NullPointerException if {@code field} or {@code value} is {@code null}
+   */
+  public static final SearchQuery newPrefixQuery(String field, String value) {
+    return SearchQuery.newBuilder()
+      .setType(SearchQuery.Type.PREFIX)
+      .setPrefix(SearchQuery.Prefix.newBuilder().setField(field).setValue(value))
+      .build();
+  }
+
+  /**
    * Creates a contains term query
    * @param field the field to scan
    * @param value a value to look for
@@ -413,7 +428,7 @@ public final class SearchQueryUtils {
   /**
    * Create a query matching at least one of the sub queries
    *
-   * @param queries the sub queries
+   * @param queries the sub queries. If empty, this is equivalent to false.
    * @return a query instance
    * @throws NullPointerException if {@code queries} or any of the subqueries is {@code null}
    */
@@ -424,7 +439,7 @@ public final class SearchQueryUtils {
   /**
    * Create a query matching at least one of the sub queries
    *
-   * @param queries the sub queries
+   * @param queries the sub queries. If empty, this is equivalent to false.
    * @return a query instance
    * @throws NullPointerException if {@code queries} or any of the subqueries is {@code null}
    */
@@ -435,7 +450,7 @@ public final class SearchQueryUtils {
   /**
    * Create a query matching all of of the sub queries
    *
-   * @param queries the sub queries
+   * @param queries the sub queries. If this is empty, return an empty result.
    * @return a query instance
    * @throws NullPointerException if {@code queries} or any of the subqueries is {@code null}
    */
@@ -446,14 +461,13 @@ public final class SearchQueryUtils {
   /**
    * Create a query matching all of of the sub queries
    *
-   * @param queries the sub queries
+   * @param queries the sub queries. If this is empty, return an empty result.
    * @return a query instance
    * @throws NullPointerException if {@code queries} or any of the subqueries is {@code null}
    */
   public static final SearchQuery and(Iterable<SearchQuery> queries) {
     return newBooleanQuery(SearchQuery.BooleanOp.AND, queries);
   }
-
 
   /**
    * Create a query matching sub queries according to a provided operator

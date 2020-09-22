@@ -243,8 +243,11 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
             lastResult = result;
             try {
-              if(System.currentTimeMillis() + timeBetweenAttemptMS < runUntil) {
+              final long currentTime = System.currentTimeMillis();
+              if (currentTime + timeBetweenAttemptMS < runUntil) {
                 Thread.sleep(timeBetweenAttemptMS);
+              } else {
+                Thread.sleep(currentTime < runUntil ? (runUntil - currentTime) : 0);
               }
             } catch (InterruptedException e) {
               // ignore.

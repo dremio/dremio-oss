@@ -15,16 +15,29 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.service.jobs.JobsProtoUtil.toBuf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+
+import java.util.ArrayList;
+import java.util.Collections;
 
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.service.job.DownloadSettings;
+import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobFailureInfo;
+import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.users.SystemUser;
 
 /**
  * Unit Tests for {@code JobsServiceUtil}
@@ -51,5 +64,43 @@ public class TestJobsServiceUtil {
     assertEquals(42, (int) error.getStartColumn());
     assertEquals(13, (int) error.getEndLine());
     assertEquals(57, (int) error.getEndColumn());
+  }
+
+  @Test
+  public void testToSubmitJobRequest() {
+
+    final JobRequest jobRequest = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery("select * from sys.version", Collections.emptyList(), SystemUser.SYSTEM_USERNAME))
+      .setDatasetPath(new NamespaceKey(new ArrayList<>()))
+      .setDatasetVersion(new DatasetVersion("abc"))
+      .build();
+    final SubmitJobRequest submitJobRequest = JobsServiceTestUtils.toSubmitJobRequest(jobRequest);
+    assertEquals(toBuf(new SqlQuery("select * from sys.version", Collections.emptyList(), SystemUser.SYSTEM_USERNAME)),
+      submitJobRequest.getSqlQuery());
+    assertTrue(jobRequest.getRequestType() == JobRequest.RequestType.DEFAULT &&
+      !(submitJobRequest.hasMaterializationSettings() || submitJobRequest.hasDownloadSettings()));
+    assertEquals(new DatasetVersion("abc").getVersion(), submitJobRequest.getVersionedDataset().getVersion());
+  }
+
+  @Test
+  public void testValidateJobRequest() {
+
+    final SubmitJobRequest submitJobRequest = SubmitJobRequest.newBuilder()
+      .setDownloadSettings(DownloadSettings.newBuilder()
+        .setDownloadId("downloadId")
+        .setFilename("fileName")
+        .build())
+      .setRunInSameThread(true)
+      .setQueryType(JobsProtoUtil.toBuf(QueryType.UI_EXPORT))
+      .setSqlQuery(toBuf(new SqlQuery("select * from sys.version", Collections.emptyList(), SystemUser.SYSTEM_USERNAME)))
+      .build();
+
+    final SubmitJobRequest validJobRequest = LocalJobsService.validateJobRequest(submitJobRequest);
+
+    assertEquals(SystemUser.SYSTEM_USERNAME, validJobRequest.getUsername());
+    assertEquals("UNKNOWN", validJobRequest.getVersionedDataset().getPath(0));
+    assertEquals("UNKNOWN", validJobRequest.getVersionedDataset().getVersion());
+    assertTrue(validJobRequest.hasDownloadSettings());
+    assertFalse(validJobRequest.hasMaterializationSettings());
   }
 }

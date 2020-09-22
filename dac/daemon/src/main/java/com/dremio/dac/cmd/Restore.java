@@ -15,6 +15,10 @@
  */
 package com.dremio.dac.cmd;
 
+import static com.dremio.dac.service.search.SearchIndexManager.CONFIG_KEY;
+
+import java.util.Optional;
+
 import org.apache.hadoop.conf.Configuration;
 
 import com.beust.jcommander.JCommander;
@@ -24,9 +28,11 @@ import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.services.configuration.ConfigurationStore;
 
 /**
  * Restore command.
@@ -42,11 +48,11 @@ public class Restore {
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
 
-    @Parameter(names= {"-r", "--restore"}, description="restore dremio metadata")
-    private boolean restore;
+    @Parameter(names= {"-r", "--restore"}, description="restore dremio metadata (deprecated, always true)")
+    private boolean deprecatedRestore;
 
-    @Parameter(names= {"-v", "--verify"}, description="verify backup contents")
-    private boolean verify;
+    @Parameter(names= {"-v", "--verify"}, description="verify backup contents (deprecated, noop)")
+    private boolean deprecatedVerify = false;
 
     @Parameter(names= {"-d", "--backupdir"}, description="backup directory path. for example, /mnt/dremio/backups or hdfs://$namenode:8020/dremio/backups", required=true)
     private String backupDir = null;
@@ -75,28 +81,25 @@ public class Restore {
   public static void main(String[] args) {
     final DACConfig dacConfig = DACConfig.newConfig();
     final BackupManagerOptions options = BackupManagerOptions.parse(args);
-    String action = "";
     try {
       if (!dacConfig.isMaster) {
         throw new UnsupportedOperationException("Restore should be run on master node ");
       }
       Path backupDir = Path.of(options.backupDir);
       FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
-
-      if (options.restore) {
-        action = "restore";
-        BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
-        AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
-      } else if (options.verify) {
-        action = "verify";
-        BackupRestoreUtil.validateBackupDir(fs, backupDir);
-        AdminLogger.log("Verified checksum for backup at {}", fs.makeQualified(backupDir).toString());
-
-      } else {
-        throw new IllegalArgumentException("Missing option restore (-r) or verify (-v)");
+      BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
+      final Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
+      // clear searchLastRefresh so that search index can be rebuilt after restore
+      try (LocalKVStoreProvider provider = providerOptional.get()) {
+        provider.start();
+        final ConfigurationStore configStore = new ConfigurationStore(provider.asLegacy());
+        configStore.delete(CONFIG_KEY);
+      } catch (Exception e) {
+        AdminLogger.log("Failed to clear catalog search index.", e);
       }
+      AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
     } catch (Exception e) {
-      AdminLogger.log("{} failed", action, e);
+      AdminLogger.log("Restore failed", e);
       System.exit(1);
     }
   }

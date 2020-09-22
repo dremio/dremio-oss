@@ -21,9 +21,9 @@ import java.util.List;
 import java.util.Objects;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.thrift.TException;
 
 import com.dremio.exec.store.hive.HiveClient;
+import com.dremio.hive.thrift.TException;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 
@@ -31,9 +31,7 @@ import com.google.common.collect.Lists;
  * Manages retrieval of Hive Partitions to help generate Dremio PartitionChunk objects.
  * <p>
  * A list of all partition names are retrieved in the constructor. The list is broken up into
- * batches of
- * {@link com.dremio.exec.store.hive.HivePluginOptions#HIVE_PARTITION_BATCH_SIZE_VALIDATOR}
- * elements.
+ * batches of HIVE_PARTITION_BATCH_SIZE_VALIDATOR elements.
  * <p>
  * Partition name batches are used to lazily load batches Hive Partition objects as the caller
  * iterates over single Hive Partition objects.

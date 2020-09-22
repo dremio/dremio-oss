@@ -15,14 +15,11 @@
  */
 package com.dremio.service.listing;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map.Entry;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
 /**
@@ -33,19 +30,6 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
  * this service can have consumers on all nodes.
  */
 public interface DatasetListingService extends Service {
-
-  /**
-   * List entries in namespace given the condition, for the user. If condition isnull, returns all items, for the user.
-   * <p>
-   * See {@link com.dremio.service.namespace.NamespaceService#find(FindByCondition)}.
-   *
-   * @param username  username
-   * @param condition condition
-   * @return search results
-   * @throws NamespaceException if there are exceptions listing entries
-   */
-  Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(String username, FindByCondition condition)
-      throws NamespaceException;
 
   /**
    * List all sources in namespace.
@@ -73,10 +57,6 @@ public interface DatasetListingService extends Service {
       throws NamespaceException;
 
   DatasetListingService UNSUPPORTED = new DatasetListingService() {
-    @Override
-    public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(String username, FindByCondition condition) {
-      throw new UnsupportedOperationException("non-master coordinators or executors do not support dataset listing");
-    }
 
     @Override
     public List<SourceConfig> getSources(String username) {
@@ -86,6 +66,26 @@ public interface DatasetListingService extends Service {
     @Override
     public SourceConfig getSource(String username, String sourcename) {
       throw new UnsupportedOperationException("non-master coordinators or executors do not support dataset listing");
+    }
+
+    @Override
+    public void start() {
+    }
+
+    @Override
+    public void close() {
+    }
+  };
+
+  DatasetListingService NO_OP = new DatasetListingService() {
+    @Override
+    public List<SourceConfig> getSources(String username) {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public SourceConfig getSource(String username, String sourcename) {
+      return null;
     }
 
     @Override

@@ -23,6 +23,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.calcite.tools.RuleSet;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
@@ -147,23 +148,15 @@ public interface CatalogService extends AutoCloseable, Service {
   RuleSet getStorageRules(OptimizerRulesContext context, PlannerPhase phase);
 
   /**
-   * Get a Catalog contextualized to the provided SchemaConfig. Catalogs are used to interact with
-   * datasets within the context a particular session.
+   * Get a new {@link Catalog} contextualized to the {@link SchemaConfig} provided via the given
+   * {@link MetadataRequestOptions metadata request options}, and constrained by the other request options.
+   * <p>
+   * {@link Catalog Catalogs} are used to interact with datasets within the context of a particular session.
    *
-   * @param schemaConfig schema config
-   * @return catalog
+   * @param requestOptions metadata request options
+   * @return catalog with the given constraints
    */
-  Catalog getCatalog(SchemaConfig schemaConfig);
-
-  /**
-   * Get a new {@link Catalog catalog} that only considers metadata valid if it is newer than the
-   * provided maxRequestTime.
-   *
-   * @param schemaConfig   schema config
-   * @param maxRequestTime max request time
-   * @return catalog with given constraints
-   */
-  Catalog getCatalog(SchemaConfig schemaConfig, long maxRequestTime);
+  Catalog getCatalog(MetadataRequestOptions requestOptions);
 
   /**
    * Determines if a SourceConfig changes metadata impacting properties compared to the existing SourceConfig.

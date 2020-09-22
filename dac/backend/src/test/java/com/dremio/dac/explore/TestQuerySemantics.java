@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.dac.proto.model.dataset.Column;
@@ -40,6 +39,7 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 
@@ -48,22 +48,8 @@ import com.dremio.service.jobs.metadata.QueryMetadata;
  */
 public class TestQuerySemantics extends BaseTestServer {
 
-  private static QuerySemantics querySemantics;
-
   private static String table = "\"cp\".\"tpch/supplier.parquet\"";
   private static final From from = new FromTable(table).setAlias("tpch/supplier.parquet").wrap();
-
-
-  @BeforeClass
-  public static void initParser() {
-    querySemantics = new QuerySemantics() {
-      @Override
-      protected VirtualDatasetState fallback(String message, String sql, Throwable t) {
-        super.fallback(message, sql, t);
-        throw new AssertionError(message, t);
-      }
-    };
-  }
 
   private void assertEquals(VirtualDatasetState expected, VirtualDatasetState actual) {
     String expectedJSON = JSONUtil.toString(expected);
@@ -75,7 +61,7 @@ public class TestQuerySemantics extends BaseTestServer {
 
   private VirtualDatasetState extract(SqlQuery sql){
     QueryMetadata metadata = QueryParser.extract(sql, getCurrentDremioDaemon().getBindingProvider().lookup(SabotContext.class));
-    return QuerySemantics.extract(sql, metadata);
+    return QuerySemantics.extract(JobsProtoUtil.toBuf(metadata));
   }
 
   @Test
@@ -106,11 +92,11 @@ public class TestQuerySemantics extends BaseTestServer {
   public void selectConstantNested() {
     final String query = "SELECT * FROM (SELECT 87539319 AS special ORDER BY 1 LIMIT 1)";
     final VirtualDatasetState ds = extract(getQueryFromSQL(query));
-    assertEquals(ds, new VirtualDatasetState()
+    assertEquals(new VirtualDatasetState()
         .setFrom(new FromSQL(query).setAlias("nested_0").wrap())
         .setContextList(Collections.<String>emptyList())
         .setReferredTablesList(Collections.<String>emptyList())
-        .setColumnsList(cols("special")));
+        .setColumnsList(cols("special")), ds);
   }
 
   @Test

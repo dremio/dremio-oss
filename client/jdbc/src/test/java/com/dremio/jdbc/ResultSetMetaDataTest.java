@@ -32,11 +32,15 @@ import java.sql.Timestamp;
 import java.sql.Types;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.jdbc.test.JdbcAssert;
+import com.dremio.test.TemporarySystemProperties;
 
 
 /**
@@ -110,9 +114,12 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   private static int ordReqINTERVAL_3S;
   private static int ordReqINTERVAL_3S1;
 
+  @ClassRule
+  public static TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @BeforeClass
   public static void setUpConnectionAndMetadataToCheck() throws Exception {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
 
     // Get JDBC connection to Dremio:
     // (Note: Can't use JdbcTest's connect(...) because JdbcTest closes

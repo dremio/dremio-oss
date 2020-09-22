@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
 import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
@@ -33,10 +34,12 @@ public class AccelAddExternalReflectionHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
   private final AccelerationManager accel;
+  private final ReflectionContext reflectionContext;
 
-  public AccelAddExternalReflectionHandler(Catalog catalog, AccelerationManager accel) {
+  public AccelAddExternalReflectionHandler(Catalog catalog, AccelerationManager accel, ReflectionContext reflectionContext) {
     this.catalog = catalog;
     this.accel = accel;
+    this.reflectionContext = reflectionContext;
   }
 
   @Override
@@ -45,7 +48,7 @@ public class AccelAddExternalReflectionHandler extends SimpleDirectHandler {
     final SqlIdentifier name = addExternalReflection.getName();
     final TableWithPath table = SchemaUtilities.verify(catalog, addExternalReflection.getTblName());
     final TableWithPath targetTable = SchemaUtilities.verify(catalog, addExternalReflection.getTargetTable());
-    accel.addExternalReflection(name.getSimple(), table.getPath(), targetTable.getPath());
+    accel.addExternalReflection(name.getSimple(), table.getPath(), targetTable.getPath(), reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful("External reflection added."));
   }
 

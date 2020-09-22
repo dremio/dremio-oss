@@ -26,6 +26,8 @@
     SqlLiteral deleteUnavail = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral promotion = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral forceUp = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral dropColumnKeywordPresent = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+    SqlLiteral raw = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
 }
 {
     <ALTER> { pos = getPos(); }
@@ -41,7 +43,19 @@
       (<TABLE> | <VDS> | <PDS> | <DATASET>)
         tblName = CompoundIdentifier()
         (
-          <DROP> <REFLECTION> {return SqlDropReflection(pos, tblName);}
+          <ADD> <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList()); }
+          |
+          <CHANGE> { return new SqlAlterTableChangeColumn(pos, tblName, SimpleIdentifier(), TypedElement()); }
+          |
+          <DROP> (
+            <REFLECTION> {return SqlDropReflection(pos, tblName);}
+            |
+            (
+              <COLUMN>
+              { dropColumnKeywordPresent = SqlLiteral.createBoolean(true, pos); }
+            )?
+            { return new SqlAlterTableDropColumn(pos, tblName, dropColumnKeywordPresent, SimpleIdentifier()); }
+          )
           |
           <CREATE> (
             <AGGREGATE> <REFLECTION> name = SimpleIdentifier() {return SqlCreateAggReflection(pos, tblName, name);}
@@ -71,11 +85,39 @@
           )?
           { return new SqlRefreshTable(pos, tblName, deleteUnavail, forceUp, promotion); }
           |
-          <ENABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
+          <ENABLE> (
+            <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
+            |
+            (
+                (
+                  <RAW> { raw = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
+                  |
+                  <AGGREGATE> { raw = SqlLiteral.createBoolean(false, SqlParserPos.ZERO); }
+                )
+                <ACCELERATION>
+                {
+                    return new SqlAccelToggle(pos, tblName, raw, SqlLiteral.createBoolean(true, SqlParserPos.ZERO));
+                }
+            )
+           )
           |
-          <DISABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(false, pos));}
+          <DISABLE> (
+            <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(false, pos));}
+            |
+            (
+                (
+                  <RAW> { raw = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
+                  |
+                  <AGGREGATE> { raw = SqlLiteral.createBoolean(false, SqlParserPos.ZERO); }
+                )
+                <ACCELERATION>
+                {
+                    return new SqlAccelToggle(pos, tblName, raw, SqlLiteral.createBoolean(false, SqlParserPos.ZERO));
+                }
+            )
+           )
           |
-          {return SqlEnableRaw(pos, tblName);}
+          { return new SqlAlterTableSetOption(pos, tblName, SqlSetOption(Span.of(), "TABLE")); }
         )
     )
 }
@@ -99,6 +141,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     SqlNodeList partitionList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
+    SqlLiteral arrowCachingEnabled;
     PartitionDistributionStrategy partitionDistributionStrategy;
 }
 {
@@ -108,6 +151,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
         distributionList = SqlNodeList.EMPTY;
         partitionList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
+        arrowCachingEnabled = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <USING>
@@ -135,10 +179,13 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     )?
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
-    )?  
+    )?
+    (   <ARROW> <CACHE>
+        { arrowCachingEnabled = SqlLiteral.createBoolean(true, pos); }
+    )?
     {
         return SqlCreateReflection.createAggregation(pos, tblName, dimensionList, measureList, distributionList,
-           partitionList, sortList, partitionDistributionStrategy, name);
+           partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name);
     }
 }
 
@@ -252,6 +299,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     SqlNodeList partitionList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
+    SqlLiteral arrowCachingEnabled;
     PartitionDistributionStrategy partitionDistributionStrategy;
 }
 {
@@ -260,6 +308,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
         distributionList = SqlNodeList.EMPTY;
         partitionList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
+        arrowCachingEnabled = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <USING>
@@ -286,9 +335,12 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
     )?
+    (   <ARROW> <CACHE>
+        { arrowCachingEnabled = SqlLiteral.createBoolean(true, pos); }
+    )?
     {
         return SqlCreateReflection.createRaw(pos, tblName, displayList, distributionList, partitionList, sortList,
-          partitionDistributionStrategy, name);
+          arrowCachingEnabled, partitionDistributionStrategy, name);
     }
 }
 
@@ -307,31 +359,6 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
 }
 
 /**
- * ALTER TABLE tblname (ENABLE|DISABLE) (RAW|AGGREGATION) ACCELERATION
- */
- SqlNode SqlEnableRaw(SqlParserPos pos, SqlIdentifier tblName) :
-{
-    SqlLiteral raw;
-    SqlLiteral enable;
-}
-{
-    (
-      <ENABLE> { enable = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
-      | 
-      <DISABLE> { enable = SqlLiteral.createBoolean(false, SqlParserPos.ZERO); }
-    ) 
-    (
-      <RAW> { raw = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
-      | 
-      <AGGREGATE> { raw = SqlLiteral.createBoolean(false, SqlParserPos.ZERO); }
-    )
-    <ACCELERATION>
-    {
-        return new SqlAccelToggle(pos, tblName, raw, enable);
-    }
-}
-
-/**
  * ALTER TABLE tblname CREATE EXTERNAL REFLECTION name USING target
  */
  SqlNode SqlAddExternalReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name) :
@@ -342,5 +369,28 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     <USING> { target = CompoundIdentifier(); }
     {
         return new SqlAddExternalReflection(pos, tblName, name, target);
+    }
+}
+
+SqlColumnDeclaration TypedElement() :
+{
+    final SqlIdentifier id;
+    final SqlDataTypeSpec type;
+    final boolean nullable;
+    final Span s = Span.of();
+}
+{
+    id = SimpleIdentifier()
+    type = DataType()
+    (
+        <NULL> { nullable = true; }
+        |
+        <NOT> <NULL> { nullable = false; }
+        |
+        { nullable = true; }
+    )
+    {
+        return new SqlColumnDeclaration(s.add(id).end(this), id,
+                type.withNullable(nullable), null);
     }
 }

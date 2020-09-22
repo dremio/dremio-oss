@@ -19,22 +19,21 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Named;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class PriorityQueueTemplate implements PriorityQueue {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PriorityQueueTemplate.class);

@@ -17,14 +17,13 @@ package com.dremio.dac.explore.udfs;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * UDFs for ConvertCase

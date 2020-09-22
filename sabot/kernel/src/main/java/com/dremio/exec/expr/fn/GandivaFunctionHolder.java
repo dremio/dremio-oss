@@ -104,6 +104,7 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
       case "multiply" :
         derivation = OutputDerivation.DECIMAL_MULTIPLY;
         break;
+
       case "divide" :
         derivation = OutputDerivation.DECIMAL_DIVIDE;
         break;
@@ -119,12 +120,16 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
         derivation = OutputDerivation.DECIMAL_ZERO_SCALE;
         break;
       case "round":
+        derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE_ROUND :
+          OutputDerivation.DECIMAL_SET_SCALE_ROUND;
+        break;
       case "trunc":
       case "truncate":
-        derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE :
-          OutputDerivation.DECIMAL_SET_SCALE;
+        derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE_TRUNCATE :
+          OutputDerivation.DECIMAL_SET_SCALE_TRUNCATE;
         break;
       case "castDECIMAL":
+      case "castDECIMALNullOnOverflow":
         derivation = OutputDerivation.DECIMAL_CAST;
         break;
       default:

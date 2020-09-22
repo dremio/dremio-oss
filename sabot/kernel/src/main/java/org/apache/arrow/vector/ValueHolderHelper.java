@@ -17,6 +17,7 @@ package org.apache.arrow.vector;
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
@@ -42,8 +43,6 @@ import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.DecimalUtility;
 
 import com.google.common.base.Charsets;
-
-import io.netty.buffer.ArrowBuf;
 
 
 public class ValueHolderHelper {

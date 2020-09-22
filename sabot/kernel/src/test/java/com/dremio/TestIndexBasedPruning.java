@@ -73,11 +73,13 @@ import com.dremio.exec.planner.logical.partition.PruneScanRuleBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.PruneableScan;
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
@@ -220,19 +222,19 @@ public class TestIndexBasedPruning extends DremioTest {
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
 
     @Override
     public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
   }
 
@@ -300,15 +302,21 @@ public class TestIndexBasedPruning extends DremioTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
     when(optionManager.getOption(eq(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getOptionName())))
             .thenReturn(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getOptionName())))
             .thenReturn(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
+    OptionList optionList = new OptionList();
+    optionList.add(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
+    optionList.add(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
+    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
+    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager,
+      () -> info);
 
     RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), REX_BUILDER);
     SplitsPointer splitsPointer = new TestSplitsPointer(0, Arrays.asList(TEST_PARTITION_CHUNK_METADATA_1, TEST_PARTITION_CHUNK_METADATA_2), 2);
@@ -320,7 +328,7 @@ public class TestIndexBasedPruning extends DremioTest {
 
     indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0, false);
     filter = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
-    rule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<TestScanRel>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
+    rule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
   }
 
 

@@ -15,30 +15,24 @@
  */
 package com.dremio.service.jobs;
 
+import com.dremio.service.job.JobSummary;
+
 /**
  * Informs an interested party about job events.
  */
 public interface ExternalStatusListener {
 
   /**
-   * Called one or more times when a profile is updated (prior to job completion).
+   * Called one or more times when a query makes progress.
    *
-   * @param job updated job
+   * @param jobSummary updated jobsummary
    */
-  default void profileUpdated(Job job) {}
+  default void queryProgressed(JobSummary jobSummary) {}
 
   /**
    * Called when job is completed. Provides final job object.
    *
-   * @param job updated job
+   * @param jobSummary updated jobsummary
    */
-  default void queryCompleted(Job job) {}
-
-  /**
-   * Called when record count changes, ever so often.
-   *
-   * @param jobId updated job
-   * @param recordCount number of records processed
-   */
-  default void reportRecordCount(Job jobId, long recordCount) {}
+  default void queryCompleted(JobSummary jobSummary) {}
 }

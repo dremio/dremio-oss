@@ -18,6 +18,8 @@ package com.dremio.service.commandpool;
 import com.dremio.common.VM;
 import com.dremio.config.DremioConfig;
 
+import io.opentracing.Tracer;
+
 /**
  * {@link CommandPool} factory.
  */
@@ -31,14 +33,16 @@ public class CommandPoolFactory {
   /**
    * @return new {@link CommandPool} instance
    */
-  public CommandPool newPool(final DremioConfig config) {
+  public CommandPool newPool(final DremioConfig config, final Tracer tracer) {
     if (config.getBoolean(ENABLED)) {
       final int poolSize = getPoolSize(config);
       logger.info("Starting bound command pool of size {}", poolSize);
-      return new BoundCommandPool(poolSize);
+      return new BoundCommandPool(poolSize, tracer);
     }
 
     logger.info("Starting unbound command pool");
+    // We don't bother decorating the same thread pool.
+    // The tracing context doesn't have to move.
     return new SameThreadCommandPool();
   }
 

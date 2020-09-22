@@ -20,9 +20,12 @@ import static com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFOR
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -77,6 +80,7 @@ import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.PlannerType;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationList;
@@ -94,6 +98,7 @@ import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
+import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -108,6 +113,7 @@ import com.dremio.exec.planner.physical.visitor.InsertHashProjectVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor;
 import com.dremio.exec.planner.physical.visitor.JoinPrelRenameVisitor;
 import com.dremio.exec.planner.physical.visitor.RelUniqifier;
+import com.dremio.exec.planner.physical.visitor.RuntimeFilterVisitor;
 import com.dremio.exec.planner.physical.visitor.SelectionVectorPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.SimpleLimitExchangeRemover;
 import com.dremio.exec.planner.physical.visitor.SplitCountChecker;
@@ -120,10 +126,12 @@ import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryTransformer;
 import com.dremio.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonConverter;
 import com.dremio.sabot.op.join.JoinUtils;
@@ -171,6 +179,10 @@ public class PrelTransformer {
 
   public static ConvertedRelNode validateAndConvert(SqlHandlerConfig config, SqlNode sqlNode, RelTransformer relTransformer) throws ForemanSetupException, RelConversionException, ValidationException {
     final Pair<SqlNode, RelDataType> validatedTypedSqlNode = validateNode(config, sqlNode);
+    if (config.getObserver() != null) {
+      config.getObserver().beginState(AttemptObserver.toEvent(UserBitShared.AttemptEvent.State.PLANNING));
+    }
+
     final SqlNode validated = validatedTypedSqlNode.getKey();
     final RelNode rel = convertToRel(config, validated, relTransformer);
     final RelNode preprocessedRel = preprocessNode(config, rel);
@@ -229,11 +241,6 @@ public class PrelTransformer {
       final RelTraitSet logicalTraits = preLog.getTraitSet().plus(Rel.LOGICAL);
       final RelNode adjusted = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLog, logicalTraits, true);
 
-      final Catalog catalog = config.getContext().getCatalog();
-      if (catalog instanceof CachingCatalog) {
-        config.getObserver().tablesCollected(catalog.getAllRequestedTables());
-      }
-
       final RelNode intermediateNode;
       if (config.getContext().getPlannerSettings().removeRowCountAdjustment()) {
         intermediateNode = adjusted.accept(new RelShuttleImpl() {
@@ -241,18 +248,7 @@ public class PrelTransformer {
             public RelNode visit(TableScan scan) {
               if (scan instanceof FilesystemScanDrel) {
                 FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
-                FilesystemScanDrel newScanDrel = new FilesystemScanDrel(
-                  scanDrel.getCluster(),
-                  scanDrel.getTraitSet(),
-                  scanDrel.getTable(),
-                  scanDrel.getPluginId(),
-                  scanDrel.getTableMetadata(),
-                  scanDrel.getProjectedColumns(),
-                  1.0);
-                if (scanDrel.getFilter() != null) {
-                  newScanDrel = newScanDrel.applyFilter(scanDrel.getFilter());
-                }
-                return newScanDrel;
+                return scanDrel.removeRowCountAdjustment();
               }
               return super.visit(scan);
             }
@@ -512,7 +508,13 @@ public class PrelTransformer {
     final Stopwatch watch = Stopwatch.createStarted();
 
     try {
-      final RelNode output = toPlan.get();
+      final RelNode intermediateNode = toPlan.get();
+      final RelNode output;
+      if (phase == PlannerPhase.LOGICAL) {
+        output = processBoostedMaterializations(config, intermediateNode);
+      } else {
+        output = intermediateNode;
+      }
 
       if (log) {
         log(plannerType, phase, output, logger, watch);
@@ -531,6 +533,52 @@ public class PrelTransformer {
         t.addSuppressed(unexpected);
       }
       throw t;
+    }
+  }
+
+  private static RelNode processBoostedMaterializations(SqlHandlerConfig config, RelNode relNode) {
+    final Set<List<String>> qualifiedNames = config.getMaterializations().isPresent() ?
+      config.getMaterializations().get().getMaterializations()
+        .stream()
+        .filter(m -> m.getLayoutInfo().isArrowCachingEnabled())
+        .map(DremioMaterialization::getTableRel)
+        .map(rel -> {
+          BoostMaterializationVisitor visitor = new BoostMaterializationVisitor();
+          rel.accept(visitor);
+          return visitor.getQualifiedName();
+        })
+        .collect(Collectors.toSet()) :
+      new HashSet<>();
+    if (qualifiedNames.isEmpty()) {
+      return relNode;
+    } else {
+      // Only update the scans if there is any acceleration which is boosted
+      return relNode.accept(new StatelessRelShuttleImpl() {
+        @Override
+        public RelNode visit(TableScan scan) {
+          if (scan instanceof FilesystemScanDrel) {
+            FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
+            if (qualifiedNames.contains(scanDrel.getTable().getQualifiedName())) {
+              return scanDrel.applyArrowCachingEnabled(true);
+            }
+          }
+          return super.visit(scan);
+        }
+      });
+    }
+  }
+
+  private static class BoostMaterializationVisitor extends StatelessRelShuttleImpl {
+    private List<String> qualifiedName = new ArrayList<>();
+
+    @Override
+    public RelNode visit(TableScan scan) {
+      qualifiedName = scan.getTable().getQualifiedName();
+      return super.visit(scan);
+    }
+
+    public List<String> getQualifiedName() {
+      return qualifiedName;
     }
   }
 
@@ -560,6 +608,12 @@ public class PrelTransformer {
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
     final PlannerSettings plannerSettings = context.getPlannerSettings();
+
+    /*
+     * Convert AND with not equal expressions to NOT-OR with equal conditions
+     * to make query use InExpression logical expression
+     */
+    phyRelNode = (Prel) phyRelNode.accept(new AndToOrConverter());
 
     /* Disable distribution trait pulling
      *
@@ -691,7 +745,7 @@ public class PrelTransformer {
     /* 6.)
      * Insert LocalExchange (mux and/or demux) nodes
      */
-    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions, context.getClusterResourceInformation());
+    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions, context.getGroupResourceInformation());
 
     /*
      * 7.)
@@ -727,6 +781,14 @@ public class PrelTransformer {
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
 
+    /*
+     * 9.1)
+     * add runtime filter information if applicable
+     */
+    if (plannerSettings.isRuntimeFilterEnabled()) {
+      phyRelNode = RuntimeFilterVisitor.addRuntimeFilterToHashJoin(phyRelNode);
+    }
+
     final String textPlan;
     if (logger.isDebugEnabled() || config.getObserver() != null) {
       textPlan = PrelSequencer.setPlansWithIds(phyRelNode, SqlExplainLevel.ALL_ATTRIBUTES, config.getObserver(), finalPrelTimer.elapsed(TimeUnit.MILLISECONDS));
@@ -747,17 +809,25 @@ public class PrelTransformer {
     return op;
   }
 
-  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op) {
+  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op, Runnable committer) {
+    OptionList options = new OptionList();
+    options.merge(config.getContext().getQueryOptionManager().getNonDefaultOptions());
+    options.merge(config.getContext().getSessionOptionManager().getNonDefaultOptions());
+
     PlanPropertiesBuilder propsBuilder = PlanProperties.builder();
     propsBuilder.type(PlanType.PHYSICAL);
     propsBuilder.version(1);
-    propsBuilder.options(new JSONOptions(config.getContext().getOptions().getOptionList()));
+    propsBuilder.options(new JSONOptions(options));
     propsBuilder.resultMode(ResultMode.EXEC);
     propsBuilder.generator("default", "handler");
     List<PhysicalOperator> ops = Lists.newArrayList();
     PopCollector c = new PopCollector();
     op.accept(c, ops);
-    return new PhysicalPlan(propsBuilder.build(), ops);
+    return new PhysicalPlan(propsBuilder.build(), ops, committer);
+  }
+
+  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op) {
+    return convertToPlan(config, op, null);
   }
 
   private static class PopCollector extends AbstractPhysicalVisitor<Void, Collection<PhysicalOperator>, RuntimeException> {
@@ -885,12 +955,23 @@ public class PrelTransformer {
 
   private static RelNode convertToRel(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
     RelNode rel;
-    if(config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
-      rel = convertToRelRoot(config, node, relTransformer);
-    } else {
-      rel = convertToRelRootAndJdbc(config, node, relTransformer);
+    final Catalog catalog = config.getContext().getCatalog();
+    try {
+      if (config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
+        rel = convertToRelRoot(config, node, relTransformer);
+      } else {
+        rel = convertToRelRootAndJdbc(config, node, relTransformer);
+      }
+    } catch (RelConversionException e) {
+      if (catalog instanceof CachingCatalog) {
+        config.getObserver().tablesCollected(catalog.getAllRequestedTables());
+      }
+      throw e;
     }
     log("INITIAL", rel, logger, null);
+    if (catalog instanceof CachingCatalog) {
+      config.getObserver().tablesCollected(catalog.getAllRequestedTables());
+    }
     return transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
   }
 

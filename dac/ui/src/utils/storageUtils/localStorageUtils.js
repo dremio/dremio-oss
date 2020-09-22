@@ -182,6 +182,10 @@ export class LocalStorageUtils {
       ? app.transform[columnType][toType]
       : {};
   }
+
+  getInstanceId() {
+    return sessionStorage.getItem('instanceId');
+  }
 }
 
 // todo: this shouldn't export `undefined` - it should use an in-memory only store

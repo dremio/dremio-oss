@@ -16,11 +16,13 @@
 package com.dremio.dac.daemon;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static org.junit.Assert.assertEquals;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -37,6 +39,7 @@ import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.model.folder.SourceFolderPath;
+import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.server.BaseTestServer;
@@ -44,19 +47,16 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.BaseTestMiniDFS;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.HDFSConf;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.Binder;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.proto.EntityId;
@@ -78,6 +78,7 @@ public class TestHdfs extends BaseTestMiniDFS {
   private static final String SOURCE_NAME = "dachdfs_test";
   private static final String SOURCE_ID = "12345";
   private static final String SOURCE_DESC = "description";
+  private BufferAllocator allocator;
 
   @ClassRule
   public static final TemporaryFolder folder = new TemporaryFolder();
@@ -129,14 +130,14 @@ public class TestHdfs extends BaseTestMiniDFS {
     }
   }
 
-  protected static <T> T l(Class<T> clazz) {
+  private static <T> T l(Class<T> clazz) {
     return dremioBinder.lookup(clazz);
   }
 
   @Before
   public void setup() throws Exception {
     {
-      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(KVStoreProvider.class)));
+      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class)));
       final HDFSConf hdfsConfig = new HDFSConf();
       hdfsConfig.hostname = host;
       hdfsConfig.port = port;
@@ -146,14 +147,15 @@ public class TestHdfs extends BaseTestMiniDFS {
       source.setConnectionConf(hdfsConfig);
       source.setId(new EntityId(SOURCE_ID));
       source.setDescription(SOURCE_DESC);
-
+      allocator = l(BootStrapContext.class).getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
       ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
     }
   }
 
   @After
   public void cleanup() throws Exception {
-    TestUtilities.clear(l(CatalogService.class), l(KVStoreProvider.class), null, null);
+    TestUtilities.clear(l(CatalogService.class), l(LegacyKVStoreProvider.class), null, null);
+    allocator.close();
   }
 
   @Test
@@ -173,16 +175,13 @@ public class TestHdfs extends BaseTestMiniDFS {
   }
 
   @Test
-  public void testQueryOnFile() {
-    final Job job = JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    );
-    JobDataFragment jobData = job.getData().truncate(500);
-    assertEquals(3, jobData.getReturnedRowCount());
-    assertEquals(2, jobData.getSchema().getFieldCount());
+  public void testQueryOnFile() throws Exception {
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(3, jobData.getReturnedRowCount());
+      assertEquals(2, jobData.getColumns().size());
+    }
   }
 }

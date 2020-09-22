@@ -24,7 +24,6 @@ import { injectIntl } from 'react-intl';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
-import SimpleButton from 'components/Buttons/SimpleButton';
 import Art from 'components/Art';
 import datasetPathUtils from 'utils/resourcePathUtils/dataset';
 import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
@@ -75,22 +74,8 @@ class HeaderDetails extends Component {
     // don't show the open results link if there are no results available or if not a completed UI query.
     // TODO: show a message if the results are not available (DX-7459)
     if (!jobDetails.get('resultsAvailable') || currentJobState !== JobState.COMPLETED
-        || (queryType !== 'UI_PREVIEW' && queryType !== 'UI_RUN' && queryType !== 'UI_EXPORT')) {
+        || (queryType !== 'UI_PREVIEW' && queryType !== 'UI_RUN')) {
       return null;
-    }
-
-    // if this is a export dataset and we have a download url, show the download button.
-    if (queryType === 'UI_EXPORT') {
-      const isCanDownloaded = jobDetails.get('downloadUrl');
-      return (
-        <SimpleButton
-          onClick={this.downloadDatasetFile}
-          buttonStyle='primary'
-          disabled={!isCanDownloaded}
-          children={intl.formatMessage({id: 'Download.Download'})}
-          submitting={this.props.downloadViewState.get('isInProgress')}
-          style={[styles.button, {marginLeft: 10}]}
-          type='button'/>);
     }
 
     // determine the full path of the item. If we have a root datasetPathList, use that. If not, use the first parent's
@@ -123,11 +108,6 @@ class HeaderDetails extends Component {
       </span>
     );
   }
-
-  downloadDatasetFile = () => {
-    const viewId = this.props.downloadViewState.get('viewId');
-    this.props.downloadFile({url: this.props.jobDetails.get('downloadUrl'), viewId});
-  };
 
   openJobResults() {}
 
@@ -189,7 +169,7 @@ const styles = {
   rightPart: {
     display: 'flex',
     justifyContent: 'flex-end',
-    width: '100%'
+    marginLeft: 'auto'
   },
   detailsHeader: {
     height: 38,

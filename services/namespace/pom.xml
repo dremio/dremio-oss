@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
   <artifactId>dremio-services-namespace</artifactId>
   <name>Services - Namespace</name>
@@ -41,6 +41,12 @@
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-protocol</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -93,10 +99,6 @@
       <artifactId>arrow-vector</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
@@ -133,37 +135,49 @@
     </dependency>
   </dependencies>
 
+
   <build>
     <plugins>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <configuration>
-          <protoSourceRoot>${basedir}/src/main/proto</protoSourceRoot>
-          <additionalProtoPathElements>
-            <additionalProtoPathElement>
-              ../datastore/src/main/protobuf/
-            </additionalProtoPathElement>
-          </additionalProtoPathElements>
+          <!--Required to be false because both executions write to the same directory-->
+          <clearOutputDirectory>false</clearOutputDirectory>
         </configuration>
         <executions>
           <execution>
+            <id>generate-protobuf</id>
             <goals>
               <goal>compile</goal>
             </goals>
             <configuration>
+              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>generate-proto</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
+              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+              <includes>
+                <include>dataset-common.proto</include>
+              </includes>
             </configuration>
           </execution>
         </executions>
       </plugin>
       <plugin>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-maven-plugin</artifactId>
+        <groupId>com.dremio.tools</groupId>
+        <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <configuration>
           <protoModules>
             <protoModule>
-              <source>src/main/protobuf</source>
+              <source>${project.basedir}/src/main/proto</source>
               <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
               <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
               <options>
@@ -175,10 +189,40 @@
                   <name>builder_pattern</name>
                   <value>true</value>
                 </property>
+                <property>
+                  <name>com.dremio.exec.proto</name>
+                  <value>com.dremio.exec.proto.beans</value>
+                </property>
               </options>
             </protoModule>
           </protoModules>
         </configuration>
+        <executions>
+          <execution>
+            <id>generate-sources</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>proto-jar-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classesDirectory>${project.basedir}/src/main/proto</classesDirectory>
+              <classifier>proto</classifier>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

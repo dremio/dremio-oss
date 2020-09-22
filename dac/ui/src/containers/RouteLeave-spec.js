@@ -78,7 +78,7 @@ describe('RouteLeave.js', () => {
 
       expect(instance.routeWillLeave()).to.eql(false); // should not allow to leave a page;
       expect(doCheckFn).to.be.called;
-      doCheckFn.reset();
+      doCheckFn.resetHistory();
 
       await userChoiceToLeaveOrStayPromise;
 
@@ -146,7 +146,7 @@ describe('RouteLeave.js', () => {
 
         removeHandler();
 
-        confirmFn.reset();
+        confirmFn.resetHistory();
         instance.doChangesCheck(); // simulate route change
         expect(confirmFn).to.be.not.called; // should Not be called, as callback is removed and not monitored anymore
       });
@@ -167,7 +167,7 @@ describe('RouteLeave.js', () => {
 
         removeHandlers[trueIndex](); // remove a handler, that has changes
 
-        confirmFn.reset();
+        confirmFn.resetHistory();
         instance.doChangesCheck(); // simulate route change
         expect(confirmFn).to.be.not.called; // should not be called as the reset of handlers does not have changes
       });

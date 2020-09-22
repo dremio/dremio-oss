@@ -16,12 +16,14 @@
 package com.dremio.datastore;
 
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-import com.google.common.base.Function;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableFindByRange;
+import com.dremio.datastore.api.KVStore;
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 
 /**
  * Local KVStore implementation. (runs on master node)
@@ -34,7 +36,7 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
     this.coreKVStore = coreKVStore;
   }
 
-  private KVStoreTuple<K> buildKey(K key) {
+  protected KVStoreTuple<K> buildKey(K key) {
     return coreKVStore.newKey().setObject(key);
   }
 
@@ -43,88 +45,82 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
     return coreKVStore.getAdmin();
   }
 
-  private KVStoreTuple<V> buildValue(V  value) {
+  protected KVStoreTuple<V> buildValue(V  value) {
     return coreKVStore.newValue().setObject(value);
   }
 
-  private K extractKey(KVStoreTuple<K> tuple) {
+  protected K extractKey(KVStoreTuple<K> tuple) {
     return tuple.getObject();
   }
 
-  private V extractValue(KVStoreTuple<V> tuple) {
+  protected V extractValue(KVStoreTuple<V> tuple) {
     return tuple.getObject();
   }
 
   @Override
-  public V get(K key) {
-    return extractValue(coreKVStore.get(buildKey(key)));
+  public Document<K, V> get(K key, GetOption... options) {
+    return fromDocument(coreKVStore.get(buildKey(key), options));
   }
 
   @Override
-  public List<V> get(List<K> keys) {
-    final List<KVStoreTuple<K>> convertedKeys = Lists.transform(keys, new Function<K, KVStoreTuple<K>>() {
-      @Override
-      public KVStoreTuple<K> apply(K key) {
-        return buildKey(key);
-      }
-    });
+  public Iterable<Document<K, V>> get(List<K> keys, GetOption... options) {
+    final List<KVStoreTuple<K>> convertedKeys = keys.stream()
+      .map(this::buildKey)
+      .collect(Collectors.toList());
 
-    final List<KVStoreTuple<V>> convertedValues = coreKVStore.get(convertedKeys);
-    return Lists.transform(convertedValues, new Function<KVStoreTuple<V>,  V>() {
-      @Override
-      public V apply(KVStoreTuple<V> value) {
-        return extractValue(value);
-      }
-    });
+    final Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> convertedValues = coreKVStore.get(convertedKeys);
+
+    return Iterables.transform(convertedValues, this::fromDocument);
   }
 
   @Override
-  public void put(K key, V value) {
-    coreKVStore.put(buildKey(key), buildValue(value));
+  public Document<K,V> put(K key, V value, PutOption... options) {
+    return fromDocument(coreKVStore.put(buildKey(key), buildValue(value), options));
   }
 
   @Override
-  public boolean contains(K key) {
-    return coreKVStore.contains(buildKey(key));
+  public boolean contains(K key, ContainsOption... options) {
+    return coreKVStore.contains(buildKey(key), options);
   }
 
   @Override
-  public void delete(K key) {
-    coreKVStore.delete(buildKey(key));
+  public void delete(K key, DeleteOption... options) {
+    coreKVStore.delete(buildKey(key), options);
   }
 
   @Override
-  public Iterable<Map.Entry<K, V>> find(FindByRange<K> find) {
-    final FindByRange<KVStoreTuple<K>> convertedRange = new FindByRange<KVStoreTuple<K>>()
-      .setStart(buildKey(find.getStart()), find.isStartInclusive())
-      .setEnd(buildKey(find.getEnd()), find.isEndInclusive());
+  public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
+    final FindByRange<KVStoreTuple<K>> convertedRange = new ImmutableFindByRange.Builder<KVStoreTuple<K>>()
+      .setStart(buildKey(find.getStart()))
+      .setIsStartInclusive(find.isStartInclusive())
+      .setEnd(buildKey(find.getEnd()))
+      .setIsEndInclusive(find.isEndInclusive())
+      .build();
 
-    final Iterable<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>> range = coreKVStore.find(convertedRange);
-    return Iterables.transform(range, new Function<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>, Map.Entry<K, V>>() {
-      public Map.Entry<K, V> apply(final Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> input) {
-        return new ConvertingEntry(input);
-      }
-    });
+    return Iterables.transform(coreKVStore.find(convertedRange, options), this::fromDocument);
   }
 
   @Override
-  public Iterable<Map.Entry<K, V>> find() {
-    return Iterables.transform(coreKVStore.find(), new Function<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>, Map.Entry<K, V>>() {
-      public Map.Entry<K, V> apply(final Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> input) {
-        return new ConvertingEntry(input);
-      }
-    });
+  public Iterable<Document<K, V>> find(FindOption... options) {
+    return Iterables.transform(coreKVStore.find(options), this::fromDocument);
   }
 
   @Override
-  public void delete(K key, String previousVersion) {
-    coreKVStore.delete(buildKey(key), previousVersion);
+  public String getName() {
+    return coreKVStore.getName();
   }
 
-  private class ConvertingEntry implements Map.Entry<K, V> {
-    private final Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> input;
+  protected ConvertingDocument fromDocument(Document<KVStoreTuple<K>, KVStoreTuple<V>> input) {
+    if (input == null) {
+      return null;
+    }
+    return new ConvertingDocument(input);
+  }
 
-    public ConvertingEntry(Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> input) {
+  protected class ConvertingDocument implements Document<K, V> {
+    private final Document<KVStoreTuple<K>, KVStoreTuple<V>> input;
+
+    public ConvertingDocument(Document<KVStoreTuple<K>, KVStoreTuple<V>> input) {
       super();
       this.input = input;
     }
@@ -140,24 +136,25 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
     }
 
     @Override
-    public V setValue(Object value) {
-      throw new UnsupportedOperationException();
+    public String getTag() {
+      return input.getTag();
     }
 
     public boolean equals(Object o) {
-      if (!(o instanceof Map.Entry)) {
+      if (!(o instanceof Document)) {
         return false;
       }
-      Map.Entry<?,?> e = (Map.Entry<?,?>) o;
+
+      Document<?,?> e = (Document<?,?>) o;
 
       return getKey().equals(e.getKey())
-        && getValue().equals(e.getValue());
+        && getValue().equals(e.getValue())
+        && Objects.equal(getTag(), e.getTag());
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(getKey(), getValue());
+      return Objects.hashCode(getKey(), getValue(), getTag());
     }
   }
-
 }

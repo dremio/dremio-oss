@@ -72,7 +72,7 @@ public class DistributionLoader
             if (isEnd(name, line)) {
                 Map<String, Integer> weights = members.build();
                 checkState(count == weights.size(),
-                        "Expected %d entries in distribution %s, but only %d entries were found",
+                        "Expected %d entries in distribution %s, but only %s entries were found",
                         count,
                         weights.size());
                 return new Distribution(name, weights);
@@ -80,7 +80,7 @@ public class DistributionLoader
 
             List<String> parts = ImmutableList.copyOf(Splitter.on('|').trimResults().omitEmptyStrings().split(line));
             checkState(parts.size() == 2,
-                    "Expected line to contain two parts, but it contains %d parts: %s",
+                    "Expected line to contain two parts, but it contains %s parts: %s",
                     parts.size(),
                     line);
 
@@ -105,7 +105,7 @@ public class DistributionLoader
 
     private static boolean isEnd(String name, String line)
     {
-        List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().split(line));
+        List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.whitespace()).omitEmptyStrings().split(line));
         if (parts.get(0).equalsIgnoreCase("END")) {
             checkState(parts.size() == 2 && parts.get(1).equalsIgnoreCase(name),
                     "Expected end statement be 'END %s', but was '%s'", name, line);
@@ -120,7 +120,7 @@ public class DistributionLoader
         while (lines.hasNext()) {
             // advance to "begin"
             String line = lines.next();
-            List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().split(line));
+            List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.whitespace()).omitEmptyStrings().split(line));
             if (parts.size() != 2) {
                 continue;
             }

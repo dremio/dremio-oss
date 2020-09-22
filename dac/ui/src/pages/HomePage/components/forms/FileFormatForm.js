@@ -31,7 +31,6 @@ import prefixSection from 'components/Forms/prefixSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
 import { label, divider } from 'uiTheme/radium/forms';
-import { PALE_GREY } from 'uiTheme/radium/colors';
 import { ExcelFormatForm, TextFormatForm, XLSFormatForm } from './FormatForms';
 
 function validate(values, props) {
@@ -169,6 +168,7 @@ export class FileFormatForm extends Component {
       {option: 'JSON', label: intl.formatMessage({ id: 'File.JSON' })},
       {option: 'Parquet',  label: intl.formatMessage({ id: 'File.Parquet' })},
       {option: 'Excel',  label: intl.formatMessage({ id: 'File.Excel' })},
+      {option: 'Iceberg',  label: intl.formatMessage({ id: 'File.Iceberg' })},
       {option: 'XLS', label: intl.formatMessage({ id: 'File.XLS' })}
     ];
 
@@ -265,8 +265,7 @@ const styles = {
   },
   formBody: {
     flexShrink: 0,
-    paddingBottom: 20,
-    background: PALE_GREY
+    paddingBottom: 20
   },
   formBodyStyle: {
     height: 'calc(100% - 48px)',

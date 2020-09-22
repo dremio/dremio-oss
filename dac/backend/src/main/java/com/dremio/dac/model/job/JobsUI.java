@@ -18,13 +18,13 @@ package com.dremio.dac.model.job;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.util.Util;
-
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RequestType;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.ParentDatasetInfo;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -33,7 +33,6 @@ import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
@@ -83,14 +82,12 @@ public class JobsUI {
     return false;
   }
 
-  public static ParentDatasetInfo getDatasetToDisplay(JobAttempt config, NamespaceService service) {
-    // if this is a select * from x or a directly referenced dataset, return that dataset name.
-
-    if(config.getInfo().getRequestType() == null){
+  public static ParentDatasetInfo getDatasetToDisplay(JobSummary jobSummary, NamespaceService service) {
+    if (jobSummary.getRequestType() == RequestType.INVALID_REQUEST_TYPE) {
       return UNKNOWN;
     }
 
-    switch(config.getInfo().getRequestType()){
+    switch(jobSummary.getRequestType()){
     case GET_CATALOGS:
     case GET_COLUMNS:
     case GET_SCHEMAS:
@@ -99,40 +96,33 @@ public class JobsUI {
     default:
     }
 
-    List<String> datasetPathList = config.getInfo().getDatasetPathList();
+    final List<String> datasetPathList = jobSummary.getDatasetPathList();
     if(isTruePath(datasetPathList)) {
       // return a parent path.
       return new ParentDatasetInfo().setDatasetPathList(datasetPathList).setType(getType(service, datasetPathList));
     }
-
     // return one of the parents.
-    List<ParentDatasetInfo> parents = config.getInfo().getParentsList();
-    if(parents != null && !parents.isEmpty()) {
-      return parents.get(0);
+    if (jobSummary.hasParent()) {
+      final JobProtobuf.ParentDatasetInfo parentDatasetInfo = jobSummary.getParent();
+      return new ParentDatasetInfo()
+        .setDatasetPathList(parentDatasetInfo.getDatasetPathList())
+        .setType(JobsProtoUtil.toStuff(parentDatasetInfo.getType()));
     }
-
     return UNKNOWN;
   }
 
   public JobsUI(
-      final NamespaceService service,
-      final List<Job> jobs,
-      final String next) {
+    final NamespaceService service,
+    final List<JobSummary> jobs,
+    final String next) {
     this.jobs = FluentIterable.from(jobs)
-        .filter(new Predicate<Job>(){
-          @Override
-          public boolean apply(Job input) {
-            return input.getJobAttempt() != null;
-          }})
-        .transform(new Function<Job, JobListItem>() {
-      @Override
-      public JobListItem apply(Job input) {
-        final JobAttempt lastAttempt = Util.last(input.getAttempts());
-        final ParentDatasetInfo displayInfo = getDatasetToDisplay(lastAttempt, service);
-
-        return new JobListItem(input, displayInfo);
-      }
-    }).toList();
+      .transform(new Function<JobSummary, JobListItem>() {
+        @Override
+        public JobListItem apply(JobSummary input) {
+          final ParentDatasetInfo displayInfo = getDatasetToDisplay(input, service);
+          return new JobListItem(input, displayInfo);
+        }
+      }).toList();
     this.next = next;
   }
 

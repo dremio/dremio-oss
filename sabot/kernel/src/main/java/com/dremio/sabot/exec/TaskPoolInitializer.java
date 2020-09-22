@@ -18,36 +18,45 @@ package com.dremio.sabot.exec;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.common.liveness.LiveHealthMonitor;
+import com.dremio.config.DremioConfig;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.sabot.task.TaskPoolFactory;
 import com.dremio.sabot.task.TaskPools;
-import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
-import com.google.common.base.Preconditions;
 
 /**
  * Instantiates {@link TaskPool} and adds to the providers' registry
  */
-public class TaskPoolInitializer implements Service {
-
-  private final Provider<SabotContext> sContext;
-  private final BindingCreator bindingCreator;
+public class TaskPoolInitializer implements Service, LiveHealthMonitor {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskPoolInitializer.class);
+  private final Provider<OptionManager> optionManager;
+  private final DremioConfig dremioConfig;
 
   private TaskPool pool;
 
-  public TaskPoolInitializer(Provider<SabotContext> sContext, BindingCreator bindingCreator) {
-    this.sContext = Preconditions.checkNotNull(sContext, "SabotContext provider required");
-    this.bindingCreator = Preconditions.checkNotNull(bindingCreator, "BindingCreator required");
+  public TaskPoolInitializer(
+      Provider<OptionManager> optionManager,
+      DremioConfig dremioConfig
+  ) {
+    this.optionManager = optionManager;
+    this.dremioConfig = dremioConfig;
   }
 
   @Override
   public void start() throws Exception {
-    final SabotContext context = sContext.get();
-    final TaskPoolFactory factory = TaskPools.newFactory(context.getConfig());
-    pool = factory.newInstance(context.getOptionManager(), context.getDremioConfig());
+    final TaskPoolFactory factory = TaskPools.newFactory(dremioConfig.getSabotConfig());
+    pool = factory.newInstance(optionManager.get(), dremioConfig);
+  }
 
-    bindingCreator.bind(TaskPool.class, pool);
+  /**
+   * Return the TaskPool instance to use.
+   *
+   * @return the TaskPool instance
+   */
+  public TaskPool getTaskPool() {
+    return pool;
   }
 
   public boolean isTaskPoolHealthy() {
@@ -61,5 +70,14 @@ public class TaskPoolInitializer implements Service {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(pool);
+  }
+
+  @Override
+  public boolean isHealthy() {
+    boolean healthy = isTaskPoolHealthy();
+    if (!healthy) {
+      logger.error("One of the slicing threads is dead, returning an error");
+    }
+    return healthy;
   }
 }

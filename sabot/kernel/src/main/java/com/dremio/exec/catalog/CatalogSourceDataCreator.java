@@ -15,28 +15,25 @@
  */
 package com.dremio.exec.catalog;
 
-import java.io.IOException;
 
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.format.Format;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 
 /**
  * Creator for catalog source data kvstore
  */
-public class CatalogSourceDataCreator implements StoreCreationFunction<KVStore<NamespaceKey, SourceInternalData>> {
+public class CatalogSourceDataCreator implements LegacyKVStoreCreationFunction<NamespaceKey, SourceInternalData> {
   @Override
-  public KVStore<NamespaceKey, SourceInternalData> build(StoreBuildingFactory factory) {
+  public LegacyKVStore<NamespaceKey, SourceInternalData> build(LegacyStoreBuildingFactory factory) {
     return factory.<NamespaceKey, SourceInternalData>newStore()
       .name(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE)
-      .keySerializer(NamespaceKeySerializer.class)
-      .valueSerializer(SourceInternalDataSerializer.class)
+      .keyFormat(Format.wrapped(NamespaceKey.class, NamespaceKey::toString, NamespaceKey::new, Format.ofString()))
+      .valueFormat(Format.ofProtostuff(SourceInternalData.class))
       .versionExtractor(SourceInternalDataVersionExtractor.class)
       .build();
   }
@@ -63,61 +60,6 @@ public class CatalogSourceDataCreator implements StoreCreationFunction<KVStore<N
     @Override
     public void setVersion(SourceInternalData value, Long version) {
       value.setVersion(version);
-    }
-  }
-
-  /**
-  * A serializer for namespace keys
-  */
-  public static class NamespaceKeySerializer extends Serializer<NamespaceKey> {
-    @Override
-    public String toJson(NamespaceKey v) throws IOException {
-      return StringSerializer.INSTANCE.toJson(v.toString());
-    }
-
-    @Override
-    public NamespaceKey fromJson(String v) throws IOException {
-      return new NamespaceKey(StringSerializer.INSTANCE.fromJson(v));
-    }
-
-    @Override
-    public byte[] convert(NamespaceKey v) {
-      return StringSerializer.INSTANCE.convert(v.toString());
-    }
-
-    @Override
-    public NamespaceKey revert(byte[] v) {
-      return new NamespaceKey(StringSerializer.INSTANCE.revert(v));
-    }
-  }
-
-  /**
-   * Serializer for SourceInternalData.
-   */
-  public static class SourceInternalDataSerializer extends Serializer<SourceInternalData> {
-    private final Serializer<SourceInternalData> serializer = ProtostuffSerializer.of(SourceInternalData.getSchema());
-
-    public SourceInternalDataSerializer() {
-    }
-
-    @Override
-    public String toJson(SourceInternalData v) throws IOException {
-      return serializer.toJson(v);
-    }
-
-    @Override
-    public SourceInternalData fromJson(String v) throws IOException {
-      return serializer.fromJson(v);
-    }
-
-    @Override
-    public byte[] convert(SourceInternalData v) {
-      return serializer.convert(v);
-    }
-
-    @Override
-    public SourceInternalData revert(byte[] v) {
-      return serializer.revert(v);
     }
   }
 }

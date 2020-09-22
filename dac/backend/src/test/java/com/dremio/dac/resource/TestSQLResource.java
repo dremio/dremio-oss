@@ -141,7 +141,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(39, returnedSuggestions.getSuggestions().size());
+    assertEquals(41, returnedSuggestions.getSuggestions().size());
   }
 
   @Test
@@ -156,13 +156,15 @@ public class TestSQLResource extends BaseTestServer {
         "INFORMATION_SCHEMA.\"TABLES\"",
         "cp.\"tpch/supplier.parquet\"",
         "sys.threads",
+        "sys.timezone_abbrevs",
+        "sys.timezone_names",
         "testSpace.supplier"));
 
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(6, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 6; i++) {
+    assertEquals(8, returnedSuggestions.getSuggestions().size());
+    for (int i = 0; i < 8; i++) {
       SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
       if (suggestion.getType().equals("TABLE")) {
         assertTrue(expectedTables.contains(suggestion.getName()));

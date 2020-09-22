@@ -17,30 +17,28 @@ import { BLUE } from './colors';
 import { bodySmall } from './typography';
 
 export const button = {
-  outline: 'none !important',
+  outline: 'none',
   textDecoration: 'none',
-  borderRight: 'none',
-  borderLeft: 'none',
-  borderTop: 'none',
+  border: '1px solid #D9D9D9',
   padding: '0 6px',
   position: 'relative',
-  lineHeight: '28px',
+  lineHeight: '30px',
   justifyContent: 'space-around',
   alignItems: 'center',
   textAlign: 'center',
   minWidth: 100,
-  height: 28,
-  borderRadius: 2,
+  height: '32px',
+  borderRadius: 4,
   marginRight: 5,
-  fontSize: 11,
-  cursor: 'pointer'
+  fontSize: 13,
+  cursor: 'pointer',
+  display: 'flex'
 };
 
 export const primary = {
   ...button,
   color: '#fff',
   backgroundColor: BLUE,
-  borderBottom: '1px solid #3399A8',
   ':hover': {
     backgroundColor: '#68C6D3'
   }
@@ -50,8 +48,7 @@ export const disabled = { // todo: DRY with text field
   ...button,
   color: '#B2B2B2',
   backgroundColor: '#DDD',
-  cursor: 'default',
-  borderBottom: 'none'
+  cursor: 'default'
 };
 
 
@@ -70,17 +67,15 @@ export const disabledLink = {
   color: '#B2B2B2',
   backgroundColor: 'rgba(0,0,0,0.08)',
   cursor: 'default',
-  borderBottom: 'none',
   pointerEvents: 'none'
 };
 
 export const secondary = {
   ...button,
   color: '#333',
-  backgroundColor: 'rgba(0,0,0,0.04)',
-  borderBottom: '1px solid rgba(0,0,0,0.05)',
+  backgroundColor: '#F2F2F2',
   ':hover': {
-    backgroundColor: 'rgba(0,0,0,0.02)'
+    backgroundColor: '#F9F9F9'
   }
 };
 
@@ -107,11 +102,9 @@ export const inline = {
 export const sqlEditorButton = {
   ...bodySmall,
   height: 26,
+  lineHeight: 'auto',
   backgroundColor: 'transparent',
-  borderBottom: 'none',
-  borderTop: 'none',
-  borderLeft: 'none',
-  borderRight: 'none',
+  border: 0,
   minWidth: 60,
   marginRight: 5, // todo get rid of that
   borderRadius: 2,

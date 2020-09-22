@@ -230,12 +230,12 @@ export function* resetTableViewStateOnPageLeave() {
   yield call(hideTableSpinner);
 }
 
-export function* loadDataset(dataset, viewId) {
+export function* loadDataset(dataset, viewId, forceDataLoad) {
   const location = yield select(getLocation);
   const { mode, tipVersion } = location.query || {};
   let apiAction;
   if (mode === 'edit' || dataset.get('datasetVersion')) {
-    apiAction = yield call(loadExistingDataset, dataset, viewId, tipVersion);
+    apiAction = yield call(loadExistingDataset, dataset, viewId, tipVersion, forceDataLoad);
   } else {
     const pathnameParts = location.pathname.split('/');
     const parentFullPath = decodeURIComponent(constructFullPath([pathnameParts[2]]) + '.' + pathnameParts[3]);

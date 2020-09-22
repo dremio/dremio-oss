@@ -20,31 +20,65 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.pf4j.Plugin;
 import org.pf4j.PluginWrapper;
+
+import com.dremio.common.util.Closeable;
+import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
+import com.dremio.exec.util.GuavaPatcher;
 
 /**
  * PF4J plugin entry point class for Hive.
  */
 public class HivePf4jPlugin extends Plugin {
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(HivePf4jPlugin.class);
 
   static {
-    try (ContextClassLoaderSwapper contextClassLoaderSwapper = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+      // Patching Guava for HBase 1.x compatibility
       try {
-        final Configuration conf = new Configuration();
+        GuavaPatcher.patchClassLoader(Thread.currentThread().getContextClassLoader());
+      } catch (Exception ignored) {
+        LOGGER.warn("Could not patch Guava for backward compatibility", ignored);
+      }
+
+      // Try to access UserGroupInformation in the context of the plugin classloader
+      try {
+        UserGroupInformation.getLoginUser();
+      } catch (IOException ignored) {
+        LOGGER.warn("Could not login into Hadoop", ignored);
+      }
+
+      final Configuration conf = new Configuration();
+
+      try {
         // Forcibly load FileSystems within the plugin classloader.
         // This is to guarantee that the when the plugin reads the set of available plugins from the ServiceLoader
         // the first time, it does so within the plugin's ClassLoader (using the context class loader).
         // This static initializer is the first block of code the plugin class loader runs as its PF4J's entry point.
         FileSystem.getFileSystemClass("hdfs", conf);
-
-        // Also force compression codecs to be loaded within the plugin classloader
-        CompressionCodecFactory.getCodecClasses(conf);
       } catch (IOException ignore) {}
+
+      try {
+        // SecurityUtil needs to be force loaded within the Hive plugin
+        Class.forName("org.apache.hadoop.security.SecurityUtil");
+      } catch (ClassNotFoundException ignore) {}
+
+      // Also force compression codecs to be loaded within the plugin classloader
+      CompressionCodecFactory.getCodecClasses(conf);
     }
   }
 
   public HivePf4jPlugin(PluginWrapper wrapper) {
     super(wrapper);
+  }
+
+  /**
+   * Current thread's class loader is replaced with the class loader
+   * used to load hive plugin
+   */
+  public static Closeable swapClassLoader() {
+    return ContextClassLoaderSwapper.swapClassLoader(HivePf4jPlugin.class);
   }
 }

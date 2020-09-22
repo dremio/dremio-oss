@@ -42,6 +42,7 @@ import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.planner.acceleration.StrippingFactory.StripResult;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -118,8 +119,8 @@ public class MaterializationExpander {
       throw UserException.planError(e)
         .message("Failed to cast table rel row types to the query rel row types for materialization %s.%n" +
           "table schema %s%nquery schema %s", descriptor.getMaterializationId(),
-          BatchSchema.fromCalciteRowType(tableRel.getRowType()),
-          BatchSchema.fromCalciteRowType(strippedQueryRowType))
+          CalciteArrowHelper.fromCalciteRowType(tableRel.getRowType()),
+          CalciteArrowHelper.fromCalciteRowType(strippedQueryRowType))
         .build(logger);
     }
 

@@ -51,11 +51,11 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
@@ -134,13 +134,22 @@ import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.jobs.metadata.QuerySemantics;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.FieldOrigin;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -167,8 +176,8 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
 
     TransformActor actor = new TransformActor(state, preview, "test_user", executor){
       @Override
-      protected QueryMetadata getMetadata(SqlQuery query) {
-        return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null, null);
+      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
+        return Mockito.mock(com.dremio.service.jobs.metadata.proto.QueryMetadata.class);
       }
 
       @Override
@@ -176,6 +185,30 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
         return true;
       }
 
+      @Override
+      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
+        return Mockito.mock(com.dremio.service.jobs.metadata.proto.QueryMetadata.class);
+      }
+
+      @Override
+      protected Optional<BatchSchema> getBatchSchema() {
+        return Optional.of(Mockito.mock(BatchSchema.class));
+      }
+
+      @Override
+      protected Optional<List<ParentDatasetInfo>> getParents() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<FieldOrigin>> getFieldOrigins() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<ParentDataset>> getGrandParents() {
+        throw new IllegalStateException("not implemented");
+      }
     };
 
     return tb.accept(actor);
@@ -880,15 +913,48 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
         new RelDataTypeFieldImpl("b", 0, typeFactory.createSqlType(SqlTypeName.INTEGER))
     ));
 
+    final QueryMetadata metadata = Mockito.mock(QueryMetadata.class);
+    Mockito.when(metadata.getSqlNode()).thenReturn(Optional.of(sqlNode));
+    Mockito.when(metadata.getRowType()).thenReturn(rowType);
+    Mockito.when(metadata.getQuerySql()).thenReturn(sql);
+    Mockito.when(metadata.getReferredTables()).thenReturn(Optional.absent());
+
     TransformActor actor = new TransformActor(state, false, "test_user", null) {
       @Override
-      protected QueryMetadata getMetadata(SqlQuery query) {
-        return new QueryMetadata(null, null, null, null, sqlNode, rowType, null, null, null, null, BatchSchema.fromCalciteRowType(rowType), null);
+      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
+        return com.dremio.service.jobs.metadata.proto.QueryMetadata.newBuilder()
+          .setState(QuerySemantics.extract(metadata).get())
+          .build();
       }
 
       @Override
       protected boolean hasMetadata() {
         return true;
+      }
+
+      @Override
+      protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<BatchSchema> getBatchSchema() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<ParentDatasetInfo>> getParents() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<FieldOrigin>> getFieldOrigins() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<ParentDataset>> getGrandParents() {
+        throw new IllegalStateException("not implemented");
       }
     };
 
@@ -911,7 +977,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     DatasetUI dataset = getDataset(myDatasetPath);
 
     Transformer testTransformer =
-      new Transformer(l(SabotContext.class), newNamespaceService(), newDatasetVersionMutator(),
+      new Transformer(l(SabotContext.class), l(JobsService.class), newNamespaceService(), newDatasetVersionMutator(),
         null, l(SecurityContext.class));
 
     VirtualDatasetUI vdsui = DatasetsUtil.getHeadVersion(myDatasetPath, newNamespaceService(),
@@ -967,7 +1033,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
     final QueryExecutor executor = new QueryExecutor(l(JobsService.class), null, null);
 
     final Transformer testTransformer =
-      new Transformer(l(SabotContext.class), namespaceService, datasetService,
+      new Transformer(l(SabotContext.class), l(JobsService.class), namespaceService, datasetService,
         executor, l(SecurityContext.class));
 
     final TransformUpdateSQL transformUpdateSQL =
@@ -990,13 +1056,20 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
         l(SecurityContext.class).getUserPrincipal().getName());
 
     // Force metadata to be regenerated.
-    QueryMetadata queryMetadata = actor.getMetadata(query);
+    com.dremio.service.jobs.metadata.proto.QueryMetadata queryMetadata = actor.getMetadata(query);
+
+    final JobId jobId = actor.getJobData().getJobId();
+    final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(l(JobsService.class).getJobDetails(JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId))
+      .build())).getInfo();
+
+    List<ParentDatasetInfo> parents = jobInfo.getParentsList();
+
 
     // Check the generated QueryMetadata matches that of the updated SQL.
     assertNotNull(queryMetadata);
-    assertEquals(7, queryMetadata.getRowType().getFieldList().size());
-    assertEquals("3", ((SqlSelect)queryMetadata.getSqlNode().get()).getFetch().toString());
-    assertEquals(new ArrayList<>(Arrays.asList("cp", "tpch/supplier.parquet")),
-      queryMetadata.getParents().get().get(0).getDatasetPathList());
+    assertEquals(7, queryMetadata.getFieldTypeCount());
+    assertTrue(queryMetadata.getState().getFrom().getValue().contains("LIMIT 3"));
+    assertEquals(new ArrayList<>(Arrays.asList("cp", "tpch/supplier.parquet")), parents.get(0).getDatasetPathList());
   }
 }

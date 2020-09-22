@@ -15,6 +15,8 @@
  */
 package com.dremio.resource;
 
+import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.EngineId;
+import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.SubEngineId;
 import com.dremio.exec.proto.UserBitShared;
 
 /**
@@ -33,6 +35,8 @@ public class ResourceSchedulingDecisionInfo {
   private long schedulingStartTimeMs;  // Time when resource allocation started, in ms
   private long schedulingEndTimeMs;    // Time when resources were fully allocated, in ms
   private String queueTag;
+  private EngineId engineId;
+  private SubEngineId subEngineId;
 
   private ResourceSchedulingProperties resourceSchedulingProperties;
 
@@ -137,5 +141,21 @@ public class ResourceSchedulingDecisionInfo {
 
   public void setQueueTag(String queueTag) {
     this.queueTag = queueTag;
+  }
+
+  public EngineId getEngineId() {
+    return engineId;
+  }
+
+  public void setEngineId(EngineId engineId) {
+    this.engineId = engineId;
+  }
+
+  public SubEngineId getSubEngineId() {
+    return subEngineId;
+  }
+
+  public void setSubEngineId(SubEngineId subEngineId) {
+    this.subEngineId = subEngineId;
   }
 }

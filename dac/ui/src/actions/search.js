@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
 import searchSchema from 'schemas/dataset';
 import { arrayOf } from 'normalizr';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const SEARCH_STARTED = 'SEARCH_STARTED';
 export const SEARCH_SUCCESS = 'SEARCH_SUCCESS';
@@ -29,6 +29,11 @@ export const NEW_SEARCH_REQUEST_CLEANUP = 'NEW_SEARCH_REQUEST_CLEANUP'; // will 
 
 function fetchSearchData(text) {
   const meta = {viewId: 'searchDatasets'};
+
+  const apiCall = new APIV2Call()
+    .paths('datasets/search')
+    .params({filter: text});
+
   return {
     [RSAA]: {
       types: [
@@ -37,7 +42,7 @@ function fetchSearchData(text) {
         { type: SEARCH_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/datasets/search?filter=${encodeURIComponent(text)}`
+      endpoint: apiCall
     }
   };
 }

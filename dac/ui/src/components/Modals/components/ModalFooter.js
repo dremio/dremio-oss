@@ -23,25 +23,19 @@ import PropTypes from 'prop-types';
 @Radium
 class ModalFooter extends Component {
   static propTypes = {
-    styles: PropTypes.object,
     children: PropTypes.node
   }
 
   render() {
-    const {styles} = this.props;
-    const baseStyles = [style.base];
-    if (styles) {
-      baseStyles.push(...styles);
-    }
     return (
-      <div style={baseStyles} className='general-modal-footer'>
+      <div style={styles.base} className='general-modal-footer'>
         {this.props.children}
       </div>
     );
   }
 }
 
-const style = {
+const styles = {
   'base': {
     'position': 'absolute',
     borderRadius: 3,

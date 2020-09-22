@@ -17,18 +17,14 @@ package com.dremio.dac.explore;
 
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobStatusListener;
-import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.google.common.base.Throwables;
 
 class MetadataCollectingJobStatusListener implements JobStatusListener {
 
   /**
-   * Need to wait for {@link #metadataCollectected(QueryMetadata)}
+   * Need to wait for {@link #metadataCollected(QueryMetadata)}
    */
   private final CountDownLatch planningCompleteLatch = new CountDownLatch(1);
 
@@ -37,8 +33,7 @@ class MetadataCollectingJobStatusListener implements JobStatusListener {
   private volatile QueryMetadata metadata;
 
   /**
-   * Get query metadata.
-   * @return
+   * @return query metadata.
    */
   public QueryMetadata getMetadata() {
     waitForPlanningInfo();
@@ -59,14 +54,6 @@ class MetadataCollectingJobStatusListener implements JobStatusListener {
     if (cancelled) {
       throw new RuntimeException("Query is cancelled.");
     }
-  }
-
-  @Override
-  public void jobSubmitted(JobId jobId) {
-  }
-
-  @Override
-  public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
   }
 
   @Override

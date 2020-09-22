@@ -24,6 +24,7 @@ import static com.dremio.sabot.Fixtures.NULL_FLOAT;
 import static com.dremio.sabot.Fixtures.NULL_INT;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.date;
+import static com.dremio.sabot.Fixtures.interval_day;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.time;
@@ -39,6 +40,7 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.SupportedEngines;
@@ -99,6 +101,8 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"case when c0 >= 10 then 'hello' else 'bye' end", 5, "bye"},
       {"upper(c0)", "hello", "HELLO"},
       {"upper(c0)", NULL_VARCHAR, NULL_VARCHAR},
+      {"reverse(c0)", "hello", "olleh"},
+      {"reverse(c0)", NULL_VARCHAR, NULL_VARCHAR},
     });
   }
 
@@ -122,6 +126,19 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
     testFunctions(new Object[][]{
       {"extractYear(castTIMESTAMP(c0))","1979-10-10", 1979l}
+    });
+  }
+
+  @Test
+  public void testTimestampDiffMonth() throws Exception {
+    testFunctions(new Object[][] {
+      {"timestampdiffMonth(c0, c1)", date("2019-01-31"), date("2019-02-28"), 1},
+      {"timestampdiffMonth(c0, c1)", date("2020-01-31"), date("2020-02-28"), 0},
+      {"timestampdiffMonth(c0, c1)", date("2020-01-31"), date("2020-02-29"), 1},
+      {"timestampdiffMonth(c0, c1)", date("2019-03-31"), date("2019-04-30"), 1},
+      {"timestampdiffMonth(c0, c1)", date("2020-03-30"), date("2020-02-29"), -1},
+      {"timestampdiffMonth(c0, c1)", date("2020-05-31"), date("2020-09-30"), 4},
+      {"timestampdiffMonth(c0, c1)", date("2019-10-10"), date("2020-11-21"), 13}
     });
   }
 
@@ -579,14 +596,13 @@ public class TestNativeFunctions extends BaseTestFunction {
           execPreferenceMixed
         ));
       InExpression.COUNT.set(0);
-      // Note: This test casts the string as a BigINT. For now, this is not available in Gandiva
+      // Note: ceil() is not available in Gandiva
       // Hence, this leads to excessive splits and will eventually be implemented in Java using
-      // the OrIn optimization
+      // the OrIn optimization.
       testFunctions(new Object[][]{
-        {"booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 " +
-          "= 8l, c0 = 9l)", "10", false}}
+        {"booleanOr(ceil(c0) = 1l, ceil(c0) = 2l, ceil(c0) = 3l, ceil(c0) != 10l, ceil(c0) = 4l, ceil(c0) = 5l, ceil(c0) = 6l, ceil(c0) = 7l, ceil(c0) " +
+          "= 8l, ceil(c0) = 9l)", 10, false}}
       );
-      // should switch to java and evaluate an in
       Assert.assertEquals(1, InExpression.COUNT.get());
     } finally {
       InExpression.COUNT.set(0);
@@ -605,11 +621,10 @@ public class TestNativeFunctions extends BaseTestFunction {
       ));
       InExpression.COUNT.set(0);
       testFunctions(new Object[][]{
-        {"booleanOr(c0 = '1', c0 = '2', c0 = '3', c0 != '4', c0 = '5', c0 = " +
-          "'6', c0 = '7', c0 = '8', c0 = '9', c0 = " +
+        {"booleanOr(ceil(c0) = '1', ceil(c0) = '2', ceil(c0) = '3', ceil(c0) != '4', ceil(c0) = '5', ceil(c0) = " +
+          "'6', ceil(c0) = '7', ceil(c0) = '8', ceil(c0) = '9', ceil(c0) = " +
           "'10')", 9l, true}}
       );
-      // should switch to java and evaluate an in
       Assert.assertEquals(1, InExpression.COUNT.get());
     } finally {
       InExpression.COUNT.set(0);
@@ -788,6 +803,16 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
   }
 
+  @Test
+  public void testIntervalDayToBigInt() throws Exception {
+    testFunctions(new Object[][]{
+        {"cast(c0 as BIGINT)", interval_day(10, 1), 864000001L},
+        {"cast(c0 as BIGINT)", interval_day(1, 1), 86400001L},
+        {"cast(c0 as BIGINT)", interval_day(-1, 0), -86400000L},
+        {"cast(c0 as BIGINT)", interval_day(-1, -1), -86400001L}
+    });
+  }
+
   @Test(expected = RuntimeException.class)
   public void testTSToVarcharNegativeLenError() throws Exception {
     try {
@@ -798,5 +823,58 @@ public class TestNativeFunctions extends BaseTestFunction {
       Assert.assertTrue(re.getCause().getCause().getMessage().contains("Length of output string cannot be negative"));
       throw re;
     }
+  }
+
+  @Test
+  public void testRegistryIsCaseInsensitive() throws Exception {
+    testFunctions(new Object[][]{
+      {"extractday(c0)", ts("1970-01-02T10:20:33"), 2l},
+      {"extractmonth(c0)", ts("1970-01-02T10:20:33"), 1l},
+      {"extractday(c0)", date("1970-01-02"), 2l},
+      {"extractmonth(c0)", date("1970-01-02"), 1l}
+    });
+  }
+
+  @Test
+  public void testDateDiffFunctions() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+      {"extractday(date_sub(c0, 10))", date("1970-01-12"), 2l},
+      {"extractday(date_diff(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
+      {"extractday(subtract(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
+    });
+  }
+
+  @Test
+  public void testDateTruncFunctions() {
+    testFunctions(new Object[][]{
+      {"extractday(date_trunc_Month(c0))", date("2020-11-12"), 1L},
+      {"extractmonth(date_trunc_Month(c0))", date("2020-11-12"), 11L},
+      {"extractyear(date_trunc_Month(c0))", date("2020-11-12"), 2020L},
+
+      {"extractday(date_trunc_Year(c0))", date("2020-11-12"), 1L},
+      {"extractmonth(date_trunc_Year(c0))", date("2020-11-12"), 1L},
+      {"extractyear(date_trunc_Year(c0))", date("2020-11-12"), 2020L},
+    });
+  }
+
+  @Test
+  public void testCastTimestampToDate() throws Exception {
+    testFunctions(new Object[][]{
+      {"cast(castDATE(c0) as TIMESTAMP)", ts("1970-01-12T10:20:33"), ts("1970-01-12T00:00:00")},
+      {"cast(to_date(c0) as TIMESTAMP)", ts("1970-01-12T10:20:33"), ts("1970-01-12T00:00:00")},
+      {"cast(cast(c0 as DATE) as TIMESTAMP)", ts("1970-01-12T10:20:33"), ts("1970-01-12T00:00:00")},
+      {"extractYear(to_date(c0))", ts("1970-01-12T10:20:33"), 1970L},
+    });
+  }
+
+  @Ignore("DX-24609")
+  @Test
+  public void testCastIntFromString() throws Exception {
+    testFunctions(new Object[][]{
+      {"castINT(c0)", "56", 56},
+      {"cast(c0 as INT)", "-2", -2},
+      {"castBIGINT(c0)", "56", 56l},
+      {"cast(c0 as BIGINT)", "-2", -2l},
+    });
   }
 }

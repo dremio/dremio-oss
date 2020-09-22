@@ -1,0 +1,254 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!-- Copyright 2016 Dremio Corporation -->
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>dremio-plugin-parent</artifactId>
+    <groupId>com.dremio.plugins</groupId>
+    <version>4.7.3-202008270723550726-918276ee</version>
+  </parent>
+
+  <artifactId>dremio-awsglue-plugin</artifactId>
+  <name>Plugins - AWS Glue Catalog Plugin</name>
+  <packaging>jar</packaging>
+
+  <properties>
+    <dremio.plugins.path>${project.build.directory}</dremio.plugins.path>
+    <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.dremio.contrib</groupId>
+      <artifactId>dremio-hive2-exec-shaded</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-aws</artifactId>
+      <version>${hadoop.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>commons-logging</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>commons-codec</artifactId>
+          <groupId>commons-codec</groupId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.directory.server</groupId>
+          <artifactId>apacheds-kerberos-codec</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.freemarker</groupId>
+          <artifactId>freemarker</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hive2-plugin-launcher</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- test dependencies -->
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <classifier>tests</classifier>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.findify</groupId>
+      <artifactId>s3mock_2.12</artifactId>
+      <version>0.2.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hive2-plugin</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>reserve-network-port</id>
+            <goals>
+              <goal>reserve-network-port</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <!-- avoid using system range for ephemeral ports as servers are not 
+                immediately started, and pre-allocated ports might have been reused by OS 
+                Some tests also use fixed port in the 20000 range -->
+              <minPortNumber>10000</minPortNumber>
+              <maxPortNumber>19999</maxPortNumber>
+              <portNames>
+                <portName>s3mock.reserved.port</portName>
+              </portNames>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.1.2</version>
+        <executions>
+          <execution>
+            <id>copy</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <artifactItems>
+            <artifactItem>
+              <groupId>com.dremio.plugins</groupId>
+              <artifactId>dremio-hive2-plugin</artifactId>
+              <version>${project.version}</version>
+              <type>jar</type>
+              <overWrite>true</overWrite>
+            </artifactItem>
+          </artifactItems>
+          <outputDirectory>${project.build.directory}/connectors</outputDirectory>
+          <overWriteReleases>true</overWriteReleases>
+          <overWriteSnapshots>true</overWriteSnapshots>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.0.0-M3</version>
+        <configuration>
+          <argLine>
+            -Xms512M
+            -Xmx3G
+            -Xss2048k
+            -XX:MaxDirectMemorySize=5120M
+            -XX:+CMSClassUnloadingEnabled
+            -Ddremio.plugins.path=${dremio.plugins.path}
+            @{argLine}
+          </argLine>
+          <systemPropertyVariables>
+            <s3mock.reserved.port>${s3mock.reserved.port}</s3mock.reserved.port>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-integration-test</id>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <reportNameSuffix>awsglue</reportNameSuffix>
+          <forkCount>1</forkCount>
+          <trimStackTrace>false</trimStackTrace>
+          <argLine>-Ddremio.plugins.path=${dremio.plugins.path}</argLine>
+          <systemPropertyVariables>
+            <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+          </systemPropertyVariables>
+          <classpathDependencyExcludes>
+            <classpathDependencyExclude>com.dremio.contrib:dremio-hive2-exec-shaded*</classpathDependencyExclude>
+          </classpathDependencyExcludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <!-- use as plugin instead of extension to resolve issues in Eclipse. See https://github.com/xolstice/protobuf-maven-plugin/issues/10#issuecomment-419529938 for more detail -->
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.6.2</version>
+        <executions>
+          <execution>
+            <phase>initialize</phase>
+            <goals>
+              <goal>detect</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>                  
+    </plugins>
+  </build>
+
+  <profiles>
+  </profiles>
+</project>

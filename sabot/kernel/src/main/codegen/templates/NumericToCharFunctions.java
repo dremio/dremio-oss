@@ -37,7 +37,7 @@ import com.dremio.exec.expr.annotations.Param;
 import org.apache.arrow.vector.holders.*;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 import java.text.NumberFormat;
 import java.text.DecimalFormat;

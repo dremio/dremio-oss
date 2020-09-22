@@ -15,10 +15,10 @@
  */
 package com.dremio.plugins.elastic.execution;
 
-import io.netty.buffer.ArrowBuf;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.calcite.util.Pair;
 

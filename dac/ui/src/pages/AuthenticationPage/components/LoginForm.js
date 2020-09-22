@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { compose } from 'redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { Link, withRouter } from 'react-router';
+import { withRouter } from 'react-router';
 import Immutable from 'immutable';
 
 import { LOGIN_VIEW_ID, loginUser } from 'actions/account';
@@ -38,7 +38,7 @@ import { formLabel, lightLink } from 'uiTheme/radium/typography';
 import LoginTitle from './LoginTitle';
 
 @Radium
-export class LoginForm extends Component {
+export class LoginForm extends PureComponent {
   static propTypes = {
     // redux-form
     fields: PropTypes.object,
@@ -67,7 +67,7 @@ export class LoginForm extends Component {
           style={{marginBottom: 10}}
           subTitle={la('Welcome to Dremio, please log in.')}/>
         <ViewStateWrapper
-          style={{paddingTop: 45}}
+          style={{paddingTop: 30}}
           hideChildrenWhenFailed={false}
           viewState={viewState}
           hideSpinner
@@ -112,17 +112,19 @@ export class LoginForm extends Component {
           </FieldWithError>
         </div>
         <div style={styles.submitWrapper}>
-          <Button
-            type={ButtonTypes.NEXT}
-            key='details-wizard-next'
-            style={{marginBottom: 0}}
-            text={la('Log In')}/>
-          <Spinner
-            iconStyle={styles.spinnerIcon}
-            style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
-          {false && <div style={styles.link}>
-            <Link to='#'>{la('Forgot your password?')}</Link>
-          </div>}
+          <div style={{display: 'flex', flexGrow: 1}}>
+            <Button
+              type={ButtonTypes.NEXT}
+              key='details-wizard-next'
+              style={{marginBottom: 0}}
+              text={la('Log In')}/>
+            <Spinner
+              iconStyle={styles.spinnerIcon}
+              style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
+          </div>
+          <div style={{display: 'flex', alignItems: 'center'}}>
+            <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
+          </div>
         </div>
       </InnerComplexForm>
     );
@@ -179,14 +181,15 @@ const styles = {
     justifyContent: 'space-between'
   },
   field: {
-    flexBasis: 'calc(50% - 5px)'
+    flexBasis: 'calc(50% - 5px)',
+    display: 'block'
   },
   input: {
     width: '100%',
     marginRight: 0
   },
   submitWrapper: {
-    margin: '20px 0 0 0',
+    margin: '55px 0 0 0',
     display: 'flex',
     flexDirection: 'row'
   },

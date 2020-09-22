@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn.impl.conv;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
@@ -25,8 +26,6 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 // Function called on convert_from(<string>, 'UTF8', '?') -- with the third argument being the replacement character (empty string OK)
 @SuppressWarnings("unused")

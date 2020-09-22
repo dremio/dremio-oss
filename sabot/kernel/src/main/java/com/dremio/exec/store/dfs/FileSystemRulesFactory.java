@@ -36,8 +36,8 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.exec.store.dfs.easy.EasyScanPrel;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
-import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -53,7 +53,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
 
     @Override
     public Rel convertScan(ScanCrel scan) {
-      return new FilesystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment());
+      return new FilesystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), false);
     }
   }
 
@@ -69,7 +69,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       return new ParquetScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter());
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled());
     }
 
     @Override
@@ -132,6 +132,6 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   private static boolean isParquetDataset(TableMetadata datasetPointer) {
-    return datasetPointer.getFormatSettings().getType() == FileType.PARQUET;
+    return DatasetHelper.hasParquetDataFiles(datasetPointer.getFormatSettings());
   }
 }

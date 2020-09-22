@@ -114,9 +114,10 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
     # netty options
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0 -Dio.netty.tryReflectionSetAccessible=true"
     # MapRFS specific options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=${MAPR_MAX_RA_STREAMS:-400}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_GC_OPTS"
     # User options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS "
 
@@ -132,7 +133,7 @@ dremio_internal_start() {
           exit 1
         fi
     fi
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon $DREMIO_DAC_DEAMON_AWS_OPTIONS
 }
 
 check_before_start() {

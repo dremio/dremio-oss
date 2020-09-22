@@ -15,22 +15,36 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.HashMap;
-import java.util.Map;
+import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.schema.DecimalMetadata;
+import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Type.Repetition;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 
 public class ParquetTypeHelper {
-  private static Map<MinorType,PrimitiveTypeName> typeMap;
-  private static Map<DataMode,Repetition> modeMap;
-  private static Map<MinorType,OriginalType> originalTypeMap;
+  private static Map<MinorType, PrimitiveTypeName> typeMap;
+  private static Map<DataMode, Repetition> modeMap;
+  private static Map<MinorType, OriginalType> originalTypeMap;
 
   static {
     typeMap = new HashMap<>();
@@ -55,7 +69,7 @@ public class ParquetTypeHelper {
     typeMap.put(MinorType.BIT, PrimitiveTypeName.BOOLEAN);
 
     originalTypeMap = new HashMap<>();
-    originalTypeMap.put(MinorType.DECIMAL,OriginalType.DECIMAL);
+    originalTypeMap.put(MinorType.DECIMAL, OriginalType.DECIMAL);
     originalTypeMap.put(MinorType.VARCHAR, OriginalType.UTF8);
     originalTypeMap.put(MinorType.DATE, OriginalType.DATE);
     originalTypeMap.put(MinorType.TIME, OriginalType.TIME_MILLIS);
@@ -75,7 +89,7 @@ public class ParquetTypeHelper {
   }
 
   public static DecimalMetadata getDecimalMetadataForField(MajorType type) {
-    switch(type.getMinorType()) {
+    switch (type.getMinorType()) {
       case DECIMAL:
       case DECIMAL9:
       case DECIMAL18:
@@ -90,7 +104,7 @@ public class ParquetTypeHelper {
   }
 
   public static int getLengthForMinorType(MinorType minorType) {
-    switch(minorType) {
+    switch (minorType) {
       case INTERVALDAY:
       case INTERVALYEAR:
       case INTERVAL:
@@ -105,4 +119,114 @@ public class ParquetTypeHelper {
     }
   }
 
+  /**
+   * Returns an arrow vector field for a parquet primitive field
+   *
+   * @param colPath       schema path of the column
+   * @param primitiveType parquet primitive type
+   * @param originalType  parquet original type
+   * @param schemaHelper  schema helper used for type conversions
+   * @return arrow vector field
+   */
+  public static Field createField(SchemaPath colPath,
+                                  PrimitiveType primitiveType,
+                                  OriginalType originalType,
+                                  SchemaDerivationHelper schemaHelper) {
+    final String colName = colPath.getAsNamePart().getName();
+    switch (primitiveType.getPrimitiveTypeName()) {
+      case BINARY:
+      case FIXED_LEN_BYTE_ARRAY:
+        if (originalType == OriginalType.UTF8) {
+          return CompleteType.VARCHAR.toField(colName);
+        }
+        if (originalType == OriginalType.DECIMAL) {
+
+          return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+        }
+        if (schemaHelper.isVarChar(colPath)) {
+          return CompleteType.VARCHAR.toField(colName);
+        }
+        return CompleteType.VARBINARY.toField(colName);
+      case BOOLEAN:
+        return CompleteType.BIT.toField(colName);
+      case DOUBLE:
+        return CompleteType.DOUBLE.toField(colName);
+      case FLOAT:
+        return CompleteType.FLOAT.toField(colName);
+      case INT32:
+        if (originalType == OriginalType.DATE) {
+          return CompleteType.DATE.toField(colName);
+        } else if (originalType == OriginalType.TIME_MILLIS) {
+          return CompleteType.TIME.toField(colName);
+        } else if (originalType == OriginalType.DECIMAL) {
+          return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+        }
+        return CompleteType.INT.toField(colName);
+      case INT64:
+        if (originalType == OriginalType.TIMESTAMP_MILLIS) {
+          return CompleteType.TIMESTAMP.toField(colName);
+        } else if (originalType == OriginalType.DECIMAL) {
+          return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+        }
+        return CompleteType.BIGINT.toField(colName);
+      case INT96:
+        if (schemaHelper.readInt96AsTimeStamp()) {
+          return CompleteType.TIMESTAMP.toField(colName);
+        }
+        return CompleteType.VARBINARY.toField(colName);
+      default:
+        throw UserException.unsupportedError()
+          .message("Parquet Primitive Type '%s', Original Type '%s' combination not supported. Column '%s'",
+            primitiveType.toString(), originalType != null ? originalType : "Not Available", colName)
+          .build();
+    }
+  }
+
+  public static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper) {
+    if (parquetField.isPrimitive()) {
+      SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
+      return Optional.of(createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper));
+    }
+
+    // Handle non-primitive cases
+    final GroupType complexField = (GroupType) parquetField;
+    if (OriginalType.LIST == complexField.getOriginalType()) {
+      GroupType repeatedField = (GroupType) complexField.getFields().get(0);
+
+      // should have only one child field type
+      if (repeatedField.isPrimitive() || !repeatedField.isRepetition(REPEATED) || repeatedField.asGroupType().getFields().size() != 1) {
+        throw UserException.unsupportedError()
+          .message("Parquet List Type is expected to contain only one sub type. Column '%s' contains %d", parquetField.getName(), complexField.getFieldCount())
+          .build();
+      }
+
+      Optional<Field> subField = toField(repeatedField.getFields().get(0), schemaHelper);
+      return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+    }
+
+    final boolean isStructType = complexField.getOriginalType() == null;
+    if (isStructType) { // it is struct
+      return toComplexField(complexField, new ArrowType.Struct(), schemaHelper);
+    }
+
+    // Unsupported complex type
+    return Optional.empty();
+  }
+
+  private static Optional<Field> toComplexField(GroupType complexField, ArrowType arrowType, SchemaDerivationHelper schemaHelper) {
+    List<Field> subFields = new ArrayList<>(complexField.getFieldCount());
+    for (int fieldIdx = 0; fieldIdx < complexField.getFieldCount(); fieldIdx++) {
+      Optional<Field> subField = toField(complexField.getType(fieldIdx), schemaHelper);
+      if (!subField.isPresent()) {
+        return Optional.empty();
+      } else {
+        subFields.add(subField.get());
+      }
+    }
+
+    return Optional.of(new Field(complexField.getName(), true, arrowType, subFields));
+  }
 }

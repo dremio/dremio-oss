@@ -27,7 +27,8 @@ import org.mockito.Mockito;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -42,10 +43,14 @@ import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators;
-import com.dremio.service.DirectProvider;
+import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
 
 public class TestMemoryAllocationUtilities extends ExecTest {
@@ -60,23 +65,28 @@ public class TestMemoryAllocationUtilities extends ExecTest {
   private static final NodeEndpoint N1 = NodeEndpoint.newBuilder().setAddress("n1").build();
   private static final NodeEndpoint N2 = NodeEndpoint.newBuilder().setAddress("n2").build();
 
-  private SystemOptionManager options;
-  private LocalKVStoreProvider kvstoreprovider;
+  private OptionManager options;
+  private SystemOptionManager systemOptionManager;
+  private LegacyKVStoreProvider kvstoreprovider;
 
    @Before
    public void setup() throws Exception {
-     kvstoreprovider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, true);
+     kvstoreprovider =
+         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
      kvstoreprovider.start();
-     options = new SystemOptionManager(
-         CLASSPATH_SCAN_RESULT,
-         new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT),
-         new KVPersistentStoreProvider(DirectProvider.wrap(kvstoreprovider)));
-     options.init();
+     final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+     systemOptionManager = new SystemOptionManager(
+       optionValidatorListing, new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT), () -> kvstoreprovider, false);
+     options = OptionManagerWrapper.Builder.newBuilder()
+       .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+       .withOptionManager(systemOptionManager)
+       .build();
+     systemOptionManager.start();
   }
 
    @After
    public void teardown() throws Exception {
-     AutoCloseables.close(options, kvstoreprovider);
+     AutoCloseables.close(systemOptionManager, kvstoreprovider);
    }
 
   /**

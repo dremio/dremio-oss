@@ -15,13 +15,17 @@
  */
 package com.dremio.dac.explore.model;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -67,6 +71,15 @@ public class DataPOJO implements JobDataFragment {
   @Override
   public List<Column> getColumns() {
     return columns;
+  }
+
+  @Override
+  public List<Field> getFields() {
+    return Collections.emptyList();  }
+
+  @Override
+  public List<RecordBatchHolder> getRecordBatches() {
+    return Collections.emptyList();
   }
 
   @Override

@@ -19,6 +19,7 @@ import * as ActionTypes from 'actions/ui/ui';
 
 const initialState = Immutable.fromJS({
   rightTreeVisible: false,
+  externalSourcesExpanded: false,
   resourceTree: {
     path: [],
     nodes: {}
@@ -38,6 +39,8 @@ export default function ui(state = initialState, action) {
     const expanded = state.getIn(['resourceTree', 'nodes', action.id, 'expanded']);
     return state.mergeIn(['resourceTree', 'nodes', action.id], {expanded: !expanded});
   }
+  case ActionTypes.TOGGLE_EXTERNAL_SOURCES_EXPANDED:
+    return state.set('externalSourcesExpanded', !state.get('externalSourcesExpanded'));
   default:
     return state;
   }

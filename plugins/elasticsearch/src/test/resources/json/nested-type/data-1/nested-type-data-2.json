@@ -1,12 +1,14 @@
 {
     "id" : 2,
     "username" : "alexa",
+    "creationDate" : "20180112T025251.912+0000",
     "address" : [
         {
             "city"   : "palo alto",
             "state"  : "ca",
             "zip"    : 94301,
             "street" : "1 hamilton st.",
+            "creationDate" : "20161112T025252.139+0000",
             "phones" : {
                 "mobile": 6504501234,
                 "office": 6504809876
@@ -17,6 +19,7 @@
             "state"  : "ca",
             "zip"    : 94040,
             "street" : "1 california ave.",
+            "creationDate" : "20200112T022252.149+0000",
             "phones" : {
                 "mobile": 6504443212,
                 "office": 4083456789

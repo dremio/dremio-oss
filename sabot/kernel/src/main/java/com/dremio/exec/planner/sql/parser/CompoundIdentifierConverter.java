@@ -139,9 +139,9 @@ public class CompoundIdentifierConverter extends SqlShuttle {
   }
 
   static {
-    final RewriteType E =RewriteType.ENABLE;
-    final RewriteType D =RewriteType.DISABLE;
-    final RewriteType U =RewriteType.UNCHANGED;
+    final RewriteType E = RewriteType.ENABLE;
+    final RewriteType D = RewriteType.DISABLE;
+    final RewriteType U = RewriteType.UNCHANGED;
 
     /*
     This map stores the rules that instruct each SqlCall class which data field needs
@@ -158,7 +158,9 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     Map<Class<? extends SqlCall>, RewriteType[]> rules = Maps.newHashMap();
 
     rules.put(SqlSelect.class, R(D, E, D, E, E, E, E, E, D, D));
+    rules.put(SqlInsertTable.class, R(D, E, D));
     rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, E, D, D));
+    rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D));
     rules.put(SqlCreateView.class, R(D, E, E, D));
     rules.put(SqlCreateFolderRecursive.class, R(D));
     rules.put(SqlDescribeTable.class, R(D, D, E));
@@ -169,8 +171,9 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlJoin.class, R(D, D, D, D, D, E));
     rules.put(SqlOrderBy.class, R(D, E, D, D));
     rules.put(SqlDropTable.class, R(D, D));
+    rules.put(SqlTruncateTable.class, R(D, D, D));
     rules.put(SqlSetOption.class, R(D, D, D));
-    rules.put(SqlCreateReflection.class, R(D,D,D,D,D,D,D,D,D,D));
+    rules.put(SqlCreateReflection.class, R(D,D,D,D,D,D,D,D,D,D,D));
     rules.put(SqlDropReflection.class, R(D,D));
     rules.put(SqlAccelToggle.class, R(D,D, D));
     rules.put(SqlForgetTable.class, R(D));
@@ -181,6 +184,11 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlLoadMaterialization.class, R(D));
     rules.put(SqlSetApprox.class, R(D, D));
     rules.put(SqlCompactMaterialization.class, R(E, D));
+    rules.put(SqlExplainJson.class, R(D,D));
+    rules.put(SqlAlterTableDropColumn.class, R(D, D, D));
+    rules.put(SqlAlterTableChangeColumn.class, R(D, D, D));
+    rules.put(SqlAlterTableAddColumns.class, R(D, D));
+    rules.put(SqlAlterTableSetOption.class, R(D, D, D, D));
 
     REWRITE_RULES = ImmutableMap.copyOf(rules);
   }

@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 
 import com.dremio.common.AutoCloseables;
@@ -35,8 +36,6 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * {@link RecordReader} implementation for reading a single sheet in an Excel file. Current support is

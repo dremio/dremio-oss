@@ -29,17 +29,22 @@ class Header extends Component {
     title: PropTypes.string,
     children: PropTypes.node,
     endChildren: PropTypes.node,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+    titleStyle: PropTypes.object
+  };
+
+  static defaultProps = {
+    titleStyle: {}
+  };
 
   getStyle = createSelector(style => style, style => ({ ...styles.adminHeader, ...style }));
 
   render() {
-    const { title, children, endChildren, style } = this.props;
+    const { title, children, endChildren, style, titleStyle} = this.props;
 
     return (
       <header style={this.getStyle(style)}>
-        <h3>{title || children}</h3>
+        <h3 style={titleStyle}>{title || children}</h3>
         <div>
           {endChildren}
         </div>

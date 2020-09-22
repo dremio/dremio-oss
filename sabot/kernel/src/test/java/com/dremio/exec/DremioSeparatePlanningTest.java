@@ -29,6 +29,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Ignore;
@@ -61,8 +62,6 @@ import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Class to test different planning use cases (separate from query execution)

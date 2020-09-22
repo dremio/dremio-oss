@@ -17,12 +17,12 @@ package com.dremio.sabot.op.common.ht2;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.common.expression.Describer;
 import com.google.common.base.Preconditions;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -170,7 +170,7 @@ public class Pivots {
     Preconditions.checkArgument(buffers.size() == 2,
       "A Bit vector should have two field buffers. %s has %s buffers.", Describer.describe(field.getField()), buffers.size());
     Preconditions.checkArgument(def.getNullBitOffset() + 1 == def.getOffset(),
-      "A BIT definition should define the null bit next to the value bit. Instead: bit offset=%d, val offset=%d",
+      "A BIT definition should define the null bit next to the value bit. Instead: bit offset=%s, val offset=%s",
       def.getNullBitOffset(), def.getOffset());
 
     final int blockLength = fixedBlock.getBlockWidth();

@@ -33,6 +33,7 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.util.DremioEdition;
 import com.dremio.dac.cmd.AdminCommand;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.CmdUtils;
@@ -41,13 +42,17 @@ import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.support.BasicSupportService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.services.configuration.ConfigurationStore;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 /**
  * Upgrade command.
@@ -62,6 +67,10 @@ import com.google.common.base.Preconditions;
 public class Upgrade {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Upgrade.class);
+
+  //Special VERSION number - which was assigned to a few customer[s] out of band.
+  //Even though it shows up as 5.0.1 , its less than dremio version 4.2.0
+  private static final Version VERSION_501 = new Version("5.0.1", 5, 0, 1, 0, "");
 
   /**
    * A {@code Version} ordering ignoring qualifiers for the sake of upgrade
@@ -130,15 +139,30 @@ public class Upgrade {
     return upgradeTasks;
   }
 
-  private static Version retrieveStoreVersion(ClusterIdentity identity) {
+  static Version retrieveStoreVersion(ClusterIdentity identity) {
     final Version storeVersion = fromClusterVersion(identity.getVersion());
     return storeVersion != null ? storeVersion : LegacyUpgradeTask.VERSION_106;
   }
 
   protected void ensureUpgradeSupported(Version storeVersion) {
-    // make sure we are not trying to downgrade
-    Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
-      "Downgrading from version %s to %s is not supported", storeVersion, VERSION);
+
+    boolean versionDowngradeCheck = true;
+
+    //disable the check when moving from 5.0.0/5.0.1 to 4.2.x, as its still an upgrade.
+    if (storeVersion.getMajorVersion() == VERSION_501.getMajorVersion()
+      && storeVersion.getMinorVersion() == VERSION_501.getMinorVersion()
+      && storeVersion.getPatchVersion() <= VERSION_501.getPatchVersion()
+      && VERSION.getMajorVersion() == 4
+      && VERSION.getMinorVersion() == 2) {
+      versionDowngradeCheck = false;
+    }
+
+
+    if (versionDowngradeCheck) {
+      // make sure we are not trying to downgrade
+      Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
+        "Downgrading from version %s to %s is not supported", storeVersion, VERSION);
+    }
 
     // only allow upgrading from 2.0 and higher
     Preconditions.checkState(storeVersion.getMajorVersion() >= 2,
@@ -155,16 +179,38 @@ public class Upgrade {
       AdminLogger.log("No database found. Skipping upgrade");
       return;
     }
-    try (final KVStoreProvider storeProvider = storeOptional.get()) {
+    try (final LocalKVStoreProvider storeProvider = storeOptional.get()) {
       storeProvider.start();
 
-      run(storeProvider);
+      run(storeProvider.asLegacy());
     }
 
   }
 
-  public void run(final KVStoreProvider storeProvider) throws Exception {
-    final Optional<ClusterIdentity> identity = SupportService.getClusterIdentity(storeProvider);
+  /**
+   * If previous edition is available checks if dremio edition we are upgrading to is the same.
+   * @param storeProvider
+   * @param curEdition
+   * @throws Exception
+   */
+  @VisibleForTesting
+  public void validateUpgrade(final LegacyKVStoreProvider storeProvider, final String curEdition) throws Exception {
+    if (!getDACConfig().isMigrationEnabled()) {
+      // If the migration is disabled, validate this task.
+      final ConfigurationStore configurationStore = new ConfigurationStore(storeProvider);
+      final ConfigurationEntry entry = configurationStore.get(SupportService.DREMIO_EDITION);
+      if (entry != null && entry.getValue() != null) {
+        final String prevEdition = new String(entry.getValue().toByteArray());
+        if (!Strings.isNullOrEmpty(prevEdition) && !prevEdition.equals(curEdition)) {
+          throw new Exception(String.format("Illegal upgrade from %s to %s", prevEdition, curEdition));
+        }
+      }
+    }
+  }
+
+  public void run(final LegacyKVStoreProvider storeProvider) throws Exception {
+    final Optional<ClusterIdentity> identity =
+      BasicSupportService.getClusterIdentity(storeProvider);
     final UpgradeStore upgradeStore = new UpgradeStore(storeProvider);
 
     if (!identity.isPresent()) {
@@ -173,6 +219,7 @@ public class Upgrade {
     }
 
     ClusterIdentity clusterIdentity = identity.get();
+    validateUpgrade(storeProvider, DremioEdition.getAsString());
 
     final Version kvStoreVersion = retrieveStoreVersion(clusterIdentity);
 
@@ -209,7 +256,7 @@ public class Upgrade {
 
     try {
       clusterIdentity.setVersion(toClusterVersion(VERSION));
-      SupportService.updateClusterIdentity(storeProvider, clusterIdentity);
+      BasicSupportService.updateClusterIdentity(storeProvider, clusterIdentity);
     } catch (Throwable e) {
       throw new RuntimeException("Failed to update store version", e);
     }

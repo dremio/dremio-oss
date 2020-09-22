@@ -18,9 +18,9 @@ import { push, replace } from 'react-router-redux';
 import urlParse from 'url-parse';
 import { collapseExploreSql } from '@app/actions/explore/ui';
 import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
-import { getPathPart, changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
+import { changePageTypeInUrl, getPathPart } from '@app/pages/ExplorePage/pageTypeUtils';
 
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
 
@@ -53,6 +53,9 @@ export function postDatasetOperation({
       level: 'success'
     }
   } : meta;
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -69,7 +72,7 @@ export function postDatasetOperation({
         ...apiUtils.getJobDataNumbersAsStringsHeader()
       },
       body: body && JSON.stringify(body),
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }

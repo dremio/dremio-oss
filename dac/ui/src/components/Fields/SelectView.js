@@ -19,7 +19,6 @@ import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
-import FontIcon from 'components/Icon/FontIcon';
 import { select as selectCls, disabled as disabledCls } from './SelectView.less';
 
 /**
@@ -55,7 +54,7 @@ export class SelectView extends PureComponent {
 
   static defaultProps = {
     useLayerForClickAway: true
-  }
+  };
 
   state = {
     anchorEl: null
@@ -71,9 +70,9 @@ export class SelectView extends PureComponent {
       });
     }
     return nodeOrProps;
-  }
+  };
 
-  openDD = (e) => {
+  openDD = () => {
     const { beforeOpen, disabled } = this.props;
 
     if (disabled) {
@@ -85,7 +84,7 @@ export class SelectView extends PureComponent {
     this.setState({
       anchorEl: this.contentRef.current
     });
-  }
+  };
 
   closeDD = () => {
     if (this.props.beforeClose) {
@@ -94,9 +93,9 @@ export class SelectView extends PureComponent {
     this.setState({
       anchorEl: null
     });
-  }
+  };
 
-  isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl)
+  isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl);
 
   render() {
     const {
@@ -132,7 +131,7 @@ export class SelectView extends PureComponent {
           {...rootAttrs}
         >
           {this.renderNodeOrProps(content)}
-          {!hideExpandIcon && <FontIcon type='ArrowDownSmall' theme={styles.arrow}/>}
+          {!hideExpandIcon && <i className='fa fa-chevron-down' style={styles.arrow}/>}
         </div>
         <Popover
           anchorEl={open ? anchorEl : null}
@@ -154,10 +153,9 @@ export class SelectView extends PureComponent {
 
 const styles = {
   arrow: {
-    Container: {
-      // reset line height for icon
-      lineHeight: 1
-    }
+    color: '#77818F',
+    fontSize: '10px',
+    paddingLeft: '7px'
   }
 };
 

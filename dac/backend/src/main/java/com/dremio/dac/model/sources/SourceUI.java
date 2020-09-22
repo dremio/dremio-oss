@@ -75,6 +75,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private Long accelerationRefreshPeriod;
   private Boolean accelerationNeverExpire;
   private Boolean accelerationNeverRefresh;
+  private Boolean allowCrossSourceSelection;
 
   public SourceUI setConfig(ConnectionConf<?, ?> sourceConfig) {
     this.config = sourceConfig;
@@ -241,6 +242,14 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     this.accelerationNeverRefresh = accelerationNeverRefresh;
   }
 
+  public Boolean getAllowCrossSourceSelection() {
+    return allowCrossSourceSelection;
+  }
+
+  public void setAllowCrossSourceSelection(Boolean allowCrossSourceSelection) {
+    this.allowCrossSourceSelection = allowCrossSourceSelection;
+  }
+
   public Map<String, String> getLinks() {
     Map<String, String> links = new HashMap<>();
     String resourcePath = new SourcePath(new SourceName(name)).toUrlPath();
@@ -272,6 +281,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setAccelerationNeverRefresh(Boolean.TRUE.equals(accelerationNeverRefresh));
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
     c.setId(new EntityId(getId()));
+    c.setAllowCrossSourceSelection(Boolean.TRUE.equals(allowCrossSourceSelection));
     return c;
   }
 
@@ -317,6 +327,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setAccelerationNeverExpire(sourceConfig.getAccelerationNeverExpire());
     source.setAccelerationNeverRefresh(sourceConfig.getAccelerationNeverRefresh());
     source.setId(sourceConfig.getId().getId());
+    source.setAllowCrossSourceSelection(sourceConfig.getAllowCrossSourceSelection());
     return source;
   }
 

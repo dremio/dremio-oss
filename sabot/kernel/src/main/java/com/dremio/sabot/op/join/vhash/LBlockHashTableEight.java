@@ -16,20 +16,23 @@
 package com.dremio.sabot.op.join.vhash;
 
 
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.exec.util.BloomFilter;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHash.SeparateKVLongKeyMixing;
@@ -53,6 +56,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
   private static final int NULL_ORDINAL_IN_FIXED_BLOCK_VECTOR = -2;
   // The key value written in FixedBlockVector, this value can be any value, now it's set to 0.
   private static final int NULL_KEY_VALUE = 0;
+  private static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
 
   private final HashConfigWrapper config;
   private final BufferAllocator allocator;
@@ -365,7 +369,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(FluentIterable.of((AutoCloseable[]) fixedBlocks).toList());
+    AutoCloseables.close(ImmutableList.copyOf(fixedBlocks));
   }
 
   private boolean tryRehashForExpansion() {
@@ -425,4 +429,34 @@ public final class LBlockHashTableEight implements AutoCloseable {
     initTimer.stop();
   }
 
+  public Optional<BloomFilter> prepareBloomFilter(final boolean sizeDynamically) throws Exception {
+    final long bloomFilterSize = sizeDynamically ? Math.min(BloomFilter.getOptimalSize(size()),
+            BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
+    try (ArrowBuf keyHolder = allocator.buffer(9);
+         RollbackCloseable closeOnErr = new RollbackCloseable()) {
+      final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize); // fixed to 2MB
+      closeOnErr.add(bloomFilter);
+      bloomFilter.setup();
+
+      // Since the exact address of the values are computed via keyhash, it is not possible to navigate values without keyhash
+      // Hence, we go over each block, and pick if it contains a value.
+      for (int chunk = 0; chunk < tableFixedAddresses.length; chunk++) {
+        final long chunkAddr = tableFixedAddresses[chunk];
+        final long chunkEnd = chunkAddr + (MAX_VALUES_PER_BATCH * BLOCK_WIDTH);
+        for (long blockAddr = chunkAddr; blockAddr < chunkEnd; blockAddr += BLOCK_WIDTH) {
+          final long key = PlatformDependent.getLong(blockAddr);
+          if (key == this.freeValue) {
+            continue;
+          }
+          keyHolder.writerIndex(0);
+          final byte validityByte = (key == NULL_KEY_VALUE) ? (byte)0x00 : (byte)0x01; // validity bit set for first key - 0000 000[1]
+          keyHolder.writeByte(validityByte);
+          keyHolder.writeLong(key);
+          bloomFilter.put(keyHolder, 9);
+        }
+      }
+      closeOnErr.commit();
+      return Optional.of(bloomFilter);
+    }
+  }
 }

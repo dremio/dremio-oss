@@ -389,8 +389,8 @@ describe('AccelerationGridController', () => {
       const findCurrentColumnStub = sinon.stub(instance, 'findCurrentColumnInLayouts')
         .withArgs('partitionFields', 0, 0).returns({});
       const resetFieldsStub = () => {
-        instance.addFieldByIndex.reset();
-        instance.removeFieldByIndex.reset();
+        instance.addFieldByIndex.resetHistory();
+        instance.removeFieldByIndex.resetHistory();
       };
       const verify = () => {
         expect(

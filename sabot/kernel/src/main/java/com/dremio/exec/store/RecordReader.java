@@ -15,12 +15,14 @@
  */
 package com.dremio.exec.store;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 public interface RecordReader extends AutoCloseable {
@@ -45,4 +47,19 @@ public interface RecordReader extends AutoCloseable {
    * @return The number of additional records added to the output.
    */
   int next();
+
+  /**
+   * Returns the list of columns that were not boosted.
+   *
+   * @return the list of columns that were not boosted
+   */
+  default List<SchemaPath> getColumnsToBoost() {
+    return null;
+  }
+
+  /**
+   * Adds a runtime filter to the record reader
+   * @param runtimeFilter
+   */
+  default void addRuntimeFilter(RuntimeFilter runtimeFilter) {}
 }

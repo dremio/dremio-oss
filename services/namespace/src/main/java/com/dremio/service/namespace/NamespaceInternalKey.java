@@ -18,12 +18,14 @@ package com.dremio.service.namespace;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
+import com.google.common.base.Strings;
 
 /**
  * Namespace keys used to model space, folders, sources, datasets names into kvstore key.
@@ -56,178 +58,265 @@ class NamespaceInternalKey {
    */
   private static final boolean ENABLE_KEY_NORMALIZATION = true;
 
-  private static final char PATH_DELIMITER = '.'; // dot separated path
-  private static final char QUOTE = SqlUtils.QUOTE; // backticks allowed to escape dot/keywords.
-                                                    // TODO: make it independent of SQL
-  private static final byte MIN_VALUE = (byte) 0x0;
-  private static final byte MAX_VALUE = (byte) 0xFF;
+  // TODO: make it independent of SQL
+  // Back ticks are allowed to escape dot/keywords.
+  private static final char QUOTE = SqlUtils.QUOTE;
 
-  private static final int PREFIX_BYTES_SIZE = 2;
-  /** byte array of size 1 containing 0xFF */
-  private static final byte[] TERMINATOR = new byte[] { MAX_VALUE };
-  /**
-   * "``" in UTF-8.
-   * In namespace key, path components are separated by `` which will never be part of the key.
-   */
-  private static final byte[] DELIMITER_BYTES = format("%c%c", QUOTE, QUOTE).getBytes(UTF_8);
+  // The delimiter is "``" in UTF-8.
+  static final byte[] DELIMITER_BYTES = format("%c%c", QUOTE, QUOTE).getBytes(UTF_8);
 
-  private static final int DELIMITER_PREFIX_DELIMITER_SIZE =
-      DELIMITER_BYTES.length + PREFIX_BYTES_SIZE + DELIMITER_BYTES.length;
+  static final char PATH_DELIMITER = '.';
 
-  /** prefixes[i] == DELIMITER_BYTES + {i on 2 bytes} + DELIMITER_BYTES */
-  private static final byte [][] prefixes = generatePrefixes();
-  private static final String NAMESPACE_PATH_FORMAT =
+  static final int PREFIX_BYTES_SIZE = 2;
+  static final int DELIMITER_PREFIX_DELIMITER_BYTES_SIZE =
+    DELIMITER_BYTES.length + PREFIX_BYTES_SIZE + DELIMITER_BYTES.length;
+
+  // 2 bytes are allocated for encoding each prefix level.
+  // The largest valid byte value in UTF-8 is 127.
+  // By supporting prefix levels from 0 to 127 (128 prefixes)
+  // Since one prefix should be saved for encoding range keys,
+  // the max number of path components we can support is 127.
+  private static final int MAX_NUM_PATH_COMPONENTS = 127;
+
+  private static final byte MASK = (byte) 0xFF;
+
+  // Max and Min values for building root lookup keys.
+
+  //The largest valid 2-byte value in UTF-8. This value is used as a terminator for end range keys.
+  static final byte[] MAX_2_BYTES_UTF8_VALUE = new byte[]{(byte) 0xdf, (byte)0xbf}; //U+07FF
+  //The smallest valid value in UTF-8. This value is used as a terminator for start range keys.
+  private static final byte[] MIN_UTF8_VALUE = new byte[]{(byte) 0x0};
+
+  // Root lookup keys for FindByRange searches.
+  private static final String ROOT_LOOKUP_START_KEY = generateRootLookupStartKey();
+  private static final String ROOT_LOOKUP_END_KEY = generateRootLookupEndKey();
+
+  private static final String ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT =
     "Namespace path should be of format <space>.<folder1>.<folder2>....<folderN>.<dataset/file>";
 
-  private static final byte[] ROOT_LOOKUP_START = rootLookupStartKey();
-  private static final byte[] ROOT_LOOKUP_END = rootLookupEndKey();
+  /**
+   * Creates a root lookup start key.
+   * @return root lookup start key.
+   */
+  private static String generateRootLookupStartKey() {
+    return rootLookupKeyHelper(MIN_UTF8_VALUE);
+  }
 
-  private static final byte[][] generatePrefixes() {
-    // will generate all possible numbers on 2 bytes
-    final byte[][] prefixes = new byte[1 << (PREFIX_BYTES_SIZE * 8)][];
-    for (int i = 0; i < prefixes.length; ++i) {
-      // `` + {i on 2 bytes} + ``
-      prefixes[i] = new byte[DELIMITER_PREFIX_DELIMITER_SIZE];
-      System.arraycopy(DELIMITER_BYTES, 0, prefixes[i], 0, DELIMITER_BYTES.length);
-      System.arraycopy(toPrefixBytes(i), 0, prefixes[i], DELIMITER_BYTES.length, PREFIX_BYTES_SIZE);
-      System.arraycopy(DELIMITER_BYTES, 0, prefixes[i], DELIMITER_BYTES.length + PREFIX_BYTES_SIZE, DELIMITER_BYTES.length);
+  /**
+   * Creates a root lookup end key.
+   * @return root lookup end key.
+   */
+  private static String generateRootLookupEndKey() {
+    return rootLookupKeyHelper(MAX_2_BYTES_UTF8_VALUE);
+  }
+
+
+  private static final List<String> PREFIXES = generatePrefixes();
+
+  /**
+   * Generates a given number of PREFIXES. It only generates up to 0x7f since all values after this
+   * is invalid in UTF-8.
+   * @return an array of byte[] PREFIXES.
+   */
+  private static List<String> generatePrefixes() {
+    final List<String> prefixes = new ArrayList<>();
+    for (int i = 0; i <= MAX_NUM_PATH_COMPONENTS; ++i) {
+      prefixes.add(new String(prefixWithDelimiters(i), StandardCharsets.UTF_8));
     }
     return prefixes;
   }
 
-  private byte [] keyBytes = null; // lookup key
-  private byte[] cachedKey = null; // copy of lookup key keyBytes
-  // list folder/lookup keys
-  private byte[] cachedRangeStartKey = null, cachedRangeEndKey = null;
-
-  /** length of the typed key in keyBytes*/
-  private int keyLength;
-
-  /**
-   * dot delimited path
-   * with components quoted with back ticks if they are keywords
-   */
+  private final String key;
+  private final String rangeStartKey;
+  private final String rangeEndKey;
   private final String namespaceFullPath;
-  /** path for this name */
   private final NamespaceKey namespaceKey;
-
-  /**
-   * utf8 representation of the path components.
-   * pathComponentBytes.length == components.
-   * pathComponentBytes[i].length > 0
-   */
-  private byte[][] pathComponentBytes;
-  /**
-   * number of components in the full path.
-   * components > 0
-   */
-  private int components;
 
   NamespaceInternalKey(final NamespaceKey path) {
     this(path, ENABLE_KEY_NORMALIZATION);
   }
 
   NamespaceInternalKey(final NamespaceKey path, boolean normalize) {
+    final List<String> processedPathComponents = processPathComponents(path, normalize);
+    this.key = buildKey(processedPathComponents);
+    this.rangeStartKey = buildRangeStartKey(processedPathComponents);
+    this.rangeEndKey = buildRangeEndKey(rangeStartKey);
     this.namespaceKey = path;
     this.namespaceFullPath = path.getSchemaPath();
-    this.keyBytes = null;
+  }
 
-    final List<String> pathComponents = path.getPathComponents();
-    this.components = pathComponents.size();
+  String getKey() {
+    return key;
+  }
 
-    if (components == 0) {
-      throw UserException.validationError()
-          .message("Invalid name space key. Given: %s, Expected format: %s", namespaceFullPath, NAMESPACE_PATH_FORMAT)
-          .build(logger);
+  NamespaceKey getPath() {
+    return namespaceKey;
+  }
+
+  String getRangeStartKey() {
+    return rangeStartKey;
+  }
+
+  String getRangeEndKey() {
+    return rangeEndKey;
+  }
+
+  static String getRootLookupStartKey() {
+    return ROOT_LOOKUP_START_KEY;
+  }
+
+  static String getRootLookupEndKey() {
+    return ROOT_LOOKUP_END_KEY;
+  }
+
+  /**
+   * Processes the provided NamespaceKey's path components.
+   * Converts each path component to lower case if {@param normalize} is true.
+   * Returns a list of path components.
+   *
+   * @param path the NamespaceKey to process.
+   * @param normalize indicates whether path components should be converted to lower case.
+   * @return a list of path components.
+   */
+  static List<String> processPathComponents(final NamespaceKey path, boolean normalize) {
+    final List<String> processedPathComponents = new ArrayList<>();
+    final int numPathComponents = path.getPathComponents().size();
+
+    if(numPathComponents == 0) {
+      throw UserException.validationError().message("Invalid name space key. Given: %s, Expected format: %s",
+        path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT).build(logger);
+    } else if (numPathComponents > MAX_NUM_PATH_COMPONENTS) {
+      throw UserException.unsupportedError().message("Provided file path is too long.")
+        .addContext("File Path: ", path.getSchemaPath()).build(logger);
     }
-    // Convert each path component into bytes.
-    this.pathComponentBytes = new byte[components][];
-    for (int i = 0; i < components; ++i) {
-      if (pathComponents.get(i).length() == 0) {
-        throw UserException.validationError()
-            .message("Invalid name space key. Given: %s, Expected format: %s", namespaceFullPath, NAMESPACE_PATH_FORMAT)
-            .build(logger);
+    path.getPathComponents().forEach(component -> {
+      if(Strings.isNullOrEmpty(component)) {
+        throw UserException.validationError().message("Invalid name space key. Given: %s, Expected format: %s",
+          path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT).build(logger);
       }
-      if (normalize) {
-        this.pathComponentBytes[i] = pathComponents.get(i).toLowerCase().getBytes(UTF_8);
-      } else {
-        this.pathComponentBytes[i] = pathComponents.get(i).getBytes(UTF_8);
-      }
-    }
+      processedPathComponents.add((normalize)? component.toLowerCase(Locale.ROOT) : component);
+    });
+
+    return processedPathComponents;
   }
 
-  private void buildKey() {
-    if (keyBytes != null) {
-      return;
-    }
-    /**
-     * Worst case size for utf8 is 1-4 bytes.
-     * Each component is prefixed with "delimiter-prefix-delimiter" of size {@link #DELIMITER_PREFIX_DELIMITER_SIZE}
-     */
-    this.keyBytes = new byte[4*namespaceFullPath.length() + components * DELIMITER_PREFIX_DELIMITER_SIZE];
-    this.keyLength = 0;
-    int count = pathComponentBytes.length - 1;
-    for (int i = 0; i < components; ++i) {
-      System.arraycopy(prefixes[count], 0, keyBytes, keyLength, prefixes[count].length);
-      keyLength += prefixes[count].length;
-      System.arraycopy(pathComponentBytes[i], 0, keyBytes, keyLength, pathComponentBytes[i].length);
-      keyLength += pathComponentBytes[i].length;
-      --count;
-    }
+  /**
+   * Builds a NamespaceInternalKey given a list of String path components.
+   *
+   * @param pathComponents the list of string path components.
+   * @return a String key created with the list of path components.
+   */
+  private String buildKey(List<String> pathComponents) {
+    return buildKeyWithPrefixes(pathComponents, false);
   }
 
-  public final byte[] getKey() {
-    buildKey();
-    if (cachedKey == null) {
-      cachedKey = Arrays.copyOfRange(keyBytes, 0, keyLength);
-    }
-    return cachedKey;
+  /**
+   * Builds the range start key provided a list of path components.
+   * Used in FindByRange as the start range key.
+   *
+   * @param pathComponents a list of String path components.
+   * @return range start key.
+   */
+  private String buildRangeStartKey(List<String> pathComponents) {
+    return buildKeyWithPrefixes(pathComponents, true);
   }
 
-  private void buildRangeKeys() {
-    /**
-     * Worst case size for utf8 is 1-4 bytes.
-     * Each component is prefixed with "delimiter-prefix-delimiter" of size {@link #DELIMITER_PREFIX_DELIMITER_SIZE}
-     * Terminator
-     */
-    final byte [] rangeKeyBytes = new byte[
-        4 * namespaceFullPath.length() +
-        (components +1 )* DELIMITER_PREFIX_DELIMITER_SIZE +
-        TERMINATOR.length
-    ];
-
-    int offset = 0;
-    int count = components;
-    for (int i = 0; i < components; ++i) {
-      System.arraycopy(prefixes[count], 0, rangeKeyBytes, offset, prefixes[count].length);
-      offset += prefixes[count].length;
-      System.arraycopy(pathComponentBytes[i], 0, rangeKeyBytes, offset, pathComponentBytes[i].length);
-      offset += pathComponentBytes[i].length;
-      --count;
-    }
-    System.arraycopy(prefixes[0], 0, rangeKeyBytes, offset, prefixes[0].length);
-    offset += prefixes[0].length;
-
-    final byte[] tmpStartKey = Arrays.copyOfRange(rangeKeyBytes, 0, offset);
-    final byte[] tmpEndKey = new byte[offset + TERMINATOR.length];
-    System.arraycopy(rangeKeyBytes, 0, tmpEndKey, 0, offset);
-    System.arraycopy(TERMINATOR, 0, tmpEndKey, offset, TERMINATOR.length);
-    cachedRangeStartKey = tmpStartKey;
-    cachedRangeEndKey = tmpEndKey;
+  /**
+   * Builds a range end key provided a rangeStartKey. Appends byte terminator to the end of rangeStartKey.
+   * Used in FindByRange as the end range key.
+   *
+   * @param rangeStartKey rangeStartKey.
+   * @return arange end key.
+   */
+  private String buildRangeEndKey(String rangeStartKey) {
+    return rangeStartKey + new String(MAX_2_BYTES_UTF8_VALUE, StandardCharsets.UTF_8);
   }
 
-  public byte[] getRangeStartKey() {
-    if (cachedRangeStartKey == null) {
-      buildRangeKeys();
+
+  /**
+   * Helper to build a String key given a list of path components.
+   * Either builds the key or a range key.
+   *
+   * @param pathComponents a list of String path components.
+   * @param isRangeKey if true, builds a range key, otherwise builds the key.
+   * @return a String key that is either the key or a range key.
+   */
+  private String buildKeyWithPrefixes(List<String> pathComponents, boolean isRangeKey) {
+    final StringBuilder keyBuilder = new StringBuilder(calculateKeyLength(pathComponents, isRangeKey));
+    int prefixIndex = (isRangeKey)? pathComponents.size() : pathComponents.size() - 1;
+    for (int i = 0; i < pathComponents.size(); i++) {
+      keyBuilder.append(PREFIXES.get(prefixIndex));
+      keyBuilder.append(pathComponents.get(i));
+      --prefixIndex;
     }
-    return cachedRangeStartKey;
+    if (isRangeKey) {
+      keyBuilder.append(PREFIXES.get(prefixIndex));
+    }
+    return keyBuilder.toString();
   }
 
-  public byte[] getRangeEndKey() {
-    if (cachedRangeEndKey == null) {
-      buildRangeKeys();
+  /**
+   * Calculates the length of the key given its path components and key type.
+   *
+   * @param pathComponents the path components
+   * @param isRangeKey indicates whether range key length or key length is being calculated.
+   * @return the length as an integer.
+   */
+  private int calculateKeyLength(List<String> pathComponents, boolean isRangeKey) {
+    int length = 0;
+    int prefixIndex = (isRangeKey)? pathComponents.size() : pathComponents.size() - 1;
+    for(int i = 0; i < pathComponents.size(); i++) {
+      length += pathComponents.get(i).length();
+      length += PREFIXES.get(prefixIndex).length();
+      prefixIndex--;
     }
-    return cachedRangeEndKey;
+    return (isRangeKey)? length + PREFIXES.get(prefixIndex).length() : length;
+  }
+
+  /**
+   * Writes a 2-byte representation of an integer to the given byte[].
+   *
+   * @param dst the destination byte[].
+   * @param offset the offset to write bytes at.
+   * @param number the number to convert into 2-bytes unsigned.
+   */
+  private static void writePrefixLevel(byte[] dst, int offset, int number) {
+    dst[offset + 1] = (byte) (number & MASK);
+    number >>>= 8;
+    dst[offset] = (byte) (number & MASK);
+  }
+
+  /**
+   * Creates a prefix byte sequence in the following format
+   * delimiter - prefix level - delimiter
+   *
+   * @param prefix the integer prefix
+   * @return the prefix and delimiters byte sequence.
+   */
+  private static byte[] prefixWithDelimiters(int prefix) {
+    final byte[] bytes = new byte[DELIMITER_PREFIX_DELIMITER_BYTES_SIZE];
+    System.arraycopy(DELIMITER_BYTES, 0, bytes, 0, DELIMITER_BYTES.length);
+    writePrefixLevel(bytes, DELIMITER_BYTES.length, prefix);
+    System.arraycopy(DELIMITER_BYTES, 0, bytes, DELIMITER_BYTES.length + PREFIX_BYTES_SIZE, DELIMITER_BYTES.length);
+    return bytes;
+  }
+
+  /**
+   * Helper to create a root lookup key with the provided terminator.
+   *
+   * @param terminator the terminator for this key.
+   * @return a root lookup key suffixed with the provided terminator.
+   */
+  private static String rootLookupKeyHelper(byte[] terminator) {
+    final byte[] key = new byte[DELIMITER_PREFIX_DELIMITER_BYTES_SIZE + terminator.length];
+    System.arraycopy(prefixWithDelimiters(0), 0, key, 0, DELIMITER_PREFIX_DELIMITER_BYTES_SIZE);
+    System.arraycopy(terminator, 0, key, DELIMITER_PREFIX_DELIMITER_BYTES_SIZE, terminator.length);
+    return new String (key, StandardCharsets.UTF_8);
+  }
+
+  @Override
+  public String toString() {
+    return namespaceFullPath;
   }
 
   @Override
@@ -258,156 +347,5 @@ class NamespaceInternalKey {
       return false;
     }
     return true;
-  }
-
-  public NamespaceKey getPath() {
-    return namespaceKey;
-  }
-
-  @Override
-  public String toString() {
-    return namespaceFullPath;
-  }
-
-  //// Utilities.
-  private static final byte[] rootLookupStartKey() {
-    final byte[] start = new byte[DELIMITER_PREFIX_DELIMITER_SIZE + TERMINATOR.length];
-    System.arraycopy(prefixes[0], 0, start, 0, prefixes[0].length);
-    start[prefixes[0].length] = MIN_VALUE;
-    return start;
-  }
-
-  private static final byte[] rootLookupEndKey() {
-    final byte[] end = new byte[DELIMITER_PREFIX_DELIMITER_SIZE + TERMINATOR.length];
-    System.arraycopy(prefixes[0], 0, end, 0, prefixes[0].length);
-    end[prefixes[0].length] = MAX_VALUE;
-    return end;
-  }
-
-  public static byte[] toPrefixBytes(int number) {
-    final byte [] prefix = new byte[PREFIX_BYTES_SIZE];
-    for (int i = PREFIX_BYTES_SIZE - 1; i >= 0; --i) {
-      prefix[i] = (byte) (number & 0xFF);
-      number >>>= 8;
-    }
-    return prefix;
-  }
-
-  public static int prefixBytesToInt(byte[] prefix) {
-    int number = 0;
-    for (int i = 0; i < PREFIX_BYTES_SIZE ; ++i) {
-      number <<= 8;
-      number ^= (prefix[i] & 0xFF);
-    }
-    return number;
-  }
-
-  // For testing/debugging purposes only. Don't use this method in production code.
-  public static NamespaceInternalKey parseKey(byte[] keyBytes) {
-    String path = extractKey(keyBytes, false);
-    return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
-  }
-
-  // For testing/debugging purposes only. Don't use this method in production code.
-  private static int indexOfDelimiterPrefixStart(byte[] array, int offset) {
-    outer:
-    for (int i = offset; i < array.length - DELIMITER_PREFIX_DELIMITER_SIZE + 1; i++) {
-      for (int j = 0; j < DELIMITER_BYTES.length; j++) {
-        if (array[i + j] != DELIMITER_BYTES[j]) {
-          continue outer;
-        }
-      }
-      // found the delimiter, now skip past the prefix number and then look for delimiter again
-      final int newI = i + DELIMITER_BYTES.length + PREFIX_BYTES_SIZE;
-      for(int j=0; j < DELIMITER_BYTES.length; j++) {
-        if (array[newI + j] != DELIMITER_BYTES[j]) {
-          continue outer;
-        }
-      }
-      return i;
-    }
-    return -1;
-  }
-
-  // For testing/debugging purposes only. Don't use this method in production code.
-  public static String extractKey(byte[] keyBytes, boolean includePrefixLevels) {
-    final StringBuilder builder = new StringBuilder();
-
-    int offset = indexOfDelimiterPrefixStart(keyBytes, 0);
-    if (offset != 0) {
-      throw new IllegalArgumentException("Key should start with delimiter-prefix-delimiter");
-    }
-    if (includePrefixLevels) {
-      builder.append(extractLevelFromDelimiterPrefix(keyBytes, offset));
-      builder.append(PATH_DELIMITER);
-    }
-
-    offset = offset + DELIMITER_PREFIX_DELIMITER_SIZE;
-    while (true) {
-      int index1 = indexOfDelimiterPrefixStart(keyBytes, offset);
-      if (index1 == -1) {
-        // Copy the remaining array as the last path component.
-        builder.append(new String(keyBytes, offset, keyBytes.length - offset));
-        break;
-      } else {
-        builder.append(new String(keyBytes, offset, index1 - offset));
-        builder.append(PATH_DELIMITER);
-
-        if (includePrefixLevels) {
-          builder.append(extractLevelFromDelimiterPrefix(keyBytes, index1));
-          builder.append(PATH_DELIMITER);
-        }
-
-        offset = index1 + DELIMITER_PREFIX_DELIMITER_SIZE;
-      }
-    }
-    return builder.toString();
-  }
-
-  // For testing/debugging purposes only. Don't use this method in production code.
-  public static String extractRangeKey(byte[] keyBytes) {
-    final StringBuilder builder = new StringBuilder();
-
-    int offset = indexOfDelimiterPrefixStart(keyBytes, 0);
-    if (offset != 0) {
-      throw new IllegalArgumentException("Key should start with delimiter-prefix-delimiter");
-    }
-    builder.append(extractLevelFromDelimiterPrefix(keyBytes, 0));
-    builder.append(PATH_DELIMITER);
-
-    offset = offset + DELIMITER_PREFIX_DELIMITER_SIZE;
-    while (true) {
-      int index1 = indexOfDelimiterPrefixStart(keyBytes, offset);
-      if (index1 == -1) {
-        break;
-      }
-
-      builder.append(new String(keyBytes, offset, index1 - offset));
-      builder.append(PATH_DELIMITER);
-
-      builder.append(extractLevelFromDelimiterPrefix(keyBytes, index1));
-      builder.append(PATH_DELIMITER);
-
-      offset = index1 + DELIMITER_PREFIX_DELIMITER_SIZE;
-    }
-    return builder.toString();
-  }
-
-  private static int extractLevelFromDelimiterPrefix(byte[] keyBytes, int delimiterStart) {
-    return prefixBytesToInt(
-        Arrays.copyOfRange(
-            keyBytes,
-            delimiterStart + DELIMITER_BYTES.length,
-            delimiterStart + DELIMITER_BYTES.length + PREFIX_BYTES_SIZE
-        )
-    );
-  }
-
-  public static byte[] getRootLookupStart() {
-    return ROOT_LOOKUP_START;
-  }
-
-  public static byte[] getRootLookupEnd() {
-    return ROOT_LOOKUP_END;
   }
 }

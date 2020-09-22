@@ -29,7 +29,7 @@
 
 <#include "/@includes/vv_imports.ftl" />
 
-  import io.netty.buffer.ArrowBuf;
+  import org.apache.arrow.memory.ArrowBuf;
 
   import com.dremio.exec.expr.SimpleFunction;
   import com.dremio.exec.expr.annotations.FunctionTemplate;
@@ -70,7 +70,7 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
 
 <#include "/@includes/vv_imports.ftl" />
 
-  import io.netty.buffer.ArrowBuf;
+  import org.apache.arrow.memory.ArrowBuf;
 
   import com.dremio.exec.expr.SimpleFunction;
   import com.dremio.exec.expr.annotations.FunctionTemplate;

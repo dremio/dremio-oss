@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
@@ -24,13 +25,10 @@ import org.apache.arrow.vector.VariableWidthVector;
 import com.dremio.exec.expr.fn.hll.StatisticsAggrFunctions;
 import com.dremio.sabot.exec.context.SlicedBufferManager;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-
 import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
 import com.yahoo.sketches.hll.Union;
-
-import io.netty.buffer.ArrowBuf;
 
 
 /**

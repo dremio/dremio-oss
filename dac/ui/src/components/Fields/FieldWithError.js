@@ -28,7 +28,7 @@ import classNames from 'classnames';
 export default class FieldWithError extends Component {
 
   static defaultProps = {
-    errorPlacement: 'left'
+    errorPlacement: 'right'
   };
 
   static propTypes = {
@@ -90,6 +90,10 @@ export default class FieldWithError extends Component {
 const styles = {
   label: {
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    color: '#7F8B95',
+    fontWeight: 400,
+    height: '32px',
+    marginBottom: '0px'
   }
 };

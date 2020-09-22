@@ -16,13 +16,12 @@
 
 package org.apache.arrow.vector;
 
-import org.apache.arrow.memory.BaseAllocator;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.CommonUtil;
 import org.apache.arrow.vector.util.OversizedAllocationException;
 
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * A minimal stub over ArrowBuf for simple usages of non-nullable scalar vector
@@ -99,15 +98,23 @@ public abstract class AbstractVector implements AutoCloseable {
     clear();
   }
 
+  /**
+   * Allocs max(currentCapacity * 2, prevAllocSize, defaultAllocSize)
+   * If this is called after clear(), allocs allocationSizeInBytes which is the size of previous allocation
+   */
   public void reAlloc() {
-    long baseSize = (long)allocationSizeInBytes;
-    int currentBufferCapacity = dataBuffer.capacity();
-    if(baseSize < (long)currentBufferCapacity) {
-      baseSize = (long)currentBufferCapacity;
+    long currentBufferCapacity = dataBuffer.capacity();
+    long newAllocationSize = currentBufferCapacity * 2L;
+
+    if (newAllocationSize == 0) {
+      if (allocationSizeInBytes > 0) {
+        newAllocationSize = allocationSizeInBytes;
+      } else {
+        newAllocationSize = INITIAL_VALUE_ALLOCATION * typeWidth;
+      }
     }
 
-    long newAllocationSize = baseSize * 2L;
-    newAllocationSize = BaseAllocator.nextPowerOfTwo(newAllocationSize);
+    newAllocationSize = CommonUtil.nextPowerOfTwo(newAllocationSize);
     if(newAllocationSize > (long)MAX_ALLOCATION_SIZE) {
       throw new OversizedAllocationException("Unable to expand the buffer. Max allowed buffer size is reached.");
     } else {

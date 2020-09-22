@@ -55,7 +55,7 @@ export function submitSaveDataset(dataset, viewId) {
   return (dispatch) => {
     const savedTag = dataset.get('version');
     const link = dataset.getIn(['apiLinks', 'self']);
-    const href = `${link}/save?savedTag=${savedTag}`;
+    const href = `${link}/save?savedTag=${encodeURIComponent(savedTag)}`;
     return dispatch(postDatasetOperation({
       href,
       viewId,

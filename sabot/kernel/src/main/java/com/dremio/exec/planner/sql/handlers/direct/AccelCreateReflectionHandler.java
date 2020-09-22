@@ -33,6 +33,8 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
@@ -55,10 +57,12 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
   private final AccelerationManager accel;
+  private final ReflectionContext reflectionContext;
 
-  public AccelCreateReflectionHandler(Catalog catalog, AccelerationManager accel) {
+  public AccelCreateReflectionHandler(Catalog catalog, AccelerationManager accel, ReflectionContext reflectionContext) {
     this.catalog = catalog;
     this.accel = accel;
+    this.reflectionContext = reflectionContext;
   }
 
   @Override
@@ -81,9 +85,10 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
         table.qualifyColumns(addLayout.getSortList()),
         table.qualifyColumns(addLayout.getDistributionList()),
         table.qualifyColumns(addLayout.getPartitionList()),
+        addLayout.getArrowCachingEnabled(),
         addLayout.getPartitionDistributionStrategy()
     );
-    accel.addLayout(table.getPath(), layout);
+    accel.addLayout(table.getPath(), layout, reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful("Layout added."));
   }
 
@@ -193,7 +198,7 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
 
   private static List<NameAndMeasures> qualifyColumnsWithMeasures(DremioTable table, List<NameAndMeasures> measures){
     // we are using getSchema() instead of getRowType() as it doesn't always report the correct field types for View tables
-    final RelDataType type = table.getSchema().toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
+    final RelDataType type = CalciteArrowHelper.wrap(table.getSchema()).toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
     return measures.stream().map(input -> {
         RelDataTypeField field = type.getField(input.getName(), false, false);
         if(field == null){

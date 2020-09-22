@@ -17,11 +17,12 @@ package com.dremio.exec.store.easy.text.compliant;
 
 import java.io.IOException;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.common.exceptions.UserException;
 import com.univocity.parsers.common.TextParsingException;
 import com.univocity.parsers.csv.CsvParserSettings;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.NettyArrowBuf;
 
 /*******************************************************************************

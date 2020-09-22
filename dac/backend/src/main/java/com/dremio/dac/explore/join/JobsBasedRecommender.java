@@ -36,15 +36,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.dac.explore.model.Dataset;
-import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.JoinRecommendation;
 import com.dremio.dac.explore.model.JoinRecommendations;
 import com.dremio.dac.proto.model.dataset.JoinType;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobsWithParentDatasetRequest;
+import com.dremio.service.job.VersionedDatasetPath;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.JoinCondition;
 import com.dremio.service.job.proto.JoinStats;
 import com.dremio.service.job.proto.JoinTable;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -95,14 +98,16 @@ public class JobsBasedRecommender implements JoinRecommender {
     for (List<String> parentDataset : parents) {
 
       // find all jobs that refer to this parent
-      Iterable<Job> jobsForParent = parentJobsProvider.getJobsForParent(parentDataset);
-      for (Job job : jobsForParent) {
-        Long startTime = job.getJobAttempt().getInfo().getStartTime();
-        if (startTime == null || job.getJobAttempt().getState() != COMPLETED) {
+      Iterable<JobDetails> jobsForParent = parentJobsProvider.getJobsForParent(parentDataset);
+      for (JobDetails jobDetails : jobsForParent) {
+        JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
+        Long startTime = jobAttempt.getInfo().getStartTime();
+        //startTime of 0 means startTime was initially null
+        if (startTime == 0 || jobAttempt.getState() != COMPLETED) {
           continue;
         }
         long recency = now - startTime;
-        JoinAnalysis joinAnalysis = getJoins(job);
+        JoinAnalysis joinAnalysis = jobAttempt.getInfo().getJoinAnalysis();
 
         if (joinAnalysis != null && joinAnalysis.getJoinStatsList() != null && joinAnalysis.getJoinTablesList() != null) {
           Map<Integer,JoinTable> joinTables = FluentIterable.from(joinAnalysis.getJoinTablesList())
@@ -260,11 +265,6 @@ public class JobsBasedRecommender implements JoinRecommender {
     return joinConditions;
   }
 
-  private JoinAnalysis getJoins(Job job) {
-    return job.getJobAttempt().getInfo().getJoinAnalysis();
-  }
-
-
   private static class JoinRecoForScoring implements Comparable<JoinRecoForScoring> {
     private final JoinRecommendation joinReco;
     // for scoring
@@ -297,7 +297,7 @@ public class JobsBasedRecommender implements JoinRecommender {
    * Allows simple mocking of dependency
    */
   interface ParentJobsProvider {
-    Iterable<Job> getJobsForParent(List<String> parentDataset);
+    Iterable<JobDetails> getJobsForParent(List<String> parentDataset);
   }
 
   /**
@@ -311,8 +311,12 @@ public class JobsBasedRecommender implements JoinRecommender {
     }
 
     @Override
-    public Iterable<Job> getJobsForParent(List<String> parentDataset) {
-      return jobsService.getJobsForParent(new DatasetPath(parentDataset).toNamespaceKey(), MAX_JOBS);
+    public Iterable<JobDetails> getJobsForParent(List<String> parentDataset) {
+      JobsWithParentDatasetRequest jobsWithParentDatasetRequest = JobsWithParentDatasetRequest.newBuilder()
+        .setDataset(VersionedDatasetPath.newBuilder().addAllPath(parentDataset))
+        .setLimit(MAX_JOBS)
+        .build();
+      return jobsService.getJobsForParent(jobsWithParentDatasetRequest);
     }
   }
 

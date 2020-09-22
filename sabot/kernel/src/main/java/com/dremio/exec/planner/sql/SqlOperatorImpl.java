@@ -50,7 +50,7 @@ public class SqlOperatorImpl extends SqlFunction {
         argCountMax,
         isDeterministic,
         false,
-        DynamicReturnType.INSTANCE,
+        sqlReturnTypeInference,
         SqlSyntax.FUNCTION);
   }
 

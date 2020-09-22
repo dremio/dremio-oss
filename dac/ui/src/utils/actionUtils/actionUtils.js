@@ -32,7 +32,7 @@ class ActionUtils {
   humanizeNotificationMessage = (errorMessage) => (payload) => {
     const defaultMessage = payload && payload.status === 409
       ? la('The data has been changed since you last accessed it. Please reload the page.')
-      : la('Something went wrong.');
+      : la('Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html');
     const _errorMessage = errorMessage ||
       payload && payload.errorMessage ||
       payload && payload.response && payload.response.errorMessage ||

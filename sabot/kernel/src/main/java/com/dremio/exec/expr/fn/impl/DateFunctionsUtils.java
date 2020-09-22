@@ -16,6 +16,11 @@
 package com.dremio.exec.expr.fn.impl;
 
 import java.text.ParseException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 
 import org.joda.time.Chronology;
 import org.joda.time.DateTime;
@@ -28,6 +33,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.fn.JodaDateValidator;
 import com.dremio.common.util.DateTimes;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.store.sys.TimezoneAbbreviations;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -167,5 +173,60 @@ public class DateFunctionsUtils {
 
   public static int formatTime(String input, DateTimeFormatter format) {
     return DateTimes.toMillisOfDay(format.parseDateTime(input));
+  }
+
+  /**
+   * Convert timestamp from one timezone to another.
+   * If an abbreviation is specified, it will be replaced with offset according to the mapping this.timezoneAbbrOffsetMap
+   *
+   * @param srcTimezone
+   * @param destTz
+   * @param timestampMilli
+   * @param errCtx
+   * @return
+   */
+  public static long convertTimeZone(String srcTimezone, String destTz, long timestampMilli, FunctionErrorContext errCtx) {
+    // convert to offset if abbreviation is provided
+    srcTimezone = TimezoneAbbreviations.getOffset(srcTimezone).orElse(srcTimezone);
+    destTz = TimezoneAbbreviations.getOffset(destTz).orElse(destTz);
+
+    try {
+      LocalDateTime localDateTimeAtUTC = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestampMilli), ZoneId.of("UTC"));
+      ZonedDateTime dateTimeWithSrcTZ = localDateTimeAtUTC.atZone(ZoneId.of(srcTimezone)); // same datetime at srcTZ
+      ZonedDateTime dateTimeAtDestTZ = dateTimeWithSrcTZ.withZoneSameInstant(ZoneId.of(destTz));
+      return dateTimeAtDestTZ.toLocalDateTime()
+              .toInstant(ZoneOffset.ofTotalSeconds(0))
+              .toEpochMilli();
+    } catch (Exception ex) {
+      throw errCtx.error()
+              .message(ex.getMessage())
+              .build();
+    }
+  }
+
+  /**
+   * Convert timestamp from UTC to target timezone.
+   * If an abbreviation is specified, it will be replaced with offset according to the mapping this.timezoneAbbrOffsetMap
+   *
+   *
+   * @param destTz
+   * @param timestampMilli
+   * @param errCtx
+   * @return
+   */
+  public static long convertTimeZone(String destTz, long timestampMilli, FunctionErrorContext errCtx) {
+    // convert to offset if abbreviation is provided
+    destTz = TimezoneAbbreviations.getOffset(destTz).orElse(destTz);
+    try {
+      return Instant.ofEpochMilli(timestampMilli)
+              .atZone(ZoneId.of(destTz))
+              .toLocalDateTime()
+              .toInstant(ZoneOffset.ofTotalSeconds(0))
+              .toEpochMilli();
+    } catch (Exception ex) {
+      throw errCtx.error()
+              .message(ex.getMessage())
+              .build();
+    }
   }
 }

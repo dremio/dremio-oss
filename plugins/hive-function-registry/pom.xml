@@ -22,14 +22,20 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
   <packaging>jar</packaging>
   <name>Plugins - Hive Functions</name>
   <properties>
-    <hadoop.version>2.8.3</hadoop.version>
+    <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
+    <hive.version>${plugin.hive2.hive.version}</hive.version>
+    <datanucleus-api-jdo.version>${plugin.hive2.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
+    <datanucleus-core.version>${plugin.hive2.datanucleus-core.version}</datanucleus-core.version>
+    <datanucleus-rdbms.version>${plugin.hive2.datanucleus-rdbms.version}</datanucleus-rdbms.version>
+    <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
+    <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
   </properties>
 
   <dependencies>
@@ -43,6 +49,16 @@
       <artifactId>dremio-hive-plugin</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-hbase-handler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
@@ -50,6 +66,16 @@
       <classifier>tests</classifier>
       <version>${project.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-hbase-handler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
@@ -61,33 +87,6 @@
       <artifactId>dremio-hive2-exec-shaded</artifactId>
     </dependency>
     <dependency>
-      <!-- UDFs require MetaException -->
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-metastore</artifactId>
-      <exclusions>
-        <exclusion>
-          <artifactId>netty-all</artifactId>
-          <groupId>io.netty</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-api</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-core</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-hbase-compat-1.0</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.apache.derby</groupId>
       <artifactId>derby</artifactId>
       <scope>test</scope>
@@ -95,6 +94,7 @@
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-contrib</artifactId>
+      <version>${hive.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -127,6 +127,12 @@
       <version>${hadoop.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.directory.server</groupId>
+          <artifactId>apacheds-kerberos-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency> <!-- needed for Hive test data generator -->
       <groupId>org.apache.hive</groupId>
@@ -155,6 +161,37 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <version>${hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Needed to run metastore -->
+    <dependency>
+      <groupId>javax.jdo</groupId>
+      <artifactId>jdo-api</artifactId>
+      <version>${jdo-api.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-api-jdo</artifactId>
+      <version>${datanucleus-api-jdo.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-core</artifactId>
+      <version>${datanucleus-core.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-rdbms</artifactId>
+      <version>${datanucleus-rdbms.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>javax.jdo</artifactId>
+      <version>${datanucleus-jdo.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -299,6 +336,7 @@
                 -Xmx3G
                 -XX:MaxDirectMemorySize=5120M
                 -XX:+CMSClassUnloadingEnabled
+                @{argLine}
               </argLine>
             </configuration>
           </plugin>

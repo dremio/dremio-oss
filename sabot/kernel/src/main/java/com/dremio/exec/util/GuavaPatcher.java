@@ -32,67 +32,64 @@ public class GuavaPatcher {
   public static synchronized void patch() {
     if (!patched) {
       try {
-        patchStopwatch();
-        patchCloseables();
+        final ClassPool pool = ClassPool.getDefault();
+        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        if (contextClassLoader != null) {
+          pool.insertClassPath(new LoaderClassPath(contextClassLoader));
+        }
+        patchGuava(pool);
+
         patched = true;
-      } catch (Throwable e) {
+      } catch (Exception e) {
         logger.warn("Unable to patch Guava classes.", e);
       }
     }
   }
 
   /**
-   * Makes Guava stopwatch look like the old version for compatibility with hbase-server (for test purposes).
+   * Patch an existing classloader for Guava 13 compatibilty
+   * @param cl
+   * @throws Exception
    */
-  private static void patchStopwatch() throws Exception {
+  public static void patchClassLoader(ClassLoader cl) throws Exception {
+    final ClassPool pool = new ClassPool();
+    pool.insertClassPath(new LoaderClassPath(cl));
 
-    final ClassPool pool = ClassPool.getDefault();
-    final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-    if (contextClassLoader != null) {
-      pool.insertClassPath(new LoaderClassPath(contextClassLoader));
-    }
+    patchGuava(pool);
+  }
 
-    CtClass cc = pool.get("com.google.common.base.Stopwatch");
+  private static void patchGuava(ClassPool pool) throws Exception {
+    CtClass stopwatchClass = pool.get("com.google.common.base.Stopwatch");
 
     // Expose the constructor for Stopwatch for old libraries who use the pattern new Stopwatch().start().
-    for (CtConstructor c : cc.getConstructors()) {
+    for (CtConstructor c : stopwatchClass.getConstructors()) {
       if (!Modifier.isStatic(c.getModifiers())) {
         c.setModifiers(Modifier.PUBLIC);
       }
     }
 
     // Add back the Stopwatch.elapsedMillis() method for old consumers.
-    CtMethod newmethod = CtNewMethod.make(
-        "public long elapsedMillis() { return elapsed(java.util.concurrent.TimeUnit.MILLISECONDS); }", cc);
-    cc.addMethod(newmethod);
+    CtMethod elapsedMethod = CtNewMethod.make(
+        "public long elapsedMillis() { return elapsed(java.util.concurrent.TimeUnit.MILLISECONDS); }", stopwatchClass);
+    stopwatchClass.addMethod(elapsedMethod);
 
     // Load the modified class instead of the original.
-    cc.toClass();
+    stopwatchClass.toClass();
 
-    logger.info("Google's Stopwatch patched for old HBase Guava version.");
-  }
+    logger.debug("Google's Stopwatch patched for old HBase Guava version.");
 
-  private static void patchCloseables() throws Exception {
-
-    final ClassPool pool = ClassPool.getDefault();
-    final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-    if (contextClassLoader != null) {
-      pool.insertClassPath(new LoaderClassPath(contextClassLoader));
-    }
-
-    CtClass cc = pool.get("com.google.common.io.Closeables");
-
+    CtClass closeablesClass = pool.get("com.google.common.io.Closeables");
 
     // Add back the Closeables.closeQuietly() method for old consumers.
-    CtMethod newmethod = CtNewMethod.make(
+    CtMethod closeQuietlyMethod = CtNewMethod.make(
         "public static void closeQuietly(java.io.Closeable closeable) { try{closeable.close();}catch(Exception e){} }",
-        cc);
-    cc.addMethod(newmethod);
+        closeablesClass);
+    closeablesClass.addMethod(closeQuietlyMethod);
 
     // Load the modified class instead of the original.
-    cc.toClass();
+    closeablesClass.toClass();
 
-    logger.info("Google's Closeables patched for old HBase Guava version.");
+    logger.debug("Google's Closeables patched for old HBase Guava version.");
   }
 
 }

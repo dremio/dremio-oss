@@ -26,6 +26,7 @@ import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -40,6 +41,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   private final String tempLocation;
   private final String finalLocation;
   private final FileSystemPlugin<?> plugin;
+  private final IcebergTableProps icebergTableProps;
 
   @JsonCreator
   public WriterCommitterPOP(
@@ -47,12 +49,14 @@ public class WriterCommitterPOP extends AbstractSingle {
       @JsonProperty("tempLocation") String tempLocation,
       @JsonProperty("finalLocation") String finalLocation,
       @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
       @JsonProperty("child") PhysicalOperator child,
       @JacksonInject CatalogService catalogService
       ) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
+    this.icebergTableProps = icebergTableProps;
     this.plugin = Preconditions.checkNotNull(catalogService.<FileSystemPlugin<?>>getSource(pluginId));
   }
 
@@ -60,6 +64,7 @@ public class WriterCommitterPOP extends AbstractSingle {
       OpProps props,
       String tempLocation,
       String finalLocation,
+      IcebergTableProps icebergTableProps,
       PhysicalOperator child,
       FileSystemPlugin<?> plugin
       ) {
@@ -67,6 +72,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
     this.plugin = Preconditions.checkNotNull(plugin);
+    this.icebergTableProps = icebergTableProps;
   }
 
   @Override
@@ -76,7 +82,7 @@ public class WriterCommitterPOP extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new WriterCommitterPOP(props, tempLocation, finalLocation, child, plugin);
+    return new WriterCommitterPOP(props, tempLocation, finalLocation, icebergTableProps, child, plugin);
   }
 
   public String getTempLocation() {
@@ -104,5 +110,9 @@ public class WriterCommitterPOP extends AbstractSingle {
   @Override
   public int getOperatorType() {
     return CoreOperatorType.WRITER_COMMITTER_VALUE;
+  }
+
+  public IcebergTableProps getIcebergTableProps() {
+    return icebergTableProps;
   }
 }

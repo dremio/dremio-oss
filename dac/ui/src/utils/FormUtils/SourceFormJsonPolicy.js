@@ -31,10 +31,33 @@ import MetadataRefreshConfig from 'utils/FormUtils/MetadataRefreshConfig';
 import PropertListConfig from 'utils/FormUtils/PropertyListConfig';
 import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
-import { PASSWORD_FIELD, USER_NAME_FIELD, SECRET_RESOURCE_URL_FIELD } from '@app/components/Forms/Credentials';
-
+import { isCME } from 'dyn-load/utils/versionUtils';
+import { PASSWORD_FIELD, SECRET_RESOURCE_URL_FIELD, USER_NAME_FIELD } from '@app/components/Forms/Credentials';
 
 export default class SourceFormJsonPolicy {
+  static addAlwaysPresent(functionalConfig, uiConfig) {
+    if (functionalConfig.elements) {
+      functionalConfig.elements.push({
+        label: la('Enable this source to be used with other sources even though Disable Cross Source is configured'),
+        propertyName: 'allowCrossSourceSelection',
+        type: 'boolean'
+      });
+    }
+
+    if (uiConfig.form && uiConfig.form.tabs[1]) {
+      uiConfig.form.tabs[1].sections.push({
+        'elements': [
+          {
+            'propName': 'allowCrossSourceSelection',
+            'visibilityControl': {
+              'config': 'crossSourceDisabled',
+              'showCondition': true
+            }
+          }
+        ]
+      });
+    }
+  }
 
   static deepCopyConfig(config) {
     return FormUtils.deepCopyConfig(config);
@@ -77,9 +100,10 @@ export default class SourceFormJsonPolicy {
    * @param typeConfig
    */
   static getCombinedConfig(typeCode, typeConfig) {
-    const uiConfig = DEFAULT_VLHF_DETAIL[typeCode];
-    const conbinedConfig = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(typeConfig, uiConfig);
-    return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(conbinedConfig, typeConfig);
+    // Sources can provide their own UI config
+    const uiConfig = (typeConfig.uiConfig ? typeConfig.uiConfig : DEFAULT_VLHF_DETAIL[typeCode]);
+    const combinedConfig = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(typeConfig, uiConfig);
+    return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(combinedConfig, typeConfig);
   }
 
   /**
@@ -95,6 +119,9 @@ export default class SourceFormJsonPolicy {
 
     // if no uiConfig, return functional
     if (!uiConfig) return this.makeCombinedFromFunctionalConfig(functionalConfig);
+
+    // add any always preset source options
+    this.addAlwaysPresent(functionalConfig, uiConfig);
 
     // combine high level form properties
     const mergedMetaConfig = this.mergeFormMetadataConfig(uiConfig, functionalConfig);
@@ -324,7 +351,8 @@ export default class SourceFormJsonPolicy {
     this.addReflectionRefreshTab(config, functionalElements);
 
     // add Sharing tab
-    if (SHARING_TAB_JSON_TEMPLATE.name) {
+    const notCME = (!isCME || !isCME());
+    if (SHARING_TAB_JSON_TEMPLATE.name && notCME) {
       const sharingTabJson = this.deepCopyConfig(SHARING_TAB_JSON_TEMPLATE);
       config.form.addTab(new FormTabConfig(sharingTabJson, functionalElements));
     }

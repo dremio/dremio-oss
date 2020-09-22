@@ -34,8 +34,8 @@ import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.support.UpgradeStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.test.DremioTest;
 
 /**
@@ -46,8 +46,8 @@ public class TestUpgradeStore {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private static final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true,
-    false);
+  private static final LegacyKVStoreProvider kvstore =
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
 
   private static UpgradeStore upgradeStore;
 

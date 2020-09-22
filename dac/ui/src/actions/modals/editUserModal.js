@@ -15,9 +15,8 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V3 } from '@app/constants/Api';
-import { makeUncachebleURL } from 'ie11.js';
 import { USERS_VIEW_ID } from '@app/actions/admin';
+import APICall from '@app/core/APICall';
 
 const v3ApiMigrationSuffix = '_API_V3'; // todo get rid of that suffix, when all UI would be migrated to v3 api
 export const USER_GET_START = 'USER_GET_START' + v3ApiMigrationSuffix;
@@ -25,6 +24,11 @@ export const USER_GET_SUCCESS = 'USER_GET_SUCCESS' + v3ApiMigrationSuffix;
 export const USER_GET_FAILURE = 'USER_GET_FAILURE' + v3ApiMigrationSuffix;
 
 export function loadUser(userId) { // todo: audit uses of this call and switch to ids where possible (vs userName)
+  const apiCall = new APICall()
+    .path('user')
+    .path(userId)
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -33,7 +37,7 @@ export function loadUser(userId) { // todo: audit uses of this call and switch t
         USER_GET_FAILURE
       ],
       method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V3}/user/${encodeURIComponent(userId)}`)
+      endpoint: apiCall
     }
   };
 }
@@ -55,6 +59,14 @@ export function editUser({
       level: 'success'
     }
   };
+
+  const apiCall = new APICall()
+    .path( 'user');
+
+  if (!isNewUser) {
+    apiCall.path(userId);
+  }
+
   return {
     [RSAA]: {
       types: [
@@ -65,7 +77,7 @@ export function editUser({
       method: isNewUser ? 'POST' : 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(values),
-      endpoint: `${API_URL_V3}/user/${isNewUser ? '' : encodeURIComponent(userId)}`
+      endpoint: apiCall
     }
   };
 }

@@ -22,7 +22,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>dremio-services-configuration</artifactId>
@@ -57,8 +57,8 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-maven-plugin</artifactId>
+        <groupId>com.dremio.tools</groupId>
+        <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <configuration>
           <protoModules>
             <protoModule>

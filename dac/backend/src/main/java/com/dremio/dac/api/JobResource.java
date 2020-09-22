@@ -17,6 +17,7 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.validation.Valid;
@@ -32,16 +33,30 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.resource.BaseResourceWithAllocator;
+import com.dremio.dac.server.BufferAllocatorFactory;
+import com.dremio.dac.service.errors.InvalidReflectionJobException;
+import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.CancelReflectionJobRequest;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobState;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.job.proto.JobState;
-import com.dremio.service.jobs.GetJobRequest;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+
 
 /**
  * Jobs API resource
@@ -52,12 +67,13 @@ import com.google.common.base.Preconditions;
 @Path("/job")
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
-public class JobResource {
+public class JobResource extends BaseResourceWithAllocator {
   private final JobsService jobs;
   private final SecurityContext securityContext;
 
   @Inject
-  public JobResource(JobsService jobs, SecurityContext securityContext) {
+  public JobResource(JobsService jobs, SecurityContext securityContext, BufferAllocatorFactory allocatorFactory) {
+    super(allocatorFactory);
     this.jobs = jobs;
     this.securityContext = securityContext;
   }
@@ -66,13 +82,13 @@ public class JobResource {
   @Path("/{id}")
   public JobStatus getJobStatus(@PathParam("id") String id) {
     try {
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(new JobId(id))
+      JobDetailsRequest request = JobDetailsRequest.newBuilder()
+        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(id).build())
         .setUserName(securityContext.getUserPrincipal().getName())
         .build();
-      Job job = jobs.getJob(request);
+      JobDetails jobDetails = jobs.getJobDetails(request);
 
-      return JobStatus.fromJob(job);
+      return JobStatus.fromJob(jobDetails);
     } catch (JobNotFoundException e) {
       throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
     }
@@ -80,21 +96,21 @@ public class JobResource {
 
   @GET
   @Path("/{id}/results")
-  public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
+  public JobResourceData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
     Preconditions.checkArgument(limit <= 500,"limit can not exceed 500 rows");
     try {
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(new JobId(id))
+      JobSummaryRequest request = JobSummaryRequest.newBuilder()
+        .setJobId(JobProtobuf.JobId.newBuilder().setId(id).build())
         .setUserName(securityContext.getUserPrincipal().getName())
         .build();
-      Job job = jobs.getJob(request);
+      JobSummary jobSummary = jobs.getJobSummary(request);
 
-
-      if (job.getJobAttempt().getState() != JobState.COMPLETED) {
-        throw new BadRequestException(String.format("Can not fetch details for a job that is in [%s] state.", job.getJobAttempt().getState()));
+      if (jobSummary.getJobState() != JobState.COMPLETED) {
+        throw new BadRequestException(String.format("Can not fetch details for a job that is in [%s] state.", jobSummary.getJobState()));
       }
-
-      return new QueryJobResults(job, offset, limit).getData();
+      // Additional wait not necessary since we check for job completion via JobState
+      return new JobResourceData(jobs, jobSummary, securityContext.getUserPrincipal().getName(),
+        getOrCreateAllocator("getQueryResults"),  offset, limit);
     } catch (JobNotFoundException e) {
       throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
     }
@@ -106,9 +122,73 @@ public class JobResource {
     final String username = securityContext.getUserPrincipal().getName();
 
     try {
-      jobs.cancel(username, new JobId(id), String.format("Query cancelled by user '%s'", username));
+      jobs.cancel(CancelJobRequest.newBuilder()
+          .setUsername(username)
+          .setJobId(JobsProtoUtil.toBuf(new JobId(id)))
+          .setReason(String.format("Query cancelled by user '%s'", username))
+          .build());
     } catch (JobNotFoundException e) {
       throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+    }
+  }
+
+  @GET
+  @Path("/{id}/reflection/{reflectionId}")
+  public JobStatus getReflectionJobStatus(@PathParam("id") String id,
+                                          @PathParam("reflectionId") String reflectionId) {
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .build();
+    }
+
+    try {
+      JobDetailsRequest.Builder jobDetailsRequestBuilder = JobDetailsRequest.newBuilder()
+        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(id).build())
+        .setUserName(securityContext.getUserPrincipal().getName());
+
+      ReflectionJobDetailsRequest request = ReflectionJobDetailsRequest.newBuilder()
+        .setJobDetailsRequest(jobDetailsRequestBuilder.build())
+        .setReflectionId(reflectionId)
+        .build();
+
+      JobDetails jobDetails = jobs.getReflectionJobDetails(request);
+
+      return JobStatus.fromJob(jobDetails);
+    } catch (JobNotFoundException e) {
+      throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+    }  catch (ReflectionJobValidationException e) {
+      throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
+    }
+  }
+
+  @POST
+  @Path("/{id}/reflection/{reflectionId}/cancel")
+  public void cancelReflectionJob(@PathParam("id") String id,
+                        @PathParam("reflectionId") String reflectionId) throws JobException {
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .build();
+    }
+
+    final String username = securityContext.getUserPrincipal().getName();
+
+    try {
+      CancelJobRequest cancelJobRequest = CancelJobRequest.newBuilder()
+        .setUsername(username)
+        .setJobId(JobsProtoUtil.toBuf(new JobId(id)))
+        .setReason(String.format("Query cancelled by user '%s'", username))
+        .build();
+      CancelReflectionJobRequest cancelReflectionJobRequest = CancelReflectionJobRequest.newBuilder()
+        .setCancelJobRequest(cancelJobRequest)
+        .setReflectionId(reflectionId)
+        .build();
+      jobs.cancelReflectionJob(cancelReflectionJobRequest);
+    } catch (JobNotFoundException e) {
+      throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+    } catch (ReflectionJobValidationException e) {
+      throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
     }
   }
 }

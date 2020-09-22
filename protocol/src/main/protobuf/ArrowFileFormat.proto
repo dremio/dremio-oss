@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 // Contains Arrow file format specific structures.
+syntax = "proto2";
 package arrow.fileformat;
 
 option java_package = "com.dremio.exec.store.easy.arrow";
@@ -22,6 +23,7 @@ option optimize_for = SPEED;
 option java_generate_equals_and_hash = true;
 
 import "UserBitShared.proto";
+import "Coordination.proto";
 
 /**
  * Arrow record batch summary for footer of Arrow format file. See ArrowFormatPlugin for more details.
@@ -46,4 +48,7 @@ message ArrowFileMetadata {
   optional string path = 1;
   optional int64 record_count = 2;
   optional ArrowFileFooter footer = 3;
+  // NodeEndpoint of executor which ran screen operator and persisted
+  // query results in arrow file format.
+  optional exec.NodeEndpoint screen_node_endpoint = 4;
 }

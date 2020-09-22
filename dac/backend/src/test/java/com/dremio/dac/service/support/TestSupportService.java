@@ -42,9 +42,9 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.support.SupportResponse;
 import com.dremio.dac.support.SupportService;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
@@ -113,9 +113,9 @@ public class TestSupportService extends BaseTestServer {
         .setLimit(1)
         .build();
 
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
+    List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     assertEquals(1, jobs.size());
-    Job job = jobs.get(0);
+    JobSummary job = jobs.get(0);
     String url = "/support/" + job.getJobId().getId();
     SupportResponse response = expectSuccess(getBuilder(url).buildPost(null), SupportResponse.class);
     assertTrue(response.getUrl().contains("Unable to upload diagnostics"));

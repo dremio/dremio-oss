@@ -78,9 +78,12 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     }
 
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(rel.getCluster().getPlanner());
-    double filterMinSelectivityEstimateFactor = plannerSettings.getFilterMinSelectivityEstimateFactor();
-    double filterMaxSelectivityEstimateFactor = plannerSettings.getFilterMaxSelectivityEstimateFactor();
-
+    double filterMinSelectivityEstimateFactor = plannerSettings == null ?
+      PlannerSettings.DEFAULT_FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR :
+      plannerSettings.getFilterMinSelectivityEstimateFactor();
+    double filterMaxSelectivityEstimateFactor = plannerSettings == null ?
+      PlannerSettings.DEFAULT_FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR :
+      plannerSettings.getFilterMaxSelectivityEstimateFactor();
 
     final RexNode remaining;
     if (rel instanceof JoinRelBase) {

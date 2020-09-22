@@ -51,3 +51,27 @@ describe('showJobProfile', () => {
     localStorageUtils.getAuthToken.restore();
   });
 });
+
+
+describe('showReflectionJobProfile', () => {
+  it('modifies the url properly', () => {
+    const profileUrl = '/profiles/234ec562-1fe6-7ee1-b3c4-a74e57720300?attempt=0';
+    const thunk = Actions.showReflectionJobProfile(profileUrl, 'testid');
+    const dispatch = sinon.stub();
+    sinon.stub(localStorageUtils, 'getAuthToken').returns('test_token');
+    const getState = () => ({ routing: {} });
+    thunk(dispatch, getState);
+
+    expect(dispatch).to.be.calledOnce;
+    const args = dispatch.getCall(0).args;
+    // extract state parameter for react-router-redux's push action
+    expect(args[0].payload.args[0]).to.be.eql({
+      state: {
+        modal:'JobProfileModal',
+        profileUrl:`${API_URL_V2}/profiles/234ec562-1fe6-7ee1-b3c4-a74e57720300/reflection/testid?attempt=0&Authorization=test_token`
+      }
+    }, 'profile url modified');
+
+    localStorageUtils.getAuthToken.restore();
+  });
+});

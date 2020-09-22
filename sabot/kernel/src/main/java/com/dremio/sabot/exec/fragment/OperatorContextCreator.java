@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
@@ -31,7 +33,9 @@ import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
@@ -61,6 +65,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final FunctionLookupContext decimalFuncRegistry;
   private final NamespaceService namespaceService;
   private final OptionManager options;
+  private final FragmentExecutorBuilder fragmentExecutorBuilder;
   private final ExecutorService executor;
   private final SpillService spillService;
   private final ContextInformation contextInformation;
@@ -68,17 +73,22 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final TunnelProvider tunnelProvider;
   private final List<FragmentAssignment> assignments;
   private final EndpointsIndex endpointsIndex;
+  private Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
+  private final List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
                                 FunctionLookupContext funcRegistry, FunctionLookupContext decimalFuncRegistry,
-                                NamespaceService namespaceService, OptionManager options,
+                                NamespaceService namespaceService, OptionManager options, FragmentExecutorBuilder fragmentExecutorBuilder,
                                 ExecutorService executor, SpillService spillService, ContextInformation contextInformation,
                                 NodeDebugContextProvider nodeDebugContextProvider, TunnelProvider tunnelProvider,
-                                List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex) {
+                                List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex,
+                                Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
+                                List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments) {
     super();
     this.stats = stats;
     this.allocator = allocator;
+    this.nodeEndpointProvider = nodeEndpointProvider;
     this.fragmentOutputAllocator = null;
     this.compiler = compiler;
     this.config = config;
@@ -88,6 +98,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.decimalFuncRegistry = decimalFuncRegistry;
     this.namespaceService = namespaceService;
     this.options = options;
+    this.fragmentExecutorBuilder = fragmentExecutorBuilder;
     this.executor = executor;
     this.spillService = spillService;
     this.contextInformation = contextInformation;
@@ -95,6 +106,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.tunnelProvider = tunnelProvider;
     this.assignments = assignments;
     this.endpointsIndex = endpointsIndex;
+    this.extFragmentAssignments = extFragmentAssignments;
   }
 
   public void setFragmentOutputAllocator(BufferAllocator fragmentOutputAllocator) {
@@ -129,16 +141,18 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         compiler,
         stats,
         executionControls,
+        fragmentExecutorBuilder,
         executor,
         functionLookupContext,
         contextInformation,
         options,
-        namespaceService,
         spillService,
         nodeDebugContextProvider,
         popConfig.getProps().getTargetBatchSize(),
         tunnelProvider,
         assignments,
+        extFragmentAssignments,
+        nodeEndpointProvider,
         endpointsIndex);
       operatorContexts.add(context);
       closeable.commit();

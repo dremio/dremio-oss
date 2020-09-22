@@ -37,6 +37,8 @@ public class Job {
   private final JobId jobId;
   private final List<JobAttempt> attempts = new CopyOnWriteArrayList<>();
   private final JobResultsStore resultsStore;
+  private volatile long recordCount;
+  private volatile boolean isInternal;
 
   private JobData data;
   /**
@@ -64,6 +66,14 @@ public class Job {
     this.attempts.addAll(jobResult.getAttemptsList());
     this.resultsStore = checkNotNull(resultsStore);
     this.completed = jobResult.getCompleted();
+  }
+
+  void setRecordCount(long recordCount) {
+    this.recordCount = recordCount;
+  }
+
+  long getRecordCount() {
+    return this.recordCount;
   }
 
   public JobId getJobId() {
@@ -98,8 +108,7 @@ public class Job {
     if (data != null) {
       return data;
     }
-
-    return resultsStore.get(jobId);
+    return resultsStore.get(getJobId());
   }
 
   void setData(JobData data){
@@ -115,8 +124,20 @@ public class Job {
     this.completed = completed;
   }
 
+  /**
+   * Check if this Job has results. Job results may exist for FAILED jobs. Users
+   * should be aware and check JobState if necessary.
+   */
   public boolean hasResults() {
     return resultsStore != null && resultsStore.jobOutputDirectoryExists(jobId);
+  }
+
+  void setIsInternal(boolean isInternal) {
+    this.isInternal = isInternal;
+  }
+
+  boolean isInternal() {
+    return isInternal;
   }
 
   @Override

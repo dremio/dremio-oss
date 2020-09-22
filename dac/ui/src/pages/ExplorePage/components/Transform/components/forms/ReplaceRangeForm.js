@@ -144,23 +144,25 @@ export class ReplaceRangeForm extends Component {
       };
 
     return this.props.submit(data, submitType);
-  }
+  };
 
   render() {
     const { fields, submitForm, transform } = this.props;
     const columnType = transform.get('columnType');
     const transformType = transform.get('transformType');
     const chartWidth = this.getChartWidth();
+    const showChart = this.chartData && !!this.chartData.length;
 
     return (
       <TransformForm {...formWrapperProps(this.props)} onFormSubmit={this.submit}>
-        <TransformRange
+        {showChart && <TransformRange
           columnType={columnType}
           data={this.chartData}
           chartWidth={chartWidth}
           fields={fields}
           isReplace={transformType === 'replace'}
         />
+        }
         <Tabs activeTab={transformType}>
           <ReplaceFooter
             tabId='replace'

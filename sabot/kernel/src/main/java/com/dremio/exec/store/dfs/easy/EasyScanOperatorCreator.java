@@ -122,7 +122,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
     final boolean sortReaders = context.getOptions().getOption(ExecConstants.SORT_FILE_BLOCKS);
     final List<SplitAndExtended> workList = sortReaders ?  unorderedWork.toSortedList(SPLIT_COMPARATOR) : unorderedWork.toList();
     final boolean selectAllColumns = selectsAllColumns(config.getFullSchema(), config.getColumns());
-    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
+    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(context, config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
     final List<SchemaPath> innerFields = selectAllColumns ? ImmutableList.of(ColumnUtils.STAR_COLUMN) : readerConfig.getInnerColumns();
 
     FluentIterable<RecordReader> readers =

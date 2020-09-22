@@ -40,6 +40,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.Materialization;
@@ -131,7 +132,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
 
     Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
 
-    final RelSerializerFactory serializerFactory = RelSerializerFactory.getFactory(config, sqlHandlerConfig.getScanResult());
+    final RelSerializerFactory serializerFactory = RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
 
     this.refreshDecision = RefreshDecisionMaker.getRefreshDecision(
       entry,
@@ -142,7 +143,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       plan,
       strippedPlan,
       requestedTables,
-      serializerFactory);
+      serializerFactory,
+      optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH));
 
     if (isIncremental(refreshDecision)) {
       try {

@@ -83,6 +83,11 @@ describe('apiUtils', () => {
       jsonFn = sinon.stub();
     });
 
+    it('should return prefix if response is not valid', () => {
+      return apiUtils.getErrorMessage('==>', {}).then((msg) => {
+        expect(msg).to.equal('==>');
+      });
+    });
     it('should return prefix if no message provided', () => {
       jsonFn.resolves(null);
       return apiUtils.getErrorMessage('==>', {json: jsonFn}).then((msg) => {

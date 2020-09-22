@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.bit.reflection;
 
 option java_package = "com.dremio.exec.proto";
@@ -20,8 +21,6 @@ option java_outer_classname = "ReflectionRPC";
 option optimize_for = SPEED;
 option java_generate_equals_and_hash = true;
 
-import "ExecutionProtos.proto";
-import "Coordination.proto";
 import "UserBitShared.proto";
 
 ////// BitControl RPC ///////
@@ -54,6 +53,7 @@ message ReflectionInfo {
  optional string external_reflection = 12;
  optional int32 num_failures = 13 [default = 0];
  repeated exec.shared.MeasureColumn measure_columns = 14;
+ optional bool arrowCachingEnabled = 15 [default = false];
 }
 
 message ReflectionInfoResp {

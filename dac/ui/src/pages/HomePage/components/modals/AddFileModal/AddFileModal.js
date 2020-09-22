@@ -99,7 +99,7 @@ export class AddFileModal extends Component {
     this.props.destroy('addFile');
     this.props.resetViewState(PREVIEW_VIEW_ID);
     this.props.hide();
-  }
+  };
 
   checkIfFileIsTooLarge = (file) => {
     const isTooLarge = (file.size > MAX_UPLOAD_FILE_SIZE);
@@ -114,7 +114,7 @@ export class AddFileModal extends Component {
     this.props.resetFileFormatPreview();
 
     return ApiUtils.attachFormSubmitHandlers(this.props.uploadFileToPath(file, { name }, extension))
-      .then((response) => {
+      .then(() => {
         this.goToPage(1);
       });
   };
@@ -128,7 +128,7 @@ export class AddFileModal extends Component {
     ).then(() => {
       this.onHide(true);
     });
-  }
+  };
 
   onPreview = (values) => {
     const { file } = this.props;
@@ -152,7 +152,7 @@ export class AddFileModal extends Component {
     if (pageNumber !== 1) {
       this.props.resetViewState(PREVIEW_VIEW_ID);
     }
-  }
+  };
 
   renderTooLargeMessage() {
     const { tooLarge } = this.state;

@@ -103,7 +103,7 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
 
     final Map<Integer, DataCollector> collectors = Maps.newHashMap();
     EndpointsIndex endpointsIndex = planFragmentsIndex.getEndpointsIndex();
-    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(allocator)) {
+    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(true, allocator)) {
       for (int i = 0; i < fragment.getMinor().getCollectorCount(); i++) {
         Collector collector = fragment.getMinor().getCollector(i);
 
@@ -139,7 +139,7 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
 
   private DataCollector collector(int sendMajorFragmentId){
     DataCollector collector = collectorMap.get(sendMajorFragmentId);
-    Preconditions.checkNotNull(collector, "We received a major fragment id that we were not expecting.  The id was %d. %s", sendMajorFragmentId, Arrays.toString(collectorMap.values().toArray()));
+    Preconditions.checkNotNull(collector, "We received a major fragment id that we were not expecting.  The id was %s. %s", sendMajorFragmentId, Arrays.toString(collectorMap.values().toArray()));
     return collector;
   }
 
@@ -178,9 +178,10 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
     return !resourceGroup.isAvailable();
   }
 
+  @Override
   public RawFragmentBatchProvider[] getBuffers(int senderMajorFragmentId) {
     DataCollector collector = collectorMap.get(senderMajorFragmentId);
-    Preconditions.checkNotNull(collector, "Invalid major fragment id %d. Expected a value in %s", senderMajorFragmentId, collectorMap.values().toString());
+    Preconditions.checkNotNull(collector, "Invalid major fragment id %s. Expected a value in %s", senderMajorFragmentId, collectorMap.values().toString());
     return collector.getBuffers();
   }
 

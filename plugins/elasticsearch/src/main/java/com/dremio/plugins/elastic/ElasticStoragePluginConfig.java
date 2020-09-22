@@ -35,7 +35,7 @@ import io.protostuff.Tag;
 /**
  * Configuration for regular Elasticsearch storage plugin.
  */
-@SourceType(value = "ELASTIC", label = "Elasticsearch")
+@SourceType(value = "ELASTIC", label = "Elasticsearch", uiConfig = "elastic-storage-layout.json")
 public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   //  repeated Host host = 1; // default port should be 9200

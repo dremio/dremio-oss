@@ -18,10 +18,13 @@ package com.dremio.dac.server;
 import static com.dremio.common.utils.PathUtils.getKeyJoiner;
 import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
+import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
+import static org.awaitility.Awaitility.await;
 import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -36,6 +39,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.security.Principal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
@@ -50,6 +54,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.eclipse.jetty.http.HttpHeader;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.hamcrest.CoreMatchers;
@@ -86,6 +91,7 @@ import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.model.usergroup.UserLogin;
@@ -98,23 +104,33 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.file.FilePath;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
+import com.dremio.service.conduit.server.ConduitServer;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
@@ -127,6 +143,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * base class for server tests
@@ -242,6 +259,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static DremioClient dremioClient;
 
   private static WebTarget rootTarget;
+  private static WebTarget metricsEndpoint;
   private static WebTarget apiV2;
   private static WebTarget masterApiV2;
   private static WebTarget publicAPI;
@@ -273,6 +291,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return apiV2;
   }
 
+  protected static WebTarget getMetricsEndpoint() {
+    return metricsEndpoint;
+  }
+
   protected static WebTarget getMasterAPIv2() {
     return masterApiV2;
   }
@@ -281,8 +303,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return publicAPI.path("v" + version);
   }
 
-  public static WebTarget getMasterPublicAPI() {
-    return masterPublicAPI;
+  public static WebTarget getMasterPublicAPI(Integer version) {
+    return masterPublicAPI.path("v" + version);
   }
 
   protected static DACDaemon getCurrentDremioDaemon() {
@@ -373,6 +395,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
       .register(MultiPartFeature.class)
       .build();
     rootTarget = client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort());
+    final WebTarget livenessServiceTarget = client.target("http://localhost:" + currentDremioDaemon.getLivenessService().getLivenessPort());
+    metricsEndpoint = livenessServiceTarget.path("metrics");
     apiV2 = rootTarget.path(API_LOCATION);
     publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
     if (isMultinode()) {
@@ -407,6 +431,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
     final String hostname = InetAddress.getLocalHost().getCanonicalHostName();
+    Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
     if (isMultiNode) {
       logger.info("Running tests in multinode mode");
 
@@ -435,6 +460,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .autoPort(true)
               .allowTestApis(testApiEnabled)
               .serveUI(false)
+              .jobServerEnabled(true)
               .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
@@ -455,9 +481,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .allowTestApis(testApiEnabled)
               .serveUI(false)
               .inMemoryStorage(inMemoryStorage)
+              .jobServerEnabled(true)
               .writePath(folder2.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
-              .clusterMode(ClusterMode.DISTRIBUTED)
+            .clusterMode(ClusterMode.DISTRIBUTED)
               .localPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort() + 1)
               .isRemote(true)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
@@ -586,6 +613,12 @@ public abstract class BaseTestServer extends BaseClientUtils {
     });
     SabotContext context = dremioBinder.lookup(SabotContext.class);
     dremioBinder.bind(OptionManager.class, context.getOptionManager());
+
+    dremioBinder.bindProvider(ReflectionAdministrationService.class, () -> {
+      ReflectionAdministrationService.Factory factory = dremioBindingProvider.lookup(ReflectionAdministrationService.Factory.class);
+      return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
+    });
+
     return dremioBinder;
   }
 
@@ -596,9 +629,21 @@ public abstract class BaseTestServer extends BaseClientUtils {
     }
   }
 
+  private static int getResourceAllocatorCount() {
+    return l(BufferAllocatorFactory.class)
+      .getBaseAllocator()
+      .getChildAllocators()
+      .size();
+  }
+
   @AfterClass
   public static void close() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@AfterClass")) {
+
+      await().atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertEquals("Not all the resource allocators were closed.",
+          0, BaseTestServer.getResourceAllocatorCount()));
+
       defaultUser = true; // in case another test disables the default user and forgets to enable it back again at the end
       AutoCloseables.close(
           new AutoCloseable(){
@@ -684,7 +729,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   public static void clearAllDataExceptUser() throws IOException, NamespaceException {
     @SuppressWarnings("resource")
     DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
-    TestUtilities.clear(daemon.getBindingProvider().lookup(CatalogService.class), daemon.getBindingProvider().lookup(KVStoreProvider.class),
+    TestUtilities.clear(daemon.getBindingProvider().lookup(CatalogService.class), daemon.getBindingProvider().lookup(LegacyKVStoreProvider.class),
       ImmutableList.of(SimpleUserService.USER_STORE), ImmutableList.of("cp"));
     if(isMultinode()) {
       ((CatalogServiceImpl)getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class)).synchronizeSources();
@@ -972,4 +1017,54 @@ public abstract class BaseTestServer extends BaseClientUtils {
     assertEquals("error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
     assertTrue("Unexpected more infos field", error.getMoreInfo().contains(expectedMoreInfo));
   }
+
+  protected JobId submitAndWaitUntilSubmitted(JobRequest request, JobStatusListener listener) {
+    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(l(JobsService.class), request, listener);
+  }
+
+  protected JobId submitAndWaitUntilSubmitted(JobRequest request) {
+    return JobsServiceTestUtils.submitAndWaitUntilSubmitted(l(JobsService.class), request);
+  }
+
+  protected JobId submitJobAndWaitUntilCompletion(JobRequest request, JobStatusListener listener) {
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request, listener);
+  }
+
+  protected boolean submitJobAndCancelOnTimeOut(JobRequest request, long timeOutInMillis) throws Exception {
+    return JobsServiceTestUtils.submitJobAndCancelOnTimeout(l(JobsService.class), request, timeOutInMillis);
+  }
+
+  protected JobId submitJobAndWaitUntilCompletion(JobRequest request) {
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request);
+  }
+
+  protected void runQuery(JobsService jobsService, String name, int rows, int columns, FolderPath parent, BufferAllocator allocator) throws JobNotFoundException {
+    FilePath filePath;
+    if (parent == null) {
+      filePath = new FilePath(ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), name));
+    } else {
+      List<String> path = Lists.newArrayList(parent.toPathList());
+      path.add(name);
+      filePath = new FilePath(path);
+    }
+    try (final JobDataFragment truncData = submitJobAndGetData(jobsService,
+      JobRequest.newBuilder().setSqlQuery(new SqlQuery(format("select * from %s", filePath.toPathString()), DEFAULT_USER_NAME)).build(),
+      0, rows + 1, allocator)) {
+      assertEquals(rows, truncData.getReturnedRowCount());
+      assertEquals(columns, truncData.getColumns().size());
+    }
+  }
+
+  protected UserBitShared.QueryProfile getQueryProfile(JobRequest request) throws Exception {
+    return JobsServiceTestUtils.getQueryProfile(l(JobsService.class), request);
+  }
+
+  protected static void setSystemOption(String optionName, String optionValue) {
+    JobsServiceTestUtils.setSystemOption(l(JobsService.class), optionName, optionValue);
+  }
+
+  protected static void resetSystemOption(String optionName) {
+    JobsServiceTestUtils.resetSystemOption(l(JobsService.class), optionName);
+  }
+
 }

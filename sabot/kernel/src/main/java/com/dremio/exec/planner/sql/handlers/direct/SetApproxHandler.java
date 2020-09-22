@@ -29,7 +29,6 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
@@ -39,11 +38,9 @@ public class SetApproxHandler extends SimpleDirectHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
 
   private final Catalog catalog;
-  private final NamespaceService namespaceService;
 
-  public SetApproxHandler(Catalog catalog, NamespaceService namespaceService) {
+  public SetApproxHandler(Catalog catalog) {
     this.catalog = catalog;
-    this.namespaceService = namespaceService;
   }
 
   @Override
@@ -69,7 +66,8 @@ public class SetApproxHandler extends SimpleDirectHandler {
         try {
           DatasetConfig config = table.getDatasetConfig();
           config.getPhysicalDataset().setAllowApproxStats(sqlSetApprox.isEnable());
-          namespaceService.addOrUpdateDataset(path, config);
+          catalog.addOrUpdateDataset(path, config);
+
           return singletonList(successful(String.format("Successfully updated table '%s' from namespace.", table.getPath())));
         } catch (NamespaceNotFoundException ex) {
           throw UserException.parseError(ex).message("Failure modifying table %s.", path).build(logger);

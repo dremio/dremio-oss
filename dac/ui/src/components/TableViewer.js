@@ -49,16 +49,16 @@ export default class TableViewer extends Component {
       })
     ).isRequired
     // other props passed to fixed-data-table-2 Table
-  }
+  };
 
   static defaultProps = {
     tableData: Immutable.List(),
     rowHeight: 30
-  }
+  };
 
   getColumn = (column, columnIndex) => {
     return this.getColumnByConfig(column, columnIndex);
-  }
+  };
 
   getColumnByConfig = ( /* columnConfig */ {
     key,
@@ -76,7 +76,7 @@ export default class TableViewer extends Component {
       header={<Cell>{label}</Cell>}
       cell={this.renderCell(label)}
     />);
-  }
+  };
 
   getRowClassName = (rowIndex) => {
     const {
@@ -84,12 +84,12 @@ export default class TableViewer extends Component {
     } = this.props;
 
     return tableData.get(rowIndex).rowClassName;
-  }
+  };
 
   renderCell = label => (/* cellProps */ {
     rowIndex,
     columnKey,
-    ...cellProps
+    ...cellProps  // eslint-disable-line @typescript-eslint/no-unused-vars
   }) => {
     const {
       tableData
@@ -100,7 +100,7 @@ export default class TableViewer extends Component {
         {tableData.get(rowIndex).data[columnKey]}
       </span>
     </Cell>);
-  }
+  };
 
   render() {
     return (

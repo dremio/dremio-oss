@@ -30,7 +30,6 @@ import com.dremio.exec.planner.logical.InvalidViewRel;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.DremioSqlToRelConverter.NoOpExpander;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.rpc.user.UserSession;
 
 public class ExtendedToRelContext extends NoOpExpander implements ToRelContext {
@@ -111,8 +110,8 @@ public class ExtendedToRelContext extends NoOpExpander implements ToRelContext {
       throw UserException.validationError()
         .message(String.format("Definition of this dataset is out of date. There were schema changes in %s.\n",
           datasetPath))
-        .addContext("Original", Describer.describe(BatchSchema.fromCalciteRowType(rowType)))
-        .addContext("New", Describer.describe(BatchSchema.fromCalciteRowType(validatedRowType)))
+        .addContext("Original", Describer.describe(CalciteArrowHelper.fromCalciteRowType(rowType)))
+        .addContext("New", Describer.describe(CalciteArrowHelper.fromCalciteRowType(validatedRowType)))
         .build(logger);
     }
   }

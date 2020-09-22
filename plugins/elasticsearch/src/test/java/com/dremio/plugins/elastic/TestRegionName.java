@@ -19,9 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.DremioTest;
-import com.dremio.test.UserExceptionMatcher;
 
 /**
  * Test ElasticsearchAuthentication.getRegionName
@@ -34,31 +32,32 @@ public class TestRegionName extends DremioTest {
     String regionName = ElasticsearchAuthentication.getRegionName("", endpoint);
     assertEquals("us-west-2", regionName);
 
-    regionName = ElasticsearchAuthentication.getRegionName("us-west-1", endpoint);
+    regionName = ElasticsearchAuthentication.getRegionName( "us-west-1", endpoint);
     assertEquals("us-west-1", regionName);
   }
 
   @Test
   public void testWrongRegionNameInEndpoint() {
-    String endpoint = "vpc-dremio-es63-test.us-west-.es.amazonaws.com";
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-      "Failure creating Amazon Elasticsearch Service connection. The region is incorrect. You can change region in Advanced Options"));
+    final String endpoint = "vpc-dremio-es63-test.us-west-.es.amazonaws.com";
+    // We don't want to assert the exception message as it is thrown by a third party library.
+    thrownException.expect(IllegalArgumentException.class);
     ElasticsearchAuthentication.getRegionName("", endpoint);
   }
 
   @Test
   public void testWrongRegionName() {
-    String endpoint = "vpc-dremio-es63-test.us-west-2.es.amazonaws.com";
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-      "Failure creating Amazon Elasticsearch Service connection. The region is incorrect. You can change region in Advanced Options"));
+    final String endpoint = "vpc-dremio-es63-test.us-west-2.es.amazonaws.com";
+    // We don't want to assert the exception message as it is thrown by a third party library.
+    thrownException.expect(IllegalArgumentException.class);
     ElasticsearchAuthentication.getRegionName("us-west", endpoint);
   }
 
   @Test
   public void testNoRegionName() {
-    String endpoint = "es.amazonaws.com";
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-      "Failure creating Amazon Elasticsearch Service connection. You must provide hostname like *.[region name].es.amazonaws.com"));
+    final String endpoint = "es.amazonaws.com";
+    thrownException.expect(IllegalArgumentException.class);
+    thrownException.expectMessage("Failure creating Amazon Elasticsearch Service connection. " +
+      "You must provide hostname like *.[region name].es.amazonaws.com");
     ElasticsearchAuthentication.getRegionName("", endpoint);
   }
 }

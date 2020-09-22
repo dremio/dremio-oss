@@ -15,10 +15,9 @@
  */
 package com.dremio.common.memory;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Utility functions related to memory allocation.
@@ -30,7 +29,7 @@ public class AllocatorUtil {
    * @param allocator
    * @param headRoom
    */
-  public static void ensureHeadroom(BufferAllocator allocator, int headRoom) throws OutOfMemoryException {
+  public static void ensureHeadroom(BufferAllocator allocator, long headRoom) throws OutOfMemoryException {
     if (allocator.getHeadroom() >= headRoom) {
       // nothing to do in this case.
       return;

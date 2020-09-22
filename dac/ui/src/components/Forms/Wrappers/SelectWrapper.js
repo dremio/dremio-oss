@@ -30,9 +30,13 @@ export default class SelectWrapper extends Component {
 
   render() {
     const {elementConfig, field} = this.props;
-    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ? {disabled: true} : null;
-    const tooltip = elementConfig.getConfig().tooltip;
+    const elementConfigJson = elementConfig.getConfig();
+    const isDisabled = (elementConfigJson.disabled || this.props.disabled) ? {disabled: true} : null;
+    const tooltip = elementConfigJson.tooltip;
     const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
+    const size = elementConfigJson.size;
+    const isFixedSize = typeof size === 'number' && size > 0;
+    const style = (isFixedSize) ? {width: size} : {};
 
     return (
       <div className={flexContainer}>
@@ -45,6 +49,7 @@ export default class SelectWrapper extends Component {
               {...isDisabled}
               items={elementConfig.getConfig().options}
               className={selectBody}
+              style={style}
               valueField='value'
               {...field} />
           </div>

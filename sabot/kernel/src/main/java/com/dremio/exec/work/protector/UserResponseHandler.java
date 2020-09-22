@@ -16,7 +16,6 @@
 package com.dremio.exec.work.protector;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
-import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 
@@ -25,7 +24,5 @@ public interface UserResponseHandler {
   void sendData(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result);
 
   void completed(UserResult result);
-
-  default void planParallelized(PlanningSet planningSet) {};
 
 }

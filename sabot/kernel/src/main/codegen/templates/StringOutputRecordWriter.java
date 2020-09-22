@@ -141,7 +141,7 @@ public abstract class StringOutputRecordWriter extends AbstractRowBasedRecordWri
     addField(fieldId, reader.readObject().toString());
 
   <#elseif minor.class == "VarChar" || minor.class == "Var16Char" || minor.class == "VarBinary">
-    FieldSizeLimitExceptionHelper.checkWriteSizeLimit(holder.end - holder.start, maxCellSize, fieldId, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(holder.end - holder.start, maxCellSize, fieldId, logger);
     addField(fieldId, reader.readObject().toString());
   <#else>
     throw new UnsupportedOperationException(String.format("Unsupported field type: %s",

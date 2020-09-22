@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.BitVectorHelper;
@@ -50,8 +51,6 @@ import com.dremio.test.UserExceptionMatcher;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
-import io.netty.buffer.ArrowBuf;
-
 public class TestHashAgg extends BaseTestOperator {
 
   private void validateAgg(HashAggregate conf, TpchTable table, double scale, Fixtures.Table expectedResult) throws Exception {

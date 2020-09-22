@@ -29,8 +29,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
 import com.dremio.service.reflection.proto.DependencyType;
@@ -54,9 +54,8 @@ import com.google.common.collect.Sets;
  */
 public class TestDependencyGraph {
 
-  private static final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null,
-    true,
-    false);
+  private static final LegacyKVStoreProvider kvstore =
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
 
   private static DependenciesStore dependenciesStore;
 
@@ -71,6 +70,8 @@ public class TestDependencyGraph {
     .put("vds-raw", DependencyEntry.of(rId("vds-raw")))
     .put("vds-agg1", DependencyEntry.of(rId("vds-agg1")))
     .put("vds-agg2", DependencyEntry.of(rId("vds-agg2")))
+    .put("tablefunction1", DependencyEntry.of("tablefunction1", "postgres", "select * from emp"))
+    .put("tablefunction2", DependencyEntry.of("tablefunction2", "postgres", "select * from dept"))
     .build();
 
 
@@ -144,9 +145,11 @@ public class TestDependencyGraph {
     final Multimap<String, String> dependencyMap = MultimapBuilder.hashKeys().arrayListValues().build();
     // pds1 > raw1 > agg1
     dependencyMap.put("raw1", "pds1");
+    dependencyMap.put("raw1", "tablefunction1");
     dependencyMap.put("agg1", "raw1");
     // pds2 > raw2 > agg2
     dependencyMap.put("raw2", "pds2");
+    dependencyMap.put("raw2", "tablefunction2");
     dependencyMap.put("agg2", "raw2");
     // raw2 > agg3
     dependencyMap.put("agg3", "raw2");

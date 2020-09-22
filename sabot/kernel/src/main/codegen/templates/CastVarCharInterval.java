@@ -38,7 +38,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.DateMidnight;
 import org.apache.arrow.vector.util.DateUtility;
 import javax.inject.Inject;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * generated from ${.template_name} ${type.from} ${type.to} ${type.major}

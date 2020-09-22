@@ -13,8 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export space from './space';
-export dataset from './dataset';
-export file from './file';
-export history from './history';
-export source from './source';
+import space from './space';
+import dataset from './dataset';
+import file from './file';
+import history from './history';
+import source from './source';
+
+export {
+  space,
+  dataset,
+  file,
+  history,
+  source
+};

@@ -33,8 +33,8 @@ import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import com.dremio.config.DremioConfig;
-import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
+import com.dremio.ssl.SSLConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 
@@ -83,7 +83,7 @@ public class HttpsConnectorGenerator {
       }
     }
 
-    final SslContextFactory sslContextFactory = new SslContextFactory();
+    final SslContextFactory sslContextFactory = new SslContextFactory.Server();
     sslContextFactory.setKeyStore(keyStore);
     sslContextFactory.setKeyManagerPassword(sslConfig.getKeyPassword());
     // TODO(DX-12920): sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());

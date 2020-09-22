@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { addNotification } from 'actions/notification';
 import CopyButtonIcon from '@app/components/Buttons/CopyButtonIcon';
+import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 
 export class CopyButton extends Component {
   static propTypes = {
@@ -34,7 +35,7 @@ export class CopyButton extends Component {
 
   handleCopy = () => {
     const message = <span>Copied <i>{this.props.text}</i>.</span>; // TODO: loc
-    this.props.addNotification(message, 'success', 2);
+    this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
   };
 
   render() {

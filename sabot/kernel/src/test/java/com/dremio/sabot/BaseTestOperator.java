@@ -52,9 +52,10 @@ import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
@@ -79,15 +80,17 @@ import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.NodeDebugContextProvider;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.exec.store.sys.PersistentStoreProvider;
-import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.exec.testing.ExecutionControls;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.TypeValidators.BooleanValidator;
@@ -107,7 +110,6 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.common.spill.SpillServiceOptionsImpl;
 import com.dremio.sabot.op.receiver.RawFragmentBatchProvider;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.dremio.sabot.op.spi.Operator;
@@ -309,9 +311,9 @@ public class BaseTestOperator extends ExecTest {
 
     OperatorCreatorRegistry registry = new OperatorCreatorRegistry(result);
 
-    KVStoreProvider storeProvider;
-    PersistentStoreProvider provider;
-    SystemOptionManager options;
+    LegacyKVStoreProvider storeProvider;
+    OptionManager options;
+    SystemOptionManager systemOptionManager;
     CodeCompiler compiler;
     ExecutionControls ec;
     FunctionLookupContext functionLookup;
@@ -320,18 +322,24 @@ public class BaseTestOperator extends ExecTest {
 
     public void setup() {
       try {
-        storeProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+        storeProvider =
+            LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
         storeProvider.start();
 
-        final Provider<KVStoreProvider> storeProviderProvider = new Provider<KVStoreProvider>() {
+        final Provider<LegacyKVStoreProvider> storeProviderProvider = new Provider<LegacyKVStoreProvider>() {
           @Override
-          public KVStoreProvider get() {
+          public LegacyKVStoreProvider get() {
             return storeProvider;
           }
         };
-        provider = new KVPersistentStoreProvider(storeProviderProvider);
-        options = new SystemOptionManager(result, persistence, provider);
-        options.init();
+        final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(result);
+        systemOptionManager = new SystemOptionManager(optionValidatorListing, persistence, storeProviderProvider, false);
+        options = OptionManagerWrapper.Builder.newBuilder()
+          .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+          .withOptionManager(systemOptionManager)
+          .build();
+
+        systemOptionManager.start();
         compiler = new CodeCompiler(config, options);
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
         decimalFunctionLookup = new DecimalFunctionImplementationRegistry(config, result, options);
@@ -365,13 +373,8 @@ public class BaseTestOperator extends ExecTest {
       final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
       final DremioConfig dremioConfig = DremioConfig.create(null, config);
       final SchedulerService schedulerService = Mockito.mock(SchedulerService.class);
-      final SpillService spillService = new SpillServiceImpl(dremioConfig, new SpillServiceOptionsImpl(options),
-        new Provider<SchedulerService>() {
-          @Override
-          public SchedulerService get() {
-            return schedulerService;
-          }
-        }
+      final SpillService spillService = new SpillServiceImpl(dremioConfig, new SpillServiceOptionsImpl(() -> options),
+        () -> schedulerService
       );
       final FragmentHandle handle = FragmentHandle.newBuilder()
         .setQueryId(new AttemptId().toQueryId())
@@ -387,16 +390,18 @@ public class BaseTestOperator extends ExecTest {
           compiler,
           stats,
           ec,
+          null,
           inner,
           getFunctionLookupContext(),
           contextInformation,
           options,
-          namespaceService,
           spillService,
           NodeDebugContextProvider.NOOP,
           targetBatchSize,
           Mockito.mock(TunnelProvider.class),
           ImmutableList.of(),
+          ImmutableList.of(),
+          null,
           endpointsIndex);
     }
 
@@ -414,7 +419,7 @@ public class BaseTestOperator extends ExecTest {
     }
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(options, provider, storeProvider, allocator, rootAllocator, executor);
+      AutoCloseables.close(systemOptionManager, storeProvider, allocator, rootAllocator, executor);
     }
 
     /**

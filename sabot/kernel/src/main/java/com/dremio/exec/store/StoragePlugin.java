@@ -16,11 +16,15 @@
 package com.dremio.exec.store;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+
+import org.apache.calcite.schema.Function;
 
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.DatasetHelper;
@@ -36,7 +40,7 @@ import io.protostuff.ByteString;
  * Registry that's used to register a source with catalog service.
  */
 public interface StoragePlugin extends Service, SourceMetadata {
-  Serializer<DatasetConfig> serializer = Serializer.of(DatasetConfig.getSchema());
+  Serializer<DatasetConfig, byte[]> DATASET_CONFIG_SERIALIZER = Serializer.of(DatasetConfig.getSchema());
 
   /**
    * Whether the given user can access the entity at the given location
@@ -69,6 +73,16 @@ public interface StoragePlugin extends Service, SourceMetadata {
   SourceCapabilities getSourceCapabilities();
 
   /**
+   * Retrieves table function implementations based on give table schema path and schema config.
+   * @param tableSchemaPath the table schema path.
+   * @param schemaConfig the schema config.
+   * @return a list of table functions implemented for this storage plugin. Returns an empty list by default.
+   */
+  default List<Function> getFunctions(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
+    return Collections.emptyList();
+  }
+
+  /**
    * Create a new DatasetConfig based on a merger of a new schema and the DatasetConfig of this source.
    *
    * @param oldConfig The current DatasetConfiguration.
@@ -83,10 +97,10 @@ public interface StoragePlugin extends Service, SourceMetadata {
     if (DatasetHelper.getSchemaBytes(oldConfig) == null) {
       merge = newSchema;
     } else {
-      merge = BatchSchema.fromDataset(oldConfig).merge(newSchema);
+      merge = CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema);
     }
 
-    DatasetConfig newConfig = serializer.deserialize(serializer.serialize(oldConfig));
+    DatasetConfig newConfig = DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
     newConfig.setRecordSchema(ByteString.copyFrom(merge.serialize()));
 
     return newConfig;
@@ -106,5 +120,4 @@ public interface StoragePlugin extends Service, SourceMetadata {
 
   @Override
   void start() throws IOException;
-
 }

@@ -15,13 +15,10 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Iterator;
 
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.work.WorkStats;
+import com.dremio.exec.service.executor.ExecutorServiceImpl;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public class NodeIterator implements Iterator<Object> {
@@ -36,17 +33,6 @@ public class NodeIterator implements Iterator<Object> {
     this.context = c;
   }
 
-  public static class NodeInstance {
-    public String hostname;
-    public String ip_address;
-    public int user_port;
-    public int fabric_port;
-    public double cluster_load;
-    public int configured_max_width;
-    public int actual_max_width;
-    public boolean current;
-  }
-
   @Override
   public boolean hasNext() {
     return beforeFirst;
@@ -59,22 +45,7 @@ public class NodeIterator implements Iterator<Object> {
     }
 
     beforeFirst = false;
-    final NodeEndpoint ep = dbContext.getEndpoint();
-    NodeInstance i = new NodeInstance();
-    i.current = false; // disable current field for now.
-    i.hostname = ep.getAddress();
-    try {
-      i.ip_address = InetAddress.getLocalHost().getHostAddress();
-    } catch (UnknownHostException e) {
-      // no op
-    }
-    i.user_port = ep.getUserPort();
-    i.fabric_port = ep.getFabricPort();
-    final WorkStats stats = dbContext.getWorkStatsProvider().get();
-    i.cluster_load = stats.getClusterLoad();
-    i.configured_max_width = (int)dbContext.getClusterResourceInformation().getAverageExecutorCores(dbContext.getOptionManager());
-    i.actual_max_width = (int) Math.max(1, i.configured_max_width * stats.getMaxWidthFactor());
-    return i;
+    return NodeInstance.fromStats(ExecutorServiceImpl.getNodeStatsFromContext(dbContext), dbContext.getEndpoint());
   }
 
   @Override

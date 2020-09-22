@@ -64,12 +64,9 @@ export default class JobTr extends Component {
   render() {
     const { even, active, onClick, containsTextValue, job, jobDataset } = this.props;
     const jobState = job.get('state');
-    const running = jobsUtils.getRunning(jobState);
     const jobEndTime = job.get('endTime');
     const jobStartTime = job.get('startTime');
-    const jobDuration = !running
-      ? jobsUtils.getJobDuration(jobStartTime, jobEndTime)
-      : '-';
+    const jobDuration = jobsUtils.getJobDuration(jobStartTime, jobEndTime);
     const jobFinishTime = jobsUtils.getFinishTime(jobState, jobEndTime);
     const trStyles = [styles.base];
     if (even) {

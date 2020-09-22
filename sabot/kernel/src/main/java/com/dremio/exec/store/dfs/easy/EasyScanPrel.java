@@ -50,16 +50,16 @@ public class EasyScanPrel extends ScanPrelBase {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(projectedColumns);
+    final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(getProjectedColumns());
     return new EasyGroupScan(
         creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
         tableMetadata,
-        projectedColumns);
+        getProjectedColumns());
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EasyScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment);
+    return new EasyScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
   }
 
   @Override

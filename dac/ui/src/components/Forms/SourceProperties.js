@@ -86,7 +86,7 @@ export default class SourceProperties extends Component {
     singleValue: false
   };
 
-  static validate(values) {
+  static validate() {
     const propertyName = (this.props.elementConfig) ? this.props.elementConfig.propertyName : defaultPropName;
     const result = {};
     set(result, propertyName, get(result, propertyName)
@@ -149,8 +149,8 @@ export default class SourceProperties extends Component {
 
 const styles = {
   listTitle: {
-    fontWeight: 500,
-    marginBottom: 3
+    marginBottom: 8,
+    marginTop: 16
   },
   item: {
     display: 'block',

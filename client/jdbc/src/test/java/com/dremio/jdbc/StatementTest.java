@@ -26,9 +26,9 @@ import java.sql.Statement;
 
 import org.junit.Test;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.work.foreman.AttemptManager;
 
@@ -65,6 +65,7 @@ public class StatementTest extends JdbcWithServerTestBase {
   }
 
 
+  @Test
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
     try(Statement statement = getConnection().createStatement()) {
       statement.setQueryTimeout( -2 );
@@ -74,7 +75,6 @@ public class StatementTest extends JdbcWithServerTestBase {
       assertThat( e.getMessage(), anyOf( containsString( "seconds" ),
                                          containsString( "timeout" ),
                                          containsString( "Timeout" ) ) );
-      throw e;
     }
   }
 

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -133,29 +133,22 @@
     <dependency>
       <groupId>de.huxhorn.lilith</groupId>
       <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-      <version>0.9.44</version>
     </dependency>
     <dependency>
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
-      <version>4.7</version>
     </dependency>    
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-dynamodb</artifactId>
-      <version>${aws-sdk.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-aws</artifactId>
       <exclusions>
         <exclusion>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-bundle</artifactId>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -168,23 +161,12 @@
       <artifactId>hadoop-hdfs</artifactId>
       <version>${hadoop.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-client</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-all</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
 
     <dependency>
       <groupId>com.dremio.distribution</groupId>
       <artifactId>dremio-jdbc-driver</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hive-plugin-common</artifactId>
@@ -297,6 +279,37 @@
           </dependency>
         </dependencies>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-tarball-size</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <rules>
+                <requireFilesSize>
+                  <message>
+                    The file ${dremio.distribution.name}-${project.version}.tar.gz is outside the expected size range. 
+
+                    Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
+
+                  </message>
+                  <maxsize>650000000</maxsize>
+                  <minsize>500000000</minsize>
+                  <files>
+                    <file>${project.build.directory}/${dremio.distribution.name}-${project.version}.tar.gz</file>
+                  </files>
+                </requireFilesSize>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -317,6 +330,7 @@
                 </goals>
                 <configuration>
                   <versionProperty>dremio.rpm.version</versionProperty>
+                  <releaseProperty>dremio.rpm.release</releaseProperty>
                 </configuration>
               </execution>
               <execution>
@@ -469,6 +483,17 @@
                       </sources>
                     </mapping>
                     <mapping>
+                      <directory>/usr/lib/systemd/system</directory>
+                      <directoryIncluded>false</directoryIncluded>
+                      <filemode>644</filemode>
+                      <sources>
+                        <source>
+                          <location>${dremio.distribution.resources.directory}/share/dremio.service</location>
+                          <destination>dremio.service</destination>
+                        </source>
+                      </sources>
+                    </mapping>
+                    <mapping>
                       <directory>%{_tmpfilesdir}</directory>
                       <directoryIncluded>false</directoryIncluded>
                       <filemode>644</filemode>
@@ -493,6 +518,37 @@ exit 0
                   <scriptFile>${dremio.distribution.resources.directory}/rpm/scripts/postinstall</scriptFile>
                   <fileEncoding>utf-8</fileEncoding>
                  </postinstallScriptlet>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-rpm-size</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <phase>verify</phase>
+                <configuration>
+                  <rules>
+                    <requireFilesSize>
+                      <message>
+                        The file ${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm is outside the expected size range. 
+
+                        Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
+
+                      </message>
+                      <maxsize>650000000</maxsize>
+                      <minsize>500000000</minsize>
+                      <files>
+                        <file>${project.build.directory}/rpm/${dremio.distribution.name}/RPMS/noarch/${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm</file>
+                      </files>
+                    </requireFilesSize>
+                  </rules>
+                  <fail>true</fail>
                 </configuration>
               </execution>
             </executions>
@@ -553,6 +609,17 @@ exit 0
           <groupId>${dremio.hive.plugin-group-id}</groupId>
           <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive3-plugin-launcher</artifactId>
           <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-awsglue-plugin</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>

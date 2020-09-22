@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.hive;
 
+import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
@@ -61,11 +62,11 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.hive.HiveImpersonationUtil;
-import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
+import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
@@ -94,37 +95,21 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test // DRILL-4083
   public void testNativeScanWhenNoColumnIsRead() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    String query = "SELECT count(*) as col FROM hive.kv_parquet";
+    testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
 
-      String query = "SELECT count(*) as col FROM hive.kv_parquet";
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
-
-      testBuilder()
-          .sqlQuery(query)
-          .unOrdered()
-          .baselineColumns("col")
-          .baselineValues(5L)
-          .go();
-    } finally {
-      test(String.format("alter session set \"%s\" = %s",
-          HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
-              HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().getBoolVal() ? "true" : "false"));
-    }
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("col")
+        .baselineValues(5L)
+        .go();
   }
 
   @Test
   public void testTimestampNulls() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-
-      String query = "SELECT * FROM hive.parquet_timestamp_nulls";
-      test(query);
-    } finally {
-      test(String.format("alter session set \"%s\" = %s",
-        HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
-        HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().getBoolVal() ? "true" : "false"));
-    }
+    String query = "SELECT * FROM hive.parquet_timestamp_nulls";
+    test(query);
   }
 
   @Test
@@ -245,6 +230,208 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineColumns("col1", "col2", "col3")
       .baselineValues(null, null, null)
       .go();
+
+    query = "SELECT * FROM hive.decimal_conversion_test_orc_decimal";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9")
+      .baselineValues(
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.1234567891"))
+      .go();
+
+    query = "SELECT * FROM hive.decimal_conversion_test_orc_decimal_ext";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9")
+      .baselineValues(
+        new BigDecimal("12345678912345678912.1234567891"),
+        null,
+        new BigDecimal("12345678912345678912.12346"),
+        new BigDecimal("12345678912345678912.1234567891"),
+        new BigDecimal("12345678912345678912.123456789100000"),
+        new BigDecimal("12345678912345678912.12346"),
+        null,
+        null,
+        new BigDecimal("12345678912345678912.12346"))
+      .go();
+  }
+
+  @Test
+  public void parquetTestDecimalConversion() throws Exception {
+
+    String query = "SELECT * FROM hive.decimal_conversion_test_parquet";
+    testBuilder().sqlQuery(query)
+            .ordered()
+            .baselineColumns("col1", "col2", "col3")
+            .baselineValues(new BigDecimal("111111111111111111111.111111111"), new BigDecimal("22222222222222222.222222"), new BigDecimal("333.00"))
+            .go();
+
+    // these are decimal to string coversions.
+    query = "SELECT * FROM hive.decimal_conversion_test_parquet_ext";
+    errorMsgWithTypeTestHelper(query, UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+            "Field [col2] has incompatible types in file and table.");
+
+    // these are decimal to decimal overflow for col1 and col2
+    query = "SELECT * FROM hive.decimal_conversion_test_parquet_ext_2";
+    testBuilder().sqlQuery(query)
+            .ordered()
+            .baselineColumns("col1", "col2", "col3")
+            .baselineValues(null , null, new BigDecimal("333.0"))
+            .go();
+
+    // convert int,string,double to decimals
+    // string to decimal(col2) is an overflow
+    query = "SELECT * FROM hive.decimal_conversion_test_parquet_rev_ext";
+    errorMsgTestHelper(query, "Field [col2] has incompatible types in file and table.");
+
+    // all conversions are valid
+    query = "SELECT * FROM hive.decimal_conversion_test_parquet_decimal";
+    testBuilder().sqlQuery(query)
+            .ordered()
+            .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9")
+            .baselineValues(
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.1234567891"))
+            .go();
+
+    // some overflow conversions returned as null
+    query = "SELECT * FROM hive.decimal_conversion_test_parquet_decimal_ext";
+    testBuilder().sqlQuery(query)
+            .ordered()
+            .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9")
+            .baselineValues(
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    null,
+                    new BigDecimal("12345678912345678912.12346"),
+                    new BigDecimal("12345678912345678912.1234567891"),
+                    new BigDecimal("12345678912345678912.123456789100000"),
+                    new BigDecimal("12345678912345678912.12346"),
+                    null,
+                    null,
+                    new BigDecimal("12345678912345678912.12346"))
+            .go();
+  }
+
+  @Test
+  public void testParquetHiveFixedLenVarchar() throws Exception {
+    String setOptionQuery = setTableOptionQuery("hive.\"default\".parq_varchar", HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true");
+    testBuilder().sqlQuery(setOptionQuery)
+                 .unOrdered()
+                 .baselineColumns("ok", "summary")
+                 .baselineValues(true, "Table [hive.\"default\".parq_varchar] options updated")
+                 .go();
+
+    String query = "SELECT R_NAME FROM hive.parq_varchar";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("R_NAME")
+      .baselineValues("AFRICA")
+      .baselineValues("AMERIC")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .baselineValues("MIDDLE")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_no_trunc", HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT R_NAME FROM hive.parq_varchar_no_trunc";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("R_NAME")
+      .baselineValues("AFRICA")
+      .baselineValues("AMERICA")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .baselineValues("MIDDLE EAST")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parq_char", HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT R_NAME FROM hive.parq_char";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("R_NAME")
+      .baselineValues("AFRICA")
+      .baselineValues("AMERIC")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .baselineValues("MIDDLE")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_more_types_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT Country, Capital, Lang FROM hive.parq_varchar_more_types_ext";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("Country", "Capital", "Lang")
+      .baselineValues("United Kingdom", "London", "Eng")
+      .go();
+
+    testBuilder().sqlQuery(setTableOptionQuery("hive.\"default\".parq_varchar_more_types_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"))
+                 .unOrdered()
+                 .baselineColumns("ok", "summary")
+                 .baselineValues(true, "Table [hive.\"default\".parq_varchar_more_types_ext] options did not change")
+                 .go();
+
+    query = "SELECT A, B, C FROM hive.parq_varchar_more_types_ext";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("A", "B", "C")
+      .baselineValues(1, 2, 3)
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_complex_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT Country, Capital FROM hive.parq_varchar_complex_ext";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("Country", "Capital")
+      .baselineValues("Uni", "Lon")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_varchar_partition_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(100, "abcd")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_varchar_partition_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "false"));
+    query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(100, "abcdefgh")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_char_partition_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT * FROM hive.parquet_fixed_length_char_partition_ext";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(100, "abcd")
+      .go();
   }
 
   @Test
@@ -261,54 +448,54 @@ public class ITHiveStorage extends HiveTestBase {
   public void orcTestTypeConversions() throws Exception {
     Object[][] testcases = {
       //tinyint
-      {"tinyint", "smallint", new Integer(90)},
-      {"tinyint", "int", new Integer(90)},
-      {"tinyint", "bigint", new Long(90)},
-      {"tinyint", "float", new Float(90)},
-      {"tinyint", "double", new Double(90)},
-      {"tinyint", "decimal", new BigDecimal(90)},
+      {"tinyint", "smallint", new Integer(90), "90"},
+      {"tinyint", "int", new Integer(90), "90"},
+      {"tinyint", "bigint", new Long(90), "90"},
+      {"tinyint", "float", new Float(90), "90.0"},
+      {"tinyint", "double", new Double(90), "90.0"},
+      {"tinyint", "decimal", new BigDecimal(90), "90.0"},
       {"tinyint", "string", "90"},
       {"tinyint", "varchar", "90"},
       //smallint
-      {"smallint", "int", new Integer(90)},
-      {"smallint", "bigint", new Long(90)},
-      {"smallint", "float", new Float(90)},
-      {"smallint", "double", new Double(90)},
-      {"smallint", "decimal", new BigDecimal(90)},
+      {"smallint", "int", new Integer(90), "90"},
+      {"smallint", "bigint", new Long(90), "90"},
+      {"smallint", "float", new Float(90), "90.0"},
+      {"smallint", "double", new Double(90), "90.0"},
+      {"smallint", "decimal", new BigDecimal(90), "90.0"},
       {"smallint", "string", "90"},
       {"smallint", "varchar", "90"},
       //int
-      {"int", "bigint", new Long(90)},
-      {"int", "float", new Float(90)},
-      {"int", "double", new Double(90)},
-      {"int", "decimal", new BigDecimal(90)},
+      {"int", "bigint", new Long(90), "90"},
+      {"int", "float", new Float(90), "90.0"},
+      {"int", "double", new Double(90), "90.0"},
+      {"int", "decimal", new BigDecimal(90), "90.0"},
       {"int", "string", "90"},
       {"int", "varchar", "90"},
       //bigint
-      {"bigint", "float", new Float(90)},
-      {"bigint", "double", new Double(90)},
-      {"bigint", "decimal", new BigDecimal(90)},
+      {"bigint", "float", new Float(90), "90.0"},
+      {"bigint", "double", new Double(90), "90.0"},
+      {"bigint", "decimal", new BigDecimal(90), "90.0"},
       {"bigint", "string", "90"},
       {"bigint", "varchar", "90"},
       //float
-      {"float", "double", new Double(90)},
-      {"float", "decimal", new BigDecimal(90)},
+      {"float", "double", new Double(90), "90.0"},
+      {"float", "decimal", new BigDecimal(90), "90.0"},
       {"float", "string", "90.0"},
       {"float", "varchar", "90.0"},
       //double
-      {"double", "decimal", new BigDecimal(90)},
+      {"double", "decimal", new BigDecimal(90), "90.0"},
       {"double", "string", "90.0"},
       {"double", "varchar", "90.0"},
       //decimal
       {"decimal", "string", "90"},
       {"decimal", "varchar", "90"},
       //string
-      {"string", "double", new Double(90)},
-      {"string", "decimal", new BigDecimal(90)},
+      {"string", "double", new Double(90), "90.0"},
+      {"string", "decimal", new BigDecimal(90), "90.0"},
       {"string", "varchar", "90"},
       //varchar
-      {"varchar", "double", new Double(90)},
-      {"varchar", "decimal", new BigDecimal(90)},
+      {"varchar", "double", new Double(90), "90.0"},
+      {"varchar", "decimal", new BigDecimal(90), "90.0"},
       {"varchar", "string", "90"},
       //timestamp
       {"timestamp", "string", Long.toString(new DateTime(Timestamp.valueOf("2019-03-14 11:17:31.119021").getTime(), UTC).getMillis())},
@@ -317,13 +504,94 @@ public class ITHiveStorage extends HiveTestBase {
       {"date", "string", "17969"},
       {"date", "varchar", "17969"}
     };
-    for (int i=0; i<testcases.length; ++i) {
-      String query = "SELECT * FROM hive." + (String)(testcases[i][0]) + "_to_" + (String)(testcases[i][1]) + "_orc_ext";
+    hiveTestTypeConversions(testcases,"orc");
+  }
+
+  @Test
+  public void parquetTestTypeConversions() throws Exception {
+    Object[][] testcases = {
+        //tinyint
+        {"tinyint", "smallint", new Integer(90), "90"},
+        {"tinyint", "int", new Integer(90), "90"},
+        {"tinyint", "bigint", new Long(90), "90"},
+        //smallint
+        {"smallint", "int", new Integer(90), "90"},
+        {"smallint", "bigint", new Long(90), "90"},
+        //int
+        {"int", "bigint", new Long(90), "90"},
+        //float
+        {"float", "double", new Double(90), "90.0"},
+        //string
+        {"string", "varchar", "90", "'90'"},
+        //varchar
+        {"varchar", "string", "90", "'90'"},
+    };
+    hiveTestTypeConversions(testcases, "parquet");
+  }
+
+  private void hiveTestTypeConversions(Object[][] testcases, String tableFormat) throws Exception {
+    for (Object[] testcase : testcases) {
+      String query = "SELECT * FROM hive." + testcase[0] + "_to_" + testcase[1] + "_" + tableFormat + "_ext";
       testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns("col1")
-        .baselineValues(testcases[i][2])
-        .go();
+          .ordered()
+          .baselineColumns("col1")
+          .baselineValues(testcase[2])
+          .go();
+    }
+
+    for (Object[] testcase : testcases) {
+      if (testcase.length == 4) {
+        String query = "SELECT * FROM hive." + testcase[0] + "_to_" + testcase[1] + "_" + tableFormat + "_ext where col1 = " + testcase[3];
+        testBuilder().sqlQuery(query)
+            .ordered()
+            .baselineColumns("col1")
+            .baselineValues(testcase[2])
+            .go();
+      }
+    }
+  }
+
+  @Test
+  public void parquetTestIncompatibleTypeConversions() throws Exception {
+    Object[][] testcases = {
+        //tinyint
+        {"tinyint", "float", new Float(90), "90.0"},
+        {"tinyint", "double", new Double(90), "90.0"},
+        {"tinyint", "decimal", new BigDecimal(90), "90.0"},
+        //smallint
+        {"smallint", "float", new Float(90), "90.0"},
+        {"smallint", "double", new Double(90), "90.0"},
+        {"smallint", "decimal", new BigDecimal(90), "90.0"},
+        //int
+        {"int", "float", new Float(90), "90.0"},
+        {"int", "double", new Double(90), "90.0"},
+        {"int", "decimal", new BigDecimal(90), "90.0"},
+        //bigint
+        {"bigint", "float", new Float(90), "90.0"},
+        {"bigint", "double", new Double(90), "90.0"},
+        {"bigint", "decimal", new BigDecimal(90), "90.0"},
+        //float
+        {"float", "decimal", new BigDecimal(90), "90.0"},
+        //double
+        {"double", "decimal", new BigDecimal(90), "90.0"},
+        //string
+        {"string", "double", new Double(90)},
+        {"string", "decimal", new BigDecimal(90)},
+        //varchar
+        {"varchar", "double", new Double(90)},
+        {"varchar", "decimal", new BigDecimal(90)},
+        //decimal
+        {"decimal", "string", "90"},
+        {"decimal", "varchar", "90"}
+    };
+    hiveTestIncompatibleTypeConversions(testcases, "parquet");
+  }
+
+  private void hiveTestIncompatibleTypeConversions(Object[][] testcases, String tableFormat) throws Exception {
+    for (Object[] testcase : testcases) {
+      String query = "SELECT * FROM hive." + testcase[0] + "_to_" + testcase[1] + "_" + tableFormat + "_ext";
+
+      errorMsgTestHelper(query, "Field [col1] has incompatible types in file and table.");
     }
   }
 
@@ -331,78 +599,46 @@ public class ITHiveStorage extends HiveTestBase {
   public ExpectedException exception = ExpectedException.none();
 
   @Test
-  public void readStringFieldSizeLimitText()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col1 FROM hive.field_size_limit_test";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col1")
-      .baselineValues("")
-      .go();
-  }
-  @Test
-  public void readStringFieldSizeLimitORC()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col1 FROM hive.field_size_limit_test_orc";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col1")
-      .baselineValues("")
-      .go();
-  }
-  @Test
-  public void readVarcharFieldSizeLimitText()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col2 FROM hive.field_size_limit_test";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col2")
-      .baselineValues("")
-      .go();
-  }
-  @Test
-  public void readVarcharFieldSizeLimitORC()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col2 FROM hive.field_size_limit_test_orc";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col2")
-      .baselineValues("")
-      .go();
-  }
-  @Test
-  public void readBinaryFieldSizeLimitText()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col3 FROM hive.field_size_limit_test";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col3")
-      .baselineValues("")
-      .go();
-  }
-  @Test
-  public void readBinaryFieldSizeLimitORC()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col3 FROM hive.field_size_limit_test_orc";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col3")
-      .baselineValues("")
-      .go();
+  public void readStringFieldSizeLimitText() throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test", "col1");
   }
 
+  @Test
+  public void readStringFieldSizeLimitORC()  throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test_orc", "col1");
+  }
+
+  @Test
+  public void readVarcharFieldSizeLimitText()  throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test", "col2");
+  }
+
+  @Test
+  public void readVarcharFieldSizeLimitORC()  throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test_orc", "col2");
+  }
+
+  @Test
+  public void readBinaryFieldSizeLimitText()  throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test", "col3");
+  }
+
+  @Test
+  public void readBinaryFieldSizeLimitORC()  throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test_orc", "col3");
+  }
+
+  private void readFieldSizeLimit(String table, String column) throws Exception {
+    String exceptionMessage = "UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit of 32000 bytes.";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT " + column + " FROM " + table;
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns(column)
+      .baselineValues("")
+      .go();
+  }
 
   @Test
   public void readTimestampToStringORC() throws Exception {
@@ -453,6 +689,28 @@ public class ITHiveStorage extends HiveTestBase {
   @Test
   public void readAllSupportedHiveDataTypesParquet() throws Exception {
     readAllSupportedHiveDataTypes("readtest_parquet");
+  }
+
+  @Test
+  public void readMixedTypePartitionedTable() throws Exception {
+    String query = "SELECT * FROM hive.parquet_mixed_partition_type";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(new Integer(1), new Integer(1))
+      .baselineValues(new Integer(2), new Integer(2))
+      .baselineValues(new Integer(3), new Integer(3))
+      .go();
+
+    query = "SELECT * FROM hive.parquet_mixed_partition_type_with_decimal";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(null, new Integer(1))
+      .baselineValues(new BigDecimal("4.50"), new Integer(2))
+      .baselineValues(null, new Integer(3))
+      .baselineValues(new BigDecimal("3.40"), new Integer(4))
+      .go();
   }
 
   /**
@@ -759,53 +1017,47 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testLowUpperCasingForParquet() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "SELECT * FROM hive.parquet_region";
+    final String query = "SELECT * FROM hive.parquet_region";
 
-      // Make sure the plan has Hive scan with native parquet reader
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+    // Make sure the plan has Hive scan with native parquet reader
+    testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
 
-      testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns(
-          "r_regionkey",
-          "r_name",
-          "r_comment")
-        .baselineValues(
-          0L,
-          "AFRICA",
-          "lar deposits. blithe"
-        )
-        .baselineValues(
-          1L,
-          "AMERICA",
-          "hs use ironic, even "
-        )
-        .baselineValues(
-          2L,
-          "ASIA",
-          "ges. thinly even pin"
-        )
-        .baselineValues(
-          3L,
-          "EUROPE",
-          "ly final courts cajo"
-        )
-        .baselineValues(
-          4L,
-          "MIDDLE EAST",
-          "uickly special accou"
-        ).go();
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns(
+        "r_regionkey",
+        "r_name",
+        "r_comment")
+      .baselineValues(
+        0L,
+        "AFRICA",
+        "lar deposits. blithe"
+      )
+      .baselineValues(
+        1L,
+        "AMERICA",
+        "hs use ironic, even "
+      )
+      .baselineValues(
+        2L,
+        "ASIA",
+        "ges. thinly even pin"
+      )
+      .baselineValues(
+        3L,
+        "EUROPE",
+        "ly final courts cajo"
+      )
+      .baselineValues(
+        4L,
+        "MIDDLE EAST",
+        "uickly special accou"
+      ).go();
   }
 
   @Test
   public void testHiveParquetRefreshOnMissingFile() throws Exception {
     setEnableReAttempts(true);
-    setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "true");
     try {
       final String query = "SELECT count(r_regionkey) c FROM hive.parquet_with_two_files";
 
@@ -830,14 +1082,12 @@ public class ITHiveStorage extends HiveTestBase {
 
     } finally {
       setEnableReAttempts(false);
-      setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "false");
     }
   }
 
   @Test
   public void testHiveOrcRefreshOnMissingFile() throws Exception {
     setEnableReAttempts(true);
-    setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "true");
     try {
       final String query = "SELECT count(r_regionkey) c FROM hive.orc_with_two_files";
 
@@ -859,7 +1109,6 @@ public class ITHiveStorage extends HiveTestBase {
 
     } finally {
       setEnableReAttempts(false);
-      setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "false");
     }
   }
 
@@ -952,16 +1201,11 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test // DRILL-3938
   public void nativeReaderIsDisabledForAlteredPartitionedTable() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "EXPLAIN PLAN FOR SELECT key, \"value\", newcol FROM hive.kv_parquet ORDER BY key LIMIT 1";
+    final String query = "EXPLAIN PLAN FOR SELECT key, \"value\", newcol FROM hive.kv_parquet ORDER BY key LIMIT 1";
 
-      // Make sure the HiveScan in plan has no native parquet reader
-      final String planStr = getPlanInString(query, OPTIQ_FORMAT);
-      assertFalse("Hive native is not expected in the plan", planStr.contains("hive-native-parquet-scan"));
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    // Make sure the HiveScan in plan has no native parquet reader
+    final String planStr = getPlanInString(query, OPTIQ_FORMAT);
+    assertFalse("Hive native is not expected in the plan", planStr.contains("hive-native-parquet-scan"));
   }
 
   @Test
@@ -978,26 +1222,9 @@ public class ITHiveStorage extends HiveTestBase {
   }
 
   @Test
-  public void testParquetLearnSchema2() throws Exception {
-    String exceptionMessage = "Schema change detected but unable to learn schema";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
+  public void testParquetLearnSchema2() {
     String query = "SELECT col1 FROM hive.parqschematest_table";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col1")
-      .baselineValues(new Double(1))
-      .go();
-  }
-
-  @Test
-  public void testParquetComplexUnsupported() throws Exception {
-    // Hive parquet table has complex column but Dremio should drop that column
-    testBuilder()
-      .sqlQuery("SELECT * FROM hive.parqcomplex")
-      .unOrdered()
-      .sqlBaselineQuery("select col1 from hive.parqcomplex")
-      .go();
+    errorMsgTestHelper(query, "Field [col1] has incompatible types in file and table.");
   }
 
   @Test
@@ -1007,13 +1234,6 @@ public class ITHiveStorage extends HiveTestBase {
       .unOrdered()
       .sqlBaselineQuery("select r_regionkey from hive.parquetschemalearntest")
       .go();
-
-    testBuilder()
-      .sqlQuery("SELECT * FROM hive.parqcomplex_ext")
-      .unOrdered()
-      .sqlBaselineQuery("select col1 from hive.parqcomplex_ext")
-      .go();
-
   }
 
   @Test // DRILL-3739
@@ -1028,18 +1248,12 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test // DRILL-3739
   public void readingFromStorageHandleBasedTable2() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-
-      testBuilder()
-          .sqlQuery("SELECT * FROM hive.kv_sh ORDER BY key LIMIT 2")
-          .ordered()
-          .baselineColumns("key", "value")
-          .expectsEmptyResultSet()
-          .go();
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    testBuilder()
+        .sqlQuery("SELECT * FROM hive.kv_sh ORDER BY key LIMIT 2")
+        .ordered()
+        .baselineColumns("key", "value")
+        .expectsEmptyResultSet()
+        .go();
   }
 
   @Test // DRILL-3688
@@ -1196,6 +1410,9 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testCheckHasPermission() throws Exception {
+    // TODO: enable back for MapR once DX-21902 is fixed
+    assumeNonMaprProfile();
+
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
@@ -1317,6 +1534,61 @@ public class ITHiveStorage extends HiveTestBase {
       new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
   }
 
+  private LocalDateTime getLocalDateTime(String dateString) {
+    return LocalDateTime.parse(dateString);
+  }
+
+  @Test
+  public void testTextAndOrcTableWithDateColumn() throws Exception {
+    LocalDateTime dateTime1 = getLocalDateTime("0001-01-01");
+    LocalDateTime dateTime2 = getLocalDateTime("1299-01-01");
+    LocalDateTime dateTime3 = getLocalDateTime("1499-01-01");
+    LocalDateTime dateTime4 = getLocalDateTime("1582-01-01");
+    LocalDateTime dateTime5 = getLocalDateTime("1699-01-01");
+
+    String textQuery = "SELECT date_col from hive.text_date";
+    String orcQuery = "SELECT date_col from hive.orc_date";
+
+    // execute query for Hive text table
+    testBuilder()
+      .sqlQuery(textQuery)
+      .unOrdered()
+      .baselineColumns("date_col")
+      .baselineValues(dateTime1)
+      .baselineValues(dateTime2)
+      .baselineValues(dateTime3)
+      .baselineValues(dateTime4)
+      .baselineValues(dateTime5)
+      .go();
+
+    // execute query for Hive non-vectorized ORC table
+    final String hiveOrcVectorize = "store.hive.orc.vectorize";
+    final String hive3OrcVectorize = "store.hive3.orc.vectorize";
+    try {
+      runSQL(getSystemOptionQueryString(hiveOrcVectorize, Boolean.FALSE.toString()));
+    } catch (Exception e) {
+      runSQL(getSystemOptionQueryString(hive3OrcVectorize, Boolean.FALSE.toString()));
+    }
+    try {
+      testBuilder()
+        .sqlQuery(orcQuery)
+        .unOrdered()
+        .baselineColumns("date_col")
+        .baselineValues(dateTime1)
+        .baselineValues(dateTime2)
+        .baselineValues(dateTime3)
+        .baselineValues(dateTime4)
+        .baselineValues(dateTime5)
+        .go();
+    } finally {
+      try {
+        runSQL(getSystemOptionQueryString(hiveOrcVectorize, Boolean.TRUE.toString()));
+      } catch (Exception e) {
+        runSQL(getSystemOptionQueryString(hive3OrcVectorize, Boolean.TRUE.toString()));
+      }
+    }
+  }
+
   @Test // DX-11011
   public void parquetSkipAllMultipleRowGroups() throws Exception {
     testBuilder()
@@ -1358,11 +1630,14 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testParquetDecimalUnion() throws Exception {
-    String exceptionMessage = "Mixed types";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
     String query = "SELECT col1 FROM hive.parqdecunion_table";
-    test(query);
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1")
+      .baselineValues(new BigDecimal("123"))
+      .baselineValues(new BigDecimal("-543"))
+      .go();
   }
 
   @Test
@@ -1389,6 +1664,21 @@ public class ITHiveStorage extends HiveTestBase {
       .unOrdered()
       .baselineColumns("col3")
       .baselineValues(new BigDecimal("-0.1"))
+      .go();
+  }
+
+  @Test
+  public void testPartitionValueFormatException() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT * from hive.partition_format_exception_orc")
+      .unOrdered()
+      .sqlBaselineQuery("SELECT col1, col2 from hive.partition_format_exception_orc")
+      .go();
+
+    testBuilder()
+      .sqlQuery("SELECT * from hive.partition_format_exception_orc where col1 = 1")
+      .unOrdered()
+      .sqlBaselineQuery("SELECT * from hive.partition_format_exception_orc where col2 is null")
       .go();
   }
 }

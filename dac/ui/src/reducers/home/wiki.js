@@ -58,7 +58,7 @@ export const isWikiLoaded = (state, entityId) => state.entityId === entityId && 
 export const isWikiLoading = (state, entityId) => state.entityId === entityId && state.isLoading;
 export const getWiki = (state, entityId) => isWikiLoaded(state, entityId) ? state.wikiValue.text : null;
 export const getWikiVersion = (state, entityId) => isWikiLoaded(state, entityId) ? state.wikiValue.version : null;
-export const getErrorInfo = (state, entityId) => state.errorMessage ? ({
+export const getErrorInfo = (state) => state.errorMessage ? ({
   message: state.errorMessage,
   id: state.errorMessageId
 }) : null;

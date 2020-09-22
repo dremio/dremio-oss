@@ -131,7 +131,7 @@ public class WebClient {
               message.getMoreInfo()));
           } catch (ProcessingException e) {
             // Fallback to String if unparsing is unsuccessful
-            throw new IOException(format("Status %d (%s)",
+            throw new IOException(format("Status %d (%s): %s",
               response.getStatus(),
               response.getStatusInfo().getReasonPhrase(),
               response.readEntity(String.class)));

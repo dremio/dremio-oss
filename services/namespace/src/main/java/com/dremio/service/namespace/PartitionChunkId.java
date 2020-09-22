@@ -26,9 +26,9 @@ import java.util.Optional;
 
 import javax.annotation.Nullable;
 
-import com.dremio.datastore.KVStore.FindByRange;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.EntityId;
@@ -261,18 +261,18 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     return PartitionChunkId.of(datasetId, version, "");
   }
 
-  public static FindByRange<PartitionChunkId> getSplitsRange(DatasetConfig datasetConfig) {
+  public static LegacyFindByRange<PartitionChunkId> getSplitsRange(DatasetConfig datasetConfig) {
     Range<PartitionChunkId> range = getCurrentSplitRange(datasetConfig);
 
-    return new FindByRange<PartitionChunkId>()
+    return new LegacyFindByRange<PartitionChunkId>()
       .setStart(range.lowerEndpoint(), true)
       .setEnd(range.upperEndpoint(), false);
   }
 
-  public static FindByRange<PartitionChunkId> getSplitsRange(EntityId datasetId, long splitVersionId) {
+  public static LegacyFindByRange<PartitionChunkId> getSplitsRange(EntityId datasetId, long splitVersionId) {
     Range<PartitionChunkId> range = getSplitRange(datasetId, splitVersionId);
 
-    return new FindByRange<PartitionChunkId>()
+    return new LegacyFindByRange<PartitionChunkId>()
       .setStart(range.lowerEndpoint(), true)
       .setEnd(range.upperEndpoint(), false);
   }
@@ -293,7 +293,7 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
    * UNSAFE! Use {@code PartitionChunkId#getSplitRange(EntityId, long)} instead
 
    */
-  public static FindByRange<PartitionChunkId> unsafeGetSplitsRange(DatasetConfig config) {
+  public static LegacyFindByRange<PartitionChunkId> unsafeGetSplitsRange(DatasetConfig config) {
     final long splitVersion = config.getReadDefinition().getSplitVersion();
     final long nextSplitVersion = splitVersion + 1;
     final String datasetId = config.getId().getId();
@@ -302,7 +302,7 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
     final PartitionChunkId start = new PartitionChunkId(SPLIT_ID_JOINER.join(datasetId, splitVersion, ""), datasetId, splitVersion, "");
     final PartitionChunkId end = new PartitionChunkId(SPLIT_ID_JOINER.join(datasetId, nextSplitVersion, ""), datasetId, splitVersion, "");
 
-    return new FindByRange<PartitionChunkId>()
+    return new LegacyFindByRange<PartitionChunkId>()
       .setStart(start, true)
       .setEnd(end, false);
   }

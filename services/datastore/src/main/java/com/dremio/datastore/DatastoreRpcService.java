@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
@@ -45,8 +46,6 @@ import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.MessageLite;
 
-import io.netty.buffer.ArrowBuf;
-
 /**
  * Rpc Service. Registers protocol and creates endpoints to master node.
  */
@@ -73,11 +72,12 @@ public class DatastoreRpcService {
 
   public DatastoreRpcService(Provider<NodeEndpoint> masterNode,
                              FabricService fabricService, BufferAllocator allocator,
-                             final DefaultDataStoreRpcHandler handler) throws RpcException {
+                             final DefaultDataStoreRpcHandler handler,
+                             final long timeoutInSecs) throws RpcException {
     master = masterNode;
 
     // Register endpoints for communicating with master
-    final ProtocolBuilder builder = ProtocolBuilder.builder().allocator(allocator).name("datastore-rpc").protocolId(4).timeout(10*1000);
+    final ProtocolBuilder builder = ProtocolBuilder.builder().allocator(allocator).name("datastore-rpc").protocolId(4).timeout(timeoutInSecs * 1000);
 
     getEndpointCreator = builder.register(TYPE_GET,
       new AbstractReceiveHandler<GetRequest, GetResponse>(GetRequest.getDefaultInstance(), GetResponse.getDefaultInstance()) {

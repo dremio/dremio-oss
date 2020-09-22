@@ -67,14 +67,13 @@
 
   <module name="SuppressWarningsFilter" />
 
-  <module name="SuppressionCommentFilter">
-    <property name="offCommentFormat" value="CHECKSTYLE\:OFF ([\w\|]+)" />
-    <property name="onCommentFormat" value="CHECKSTYLE\:ON ([\w\|*])" />
-    <property name="checkFormat" value="$1"/>
-  </module>
-
   <module name="TreeWalker">
-    <module name="FileContentsHolder"/>
+    <module name="SuppressionCommentFilter">
+      <property name="offCommentFormat" value="CHECKSTYLE\:OFF ([\w\|]+)" />
+      <property name="onCommentFormat" value="CHECKSTYLE\:ON ([\w\|*])" />
+      <property name="checkFormat" value="$1"/>
+    </module>
+
     <module name="IllegalImport">
       <!-- For "org.apache.commons.lang.*" classes use the corresponding class from "org.apache.commons.lang3.*" -->
       <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded,org.apache.htrace.fasterxml,twill"/>
@@ -177,6 +176,7 @@
       <property name="ignoreAnnotationCanonicalNames" value="org.junit.ClassRule" />
       <property name="ignoreAnnotationCanonicalNames" value="com.google.common.annotations.VisibleForTesting" />
       <property name="ignoreAnnotationCanonicalNames" value="io.protostuff.Tag" />
+      <property name="allowPublicImmutableFields" value="true" />
     </module>
 
     <!-- Miscellaneous other checks. -->

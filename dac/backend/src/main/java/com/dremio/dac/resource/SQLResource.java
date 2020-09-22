@@ -41,16 +41,20 @@ import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.SuggestionResponse;
 import com.dremio.dac.explore.model.ValidationResponse;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.QueryError;
+import com.dremio.dac.server.BufferAllocatorFactory;
+import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.planner.sql.SQLAnalyzer;
 import com.dremio.exec.planner.sql.SQLAnalyzerFactory;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobRequest;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SqlQuery;
 import com.google.common.base.Joiner;
 
 /**
@@ -60,29 +64,33 @@ import com.google.common.base.Joiner;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/sql")
-public class SQLResource {
+public class SQLResource extends BaseResourceWithAllocator {
 
   private final JobsService jobs;
   private final SecurityContext securityContext;
   private final SabotContext sabotContext;
+  private final ProjectOptionManager projectOptionManager;
 
   @Inject
-  public SQLResource(SabotContext sabotContext, JobsService jobs, SecurityContext securityContext) {
+  public SQLResource(SabotContext sabotContext, JobsService jobs, SecurityContext securityContext, BufferAllocatorFactory allocatorFactory,
+                     ProjectOptionManager projectOptionManager) {
+    super(allocatorFactory);
     this.jobs = jobs;
     this.securityContext = securityContext;
     this.sabotContext = sabotContext;
+    this.projectOptionManager = projectOptionManager;
   }
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public JobDataFragment query(CreateFromSQL sql) {
-    SqlQuery query = new SqlQuery(sql.getSql(), sql.getContext(), securityContext);
+    final SqlQuery query = JobRequestUtil.createSqlQuery(sql.getSql(), sql.getContext(), securityContext.getUserPrincipal().getName());
     // Pagination is not supported in this API, so we need to truncate the results to 500 records
-    return JobUI.getJobData(jobs.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.REST)
-        .build(), NoOpJobStatusListener.INSTANCE)).truncate(500);
+    final CompletionListener listener = new CompletionListener();
+    final JobId jobId = jobs.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.REST).build(), listener);
+    listener.awaitUnchecked();
+    return new JobDataWrapper(jobs, jobId, securityContext.getUserPrincipal().getName()).truncate(getOrCreateAllocator("query"), 500);
   }
 
   @POST
@@ -97,7 +105,7 @@ public class SQLResource {
     // Setup dependencies and execute suggestion acquisition
     SQLAnalyzer SQLAnalyzer =
       SQLAnalyzerFactory.createSQLAnalyzer(
-        securityContext.getUserPrincipal().getName(), sabotContext, context, true);
+        securityContext.getUserPrincipal().getName(), sabotContext, context, true, projectOptionManager);
 
     List<SqlMoniker> sqlEditorHints = SQLAnalyzer.suggest(sql, cursorPosition);
 
@@ -117,7 +125,7 @@ public class SQLResource {
     // Setup dependencies and execute validation
     SQLAnalyzer SQLAnalyzer =
       SQLAnalyzerFactory.createSQLAnalyzer(
-        securityContext.getUserPrincipal().getName(), sabotContext, context, false);
+        securityContext.getUserPrincipal().getName(), sabotContext, context, false, projectOptionManager);
 
     List<SqlAdvisor.ValidateErrorInfo> validationErrors = SQLAnalyzer.validate(sql);
 

@@ -76,6 +76,8 @@ import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.LimitRel;
+import com.dremio.exec.store.dfs.FilesystemScanDrel;
+import com.dremio.service.Pointer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -283,6 +285,70 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     return result(newCrel, m);
   }
 
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link FilesystemScanDrel}.
+   */
+  @SuppressWarnings("unused")
+  public TrimResult trimFields(
+    FilesystemScanDrel drel,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields) {
+
+    // if we've already pushed down projection of nested columns, we don't want to trim anymore
+    if (drel.getProjectedColumns().stream().anyMatch(c -> !c.isSimplePath())) {
+      return result(drel, Mappings.createIdentity(drel.getRowType().getFieldCount()));
+    }
+
+    ImmutableBitSet.Builder fieldBuilder = fieldsUsed.rebuild();
+
+    Pointer<Boolean> failed = new Pointer<>(false);
+    if (drel.getFilter() != null) {
+      drel.getFilter().getConditions().forEach(c -> {
+        SchemaPath path = c.getPath();
+        String pathString = path.getAsUnescapedPath();
+        RelDataTypeField field = drel.getRowType().getField(pathString, false, false);
+        if (field != null) {
+          fieldBuilder.set(field.getIndex());
+        } else {
+          failed.value = true;
+        }
+      });
+    }
+
+    if (failed.value) {
+      return result(drel, Mappings.createIdentity(drel.getRowType().getFieldCount()));
+    }
+
+    fieldsUsed = fieldBuilder.build();
+
+
+    if(fieldsUsed.cardinality() == drel.getRowType().getFieldCount()) {
+      return result(drel, Mappings.createIdentity(drel.getRowType().getFieldCount()));
+    }
+
+    if(fieldsUsed.cardinality() == 0) {
+      // do something similar to dummy project but avoid using a scan field. This ensures the scan
+      // does a skipAll operation rather than projectin a useless column.
+      final RelOptCluster cluster = drel.getCluster();
+      final Mapping mapping = Mappings.create(MappingType.INVERSE_SURJECTION, drel.getRowType().getFieldCount(), 1);
+      final RexLiteral expr = cluster.getRexBuilder().makeExactLiteral(BigDecimal.ZERO);
+      builder.push(drel);
+      builder.project(ImmutableList.<RexNode>of(expr), ImmutableList.of("DUMMY"));
+      return result(builder.build(), mapping);
+    }
+
+    final List<SchemaPath> paths = new ArrayList<>();
+    final Mapping m = Mappings.create(MappingType.PARTIAL_FUNCTION, drel.getRowType().getFieldCount(), fieldsUsed.cardinality());
+    int index = 0;
+    for(int i : fieldsUsed) {
+      paths.add(SchemaPath.getSimplePath(drel.getRowType().getFieldList().get(i).getName()));
+      m.set(i, index);
+      index++;
+    }
+
+    FilesystemScanDrel newDrel = drel.cloneWithProject(paths);
+    return result(newDrel, m);
+  }
 
   // Overridden until CALCITE-2260 is fixed.
   @Override

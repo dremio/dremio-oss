@@ -98,7 +98,7 @@ class PermissionCheckCache {
       if (!hasAccess) {
         throw NoAccessException.INSTANCE;
       }
-      return new Value(hasAccess, now);
+      return new Value(true, now);
     };
 
     Value value;
@@ -124,7 +124,7 @@ class PermissionCheckCache {
 
       return value.hasAccess;
     } catch (ExecutionException e) {
-      throw new RuntimeException("permission check loader should not throw a checked exception", e.getCause());
+      throw new RuntimeException("Permission check loader should not throw a checked exception", e.getCause());
     } catch (UncheckedExecutionException e) {
       final Throwable cause = e.getCause();
       if (cause instanceof UserException) {

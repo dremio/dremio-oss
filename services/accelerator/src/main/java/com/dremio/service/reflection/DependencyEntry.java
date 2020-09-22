@@ -44,6 +44,8 @@ public abstract class DependencyEntry {
       return new ReflectionDependency(new ReflectionId(entry.getId()));
     } else if (entry.getType() == DependencyType.DATASET) {
       return new DatasetDependency(entry.getId(), entry.getPathList());
+    } else if (entry.getType() == DependencyType.TABLEFUNCTION) {
+      return new TableFunctionDependency(entry.getId(), entry.getSourceName(), entry.getQuery());
     }
     throw new IllegalStateException("Unsupported dependency type " + entry.getType());
   }
@@ -54,6 +56,10 @@ public abstract class DependencyEntry {
 
   public static DatasetDependency of(String id, List<String> path) {
     return new DatasetDependency(id, path);
+  }
+
+  public static DependencyEntry of(String id, String sourceName, String query) {
+    return new TableFunctionDependency(id, sourceName, query);
   }
 
   /**
@@ -172,4 +178,71 @@ public abstract class DependencyEntry {
       return "DatasetId: " + id + ", Path: " + path;
     }
   }
+
+  /**
+   * Table function dependency
+   * a type of reflection dependency on external query
+   */
+  public static class TableFunctionDependency extends DependencyEntry {
+    private final String id;
+    private final String sourceName;
+    private final String query;
+
+    TableFunctionDependency(String id, String sourceName, String query) {
+      this.id = id;
+      this.sourceName = sourceName;
+      this.query = query;
+    }
+
+    @Override
+    public DependencyType getType() {
+      return DependencyType.TABLEFUNCTION;
+    }
+
+    @Override
+    public String getId() {
+      return id;
+    }
+
+    @Override
+    public ReflectionDependencyEntry toProtobuf() {
+      return new ReflectionDependencyEntry()
+        .setType(DependencyType.TABLEFUNCTION)
+        .setId(id)
+        .setSourceName(sourceName)
+        .setQuery(query);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id, sourceName, query);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+      if (obj == null || !(obj instanceof TableFunctionDependency)) {
+        return false;
+      }
+
+      final TableFunctionDependency dep = (TableFunctionDependency) obj;
+      return Objects.equals(id, dep.id) && Objects.equals(sourceName, dep.sourceName) && Objects.equals(query, dep.query);
+    }
+
+    @Override
+    public String toString() {
+        return "Table Function Id: " + id + ", Source: " + sourceName + ", Sql: " + query;
+    }
+
+    public String getSourceName() {
+      return sourceName;
+    }
+
+    public String getQuery() {
+      return query;
+    }
+  }
+
 }

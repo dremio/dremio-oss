@@ -34,7 +34,6 @@ public class TestEndpointsIndex {
 
     NodeEndpoint ep = NodeEndpoint.newBuilder()
         .setAddress("localhost")
-        .setUserPort(1600)
         .setFabricPort(1700)
         .build();
     MinorFragmentEndpoint expected = new MinorFragmentEndpoint(16, ep);
@@ -58,7 +57,6 @@ public class TestEndpointsIndex {
       endpoints.add(
         NodeEndpoint.newBuilder()
           .setAddress("testing " + i)
-          .setUserPort(5660 + (i % 4))
           .setFabricPort(6000 + (i % 8))
           .build());
     }

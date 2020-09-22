@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.proto.model.backup;
 
-import "../../../../../services/datastore/src/main/protobuf/kvstore.proto";
+import "kvstore.proto";
 
 option java_package = "com.dremio.dac.proto.model.backup";
 option optimize_for = SIZE;
@@ -24,4 +24,5 @@ message BackupFileInfo {
   required com.dremio.datastore.KVStoreInfo kvstoreInfo = 1;
   required int64 checksum = 2; // crc32 checksum
   required int64 records = 3;
+  optional bool binary = 4 [default = false];
 }

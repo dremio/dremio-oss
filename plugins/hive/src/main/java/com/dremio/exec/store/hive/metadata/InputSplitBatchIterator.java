@@ -28,8 +28,7 @@ import com.google.common.collect.Lists;
 /**
  * Manages a list of Hive InputSplit objects to help generate Dremio PartitionChunk objects.
  * <p>
- * The list is broken up into batches of
- * {@link com.dremio.exec.store.hive.HivePluginOptions#HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR}
+ * The list is broken up into batches of HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR
  * elements to be iterated over by the caller.
  */
 public class InputSplitBatchIterator extends AbstractIterator<List<InputSplit>> {

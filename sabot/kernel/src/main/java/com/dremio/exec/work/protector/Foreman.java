@@ -16,7 +16,7 @@
 package com.dremio.exec.work.protector;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import org.apache.calcite.plan.RelOptPlanner;
@@ -24,13 +24,18 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryWritableBatch;
-import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SchemaChangeExceptionContext;
+import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.fragment.PlanningSet;
@@ -40,9 +45,6 @@ import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
-import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
-import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -54,24 +56,22 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.foreman.AttemptManager;
-import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.resource.ResourceAllocator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.commandpool.CommandPool;
-import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.Empty;
 
 import io.netty.buffer.ByteBuf;
 
@@ -88,23 +88,21 @@ import io.netty.buffer.ByteBuf;
  * Keeps track of all the info we need to instantiate a new attemptManager
  */
 public class Foreman {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Foreman.class);
+  private static final Logger logger = LoggerFactory.getLogger(Foreman.class);
 
   // we need all these to start new attemptManager instances if we have to
   private final Executor executor; // unlimited thread pool
   private final CommandPool commandPool;
   private final SabotContext context;
-//  private final ForemenManager manager;
   private final CompletionListener listener;
   private final UserSession session;
   private final UserRequest request;
   private final OptionProvider config;
   private final QueryObserver observer;
   private final ReAttemptHandler attemptHandler;
-  private final CoordToExecTunnelCreator tunnelCreator;
   private final Cache<Long, PreparedPlan> plans;
-  private final ResourceAllocator queryResourceManager;
-  private final ExecutorSelectionService executorSelectionService;
+  protected final MaestroService maestroService;
+  protected final JobTelemetryClient jobTelemetryClient;
 
   private AttemptId attemptId; // id of last attempt
 
@@ -114,20 +112,19 @@ public class Foreman {
   private volatile boolean canceled; // did the user cancel the query ?
 
   protected Foreman(
-      final SabotContext context,
-      final Executor executor,
-      final CommandPool commandPool,
-      final CompletionListener listener,
-      final ExternalId externalId,
-      final QueryObserver observer,
-      final UserSession session,
-      final UserRequest request,
-      final OptionProvider config,
-      final ReAttemptHandler attemptHandler,
-      final CoordToExecTunnelCreator tunnelCreator,
-      Cache<Long, PreparedPlan> plans,
-      final ResourceAllocator queryResourceManager,
-      final ExecutorSelectionService executorSelectionService) {
+    final SabotContext context,
+    final Executor executor,
+    final CommandPool commandPool,
+    final CompletionListener listener,
+    final ExternalId externalId,
+    final QueryObserver observer,
+    final UserSession session,
+    final UserRequest request,
+    final OptionProvider config,
+    final ReAttemptHandler attemptHandler,
+    Cache<Long, PreparedPlan> plans,
+    final MaestroService maestroService,
+    final JobTelemetryClient jobTelemetryClient) {
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
     this.commandPool = commandPool;
@@ -138,10 +135,9 @@ public class Foreman {
     this.config = config;
     this.observer = observer;
     this.attemptHandler = attemptHandler;
-    this.tunnelCreator = tunnelCreator;
     this.plans = plans;
-    this.queryResourceManager = queryResourceManager;
-    this.executorSelectionService = executorSelectionService;
+    this.maestroService = maestroService;
+    this.jobTelemetryClient = jobTelemetryClient;
   }
 
   public void start() {
@@ -151,27 +147,6 @@ public class Foreman {
       listener.completed();
       throw e;
     }
-  }
-
-  public void nodesUnregistered(Set<NodeEndpoint> unregistereds){
-    AttemptManager manager = attemptManager;
-    if(manager != null){
-      manager.nodesUnregistered(unregistereds);
-    }
-  }
-
-  public void nodesRegistered(Set<NodeEndpoint> unregistereds){
-    AttemptManager manager = attemptManager;
-    if(manager != null){
-      manager.nodesRegistered(unregistereds);
-    }
-  }
-
-  /**
-   * Publish query progress.
-   */
-  public void publishProgress() {
-    attemptManager.publishProgress();
   }
 
   private void newAttempt(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
@@ -188,7 +163,7 @@ public class Foreman {
     }
 
     attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
-      optionProvider, tunnelCreator, plans, datasetValidityChecker, queryResourceManager, commandPool, executorSelectionService);
+      optionProvider, plans, datasetValidityChecker, commandPool);
 
     if (request.runInSameThread()) {
       attemptManager.run();
@@ -198,20 +173,14 @@ public class Foreman {
   }
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
-      AttemptObserver observer, UserSession session, OptionProvider options, CoordToExecTunnelCreator tunnelCreator,
-      Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker, ResourceAllocator resourceAllocator,
-      CommandPool commandPool, ExecutorSelectionService executorSelectionService) {
+      AttemptObserver observer, UserSession session, OptionProvider options,
+      Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker,
+      CommandPool commandPool) {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
         queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
-    return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans,
-      queryContext, resourceAllocator, commandPool, executorSelectionService, queryRequest.runInSameThread());
-  }
-
-  public void updateStatus(FragmentStatus status) {
-    AttemptManager manager = attemptManager;
-    if(manager != null && manager.getQueryId().equals(status.getHandle().getQueryId())){
-      manager.updateStatus(status);
-    }
+    return new AttemptManager(context, attemptId, queryRequest, observer, options, plans,
+      queryContext, commandPool, maestroService, jobTelemetryClient,
+      queryRequest.runInSameThread());
   }
 
   public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
@@ -222,13 +191,6 @@ public class Foreman {
     }
 
     manager.dataFromScreenArrived(header, data, sender);
-  }
-
-  public void updateNodeQueryStatus(NodeQueryStatus status) {
-    AttemptManager manager = attemptManager;
-    if(manager != null && manager.getQueryId().equals(status.getId())){
-      manager.updateNodeQueryStatus(status);
-    }
   }
 
   private boolean recoverFromFailure(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
@@ -263,7 +225,7 @@ public class Foreman {
    */
   public Optional<QueryProfile> getCurrentProfile() {
     if (attemptManager == null) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     QueryProfile profile = attemptManager.getQueryProfile();
@@ -274,7 +236,25 @@ public class Foreman {
       return Optional.of(profile);
     }
 
-    return Optional.absent();
+    return Optional.empty();
+  }
+
+  /**
+   * Send the latest planning profile to JTS.
+   * @return future.
+   */
+  public Optional<ListenableFuture<Empty>> sendPlanningProfile() {
+    if (attemptManager == null) {
+      return Optional.empty();
+    }
+
+    QueryState state = attemptManager.getState();
+    if (state == QueryState.RUNNING || state == QueryState.STARTING ||
+        state == QueryState.ENQUEUED || state == QueryState.CANCELED) {
+      return Optional.of(attemptManager.sendPlanningProfile());
+    }
+
+    return Optional.empty();
   }
 
   public ExternalId getExternalId() {
@@ -358,9 +338,11 @@ public class Foreman {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getTableSchemaPath());
           final String queryUserName = session.getCredentials().getUserName();
-          final Catalog catalog =
-            context.getCatalogService().getCatalog(SchemaConfig.newBuilder(queryUserName).build(), Long.MAX_VALUE);
-          catalog.updateDatasetSchema(datasetKey, data.getNewSchema());
+          final DatasetCatalog datasetCatalog =
+              context.getCatalogService().getCatalog(MetadataRequestOptions.of(
+                  SchemaConfig.newBuilder(queryUserName)
+                      .build()));
+          datasetCatalog.updateDatasetSchema(datasetKey, data.getNewSchema());
 
           // Update successful, populate return exception.
           result = UserException.schemaChangeError()
@@ -384,9 +366,10 @@ public class Foreman {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
           final String queryUserName = session.getCredentials().getUserName();
-          final Catalog catalog =
-            context.getCatalogService().getCatalog(SchemaConfig.newBuilder(queryUserName).build(), Long.MAX_VALUE);
-          catalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
+          final DatasetCatalog datasetCatalog =
+              context.getCatalogService()
+                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(queryUserName).build()));
+          datasetCatalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
 
           // Update successful, populate return exception.
           result = UserException.jsonFieldChangeError()

@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import com.dremio.common.concurrent.AutoCloseableLock;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 /**
@@ -37,6 +38,7 @@ public class QueueProcessor<T> implements AutoCloseable {
   private final Supplier<AutoCloseableLock> lockSupplier;
   private final Consumer<T> consumer;
   private final BlockingQueue<T> queue;
+  private boolean completed;
   private Thread workerThread;
   private boolean isClosed;
 
@@ -57,6 +59,7 @@ public class QueueProcessor<T> implements AutoCloseable {
     this.queue = new LinkedBlockingQueue<>();
     this.workerThread = null;
     this.isClosed = false;
+    this.completed = true;
   }
 
   /**
@@ -65,6 +68,7 @@ public class QueueProcessor<T> implements AutoCloseable {
    */
   public void enqueue(T event) {
     try {
+      this.completed = false;
       queue.put(event);
     } catch (InterruptedException e) {
       // Will not happen, because the queue is unlimited
@@ -97,7 +101,13 @@ public class QueueProcessor<T> implements AutoCloseable {
         consumer.accept(event);
         event = queue.poll(0, TimeUnit.NANOSECONDS);
       }
+      this.completed = true;
     }
+  }
+
+  @VisibleForTesting
+  public boolean completed() {
+    return completed;
   }
 
   /**

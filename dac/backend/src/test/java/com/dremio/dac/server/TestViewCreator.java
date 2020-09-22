@@ -26,12 +26,13 @@ import org.junit.Test;
 
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.spaces.Space;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 
 /**
@@ -45,48 +46,42 @@ public class TestViewCreator extends BaseTestServer {
   }
 
   @Test
-  public void createQueryDrop() {
+  public void createQueryDrop() throws Exception {
     JobsService jobsService = l(JobsService.class);
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace")).buildPut(Entity.json(new Space(null, "mySpace", null, null, null, 0, null))));
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace/folder/")).buildPost(Entity.json("{\"name\": \"myFolder\"}")), Folder.class);
 
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("create view mySpace.myFolder.myView as select * from cp.nation_ctas.t1.\"0_0_0.parquet\"", DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("create view mySpace.myFolder.myView as select * from cp.nation_ctas.t1.\"0_0_0.parquet\"", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
 
-    final Job job2 = JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    final JobId job2Id = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
-    assertEquals(25, job2.getJobAttempt().getDetails().getOutputRecords().longValue());
+    final JobSummary jobSummary = jobsService.getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(job2Id)).build());
+    assertEquals(25, jobSummary.getOutputRecords());
 
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("drop view mySpace.myFolder.myView", DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("drop view mySpace.myFolder.myView", DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
 
     try {
-      JobsServiceUtil.waitForJobCompletion(
-        jobsService.submitJob(
-          JobRequest.newBuilder()
-            .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
-            .setQueryType(QueryType.UI_RUN)
-            .build(), NoOpJobStatusListener.INSTANCE)
+      submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_RUN)
+          .build()
       );
       Assert.fail("query should have failed");
     } catch (Exception e) {

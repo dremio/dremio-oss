@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.explore.udfs;
 
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 
@@ -22,17 +23,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.google.common.collect.ImmutableList;
 
@@ -41,69 +43,73 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestUDFs extends BaseTestServer {
 
-  private static JobsService jobs;
+  private BufferAllocator allocator;
 
-  @BeforeClass
-  public static void initParser() {
-    jobs = l(JobsService.class);
+  @Before
+  public void setUp() {
+    allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
-  @Test
-  public void testFormatList() {
-    String sql = String.format("select %s(b, ',') as a, b from cp.\"json/nested.json\"", FormatList.NAME);
-    JobDataFragment result = runQuery(sql);
-    List<String> actual = new ArrayList<>();
-    for(int i = 0; i < result.getReturnedRowCount(); i++){
+  @After
+  public void cleanUp() {
+    allocator.close();
+  }
 
-      Object a = result.extractValue("a", i);
-      Object b = result.extractValue("b", i);
-      actual.add(String.format("%s => %s", b, a));
-    }
-    Assert.assertEquals(Arrays.asList(
+
+  @Test
+  public void testFormatList() throws Exception {
+    String sql = String.format("select %s(b, ',') as a, b from cp.\"json/nested.json\"", FormatList.NAME);
+    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
+      List<String> actual = new ArrayList<>();
+      for(int i = 0; i < result.getReturnedRowCount(); i++){
+
+        Object a = result.extractValue("a", i);
+        Object b = result.extractValue("b", i);
+        actual.add(String.format("%s => %s", b, a));
+      }
+      Assert.assertEquals(Arrays.asList(
         "[\"A\",\"B\",\"C\"] => A,B,C",
         "[\"D\"] => D",
         "[\"E\",\"F\"] => E,F",
         "[] => "
-        ), actual);
+      ), actual);
+    }
+  }
+
+  private JobDataFragment runQueryAndGetResults(String sql) throws JobNotFoundException {
+    return submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder().setSqlQuery(new SqlQuery(sql, ImmutableList.of("cp"), DEFAULT_USERNAME)).build(),
+      0, 500, allocator);
   }
 
   @Test
-  public void testFormatListWithWhereWithNull() {
+  public void testFormatListWithWhereWithNull() throws Exception {
     String sql = String.format("select %s(b, ',') as a, b from cp.\"json/nested.json\" where b is null", FormatList
       .NAME);
-    JobDataFragment result = runQuery(sql);
-    List<String> actual = new ArrayList<>();
-    for(int i = 0; i < result.getReturnedRowCount(); i++){
+    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
+      List<String> actual = new ArrayList<>();
+      for(int i = 0; i < result.getReturnedRowCount(); i++){
 
-      Object a = result.extractValue("a", i);
-      Object b = result.extractValue("b", i);
-      actual.add(String.format("%s => %s", b, a));
+        Object a = result.extractValue("a", i);
+        Object b = result.extractValue("b", i);
+        actual.add(String.format("%s => %s", b, a));
+      }
+      Assert.assertEquals(0, actual.size());
     }
-    Assert.assertEquals(0, actual.size());
-  }
-
-  private JobDataFragment runQuery(String sql) {
-    return JobUI.getJobData(
-      jobs.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(sql, ImmutableList.of("cp"), DEFAULT_USERNAME))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
   }
 
   @Test
-  public void testUnionType() {
+  public void testUnionType() throws Exception {
     String sql = "select * from cp.\"json/mixed.json\"";
-    JobDataFragment result = runQuery(sql);
-    List<String> actual = new ArrayList<>();
-    for(int i =0; i < result.getReturnedRowCount(); i++){
-      Object a = result.extractValue("a", i);
-      Object b = result.extractValue("b", i);
-      String type = result.extractType("a", i).name();
-      actual.add(String.format("%s, %s:%s", b, a, type));
-    }
-    Assert.assertEquals(Arrays.asList(
+    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
+      List<String> actual = new ArrayList<>();
+      for(int i =0; i < result.getReturnedRowCount(); i++){
+        Object a = result.extractValue("a", i);
+        Object b = result.extractValue("b", i);
+        String type = result.extractType("a", i).name();
+        actual.add(String.format("%s, %s:%s", b, a, type));
+      }
+      Assert.assertEquals(Arrays.asList(
         "123, abc:TEXT",
         "123, 123:INTEGER",
         "123.0, 0.123:FLOAT",
@@ -113,27 +119,30 @@ public class TestUDFs extends BaseTestServer {
         "0.0, 0.123:FLOAT",
         "-123.0, 0.123:FLOAT",
         "0, 0.123:FLOAT"
-        ), actual);
+      ), actual);
+    }
+
   }
 
-  public void validateCleanDataSingleField(String call, String col, String... expected) {
+  private void validateCleanDataSingleField(String call, String col, String... expected) throws JobNotFoundException {
 //    {"a": "abc", "b":"123" }
 //    {"a": 123, "b":123 }
 //    {"a": 0.123, "b":123.0 }
 //    {"a": { "foo" : "bar"}, "b":123 }
 
     String sql = format("select %s as actual, %s from cp.\"json/mixed.json\"", call, col);
-    JobDataFragment result = runQuery(sql);
-    Assert.assertEquals(expected.length, result.getReturnedRowCount());
-    for (int i = 0; i < expected.length; i++) {
-      String expRow = expected[i];
-      String actual = result.extractString("actual", i);
-      Assert.assertEquals(call + " on " + col + "=" + result.extractString(col, i) + " row:" + i, expRow, actual);
+    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
+      Assert.assertEquals(expected.length, result.getReturnedRowCount());
+      for (int i = 0; i < expected.length; i++) {
+        String expRow = expected[i];
+        String actual = result.extractString("actual", i);
+        Assert.assertEquals(call + " on " + col + "=" + result.extractString(col, i) + " row:" + i, expRow, actual);
+      }
     }
   }
 
   @Test
-  public void testCleanDataBoolean() {
+  public void testCleanDataBoolean() throws Exception {
     validateCleanDataSingleField("clean_data_to_Boolean(d, 1, 0, false)", "a",
       "true",
       "false",
@@ -147,7 +156,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCleanDataDefault() {
+  public void testCleanDataDefault() throws Exception {
     validateCleanDataSingleField("clean_data_to_TEXT(a, 0, 0, 'blah')", "a",
         "abc",
         "blah",
@@ -161,7 +170,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCleanDataCast() {
+  public void testCleanDataCast() throws Exception {
     validateCleanDataSingleField("clean_data_to_TEXT(a, 1, 1, '')", "a",
         "abc",
         "123",
@@ -175,7 +184,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCleanDataNull() {
+  public void testCleanDataNull() throws Exception {
     validateCleanDataSingleField("clean_data_to_TEXT(a, 0, 1, '')", "a",
         "abc",
         null,
@@ -189,7 +198,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testIsCleanDataFloat() {
+  public void testIsCleanDataFloat() throws Exception {
     validateCleanDataSingleField("is_convertible_data(c, 1, cast('FLOAT' as VARCHAR))", "c",
         "true",
         "true",
@@ -204,7 +213,7 @@ public class TestUDFs extends BaseTestServer {
 
 
   @Test
-  public void testConvertToFloatScientificNotation() {
+  public void testConvertToFloatScientificNotation() throws Exception {
     validateCleanDataSingleField("convert_to_FLOAT(c, 1, 1, 0.0)", "c",
         "3.2E-90",
         "-5.0E-10",
@@ -218,7 +227,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCastScientificNotation() {
+  public void testCastScientificNotation() throws Exception {
     validateCleanDataSingleField("cast(c as DOUBLE)", "c",
         "3.2E-90",
         "-5.0E-10",
@@ -232,7 +241,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCleanDataIntCast() {
+  public void testCleanDataIntCast() throws Exception {
     validateCleanDataSingleField("clean_data_to_Integer(b, 1, 0, 0)", "b",
         "123",
         "123",
@@ -246,7 +255,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCleanDataIntDefault() {
+  public void testCleanDataIntDefault() throws Exception {
     validateCleanDataSingleField("clean_data_to_Integer(b, 0, 0, 0)", "b",
         "0",
         "123",
@@ -260,7 +269,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testCleanDataIntDefaultNull() {
+  public void testCleanDataIntDefaultNull() throws Exception {
     validateCleanDataSingleField("clean_data_to_Integer(b, 0, 1, 0)", "b",
         null,
         "123",
@@ -274,7 +283,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testExtractListSingle0() {
+  public void testExtractListSingle0() throws Exception {
     validate("select a[0] as a from cp.\"json/extract_list.json\"", "a",
         "Shopping",
         "Bars",
@@ -283,7 +292,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testExtractListSingle4() {
+  public void testExtractListSingle4() throws Exception {
     validate("select a[4] as a from cp.\"json/extract_list.json\"", "a",
         null,
         "Restaurants",
@@ -291,28 +300,30 @@ public class TestUDFs extends BaseTestServer {
         );
   }
 
-  private void validate(String sql, String col, String... values) {
-    JobDataFragment result = runQuery(sql);
-    List<String> actual = new ArrayList<>();
-    for (int i =0; i < result.getReturnedRowCount(); i++) {
-      actual.add(result.extractString(col, i));
+  private void validate(String sql, String col, String... values) throws Exception {
+    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
+      List<String> actual = new ArrayList<>();
+      for (int i =0; i < result.getReturnedRowCount(); i++) {
+        actual.add(result.extractString(col, i));
+      }
+      Assert.assertEquals(asList(values), actual);
     }
-    Assert.assertEquals(asList(values), actual);
   }
 
   @Test
   @Ignore("flakey")
-  public void testExtractListRange4() {
-    JobDataFragment result = runQuery("select extract_list_range(a, 2, 1, 3, -1)['root'] as a from cp.\"json/extract_list.json\"");
-    String column = "a";
-    Assert.assertEquals(result.getReturnedRowCount(), 3);
-    Assert.assertTrue(result.extractString(column, 0).equals("[]") || result.extractString(column, 0).equals("null"));
-    Assert.assertTrue(result.extractString(column, 1).equals("[\"Nightlife\"]"));
-    Assert.assertTrue(result.extractString(column, 0).equals("[]") || result.extractString(column, 0).equals("null"));
+  public void testExtractListRange4() throws Exception {
+    try (final JobDataFragment result = runQueryAndGetResults("select extract_list_range(a, 2, 1, 3, -1)['root'] as a from cp.\"json/extract_list.json\"")) {
+      String column = "a";
+      Assert.assertEquals(result.getReturnedRowCount(), 3);
+      Assert.assertTrue(result.extractString(column, 0).equals("[]") || result.extractString(column, 0).equals("null"));
+      Assert.assertEquals("[\"Nightlife\"]", result.extractString(column, 1));
+      Assert.assertTrue(result.extractString(column, 0).equals("[]") || result.extractString(column, 0).equals("null"));
+    }
   }
 
   @Test
-  public void testTitleCase() {
+  public void testTitleCase() throws Exception {
     validate("select title(a) as a from cp.\"json/convert_case.json\"", "a",
         "Los Angeles",
         "Los Angeles",
@@ -325,7 +336,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testDremioTypeOfInteger() {
+  public void testDremioTypeOfInteger() throws Exception {
     validate("SELECT \"t\" AS \"t2\"" +
                     "FROM cp.\"json/mixed_example.json\" WHERE dremio_type_of(\"t\") = 'INTEGER' LIMIT 5", "t2",
             "0", "0", "0", "0", "0"
@@ -333,7 +344,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testDremioTypeOfText() {
+  public void testDremioTypeOfText() throws Exception {
     validate("SELECT \"t\" AS \"t2\"" +
                     "FROM cp.\"json/mixed_example.json\" WHERE dremio_type_of(\"t\") = 'TEXT' ORDER BY t2 DESC LIMIT 5", "t2",
             "zero", "zero", "nan", "nan", "nan"
@@ -341,7 +352,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testDremioTypeOfFloat() {
+  public void testDremioTypeOfFloat() throws Exception {
     validate("SELECT \"t\" AS \"t2\" " +
                     "FROM cp.\"json/mixed_example.json\" WHERE dremio_type_of(\"t\") = 'FLOAT'", "t2",
             "0.0", "0.0", "0.0", "1.0", "1.0"
@@ -349,7 +360,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testExtractMap() {
+  public void testExtractMap() throws Exception {
     String extracted = "{\"close\":\"19:00\",\"open\":\"10:00\"}";
     validate("SELECT map_table.a.Tuesday as t " +
                     "FROM cp.\"json/extract_map.json\" map_table", "t",
@@ -358,7 +369,7 @@ public class TestUDFs extends BaseTestServer {
   }
 
   @Test
-  public void testExtractMapNested() {
+  public void testExtractMapNested() throws Exception {
     String extracted = "19:00";
     validate("SELECT map_table.a.Tuesday.\"close\" as t " +
                     "FROM cp.\"json/extract_map.json\" map_table", "t",

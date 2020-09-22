@@ -41,7 +41,7 @@ public class EmptyCrel extends ScanRelBase {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EmptyCrel(getCluster(), traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment);
+    return new EmptyCrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
   }
 
   @Override

@@ -15,18 +15,23 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import datasetAccelerationSettingsSchema from 'schemas/datasetAccelerationSettings';
-import { constructFullPathAndEncode, constructFullPath } from 'utils/pathUtils';
+import { constructFullPath } from 'utils/pathUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_DATASET_ACCELERATION_SETTINGS_START = 'LOAD_DATASET_ACCELERATION_SETTINGS_START';
 export const LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS = 'LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS';
 export const LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE = 'LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE';
 
 export function loadDatasetAccelerationSettings(fullPathList, viewId) {
-  const encodedDatasetPath = constructFullPathAndEncode(fullPathList);
   const meta = { viewId };
+
+  const apiCall = new APIV2Call()
+    .path('dataset')
+    .path(constructFullPath(fullPathList))
+    .paths('acceleration/settings');
+
   // TODO: this is a workaround for accelerationSettings not having its own id
   return {
     [RSAA]: {
@@ -39,7 +44,7 @@ export function loadDatasetAccelerationSettings(fullPathList, viewId) {
         {type: LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/dataset/${encodedDatasetPath}/acceleration/settings`
+      endpoint: apiCall
     }
   };
 }
@@ -49,7 +54,11 @@ export const UPDATE_DATASET_ACCELERATION_SETTINGS_SUCCESS = 'UPDATE_DATASET_ACCE
 export const UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE = 'UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE';
 
 export function updateDatasetAccelerationSettings(fullPathList, form) {
-  const datasetPath = constructFullPathAndEncode(fullPathList);
+  const apiCall = new APIV2Call()
+    .path('dataset')
+    .path(constructFullPath(fullPathList))
+    .paths('acceleration/settings');
+
   return {
     [RSAA]: {
       types: [
@@ -60,7 +69,7 @@ export function updateDatasetAccelerationSettings(fullPathList, form) {
       method: 'PUT',
       body: JSON.stringify(form),
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}/dataset/${datasetPath}/acceleration/settings`
+      endpoint: apiCall
     }
   };
 }

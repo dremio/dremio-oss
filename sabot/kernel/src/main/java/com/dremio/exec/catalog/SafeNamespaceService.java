@@ -20,10 +20,10 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.dremio.connector.metadata.DatasetSplit;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStore.FindByRange;
+import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.exec.catalog.ManagedStoragePlugin.SafeRunner;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.DatasetMetadataSaver;
@@ -165,7 +165,7 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(FindByCondition arg0) {
+  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(LegacyFindByCondition arg0) {
     return runner.doSafeIterable(() -> delegate.find(arg0));
   }
 
@@ -175,12 +175,12 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public Iterable<PartitionChunkMetadata> findSplits(FindByCondition arg0) {
+  public Iterable<PartitionChunkMetadata> findSplits(LegacyFindByCondition arg0) {
     return runner.doSafeIterable(() -> delegate.findSplits(arg0));
   }
 
   @Override
-  public Iterable<PartitionChunkMetadata> findSplits(FindByRange<PartitionChunkId> arg0) {
+  public Iterable<PartitionChunkMetadata> findSplits(LegacyFindByRange<PartitionChunkId> arg0) {
     return runner.doSafeIterable(() -> delegate.findSplits(arg0));
   }
 
@@ -240,7 +240,7 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public int getPartitionChunkCount(FindByCondition arg0) {
+  public int getPartitionChunkCount(LegacyFindByCondition arg0) {
     return runner.doSafe(() -> delegate.getPartitionChunkCount(arg0));
   }
 
@@ -280,8 +280,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2) {
-    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2));
+  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2, long arg3) {
+    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2, arg3));
     return new DatasetMetadataSaver() {
 
       @Override
@@ -290,18 +290,13 @@ class SafeNamespaceService implements NamespaceService {
       }
 
       @Override
+      public long savePartitionChunks(PartitionChunkListing chunkListing) throws IOException {
+        return runner.doSafe(() -> delegate.savePartitionChunks(chunkListing));
+      }
+
+      @Override
       public void saveDataset(DatasetConfig arg0, boolean arg1, NamespaceAttribute... arg2) throws NamespaceException {
         runner.doSafe(() -> delegate.saveDataset(arg0, arg1, arg2));
-      }
-
-      @Override
-      public void saveDatasetSplit(DatasetSplit arg0) {
-        runner.doSafe(() -> delegate.saveDatasetSplit(arg0));
-      }
-
-      @Override
-      public void savePartitionChunk(com.dremio.connector.metadata.PartitionChunk arg0) throws IOException {
-        runner.doSafe(() -> delegate.savePartitionChunk(arg0));
       }
 
     };

@@ -19,20 +19,13 @@ package com.dremio;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.calcite.sql.SqlExplain.Depth;
 import org.apache.calcite.sql.SqlExplainLevel;
 
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.base.Strings;
 
 public class PlanTestBase extends BaseTestQuery {
@@ -363,48 +356,10 @@ public class PlanTestBase extends BaseTestQuery {
   }
 
   /*
-   * This will submit an "EXPLAIN" statement, and return the column value which
-   * contains the plan's string.
+   * This will submit a query and validate whether the provided column name includes the expeted data.
    */
-  protected static String getPlanInString(String sql, String columnName)
-      throws Exception {
-    final List<QueryDataBatch> results = testSqlWithResults(sql);
-    final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
-    final StringBuilder builder = new StringBuilder();
-    final boolean silent = config != null && config.getBoolean(QueryTestUtil.TEST_QUERY_PRINTING_SILENT);
-
-    for (final QueryDataBatch b : results) {
-      if (!b.hasData()) {
-        continue;
-      }
-
-      loader.load(b.getHeader().getDef(), b.getData());
-
-      final VectorWrapper<?> vw;
-      try {
-          vw = loader.getValueAccessorById(
-              VarCharVector.class,
-              loader.getValueVectorId(SchemaPath.getSimplePath(columnName)).getFieldIds());
-      } catch (Throwable t) {
-        throw new Exception("Looks like you did not provide an explain plan query, please add EXPLAIN PLAN FOR to the beginning of your query.");
-      }
-
-      if (!silent) {
-        System.out.println(vw.getValueVector().getField().getName());
-      }
-      final ValueVector vv = vw.getValueVector();
-      for (int i = 0; i < vv.getValueCount(); i++) {
-        final Object o = vv.getObject(i);
-        builder.append(o);
-        if (!silent) {
-          System.out.println(o);
-        }
-      }
-      loader.clear();
-      b.release();
-    }
-
-    return builder.toString();
+  protected static String getPlanInString(String sql, String columnName) throws Exception {
+    return getValueInFirstRecord(sql, columnName);
   }
 
   private static String getLogicalPrefixJoinOrderFromPlan(String plan) {

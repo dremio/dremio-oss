@@ -57,7 +57,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedTableMacro;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.util.Util;
 
-import com.dremio.exec.store.ischema.tables.TablesTable.Table;
+import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -98,6 +98,10 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     return new DremioPrepareTable(this, typeFactory, table);
   }
 
+  public void validateSelection() {
+    catalog.validateSelection();
+  }
+
   @Override
   public RelDataType getNamedType(SqlIdentifier paramSqlIdentifier) {
     return null;
@@ -121,7 +125,8 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
       // Get dataset names for each schema.
       for (Table dataset : catalog.listDatasets(new NamespaceKey(currSchema))) {
-        result.add(new SqlMonikerImpl(Arrays.asList(dataset.TABLE_SCHEMA, dataset.TABLE_NAME), SqlMonikerType.TABLE));
+        result.add(new SqlMonikerImpl(Arrays.asList(dataset.getSchemaName(),
+          dataset.getTableName()), SqlMonikerType.TABLE));
       }
     }
 

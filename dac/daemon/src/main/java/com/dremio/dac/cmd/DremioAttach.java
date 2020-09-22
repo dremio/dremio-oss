@@ -23,23 +23,17 @@ import com.sun.tools.attach.VirtualMachineDescriptor;
  * Attach Tool
  */
 public class DremioAttach {
+  private static String DREMIO_PROCESS_NAME = "DremioDaemon";
 
   public static void main(String[] args) throws Exception {
     // find DremioDaemon Process
-    String vmid = null;
+    String vmid = getVmIdForProcess(DREMIO_PROCESS_NAME);
+
+    main(vmid, args);
+  }
+
+  public static void main(String vmid, String[] args) throws Exception {
     VirtualMachine vm = null;
-    int dremioCount = 0;
-    for (VirtualMachineDescriptor descriptor : VirtualMachine.list()) {
-      if (isDremioDescriptor(descriptor)) {
-        vmid = descriptor.id();
-        dremioCount++;
-      }
-    }
-
-    if (dremioCount != 1) {
-      throw new UnsupportedOperationException("Failed to attach: couldn't find Dremio process to attach");
-    }
-
     try {
       vm = VirtualMachine.attach(vmid);
       vm.loadAgent(DremioAgent.class.getProtectionDomain().getCodeSource().getLocation().getPath(), String.join("\t", args));
@@ -50,17 +44,19 @@ public class DremioAttach {
     }
   }
 
-  public static boolean isOffline() {
+  static String getVmIdForProcess(String dremioProcess) throws Exception {
     int dremioCount = 0;
+    String vmid = null;
     for (VirtualMachineDescriptor descriptor : VirtualMachine.list()) {
-      if (isDremioDescriptor(descriptor)) {
+      if (descriptor.toString().contains(dremioProcess)) {
+        vmid = descriptor.id();
         dremioCount++;
       }
     }
-    return dremioCount != 1;
-  }
 
-  private static boolean isDremioDescriptor(VirtualMachineDescriptor descriptor) {
-    return descriptor.toString().contains("DremioDaemon");
+    if (dremioCount != 1) {
+      throw new UnsupportedOperationException("Failed to attach: couldn't find Dremio process to attach");
+    }
+    return vmid;
   }
 }

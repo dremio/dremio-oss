@@ -22,6 +22,7 @@ import javax.inject.Inject;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
@@ -68,17 +69,45 @@ public class MathFunctions{
 
   }
 
-  @FunctionTemplate(name = "random", isDeterministic = false)
-  public static class Random implements SimpleFunction{
-    @Output NullableFloat8Holder out;
+  @FunctionTemplate(names = {"random", "rand"}, isDeterministic = false)
+  public static class Random implements SimpleFunction {
+    @Output
+    NullableFloat8Holder out;
+    @Workspace
+    java.util.Random random;
 
-    public void setup(){}
-
-    public void eval(){
-      out.isSet = 1;
-      out.value = java.lang.Math.random();
+    public void setup() {
+      random = new java.util.Random();
     }
 
+    public void eval() {
+      out.isSet = 1;
+      out.value = random.nextDouble();
+    }
+  }
+
+  @FunctionTemplate(names = {"random", "rand"}, isDeterministic = false, scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class RandomWithSeed implements SimpleFunction {
+
+    @Param
+    NullableIntHolder seedHolder;
+    @Output
+    NullableFloat8Holder out;
+    @Workspace
+    java.util.Random random;
+
+    public void setup() {
+      int seed = 0;
+      if (seedHolder.isSet == 1) {
+        seed = seedHolder.value;
+      }
+      random = new java.util.Random(seed);
+    }
+
+    public void eval() {
+      out.isSet = 1;
+      out.value = random.nextDouble();
+    }
   }
 
   @FunctionTemplate(name = "to_number", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)

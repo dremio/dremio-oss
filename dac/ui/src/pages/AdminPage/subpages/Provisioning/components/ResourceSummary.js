@@ -55,6 +55,7 @@ const styles = {
     height: 32
   },
   infoRow: {
+    width: '50%',
     display: 'flex',
     marginBottom: 6
   },

@@ -17,6 +17,8 @@ package com.dremio.exec.store.dfs;
 
 import java.util.Map;
 
+import javax.inject.Provider;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -30,11 +32,11 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
-import com.dremio.service.BindingProvider;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Injector;
 
 /**
  * An end-to-end test for PDFS
@@ -54,10 +56,11 @@ public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
     WorkspaceConfig workspace = new WorkspaceConfig(TEMPORARY_FOLDER.newFolder().getAbsolutePath(), true, "parquet");
     String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 
-    BindingProvider p = getBindingProvider();
+    final Injector injector = getInjector();
+    final Provider<SabotContext> sabotContext = injector.getProvider(SabotContext.class);
 
-    service = new PDFSService(p.provider(SabotContext.class), p.provider(FabricService.class),
-        DremioTest.DEFAULT_SABOT_CONFIG, getSabotContext().getAllocator());
+    service = new PDFSService(injector.getProvider(FabricService.class), () -> sabotContext.get().getEndpoint(), () -> sabotContext.get().getExecutors(),
+      DremioTest.DEFAULT_SABOT_CONFIG, getSabotContext().getAllocator());
     service.start();
 
     SourceConfig c = new SourceConfig();

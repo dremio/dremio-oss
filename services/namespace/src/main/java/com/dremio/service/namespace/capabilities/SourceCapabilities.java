@@ -50,6 +50,7 @@ public final class SourceCapabilities {
   public static final BooleanCapability CORRELATED_SUBQUERY_PUSHDOWN =
     new BooleanCapability("correlated_pushdownable", true);
 
+  public static final BooleanCapability VARCHARS_WITH_WIDTH = new BooleanCapability("varchars_with_width", false);
 
   private final ImmutableMap<Capability<?>, CapabilityValue<?,?>> values;
 

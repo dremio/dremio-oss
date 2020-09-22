@@ -15,11 +15,12 @@
  */
 package com.dremio.exec.rpc;
 
-import io.netty.buffer.ByteBuf;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
+
+import io.netty.buffer.ByteBuf;
 
 public class InboundRpcMessage extends RpcMessage{
   public byte[] pBody;
@@ -47,6 +48,7 @@ public class InboundRpcMessage extends RpcMessage{
     }
   }
 
+  @SuppressWarnings("ArrayToString") // do not need pBody content to be printed out...
   @Override
   public String toString() {
     return "InboundRpcMessage [pBody=" + pBody + ", mode=" + mode + ", rpcType=" + rpcType + ", coordinationId="

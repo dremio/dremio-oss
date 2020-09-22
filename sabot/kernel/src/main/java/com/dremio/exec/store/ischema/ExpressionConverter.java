@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.ischema;
 
-import static com.dremio.service.namespace.DatasetIndexKeys.LOWER_CASE_SUFFIX;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,12 +37,11 @@ import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitor;
 
-import com.dremio.datastore.SearchQueryUtils;
-import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.namespace.DatasetIndexKeys;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+
 /**
  * Enables conversion of a filter condition into a search query and remainder for pushdown purposes.
  */
@@ -83,7 +80,11 @@ public class ExpressionConverter {
     if(found.size() == 1) {
       return new PushdownResult(found.get(0), remainder);
     } else {
-      return new PushdownResult(SearchQueryUtils.and(found), remainder);
+      return new PushdownResult(SearchQuery.newBuilder()
+        .setAnd(SearchQuery.And.newBuilder()
+          .addAllClauses(found))
+        .build(),
+        remainder);
     }
 
   }
@@ -122,21 +123,31 @@ public class ExpressionConverter {
         if(bifunc == null) {
           return null;
         }
-        return SearchQueryUtils.newTermQuery(bifunc.field, bifunc.literal);
+        return SearchQuery.newBuilder()
+          .setEquals(SearchQuery.Equals.newBuilder()
+            .setField(bifunc.field.getIndexFieldName())
+            .setStringValue(bifunc.literal))
+          .build();
 
       case AND:
         if(subs == null) {
           return null;
         }
 
-        return SearchQueryUtils.and(subs);
+        return SearchQuery.newBuilder()
+          .setAnd(SearchQuery.And.newBuilder()
+            .addAllClauses(subs))
+          .build();
 
       case OR:
         if(subs == null) {
           return null;
         }
 
-        return SearchQueryUtils.or(subs);
+        return SearchQuery.newBuilder()
+          .setOr(SearchQuery.Or.newBuilder()
+            .addAllClauses(subs))
+          .build();
 
 // Lucene doesn't handle NOT expressions well in some cases.
 //      case NOT:
@@ -204,7 +215,13 @@ public class ExpressionConverter {
         return null;
       }
 
-      return getLikeQuery(indexKey.getIndexFieldName(), pattern, escape, false);
+      return SearchQuery.newBuilder()
+        .setLike(SearchQuery.Like.newBuilder()
+          .setField(indexKey.getIndexFieldName())
+          .setPattern(pattern)
+          .setEscape(escape == null ? "" : escape)
+          .setCaseInsensitive(false))
+        .build();
     }
 
     @Override
@@ -349,69 +366,6 @@ public class ExpressionConverter {
 
     public RexNode getRemainder() {
       return remainder;
-    }
-
-  }
-
-  /**
-   * Converts a SQL like phrase into a similar Lucene WildcardQuery.
-   * @param fieldName The field to create the query on.
-   * @param pattern the expected pattern
-   * @param escape The Escape character to use.
-   * @return The SearchQuery that matches the Like pattern.
-   */
-  public static SearchQuery getLikeQuery(String fieldName, String pattern, String escape, boolean caseInsensitive) {
-    Preconditions.checkArgument(escape == null || escape.length() == 1, "An escape must be a single character.");
-    StringBuilder sb = new StringBuilder();
-    final char e = escape == null ? '\\' : escape.charAt(0);
-    boolean escaped = false;
-
-    for (int i = 0; i < pattern.length(); i++){
-      char c = pattern.charAt(i);
-
-      if(escaped) {
-        sb.append(c);
-        escaped = false;
-        continue;
-      }
-
-      if(c == e) {
-        sb.append('\\');
-        escaped = true;
-        continue;
-      }
-
-
-      switch(c) {
-      case '%':
-        sb.append("*");
-        break;
-
-      case '_':
-        sb.append("?");
-        break;
-
-      // ESCAPE * if it occurs
-      case '*':
-        sb.append("\\*");
-        break;
-
-      // ESCAPE ? if it occurs
-      case '?':
-        sb.append("\\?");
-        break;
-
-      default:
-        sb.append(c);
-        break;
-      }
-
-    }
-
-    if(caseInsensitive) {
-      return SearchQueryUtils.newWildcardQuery(fieldName + LOWER_CASE_SUFFIX, sb.toString().toLowerCase());
-    } else {
-      return SearchQueryUtils.newWildcardQuery(fieldName, sb.toString());
     }
 
   }

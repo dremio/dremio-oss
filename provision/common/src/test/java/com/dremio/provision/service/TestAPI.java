@@ -15,6 +15,7 @@
  */
 package com.dremio.provision.service;
 
+import static java.util.Collections.singletonMap;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -29,6 +30,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -37,9 +39,10 @@ import org.mockito.Mockito;
 
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.edition.EditionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
@@ -68,25 +71,25 @@ import com.dremio.test.DremioTest;
 public class TestAPI extends DremioTest {
 
   private static ProvisioningResource resource;
-  private static final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true,
-    false);
+  private static final LegacyKVStoreProvider kvstore =
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
   private static SingletonRegistry registry = new SingletonRegistry();
   private static ProvisioningServiceImpl service;
+  private static final long defaultShutdownInterval = TimeUnit.MINUTES.toMillis(120);
 
   @BeforeClass
   public static void before() throws Exception {
-      registry.bind(KVStoreProvider.class, kvstore);
-      kvstore.start();
-      registry.start();
-      service = Mockito.spy(new ProvisioningServiceImpl(
-          DremioConfig.create(),
-          registry.provider(KVStoreProvider.class),
-          Mockito.mock(NodeProvider.class),
-          DremioTest.CLASSPATH_SCAN_RESULT,
-          DirectProvider.wrap(Mockito.mock(OptionManager.class))
-          ));
-      service.start();
-      resource = new ProvisioningResource(service);
+    registry.bind(LegacyKVStoreProvider.class, kvstore);
+    registry.start();
+    service = Mockito.spy(new ProvisioningServiceImpl(
+      DremioConfig.create(),
+      registry.provider(LegacyKVStoreProvider.class),
+      Mockito.mock(NodeProvider.class),
+      DremioTest.CLASSPATH_SCAN_RESULT,
+      DirectProvider.wrap(Mockito.mock(OptionManager.class)),
+      DirectProvider.wrap(Mockito.mock(EditionProvider.class))));
+    service.start();
+    resource = new ProvisioningResource(service);
   }
 
   @AfterClass
@@ -99,7 +102,14 @@ public class TestAPI extends DremioTest {
   @Test
   public void testModifyService() throws Exception {
     ProvisioningServiceDelegate provServiceDelegate = Mockito.mock(ProvisioningServiceDelegate.class);
-    service.getConcreteServices().put(ClusterType.YARN, provServiceDelegate);
+
+    ProvisioningService service = Mockito.spy(
+      new ProvisioningServiceImpl(
+        singletonMap(ClusterType.YARN, provServiceDelegate),
+        () -> kvstore
+      )
+    );
+    service.start();
 
     final ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setName("DremioDaemon");
@@ -120,13 +130,14 @@ public class TestAPI extends DremioTest {
     doReturn(new ClusterEnriched()).when(provServiceDelegate).startCluster(any(Cluster.class));
     doNothing().when(provServiceDelegate).stopCluster(any(Cluster.class));
 
-    KVStore<ClusterId, Cluster> store =
-      registry.provider(KVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
+    LegacyKVStore<ClusterId, Cluster> store =
+      registry.provider(LegacyKVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
 
     ClusterId clusterId = new ClusterId(UUID.randomUUID().toString());
     Cluster cluster = new Cluster();
     cluster.setId(clusterId);
     cluster.setState(ClusterState.RUNNING);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setDesiredState(ClusterState.RUNNING);
     cluster.setClusterConfig(clusterConfig);
 
@@ -138,17 +149,15 @@ public class TestAPI extends DremioTest {
     for (Map.Entry<ClusterId, Cluster> entry : entries) {
       Cluster clusterEntry = entry.getValue();
       clusterId = clusterEntry.getId();
-      assertTrue(clusterEntry.getClusterConfig().getTag().equals("0"));
       count++;
+      assertNotNull(clusterEntry.getClusterConfig().getTag());
     }
     assertEquals(1, count);
-    clusterConfig.setTag("0");
     service.modifyCluster(clusterId, ClusterState.STOPPED, clusterConfig);
     Cluster clusterModified = store.get(clusterId);
     assertNotNull(clusterModified);
-    assertTrue(clusterModified.getClusterConfig().getTag().equals("2"));
     assertEquals(ClusterState.STOPPED, clusterModified.getDesiredState());
-    clusterConfig.setTag("3");
+    clusterConfig.setTag("4");
     try {
       service.modifyCluster(clusterId, null, clusterConfig);
       fail("Should be version mismatch");
@@ -163,6 +172,7 @@ public class TestAPI extends DremioTest {
     // test version mismatch
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setTag("11")
+        .setShutdownInterval(defaultShutdownInterval)
         .setId(storedCluster.getId().getId())
         .build();
 
@@ -186,6 +196,7 @@ public class TestAPI extends DremioTest {
       ClusterModifyRequest request = ClusterModifyRequest.builder()
           .setId(storedCluster.getId().getId())
           .setTag(version)
+          .setShutdownInterval(defaultShutdownInterval)
           .build();
 
       ClusterConfig config = resource.toClusterConfig(request);
@@ -206,6 +217,7 @@ public class TestAPI extends DremioTest {
     // test version not set
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
+        .setShutdownInterval(defaultShutdownInterval)
         .build();
 
     ClusterConfig config = resource.toClusterConfig(request);
@@ -218,11 +230,39 @@ public class TestAPI extends DremioTest {
     }
   }
 
+  /**
+   * This test verifies that when the cluster is STARTING we return ACTION.NONE
+   * causing the query to wait until the cluster is RUNNING.
+   * @throws Exception
+   */
+  @Test
+  public void testStartingCluster() throws Exception {
+    Cluster storedCluster = clusterCreateHelper();
+    storedCluster.setState(ClusterState.STARTING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+      .setTag("12")
+      .setId(storedCluster.getId().getId())
+      .setShutdownInterval(defaultShutdownInterval)
+      .build();
+
+    ClusterConfig config = resource.toClusterConfig(request);
+    final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
+    modifiedCluster.setState(ClusterState.RUNNING);
+    modifiedCluster.setStateChangeTime(System.currentTimeMillis());
+
+    assertEquals(ProvisioningServiceImpl.Action.NONE, service.toAction(storedCluster, modifiedCluster));
+
+  }
   @Test
   public void testPropertyType() throws Exception {
     ProvisioningServiceDelegate provServiceDelegate = Mockito.mock(ProvisioningServiceDelegate.class);
-    service.getConcreteServices().put(ClusterType.YARN, provServiceDelegate);
-
+    ProvisioningService service = Mockito.spy(new ProvisioningServiceImpl(
+        singletonMap(ClusterType.YARN, provServiceDelegate),
+        () -> kvstore
+      ));
+    service.start();
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.getClusterConfig().setTag(null);
 
@@ -230,8 +270,8 @@ public class TestAPI extends DremioTest {
     doReturn(new ClusterEnriched()).when(provServiceDelegate).startCluster(any(Cluster.class));
     doNothing().when(provServiceDelegate).stopCluster(any(Cluster.class));
 
-    KVStore<ClusterId, Cluster> store =
-      registry.provider(KVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
+    LegacyKVStore<ClusterId, Cluster> store =
+      registry.provider(LegacyKVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
 
     List<Property> properties = storedCluster.getClusterConfig().getSubPropertyList();
     properties.add(new Property("abc", "bcd").setType(PropertyType.JAVA_PROP));
@@ -267,6 +307,7 @@ public class TestAPI extends DremioTest {
     storedCluster.setDesiredState(ClusterState.DELETED);
     request.setId(storedCluster.getId().getId());
     request.setTag("12");
+    request.setShutdownInterval(defaultShutdownInterval);
     ClusterConfig config = resource.toClusterConfig(request.build());
 
     try {
@@ -285,11 +326,13 @@ public class TestAPI extends DremioTest {
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .build();
 
     // test STOPPING state
     storedCluster.setDesiredState(null);
     storedCluster.setState(ClusterState.STOPPING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
     ClusterConfig config = resource.toClusterConfig(request);
 
     try {
@@ -306,10 +349,12 @@ public class TestAPI extends DremioTest {
     // test action NONE - resize to the same number
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setYarnProps(YarnPropsApi.builder()
             .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
@@ -331,10 +376,12 @@ public class TestAPI extends DremioTest {
     // test action RESIZE
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(3).build())
         .setYarnProps(YarnPropsApi.builder()
             .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
@@ -354,10 +401,12 @@ public class TestAPI extends DremioTest {
     // test action START
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.STOPPED);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setYarnProps(YarnPropsApi.builder()
@@ -378,10 +427,12 @@ public class TestAPI extends DremioTest {
     // test action STOP
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setDesiredState(ClusterDesiredState.STOPPED)
         .setYarnProps(YarnPropsApi.builder()
@@ -403,10 +454,12 @@ public class TestAPI extends DremioTest {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setYarnProps(YarnPropsApi.builder()
@@ -428,10 +481,12 @@ public class TestAPI extends DremioTest {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setYarnProps(YarnPropsApi.builder()
@@ -452,6 +507,7 @@ public class TestAPI extends DremioTest {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     List<Property> newList = new ArrayList<>(storedCluster.getClusterConfig().getSubPropertyList());
     newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
@@ -459,6 +515,7 @@ public class TestAPI extends DremioTest {
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setYarnProps(YarnPropsApi.builder()
@@ -482,12 +539,14 @@ public class TestAPI extends DremioTest {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
     List<Property> newList = new ArrayList<>(storedCluster.getClusterConfig().getSubPropertyList());
     newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setYarnProps(YarnPropsApi.builder()
@@ -585,6 +644,7 @@ public class TestAPI extends DremioTest {
     assertEquals( (32767-4096), defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
 
     ClusterModifyRequest clusterModifyRequest = ClusterModifyRequest.builder()
+        .setShutdownInterval(defaultShutdownInterval)
         .setYarnProps(YarnPropsApi.builder()
             .setMemoryMB(32768)
             .build())
@@ -619,6 +679,7 @@ public class TestAPI extends DremioTest {
     assertEquals( (32768-8192), defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
 
     ClusterModifyRequest clusterModifyRequest = ClusterModifyRequest.builder()
+        .setShutdownInterval(defaultShutdownInterval)
         .setYarnProps(YarnPropsApi.builder()
             .setMemoryMB(32767)
             .build())
@@ -637,10 +698,12 @@ public class TestAPI extends DremioTest {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setYarnProps(YarnPropsApi.builder()
@@ -659,10 +722,12 @@ public class TestAPI extends DremioTest {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
         .setId(storedCluster.getId().getId())
         .setTag("12")
+        .setShutdownInterval(defaultShutdownInterval)
         .setDesiredState(ClusterDesiredState.RUNNING)
         .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
         .setYarnProps(YarnPropsApi.builder()
@@ -682,10 +747,12 @@ public class TestAPI extends DremioTest {
     // test action DELETE
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
 
     ClusterModifyRequest request = ClusterModifyRequest.builder()
       .setId(storedCluster.getId().getId())
       .setTag("12")
+      .setShutdownInterval(defaultShutdownInterval)
       .setDesiredState(ClusterDesiredState.DELETED)
       .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
       .setYarnProps(YarnPropsApi.builder()
@@ -704,6 +771,7 @@ public class TestAPI extends DremioTest {
     ClusterId clusterId = new ClusterId(UUID.randomUUID().toString());
     final Cluster storedCluster = new Cluster();
     storedCluster.setState(ClusterState.RUNNING);
+    storedCluster.setStateChangeTime(System.currentTimeMillis());
     storedCluster.setId(clusterId);
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setTag("12");

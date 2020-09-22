@@ -21,6 +21,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -42,8 +43,6 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.OutputDerivation;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * The class contains additional functions for union types in addition to those in GUnionFunctions

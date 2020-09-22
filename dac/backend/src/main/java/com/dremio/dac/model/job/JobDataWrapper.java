@@ -15,50 +15,97 @@
  */
 package com.dremio.dac.model.job;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.record.RecordBatchHolder;
+import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobDataClientUtils;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobsFlightTicket;
+import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsRpcUtils;
+import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.RecordBatches;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 
 /**
  * A UI wrapper around JobData to allow for serialization
  */
 public class JobDataWrapper implements JobData {
-  private final com.dremio.service.jobs.JobData delegate;
+  private static final Logger logger = LoggerFactory.getLogger(JobDataWrapper.class);
 
-  public JobDataWrapper(com.dremio.service.jobs.JobData delegate) {
-    this.delegate = delegate;
+  private final JobsService jobsService;
+  private final JobId jobId;
+  private final String userName;
+
+  public JobDataWrapper(JobsService jobsService, JobId jobId, String userName) {
+      this.jobsService = jobsService;
+      this.jobId = jobId;
+      this.userName = userName;
   }
 
   @Override
-  public void close() throws Exception {
-    delegate.close();
+  public void close() {
   }
 
+  /**
+   * Get range of job data. Consumers must wait for data before calling this.
+   */
   @Override
-  public JobDataFragment range(int offset, int limit) {
-    return new JobDataFragmentWrapper(offset, delegate.range(offset, limit));
+  public JobDataFragment range(BufferAllocator allocator, int offset, int limit) {
+    return getJobData(Preconditions.checkNotNull(jobsService), allocator,
+      Preconditions.checkNotNull(jobId), offset, limit);
   }
 
+  /**
+   * Get truncated range of job data. Consumers must wait for data before calling this.
+   */
   @Override
-  public JobDataFragment truncate(int maxRows) {
-    return new JobDataFragmentWrapper(0, delegate.truncate(maxRows));
+  public JobDataFragment truncate (BufferAllocator allocator, int maxRows) {
+    return getJobData(Preconditions.checkNotNull(jobsService), allocator,
+      Preconditions.checkNotNull(jobId), 0, maxRows);
   }
 
   @Override
   public JobId getJobId() {
-    return delegate.getJobId();
+    return jobId;
   }
 
   @Override
   public String getJobResultsTable() {
-    return delegate.getJobResultsTable();
+    final JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId))
+      .setUserName(userName)
+      .setProvideResultInfo(true)
+      .build();
+    try {
+      return jobsService.getJobDetails(jobDetailsRequest).getJobResultTableName();
+    } catch (JobNotFoundException e) {
+      throw new IllegalArgumentException("Could not find Job.");
+    }
   }
 
-  @Override
-  public void loadIfNecessary() {
-    delegate.loadIfNecessary();
-  }
-
-  @Override
-  public void waitForMetadata() {
-    delegate.waitForMetadata();
+  public static JobDataFragmentWrapper getJobData(JobsService jobsService, BufferAllocator allocator, JobId jobId, int offset, int limit) {
+    try (final FlightStream stream = jobsService.getJobsClient().getFlightClient()
+      .getStream(new JobsFlightTicket(jobId.getId(), offset, limit).toTicket())) {
+      List<RecordBatchHolder> batches = JobDataClientUtils.getData(stream, allocator, limit);
+      return new JobDataFragmentWrapper(offset, ReleasingData.from(new RecordBatches(batches), jobId));
+    } catch (FlightRuntimeException fre) {
+      Optional<UserException> ue = JobsRpcUtils.fromFlightRuntimeException(fre);
+      throw ue.isPresent() ? ue.get() : fre;
+    } catch (Exception e) {
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
+    }
   }
 }

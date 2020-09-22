@@ -18,12 +18,13 @@ package com.dremio.sabot.op.aggregate.vectorized;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
+
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Works like a SelectionVector/Iterator over HashAggPartition buffers
@@ -42,7 +43,7 @@ public class HashAggPartitionWritableBatch {
   private final int maxValuesPerBatch;
 
   /* metadata length could possibly be optimized to smaller value later */
-  static final byte BATCH_HEADER_LENGTH = 9;
+  static final byte BATCH_HEADER_LENGTH = 12;
   static final byte FIXED_BUFFER_LENGTH_OFFSET = 0;
   static final byte VARIABLE_BUFFER_LENGTH_OFFSET = 4;
   static final byte NUM_ACCUMULATORS_OFFSET = 8;
@@ -171,8 +172,8 @@ public class HashAggPartitionWritableBatch {
     /* get total length of buffers, this is why readerIndex and writerIndex are appropriately
      * set by LBlockHashTable when it writes to these buffers during insertion.
      */
-    final int fixedBufferLength = fixedBlockBuffer.readableBytes();
-    final int variableBufferLength = variableBlockBuffer.readableBytes();
+    final int fixedBufferLength = LargeMemoryUtil.checkedCastToInt(fixedBlockBuffer.readableBytes());
+    final int variableBufferLength = LargeMemoryUtil.checkedCastToInt(variableBlockBuffer.readableBytes());
     final int numRecordsInChunk = fixedBufferLength/blockWidth;
     Preconditions.checkArgument(numRecordsInChunk <= maxValuesPerBatch, "Error: detected invalid number of records in batch");
 
@@ -204,7 +205,7 @@ public class HashAggPartitionWritableBatch {
 
     final int batchIdx = this.currentBatchIndex++;
 
-    return new HashAggPartitionBatchDefinition(fixedBufferLength, variableBufferLength, (byte)accumulators.length,
+    return new HashAggPartitionBatchDefinition(fixedBufferLength, variableBufferLength, accumulators.length,
       accumulatorTypes, accumulatorBatchDef, batchIdx);
   }
 
@@ -215,13 +216,13 @@ public class HashAggPartitionWritableBatch {
   public static class HashAggPartitionBatchDefinition {
     final int fixedBufferLength;
     final int variableBufferLength;
-    final byte numAccumulators;
+    final int numAccumulators;
     final byte[] accumulatorTypes;
     final UserBitShared.RecordBatchDef accumulatorBatchDef;
     final int batchIdx;
 
     public HashAggPartitionBatchDefinition(int fixedBufferLength, int variableBufferLength,
-                                           byte numAccumulators, byte[] accumulatorTypes,
+                                           int numAccumulators, byte[] accumulatorTypes,
                                            UserBitShared.RecordBatchDef accumulatorBatchDef, final int batchIdx) {
       this.fixedBufferLength = fixedBufferLength;
       this.variableBufferLength = variableBufferLength;

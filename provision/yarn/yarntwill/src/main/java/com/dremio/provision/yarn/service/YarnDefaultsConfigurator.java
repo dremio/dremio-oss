@@ -170,18 +170,20 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
    */
   public static class MapRYarnDefaults extends YarnConfiguratorBaseClass {
 
+    public static final String MAPR_IMPALA_RA_THROTTLE_BOOL = "MAPR_IMPALA_RA_THROTTLE";
+    public static final String MAPR_MAX_RA_STREAMS = "MAPR_MAX_RA_STREAMS";
     private static String APP_CLASSPATH = File.separatorChar + "jars" + File.separatorChar
       + "bundled" + File.separatorChar + "dremio-shimloader-.*.jar"
       + "," + File.separatorChar + "jars" + File.separatorChar
-      + "3rdparty" + File.separatorChar + "maprfs-.*.jar";
+      + "3rdparty" + File.separatorChar + "dremio-maprfs-shaded-.*.jar";
 
 
     private static ImmutableMap<String, String> createMaprFSDefaultProps() {
       ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
 
       // maprfs specific system properties to enable read ahead throttling
-      builder = copySystemProperty("MAPR_IMPALA_RA_THROTTLE", builder);
-      builder = copySystemProperty("MAPR_MAX_RA_STREAMS", builder);
+      builder = copySystemProperty(MAPR_IMPALA_RA_THROTTLE_BOOL, builder);
+      builder = copySystemProperty(MAPR_MAX_RA_STREAMS, builder);
 
       return builder.build();
     }

@@ -15,14 +15,14 @@
  */
 package com.dremio.sabot.exec.rpc;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 import com.dremio.common.memory.AllocatorUtil;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * An incoming batch of data. The data is held by the original allocator. Any use of the associated data must be
@@ -87,6 +87,6 @@ public class IncomingDataBatch {
       return 0;
     }
 
-    return body.getPossibleMemoryConsumed();
+    return LargeMemoryUtil.checkedCastToInt(body.getPossibleMemoryConsumed());
   }
 }

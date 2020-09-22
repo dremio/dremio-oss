@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.util;
 
-
 import java.io.DataInput;
+
+import org.apache.arrow.memory.ArrowBuf;
 
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 public class ByteBufUtil {
 

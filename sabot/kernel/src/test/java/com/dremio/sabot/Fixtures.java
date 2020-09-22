@@ -59,11 +59,11 @@ import com.dremio.common.expression.Describer;
 import com.dremio.common.util.DremioGetObject;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.BaseEncoding;
@@ -566,7 +566,7 @@ public final class Fixtures {
       return new ListCell((List<Integer>)obj);
     }else if(obj instanceof BigDecimal) {
       return new Decimal((BigDecimal) obj);
-    }else if(obj instanceof Period) {
+    } else if(obj instanceof Period) {
       Period p = (Period) obj;
 
       if (p.getYears() == 0 && p.getMonths() == 0) {
@@ -1010,14 +1010,28 @@ public final class Fixtures {
     }
   }
 
-  private static class Decimal extends ValueCell<BigDecimal> {
+  public static Decimal createDecimal(BigDecimal d, int precision, int scale) {
+    return new Decimal(d, precision, scale);
+  }
+
+  public static class Decimal extends ValueCell<BigDecimal> {
+    int precision;
+    int scale;
+
     public Decimal(BigDecimal obj) {
-      super(obj);
+      this(obj, 38, obj == null ? 0 : obj.scale());
     }
+
+    public Decimal(BigDecimal obj, int precision, int scale) {
+      super(obj);
+      this.precision = precision;
+      this.scale = scale;
+    }
+
 
     @Override
     ArrowType getType() {
-      return new ArrowType.Decimal(38, obj == null ? 0 : obj.scale());
+      return new ArrowType.Decimal(precision, scale);
     }
 
     @Override

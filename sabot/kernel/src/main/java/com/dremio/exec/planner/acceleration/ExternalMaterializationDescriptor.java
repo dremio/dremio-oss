@@ -70,7 +70,7 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
       getMaterializationId(),
       null,
       Long.MAX_VALUE,
-      true,
+      getStrippedPlanHash() == null,
       null
     );
   }

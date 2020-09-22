@@ -30,6 +30,7 @@ import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
@@ -45,18 +46,27 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
   private final String finalLocation;
   private final FileSystemPlugin<?> plugin;
   private final String userName;
+  private FileSystemCreateTableEntry fileSystemCreateTableEntry;
 
-  public WriterCommitterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, FileSystemPlugin<?> plugin, String tempLocation, String finalLocation, String userName) {
+  public WriterCommitterPrel(RelOptCluster cluster,
+                             RelTraitSet traits,
+                             RelNode child,
+                             FileSystemPlugin<?> plugin,
+                             String tempLocation,
+                             String finalLocation,
+                             String userName,
+                             FileSystemCreateTableEntry fileSystemCreateTableEntry) {
     super(cluster, traits, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
     this.plugin = plugin;
     this.userName = userName;
+    this.fileSystemCreateTableEntry = fileSystemCreateTableEntry;
   }
 
   @Override
   public WriterCommitterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName);
+    return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName, fileSystemCreateTableEntry);
   }
 
   @Override
@@ -74,6 +84,7 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
       creator.props(this, userName, RecordWriter.SCHEMA, RESERVE, LIMIT),
       tempLocation,
       finalLocation,
+      fileSystemCreateTableEntry.getIcebergTableProps(),
       childPop,
       (FileSystemPlugin<?>) plugin
     );

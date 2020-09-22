@@ -21,7 +21,6 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
@@ -32,8 +31,8 @@ import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
+import com.dremio.service.catalog.SearchQuery;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
@@ -43,7 +42,7 @@ import com.google.common.base.Objects;
  */
 public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<SimpleCompleteWork> {
 
-  private final InfoSchemaTable table;
+  private final InformationSchemaTable table;
   private final List<SchemaPath> columns;
   private final SearchQuery query;
   private final StoragePluginId pluginId;
@@ -51,7 +50,7 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   @JsonCreator
   public InfoSchemaGroupScan(
       @JsonProperty("props") OpProps props,
-      @JsonProperty("table") InfoSchemaTable table,
+      @JsonProperty("table") InformationSchemaTable table,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("query") SearchQuery query,
       @JsonProperty("pluginId") StoragePluginId pluginId

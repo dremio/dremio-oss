@@ -66,6 +66,15 @@ public class ValueExpressions {
   }
 
   /**
+   * we internally store date, time, timestamp as primitive types hence returns LongExpression instead of DateExpression
+   * @param epoch
+   * @return
+   */
+  public static LogicalExpression getDateMilli(long epoch) {
+    return getBigInt(epoch);
+  }
+
+  /**
    * Parse date given in format 'YYYY-MM-DD' to millis in UTC timezone
    */
   public static long getDate(String date) {
@@ -76,6 +85,15 @@ public class ValueExpressions {
   public static LogicalExpression getTime(TimeString time) {
     LocalTime localTime = LocalTime.parse(time.toString(), DateTimes.CALCITE_LOCAL_TIME_FORMATTER);
     return new TimeExpression(Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay())));
+  }
+
+  /**
+   * we internally store date, time, timestamp as primitive types hence returns IntExpression instead of TimeExpression
+   * @param millis
+   * @return
+   */
+  public static LogicalExpression getTimeMilli(int millis) {
+    return getInt(millis);
   }
 
   /**
@@ -92,6 +110,15 @@ public class ValueExpressions {
   }
 
   /**
+   * we internally store date, time, timestamp as primitive types hence returns LongExpression instead of TimestampExpression
+   * @param millis
+   * @return
+   */
+  public static LogicalExpression getTimeStampMilli(long millis) {
+    return getBigInt(millis);
+  }
+
+  /**
    * Parse date given in format 'YYYY-MM-DD hh:mm:ss' to millis in UTC timezone
    */
   public static long getTimeStamp(String timestamp) {
@@ -105,6 +132,10 @@ public class ValueExpressions {
 
   public static LogicalExpression getIntervalDay(long intervalInMillis) {
       return new IntervalDayExpression(intervalInMillis);
+  }
+
+  public static LogicalExpression getDecimal(BigDecimal bigDecimal) {
+    return ValueExpressions.getDecimal(bigDecimal, bigDecimal.precision(), bigDecimal.scale());
   }
 
   public static LogicalExpression getDecimal(BigDecimal i, int precision, int scale) {
@@ -334,6 +365,11 @@ public class ValueExpressions {
         "invalid precision " + precision + ", must be >= scale " + scale);
 
       this.decimal = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+      // Decimal value will be 0 if there is precision overflow.
+      // This is similar to DecimalFunctions:CastDecimalDecimal
+      if(this.decimal.precision() > precision) {
+        this.decimal = new BigDecimal("0.0");
+      }
       this.precision = precision;
     }
 

@@ -44,7 +44,7 @@ export class NewQueryButton extends Component {
     showConfirmationDialog: PropTypes.func,
     resetNewQuery: PropTypes.func,
     intl: PropTypes.object.isRequired
-  }
+  };
 
   static contextTypes = {
     username: PropTypes.string,
@@ -88,7 +88,7 @@ export class NewQueryButton extends Component {
       this.context.router.push(this.getNewQueryHref());
     }
     e.preventDefault();
-  }
+  };
 
   render() {
     return (
@@ -102,7 +102,7 @@ export class NewQueryButton extends Component {
   }
 }
 
-function mapStateToProps(state, ownProps) {
+function mapStateToProps(state) {
   const explorePage = getExploreState(state); //todo explore page state should not be here
   return {
     location: getLocation(state),

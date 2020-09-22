@@ -15,34 +15,32 @@
  */
 package com.dremio.exec.server.options;
 
+import java.util.Iterator;
 import java.util.Map;
 
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 
 /**
  * {@link OptionManager} that hold options in memory rather than in a persistent store. Option stored in
- * {@link SessionOptionManager}, {@link QueryOptionManager}, and {@link FragmentOptionManager} are held in memory
+ * {@link SessionOptionManagerImpl}, {@link QueryOptionManager}, and {@link FragmentOptionManager} are held in memory
  * (see {@link #options}) whereas {@link SystemOptionManager} stores options in a persistent store.
  */
-public abstract class InMemoryOptionManager extends FallbackOptionManager {
+public abstract class InMemoryOptionManager extends BaseOptionManager {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InMemoryOptionManager.class);
 
   protected final Map<String, OptionValue> options;
 
-  protected InMemoryOptionManager(final OptionManager fallback, final Map<String, OptionValue> options) {
-    super(fallback);
+  protected InMemoryOptionManager(final OptionValidatorListing optionValidatorListing, final Map<String, OptionValue> options) {
+    super(optionValidatorListing);
     this.options = options;
   }
 
   @Override
-  OptionValue getLocalOption(final String name) {
-    return options.get(name);
-  }
-
-  @Override
-  boolean setLocalOption(final OptionValue value) {
+  public boolean setOption(OptionValue value) {
     if (supportsOptionType(value.getType())) {
       options.put(value.getName(), value);
       return true;
@@ -52,12 +50,17 @@ public abstract class InMemoryOptionManager extends FallbackOptionManager {
   }
 
   @Override
-  Iterable<OptionValue> getLocalOptions() {
-    return options.values();
+  public boolean deleteOption(String name, OptionType type) {
+    if (supportsOptionType(type)) {
+      options.remove(name);
+      return true;
+    } else {
+      return false;
+    }
   }
 
   @Override
-  boolean deleteAllLocalOptions(final OptionType type) {
+  public boolean deleteAllOptions(OptionType type) {
     if (supportsOptionType(type)) {
       options.clear();
       return true;
@@ -67,21 +70,20 @@ public abstract class InMemoryOptionManager extends FallbackOptionManager {
   }
 
   @Override
-  boolean deleteLocalOption(final String name, final OptionType type) {
-    if (supportsOptionType(type)) {
-      options.remove(name);
-      return true;
-    } else {
-      return false;
-    }
+  public OptionValue getOption(String name) {
+    return options.get(name);
   }
 
-  /**
-   * Check to see if implementations of this manager support the given option type.
-   *
-   * @param type option type
-   * @return true iff the type is supported
-   */
-  abstract protected boolean supportsOptionType(OptionType type);
+  @Override
+  public OptionList getNonDefaultOptions() {
+    OptionList buildList = new OptionList();
+    buildList.addAll(options.values());
+    return buildList;
+  }
+
+  @Override
+  public Iterator<OptionValue> iterator() {
+    return options.values().iterator();
+  }
 
 }

@@ -16,7 +16,6 @@
 package com.dremio.sabot.op.sort.external;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -29,8 +28,6 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.dremio.common.AutoCloseables;
@@ -39,28 +36,38 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.compile.sig.GeneratorMapping;
 import com.dremio.exec.compile.sig.MappingSet;
+import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.ExpandableHyperContainer;
+import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.vector.CopyUtil;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
+import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
+import com.dremio.sabot.op.sort.external.SpillManager.SpillOutputStream;
 import com.dremio.service.spill.SpillService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -77,6 +84,9 @@ import com.google.common.collect.Iterables;
 public class DiskRunManager implements AutoCloseable {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DiskRunManager.class);
+  @VisibleForTesting
+  public static final String INJECTOR_OOM_SPILL = "injectOOMOnSpill";
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(DiskRunManager.class);
 
   private final List<Ordering> orderings;
   private final List<DiskRun> diskRuns = new CopyOnWriteArrayList<>();
@@ -85,9 +95,11 @@ public class DiskRunManager implements AutoCloseable {
 
   private final Stopwatch spillWatch = Stopwatch.createUnstarted();
   private final Stopwatch mergeWatch = Stopwatch.createUnstarted();
+  private final Stopwatch spillCopyWatch = Stopwatch.createUnstarted();
 
   private int run = 0;
   private int merge = 0;
+  private final boolean useArrowEncoding;
   private final BufferAllocator parentAllocator;
   private BufferAllocator copierAllocator;
   private final int targetRecordCount; /** number of records for the copy output. */
@@ -101,8 +113,20 @@ public class DiskRunManager implements AutoCloseable {
   private BufferAllocator compressSpilledBatchAllocator;
   private final ExternalSortTracer tracer;
   private long totalDataSpilled;
+  private final long warnMaxSpillTime;
+  private long batchesSpilled;
+  private MicroSpillState microSpillState;
+  private final int spillWriteMax;
+  private final boolean useVectorCopier;
+  private long oomAllocate;
+  private long oomCopy;
+  private final double allocationDensity;
+  private long compressionNanos;
+  private long uncompressionNanos;
+
 
   private final OperatorStats operatorStats;
+  private final ExecutionControls executionControls;
 
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
@@ -124,7 +148,8 @@ public class DiskRunManager implements AutoCloseable {
       boolean compressSpilledBatch,
       ExternalSortTracer tracer,
       SpillService spillService,
-      OperatorStats stats
+      OperatorStats stats,
+      ExecutionControls executionControls
       ) throws Exception {
     try (RollbackCloseable rollback = new RollbackCloseable()) {
       this.targetRecordCount = targetRecordCount;
@@ -137,6 +162,15 @@ public class DiskRunManager implements AutoCloseable {
       this.tracer = tracer;
       this.totalDataSpilled = 0;
       this.operatorStats = stats;
+      this.warnMaxSpillTime = optionManager.getOption(ExecConstants.SPILL_IO_WARN_MAX_RUNTIME_MS);
+      this.batchesSpilled = 0;
+      this.microSpillState = null;
+      this.executionControls = executionControls;
+      this.spillWriteMax = (int) optionManager.getOption(ExecConstants.SORT_MAX_WRITE_BATCH);
+      this.useArrowEncoding = optionManager.getOption(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING);
+      this.useVectorCopier = optionManager.getOption(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER);
+      this.allocationDensity = optionManager.getOption(ExecConstants.EXTERNAL_SORT_SPILL_ALLOCATION_DENSITY);
+
       if (compressSpilledBatch) {
         long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
         compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
@@ -151,7 +185,7 @@ public class DiskRunManager implements AutoCloseable {
       final String id = String.format("esort-%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()),
           handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId
       );
-      this.spillManager = new SpillManager(config, optionManager, id, conf, spillService, "sort spilling");
+      this.spillManager = new SpillManager(config, optionManager, id, conf, spillService, "sort spilling", stats);
       rollback.add(this.spillManager);
 
       rollback.commit();
@@ -204,29 +238,42 @@ public class DiskRunManager implements AutoCloseable {
       mergeState = MergeState.COPY;
       return true;
     } catch (OutOfMemoryException e) {
+      if (diskRuns.size() <= 2) {
+        final String message = "DiskRunManager: Unable to secure enough memory to merge spilled sort data.";
+        final long totalMaxBatchSizeAllRuns = getMaxBatchSizeAllRuns(diskRuns);
+        final long reservation = totalMaxBatchSizeAllRuns + (targetBatchSizeInBytes * 3);
+        /* we are here for OOM because we couldnt't create a copy allocator for loading batches from even 2 disk runs
+         * so record all the information including how much copy allocator tried to reserve before it failed.
+         * see getCopierAllocator, the computation has been borrowed from that function.
+         */
+        tracer.reserveMemoryForDiskRunCopyOOMEvent(reservation, Long.MAX_VALUE, totalMaxBatchSizeAllRuns);
+        tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
+        tracer.setDiskRunCopyAllocatorState(copierAllocator);
+        tracer.setExternalSortAllocatorState(parentAllocator);
+        throw tracer.prepareAndThrowException(e, message);
+      }
       mergeState = MergeState.MERGE;
       // reattempt with smaller list
     }
 
     // We failed to reserve memory to handle all runs, so attempt to merge some runs
 
-    int runsToMerge = diskRuns.size() / 2;
+    int runsToMerge = (diskRuns.size() + 1) / 2;
+    logger.debug("Failed to reserve enough memory to merge {} diskruns. Try with {} runs", diskRuns.size(), runsToMerge);
+
     List<DiskRun> runList = null;
     while (true) {
       try {
         runList = ImmutableList.copyOf(diskRuns.subList(0, runsToMerge));
         getCopierAllocator(runList);
-        try (RollbackCloseable rollback = new RollbackCloseable()) {
-          diskRunMerger = rollback.add(new DiskRunMerger(runList));
 
-          diskRunMerger.init();
-
-          rollback.commit();
-        }
+        diskRunMerger = new DiskRunMerger(runList);
+        diskRunMerger.init();
         return false;
       } catch (OutOfMemoryException e) {
         // reattempt with smaller list
-        runsToMerge /= 2;
+        logger.debug("Failed to reserve enough memory to merge {} diskruns. Trying with {} runs", runsToMerge, (runsToMerge + 1) / 2);
+        runsToMerge = (runsToMerge + 1) / 2;
         diskRunMerger = null;
         for (DiskRun run : runList) {
           run.resetOpenStatus();
@@ -279,6 +326,10 @@ public class DiskRunManager implements AutoCloseable {
     return totalDataSpilled;
   }
 
+  long getBatchesSpilled() {
+    return this.batchesSpilled;
+  }
+
   public int getAvgMaxBatchSize() {
     if (diskRuns.size() == 0) {
       return 0;
@@ -322,7 +373,7 @@ public class DiskRunManager implements AutoCloseable {
     private final List<DiskRun> diskRuns;
 
     private PriorityQueueCopier copier;
-    private FSDataOutputStream out;
+    private SpillOutputStream out;
     private VectorContainer container;
     private SpillFile spillFile;
 
@@ -339,7 +390,7 @@ public class DiskRunManager implements AutoCloseable {
       try (RollbackCloseable rollback = new RollbackCloseable()) {
         container = rollback.add(VectorContainer.create(copierAllocator, dataSchema));
         copier = rollback.add(createCopier(container, diskRuns));
-        out = rollback.add(spillFile.create());
+        out = spillFile.create(useArrowEncoding && compressSpilledBatch);
         rollback.commit();
       }
     }
@@ -390,14 +441,11 @@ public class DiskRunManager implements AutoCloseable {
       final SpillFile spillFile = spillManager.getSpillFile(String.format("run%05d", run++));
       BatchSchema outgoingSchema = null;
 
-      try (FSDataOutputStream out = spillFile.create();
+      try (SpillOutputStream out = spillFile.create(useArrowEncoding && compressSpilledBatch);
            final VectorContainer outgoing = VectorContainer.create(copyTargetAllocator, hyperBatch.getSchema());
            VectorContainer hyperBatchToClose = hyperBatch) {
 
-        final Copier copier = CopierOperator.getGenerated4Copier(
-          producer,
-          hyperBatch,
-          outgoing);
+        final Copier copier = getCopier(hyperBatch, outgoing);
         final SelectionVector4 sv4 = hyperBatch.getSelectionVector4();
         outgoingSchema = outgoing.getSchema().clone();
 
@@ -433,7 +481,8 @@ public class DiskRunManager implements AutoCloseable {
           remainingRecordCount = recordCount;
           recordsSpilledInCurrentIteration = 0;
           while (recordsSpilledInCurrentIteration < recordCount) {
-            final int copied = copier.copyRecords(recordsSpilledInCurrentIteration, remainingRecordCount);
+            final int copied = copier.copyRecords(recordsSpilledInCurrentIteration, Math.min(spillWriteMax, remainingRecordCount));
+            injector.injectChecked(executionControls, INJECTOR_OOM_SPILL, OutOfMemoryException.class);
             assert copied > 0 : "couldn't copy any rows, probably run out of memory while doing so";
             outgoing.setAllCount(copied);
             int batchSize = spillBatch(outgoing, copied, out);
@@ -449,6 +498,8 @@ public class DiskRunManager implements AutoCloseable {
           records += recordCount;
         } while (sv4.next());
 
+        oomAllocate += copier.getOOMCountDuringAllocation();
+        oomCopy += copier.getOOMCountDuringCopy();
       } catch (OutOfMemoryException ex) {
         /*
          * this is thrown by Copier if it fails to copy a single record.
@@ -482,7 +533,110 @@ public class DiskRunManager implements AutoCloseable {
     }
   }
 
-  private int spillBatch(VectorContainer outgoing, int records, OutputStream out) throws IOException {
+  public void startMicroSpilling(final VectorContainer container) throws IOException {
+    Preconditions.checkState(this.microSpillState == null);
+    final SpillFile spillFile = spillManager.getSpillFile(String.format("run%05d", run++));
+    final SpillOutputStream out = spillFile.create(useArrowEncoding && compressSpilledBatch);
+    this.microSpillState = new MicroSpillState(spillFile, container, out);
+  }
+
+  /**
+   * Micro-Spills next batch from the hypercontainer.
+   * Once it spills targetOutput number of record, it yeilds the cpu.
+   * The caller must repeatedly call it to spill multiple batches.
+   * @return true, if all the records have been spilled, false otherwise.
+   */
+  public boolean spillNextBatch(BufferAllocator copyTargetAllocator) throws Exception {
+    logger.debug("DiskRunManager-SpillNextBatch: spill copy allocator reservation {} spill copy allocator limit {}", copyTargetAllocator.getInitReservation(), copyTargetAllocator.getLimit());
+    Preconditions.checkState((this.microSpillState != null) && (this.microSpillState.recordsSpilled < this.microSpillState.totalRecords));
+
+    boolean done = false;
+    spillWatch.start();
+    try {
+      BatchSchema outgoingSchema = null;
+      int recordsSpilledInCurrentIteration = 0;
+      final int remaining = this.microSpillState.totalRecords - this.microSpillState.recordsSpilled;
+      final int recordsToSpill = Math.min(this.targetRecordCount, remaining);
+
+      try (final VectorContainer outgoing =
+             VectorContainer.create(copyTargetAllocator, this.microSpillState.containerToBeSpilled.getSchema());) {
+
+        // 1. create copier
+        final Copier copier = getCopier(this.microSpillState.containerToBeSpilled, outgoing);
+        outgoingSchema = outgoing.getSchema().clone();
+
+
+        logger.debug("DiskRunManager:SpillNextBatch Copy {} records", recordsToSpill);
+
+        // 2. copy and write records
+        while (recordsSpilledInCurrentIteration < recordsToSpill) {
+          final int copied = copier.copyRecords((this.microSpillState.recordsSpilled + recordsSpilledInCurrentIteration),
+            recordsToSpill);
+          injector.injectChecked(executionControls, INJECTOR_OOM_SPILL, OutOfMemoryException.class);
+          assert copied > 0 : "couldn't copy any rows, probably run out of memory while doing so";
+          outgoing.setAllCount(copied);
+          final int batchSize = spillBatch(outgoing, copied, this.microSpillState.outputStream);
+          totalDataSpilled += batchSize;
+          this.microSpillState.maxBatchSize = Math.max(this.microSpillState.maxBatchSize, batchSize);
+          this.microSpillState.recordsSpilled += copied;
+          ++(this.microSpillState.batchesSpilled);
+          ++(this.batchesSpilled);
+          recordsSpilledInCurrentIteration += copied;
+          outgoing.zeroVectors();
+          logger.debug("spilled a batch of records {}", copied);
+        }
+
+        oomAllocate += copier.getOOMCountDuringAllocation();
+        oomCopy += copier.getOOMCountDuringCopy();
+
+      } catch (OutOfMemoryException ex) {
+        /*
+         * this is thrown by Copier if it fails to copy a single record.
+         * if the copier catches OOM after copying one or more records, then
+         * we proceed with spilling whatever we copied and move onto next
+         * iteration of <allocate, copy, spill>.
+         */
+        logger.warn("DiskRunManager: Out of Memory while trying to copy and spill single batch");
+        tracer.setBatchesSpilled(this.microSpillState.batchesSpilled);
+        tracer.setTotalRecordsSpilled(this.microSpillState.recordsSpilled);
+        tracer.setRecordsToSpillInCurrentIteration(recordsToSpill);
+        tracer.setRecordsSpilledInCurrentIteration(recordsSpilledInCurrentIteration);
+        tracer.setSchemaOfBatchToSpill(outgoingSchema.toString());
+        tracer.setInitialCapacityForCurrentSpillIteration(recordsToSpill);
+        tracer.setMaxBatchSizeSpilled(this.microSpillState.maxBatchSize);
+        tracer.setSpillCopyAllocatorState(copyTargetAllocator);
+        tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
+        tracer.setDiskRunCopyAllocatorState(copierAllocator);
+        tracer.setExternalSortAllocatorState(parentAllocator);
+
+        final String message = "DiskRunManager: Failure while spilling sort data to disk";
+        throw tracer.prepareAndThrowException(ex, message);
+      }
+
+      // 3. all records spilled ?
+      if (this.microSpillState.recordsSpilled == this.microSpillState.totalRecords) {
+        done = true;
+        final DiskRun run = new DiskRun(this.microSpillState.spillFile,
+          this.microSpillState.totalRecords, this.microSpillState.maxBatchSize, this.microSpillState.batchesSpilled);
+        diskRuns.add(run);
+        this.microSpillState.close();
+        this.microSpillState = null;
+      }
+    } finally {
+      spillWatch.stop();
+    }
+
+    return done;
+  }
+
+  private int spillBatch(VectorContainer outgoing, int records, SpillOutputStream out) throws IOException {
+
+    if(useArrowEncoding) {
+      outgoing.setRecordCount(records);
+      return (int) out.writeBatch(outgoing);
+    }
+
+    // legacy encoding.
     try (WritableBatch batch = WritableBatch.getBatchNoHVWrap(records, outgoing, false)) {
       int batchSize = batch.getLength();
       VectorAccessibleSerializable outputBatch;
@@ -497,18 +651,22 @@ public class DiskRunManager implements AutoCloseable {
       }
       else {
         /* no need for an allocator on the spill path if compression is not enabled */
-        outputBatch = new VectorAccessibleSerializable(batch, null);
+        outputBatch = new VectorAccessibleSerializable(batch, null, null, false);
       }
 
       // write length and data to file.
       Stopwatch watch = Stopwatch.createStarted();
 
-      //track io time as wait time
-      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-        outputBatch.writeToStream(out);
-      }
+      //IO Time is tracked inside SpillOutputStream
+      outputBatch.writeToStream(out);
+      compressionNanos += outputBatch.compressionTime();
 
-      logger.debug("Took {} us to spill {} records", watch.elapsed(TimeUnit.MICROSECONDS), records);
+      final long elapsed = watch.elapsed(TimeUnit.MILLISECONDS);
+      if (elapsed >= this.warnMaxSpillTime) {
+        logger.warn("DHL: Spill write of {} bytes took too long: {} ms", batchSize, elapsed);
+      } else {
+        logger.debug("Took {} us to spill {} records", watch.elapsed(TimeUnit.MICROSECONDS), records);
+      }
       return batchSize;
     }
   }
@@ -610,7 +768,35 @@ public class DiskRunManager implements AutoCloseable {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(diskRunMerger),
-      Collections.singleton(compressSpilledBatchAllocator), Collections.singleton(this.spillManager), Collections.singleton(copierAllocator)));
+      Collections.singleton(compressSpilledBatchAllocator), Collections.singleton(this.spillManager), Collections.singleton(copierAllocator),
+      Collections.singleton(this.microSpillState)));
+  }
+
+  private class MicroSpillState implements AutoCloseable {
+    private final SpillFile spillFile;
+    private final VectorContainer containerToBeSpilled;
+    private final SpillOutputStream outputStream;
+    private final int totalRecords;
+    private int recordsSpilled;
+    private int batchesSpilled;
+    private int maxBatchSize;
+
+    public MicroSpillState(final SpillFile spillFile, final VectorContainer containerToBeSpilled,
+                           final SpillOutputStream outputStream) {
+      this.spillFile = spillFile;
+      this.containerToBeSpilled = containerToBeSpilled;
+      this.outputStream = outputStream;
+      this.totalRecords = containerToBeSpilled.getRecordCount();
+      this.recordsSpilled = 0;
+      this.batchesSpilled = 0;
+      this.maxBatchSize = 0;
+    }
+
+    @Override
+    public void close() throws Exception {
+      //not closing spillFile, as its closed by DiskRun
+      AutoCloseables.close(this.outputStream, this.containerToBeSpilled);
+    }
   }
 
   private class DiskRun implements AutoCloseable {
@@ -647,11 +833,10 @@ public class DiskRunManager implements AutoCloseable {
      * @return
      * @throws IOException
      */
-    private DiskRunIterator openRun(BufferAllocator copierAllocator, int batchId, ExpandableHyperContainer container) throws IOException{
+    private DiskRunIterator openRun(BufferAllocator copierAllocator, int batchId, ExpandableHyperContainer container) throws Exception{
       Preconditions.checkState(iterator == null);
       final long memCapacity = nextPowerOfTwo(largestBatch);
-      final BufferAllocator allocator = copierAllocator.newChildAllocator("diskrun", 0, memCapacity);
-      iterator = new DiskRunIterator(batchCount, spillFile, container, allocator);
+      iterator = new DiskRunIterator(batchCount, spillFile, container, copierAllocator, memCapacity);
 
       return iterator;
     }
@@ -669,14 +854,14 @@ public class DiskRunManager implements AutoCloseable {
 
   public class DiskRunIterator implements AutoCloseable {
     private final BufferAllocator allocator;
-    private FSDataInputStream inputStream;
+    private SpillInputStream inputStream;
 
     private int batchIndex = -1;
     private final int batchIndexMax;
 
     private int recordIndex = -1;
     private int recordIndexMax;
-    private final VectorContainer container = new VectorContainer();
+    private final VectorContainer container;
 
     /*
      * DiskRunIterator opens a spill file and loads batch(es) into memory when reading spill files.
@@ -685,13 +870,15 @@ public class DiskRunManager implements AutoCloseable {
      * DiskRunIterator never succeeded. Using RollbackCloseable in the caller will also not
      * help for the same reason that failure happened during instantiation.
      */
-    private DiskRunIterator(int batchCount, SpillFile spillFile, ExpandableHyperContainer hyperContainer, BufferAllocator allocator) throws IOException {
-      try {
-        this.allocator = allocator;
-        this.inputStream = spillFile.open();
+    private DiskRunIterator(int batchCount, SpillFile spillFile, ExpandableHyperContainer hyperContainer, BufferAllocator parentAllocator, long memCapacity) throws Exception {
+      try (RollbackCloseable rollback = new RollbackCloseable()){
+        this.allocator = rollback.add(parentAllocator.newChildAllocator("diskrun", 0, memCapacity));
+        this.container = rollback.add(VectorContainer.create(allocator, dataSchema));
+        this.inputStream = rollback.add(spillFile.open(useArrowEncoding && compressSpilledBatch));
         this.batchIndexMax = batchCount;
         loadNextBatch(true);
         hyperContainer.addBatch(this.container);
+        rollback.commit();
       } catch (Exception e) {
         /* close spill file read stream if failure happened after stream was successfully opened */
         if (inputStream != null) {
@@ -705,31 +892,39 @@ public class DiskRunManager implements AutoCloseable {
       Preconditions.checkArgument(batchIndex + 1 < batchIndexMax, "You tried to go beyond end of available batches to read.");
       container.zeroVectors();
 
+
+      if(useArrowEncoding) {
+        inputStream.load(container, allocator);
+        recordIndexMax = container.getRecordCount();
+        batchIndex++;
+        recordIndex = -1;
+        return;
+      }
+
       /* uncompress the data when de-serializing the spilled data into ArrowBufs */
       final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(allocator, compressSpilledBatch, compressSpilledBatchAllocator);
-      //track io time as wait time
-      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-        serializer.readFromStream(inputStream);
-      }
+
+      Stopwatch watch = Stopwatch.createStarted();
+
+      // IO Time is tracked inside SpillInputStream
+      serializer.readFromStream(inputStream);
+      uncompressionNanos += serializer.uncompressionTime();
+
+      final long elapsed = watch.elapsed(TimeUnit.MILLISECONDS);
 
       final VectorContainer incoming = serializer.get();
       Iterator<VectorWrapper<?>> wrapperIterator = incoming.iterator();
 
-      if(first){
-        for(VectorWrapper<?> wrapper : incoming){
-          final ValueVector sourceVector = wrapper.getValueVector();
-          TransferPair pair = sourceVector.getTransferPair(allocator);
-          final ValueVector targetVector = pair.getTo();
-          pair.transfer();
-          container.add(targetVector);
-        }
-        container.buildSchema();
-      }else{
-        for (VectorWrapper<?> w : container) {
-          final ValueVector sourceVector = wrapperIterator.next().getValueVector();
-          final TransferPair pair = sourceVector.makeTransferPair(w.getValueVector());
-          pair.transfer();
-        }
+      long length = 0;
+      for (VectorWrapper<?> w : container) {
+        final ValueVector sourceVector = wrapperIterator.next().getValueVector();
+        length += sourceVector.getBufferSize();
+        final TransferPair pair = sourceVector.makeTransferPair(w.getValueVector());
+        pair.transfer();
+      }
+
+      if (elapsed >= warnMaxSpillTime) {
+        logger.warn("DHL: Spill read of {} bytes too long: {} ms", length, elapsed);
       }
 
       recordIndexMax = incoming.getRecordCount();
@@ -756,4 +951,84 @@ public class DiskRunManager implements AutoCloseable {
     }
 
   }
+
+  public long getAppWriteBytes() {
+    return spillManager.getAppWriteBytes();
+  }
+
+  public long getAppReadBytes() {
+    return spillManager.getAppReadBytes();
+  }
+
+  public long getIOReadBytes() {
+    return spillManager.getIOReadBytes();
+  }
+
+  public long getIOWriteBytes() {
+    return spillManager.getIOWriteBytes();
+  }
+
+  public long getCompressionNanos() {
+    return useArrowEncoding ? spillManager.getCompressionNanos() : compressionNanos;
+  }
+
+  public long getDecompressionNanos() {
+    return useArrowEncoding ? spillManager.getDecompressionNanos() : uncompressionNanos;
+  }
+
+  public long getIOReadWait() {
+    return spillManager.getIOReadWait();
+  }
+
+  public long getIOWriteWait() {
+    return spillManager.getIOWriteWait();
+  }
+
+  public long getOOMAllocateCount() {
+    return oomAllocate;
+  }
+
+  public long getOOMCopyCount() {
+    return oomCopy;
+  }
+
+  public long getSpillCopyNanos() {
+    return spillCopyWatch.elapsed(TimeUnit.NANOSECONDS);
+  }
+
+  /**
+   * Create configuration appropriate copier and monitor its use with stopwatch.
+   * @param incoming
+   * @param outgoing
+   * @return
+   */
+  private Copier getCopier(VectorAccessible incoming, VectorContainer outgoing) {
+    final Copier copier = useVectorCopier ? new VectorCopier4(incoming, outgoing) : CopierOperator.getGenerated4Copier(producer, incoming, outgoing);
+    copier.setAllocationDensity(allocationDensity);
+    return new Copier() {
+
+      @Override
+      public void close() throws Exception {
+        copier.close();
+      }
+
+      @Override
+      public void setupRemover(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing)
+          throws SchemaChangeException {
+        copier.setupRemover(context, incoming, outgoing);
+      }
+
+      @Override
+      public int copyRecords(int index, int recordCount) {
+        spillCopyWatch.start();
+        try {
+          return copier.copyRecords(index, recordCount);
+        } finally {
+          spillCopyWatch.stop();
+        }
+      }
+
+    };
+  }
+
 }

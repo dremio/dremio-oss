@@ -22,7 +22,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Term;
 
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
-import com.dremio.datastore.KVStoreProvider.DocumentConverter;
+import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.indexed.CoreIndexedStoreImpl;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
 import com.dremio.datastore.indexed.SimpleDocumentWriter;
@@ -36,16 +36,16 @@ public class ReIndexer implements ReplayHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReIndexer.class);
 
   private final IndexManager indexManager;
-  private final Map<String, StoreWithId> idToStore;
+  private final Map<String, StoreWithId<?, ?>> idToStore;
 
   // caches
-  private final Map<String, DocumentConverter> converters = Maps.newHashMap();
-  private final Map<String, Serializer> keySerializers = Maps.newHashMap();
-  private final Map<String, Serializer> valueSerializers = Maps.newHashMap();
+  private final Map<String, DocumentConverter<?, ?>> converters = Maps.newHashMap();
+  private final Map<String, Serializer<?, byte[]>> keySerializers = Maps.newHashMap();
+  private final Map<String, Serializer<?, byte[]>> valueSerializers = Maps.newHashMap();
 
   private final Map<String, ReIndexMetrics> metricsMap = Maps.newHashMap();
 
-  ReIndexer(IndexManager indexManager, Map<String, StoreWithId> idToStore) {
+  ReIndexer(IndexManager indexManager, Map<String, StoreWithId<?, ?>> idToStore) {
     this.indexManager = indexManager;
     this.idToStore = idToStore;
   }
@@ -86,62 +86,51 @@ public class ReIndexer implements ReplayHandler {
         (idToStore.get(name).getStore() instanceof CoreIndexedStore);
   }
 
-  private DocumentConverter converter(String name) {
+  @SuppressWarnings("unchecked")
+  private <K, V> DocumentConverter<K, V> converter(String name) {
     assert isIndexed(name);
 
     if (!converters.containsKey(name)) {
-      converters.put(name, DataStoreUtils.getInstance(idToStore.get(name)
-              .getStoreBuilderConfig()
-              .getDocumentConverterClassName(),
-          DocumentConverter.class,
-          true));
+      converters.put(name,
+        idToStore.get(name).getStoreBuilderHelper().getDocumentConverter());
     }
 
-    return converters.get(name);
+    return (DocumentConverter<K, V>) converters.get(name);
   }
 
-  private Serializer keySerializer(String name) {
+  private Serializer<?, byte[]> keySerializer(String name) {
     assert isIndexed(name);
 
     if (!keySerializers.containsKey(name)) {
-      keySerializers.put(name, DataStoreUtils.getInstance(idToStore.get(name)
-              .getStoreBuilderConfig()
-              .getKeySerializerClassName(),
-          Serializer.class,
-          true));
+      keySerializers.put(name,
+        idToStore.get(name).getStoreBuilderHelper().getKeyFormat().apply(ByteSerializerFactory.INSTANCE));
     }
 
     return keySerializers.get(name);
   }
 
-  private Serializer valueSerializer(String name) {
+  private Serializer<?, byte[]> valueSerializer(String name) {
     assert isIndexed(name);
 
     if (!valueSerializers.containsKey(name)) {
-      valueSerializers.put(name, DataStoreUtils.getInstance(idToStore.get(name)
-              .getStoreBuilderConfig()
-              .getValueSerializerClassName(),
-          Serializer.class,
-          true));
+      valueSerializers.put(name,
+        idToStore.get(name).getStoreBuilderHelper().getValueFormat().apply(ByteSerializerFactory.INSTANCE));
     }
 
     return valueSerializers.get(name);
   }
 
-  @SuppressWarnings("unchecked")
-  private KVStoreTuple keyTuple(String tableName, byte[] serializedBytes) {
-    return new KVStoreTuple(keySerializer(tableName))
+  private KVStoreTuple<?> keyTuple(String tableName, byte[] serializedBytes) {
+    return new KVStoreTuple<>(keySerializer(tableName))
         .setSerializedBytes(serializedBytes);
   }
 
-  @SuppressWarnings("unchecked")
-  private KVStoreTuple valueTuple(String tableName, byte[] serializedBytes) {
-    return new KVStoreTuple(valueSerializer(tableName))
+  private KVStoreTuple<?> valueTuple(String tableName, byte[] serializedBytes) {
+    return new KVStoreTuple<>(valueSerializer(tableName))
         .setSerializedBytes(serializedBytes);
   }
 
-  @SuppressWarnings("unchecked")
-  private Document toDoc(String tableName, KVStoreTuple key, KVStoreTuple value) {
+  private <K, V> Document toDoc(String tableName, KVStoreTuple<K> key, KVStoreTuple<V> value) {
     final Document doc = new Document();
     final SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
     converter(tableName).convert(documentWriter, key.getObject(), value.getObject());
@@ -155,8 +144,7 @@ public class ReIndexer implements ReplayHandler {
     return doc;
   }
 
-  @SuppressWarnings("unchecked")
-  private static Term keyAsTerm(KVStoreTuple key) {
+  private static Term keyAsTerm(KVStoreTuple<?> key) {
     return CoreIndexedStoreImpl.keyAsTerm(key);
   }
 

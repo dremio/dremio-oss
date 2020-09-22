@@ -26,6 +26,7 @@ import org.apache.calcite.schema.Statistics;
 
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.ExtendedToRelContext;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
@@ -92,7 +93,7 @@ public class ViewTable implements DremioTable {
   @Override
   public BatchSchema getSchema() {
     if (schema == null) {
-      schema = BatchSchema.fromCalciteRowType(getRowType(JavaTypeFactoryImpl.INSTANCE));
+      schema = CalciteArrowHelper.fromCalciteRowType(getRowType(JavaTypeFactoryImpl.INSTANCE));
     }
     return schema;
   }

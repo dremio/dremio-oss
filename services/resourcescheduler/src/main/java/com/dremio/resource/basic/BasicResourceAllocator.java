@@ -25,9 +25,11 @@ import javax.inject.Provider;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceAllocation;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.resource.ResourceSchedulingObserver;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
@@ -53,16 +55,20 @@ public class BasicResourceAllocator implements ResourceAllocator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicResourceAllocator.class);
 
   private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
+  private final Provider<GroupResourceInformation> clusterResourceInformationProvider;
   private ClusterCoordinator clusterCoordinator;
   private final ListeningExecutorService executorService = MoreExecutors.newDirectExecutorService();
 
-  public BasicResourceAllocator(final Provider<ClusterCoordinator> clusterCoordinatorProvider) {
+  public BasicResourceAllocator(final Provider<ClusterCoordinator> clusterCoordinatorProvider,
+                                final Provider<GroupResourceInformation> clusterResourceInformationProvider) {
     this.clusterCoordinatorProvider = clusterCoordinatorProvider;
+    this.clusterResourceInformationProvider = clusterResourceInformationProvider;
   }
 
   @Override
   public ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
                                            final ResourceSchedulingProperties resourceSchedulingProperties,
+                                           final ResourceSchedulingObserver resourceSchedulingObserver,
                                            final Consumer<ResourceSchedulingDecisionInfo> schedulingDecisionInfoConsumer) {
 
     final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo = new ResourceSchedulingDecisionInfo();
@@ -72,6 +78,7 @@ public class BasicResourceAllocator implements ResourceAllocator {
     resourceSchedulingDecisionInfo.setWorkloadClass(queryContext.getQueryContextInfo().getPriority().getWorkloadClass());
     schedulingDecisionInfoConsumer.accept(resourceSchedulingDecisionInfo);
 
+    resourceSchedulingObserver.beginQueueWait();
     final Pointer<DistributedSemaphore.DistributedLease> lease = new Pointer();
     ListenableFuture<ResourceSet> futureAllocation = executorService.submit(() -> {
       lease.value = acquireQuerySemaphoreIfNecessary(queryContext, queueType);
@@ -133,6 +140,12 @@ public class BasicResourceAllocator implements ResourceAllocator {
       queueType = (cost > queueThreshold) ? QueueType.LARGE : QueueType.SMALL;
     }
     return queueType;
+  }
+
+  @Override
+  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
+                                                              ResourceSchedulingProperties resourceSchedulingProperties) {
+    return clusterResourceInformationProvider.get();
   }
 
   @Override

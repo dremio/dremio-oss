@@ -16,7 +16,7 @@
 import debounce from 'lodash/debounce';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 
-const errorHandler = (error) => {
+const errorHandler = () => {
   //add loggin here if it is needed
 };
 
@@ -37,7 +37,7 @@ const getItems = (monaco, sqlContextGetter) => {
     KEYWORD: CompletionItemKind.Keyword
   };
 
-  return (document, position, cancellationToken, context) => {
+  return (document, position) => {
     const delimiter = '\n';
     const content = document.getLinesContent();
 
@@ -68,7 +68,7 @@ const getItems = (monaco, sqlContextGetter) => {
             kind: typeMap[type],
             detail: type
           }));
-        });
+        }, errorHandler);
       }
       return [];
     }, errorHandler);

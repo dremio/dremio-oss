@@ -53,13 +53,17 @@ export default class ContainerSelection extends Component {
   };
 
   renderSelectSelector = (elementConfig, selectedValue, radioProps) => {
-    const tooltip = elementConfig.getConfig().tooltip;
-    const label = elementConfig.getConfig().label;
+    const elementConfigJson = elementConfig.getConfig();
+    const tooltip = elementConfigJson.tooltip;
+    const label = elementConfigJson.label;
     const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
-    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ?
+    const isDisabled = (elementConfigJson.disabled || this.props.disabled) ?
       {disabled: true} : null;
+    const size = elementConfigJson.size;
+    const isFixedSize = typeof size === 'number' && size > 0;
+    const style = (isFixedSize) ? {width: size} : {};
 
-    return <div style={{marginTop: 6}}>
+    return <div style={{marginTop: 6, marginBottom: 12}}>
       <FieldWithError errorPlacement='top'
         {...hoverHelpText}
         label={label}
@@ -69,6 +73,7 @@ export default class ContainerSelection extends Component {
             {...isDisabled}
             items={elementConfig.getConfig().options}
             className={selectBody}
+            style={style}
             valueField='value'
             value={selectedValue}
             {...radioProps}
@@ -78,14 +83,25 @@ export default class ContainerSelection extends Component {
     </div>;
   };
 
+  findSelectedOption = (elementConfig, value) => {
+    return elementConfig.getOptions().find(option => option.value === value);
+  };
+
   render() {
     const {fields, elementConfig} = this.props;
     const radioField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
-    // radioField usually has a value. If not, use 1st option value
 
     const { value, ...radioProps } = radioField;
-    const selectedValue = value || elementConfig.getOptions()[0].value;
-    const selectedOptionObj = elementConfig.getOptions().find(option => option.value === selectedValue);
+    const firstValue = elementConfig.getOptions()[0].value;
+    // radioField usually has a value. If not, use 1st option value
+    let selectedValue = value || firstValue;
+    let selectedOptionObj = this.findSelectedOption(elementConfig, selectedValue);
+
+    if (!selectedOptionObj) {
+      // the value is not in the options -> default to the 1st option
+      selectedValue = firstValue;
+      selectedOptionObj = this.findSelectedOption(elementConfig, firstValue);
+    }
 
     const container = selectedOptionObj.container;
     const containerHelp = container.getConfig && container.getConfig().help;

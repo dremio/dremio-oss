@@ -21,9 +21,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.AllocationOutcomeDetails;
-import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.memory.util.CommonUtil;
 
 import com.dremio.common.collections.Tuple;
 
@@ -42,7 +42,7 @@ public final class MemoryDebugInfo {
     }
 
     Collection<BufferAllocator> childAllocators = current.getChildAllocators();
-    BaseAllocator.indent(sb, currentLevel)
+    CommonUtil.indent(sb, currentLevel)
         .append("Allocator(")
         .append(current.getName())
         .append(") ")

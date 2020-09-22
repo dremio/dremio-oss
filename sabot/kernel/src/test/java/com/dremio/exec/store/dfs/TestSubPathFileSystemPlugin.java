@@ -19,18 +19,22 @@ import java.io.File;
 import java.io.PrintWriter;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.io.Files;
 
 /**
@@ -42,6 +46,14 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   public static TemporaryFolder testFolder = new TemporaryFolder();
 
   protected static File storageBase;
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  @Before
+  public void before() {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+  }
 
   @BeforeClass
   public static void setup() throws Exception {

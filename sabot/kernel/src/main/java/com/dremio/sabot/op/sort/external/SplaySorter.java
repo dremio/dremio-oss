@@ -18,6 +18,7 @@ package com.dremio.sabot.op.sort.external;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -30,12 +31,12 @@ import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.ExpandableHyperContainer;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.google.common.collect.Lists;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.NettyArrowBuf;
 
 /**

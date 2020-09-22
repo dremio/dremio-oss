@@ -36,21 +36,28 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.SourceCatalog;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
+import com.dremio.service.BinderImpl;
 import com.dremio.service.BinderImpl.Binding;
 import com.dremio.service.BinderImpl.InstanceBinding;
 import com.dremio.service.BinderImpl.SingletonBinding;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 
 /**
  * Class to bind resources to HK2 injector.
  */
 public class DremioBinder extends AbstractBinder {
 
-  private final SingletonRegistry bindings;
+  private SingletonRegistry bindings;
 
   public DremioBinder(SingletonRegistry bindings) {
     this.bindings = bindings;
@@ -63,7 +70,7 @@ public class DremioBinder extends AbstractBinder {
       switch(b.getType()){
       case INSTANCE:
         InstanceBinding ib = (InstanceBinding) b;
-        if(ib.getInstance().getClass().getAnnotation(RequestScoped.class) != null){
+        if(ib.getInstance().getAnnotation(RequestScoped.class) != null){
           bind(ib.getInstance()).in(RequestScoped.class).to(b.getIface());
         }else{
           bind(ib.getInstance()).to(b.getIface());
@@ -72,6 +79,10 @@ public class DremioBinder extends AbstractBinder {
       case SINGLETON:
         SingletonBinding sb = (SingletonBinding) b;
         bind(sb.getSingleton()).to(b.getIface());
+        break;
+      case PROVIDER:
+        BinderImpl.ProviderBinding pb = (BinderImpl.ProviderBinding) b;
+        bindFactory(() -> pb.getProvider().get()).to(b.getIface());
         break;
       default:
         throw new IllegalStateException();
@@ -90,6 +101,14 @@ public class DremioBinder extends AbstractBinder {
     bind(JobsBasedRecommender.class).to(JoinRecommender.class);
     bind(DACSecurityContext.class).in(RequestScoped.class).to(SecurityContext.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(Catalog.class);
+    bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(EntityExplorer.class);
+    bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(DatasetCatalog.class);
+    bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(SourceCatalog.class);
+    bindReflectionFactory();
+  }
+
+  protected void bindReflectionFactory() {
+    bindFactory(ReflectionAdministrationServiceFactory.class).proxy(true).in(RequestScoped.class).to(ReflectionAdministrationService.class);
   }
 
   private <T> ClassBinding<T> bindToSelf(Class<T> serviceType) {
@@ -112,7 +131,9 @@ public class DremioBinder extends AbstractBinder {
 
     @Override
     public Catalog get() {
-      return catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
+      return catalogService.getCatalog(MetadataRequestOptions.of(
+          SchemaConfig.newBuilder(context.getUserPrincipal().getName())
+              .build()));
     }
   }
 
@@ -131,6 +152,26 @@ public class DremioBinder extends AbstractBinder {
     @Override
     public OptionManager get() {
       return context.getOptionManager();
+    }
+  }
+
+  /**
+   * Factory
+   */
+  public static class ReflectionAdministrationServiceFactory implements Supplier<ReflectionAdministrationService> {
+    private final ReflectionAdministrationService.Factory factory;
+    private final SecurityContext securityContext;
+
+    @Inject
+    public ReflectionAdministrationServiceFactory(ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory,
+                                                  SecurityContext securityContext) {
+      this.factory = reflectionAdministrationServiceFactory;
+      this.securityContext = securityContext;
+    }
+
+    @Override
+    public ReflectionAdministrationService get() {
+      return factory.get(new ReflectionContext(securityContext.getUserPrincipal().getName(), true));
     }
   }
 }

@@ -76,7 +76,7 @@ describe('CodeMirror', () => {
       sinon.spy(instance, 'resetValue');
       instance.componentDidMount();
       expect(instance.resetValue).to.be.called;
-      instance.resetValue.reset();
+      instance.resetValue.resetHistory();
 
       wrapper = shallow(<CodeMirror {...commonProps} defaultValue={undefined}/>);
       instance = wrapper.instance();

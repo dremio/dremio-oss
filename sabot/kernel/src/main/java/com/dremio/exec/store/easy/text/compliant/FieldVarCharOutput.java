@@ -144,7 +144,7 @@ class FieldVarCharOutput extends TextOutput {
     }
 
     if (currentDataPointer >= MAX_FIELD_LENGTH ) {
-      throw FieldSizeLimitExceptionHelper.createWriteFieldSizeLimitException(currentDataPointer, MAX_FIELD_LENGTH, currentFieldIndex, logger);
+      throw FieldSizeLimitExceptionHelper.createFieldSizeLimitException(currentDataPointer, MAX_FIELD_LENGTH, currentFieldIndex, logger);
     }
 
     fieldBytes[currentDataPointer++] = data;
@@ -153,7 +153,7 @@ class FieldVarCharOutput extends TextOutput {
   @Override
   public boolean endField() {
     fieldOpen = false;
-    FieldSizeLimitExceptionHelper.checkWriteSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
 
     if(collect) {
       assert currentVector != null;

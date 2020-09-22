@@ -22,6 +22,14 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.StoreBuildingFactory;
+import com.dremio.datastore.api.StoreCreationFunction;
+import com.dremio.datastore.format.Format;
+import com.dremio.datastore.utility.StoreLoader;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
@@ -35,7 +43,7 @@ public class NoopKVStoreProvider implements KVStoreProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NoopKVStoreProvider.class);
 
   private final ScanResult scan;
-  private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
+  private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
 
   public NoopKVStoreProvider(
     ScanResult scan,
@@ -49,12 +57,13 @@ public class NoopKVStoreProvider implements KVStoreProvider {
 
   @SuppressWarnings("unchecked")
   @Override
-  public <T extends KVStore<?, ?>> T getStore(Class<? extends StoreCreationFunction<T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
     return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
+  @Override
   @VisibleForTesting
-  <K, V> StoreBuilder<K, V> newStore(){
+  public <K, V> StoreBuilder<K, V> newStore(){
     return new ExecutorStoreBuilder<>();
   }
 
@@ -62,7 +71,6 @@ public class NoopKVStoreProvider implements KVStoreProvider {
   public void start() throws Exception {
     logger.info("Starting NoopKVStoreProvider");
     stores = StoreLoader.buildStores(scan, new StoreBuildingFactory() {
-
       @Override
       public <K, V> StoreBuilder<K, V> newStore() {
         return NoopKVStoreProvider.this.newStore();
@@ -89,17 +97,17 @@ public class NoopKVStoreProvider implements KVStoreProvider {
     }
 
     @Override
-    public StoreBuilder<K, V> keySerializer(Class<? extends Serializer<K>> keySerializerClass) {
+    public StoreBuilder<K, V> keyFormat(Format<K> format) {
       return this;
     }
 
     @Override
-    public StoreBuilder<K, V> valueSerializer(Class<? extends Serializer<V>> valueSerializerClass) {
+    public StoreBuilder<K, V> valueFormat(Format<V> format) {
       return this;
     }
 
     @Override
-    public StoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass) {
+    public StoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys) {
       return this;
     }
 
@@ -109,7 +117,7 @@ public class NoopKVStoreProvider implements KVStoreProvider {
     }
 
     @Override
-    public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
+    public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       return new NoopIndexedStore<>();
     }
   }

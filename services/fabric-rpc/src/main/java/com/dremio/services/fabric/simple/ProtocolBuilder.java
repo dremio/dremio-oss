@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -38,7 +39,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
 
@@ -67,9 +67,9 @@ public final class ProtocolBuilder {
   SendEndpointCreator<REQUEST, RESPONSE> register(int id, ReceiveHandler<REQUEST, RESPONSE> handler) {
     Preconditions.checkArgument(id > -1 && id < 2048, "A request id must be between 0 and 2047.");
     Preconditions.checkNotNull(handler);
-    Preconditions.checkArgument(!handlers.containsKey(id), "Only a single handler can be registered per id. You tried to register a handler for id %d twice.", id);
+    Preconditions.checkArgument(!handlers.containsKey(id), "Only a single handler can be registered per id. You tried to register a handler for id %s twice.", id);
     handlers.put(id, (ReceiveHandler<MessageLite, MessageLite>) handler);
-    return new EndpointCreator<REQUEST, RESPONSE>(proxyFactory, new PseudoEnum(id), (Class<RESPONSE>) handler.getDefaultResponse().getClass(), timeoutMillis);
+    return new EndpointCreator<>(proxyFactory, new PseudoEnum(id), (Class<RESPONSE>) handler.getDefaultResponse().getClass(), timeoutMillis);
   }
 
   public ProtocolBuilder name(String name) {
@@ -79,7 +79,7 @@ public final class ProtocolBuilder {
 
   public ProtocolBuilder timeout(long timeoutMillis) {
     Preconditions.checkArgument(timeoutMillis > -1);
-    Preconditions.checkArgument(handlers.isEmpty(), "You can only set a timeout before registering any handlers. You've already registered %d handlers.", handlers.size());
+    Preconditions.checkArgument(handlers.isEmpty(), "You can only set a timeout before registering any handlers. You've already registered %s handlers.", handlers.size());
     this.timeoutMillis = timeoutMillis;
     return this;
   }
@@ -97,7 +97,7 @@ public final class ProtocolBuilder {
   }
 
   private void validateProtocol(){
-    Preconditions.checkArgument(protocolId > 1 && protocolId < 64, "ProtocolId must be between 2 and 63. You tried to set it to %d.", protocolId);
+    Preconditions.checkArgument(protocolId > 1 && protocolId < 64, "ProtocolId must be between 2 and 63. You tried to set it to %s.", protocolId);
   }
 
   public void register(FabricService fabric){

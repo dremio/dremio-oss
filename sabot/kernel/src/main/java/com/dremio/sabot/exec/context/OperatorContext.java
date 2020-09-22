@@ -19,16 +19,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import javax.inject.Provider;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordExecRPC.MajorFragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
@@ -36,10 +44,7 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class OperatorContext {
 
@@ -98,7 +103,13 @@ public abstract class OperatorContext {
 
   public abstract ExecutorService getExecutor();
 
-  public abstract NamespaceService getNamespaceService();
+  public abstract QueryId getQueryIdForLocalQuery();
+
+  public abstract LogicalPlanPersistence getLpPersistence();
+
+  public abstract CoordinationProtos.NodeEndpoint getNodeEndPoint();
+
+  public abstract void startFragmentOnLocal(PlanFragmentFull planFragmentFull);
 
   public abstract NodeDebugContextProvider getNodeDebugContextProvider();
 
@@ -109,6 +120,8 @@ public abstract class OperatorContext {
   public abstract List<FragmentAssignment> getAssignments();
 
   public abstract EndpointsIndex getEndpointsIndex();
+
+  public abstract MajorFragmentAssignment getExtMajorFragmentAssignments(int extMajorFragment);
 
   public static int getChildCount(PhysicalOperator popConfig) {
     Iterator<PhysicalOperator> iter = popConfig.iterator();
@@ -123,6 +136,8 @@ public abstract class OperatorContext {
     }
     return i;
   }
+
+  public abstract Provider<CoordinationProtos.NodeEndpoint> getNodeEndpointProvider();
 
   public interface Creator {
     public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception;

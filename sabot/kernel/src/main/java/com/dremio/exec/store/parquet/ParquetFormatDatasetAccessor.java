@@ -54,7 +54,6 @@ import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
-import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.ExecConstants;
@@ -65,6 +64,7 @@ import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
@@ -126,7 +126,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
   private final PreviousDatasetInfo oldConfig;
   private final int maxLeafColumns;
 
-  private List<PartitionChunk> cachedSplits;
+  private PartitionChunkListingImpl partitionChunkListing;
   private long recordCount;
   private ParquetDatasetXAttr extended;
   private List<String> partitionColumns;
@@ -151,6 +151,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
     this.formatPlugin = formatPlugin;
     this.oldConfig = oldConfig;
     this.maxLeafColumns = maxLeafColumns;
+    this.partitionChunkListing = new PartitionChunkListingImpl();
   }
 
 
@@ -256,7 +257,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
         final boolean autoCorrectCorruptDates = context.getOptionManager().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
           ((ParquetFormatPlugin) formatPlugin).getConfig().autoCorrectCorruptDates;
-        final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
+        final MutableParquetMetadata mutableParquetMetadata = new MutableParquetMetadata(footer);
+        final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(mutableParquetMetadata, GroupScan.ALL_COLUMNS,
             autoCorrectCorruptDates);
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
@@ -268,9 +270,10 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
         final long maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null);
-            RecordReader reader = new AdditionalColumnsRecordReader(new ParquetRowiseReader(operatorContext, footer, 0,
-                 firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, schemaHelper, streamProvider, codec), finder.getImplicitFieldsForSample(selection))) {
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null);
+            RecordReader reader = new AdditionalColumnsRecordReader(operatorContext, new ParquetRowiseReader(operatorContext, mutableParquetMetadata, 0,
+                 firstFile.getPath().toString(), ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
+                 fs, schemaHelper, streamProvider, codec, true), finder.getImplicitFieldsForSample(selection), sampleAllocator)) {
 
           reader.setup(mutator);
 
@@ -290,7 +293,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
   }
 
   private void buildIfNecessary() throws Exception {
-    if (cachedSplits != null) {
+    if (partitionChunkListing.computed()) {
       return;
     }
     schema = getBatchSchema(oldConfig.getSchema(), fileSelection, fs);
@@ -302,7 +305,6 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
     this.recordCount = parquetGroupScanUtils.getScanStats().getRecordCount();
 
     final ParquetDatasetXAttr.Builder datasetXAttr = ParquetDatasetXAttr.newBuilder().setSelectionRoot(fileSelection.getSelectionRoot());
-    final List<PartitionChunk> partitionChunks = new ArrayList<>();
 
     final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
     List<RowGroupInfo> rowGroups = parquetGroupScanUtils.getRowGroupInfos();
@@ -386,8 +388,9 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
           .build();
 
 
+      List<PartitionValue> partitionValueList = ImmutableList.copyOf(partitionValues.values());
       DatasetSplit split = DatasetSplit.of(affinities, size, splitRecordCount, splitExtended::writeTo);
-      partitionChunks.add(PartitionChunk.of(ImmutableList.copyOf(partitionValues.values()), Collections.singletonList(split)));
+      partitionChunkListing.put(partitionValueList, split);
     }
 
     final List<String> filePartitionColumns = MetadataUtils.getStringColumnNames(parquetGroupScanUtils.getPartitionColumns());
@@ -412,7 +415,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
     extended = datasetXAttr.build();
     partitionColumns = Lists.newArrayList(allImplicitColumns);
-    cachedSplits = partitionChunks;
+    partitionChunkListing.computePartitionChunks();
   }
 
 
@@ -484,7 +487,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
       throw new ConnectorException(e);
     }
 
-    return () -> cachedSplits.iterator();
+    return partitionChunkListing;
   }
 
   @Override

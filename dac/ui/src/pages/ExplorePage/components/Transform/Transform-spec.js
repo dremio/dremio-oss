@@ -193,7 +193,7 @@ describe('Transform', () => {
       const transform = Immutable.fromJS({
         method: 'Pattern', selection: {cellText: 'sometext', mapPathList: null}, columnType: TEXT});
       wrapper.setProps({transform});
-      instance.props.loadTransformCards.reset(); // called in componentDidMount
+      instance.props.loadTransformCards.resetHistory(); // called in componentDidMount
 
       sinon.stub(instance, 'transformTypeURLMapper');
       instance.loadTransformCards(instance.props);

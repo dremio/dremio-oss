@@ -25,7 +25,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
-import com.dremio.exec.store.ischema.tables.TablesTable.Table;
+import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -66,13 +66,13 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
 
       @Override
       public boolean apply(Table input) {
-        m.reset(input.TABLE_NAME);
+        m.reset(input.getTableName());
         return m.matches();
       }}).transform(new Function<Table, ShowTableResult>(){
 
       @Override
       public ShowTableResult apply(Table input) {
-        return new ShowTableResult(input.TABLE_SCHEMA, input.TABLE_NAME);
+        return new ShowTableResult(input.getSchemaName(), input.getTableName());
       }}).toList();
   }
 

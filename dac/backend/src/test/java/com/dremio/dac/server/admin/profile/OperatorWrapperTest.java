@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashSet;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.Test;
@@ -28,6 +29,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -54,7 +56,11 @@ public class OperatorWrapperTest {
 
     ImmutablePair<OperatorProfile, Integer> pair = new ImmutablePair<>(op, 1);
 
-    OperatorWrapper ow = new OperatorWrapper(1, ImmutableList.of(pair), OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
+    OperatorWrapper ow = new OperatorWrapper(1,
+                                              ImmutableList.of(pair),
+                                              OperatorMetricRegistry.getCoreOperatorTypeMetricsMap(),
+                                              HashBasedTable.create(),
+                                              new HashSet<>());
 
     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputStream);

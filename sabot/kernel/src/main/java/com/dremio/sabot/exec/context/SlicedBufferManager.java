@@ -15,13 +15,12 @@
  */
 package com.dremio.sabot.exec.context;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
-
-import io.netty.buffer.ArrowBuf;
 
 
 public interface SlicedBufferManager extends BufferManager {
 
-  ArrowBuf getManagedBufferSliced(int size);
+  ArrowBuf getManagedBufferSliced(long size);
 
 }

@@ -22,7 +22,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattrOrBuilder;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
@@ -458,7 +461,7 @@ public final class HiveReaderProtoUtil {
   /**
    * Get the partition extended attribute for the given SplitInfo.
    *
-   * @param splitInfo Dataset splitInfo
+   * @param split Dataset splitInfo
    * @return partition extended attribute
    */
   public static PartitionXattr getPartitionXattr(SplitAndPartitionInfo split) {
@@ -483,6 +486,107 @@ public final class HiveReaderProtoUtil {
    */
   public static boolean isPreDremioVersion3dot2dot0LegacyFormat(final HiveTableXattr tableXattr) {
     return !tableXattr.getPartitionXattrsList().isEmpty();
+  }
+
+  /**
+   * Converts values of map from {@link HiveReaderProto.AttributeValue} to {@link AttributeValue}
+   *
+   * @param protoMap
+   * @return
+   */
+  public static Map<String, AttributeValue> convertValuesToNonProtoAttributeValues(Map<String, HiveReaderProto.AttributeValue> protoMap) {
+    return protoMap.entrySet()
+                   .stream()
+                   .collect(Collectors.toMap(
+                       e -> e.getKey().toLowerCase(),
+                       e -> toAttribute(e.getValue())));
+  }
+
+  /**
+   * Convert a {@link AttributeValue} to {@link HiveReaderProto.AttributeValue}
+   *
+   * @param attributeValue
+   * @return
+   */
+  public static HiveReaderProto.AttributeValue toProtobuf(AttributeValue attributeValue) {
+    HiveReaderProto.AttributeValue.Builder builder = HiveReaderProto.AttributeValue.newBuilder();
+
+    if (attributeValue instanceof AttributeValue.LongValue) {
+      builder.setLongVal(((AttributeValue.LongValue) attributeValue).getValue());
+    } else if (attributeValue instanceof AttributeValue.DoubleValue) {
+      builder.setDoubleVal(((AttributeValue.DoubleValue) attributeValue).getValue());
+    } else if (attributeValue instanceof AttributeValue.BooleanValue) {
+      builder.setBoolVal(((AttributeValue.BooleanValue) attributeValue).getValue());
+    } else if (attributeValue instanceof AttributeValue.StringValue) {
+      builder.setStringVal(((AttributeValue.StringValue) attributeValue).getValue());
+    } else if (attributeValue instanceof AttributeValue.IdentifierValue) {
+      builder.setIdentifierVal(HiveReaderProto.Identifier.newBuilder()
+                                                         .addAllComponent(((AttributeValue.IdentifierValue) attributeValue).getComponents())
+                                                         .build());
+    } else {
+      throw new IllegalArgumentException("Unknown type of primitive value: " + attributeValue.getClass()
+                                                                                             .getName());
+    }
+    return builder.build();
+  }
+
+  /**
+   * Convert a {@link HiveReaderProto.AttributeValue} to {@link AttributeValue}
+   *
+   * @param attributeValueProto
+   * @return
+   */
+  public static AttributeValue toAttribute(HiveReaderProto.AttributeValue attributeValueProto) {
+    switch (attributeValueProto.getAttributeValCase()) {
+      case BOOL_VAL:
+        return AttributeValue.of(attributeValueProto.getBoolVal());
+      case LONG_VAL:
+        return AttributeValue.of(attributeValueProto.getLongVal());
+      case DOUBLE_VAL:
+        return AttributeValue.of(attributeValueProto.getDoubleVal());
+      case STRING_VAL:
+        return AttributeValue.of(attributeValueProto.getStringVal());
+      case IDENTIFIER_VAL:
+        return AttributeValue.of(attributeValueProto.getIdentifierVal().getComponentList());
+      default:
+        throw UserException.parseError()
+                           .message("Invalid table option value of type %s", attributeValueProto.getAttributeValCase())
+                           .buildSilently();
+    }
+  }
+
+  /**
+   * get type of an AttributeValue
+   *
+   * @param value
+   * @return
+   */
+  public static String getTypeName(AttributeValue value) {
+    if (value instanceof AttributeValue.StringValue) {
+      return "STRING";
+    } else if (value instanceof AttributeValue.LongValue) {
+      return "LONG";
+    } else if (value instanceof AttributeValue.DoubleValue) {
+      return "DOUBLE";
+    } else if (value instanceof AttributeValue.BooleanValue) {
+      return "BOOLEAN";
+    } else if (value instanceof AttributeValue.IdentifierValue) {
+      return "IDENTIFIER";
+    }
+    return "UNKNOWN";
+  }
+
+  /**
+   * Get boolean if argument is a {@link com.dremio.connector.metadata.AttributeValue.BooleanValue}
+   *
+   * @param attributeValue
+   * @return
+   */
+  public static boolean getBoolean(AttributeValue attributeValue) {
+    if (attributeValue instanceof AttributeValue.BooleanValue) {
+      return ((AttributeValue.BooleanValue) attributeValue).getValue();
+    }
+    throw new UnsupportedOperationException(String.format("Trying to get boolean from %s primitive type", getTypeName(attributeValue)));
   }
 
   private HiveReaderProtoUtil() {

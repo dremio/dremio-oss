@@ -31,8 +31,8 @@ const commonProps = {
 
 describe('ModuleStateView', () => {
   beforeEach(() => {
-    initState.reset();
-    resetState.reset();
+    initState.resetHistory();
+    resetState.resetHistory();
   });
 
   it('init state is called on mount', () => {

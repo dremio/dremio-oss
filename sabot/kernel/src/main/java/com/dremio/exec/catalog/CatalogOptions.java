@@ -30,9 +30,6 @@ import com.dremio.service.namespace.NamespaceService;
 @Options
 public final class CatalogOptions {
 
-  // Check for storage plugin status at time of creation of the plugin
-  public static final BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
-
   // Maximum time to wait when creating a storage plugin before failing.
   public static final LongValidator STORAGE_PLUGIN_CREATE_MAX = new PositiveLongValidator("store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 
@@ -46,9 +43,20 @@ public final class CatalogOptions {
   // Maximum number of leaf columns allowed for metadata
   public static final LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 800);
 
+  // Maximum nested levels allowed for a column
+  public static final LongValidator MAX_NESTED_LEVELS = new PositiveLongValidator("store.plugin.max_nested_levels", 64, 16);
+
+  // ORC ACID table factor for leaf columns
+  public static final LongValidator ORC_DELTA_LEAF_COLUMN_FACTOR = new PositiveLongValidator("store.hive.orc_delta_leaf_column_factor", Integer.MAX_VALUE, 5);
+
+  // Maximum number of single split partitions allowed to be saved together
+  public static final LongValidator SINGLE_SPLIT_PARTITION_MAX = new PositiveLongValidator("store.plugin.max_single_split_partitions", Long.MAX_VALUE, 500);
+
   // How should (multi-)splits be compressed in the K/V store
   public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression> SPLIT_COMPRESSION_TYPE = new TypeValidators.EnumValidator<>(
     "store.plugin.split_compression", NamespaceService.SplitCompression.class, NamespaceService.SplitCompression.SNAPPY);
+  // Disable cross source select
+  public static final BooleanValidator DISABLE_CROSS_SOURCE_SELECT = new BooleanValidator("planner.cross_source_select.disable", false);
 
   // Do not instantiate
   private CatalogOptions() {

@@ -16,6 +16,7 @@
 import { expect } from 'chai';
 import { RSAA } from 'redux-api-middleware';
 
+import { APIV2Call } from '@app/core/APICall';
 import { API_URL_V2 } from '@app/constants/Api';
 
 import * as Actions from './sqlActions.js';
@@ -46,13 +47,16 @@ describe('sql actions', () => {
       const dataset = {
         data: { name: ''}
       };
+
+      const apiCall = new APIV2Call().path(`dataset${location}`);
+
       const expectedResult = {
         [RSAA]: {
           types: [Actions.CREATE_DATASET_START, Actions.CREATE_DATASET_SUCCESS, Actions.CREATE_DATASET_FAILURE],
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dataset),
-          endpoint: `${API_URL_V2}/dataset${location}`
+          endpoint: apiCall
         }
       };
       const realResult = Actions.createDataset(cpath, dataset)((obj) => obj)[RSAA];
@@ -67,12 +71,13 @@ describe('sql actions', () => {
       const datasetConfig = {
         data: { name: ''}
       };
+
       const realResult =
         Actions.createDatasetFromExisting(existingDataset, fullPathTarget, dataset)((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS);
       expect(realResult.method).to.eql('PUT');
       expect(realResult.body).to.eql(JSON.stringify(datasetConfig));
-      expect(realResult.endpoint).to.eql(`${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`);
+      expect(realResult.endpoint.toString()).to.eql(`${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`);
     });
     it('test result of calling of function createDatasetFromExisting', () => {
       const fullPathSource = ['bla', 'bla'];
@@ -83,7 +88,7 @@ describe('sql actions', () => {
       const realResult = Actions.moveDataSet(fullPathSource,  fullPathTarget, dataset)((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(Actions.MOVE_DATASET_SUCCESS);
       expect(realResult.method).to.eql('POST');
-      expect(realResult.endpoint).to.eql(`${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`);
+      expect(realResult.endpoint.toString()).to.eql(`${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`);
     });
   });
 });

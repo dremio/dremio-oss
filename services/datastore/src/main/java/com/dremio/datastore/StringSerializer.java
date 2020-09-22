@@ -22,7 +22,7 @@ import java.io.IOException;
 /**
  * A Serializer implementation for String
  */
-public final class StringSerializer extends Serializer<String> {
+public final class StringSerializer extends Serializer<String, byte[]> {
 
   public static final StringSerializer INSTANCE = new StringSerializer();
 

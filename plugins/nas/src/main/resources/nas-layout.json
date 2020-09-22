@@ -1,0 +1,41 @@
+{
+  "sourceType": "NAS",
+  "metadataRefresh": {
+    "isFileSystemSource": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "config.path",
+                "tooltip": "This path must exist on all nodes in the Dremio cluster.",
+                "placweholder": "e.g. /mnt/path",
+                "validate": {
+                  "isRequired": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.allowCreateDrop"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

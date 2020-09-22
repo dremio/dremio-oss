@@ -46,7 +46,7 @@ import freemarker.template.TemplateExceptionHandler;
  * to a REST API or static asset. The correct page will be shown to the user
  * based on client side routing and page loading.
  */
-class IndexServlet implements Servlet {
+public class IndexServlet implements Servlet {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IndexServlet.class);
 
   private final Configuration templateCfg;

@@ -30,10 +30,8 @@ process.env.SKIP_SENTRY_STEP = 'true';
 
 const config = require('./webpack.config');
 config.bail = false; // to not fail on compilation error in dev mode
-const testConfig = require('./webpack.tests.config');
-const isProductionBuild = process.env.NODE_ENV === 'production';
 
-const ENABLE_TESTS = false; // not quite yet ready
+
 
 const port = 3005;
 const compiler = webpack(config);
@@ -47,13 +45,6 @@ const devMiddleware = webpackDevMiddleware(compiler, {
   }
 });
 app.use(devMiddleware);
-
-let testMiddleware;
-if (ENABLE_TESTS && !isProductionBuild) {
-  const testCompiler = webpack(config);
-  testMiddleware = webpackDevMiddleware(testCompiler, config);
-  app.use(testMiddleware);
-}
 
 let storedProxy;
 let prevAPIOrigin;
@@ -87,13 +78,8 @@ app.use(['/api*', '/static/*'], function() {
 
 // todo: this doesn't show dyn-loader tests
 app.use(function(req, res, next) {
-  if (ENABLE_TESTS && req.url.indexOf('/unit-tests') !== -1 && testMiddleware) {
-    req.url = testConfig.output.publicPath;
-    testMiddleware(req, res, next);
-  } else {
-    req.url = config.output.publicPath;
-    devMiddleware(req, res, next);
-  }
+  req.url = config.output.publicPath;
+  devMiddleware(req, res, next);
 });
 
 console.log('Building…');

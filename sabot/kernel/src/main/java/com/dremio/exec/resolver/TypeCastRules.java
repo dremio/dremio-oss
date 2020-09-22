@@ -24,6 +24,8 @@ import java.util.Set;
 
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.CompleteTypeInLogicalExpression;
@@ -39,12 +41,595 @@ import com.google.common.collect.Sets;
 public class TypeCastRules {
 
   private static Map<MinorType, Set<MinorType>> rules;
+  private static Map<MinorType, Set<MinorType>> insertRules;
 
   public TypeCastRules() {
   }
 
   static {
     initTypeRules();
+    initInsertTypeRules();
+  }
+
+  private static Set<MinorType> getTINYINTCastableFromRules(boolean insert) {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.BIT);
+
+    if (!insert) {
+      rule.add(MinorType.SMALLINT);
+      rule.add(MinorType.INT);
+      rule.add(MinorType.BIGINT);
+      rule.add(MinorType.UINT2);
+      rule.add(MinorType.UINT4);
+      rule.add(MinorType.UINT8);
+      rule.add(MinorType.DECIMAL);
+      rule.add(MinorType.MONEY);
+      rule.add(MinorType.FLOAT4);
+      rule.add(MinorType.FLOAT8);
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.FIXEDSIZEBINARY);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+      rule.add(MinorType.VARBINARY);
+    }
+
+    return rule;
+  }
+
+  private static Set<MinorType> getSMALLINTCastableFromRules(boolean insert) {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.BIT);
+    if (!insert) {
+      rule.add(MinorType.INT);
+      rule.add(MinorType.BIGINT);
+      rule.add(MinorType.UINT4);
+      rule.add(MinorType.UINT8);
+      rule.add(MinorType.DECIMAL);
+      rule.add(MinorType.MONEY);
+      rule.add(MinorType.FLOAT4);
+      rule.add(MinorType.FLOAT8);
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.FIXEDSIZEBINARY);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+      rule.add(MinorType.VARBINARY);
+    }
+    return rule;
+  }
+
+  private static Set<MinorType> getINTCastableFromRules(boolean insert) {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.BIT);
+    if (!insert) {
+      rule.add(MinorType.BIGINT);
+      rule.add(MinorType.UINT8);
+      rule.add(MinorType.DECIMAL);
+      rule.add(MinorType.FLOAT4);
+      rule.add(MinorType.FLOAT8);
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.FIXEDSIZEBINARY);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+      rule.add(MinorType.VARBINARY);
+    }
+    return rule;
+  }
+
+  private static Set<MinorType> getBIGINTCastableFromRules(boolean insert) {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.BIT);
+    if (!insert) {
+      rule.add(MinorType.DECIMAL);
+      rule.add(MinorType.FLOAT4);
+      rule.add(MinorType.FLOAT8);
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.FIXEDSIZEBINARY);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+      rule.add(MinorType.VARBINARY);
+    }
+    return rule;
+  }
+
+  private static Set<MinorType> getUINT8CastableFromRules(boolean insert) {
+    return getBIGINTCastableFromRules(insert);
+  }
+
+  private static Set<MinorType> getDECIMALCastableFromRules(boolean insert) {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.BIT);
+    if (!insert) {
+      rule.add(MinorType.FLOAT4);
+      rule.add(MinorType.FLOAT8);
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.FIXEDSIZEBINARY);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+      rule.add(MinorType.VARBINARY);
+    }
+    return rule;
+  }
+
+  private static Set<MinorType> getDATECastableFromRules() {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getTIMECastableFromRules() {
+    Set<MinorType> rule = new HashSet<>();
+    rule.add(MinorType.TIME);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getVARBINARYCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getVAR16CHARCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIME);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.INTERVALDAY);
+    return rule;
+  }
+
+  private static Set<MinorType> getVARCHARCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIME);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.INTERVALDAY);
+    return rule;
+  }
+
+  private static Set<MinorType> getFIXEDSIZEBINARYCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getFIXED16CHARCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIME);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.INTERVALDAY);
+    return rule;
+  }
+
+  private static Set<MinorType> getFIXEDCHARCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.MONEY);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIME);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.INTERVALDAY);
+    return rule;
+  }
+
+  private static Set<MinorType> getBITCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.BIT);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getFLOAT8CastableFromRules(boolean insert) {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.FLOAT8);
+    rule.add(MinorType.BIT);
+    if (!insert) {
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+    }
+    return rule;
+  }
+
+  private static Set<MinorType> getFLOAT4CastableFromRules(boolean insert) {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DECIMAL);
+    rule.add(MinorType.FLOAT4);
+    rule.add(MinorType.BIT);
+    if (!insert) {
+      rule.add(MinorType.FIXEDCHAR);
+      rule.add(MinorType.FIXED16CHAR);
+      rule.add(MinorType.VARCHAR);
+      rule.add(MinorType.VAR16CHAR);
+    }
+    return rule;
+  }
+
+  private static Set<MinorType> getINTERVALDAYCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.INTERVALDAY);
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getINTERVALCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.INTERVALDAY);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getIntervalCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.INTERVAL);
+    rule.add(MinorType.INTERVALDAY);
+    rule.add(MinorType.INTERVALYEAR);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getTIMESTAMPTZCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.TIMESTAMPTZ);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TIME);
+    rule.add(MinorType.FIXEDCHAR);
+    rule.add(MinorType.FIXED16CHAR);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARBINARY);
+    return rule;
+  }
+
+  private static Set<MinorType> getTIMESTAMPCastableFromRules() {
+    Set<MinorType> rule;
+    rule = new HashSet<>();
+    rule.add(MinorType.VAR16CHAR);
+    rule.add(MinorType.VARCHAR);
+    rule.add(MinorType.VARBINARY);
+    rule.add(MinorType.TIMESTAMP);
+    rule.add(MinorType.TINYINT);
+    rule.add(MinorType.SMALLINT);
+    rule.add(MinorType.INT);
+    rule.add(MinorType.BIGINT);
+    rule.add(MinorType.UINT1);
+    rule.add(MinorType.UINT2);
+    rule.add(MinorType.UINT4);
+    rule.add(MinorType.UINT8);
+    rule.add(MinorType.DATE);
+    rule.add(MinorType.TIMESTAMPTZ);
+    return rule;
+  }
+
+  private static void initInsertTypeRules() {
+    insertRules = new HashMap<>();
+    Set<MinorType> rule;
+
+    /** TINYINT cast able from **/
+    rule = getTINYINTCastableFromRules(true);
+    insertRules.put(MinorType.TINYINT, rule);
+
+    /** SMALLINT cast able from **/
+    rule = getSMALLINTCastableFromRules(true);
+    insertRules.put(MinorType.SMALLINT, rule);
+
+    /** INT cast able from **/
+    rule = getINTCastableFromRules(true);
+    insertRules.put(MinorType.INT, rule);
+
+    /** BIGINT cast able from **/
+    rule = getBIGINTCastableFromRules(true);
+    insertRules.put(MinorType.BIGINT, rule);
+
+    /** UINT8 cast able from **/
+    rule = getUINT8CastableFromRules(true);
+    insertRules.put(MinorType.UINT8, rule);
+
+    /** DECIMAL cast able from **/
+    rule = getDECIMALCastableFromRules(true);
+    insertRules.put(MinorType.DECIMAL, rule);
+
+    /** DATE cast able from **/
+    rule = getDATECastableFromRules();
+    insertRules.put(MinorType.DATE, rule);
+
+    /** TIME cast able from **/
+    rule = getTIMECastableFromRules();
+    insertRules.put(MinorType.TIME, rule);
+
+    /** TIMESTAMP cast able from **/
+    rule = getTIMESTAMPCastableFromRules();
+    insertRules.put(MinorType.TIMESTAMP, rule);
+
+    /** TIMESTAMPTZ cast able from **/
+    rule = getTIMESTAMPTZCastableFromRules();
+    insertRules.put(MinorType.TIMESTAMPTZ, rule);
+
+    /** Interval cast able from **/
+    rule = getIntervalCastableFromRules();
+    insertRules.put(MinorType.INTERVAL, rule);
+
+    /** INTERVAL YEAR cast able from **/
+    rule = getINTERVALCastableFromRules();
+    insertRules.put(MinorType.INTERVALYEAR, rule);
+
+    /** INTERVAL DAY cast able from **/
+    rule = getINTERVALDAYCastableFromRules();
+    insertRules.put(MinorType.INTERVALDAY, rule);
+
+    /** FLOAT4 cast able from **/
+    rule = getFLOAT4CastableFromRules(true);
+    insertRules.put(MinorType.FLOAT4, rule);
+
+    /** FLOAT8 cast able from **/
+    rule = getFLOAT8CastableFromRules(true);
+    insertRules.put(MinorType.FLOAT8, rule);
+
+    /** BIT cast able from **/
+    rule = getBITCastableFromRules();
+    insertRules.put(MinorType.BIT, rule);
+
+    /** FIXEDCHAR cast able from **/
+    rule = getFIXEDCHARCastableFromRules();
+    insertRules.put(MinorType.FIXEDCHAR, rule);
+
+    /** FIXED16CHAR cast able from **/
+    rule = getFIXED16CHARCastableFromRules();
+    insertRules.put(MinorType.FIXED16CHAR, rule);
+
+    /** FIXEDSIZEBINARY cast able from **/
+    rule = getFIXEDSIZEBINARYCastableFromRules();
+    insertRules.put(MinorType.FIXEDSIZEBINARY, rule);
+
+    /** VARCHAR cast able from **/
+    rule = getVARCHARCastableFromRules();
+    insertRules.put(MinorType.VARCHAR, rule);
+
+    /** VAR16CHAR cast able from **/
+    rule = getVAR16CHARCastableFromRules();
+    insertRules.put(MinorType.VAR16CHAR, rule);
+
+    /** VARBINARY cast able from **/
+    rule = getVARBINARYCastableFromRules();
+    insertRules.put(MinorType.VARBINARY, rule);
+
+    insertRules.put(MinorType.UNION, Sets.newHashSet(MinorType.UNION));
   }
 
   private static void initTypeRules() {
@@ -53,456 +638,91 @@ public class TypeCastRules {
     Set<MinorType> rule;
 
     /** TINYINT cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.MONEY);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getTINYINTCastableFromRules(false);
     rules.put(MinorType.TINYINT, rule);
 
     /** SMALLINT cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.MONEY);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getSMALLINTCastableFromRules(false);
     rules.put(MinorType.SMALLINT, rule);
 
     /** INT cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getINTCastableFromRules(false);
     rules.put(MinorType.INT, rule);
 
     /** BIGINT cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getBIGINTCastableFromRules(false);
     rules.put(MinorType.BIGINT, rule);
 
     /** UINT8 cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getUINT8CastableFromRules(false);
     rules.put(MinorType.UINT8, rule);
 
     /** DECIMAL cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getDECIMALCastableFromRules(false);
     rules.put(MinorType.DECIMAL, rule);
 
     /** DATE cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getDATECastableFromRules();
     rules.put(MinorType.DATE, rule);
 
     /** TIME cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TIME);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getTIMECastableFromRules();
     rules.put(MinorType.TIME, rule);
 
     /** TIMESTAMP cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIMESTAMPTZ);
+    rule = getTIMESTAMPCastableFromRules();
     rules.put(MinorType.TIMESTAMP, rule);
 
     /** TIMESTAMPTZ cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIME);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getTIMESTAMPTZCastableFromRules();
     rules.put(MinorType.TIMESTAMPTZ, rule);
 
     /** Interval cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.INTERVALDAY);
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getIntervalCastableFromRules();
     rules.put(MinorType.INTERVAL, rule);
 
     /** INTERVAL YEAR cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.INTERVALDAY);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getINTERVALCastableFromRules();
     rules.put(MinorType.INTERVALYEAR, rule);
 
     /** INTERVAL DAY cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.INTERVALDAY);
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getINTERVALDAYCastableFromRules();
     rules.put(MinorType.INTERVALDAY, rule);
 
     /** FLOAT4 cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
+    rule = getFLOAT4CastableFromRules(false);
     rules.put(MinorType.FLOAT4, rule);
 
     /** FLOAT8 cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
+    rule = getFLOAT8CastableFromRules(false);
     rules.put(MinorType.FLOAT8, rule);
 
     /** BIT cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
+    rule = getBITCastableFromRules();
     rules.put(MinorType.BIT, rule);
 
     /** FIXEDCHAR cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.MONEY);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIME);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.INTERVALDAY);
+    rule = getFIXEDCHARCastableFromRules();
     rules.put(MinorType.FIXEDCHAR, rule);
 
     /** FIXED16CHAR cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIME);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.INTERVALDAY);
+    rule = getFIXED16CHARCastableFromRules();
     rules.put(MinorType.FIXED16CHAR, rule);
 
     /** FIXEDSIZEBINARY cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule = getFIXEDSIZEBINARYCastableFromRules();
     rules.put(MinorType.FIXEDSIZEBINARY, rule);
 
     /** VARCHAR cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIME);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.INTERVALDAY);
+    rule = getVARCHARCastableFromRules();
     rules.put(MinorType.VARCHAR, rule);
 
     /** VAR16CHAR cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.FIXEDCHAR);
-    rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VAR16CHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDSIZEBINARY);
-    rule.add(MinorType.DATE);
-    rule.add(MinorType.TIME);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.INTERVAL);
-    rule.add(MinorType.INTERVALYEAR);
-    rule.add(MinorType.INTERVALDAY);
+    rule = getVAR16CHARCastableFromRules();
     rules.put(MinorType.VAR16CHAR, rule);
 
     /** VARBINARY cast able from **/
-    rule = new HashSet<>();
-    rule.add(MinorType.TINYINT);
-    rule.add(MinorType.SMALLINT);
-    rule.add(MinorType.INT);
-    rule.add(MinorType.BIGINT);
-    rule.add(MinorType.UINT1);
-    rule.add(MinorType.UINT2);
-    rule.add(MinorType.UINT4);
-    rule.add(MinorType.UINT8);
-    rule.add(MinorType.DECIMAL);
-    rule.add(MinorType.TIMESTAMP);
-    rule.add(MinorType.TIMESTAMPTZ);
-    rule.add(MinorType.FLOAT4);
-    rule.add(MinorType.FLOAT8);
-    rule.add(MinorType.BIT);
-    rule.add(MinorType.VARCHAR);
-    rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDSIZEBINARY);
+    rule = getVARBINARYCastableFromRules();
     rules.put(MinorType.VARBINARY, rule);
 
     rules.put(MinorType.UNION, Sets.newHashSet(MinorType.UNION));
@@ -516,8 +736,17 @@ public class TypeCastRules {
   }
 
   public static boolean isCastable(MinorType from, MinorType to) {
-    return from.equals(MinorType.NULL) ||      //null could be casted to any other type.
+    return isCastable(from, to, false);
+  }
+
+  public static boolean isCastable(MinorType from, MinorType to, boolean insertOp) {
+    if (insertOp) {
+      return from.equals(MinorType.NULL) ||      //null could be casted to any other type.
+        (insertRules.get(to) == null ? false : insertRules.get(to).contains(from));
+    } else {
+      return from.equals(MinorType.NULL) ||      //null could be casted to any other type.
         (rules.get(to) == null ? false : rules.get(to).contains(from));
+    }
   }
 
   public static DataMode getLeastRestrictiveDataMode(List<DataMode> dataModes) {
@@ -538,6 +767,14 @@ public class TypeCastRules {
     }
   }
 
+  public static MinorType getLeastRestrictiveType(List<MinorType> types) {
+    return getLeastRestrictiveType(types, false);
+  }
+
+  public static MinorType getLeastRestrictiveTypeForInsert(List<MinorType> types) {
+    return getLeastRestrictiveType(types, true);
+  }
+
   /*
    * Function checks if casting is allowed from the 'from' -> 'to' minor type.
    * If its allowed we also check if the precedence map allows such a cast and return true if
@@ -545,7 +782,7 @@ public class TypeCastRules {
    * In some cases it might return a common higher type for e.g. for float, decimal we return
    * double.
    */
-  public static MinorType getLeastRestrictiveType(List<MinorType> types) {
+  private static MinorType getLeastRestrictiveType(List<MinorType> types, boolean insertOp) {
     assert types.size() >= 2;
     MinorType result = types.get(0);
     if (result == MinorType.UNION) {
@@ -575,10 +812,10 @@ public class TypeCastRules {
 
       int nextPrec = precedenceMap.get(next);
 
-      if (isCastable(next, result) && resultPrec >= nextPrec) {
+      if (isCastable(next, result, insertOp) && resultPrec >= nextPrec) {
         // result is the least restrictive between the two args; nothing to do continue
         continue;
-      } else if(isCastable(result, next) && nextPrec >= resultPrec) {
+      } else if(isCastable(result, next, insertOp) && nextPrec >= resultPrec) {
         result = next;
         resultPrec = nextPrec;
       } else {
@@ -727,5 +964,70 @@ public class TypeCastRules {
         return false;
     }
   }
+
+  // Given a type return number of digits max value of that type has
+  private static int getMaxPrecision(SqlTypeName typeName) {
+    switch(typeName) {
+      case TINYINT:
+        return 3; // 1 byte
+      case SMALLINT:
+        return 5; // 2 bytes
+      case INTEGER:
+        return 10; // 4 bytes
+      case FLOAT:
+        return 7; // 23 bits + sign bit + exponent
+      case DOUBLE:
+        return 16; // 52 bits + sign bit + exponent
+      case BIGINT:
+        return 19; // 8 bytes
+      case BOOLEAN:
+        return 1; // 1 bit
+      default:
+        return 0;
+    }
+  }
+
+  public static boolean isCastSafeFromDataTruncation(RelDataType type1, RelDataType type2) {
+    switch ((type1.getSqlTypeName())) {
+      case TINYINT:
+      case SMALLINT:
+      case INTEGER:
+      case FLOAT:
+      case BIGINT:
+      case DOUBLE:
+        // cast to decimal is allowed if target type has enough digits to the left of decimal point
+        return (type2.getSqlTypeName() != SqlTypeName.DECIMAL) ||
+          (type2.getPrecision() - type2.getScale() >= getMaxPrecision(type1.getSqlTypeName()));
+      case DECIMAL:
+        switch (type2.getSqlTypeName()) {
+          case DECIMAL:
+            return ( (type2.getScale() >= type1.getScale()) &&
+              (type2.getPrecision() - type2.getScale() >= type1.getPrecision() - type1.getScale()));
+          case FLOAT:
+          case DOUBLE:
+            return true;
+          default:
+            return false;
+        }
+      default:
+        return true;
+    }
+  }
+
+  public static boolean isHiveCompatibleTypeChange(MinorType from, MinorType to) {
+    if (from == to) {
+      return true;
+    }
+
+    switch (from) {
+      case INT:
+        return to == MinorType.BIGINT;
+      case FLOAT4:
+        return to == MinorType.FLOAT8;
+      default:
+        return false;
+    }
+  }
+
 
 }

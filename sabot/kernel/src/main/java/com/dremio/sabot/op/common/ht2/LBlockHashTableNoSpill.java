@@ -16,25 +16,25 @@
 package com.dremio.sabot.op.common.ht2;
 
 
-
+import java.util.Arrays;
 import java.util.Formatter;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ObjectArrays;
+import com.google.common.collect.Streams;
 import com.google.common.primitives.Longs;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHashCapacities;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -491,7 +491,13 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close((Iterable<AutoCloseable>) Iterables.concat(FluentIterable.of(controlBlocks).toList(), FluentIterable.of(fixedBlocks).toList(), FluentIterable.of(variableBlocks).toList()));
+    AutoCloseables.close(
+      Streams.concat(
+        Arrays.stream(controlBlocks),
+        Arrays.stream(fixedBlocks),
+        Arrays.stream(variableBlocks)
+      ).collect(ImmutableList.toImmutableList())
+    );
   }
 
   private boolean tryRehashForExpansion() {

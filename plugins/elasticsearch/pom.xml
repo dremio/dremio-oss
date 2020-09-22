@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -76,7 +76,11 @@
     <dependency>
       <groupId>net.java.dev.jna</groupId>
       <artifactId>jna</artifactId>
-      <version>4.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.8.5</version>
     </dependency>
     <dependency>
       <groupId>org.elasticsearch</groupId>
@@ -182,14 +186,34 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <id>reserve-elasticsearch-ports</id>
+            <goals>
+              <goal>reserve-network-port</goal>
+            </goals>
+            <phase>pre-integration-test</phase>
+            <configuration>
+              <portNames>
+                <portName>tests.elasticsearch.transportPort</portName>
+                <portName>tests.elasticsearch.httpPort</portName>
+              </portNames>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>com.github.alexcojocaru</groupId>
         <artifactId>elasticsearch-maven-plugin</artifactId>
         <version>${tests.elasticsearch.mvn.plugin.version}</version>
         <configuration>
           <version>${tests.elasticsearch.api.version}</version>
           <clusterName>test</clusterName>
-          <transportPort>9300</transportPort>
-          <httpPort>9200</httpPort>
+          <transportPort>${tests.elasticsearch.transportPort}</transportPort>
+          <httpPort>${tests.elasticsearch.httpPort}</httpPort>
           <skip>${tests.elasticsearch.api.on}</skip>
         </configuration>
         <executions>
@@ -227,20 +251,26 @@
           <threadCount>1</threadCount>
           <forkCount>1</forkCount>
           <argLine>
-            -Xms512m 
-            -Xmx3g 
+            -Xms512m
+            -Xmx3g
+            -Xss2048k
             -Djava.net.preferIPv4Stack=true"
             -XX:MaxDirectMemorySize=3072M
-            -XX:+CMSClassUnloadingEnabled 
-            -ea</argLine>
+            -XX:+CMSClassUnloadingEnabled
+            -ea
+            @{argLine}
+          </argLine>
+          <systemProperties>
+            <dremio.test.elasticsearch.port>${tests.elasticsearch.httpPort}</dremio.test.elasticsearch.port>
+          </systemProperties>
         </configuration>
-      </plugin>       
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <forkCount>1</forkCount>
-          <argLine>-Xmx1024m ${surefire.extra.argLine}</argLine>
+          <argLine>-Xmx1024m @{argLine}</argLine>
         </configuration>
       </plugin>
       <plugin>
@@ -266,7 +296,7 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>      
+      </plugin>
     </plugins>
   </build>
 

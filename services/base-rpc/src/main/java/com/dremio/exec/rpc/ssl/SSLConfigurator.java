@@ -59,10 +59,12 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.joda.time.DateTime;
 
 import com.dremio.config.DremioConfig;
+import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
+import com.google.common.net.InetAddresses;
 
 /**
  * Helper class to create {@link SSLConfig} instances for the specified communication path, based on config.
@@ -266,9 +268,9 @@ public class SSLConfigurator {
     // create a certificate valid for 1 years from now
     // add the main hostname + the alternative hostnames to the SAN extension
     final GeneralName[] alternativeSubjectNames = new GeneralName[alternativeHostNames.length + 1];
-    alternativeSubjectNames[0] = new GeneralName(GeneralName.dNSName, hostName);
+    alternativeSubjectNames[0] = newGeneralName(hostName);
     for (int i = 0; i < alternativeHostNames.length; i++) {
-      alternativeSubjectNames[i + 1] = new GeneralName(GeneralName.dNSName, alternativeHostNames[i]);
+      alternativeSubjectNames[i + 1] = newGeneralName(alternativeHostNames[i]);
     }
 
     final X509v3CertificateBuilder certificateBuilder =
@@ -337,6 +339,11 @@ public class SSLConfigurator {
         .setTrustStorePassword(UNSECURE_PASSWORD);
   }
 
+  private static GeneralName newGeneralName(String name) {
+    int nameType = InetAddresses.isInetAddress(name) ? GeneralName.iPAddress : GeneralName.dNSName;
+
+    return new GeneralName(nameType, name);
+  }
   private void configureUsingConfFile(SSLConfig.Builder builder) {
     final Optional<String> keyStorePath = getStringConfig(DremioConfig.SSL_KEY_STORE_PATH);
     if (!keyStorePath.isPresent()) {

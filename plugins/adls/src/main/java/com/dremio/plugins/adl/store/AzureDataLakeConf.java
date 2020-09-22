@@ -34,9 +34,11 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.CacheProperties;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 
@@ -46,7 +48,7 @@ import io.protostuff.Tag;
  * Azure Data Lake (ADL)
  * https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
  */
-@SourceType(value = "ADL", label = "Azure Data Lake Storage Gen1")
+@SourceType(value = "ADL", label = "Azure Data Lake Storage Gen1", uiConfig = "adl-layout.json")
 public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDataLakeStoragePlugin> {
   /**
    * Type ADL Auth
@@ -112,7 +114,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Tag(11)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable local caching when possible")
-  public boolean isCachingEnabled = false;
+  public boolean isCachingEnabled = true;
 
   @Tag(12)
   @NotMetadataImpacting
@@ -146,7 +148,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
   @Override
   public String getConnection() {
-    return DremioAdlFileSystem.SCHEME + "://" + accountName + ".azuredatalakestore.net/";
+    return CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme() + "://" + accountName + ".azuredatalakestore.net/";
   }
 
   @Override
@@ -219,7 +221,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override
-      public boolean isCachingEnabled() {
+      public boolean isCachingEnabled(final OptionManager optionManager) {
         return isCachingEnabled;
       }
 

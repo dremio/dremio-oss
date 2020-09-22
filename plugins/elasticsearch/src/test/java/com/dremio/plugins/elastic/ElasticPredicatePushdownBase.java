@@ -15,8 +15,6 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.util.Random;
-
 import static com.dremio.plugins.elastic.ElasticsearchCluster.PRIMITIVE_TYPES;
 import static java.lang.String.format;
 import static org.junit.Assert.assertNotNull;
@@ -24,6 +22,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.List;
+import java.util.Random;
+
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -42,6 +42,7 @@ import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
 import com.dremio.sabot.rpc.user.UserSession;
 
@@ -198,9 +199,10 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   public static UserSession session() {
     return UserSession.Builder.newBuilder()
+      .withSessionOptionManager(new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+        getSabotContext().getOptionManager())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
       .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
-      .withOptionManager(getSabotContext().getOptionManager())
       .setSupportComplexTypes(true)
       .build();
   }

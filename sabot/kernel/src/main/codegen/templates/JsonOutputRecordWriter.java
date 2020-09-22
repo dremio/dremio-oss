@@ -143,7 +143,7 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
     <#if typeName == "VarChar">
     if (reader.isSet()) {
       final Text varValue = reader.readText();
-      FieldSizeLimitExceptionHelper.checkWriteSizeLimit(varValue.getLength(), maxCellSize, fieldId, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit(varValue.getLength(), maxCellSize, fieldId, logger);
       gen.writeVarChar(varValue.toString());
     } else {
       gen.writeVarcharNull();
@@ -151,7 +151,7 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
     <#elseif typeName == "Binary">
     if (reader.isSet()) {
       final byte[] varValue = reader.readByteArray();
-      FieldSizeLimitExceptionHelper.checkWriteSizeLimit(varValue.length, maxCellSize, fieldId, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit(varValue.length, maxCellSize, fieldId, logger);
       gen.writeBinary(varValue);
     } else {
       gen.writeBinaryNull();

@@ -35,7 +35,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.commons.io.ByteOrderMark;
 
 import com.dremio.common.exceptions.UserException;
@@ -43,7 +45,6 @@ import com.dremio.io.CompressedFSInputStream;
 import com.dremio.io.FSInputStream;
 import com.google.common.base.Preconditions;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -121,7 +122,7 @@ final class TextInput {
     this.buffer = readBuffer;
     this.bStart = buffer.memoryAddress();
     this.bStartMinus1 = bStart -1;
-    this.underlyingBuffer = buffer.nioBuffer(0, buffer.capacity());
+    this.underlyingBuffer = buffer.nioBuffer(0, LargeMemoryUtil.checkedCastToInt(buffer.capacity()));
   }
 
   /**

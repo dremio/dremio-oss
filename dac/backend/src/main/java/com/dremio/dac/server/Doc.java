@@ -54,6 +54,7 @@ import javax.ws.rs.ext.MessageBodyReader;
 import javax.ws.rs.ext.MessageBodyWriter;
 import javax.ws.rs.ext.Provider;
 
+import org.apache.arrow.util.Preconditions;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
@@ -737,32 +738,18 @@ public class Doc {
     }
   }
 
+  /**
+   * Check if the provided annotation is annotated with annotationClass
+   * @param <A>
+   * @param annotation
+   * @param annotationClass
+   * @return
+   */
   static <A extends Annotation> A getAnnotation(Annotation annotation, Class<A> annotationClass) {
-    List<A> result = new ArrayList<>();
-    Class<?>[] interfaces = annotation.getClass().getInterfaces();
-    for (Class<?> i : interfaces) {
-      A a = i.getAnnotation(annotationClass);
-      if (a != null) {
-        result.add(a);
-      }
-    }
-    if (result.size() == 0) {
-      return null;
-    } else if (result.size() == 1) {
-      return result.get(0);
-    } else {
-      throw new RuntimeException(
-        String.format("more than one annotation of type %s: %s",
-          annotationClass.getSimpleName(), result));
-    }
-  }
+    A[] result = annotation.annotationType().getAnnotationsByType(annotationClass);
+    Preconditions.checkArgument(result.length < 2, "more than one annotation of type %s: %s",
+        annotationClass.getSimpleName(), Arrays.toString(result));
 
-  static List<Annotation> getAnnotations(Annotation annotation) {
-    List<Annotation> result = new ArrayList<>();
-    Class<?>[] interfaces = annotation.getClass().getInterfaces();
-    for (Class<?> i : interfaces) {
-      result.addAll(Arrays.asList(i.getAnnotations()));
-    }
-    return result;
+    return result.length != 0 ? result[0] : null;
   }
 }

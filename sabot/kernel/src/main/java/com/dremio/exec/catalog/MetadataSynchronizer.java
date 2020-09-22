@@ -136,9 +136,12 @@ public class MetadataSynchronizer {
       logger.warn("Source '{}' sync failed unexpectedly. Will try again later", sourceKey, e);
     } finally {
       if (!failedDatasets.isEmpty()) {
-        logger.warn("Source '{}' sync failed for datasets:\n{}",
+        logger.warn("Source '{}' sync failed for {} datasets. Few failed datasets and reasons:\n{}",
+            sourceKey,
+            failedDatasets.size(),
             failedDatasets.stream()
                 .map(tuple -> "\t" + tuple.first + ": " + tuple.second)
+                .limit(10)
                 .collect(Collectors.joining("\n"))
         );
       }
@@ -168,11 +171,7 @@ public class MetadataSynchronizer {
     logger.trace("Source '{}' syncing datasets", sourceKey);
     try (DatasetHandleListing datasetListing = getDatasetHandleListing(options.asGetDatasetOptions(null))) {
       final Iterator<? extends DatasetHandle> iterator = datasetListing.iterator();
-      while (true) {
-
-        if (!iterator.hasNext()) {
-          break;
-        }
+      while (iterator.hasNext()) {
 
         final DatasetHandle handle = iterator.next();
         final NamespaceKey datasetKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
@@ -355,8 +354,8 @@ public class MetadataSynchronizer {
    */
   private void deleteOrphanedDatasets() {
     if (!options.deleteUnavailableDatasets()) {
-      logger.debug("Source '{}' has {} unavailable datasets, but not deleted: {}", existingDatasets.size(),
-          existingDatasets);
+      logger.debug("Source '{}' has {} unavailable datasets, but not deleted: {}",
+          sourceKey, existingDatasets.size(), existingDatasets);
       return;
     }
 

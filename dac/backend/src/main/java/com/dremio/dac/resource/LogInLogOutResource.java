@@ -47,6 +47,7 @@ import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
@@ -72,6 +73,7 @@ public class LogInLogOutResource {
   private final UserService userService;
   private final SupportService support;
   private final TokenManager tokenManager;
+  private final OptionManager projectOptionManager;
 
   @Inject
   public LogInLogOutResource(
@@ -79,13 +81,15 @@ public class LogInLogOutResource {
       SabotContext dContext,
       UserService userService,
       SupportService support,
-      TokenManager tokenManager
+      TokenManager tokenManager,
+      ProjectOptionManager projectOptionManager
   ) {
     this.dremioConfig = dremioConfig;
     this.dContext = dContext;
     this.userService = userService;
     this.support = support;
     this.tokenManager = tokenManager;
+    this.projectOptionManager = projectOptionManager;
   }
 
   @POST
@@ -114,13 +118,12 @@ public class LogInLogOutResource {
         return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new GenericErrorMessage(ex.getMessage())).build();
       }
 
-      final OptionManager opt = dContext.getOptionManager();
       SessionPermissions perms = new SessionPermissions(
-          opt.getOption(SupportService.USERS_UPLOAD),
-          opt.getOption(SupportService.USERS_DOWNLOAD),
-          opt.getOption(SupportService.USERS_EMAIL),
-          opt.getOption(SupportService.USERS_CHAT)
-          );
+        projectOptionManager.getOption(SupportService.USERS_UPLOAD),
+        projectOptionManager.getOption(SupportService.USERS_DOWNLOAD),
+        projectOptionManager.getOption(SupportService.USERS_EMAIL),
+        projectOptionManager.getOption(SupportService.USERS_CHAT)
+      );
 
       return Response.ok(
           new UserLoginSession(

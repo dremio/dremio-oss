@@ -59,7 +59,7 @@ public class TestSQLResource extends BaseTestServer {
       if (jobState == JobState.COMPLETED) {
         Assert.assertNotNull(status.getRowCount());
 
-        JobData.JobDataResults data = expectSuccess(getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId()).path("results")).buildGet(), JobData.JobDataResults.class);
+        JobResourceData.JobDataResults data = expectSuccess(getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId()).path("results")).buildGet(), JobResourceData.JobDataResults.class);
         Assert.assertEquals(data.getRowCount(), (long) status.getRowCount());
 
         break;

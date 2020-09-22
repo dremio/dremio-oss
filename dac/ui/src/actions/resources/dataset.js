@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {RSAA} from 'redux-api-middleware';
-import {API_URL_V2, API_URL_V3} from '@app/constants/Api';
+import { RSAA } from 'redux-api-middleware';
 import summaryDatasetSchema from 'schemas/v2/summaryDataset';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import {Schema} from 'normalizr';
+import { Schema } from 'normalizr';
+import APICall, { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_SUMMARY_DATASET_START = 'LOAD_SUMMARY_DATASET_START';
 export const LOAD_SUMMARY_DATASET_SUCCESS = 'LOAD_SUMMARY_DATASET_SUCCESS';
@@ -30,6 +30,11 @@ function fetchSummaryDataset(fullPath, viewId) {
     fullPath,
     errorMessage: la('Cannot provide more information about this dataset.')
   };
+
+  const apiCall = new APIV2Call()
+    .paths('datasets/summary')
+    .paths(fullPath);
+
   return {
     [RSAA]: {
       types: [
@@ -38,7 +43,7 @@ function fetchSummaryDataset(fullPath, viewId) {
         { type: LOAD_SUMMARY_DATASET_FAILURE, meta }
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/datasets/summary/${encodeURIComponent(fullPath)}`
+      endpoint: apiCall
     }
   };
 }
@@ -60,6 +65,11 @@ function fetchDataset(id, viewId) {
     id,
     errorMessage: la('Cannot provide more information about this dataset.')
   };
+
+  const apiCall = new APICall()
+    .path('catalog')
+    .path(id);
+
   return {
     [RSAA]: {
       types: [
@@ -68,7 +78,7 @@ function fetchDataset(id, viewId) {
         { type: LOAD_DATASET_FAILURE, meta }
       ],
       method: 'GET',
-      endpoint: `${API_URL_V3}/catalog/${encodeURIComponent(id)}`
+      endpoint: apiCall
     }
   };
 }

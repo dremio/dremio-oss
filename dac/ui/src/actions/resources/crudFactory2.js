@@ -15,8 +15,8 @@
  */
 import { RSAA } from 'redux-api-middleware';
 import { CALL_MOCK_API } from 'mockApi';
-import { API_URL_V3 } from '@app/constants/Api';
 import Immutable from 'immutable';
+import APICall from '@app/core/APICall';
 
 const COMMON = {headers: {'Content-Type': 'application/json'}};
 
@@ -74,9 +74,7 @@ export default (entityName, extras) => {
       // overrides
       const callPath = opts && opts.path || overrides.path || path;
 
-      const apiEndpoint = API_URL_V3;
-      let url = `${apiEndpoint}/${callPath}/${id || ''}`;
-      const params = new URLSearchParams();
+      const apiCall = new APICall().paths( `${callPath}/${id || ''}`);
 
       const entityNameToUse = overrides.entityName || entityName;
 
@@ -89,7 +87,7 @@ export default (entityName, extras) => {
         };
         const version = get(idOrObject, 'version');
         if (version !== undefined) {
-          params.append('version', version);
+          apiCall.params({version});
         }
       } else if (method === 'GET_LIST') {
         successMeta = {...meta, entityClears: [entityNameToUse]}; // trigger a clear, since records may now be gone;
@@ -97,13 +95,8 @@ export default (entityName, extras) => {
 
       if (opts && opts.query) {
         for (const param of Object.keys(opts.query)) {
-          params.append(param, opts.query[param]);
+          apiCall.param(param, opts.query[param]);
         }
-      }
-
-      const paramStr = params.toString();
-      if (paramStr) {
-        url += `?${paramStr}`;
       }
 
       const req = {
@@ -127,7 +120,7 @@ export default (entityName, extras) => {
           ],
           method: method === 'GET_LIST' ? 'GET' : method,
           body: METHODS_WITH_REQUEST_BODY.has(method) ? JSON.stringify(idOrObject) : undefined,
-          endpoint: url,
+          endpoint: apiCall,
           ...call.mock
         }
       };

@@ -16,15 +16,12 @@
 import { RSAA } from 'redux-api-middleware';
 import { arrayOf } from 'normalizr';
 
-import { makeUncachebleURL } from 'ie11.js';
-
 import spaceSchema from 'dyn-load/schemas/space';
 
-import { API_URL_V3 } from '@app/constants/Api';
-
+import APICall from '@app/core/APICall';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
-import { addDetailsForSpacesUrl } from 'dyn-load/actions/resources/spacesMixin';
+import { getParamsForSpacesUrl } from 'dyn-load/actions/resources/spacesMixin';
 import FormUtils from 'dyn-load/utils/FormUtils/FormUtils';
 
 export const SPACES_LIST_LOAD_START = 'SPACES_LIST_LOAD_START';
@@ -34,6 +31,12 @@ export const SPACES_LIST_LOAD_FAILURE = 'SPACES_LIST_LOAD_FAILURE';
 export const ALL_SPACES_VIEW_ID = 'AllSpaces';
 export function loadSpaceListData() {
   const meta = {viewId: ALL_SPACES_VIEW_ID, replaceEntities: true };
+
+  const apiCall = new APICall()
+    .path('catalog')
+    .params({include: getParamsForSpacesUrl()})
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -42,7 +45,7 @@ export function loadSpaceListData() {
         { type: SPACES_LIST_LOAD_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: API_URL_V3 + makeUncachebleURL(addDetailsForSpacesUrl('/catalog'))
+      endpoint: apiCall
     }
   };
 }
@@ -64,9 +67,11 @@ function saveSpace(values, isCreate) {
   // "groupControls" instead of "users" and "groups", expected in V3 /catalog/ API.
   const space = FormUtils.makeSpaceFromFormValues(values);
 
-  let endPoint = `${API_URL_V3}/catalog`;
+  const apiCall = new APICall();
+  apiCall.path('catalog');
+
   if (!isCreate) {
-    endPoint = `${endPoint}/${encodeURIComponent(space.id)}`;
+    apiCall.path(space.id);
   }
 
   return {
@@ -78,7 +83,7 @@ function saveSpace(values, isCreate) {
       ],
       method: isCreate ? 'POST' : 'PUT',
       body: JSON.stringify(space),
-      endpoint: endPoint
+      endpoint: apiCall
     }
   };
 }
@@ -102,6 +107,11 @@ export function removeSpace(spaceId, spaceVersion) {
   };
   const errorMessage = la('There was an error removing the space.');
 
+  const apiCall = new APICall()
+    .path('catalog')
+    .path(spaceId)
+    .params({tag: spaceVersion});
+
   return {
     [RSAA]: {
       types: [
@@ -120,7 +130,7 @@ export function removeSpace(spaceId, spaceVersion) {
         }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V3}/catalog/${encodeURIComponent(spaceId)}?tag=${spaceVersion}`
+      endpoint: apiCall
     }
   };
 }

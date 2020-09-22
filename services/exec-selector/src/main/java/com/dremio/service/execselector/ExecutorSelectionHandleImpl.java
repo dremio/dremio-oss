@@ -24,9 +24,16 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
  */
 public class ExecutorSelectionHandleImpl implements ExecutorSelectionHandle {
   private final Collection<NodeEndpoint> endpoints;
+  private final String planDetails;
 
   public ExecutorSelectionHandleImpl(final Collection<NodeEndpoint> endpoints) {
+    this(endpoints, "");
+  }
+
+  public ExecutorSelectionHandleImpl(final Collection<NodeEndpoint> endpoints,
+                                     final String planDetails) {
     this.endpoints = endpoints;
+    this.planDetails = planDetails;
   }
 
   @Override
@@ -36,7 +43,7 @@ public class ExecutorSelectionHandleImpl implements ExecutorSelectionHandle {
 
   @Override
   public String getPlanDetails() {
-    return "";
+    return planDetails;
   }
 
   @Override

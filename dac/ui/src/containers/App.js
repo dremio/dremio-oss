@@ -22,27 +22,28 @@ import { MuiThemeProvider, createMuiTheme } from '@material-ui/core/styles';
 import { replace } from 'react-router-redux';
 import DocumentTitle from 'react-document-title';
 import urlParse from 'url-parse';
-import { showAppError } from 'actions/prodError';
+
+import {showAppError} from '@app/actions/prodError';
 import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
 import { ErrorBoundary } from '@app/components/ErrorBoundary';
 import { Suspense } from '@app/components/Lazy';
 
-import socket from 'utils/socket';
-import sentryUtil from 'utils/sentryUtil';
+import socket from '@app/utils/socket';
+import sentryUtil from '@app/utils/sentryUtil';
+import {formatMessage} from '@app/utils/locale';
 
 import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
 import config from 'dyn-load/utils/config';
-import enableFatalPropTypes from 'enableFatalPropTypes';
+import enableFatalPropTypes from '@app/enableFatalPropTypes';
 
-import ModalsContainer from 'components/Modals/ModalsContainer';
-import AboutModal from 'pages/HomePage/components/modals/AboutModal';
-import NotificationContainer from 'containers/Notification';
-import ConfirmationContainer from 'containers/Confirmation';
-import ProdErrorContainer from 'containers/ProdError';
-import DevErrorContainer from 'containers/DevError';
-import { LocationProvider } from 'containers/dremioLocation';
+import ModalsContainer from '@app/components/Modals/ModalsContainer';
+import AboutModal from '@app/pages/HomePage/components/modals/AboutModal';
+import NotificationContainer from '@app/containers/Notification';
+import ConfirmationContainer from '@app/containers/Confirmation';
+import ProdErrorContainer from '@app/containers/ProdError';
+import DevErrorContainer from '@app/containers/DevError';
+import {LocationProvider} from '@app/containers/dremioLocation';
 import { withHookProvider } from '@app/containers/RouteLeave';
-import { formatMessage } from '../utils/locale';
 
 DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage('App.Dremio')].filter(Boolean).join(' - ');

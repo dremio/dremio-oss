@@ -18,19 +18,17 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.SeekableInputStream;
 
 import com.dremio.io.ArrowBufFSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * An InputStreamProvider that uses a single stream.
@@ -44,14 +42,15 @@ public class SingleStreamProvider implements InputStreamProvider {
   private final long maxFooterLen;
   private final boolean readFullFile;
   private BulkInputStream stream;
-  private ParquetMetadata footer;
+  private MutableParquetMetadata footer;
 
-  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, OperatorContext context) {
+  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, MutableParquetMetadata footer, OperatorContext context) {
     this.fs = fs;
     this.path = path;
     this.fileLength = fileLength;
     this.maxFooterLen = maxFooterLen;
     this.readFullFile = readFullFile;
+    this.footer = footer;
     if (context != null) {
       this.allocator = context.getAllocator();
     } else {
@@ -91,10 +90,10 @@ public class SingleStreamProvider implements InputStreamProvider {
   }
 
   @Override
-  public ParquetMetadata getFooter() throws IOException {
+  public MutableParquetMetadata getFooter() throws IOException {
     if(footer == null) {
       SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
-      footer = footerCache.getFooter(getStream(null), path.toString(), fileLength, fs, maxFooterLen);
+      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), fileLength, fs, maxFooterLen));
     }
     return footer;
   }

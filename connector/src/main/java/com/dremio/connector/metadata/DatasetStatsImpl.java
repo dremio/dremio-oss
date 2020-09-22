@@ -24,6 +24,12 @@ final class DatasetStatsImpl implements DatasetStats {
   private final boolean isExactRecordCount;
   private final double scanFactor;
 
+  /**
+   *
+   * @param recordCount record count. A negative record count indicates getRecordCount() is unsupported.
+   * @param isExactRecordCount if record count is exact.
+   * @param scanFactor scan factor.
+   */
   DatasetStatsImpl(long recordCount, boolean isExactRecordCount, double scanFactor) {
     this.recordCount = recordCount;
     this.isExactRecordCount = isExactRecordCount;

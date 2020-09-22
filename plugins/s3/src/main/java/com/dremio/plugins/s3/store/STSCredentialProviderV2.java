@@ -25,13 +25,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.util.VersionInfo;
 
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
@@ -42,12 +42,13 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 /**
  * Assume role credential provider that supports aws sdk 2.X
  */
-public class STSCredentialProviderV2 implements AwsCredentialsProvider {
-  private StsAssumeRoleCredentialsProvider stsAssumeRoleCredentialsProvider;
+public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoCloseable {
+  private final StsAssumeRoleCredentialsProvider stsAssumeRoleCredentialsProvider;
 
   public STSCredentialProviderV2(Configuration conf) {
     AwsCredentialsProvider awsCredentialsProvider = null;
@@ -56,7 +57,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider {
       awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(
         conf.get(Constants.ACCESS_KEY), conf.get(Constants.SECRET_KEY)));
     } else if (S3StoragePlugin.EC2_METADATA_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
-      awsCredentialsProvider = InstanceProfileCredentialsProvider.create();
+      awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
     }
 
     final StsClientBuilder builder = StsClient.builder()
@@ -89,7 +90,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider {
     return this.stsAssumeRoleCredentialsProvider.resolveCredentials();
   }
 
-  public static SdkHttpClient.Builder initConnectionSettings(Configuration conf) {
+  public static SdkHttpClient.Builder<?> initConnectionSettings(Configuration conf) {
     final ApacheHttpClient.Builder httpBuilder = ApacheHttpClient.builder();
     httpBuilder.maxConnections(intOption(conf, Constants.MAXIMUM_CONNECTIONS, Constants.DEFAULT_MAXIMUM_CONNECTIONS, 1));
     httpBuilder.connectionTimeout(
@@ -154,7 +155,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider {
 
   static int intOption(Configuration conf, String key, int defVal, int min) {
     final int v = conf.getInt(key, defVal);
-    Preconditions.checkArgument(v >= min, "Value of %s: %d is below the minimum value %d", key, v, min);
+    Preconditions.checkArgument(v >= min, "Value of %s: %s is below the minimum value %s", key, v, min);
     return v;
   }
 
@@ -165,5 +166,10 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider {
     } catch (IOException ioe) {
       throw new IOException("Cannot find password option " + key, ioe);
     }
+  }
+
+  @Override
+  public void close() {
+    stsAssumeRoleCredentialsProvider.close();
   }
 }

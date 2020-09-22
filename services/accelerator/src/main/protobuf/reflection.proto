@@ -15,11 +15,11 @@
  */
 package com.dremio.service.reflection.proto;
 
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "job.proto";
 
 import "reflection-common.proto";
 import "reflection-intent.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "dataset.proto";
 
 option java_package = "com.dremio.service.reflection.proto";
 option optimize_for = SPEED;
@@ -61,17 +61,24 @@ message ReflectionEntry {
   optional JobId refresh_job_id = 21;
   optional string tag = 22;
   optional string goalVersion = 23;
+  optional int32 shallowDatasetHash = 24;
+  optional bool arrowCachingEnabled = 25 [default = false]; // true if boost columns are enabled for caching
+  optional ReflectionGoalHash reflection_goal_hash = 26;
+
 }
 
 enum DependencyType {
   DATASET = 1;
   REFLECTION = 2;
+  TABLEFUNCTION = 3;
 }
 
 message ReflectionDependencyEntry {
   optional DependencyType type = 1;
   repeated string path = 2;
   optional string id = 3;
+  optional string sourceName = 4;
+  optional string query = 5;
 }
 
 message ReflectionDependencies {

@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.resource;
 
+import java.time.LocalDateTime;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -55,13 +57,22 @@ public class ExportProfilesStats {
     return outputPath;
   }
 
-  public String retrieveStats() {
+  public String retrieveStats(LocalDateTime fromDate, LocalDateTime toDate, boolean isTimeSet) {
 
     String stats = String.format("Export completed. Jobs processed: %d, profiles processed: %d, profiles skipped: %d",
       getJobsCount(), getProfilesCount(), getSkippedProfilesCount());
 
     if (profilesCount==0) {
-      return stats;
+      if (fromDate != null && toDate != null) {
+        if (isTimeSet) {
+          return String.format("No profiles were found from %s to %s.",
+            fromDate.toString(), toDate.toString());
+        } else {
+          return String.format("Defaulting to %s to %s. No profiles were found for the duration.",
+            fromDate.toString(), toDate.toString());
+        }
+      }
+      return "No profiles were found.";
     }
 
     return stats + String.format("\nOutput path: %s", getOutputPath());

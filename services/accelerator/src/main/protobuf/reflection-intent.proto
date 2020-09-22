@@ -16,8 +16,8 @@
 package com.dremio.service.reflection.proto;
 
 import "reflection-common.proto";
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "job.proto";
+import "dataset.proto";
 
 
 option java_package = "com.dremio.service.reflection.proto";
@@ -35,6 +35,10 @@ enum ReflectionGoalState {
 
 message ReflectionGoal {
   optional ReflectionId id = 1; // const
+  // This field is for providing access to the tag field, which is normally overwritten by the
+  // LegacyKVStoreAdapter with the tag from a sidecar. The tag may have a valid value if Dremio
+  // was upgraded from a pre-4.2.0 build to 4.2.0 which introduced the tag sidecar and revised
+  // KVStore API.
   optional int64 version = 2 [deprecated = true];
   optional int64 created_at = 3; // const
   optional int64 modified_at = 4;
@@ -44,6 +48,7 @@ message ReflectionGoal {
   optional ReflectionDetails details = 8; // user defined
   optional ReflectionGoalState state = 9 [default = ENABLED];
   optional string tag = 10;
+  optional bool arrowCachingEnabled = 11 [default = false]; // true if boost columns are enabled for caching
 }
 
 message ReflectionDetails {

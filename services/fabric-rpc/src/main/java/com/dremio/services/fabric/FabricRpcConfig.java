@@ -19,10 +19,10 @@ import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import com.dremio.exec.rpc.RpcConfig;
-import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
 import com.dremio.services.fabric.proto.FabricProto.RpcType;
+import com.dremio.ssl.SSLConfig;
 
 /**
  * Describes the wire level protocol for the Fabric.

@@ -96,6 +96,7 @@ public class ${datetype}${intervaltype}Functions {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
         }
 
+        @SuppressWarnings("IdentityBinaryExpression")
         public void eval() {
             <@dateIntervalArithmeticBlock left="left" right="right" temp="temp" op="+" output="out" intervaltype=intervaltype datetype=datetype errctx="errCtx" />
         }
@@ -119,6 +120,7 @@ public class ${datetype}${intervaltype}Functions {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
         }
 
+        @SuppressWarnings("IdentityBinaryExpression")
         public void eval() {
 
             <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out" intervaltype=intervaltype datetype = datetype errctx="errCtx"/>
@@ -142,6 +144,7 @@ public class ${datetype}${intervaltype}Functions {
             temp = new org.joda.time.MutableDateTime(org.joda.time.DateTimeZone.UTC);
         }
 
+        @SuppressWarnings("IdentityBinaryExpression")
         public void eval() {
             <@dateIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "-" output="out" intervaltype=intervaltype datetype = datetype errctx="errCtx"/>
         }
@@ -202,6 +205,7 @@ public class ${datetype}${intervaltype}Functions {
         public void setup() {
         }
 
+        @SuppressWarnings("IdentityBinaryExpression")
         public void eval() {
             <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out.value" intervaltype=intervaltype errctx="errCtx"/>
         }
@@ -217,6 +221,8 @@ public class ${datetype}${intervaltype}Functions {
 
         public void setup() {
         }
+
+        @SuppressWarnings("IdentityBinaryExpression")
         public void eval() {
             <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "+" output="out.value" intervaltype=intervaltype errctx="errCtx" />
         }
@@ -233,6 +239,7 @@ public class ${datetype}${intervaltype}Functions {
         public void setup() {
         }
 
+        @SuppressWarnings("IdentityBinaryExpression")
         public void eval() {
             <@timeIntervalArithmeticBlock left="left" right="right" temp = "temp" op = "-" output="out.value" intervaltype=intervaltype errctx="errCtx" />
         }

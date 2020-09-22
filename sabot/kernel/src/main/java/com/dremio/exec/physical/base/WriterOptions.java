@@ -32,15 +32,22 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
+import io.protostuff.ByteString;
+
 /**
  * Writer options.
  */
 public class WriterOptions {
+  public enum IcebergWriterOperation {
+    NONE,
+    CREATE,
+    INSERT
+  }
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
 
   public static final WriterOptions DEFAULT = new WriterOptions(null, ImmutableList.<String>of(),
       ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, false,
-      Long.MAX_VALUE);
+      Long.MAX_VALUE, IcebergWriterOperation.NONE, null);
 
   private final Integer ringCount;
   private final List<String> partitionColumns;
@@ -49,6 +56,20 @@ public class WriterOptions {
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final boolean singleWriter;
   private final long recordLimit;
+  private final IcebergWriterOperation icebergWriterOperation;
+  private final ByteString extendedProperty;
+
+  public WriterOptions(
+    Integer ringCount,
+    List<String> partitionColumns,
+    List<String> sortColumns,
+    List<String> distributionColumns,
+    PartitionDistributionStrategy partitionDistributionStrategy,
+    boolean singleWriter,
+    long recordLimit) {
+    this(ringCount, partitionColumns, sortColumns, distributionColumns,
+      partitionDistributionStrategy, singleWriter, recordLimit, IcebergWriterOperation.NONE, null);
+  }
 
   @JsonCreator
   public WriterOptions(
@@ -58,7 +79,10 @@ public class WriterOptions {
     @JsonProperty("distributionColumns") List<String> distributionColumns,
     @JsonProperty("partitionDistributionStrategy") PartitionDistributionStrategy partitionDistributionStrategy,
     @JsonProperty("singleWriter") boolean singleWriter,
-    @JsonProperty("recordLimit") long recordLimit) {
+    @JsonProperty("recordLimit") long recordLimit,
+    @JsonProperty("icebergWriterOperation") IcebergWriterOperation icebergWriterOperation,
+    @JsonProperty("extendedProperty") ByteString extendedProperty
+    ) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
@@ -66,6 +90,8 @@ public class WriterOptions {
     this.partitionDistributionStrategy = partitionDistributionStrategy;
     this.singleWriter = singleWriter;
     this.recordLimit = recordLimit;
+    this.icebergWriterOperation = icebergWriterOperation;
+    this.extendedProperty = extendedProperty;
   }
 
   public Integer getRingCount() {
@@ -104,7 +130,16 @@ public class WriterOptions {
 
   public WriterOptions withRecordLimit(long recordLimit) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
-      this.partitionDistributionStrategy, this.singleWriter, recordLimit);
+      this.partitionDistributionStrategy, this.singleWriter, recordLimit, this.icebergWriterOperation, this.extendedProperty);
+  }
+
+  public WriterOptions withPartitionColumns(List<String> partitionColumns) {
+    return new WriterOptions(this.ringCount, partitionColumns, this.sortColumns, this.distributionColumns,
+      this.partitionDistributionStrategy, this.singleWriter, this.recordLimit, this.icebergWriterOperation, this.extendedProperty);
+  }
+
+  public IcebergWriterOperation getIcebergWriterOperation() {
+    return this.icebergWriterOperation;
   }
 
   public RelTraitSet inferTraits(final RelTraitSet inputTraitSet, final RelDataType inputRowType) {
@@ -130,6 +165,11 @@ public class WriterOptions {
     }
 
     return relTraits;
+  }
+
+
+  public ByteString getExtendedProperty() {
+    return extendedProperty;
   }
 
   private static DistributionTrait hashDistributedOn(final List<String> columns, final RelDataType inputRowType) {

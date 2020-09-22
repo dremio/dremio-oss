@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn.impl.conv;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 
@@ -27,8 +28,6 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 @FunctionTemplate(name = "convert_toINT_HADOOPV", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
 public class IntVIntConvertTo implements SimpleFunction {
@@ -52,6 +51,6 @@ public class IntVIntConvertTo implements SimpleFunction {
     com.dremio.exec.util.ByteBufUtil.HadoopWritables.writeVLong(errorContext, buffer, 0, 9, in.value);
     out.buffer = buffer;
     out.start = 0;
-    out.end = buffer.readableBytes();
+    out.end = (int) buffer.readableBytes();
   }
 }

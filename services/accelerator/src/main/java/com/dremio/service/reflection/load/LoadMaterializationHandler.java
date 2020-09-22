@@ -19,10 +19,10 @@ import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPa
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
@@ -32,6 +32,7 @@ import com.dremio.exec.planner.sql.parser.SqlLoadMaterialization;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
@@ -107,7 +108,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     final Materialization materialization = materializationOpt.get();
 
     // if the user already made changes to the reflection goal, let's stop right here
-    Preconditions.checkState(Objects.equals(goal.getTag(), materialization.getReflectionGoalVersion()),
+    Preconditions.checkState(ReflectionGoalChecker.checkGoal(goal, materialization),
       "materialization no longer matches its goal");
 
     refreshMetadata(goal, materialization);
@@ -145,7 +146,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     }
 
     context.getCatalogService()
-      .getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build())
+        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()))
         .createDataset(new NamespaceKey(getMaterializationPath(materialization)), datasetMutator);
   }
 

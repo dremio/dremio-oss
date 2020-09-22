@@ -44,7 +44,7 @@ public class InfoSchemaScanDrel extends ScanRelBase implements Rel {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new InfoSchemaScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment);
+    return new InfoSchemaScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
   }
 
   @Override

@@ -17,7 +17,11 @@ package com.dremio.exec.planner.acceleration;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
+import org.apache.calcite.rel.logical.LogicalAggregate;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 
+import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor.ReflectionInfo;
 import com.dremio.exec.planner.physical.visitor.CrelUniqifier;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
@@ -42,6 +46,8 @@ public class DremioMaterialization {
   private final DremioMaterialization original;
   private final boolean alreadyStripped;
   private final RelTransformer postStripTransformer;
+  private boolean hasJoin;
+  private boolean hasAgg;
 
   public DremioMaterialization(
       RelNode tableRel,
@@ -83,6 +89,26 @@ public class DremioMaterialization {
     this.original = original == null ? this : original;
     this.alreadyStripped = alreadyStripped;
     this.postStripTransformer = postStripTransformer == null ? RelTransformer.NO_OP_TRANSFORMER : postStripTransformer;
+
+    hasJoin = false;
+    hasAgg = false;
+    queryRel.accept(new RoutingShuttle() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof LogicalJoin) {
+          hasJoin = true;
+          if (hasAgg) {
+            return other;
+          }
+        } else if ((other instanceof LogicalAggregate) || (other instanceof LogicalFilter)) {
+          hasAgg = true;
+          if (hasJoin) {
+            return other;
+          }
+        }
+        return super.visit(other);
+      }
+    });
   }
 
   public ReflectionType getReflectionType() {
@@ -155,6 +181,14 @@ public class DremioMaterialization {
     return layoutInfo.getReflectionId();
   }
 
+  public boolean hasJoin() {
+    return hasJoin;
+  }
+
+  public boolean hasAgg() {
+    return hasAgg;
+  }
+
   public DremioMaterialization cloneWithNewQuery(RelNode query) {
     return new DremioMaterialization(
         tableRel,
@@ -221,11 +255,6 @@ public class DremioMaterialization {
 
   public BatchSchema getSchema() {
     return schema;
-  }
-
-  @Override
-  public boolean equals(Object other) {
-    return this == other;
   }
 
   /**

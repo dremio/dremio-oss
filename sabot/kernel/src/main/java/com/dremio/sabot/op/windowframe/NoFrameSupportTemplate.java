@@ -19,6 +19,7 @@ import java.util.List;
 
 import javax.inject.Named;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.ValueVector;
 
@@ -29,8 +30,6 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 
 /**

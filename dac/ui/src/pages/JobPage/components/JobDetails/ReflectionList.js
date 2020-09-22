@@ -22,7 +22,7 @@ import EllipsedText from 'components/EllipsedText';
 import ReflectionIcon from 'components/Acceleration/ReflectionIcon';
 import jobsUtils from 'utils/jobsUtils';
 
-import './ReflectionList.css';
+import {reflectionList} from './ReflectionList.less';
 
 @injectIntl
 export default class ReflectionList extends PureComponent {
@@ -81,6 +81,6 @@ export default class ReflectionList extends PureComponent {
       </li>;
     });
 
-    return <ul className='reflection-list' children={items} />;
+    return <ul className={reflectionList} children={items}/>;
   }
 }

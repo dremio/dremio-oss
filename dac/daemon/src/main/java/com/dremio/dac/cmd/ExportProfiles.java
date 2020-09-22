@@ -22,7 +22,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
@@ -37,6 +36,8 @@ import com.dremio.dac.resource.ExportProfilesStats;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.admin.profile.ProfilesExporter;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Local date time parser.
@@ -65,7 +66,7 @@ public class ExportProfiles {
    * Command line options for export profiles
    */
   @Parameters(separators = "=")
-  private static final class ExportProfilesOptions {
+  static final class ExportProfilesOptions {
 
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
@@ -109,6 +110,8 @@ public class ExportProfiles {
     @Parameter(names= {"-o", "--offline"}, description="Append this option to use offline export.")
     private boolean offlineMode = false;
   }
+
+  private static boolean isTimeSet = true;
 
   public static void main(String[] args)
     throws Exception {
@@ -165,15 +168,13 @@ public class ExportProfiles {
         exportOnline(options, options.userName, options.password, options.acceptAll, dacConfig);
       }
     }
-
-
   }
 
   private static Long getMilliseconds(LocalDateTime date, ZoneOffset zoneOffset) {
-    return date == null ? null : TimeUnit.SECONDS.toMillis(date.toEpochSecond(zoneOffset));
+    return date == null ? null : date.toInstant(zoneOffset).toEpochMilli();
   }
 
-  private  static ExportProfilesParams getAPIExportParams(ExportProfilesOptions options) {
+  static ExportProfilesParams getAPIExportParams(ExportProfilesOptions options) {
     ZoneOffset zoneOffset = OffsetDateTime.now().getOffset();
     return new ExportProfilesParams(options.outputFilePath, options.writeMode,
       getMilliseconds(options.fromDate, zoneOffset),
@@ -186,7 +187,8 @@ public class ExportProfiles {
     throws IOException, GeneralSecurityException {
     final WebClient client = new WebClient(dacConfig, userName, password, !acceptAll);
 
-    AdminLogger.log(client.buildPost(ExportProfilesStats.class, "/export-profiles", getAPIExportParams(options)).retrieveStats());
+    AdminLogger.log(client.buildPost(ExportProfilesStats.class, "/export-profiles", getAPIExportParams(options))
+      .retrieveStats(options.fromDate, options.toDate, isTimeSet));
 
   }
 
@@ -197,26 +199,34 @@ public class ExportProfiles {
       AdminLogger.log("No database found. Profiles are not exported");
       return;
     }
-    try (LocalKVStoreProvider provider = providerOptional.get()) {
-      provider.start();
-
-      ProfilesExporter exporter = ExportProfilesResource.getExporter(getAPIExportParams(options));
-      AdminLogger.log(exporter.export(provider).retrieveStats());
+    try (LocalKVStoreProvider kvStoreProvider = providerOptional.get()) {
+      kvStoreProvider.start();
+      exportOffline(options, kvStoreProvider.asLegacy());
     }
   }
 
-  private static void setPath(ExportProfilesOptions options) {
+  static void exportOffline(ExportProfilesOptions options, LegacyKVStoreProvider provider)
+    throws Exception {
+      ProfilesExporter exporter = ExportProfilesResource.getExporter(getAPIExportParams(options));
+      AdminLogger.log(exporter.export(provider).retrieveStats(options.fromDate, options.toDate, isTimeSet));
+  }
+
+  @VisibleForTesting
+  static void setPath(ExportProfilesOptions options) {
     if (options.outputFilePath == null) {
       options.outputFilePath = options.localPath;
     }
   }
 
-  private static void setTime(ExportProfilesOptions options) {
+  @VisibleForTesting
+  static void setTime(ExportProfilesOptions options) {
     if (options.toDate == null) {
       options.toDate = LocalDateTime.now();
+      isTimeSet = false;
     }
     if (options.fromDate == null) {
-      options.fromDate = options.toDate.minusMinutes(30);
+      options.fromDate = options.toDate.minusDays(30);
+      isTimeSet = false;
     }
     if (!options.fromDate.isBefore(options.toDate)) {
       throw new ParameterException(String.format("'from' parameter (%s) should be less than 'to' parameter (%s)",

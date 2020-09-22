@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.memory.BaseAllocator;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -125,8 +125,8 @@ public class HashAggMemoryEstimator {
     final FunctionLookupContext functionLookupContext,
     final OptionManager options) {
 
-    try (final BaseAllocator allocator = new RootAllocator();
-      final VectorContainer incoming = new VectorContainer(allocator)) {
+    try (final BufferAllocator allocator = new RootAllocator();
+         final VectorContainer incoming = new VectorContainer(allocator)) {
       incoming.addSchema(childSchema);
 
       final int hashTableBatchSize = computeHashTableSize(options, schema);

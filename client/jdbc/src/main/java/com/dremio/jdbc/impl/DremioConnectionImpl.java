@@ -15,26 +15,6 @@
  */
 package com.dremio.jdbc.impl;
 
-import java.sql.Array;
-import java.sql.Blob;
-import java.sql.CallableStatement;
-import java.sql.Clob;
-import java.sql.DatabaseMetaData;
-import java.sql.NClob;
-import java.sql.PreparedStatement;
-import java.sql.SQLClientInfoException;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
-import java.sql.SQLWarning;
-import java.sql.SQLXML;
-import java.sql.Savepoint;
-import java.sql.Statement;
-import java.sql.Struct;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TimeZone;
-import java.util.concurrent.Executor;
-
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.calcite.avatica.AvaticaConnection;
 import org.apache.calcite.avatica.AvaticaFactory;
@@ -53,7 +33,30 @@ import com.dremio.jdbc.DremioConnection;
 import com.dremio.jdbc.DremioConnectionConfig;
 import com.dremio.jdbc.InvalidParameterSqlException;
 import com.dremio.jdbc.JdbcApiSqlException;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+
+import java.sql.Array;
+import java.sql.Blob;
+import java.sql.CallableStatement;
+import java.sql.Clob;
+import java.sql.DatabaseMetaData;
+import java.sql.NClob;
+import java.sql.PreparedStatement;
+import java.sql.SQLClientInfoException;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.sql.SQLWarning;
+import java.sql.SQLXML;
+import java.sql.Savepoint;
+import java.sql.Statement;
+import java.sql.Struct;
+import java.time.DateTimeException;
+import java.time.ZoneId;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TimeZone;
+import java.util.concurrent.Executor;
 
 /**
  * Dremio's implementation of {@link Connection}.
@@ -70,6 +73,7 @@ class DremioConnectionImpl extends AvaticaConnection
   final DremioConnectionConfig config;
 
   private final DremioClient client;
+  private final TimeZone timeZone;
 
   protected DremioConnectionImpl(DriverImpl driver, AvaticaFactory factory,
                                 String url, Properties info) throws SQLException {
@@ -80,6 +84,7 @@ class DremioConnectionImpl extends AvaticaConnection
     super.setAutoCommit( true );
 
     this.config = new DremioConnectionConfig(info);
+    this.timeZone = getTimeZone(this.config.timeZone());
 
     try {
       final String connect;
@@ -107,7 +112,7 @@ class DremioConnectionImpl extends AvaticaConnection
       // (Include cause exception's text in wrapping exception's text so
       // it's more likely to get to user (e.g., via SQLLine), and use
       // toString() since getMessage() text doesn't always mention error:)
-      throw new SQLException("Failure in connecting to Dremio: " + e, e);
+      throw DremioExceptionMapper.map(e, "Failure in connecting to Dremio: %s", e.toString());
     }
   }
 
@@ -310,7 +315,7 @@ class DremioConnectionImpl extends AvaticaConnection
 
   @Override
   public TimeZone getTimeZone() {
-    return config.getTimeZone();
+    return timeZone;
   }
 
 
@@ -392,14 +397,8 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public String getCatalog() {
-    // Can't throw any SQLException because AvaticaConnection's getCatalog() is
-    // missing "throws SQLException".
-    try {
-      throwIfClosed();
-    } catch (SQLException e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public String getCatalog() throws SQLException {
+    throwIfClosed();
     return super.getCatalog();
   }
 
@@ -577,13 +576,7 @@ class DremioConnectionImpl extends AvaticaConnection
 
   @Override
   public boolean isValid(int timeout) throws SQLException {
-    throwIfClosed();
-    try {
-      return super.isValid(timeout);
-    }
-    catch (UnsupportedOperationException e) {
-      throw new SQLFeatureNotSupportedException(e.getMessage(), e);
-    }
+    return super.isValid(timeout) && client.isActive();
   }
 
   @Override
@@ -671,14 +664,8 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public String getSchema() {
-    // Can't throw any SQLException because AvaticaConnection's getCatalog() is
-    // missing "throws SQLException".
-    try {
-      throwIfClosed();
-    } catch (SQLException e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public String getSchema() throws SQLException {
+    throwIfClosed();
     return super.getSchema();
   }
 
@@ -693,7 +680,23 @@ class DremioConnectionImpl extends AvaticaConnection
     }
   }
 
+  /**
+   * Retrieve either the TimeZone associated with the String ID or the JVM default.
+   *
+   * @param timeZone The String code for the TimeZone, ex UTC, PST.
+   * @return The TimeZone associated with the code, or the JVM default if none exists.
+   */
+  private TimeZone getTimeZone(String timeZone) {
+    if (!Strings.isNullOrEmpty(timeZone)) {
+      try {
+        return TimeZone.getTimeZone(ZoneId.of(timeZone));
+      } catch (DateTimeException e) {
+        // Eat the exception to hit the default return.
+      }
+    }
 
+    return TimeZone.getDefault();
+  }
 
   // do not make public
   UnregisteredDriver getDriver() {

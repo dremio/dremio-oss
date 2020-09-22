@@ -54,14 +54,9 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
     if (fromRel.getConvention() != Prel.PHYSICAL) {
       return false;
     }
-
-    if (fromTrait.getType() == DistributionType.HASH_DISTRIBUTED && toTrait.getType() == DistributionType.BROADCAST_DISTRIBUTED) {
-      return false;
-    }
     if (fromTrait.getType() == DistributionType.BROADCAST_DISTRIBUTED && toTrait.getType() == DistributionType.HASH_DISTRIBUTED) {
       return false;
     }
-
     return true;
   }
 

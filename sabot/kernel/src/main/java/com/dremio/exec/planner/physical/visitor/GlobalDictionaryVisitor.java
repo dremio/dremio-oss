@@ -34,7 +34,6 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.common.expression.CompleteType;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.AggPrelBase;
@@ -48,21 +47,24 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.DictionaryEncodedColumns;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 
 /**
  * Replace column type with integer ids
@@ -348,6 +350,10 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     return new RelDataTypeFieldImpl(field.getName(), field.getIndex(), dictionaryDataType);
   }
 
+  private boolean isIcebergDataset(TableMetadata table) {
+    return table.getDatasetConfig().getPhysicalDataset().getFormatSettings().getType() == FileType.ICEBERG;
+  }
+
   private PrelWithDictionaryInfo visitParquetScanPrel(ParquetScanPrel parquetScanPrel, Void value) throws RuntimeException {
     final ReadDefinition readDefinition = parquetScanPrel.getTableMetadata().getReadDefinition();
 
@@ -365,13 +371,34 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     final Map<String, String> dictionaryEncodedColumnsToDictionaryFilePath = Maps.newHashMap();
     long dictionaryVersion = -1;
 
-    final ParquetDatasetXAttr xAttr;
-    try {
-      xAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetXAttr.PARSER,
-          readDefinition.getExtendedProperty().toByteArray());
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Could not deserialize parquet dataset info");
+    ParquetDatasetXAttr xAttr = null;
+
+    boolean isIcebergDataset = isIcebergDataset(parquetScanPrel.getTableMetadata());
+    // Dremio 5.0 release had ParquetDatasetXAttr in extended property
+    boolean newIcebergDataset = false;
+    if (isIcebergDataset) {
+      try {
+        IcebergDatasetXAttr icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergDatasetXAttr.PARSER,
+          readDefinition.getExtendedProperty().asReadOnlyByteBuffer());
+        xAttr = icebergDatasetXAttr.getParquetDatasetXAttr();
+        newIcebergDataset = true;
+      } catch (InvalidProtocolBufferException ignored) {
+      }
     }
+
+    if (!isIcebergDataset || !newIcebergDataset) {
+      try {
+        xAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetXAttr.PARSER,
+          readDefinition.getExtendedProperty().asReadOnlyByteBuffer());
+      } catch (InvalidProtocolBufferException e) {
+        if (isIcebergDataset) {
+          throw new RuntimeException("Could not deserialize Iceberg dataset info");
+        } else {
+          throw new RuntimeException("Could not deserialize parquet dataset info");
+        }
+      }
+    }
+
     if (xAttr.hasDictionaryEncodedColumns()) {
       final DictionaryEncodedColumns dictionaryEncodedColumns = xAttr.getDictionaryEncodedColumns();
       dictionaryVersion = dictionaryEncodedColumns.getVersion();
@@ -402,7 +429,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
           dictionaryVersion,
           field.getName(),
           storagePluginId,
-          CompleteType.fromRelAndMinorType(field
+          CalciteArrowHelper.fromRelAndMinorType(field
             .getType(), TypeInferenceUtils.getMinorTypeFromCalciteType(field
             .getType())).getType(),
           dictionaryEncodedColumnsToDictionaryFilePath.get(field.getName()),

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.BitVectorHelper;
@@ -36,9 +37,7 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.BaseTestWithAllocator;
 import com.google.common.base.Charsets;
-import com.google.common.collect.FluentIterable;
-
-import io.netty.buffer.ArrowBuf;
+import com.google.common.collect.ImmutableList;
 
 public class TestPivotRoundtrip extends BaseTestWithAllocator {
   private static final int WORD_BITS = 64;
@@ -118,8 +117,8 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         unpivotHelper(pivot, fbv, vbv, in, out, 100, 924);
       }
     } finally {
-      AutoCloseables.close(FluentIterable.of(in));
-      AutoCloseables.close(FluentIterable.of(out));
+      AutoCloseables.close(ImmutableList.copyOf(in));
+      AutoCloseables.close(ImmutableList.copyOf(out));
     }
   }
 

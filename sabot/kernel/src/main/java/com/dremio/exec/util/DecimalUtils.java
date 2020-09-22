@@ -20,9 +20,10 @@ import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.google.common.base.Preconditions;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -34,6 +35,7 @@ public final class DecimalUtils {
   public static final int DECIMAL_WIDTH = 16;  // Decimals stored as 16-byte values
   public static final int OFFSET_LE_MSB = 15;
   public static final int MAX_PRECISION = 38;
+  public static final int MIN_REDUCED_SCALE = 6;
   public static final BigInteger MAX_BIG_INT = java.math.BigInteger.valueOf(10).pow(MAX_PRECISION)
     .subtract(java.math.BigInteger.ONE);
   public static final BigDecimal MAX_DECIMAL = new java.math.BigDecimal(MAX_BIG_INT, 0);
@@ -43,6 +45,9 @@ public final class DecimalUtils {
   public static final MathContext MATH = new MathContext(MAX_PRECISION, RoundingMode.UNNECESSARY);
 
   public static final int LENGTH_OF_LONG = 8;
+
+  public static final String ROUND = "ROUND";
+  public static final String TRUNCATE = "TRUNCATE";
 
   private DecimalUtils() {}
 

@@ -18,7 +18,9 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+
+import com.dremio.common.collections.Tuple;
+import com.dremio.io.FSInputStream;
 
 /**
  * Provides input stream(s) for reading a parquet file
@@ -34,10 +36,18 @@ public interface InputStreamProvider extends AutoCloseable {
   /**
    * Reads the footer -- or returns the cached one
    */
-  ParquetMetadata getFooter() throws IOException;
+  MutableParquetMetadata getFooter() throws IOException;
 
   /**
    * Is this provider reusing the same stream for all columns
    */
   boolean isSingleStream();
+
+  /**
+   * Obtains the boosted input stream for the given column.
+   * @param column Given column
+   * @return The boosted input stream + Size of the InputStream.
+   * @throws IOException
+   */
+  default Tuple<FSInputStream, Long> getBoostedStream(ColumnChunkMetaData column) throws IOException { return null; }
 }

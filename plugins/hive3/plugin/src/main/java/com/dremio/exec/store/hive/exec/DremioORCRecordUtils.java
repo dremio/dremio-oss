@@ -23,7 +23,8 @@ package com.dremio.exec.store.hive.exec;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 
-import io.netty.buffer.ArrowBuf;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.ByteBufferUtil;
@@ -179,10 +180,12 @@ public class DremioORCRecordUtils {
     private CompressionKind compressionKind;
     private final BufferAllocator allocator;
     private boolean useDirectMemory = true;
+    private boolean doComputeLocality = true;
     private boolean remoteRead = false;
     private final Set<ByteBuffer> buffersToRelease = Sets.newIdentityHashSet();
 
-    private DefaultDataReader(BufferAllocator allocator, DataReaderProperties properties, boolean useDirectMemory) {
+    private DefaultDataReader(BufferAllocator allocator, DataReaderProperties properties, boolean useDirectMemory,
+                              final boolean doComputeLocality) {
       this.fs = properties.getFileSystem();
       this.path = properties.getPath();
       this.useZeroCopy = properties.getZeroCopy();
@@ -193,6 +196,7 @@ public class DremioORCRecordUtils {
       this.pool = new DremioORCRecordUtils.ByteBufferAllocatorPool(allocator);
       this.allocator = allocator;
       this.useDirectMemory = useDirectMemory;
+      this.doComputeLocality = doComputeLocality;
     }
 
     @Override
@@ -483,7 +487,9 @@ public class DremioORCRecordUtils {
       if (range == null) {
         return null;
       }
-      computeLocality(fs, path, range);
+      if (doComputeLocality) {
+        computeLocality(fs, path, range);
+      }
       DiskRangeList prev = range.prev;
       if (prev == null) {
         prev = new DiskRangeList.MutateHelper(range);
@@ -537,8 +543,9 @@ public class DremioORCRecordUtils {
     }
   }
 
-  public static DremioORCRecordUtils.DefaultDataReader createDefaultDataReader(BufferAllocator allocator, DataReaderProperties properties, boolean useDirectMemory) {
-    return new DremioORCRecordUtils.DefaultDataReader(allocator, properties, useDirectMemory);
+  public static DremioORCRecordUtils.DefaultDataReader createDefaultDataReader(BufferAllocator allocator, DataReaderProperties properties,
+                                                                               boolean useDirectMemory, final boolean doComputeLocality) {
+    return new DremioORCRecordUtils.DefaultDataReader(allocator, properties, useDirectMemory, doComputeLocality);
   }
 
   /*

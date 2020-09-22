@@ -28,10 +28,10 @@ import javax.inject.Provider;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.proto.model.tokens.SessionState;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.scheduler.Schedule;
@@ -57,39 +57,39 @@ public class TokenManagerImpl implements TokenManager {
 
   private final SecureRandom generator = new SecureRandom();
 
-  private final Provider<KVStoreProvider> kvProvider;
+  private final Provider<LegacyKVStoreProvider> kvProvider;
   private final Provider<SchedulerService> schedulerService;
-  private final Provider<SabotContext> sabotContext;
+  private final Provider<OptionManager> optionManagerProvider;
   private final boolean isMaster;
   private final int cacheSize;
   private final int cacheExpiration;
 
-  private KVStore<String, SessionState> tokenStore;
+  private LegacyKVStore<String, SessionState> tokenStore;
   private LoadingCache<String, SessionState> tokenCache;
 
-  public TokenManagerImpl(final Provider<KVStoreProvider> kvProvider,
+  public TokenManagerImpl(final Provider<LegacyKVStoreProvider> kvProvider,
                           final Provider<SchedulerService> schedulerService,
-                          final Provider<SabotContext> sabotContext,
+                          final Provider<OptionManager> optionManagerProvider,
                           final boolean isMaster,
                           final DACConfig config) {
     this(kvProvider,
         schedulerService,
-        sabotContext,
+        optionManagerProvider,
         isMaster,
         config.getConfig().getInt(DremioConfig.WEB_TOKEN_CACHE_SIZE),
         config.getConfig().getInt(DremioConfig.WEB_TOKEN_CACHE_EXPIRATION));
   }
 
   @VisibleForTesting
-  TokenManagerImpl(final Provider<KVStoreProvider> kvProvider,
+  TokenManagerImpl(final Provider<LegacyKVStoreProvider> kvProvider,
                    final Provider<SchedulerService> schedulerService,
-                   final Provider<SabotContext> sabotContext,
+                   final Provider<OptionManager> optionManagerProvider,
                    final boolean isMaster,
                    final int cacheSize,
                    final int cacheExpiration) {
     this.kvProvider = kvProvider;
     this.schedulerService = schedulerService;
-    this.sabotContext = sabotContext;
+    this.optionManagerProvider = optionManagerProvider;
     this.isMaster = isMaster;
     this.cacheSize = cacheSize;
     this.cacheExpiration = cacheExpiration;
@@ -120,7 +120,7 @@ public class TokenManagerImpl implements TokenManager {
       });
 
     if (isMaster) {
-      final long tokenReleaseLeadership = sabotContext.get().getOptionManager().getOption(
+      final long tokenReleaseLeadership = optionManagerProvider.get().getOption(
         ExecConstants.TOKEN_RELEASE_LEADERSHIP_MS);
       final Schedule everyDay = Schedule.Builder.everyDays(1)
         .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
@@ -161,9 +161,8 @@ public class TokenManagerImpl implements TokenManager {
   @Override
   public TokenDetails createToken(final String username, final String clientAddress) {
     final long now = System.currentTimeMillis();
-    final long expires = now + TimeUnit.MILLISECONDS.convert(sabotContext
+    final long expires = now + TimeUnit.MILLISECONDS.convert(optionManagerProvider
       .get()
-      .getOptionManager()
       .getOption(TOKEN_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES);
 
     return createToken(username, clientAddress, now, expires);
@@ -200,7 +199,7 @@ public class TokenManagerImpl implements TokenManager {
   }
 
   @VisibleForTesting
-  KVStore<String, SessionState> getTokenStore() {
+  LegacyKVStore<String, SessionState> getTokenStore() {
     return tokenStore;
   }
 

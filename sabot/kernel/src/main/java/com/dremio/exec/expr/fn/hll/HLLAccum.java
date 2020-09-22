@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn.hll;
 
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
 
@@ -25,8 +26,6 @@ import com.yahoo.memory.Memory;
 import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Holding class for HLL Accumulation object. Implement this abstraction to keep UDFs simple.

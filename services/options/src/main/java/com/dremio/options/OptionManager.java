@@ -28,31 +28,24 @@ public interface OptionManager extends Iterable<OptionValue> {
    * @param value option value
    * @throws com.dremio.common.exceptions.UserException message to describe error with value
    */
-  void setOption(OptionValue value);
+  boolean setOption(OptionValue value);
 
   /**
-   * Deletes the option. Unfortunately, the type is required given the fallback structure of option managers.
-   * See {@link FallbackOptionManager}.
-   *
-   * If the option name is valid (exists in {@link SystemOptionManager#VALIDATORS}),
-   * but the option was not set within this manager, calling this method should be a no-op.
+   * Deletes the option if the option name is valid. Does nothing if the option is not set.
    *
    * @param name option name
    * @param type option type
    * @throws com.dremio.common.exceptions.UserException message to describe error with value
    */
-  void deleteOption(String name, OptionType type);
+  boolean deleteOption(String name, OptionType type);
 
   /**
-   * Deletes all options. Unfortunately, the type is required given the fallback structure of option managers.
-   * See {@link FallbackOptionManager}.
-   *
-   * If no options are set, calling this method should be no-op.
+   * Deletes all options of a OptionType. Does nothing if no options are set.
    *
    * @param type option type
    * @throws com.dremio.common.exceptions.UserException message to describe error with value
    */
-  void deleteAllOptions(OptionType type);
+  boolean deleteAllOptions(OptionType type);
 
   /**
    * Gets the option value for the given option name.
@@ -101,19 +94,27 @@ public interface OptionManager extends Iterable<OptionValue> {
   String getOption(TypeValidators.StringValidator validator);
 
   /**
-   * Gets the list of options managed this manager.
+   * Gets the list of default options if this Option Manager contains it
    *
-   * @return the list of options
+   * @return the list of default options. Returns an empty list if there are no default options.
    */
-  OptionList getOptionList();
+  OptionList getDefaultOptions();
 
   /**
-   * Get the option validator for a given name
+   * Gets the list of non-default options if this Option Manager contains it
    *
-   * @param name the option name
-   * @return the validator
-   * @throws com.dremio.common.exceptions.UserException if option doesn't exist
+   * @return the list of non-default options. Returns an empty list if there are no non-default options
    */
-  OptionValidator getValidator(String name);
+  OptionList getNonDefaultOptions();
 
+
+  /**
+   * Get the OptionValidatorProvider in this Option Manager.
+   * @return the OptionValidatorProvider
+   */
+  OptionValidatorListing getOptionValidatorListing();
+
+  default void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException("Adding option change listener not supported");
+  }
 }

@@ -63,12 +63,10 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
     PartitionChunk partitionChunk = getPartitionChunk();
     if (partitionChunk.hasDatasetSplit()) {
       Preconditions.checkState(partitionChunk.getSplitCount() == 1,
-        String.format("Only a partition chunk with 1 split should have a dataset split set directly. split_count == %d", partitionChunk.getSplitCount()));
+        String.format("Only a partition chunk with 1 split can possibly have a dataset split set directly. split_count == %d", partitionChunk.getSplitCount()));
       materializedDatasetSplits = ImmutableList.of(partitionChunk.getDatasetSplit());
       return materializedDatasetSplits;
     }
-    Preconditions.checkState(partitionChunk.getSplitCount() > 1,
-      String.format("Partition chunk with 1 split should have a dataset split set directly. split_count == %d", partitionChunk.getSplitCount()));
     // Build a list of dataset splits from the now-materialized multiset split
     MultiSplit multiSplit = multiSplitSupplier.get();    // NB: multiSplit cached in the supplier
     final long splitCount = multiSplit.getSplitCount();

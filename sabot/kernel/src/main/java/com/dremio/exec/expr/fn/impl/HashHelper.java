@@ -18,7 +18,7 @@ package com.dremio.exec.expr.fn.impl;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class HashHelper {
 

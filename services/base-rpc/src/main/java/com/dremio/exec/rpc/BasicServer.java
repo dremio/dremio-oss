@@ -17,6 +17,7 @@ package com.dremio.exec.rpc;
 
 import java.io.IOException;
 import java.net.BindException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
@@ -32,6 +33,7 @@ import com.google.protobuf.Parser;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -195,16 +197,19 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
    * @return the port that the server bound to
    */
   public int bind(final int initialPort, boolean allowPortHunting) {
-    int port = initialPort - 1;
+    int port = initialPort;
     while (true) {
       try {
-        allChannels.add(b.bind(++port).sync().channel());
+        Channel channel = b.bind(port).sync().channel();
+        allChannels.add(channel);
+        port = ((InetSocketAddress)channel.localAddress()).getPort();
         break;
       } catch (Exception e) {
         // TODO(DRILL-3026):  Revisit:  Exception is not (always) BindException.
         // One case is "java.io.IOException: bind() failed: Address already in
         // use".
         if (e instanceof BindException && allowPortHunting) {
+          port++;
           continue;
         }
         throw UserException.resourceError(e)

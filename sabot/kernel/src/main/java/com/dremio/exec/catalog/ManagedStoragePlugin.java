@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -35,17 +36,22 @@ import java.util.stream.Collectors;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.SourceMetadata;
-import com.dremio.datastore.KVStore;
-import com.dremio.exec.catalog.Catalog.UpdateStatus;
+import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
+import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
@@ -55,7 +61,6 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.MissingPluginConf;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
-import com.dremio.exec.util.DebugCheck;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
@@ -133,11 +138,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
       boolean isMaster,
       SchedulerService scheduler,
       NamespaceService systemUserNamespaceService,
-      KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
+      LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       SourceConfig sourceConfig,
       OptionManager options,
       ConnectionReader reader,
-      CatalogServiceMonitor monitor) {
+      CatalogServiceMonitor monitor,
+      Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider) {
     this.rwlock = new ReentrantReadWriteLock(true);
     this.executor = executor;
     this.readLock = rwlock.readLock();
@@ -165,19 +171,21 @@ public class ManagedStoragePlugin implements AutoCloseable {
         sourceDataStore,
         new MetadataBridge(),
         options,
-        monitor);
+        monitor,
+        broadcasterProvider);
   }
 
   private AutoCloseableLock readLock() {
     return AutoCloseableLock.lockAndWrap(readLock, true);
   }
 
-  private AutoCloseableLock writeLock() {
+  @VisibleForTesting
+  protected AutoCloseableLock writeLock() {
     return AutoCloseableLock.lockAndWrap(writeLock, true);
   }
 
   private long createWaitMillis() {
-    if(DebugCheck.IS_DEBUG) {
+    if (VM.isDebugEnabled()) {
       return TimeUnit.DAYS.toMillis(365);
     }
     return context.getOptionManager().getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
@@ -427,6 +435,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     return Ints.saturatedCast(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
   }
 
+  int getMaxNestedLevel() {
+    return Ints.saturatedCast(options.getOption(CatalogOptions.MAX_NESTED_LEVELS));
+  }
+
   public ConnectionConf<?, ?> getConnectionConf() {
     // not read under a read lock since it is updated via volatile. Allows us to avoid locking in read paths.
     return conf;
@@ -442,6 +454,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     return DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
         .toBuilder()
         .setMaxMetadataLeafColumns(getMaxMetadataColumns())
+        .setMaxNestedLevel(getMaxNestedLevel())
         .build()
         .withFallback(DatasetRetrievalOptions.DEFAULT);
   }
@@ -469,15 +482,19 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @return A future that returns the state of this plugin once started (or throws Exception if the startup failed).
    */
   CompletableFuture<SourceState> startAsync() {
-    return startAsync(sourceConfig);
+    return startAsync(sourceConfig, true);
   }
 
   /**
    * Generate a supplier that produces source state
    * @param config
+   * @param closeMetaDataManager - During dremio startup, we don't close metadataManager when sources are in bad state,
+   *                             because we need state refresh for bad sources.
+   *                             When a user tries to add a source and it's in bad state, we close metadataManager to avoid
+   *                             wasting additional space.
    * @return
    */
-  private Supplier<SourceState> newStartSupplier(SourceConfig config) {
+  private Supplier<SourceState> newStartSupplier(SourceConfig config, final boolean closeMetaDataManager) {
     try {
       return nameSupplier("start-" + sourceConfig.getName(), () -> {
         try {
@@ -494,11 +511,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
           return state;
         } catch(Throwable e) {
+          if (config.getType() != MissingPluginConf.TYPE) {
+            logger.warn("Error starting new source: {}", sourceConfig.getName(), e);
+          }
           state = SourceState.badState(e.getMessage());
 
           try {
             // failed to startup, make sure to close.
-            plugin.close();
+            if (closeMetaDataManager) {
+              AutoCloseables.close(metadataManager, plugin);
+            } else {
+              plugin.close();
+            }
             plugin = null;
           } catch (Exception ex) {
             e.addSuppressed(new RuntimeException("Cleanup exception after initial failure.", ex));
@@ -518,10 +542,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param config The configuration to use for this startup.
    * @return A future that returns the state of this plugin once started (or throws Exception if the startup failed).
    */
-  private CompletableFuture<SourceState> startAsync(final SourceConfig config) {
+  private CompletableFuture<SourceState> startAsync(final SourceConfig config, final boolean isDuringStartUp) {
     // we run this in a separate thread to allow early timeout. This doesn't use the scheduler since that is
     // bound and we're frequently holding a lock when running this.
-    return CompletableFuture.supplyAsync(newStartSupplier(config), executor);
+    return CompletableFuture.supplyAsync(newStartSupplier(config, !isDuringStartUp), executor);
   }
 
   /**
@@ -549,6 +573,61 @@ public class ManagedStoragePlugin implements AutoCloseable {
         current.setName(oldName);
       }
     };
+  }
+
+  /**
+   * Alters dataset options
+   *
+   * @param key
+   * @param datasetConfig
+   * @param attributes
+   * @return if table options are modified
+   */
+  public boolean alterDataset(final NamespaceKey key, final DatasetConfig datasetConfig, final Map<String, AttributeValue> attributes) {
+    if (!(plugin instanceof SupportsAlteringDatasetMetadata)) {
+      throw UserException.unsupportedError()
+                         .message("Source [%s] doesn't support modifying options", this.name)
+                         .buildSilently();
+    }
+
+    final DatasetRetrievalOptions retrievalOptions = getDefaultRetrievalOptions();
+    final Optional<DatasetHandle> handle;
+    try {
+      handle = getDatasetHandle(key, datasetConfig, retrievalOptions);
+    } catch (ConnectorException e) {
+      throw UserException.validationError(e)
+                         .message("Failure while retrieving dataset")
+                         .buildSilently();
+    }
+
+    if (!handle.isPresent()) {
+      throw UserException.validationError()
+                         .message("Unable to find requested dataset.")
+                         .buildSilently();
+    }
+
+    boolean changed;
+    try (AutoCloseableLock l = readLock()) {
+      final DatasetMetadata oldDatasetMetadata = new DatasetMetadataAdapter(datasetConfig);
+      final DatasetMetadata newDatasetMetadata = ((SupportsAlteringDatasetMetadata) plugin).alterMetadata(handle.get(),
+          oldDatasetMetadata, attributes);
+
+      if (oldDatasetMetadata == newDatasetMetadata) {
+        changed = false;
+      } else {
+        Preconditions.checkState(newDatasetMetadata.getDatasetStats().getRecordCount() >= 0,
+          "Record count should already be filled in when altering dataset metadata.");
+        MetadataObjectsUtils.overrideExtended(datasetConfig, newDatasetMetadata, Optional.empty(),
+                newDatasetMetadata.getDatasetStats().getRecordCount(), getMaxMetadataColumns());
+        systemUserNamespaceService.addOrUpdateDataset(key, datasetConfig);
+        refreshDataset(key, getDefaultRetrievalOptions());
+        changed = true;
+      }
+    } catch (ConnectorException | NamespaceException e) {
+      throw UserException.validationError(e)
+                         .buildSilently();
+    }
+    return changed;
   }
 
   private class FixFailedToStart extends Thread {
@@ -595,10 +674,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * Before doing any operation associated with plugin, we should check the state of the plugin.
    */
   private void checkState() {
-    if(!options.getOption(CatalogOptions.STORAGE_PLUGIN_CHECK_STATE)) {
-      return;
-    }
-
     try(AutoCloseableLock l = readLock()) {
       SourceState state = this.state;
       if(state.getStatus() == SourceState.SourceStatus.bad) {
@@ -624,8 +699,17 @@ public class ManagedStoragePlugin implements AutoCloseable {
   }
 
   @VisibleForTesting
-  long getLastFullRefreshDateMs() {
+  public long getLastFullRefreshDateMs() {
     return metadataManager.getLastFullRefreshDateMs();
+  }
+
+  @VisibleForTesting
+  public long getLastNamesRefreshDateMs() {
+    return metadataManager.getLastNamesRefreshDateMs();
+  }
+
+  void setMetadataSyncInfo(UpdateLastRefreshDateRequest request) {
+    metadataManager.setMetadataSyncInfo(request);
   }
 
   private static boolean isComplete(DatasetConfig config) {
@@ -651,10 +735,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  public boolean isValid(DatasetConfig datasetConfig, final MetadataRequestOptions options) {
+  /**
+   * Checks if the given metadata is complete and meets the given validity constraints.
+   *
+   * @param datasetConfig dataset metadata
+   * @param requestOptions request options
+   * @return true iff the metadata is complete and meets validity constraints
+   */
+  public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
-      return isComplete(datasetConfig) && metadataManager.isStillValid(options, datasetConfig);
+      return isComplete(datasetConfig) &&
+          (!requestOptions.checkValidity() || metadataManager.isStillValid(requestOptions, datasetConfig));
     }
   }
 
@@ -691,8 +783,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
   ) throws ConnectorException {
     try (AutoCloseableLock ignored = readLock()) {
       checkState();
-
-      return plugin.getDatasetHandle(new EntityPath(key.getPathComponents()),
+      final EntityPath entityPath;
+      if(datasetConfig != null) {
+        entityPath = new EntityPath(datasetConfig.getFullPathList());
+      } else {
+        entityPath = MetadataObjectsUtils.toEntityPath(key);
+      }
+      return plugin.getDatasetHandle(entityPath,
           retrievalOptions.asGetDatasetOptions(datasetConfig));
     }
   }
@@ -736,7 +833,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
                 continue;
               }
               plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
-              return newStartSupplier(sourceConfig).get();
+              return newStartSupplier(sourceConfig, false).get();
             }
           }
 
@@ -771,7 +868,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * changes necessary. Starts the new plugin.
    *
    * @param config
-   * @param context
    * @param waitMillis
    * @return Whether metadata was maintained. Metdata will be maintained if the connection did not
    *         change or was changed with only non-metadata impacting changes.
@@ -805,7 +901,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.plugin = newConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId);
     try {
       logger.trace("Starting new plugin for [{}]", config.getName());
-      startAsync(config).get(waitMillis, TimeUnit.MILLISECONDS);
+      startAsync(config, false).get(waitMillis, TimeUnit.MILLISECONDS);
       try {
         AutoCloseables.close(oldPlugin);
       }catch(Exception ex) {
@@ -1042,15 +1138,30 @@ public class ManagedStoragePlugin implements AutoCloseable {
       }
     }
 
-    CompletableFuture<SourceState> refreshState() throws Exception {
-      Optional<AutoCloseableLock> refreshLock = AutoCloseableLock.of(refreshStateLock, true).tryOpen(0, TimeUnit.SECONDS);
-      if(!refreshLock.isPresent()) {
-        // don't refresh the state multiple times through MetadataBridge. All calls that are secondary should be skipped.
-        return CompletableFuture.completedFuture(state);
-      }
-
+    int getMaxNestedLevels() {
       try(AutoCloseableLock read = tryReadLock()) {
-        return ManagedStoragePlugin.this.refreshState().whenComplete((a,b) -> refreshLock.get().close());
+        return Ints.saturatedCast(options.getOption(CatalogOptions.MAX_NESTED_LEVELS));
+      }
+    }
+
+    public void refreshState() throws Exception {
+      Optional<AutoCloseableLock> refreshLock = AutoCloseableLock.of(refreshStateLock, true).tryOpen(0, TimeUnit.SECONDS);
+      try {
+        CompletableFuture<SourceState> refreshState;
+        if (!refreshLock.isPresent()) {
+          // don't refresh the state multiple times through MetadataBridge. All calls that are secondary should be skipped.
+          refreshState = CompletableFuture.completedFuture(state);
+        } else {
+          try (AutoCloseableLock read = tryReadLock()) {
+            refreshState = ManagedStoragePlugin.this.refreshState();
+          }
+        }
+
+        refreshState.get(30, TimeUnit.SECONDS);
+      } finally {
+        if (refreshLock.isPresent()) {
+          refreshLock.get().close();
+        }
       }
     }
 

@@ -70,8 +70,9 @@ public class CatalogResource {
 
   @GET
   @Path("/{id}")
-  public CatalogEntity getCatalogItem(@PathParam("id") String id) throws NamespaceException {
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(id);
+  public CatalogEntity getCatalogItem(@PathParam("id") String id,
+                                      @QueryParam("include") final List<String> include) throws NamespaceException {
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(id, include);
 
     if (!entity.isPresent()) {
       throw new NotFoundException(String.format("Could not find entity with id [%s]", id));

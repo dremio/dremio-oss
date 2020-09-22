@@ -78,7 +78,7 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
   }
 
   public ScanCrel applyRowDiscount(double additionalAdjustment) {
-    return new ScanCrel(getCluster(), traitSet, pluginId, getTableMetadata(), projectedColumns, observedRowcountAdjustment * additionalAdjustment, isDirectNamespaceDescendent);
+    return new ScanCrel(getCluster(), traitSet, pluginId, getTableMetadata(), getProjectedColumns(), observedRowcountAdjustment * additionalAdjustment, isDirectNamespaceDescendent);
   }
 
   @Override
@@ -126,7 +126,7 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
     }
 
     List<SchemaPath> columns = new ArrayList<>();
-    columns.addAll(projectedColumns);
+    columns.addAll(getProjectedColumns());
     columns.add(SchemaPath.getSimplePath(name));
     return this.cloneWithProject(columns);
   }
@@ -148,7 +148,7 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, isDirectNamespaceDescendent);
+    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, isDirectNamespaceDescendent);
   }
 
   public boolean isDirectNamespaceDescendent() {

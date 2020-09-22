@@ -26,7 +26,7 @@ import {
 import {
   UPDATE_COLUMN_FILTER
 } from 'actions/explore/view';
-import {JOB_STATUS} from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatus';
+import {JOB_STATUS, isWorking} from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatus';
 
 export default function table(state, action) {
   switch (action.type) {
@@ -73,14 +73,14 @@ export default function table(state, action) {
     const haveChange = !jobProgress
       || jobProgress.jobId !== jobUpdate.id
       || jobProgress.status !== jobUpdate.state
-      || jobProgress.startTime !== jobUpdate.startTime
       || (jobProgress.endTime && jobProgress.endTime !== jobUpdate.endTime)
       || jobProgress.datasetVersion !== jobUpdate.datasetVersion;
     const newState = (haveChange) ? state.setIn(['tableData', 'jobProgress'], {
       ...jobProgress,
       jobId: jobUpdate.id,
       status: jobUpdate.state,
-      startTime: jobUpdate.startTime,
+      // keep startTime as in INIT until job is done
+      startTime: (isWorking(jobUpdate.state)) ? jobProgress.startTime : jobUpdate.startTime,
       endTime: jobUpdate.endTime,
       datasetVersion: jobUpdate.datasetVersion
     }) : state;

@@ -222,9 +222,6 @@ public class TestWebSocket extends BaseTestServer {
 
     socket.send(new SocketMessage.ListenRecords(runResp.getJobId()));
 
-    // force all foremen to publishProgress
-    foremenWorkManager.publishAllProgress();
-
     final List<Payload> payloads = socket.awaitCompletion(15);
 
     if (payloads.get(1) instanceof ErrorPayload) {
@@ -327,6 +324,10 @@ public class TestWebSocket extends BaseTestServer {
       }
 
       return Lists.newArrayList(messages);
+    }
+
+    public Session getSession() {
+      return session;
     }
   }
 }

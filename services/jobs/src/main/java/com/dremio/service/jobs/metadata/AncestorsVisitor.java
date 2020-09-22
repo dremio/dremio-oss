@@ -41,16 +41,23 @@ import com.dremio.exec.calcite.SqlNodes;
 import com.dremio.exec.planner.sql.BaseSqlVisitor;
 
 /**
- * Visits a query AST to find its ancestors (first level only; meaning any views referred in the query are not expanded)
+ * Visits a query AST to find its ancestors
+ * if multiLevel is false, any views referred in the query won't be expanded
  */
 public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AncestorsVisitor.class);
-  private static final AncestorsVisitor INSTANCE = new AncestorsVisitor();
+  private boolean multiLevel;
 
-  private AncestorsVisitor() { /*singleton class*/ }
+  private AncestorsVisitor(boolean multiLevel) {
+    this.multiLevel = multiLevel;
+  }
 
   public static List<SqlIdentifier> extractAncestors(final SqlNode sqlNode) {
-    return sqlNode.accept(INSTANCE);
+    return extractAncestors(sqlNode, false);
+  }
+
+  public static List<SqlIdentifier> extractAncestors(final SqlNode sqlNode, boolean multiLevel) {
+    return sqlNode.accept(new AncestorsVisitor(multiLevel));
   }
 
   @Override
@@ -113,6 +120,14 @@ public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
           result.addAll(join.getLeft().accept(this));
           result.addAll(join.getRight().accept(this));
           return result;
+        case SELECT:
+          if (multiLevel) {
+            if (((SqlSelect) call).getFrom() != null) {
+              return extractAncestorsFromFrom(((SqlSelect) call).getFrom());
+            } else {
+              return Collections.emptyList();
+            }
+          }
         default:
           throw new UnsupportedOperationException("Unexpected operator in call: " + operator.getKind() + "\n" + SqlNodes.toTreeString(call));
         }

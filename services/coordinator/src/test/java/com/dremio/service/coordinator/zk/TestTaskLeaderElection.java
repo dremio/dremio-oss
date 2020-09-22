@@ -136,6 +136,9 @@ public class TestTaskLeaderElection {
       leader.close();
       taskLeaderElectionList.remove(leader);
 
+      // wait until the leader is removed
+      waitUntilLeaderRemoved(taskLeaderElectionList, leader);
+
       while (taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
         Thread.sleep(100);
       }
@@ -150,6 +153,9 @@ public class TestTaskLeaderElection {
       assertNotNull(secondLeader);
       secondLeader.close();
       taskLeaderElectionList.remove(secondLeader);
+
+      // wait until second leader is removed
+      waitUntilLeaderRemoved(taskLeaderElectionList, secondLeader);
 
       while (taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
         Thread.sleep(100);
@@ -383,6 +389,12 @@ public class TestTaskLeaderElection {
           }
         });
 
+    }
+  }
+
+  private void waitUntilLeaderRemoved(List<TaskLeaderElection> taskLeaderElectionMap, TaskLeaderElection leader) throws Exception {
+    while (taskLeaderElectionMap.stream().anyMatch(v -> { return leader.getCurrentEndPoint().equals(v.getTaskLeader()); })) {
+      Thread.sleep(100);
     }
   }
 

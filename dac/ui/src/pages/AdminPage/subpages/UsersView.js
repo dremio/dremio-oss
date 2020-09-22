@@ -185,7 +185,8 @@ const styles = {
   },
   nameHolder: {
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    paddingLeft: '8px'
   },
   // pending server support:
   //   userAvatar: {

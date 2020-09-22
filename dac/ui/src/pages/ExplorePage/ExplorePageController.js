@@ -37,8 +37,6 @@ import {
 
 import { showConfirmationDialog } from 'actions/confirmation';
 
-import { setResizeProgressState } from 'actions/explore/ui';
-
 import { updateRightTreeVisibility } from 'actions/ui/ui';
 
 import { hasDatasetChanged } from 'utils/datasetUtils';
@@ -63,7 +61,6 @@ export class ExplorePageControllerComponent extends Component {
     history: PropTypes.instanceOf(Immutable.Map),
     rightTreeVisible: PropTypes.bool,
     updateRightTreeVisibility: PropTypes.func,
-    setResizeProgressState: PropTypes.func,
     isResizeInProgress: PropTypes.bool,
     updateSqlPartSize: PropTypes.func.isRequired,
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
@@ -219,8 +216,6 @@ export class ExplorePageControllerComponent extends Component {
     const {
       pageType,
       dataset,
-      history,
-      setResizeProgressState : setResizeProgressStateFn,
       rightTreeVisible,
       location,
       updateSqlPartSize : updateSqlPartSizeFn,
@@ -235,8 +230,6 @@ export class ExplorePageControllerComponent extends Component {
         <ExplorePage
           pageType={nextPageType}
           dataset={dataset}
-          history={history}
-          setResizeProgressState={setResizeProgressStateFn}
           rightTreeVisible={rightTreeVisible}
           toggleRightTree={this.toggleRightTree}
           dragType={this.state.dragType}
@@ -281,7 +274,6 @@ const Connected = compose(
     setCurrentSql,
     resetViewState,
     updateSqlPartSize,
-    setResizeProgressState,
     updateRightTreeVisibility,
     showConfirmationDialog
   }),

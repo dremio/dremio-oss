@@ -15,184 +15,61 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.tools.RelConversionException;
-import org.apache.calcite.util.NlsString;
-import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.base.WriterOptions;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.logical.ScreenRel;
-import com.dremio.exec.planner.logical.WriterRel;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
-import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
-import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlCreateTable;
-import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.annotations.VisibleForTesting;
 
-public class CreateTableHandler implements SqlToPlanHandler {
+public class CreateTableHandler extends DataAdditionCmdHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateTableHandler.class);
-
-  private String textPlan;
-
-  public CreateTableHandler() {
-  }
 
   @Override
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
-    try{
+    try {
       final SqlCreateTable sqlCreateTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateTable.class);
-
-      // TODO: fix parser to disallow this
-      if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns().isEmpty()) {
-        throw UserException.unsupportedError()
-            .message("Cannot partition data and write to a single file at the same time.")
-            .build(logger);
-      }
-
       final Catalog catalog = config.getContext().getCatalog();
       final NamespaceKey path = catalog.resolveSingle(sqlCreateTable.getPath());
-      DremioTable table = catalog.getTableNoResolve(path);
-      if(table != null) {
-        throw UserException.validationError()
-        .message("A table or view with given name [%s] already exists.", path)
-        .build(logger);
+
+      // TODO: fix parser to disallow this
+      if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns(catalog, path).isEmpty()) {
+        throw UserException.unsupportedError()
+          .message("Cannot partition data and write to a single file at the same time.")
+          .build(logger);
       }
 
-      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlCreateTable.getQuery());
-      final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
-      final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-      final RelNode newTblRelNode = SqlHandlerUtil.resolveNewTableRel(false, sqlCreateTable.getFieldNames(), validatedRowType, queryRelNode);
-
-      final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
-
-      final RelNode newTblRelNodeWithPCol = SqlHandlerUtil.qualifyPartitionCol(newTblRelNode, sqlCreateTable.getPartitionColumns());
-
-      PrelTransformer.log("Calcite", newTblRelNodeWithPCol, logger, null);
-
-      final WriterOptions options = new WriterOptions(
-          (int) ringCount,
-          sqlCreateTable.getPartitionColumns(),
-          sqlCreateTable.getSortColumns(),
-          sqlCreateTable.getDistributionColumns(),
-          sqlCreateTable.getPartitionDistributionStrategy(),
-          sqlCreateTable.isSingleWriter(),
-          Long.MAX_VALUE
-        );
-
-      // Convert the query to Dremio Logical plan and insert a writer operator on top.
-      Rel drel = convertToDrel(
-          config,
-          newTblRelNodeWithPCol,
-          catalog,
-          path,
-          options,
-          newTblRelNode.getRowType(),
-          createStorageOptionsMap(config, sqlCreateTable.getFormatOptions()));
-
-      final Pair<Prel, String> convertToPrel = PrelTransformer.convertToPrel(config, drel);
-      final Prel prel = convertToPrel.getKey();
-      textPlan = convertToPrel.getValue();
-      PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
-      PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop);
-      PrelTransformer.log(config, "Dremio Plan", plan, logger);
-
-      return plan;
-
-    }catch(Exception ex){
+      // this map has properties specified using 'STORE AS' in sql
+      // will be null if 'STORE AS' is not in query
+      createStorageOptionsMap(sqlCreateTable.getFormatOptions());
+      validateCreateTableFormatOptions(catalog, path, config.getContext().getOptions());
+      return super.getPlan(catalog, path, config, sql, sqlNode, sqlCreateTable);
+    }
+    catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
   }
 
-  private static Rel convertToDrel(
-      SqlHandlerConfig config,
-      RelNode relNode,
-      Catalog catalog,
-      NamespaceKey key,
-      WriterOptions options,
-      RelDataType queryRowType,
-      final Map<String, Object> storageOptions)
-      throws RelConversionException, SqlUnsupportedException {
-
-    Rel convertedRelNode = PrelTransformer.convertToDrel(config, relNode);
-
-    // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
-    // Only insert project when the field count from the child is same as that of the queryRowType.
-
-    convertedRelNode = new WriterRel(convertedRelNode.getCluster(),
-        convertedRelNode.getCluster().traitSet().plus(Rel.LOGICAL),
-        convertedRelNode, catalog.createNewTable(key, options, storageOptions), queryRowType);
-
-    convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
-        config.getContext(), convertedRelNode);
-
-    return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
-  }
-
-
-  /**
-   * Helper method to create map of key, value pairs, the value is a Java type object.
-   * @param args
-   * @return
-   */
-  protected static Map<String, Object> createStorageOptionsMap(SqlHandlerConfig config, final SqlNodeList args) {
-    if (args == null || args.size() == 0) {
-      return null;
+  @VisibleForTesting
+  public void validateCreateTableFormatOptions(Catalog catalog, NamespaceKey path, OptionManager options) {
+    validateTableFormatOptions(catalog, path, options);
+    DremioTable table = catalog.getTableNoResolve(path);
+    if(table != null) {
+      throw UserException.validationError()
+        .message("A table or view with given name [%s] already exists.", path)
+        .build(logger);
     }
-
-    final ImmutableMap.Builder<String, Object> storageOptions = ImmutableMap.builder();
-    for (SqlNode operand : args) {
-      if (operand.getKind() != SqlKind.ARGUMENT_ASSIGNMENT) {
-        throw UserException.unsupportedError()
-            .message("Unsupported argument type. Only assignment arguments (param => value) are supported.")
-            .build(logger);
-      }
-      final List<SqlNode> operandList = ((SqlCall) operand).getOperandList();
-
-      final String name = ((SqlIdentifier) operandList.get(1)).getSimple();
-      SqlNode literal = operandList.get(0);
-      if (!(literal instanceof SqlLiteral)) {
-        throw UserException.unsupportedError()
-            .message("Only literals are accepted for storage option values")
-            .build(logger);
-      }
-
-      Object value = ((SqlLiteral)literal).getValue();
-      if (value instanceof NlsString) {
-        value = ((NlsString)value).getValue();
-      }
-      storageOptions.put(name, value);
-    }
-
-    return storageOptions.build();
   }
 
   @Override
-  public String getTextPlan() {
-    return textPlan;
+  public boolean isCreate() {
+    return true;
   }
-
-
 }

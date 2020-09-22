@@ -39,7 +39,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.io.api.Binary;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 import com.dremio.exec.record.BatchSchema;
 
 

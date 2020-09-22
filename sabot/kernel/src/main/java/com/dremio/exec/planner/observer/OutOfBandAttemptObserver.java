@@ -34,6 +34,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -61,6 +62,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   OutOfBandAttemptObserver(AttemptObserver innerObserver, SerializedExecutor<Runnable> serializedExec) {
     this.serializedExec = serializedExec;
     this.innerObserver = innerObserver;
+  }
+
+  @Override
+  public void beginState(final AttemptEvent event) {
+    execute(() -> innerObserver.beginState(event));
   }
 
   @Override

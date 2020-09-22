@@ -139,7 +139,7 @@ describe('TransformView', () => {
       const instance = shallow(<TransformView {...commonProps}
         subTitles={subTitles}
         transform={transform}/>).instance();
-      sinon.stub(instance, 'renderSubHeadersTitle', (subtitle) => (subtitle));
+      sinon.stub(instance, 'renderSubHeadersTitle').callsFake((subtitle) => (subtitle));
       expect(instance.filterSubtitles()[0]).to.eql([{types: ['type1']}]);
     });
   });

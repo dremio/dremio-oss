@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.rpc;
 
-import io.netty.buffer.ByteBuf;
-
-import com.google.common.util.concurrent.AbstractCheckedFuture;
+import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 
-public class RpcCheckedFuture<T> extends AbstractCheckedFuture<T, RpcException> implements RpcFuture<T>{
+import io.netty.buffer.ByteBuf;
+
+class RpcCheckedFuture<T> extends ForwardingListenableFuture.SimpleForwardingListenableFuture<T>
+  implements RpcFuture<T>{
 
   volatile ByteBuf buffer;
 
@@ -33,11 +34,6 @@ public class RpcCheckedFuture<T> extends AbstractCheckedFuture<T, RpcException> 
       buffer.retain();
       this.buffer = buffer;
     }
-  }
-
-  @Override
-  protected RpcException mapException(Exception e) {
-    return RpcException.mapException(e);
   }
 
   @Override

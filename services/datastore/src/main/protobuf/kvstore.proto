@@ -18,11 +18,26 @@ package com.dremio.datastore;
 option java_package = "com.dremio.datastore";
 option optimize_for = SPEED;
 
+message KVFormatInfo {
+  enum Type {
+    BYTES = 1;
+    UUID = 2;
+    STRING = 3;
+    PROTOBUF = 4;
+    PROTOSTUFF = 5;
+    COMPOUND = 6;
+  }
+
+  required Type type = 1;
+  optional string classNameParam = 2;
+  repeated KVFormatInfo compoundFields = 3;
+}
+
 message KVStoreInfo {
   required string tablename = 1;
-  required string keySerializerClassName = 2;
-  required string valueSerializerClassName = 3;
-  optional string documentConverterClassName = 4;
+  required KVFormatInfo keyFormat = 2;
+  required KVFormatInfo valueFormat = 3;
+  optional string documentConverterClassName = 4 [deprecated=true];
   optional string versionExtractorClassName = 5;
 }
 

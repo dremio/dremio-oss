@@ -17,6 +17,7 @@ package com.dremio.provision.service;
 
 import org.junit.Test;
 import org.modelmapper.ModelMapper;
+import org.modelmapper.protobuf.ProtobufModule;
 
 import com.dremio.provision.AwsProps;
 import com.dremio.provision.AwsPropsApi;
@@ -34,12 +35,14 @@ public class TestModelMappings extends DremioTest {
   @Test
   public void ensure1to1onAwsProps() {
     ModelMapper mapper = new ModelMapper();
+    mapper.registerModule(new ProtobufModule());
     mapper.createTypeMap(AwsProps.class, AwsPropsApi.class);
     mapper.createTypeMap(AwsPropsApi.class, AwsProps.class);
     mapper.validate();
 
     AwsPropsApi api = AwsPropsApi.builder().build();
-    mapper.map(mapper.map(api, AwsProps.class), ImmutableAwsPropsApi.Builder.class).build();
+    @SuppressWarnings("unused")
+    ImmutableAwsPropsApi ignored = mapper.map(mapper.map(api, AwsProps.class), ImmutableAwsPropsApi.Builder.class).build();
 
   }
 }

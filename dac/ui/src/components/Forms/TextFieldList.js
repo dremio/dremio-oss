@@ -50,18 +50,18 @@ export default class TextFieldList extends Component {
     minItems: PropTypes.number,
     addButtonText: PropTypes.string,
     fieldKey: PropTypes.string
-  }
+  };
 
   static defaultProps = {
     newItemDefaultValue: '',
     minItems: 0,
     fieldKey: ''
-  }
+  };
 
-  addItem = (e) => {
+  addItem = () => {
     const { arrayField, newItemDefaultValue } = this.props;
     arrayField.addField(newItemDefaultValue);
-  }
+  };
 
   render() {
     return (

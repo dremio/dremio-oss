@@ -33,6 +33,7 @@ export default class DropdownMenu extends PureComponent {
     menu: PropTypes.node.isRequired,
     style: PropTypes.object,
     iconStyle: PropTypes.object,
+    textStyle: PropTypes.object,
     hideArrow: PropTypes.bool,
     hideDivider: PropTypes.bool,
     disabled: PropTypes.bool,
@@ -45,10 +46,10 @@ export default class DropdownMenu extends PureComponent {
   };
 
   render() {
-    const { dataQa, className, text, iconType, menu, style, iconStyle, hideArrow, hideDivider, disabled, isButton } = this.props;
+    const { dataQa, className, text, iconType, menu, style, iconStyle, textStyle, hideArrow, hideDivider, disabled, isButton } = this.props;
 
     const isTogglerHovered = !disabled ? Radium.getState(this.state, 'toggler', ':hover') : false;
-    const hoverStyle = {backgroundColor: 'rgba(0,0,0,0.02)'};
+    const hoverStyle = {backgroundColor: '#F9F9F9'};
     const togglerStyle = isButton ? styles.togglerButton : styles.toggler;
     const cursorStyle = disabled ? { cursor: 'default' } : { cursor: 'pointer'};
     const dividerStyle = isTogglerHovered || isTogglerHovered ? {
@@ -65,7 +66,7 @@ export default class DropdownMenu extends PureComponent {
         <SelectView
           content={
             <div className={classNames('dropdown-menu', className)} key='toggler' style={[togglerStyle, cursorStyle]}>
-              {text && <span style={{...styles.text}}>{text}</span>}
+              {text && <span style={{...styles.text, ...textStyle}}>{text}</span>}
               {iconType &&
               <div style={styles.iconWrap}>
                 <FontIcon
@@ -104,11 +105,11 @@ const styles = {
     justifyContent: 'center'
   },
   button: {
-    backgroundColor: 'rgba(0,0,0,0.04)',
-    borderBottom: '1px solid rgba(0,0,0,0.05)',
-    borderRadius: 2,
+    backgroundColor: '#F2F2F2',
+    border: '1px solid #D9D9D9',
+    borderRadius: 4,
     minWidth: 50,
-    height: 28
+    height: 32
   },
   togglerButton: {
     display: 'flex',
@@ -151,7 +152,7 @@ const styles = {
   },
   downButtonArrow: {
     fontSize: 14,
-    color: 'rgba(0,0,0,0.3)'
+    color: '#77818F'
   },
   popover: {
     marginTop: 7,
@@ -164,8 +165,7 @@ const styles = {
   divider: {
     height: 20,
     margin: '0 4px',
-    borderLeft: '1px solid #c2cdd5',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderLeft: '1px solid #E5E5E5',
     display: 'block'
   }
 };

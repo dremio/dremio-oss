@@ -25,18 +25,23 @@ import javax.inject.Provider;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobsUI;
-import com.dremio.service.jobs.Job;
+import com.dremio.dac.model.job.ResultOrder;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.namespace.NamespaceService;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.escape.Escaper;
 import com.google.common.net.UrlEscapers;
@@ -72,21 +77,26 @@ public class JobsResource {
   public JobsUI getJobs(
       @QueryParam("filter") String filters,
       @QueryParam("sort") String sortColumn,
-      @QueryParam("order") SearchJobsRequest.ResultOrder order,
+      @QueryParam("order") ResultOrder order,
       @QueryParam("offset") @DefaultValue("0") int offset,
       @QueryParam("limit") @DefaultValue("100") int limit
       ) {
 
-    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setFilterString(filters)
-        .setOffset(offset)
-        .setLimit(limit)
-        .setSortColumn(sortColumn)
-        .setResultOrder(order)
-        .setUsername(securityContext.getUserPrincipal().getName())
-        .build();
+    final SearchJobsRequest.Builder requestBuilder = SearchJobsRequest.newBuilder();
+    requestBuilder.setOffset(offset);
+    requestBuilder.setLimit(limit);
+    requestBuilder.setUserName(securityContext.getUserPrincipal().getName());
+    if (filters != null) {
+      requestBuilder.setFilterString(filters);
+    }
+    if (sortColumn != null) {
+      requestBuilder.setSortColumn(sortColumn);
+    }
+    if (order != null) {
+      requestBuilder.setSortOrder(order.toSortOrder());
+    }
 
-    final List<Job> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(request));
+    final List<JobSummary> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(requestBuilder.build()));
     return new JobsUI(
         namespace,
         jobs,
@@ -99,7 +109,7 @@ public class JobsResource {
       final int limit,
       String filter,
       String sortColumn,
-      SearchJobsRequest.ResultOrder order,
+      ResultOrder order,
       int previousReturn
   ) {
 
@@ -139,5 +149,64 @@ public class JobsResource {
 
   private static String esc(String str){
     return ESCAPER.escape(str);
+  }
+
+  // Get jobs using filters and set order
+  @GET
+  @Path("/reflection/{reflectionId}")
+  @Produces(APPLICATION_JSON)
+  public JobsUI getReflectionJobs(
+      @QueryParam("offset") @DefaultValue("0") int offset,
+      @QueryParam("limit") @DefaultValue("100") int limit,
+      @PathParam("reflectionId") String reflectionId
+      ) {
+
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .buildSilently();
+    }
+
+    final SearchReflectionJobsRequest.Builder requestBuilder = SearchReflectionJobsRequest.newBuilder();
+    requestBuilder.setUserName(securityContext.getUserPrincipal().getName())
+    .setLimit(limit)
+    .setOffset(offset)
+    .setReflectionId(reflectionId);
+
+    final List<JobSummary> jobs = ImmutableList.copyOf(jobsService.get().searchReflectionJobs(requestBuilder.build()));
+
+    return new JobsUI(
+      namespace,
+      jobs,
+      getNextReflectionJobs(offset, limit, reflectionId, jobs.size())
+    );
+  }
+
+
+
+  private String getNextReflectionJobs(
+    final int offset,
+    final int limit,
+    final String reflectionId,
+    int previousReturn
+  ) {
+    // only return a next if we returned a full list.
+    if(previousReturn != limit){
+      return null;
+    }
+    StringBuilder sb = getNextReflectionJobs(offset, limit, reflectionId);
+    return sb.toString();
+  }
+
+  private StringBuilder getNextReflectionJobs(int offset, int limit, String reflectionId){
+    StringBuilder sb = new StringBuilder();
+    sb.append("/jobs/reflection/");
+    sb.append(reflectionId);
+    sb.append("/?");
+    sb.append("offset=");
+    sb.append(offset+limit);
+    sb.append("&limit=");
+    sb.append(limit);
+    return sb;
   }
 }

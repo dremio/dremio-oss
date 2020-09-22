@@ -32,6 +32,7 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
  * <li>{@link ErrorType#IO_EXCEPTION} to {@link ErrorType#RESOURCE}</li>
  * <li>{@link ErrorType#CONCURRENT_MODIFICATION} to {@link ErrorType#RESOURCE}</li>
  * <li>{@link ErrorType#INVALID_DATASET_METADATA} to {@link ErrorType#RESOURCE}</li>
+ * <li>{@link ErrorType#RESOURCE_TIMEOUT} to {@link ErrorType#RESOURCE}</li>
  * <li>{@link ErrorType#REFLECTION_ERROR} to {@link ErrorType#SYSTEM}</li>
  * </ul>
  */
@@ -45,7 +46,8 @@ public class ErrorCompatibility {
           ErrorType.INVALID_DATASET_METADATA,
           ErrorType.REFLECTION_ERROR,
           ErrorType.SOURCE_BAD_STATE,
-          ErrorType.JSON_FIELD_CHANGE);
+          ErrorType.JSON_FIELD_CHANGE,
+          ErrorType.RESOURCE_TIMEOUT);
 
   private static boolean needsConversion(final DremioPBError error) {
     return incompatibleErrorTypes.contains(error.getErrorType());
@@ -67,6 +69,7 @@ public class ErrorCompatibility {
       case IO_EXCEPTION:
       case CONCURRENT_MODIFICATION:
       case INVALID_DATASET_METADATA:
+      case RESOURCE_TIMEOUT:
         return DremioPBError.newBuilder(error).setErrorType(ErrorType.RESOURCE).build();
       default:
         // we most likely forgot to add the type to this switch block

@@ -377,6 +377,14 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       }
     }
 
+    public void testAllMethodsExceptIsValid() {
+      for (Method method : jdbcIntf.getMethods()) {
+        if (!method.getName().equals("isValid")) {
+          testOneMethod(method);
+        }
+      }
+    }
+
     public void testAllMethods() {
       for (Method method : jdbcIntf.getMethods()) {
         testOneMethod(method);
@@ -452,7 +460,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
     ThrowsClosedBulkChecker<Connection> checker =
         new ClosedConnectionChecker(Connection.class, closedConn);
 
-    checker.testAllMethods();
+    checker.testAllMethodsExceptIsValid();
 
     if (checker.hadAnyFailures()) {
       System.err.println(checker.getReport());
@@ -472,9 +480,6 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
 
     @Override
     protected boolean isOkayNonthrowingMethod(Method method) {
-      // TODO: Java 8 method
-      if ("getLargeUpdateCount".equals(method.getName())) {
-        return true; }
       return super.isOkayNonthrowingMethod(method);
     }
 
@@ -533,10 +538,6 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
 
     @Override
     protected boolean isOkayNonthrowingMethod(Method method) {
-      // TODO: Java 8 methods not yet supported by Avatica.
-      if (method.getName().equals("getLargeUpdateCount")) {
-        return true;
-      }
       return super.isOkayNonthrowingMethod(method);
     }
 

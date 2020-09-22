@@ -47,7 +47,7 @@ export const pinnedEntities = (state = localStorageUtils.getPinnedItems(), {
       };
     } else if (state.hasOwnProperty(id)) { // need change the state only ifu id is presented in a state
       const {
-        [id]: toRemove,
+        [id]: toRemove, // eslint-disable-line @typescript-eslint/no-unused-vars
         ...rest
       } = state;
       newState = rest;

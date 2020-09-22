@@ -16,19 +16,22 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import Immutable  from 'immutable';
+import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
-import StatefulTableViewer from 'components/StatefulTableViewer';
-import NumberFormatUtils from 'utils/numberFormatUtils';
-import { getViewState } from 'selectors/resources';
-import Header from 'pages/AdminPage/components/Header';
-import NodeTableCell from 'pages/AdminPage/subpages/NodeActivity/NodeTableCell';
+import StatefulTableViewer from '@app/components/StatefulTableViewer';
+import NumberFormatUtils from '@app/utils/numberFormatUtils';
+import { getViewState } from '@app/selectors/resources';
+import Header from '@app/pages/AdminPage/components/Header';
+import NodeTableCell from '@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell';
+import { NodeTableCellColors } from '@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell';
 import NodeActivityViewMixin from 'dyn-load/pages/AdminPage/subpages/NodeActivity/NodeActivityViewMixin';
 
 import './NodeActivity.less';
 import { page, pageContent } from 'uiTheme/radium/general';
+import EllipsedText from '@app/components/EllipsedText';
+import CopyButton from '@app/components/Buttons/CopyButton';
 
 export const VIEW_ID = 'NodeActivityView';
 
@@ -52,6 +55,10 @@ export const COLUMNS_CONFIG = [ //TODO intl
   {
     label: 'Memory',
     width: 140
+  },
+  {
+    label: 'Version',
+    flexGrow: 1
   }
 ];
 
@@ -74,11 +81,26 @@ class NodeActivityView extends Component {
   }
 
   getNodeCellStatus(node) {
+    if (!node.get('isCompatible')) {
+      return NodeTableCellColors.RED;
+    }
     return node.get('status');
   }
 
   getNodeCellTooltip(node) {
-    return (this.getNodeCellStatus(node) === 'green') ? la('Active') : '';
+    const status = this.getNodeCellStatus(node);
+    switch (la(status)) {
+    case 'green':
+      return la('Active');
+    case 'red':
+      return this.getToolTipForIncompatibleNode();
+    default:
+      return '';
+    }
+  }
+
+  getToolTipForIncompatibleNode() {
+    return la('Please ensure that the version of dremio is the same on all coordinators and executors.');
   }
 
   getNodeCell(node) {
@@ -87,19 +109,43 @@ class NodeActivityView extends Component {
         name={node.get('name')}
         status={this.getNodeCellStatus(node)}
         tooltip={this.getNodeCellTooltip(node)}
+        isMaster={node.get('isMaster')}
+        isCoordinator={node.get('isCoordinator')}
+        isExecutor={node.get('isExecutor')}
       />
     );
   }
 
   getNodeData(columnNames, node) {
-    const [name, ip, port, cpu, memory] = columnNames;
+    const [name, ip, port, cpu, memory, version] = columnNames;
     return {
       data: {
-        [name]: this.getNodeCell(node),
-        [ip]: node.get('ip'),
-        [port]: node.get('port'),
-        [cpu]: `${NumberFormatUtils.roundNumberField(node.get('cpu'))}%`,
-        [memory]: `${NumberFormatUtils.roundNumberField(node.get('memory'))}%` // todo: check comps for digits. and fix so no need for parseFloat
+        [name]: {
+          node: () => this.getNodeCell(node)
+        },
+        [ip]: {
+          node: () => {
+            return (
+              <div style={{display: 'flex', flexDirection: 'row'}}>
+                <EllipsedText text={node.get('ip')} style={{flexGrow: 0}}/>
+                <CopyButton title={'Copy Host'} text={node.get('ip')} />
+              </div>
+            );
+          },
+          value: node.get('ip')
+        },
+        [port]: {
+          node: () => node.get('port')
+        },
+        [cpu]: {
+          node: () => `${NumberFormatUtils.roundNumberField(node.get('cpu'))}%`
+        },
+        [memory]: {
+          node: () => `${NumberFormatUtils.roundNumberField(node.get('memory'))}%` // todo: check comps for digits. and fix so no need for parseFloat
+        },
+        [version]: {
+          node: () => node.get('version') || '-'
+        }
       }
     };
   }
@@ -117,16 +163,22 @@ class NodeActivityView extends Component {
   render() {
     const tableData = this.getTableData();
     const columns = this.getTableColumns();
+    const endChildren = this.getHeaderEndChildren();
+    const header = (endChildren) ?
+      <Header title={la('Node Activity')} endChildren={endChildren}/> :
+      <Header title={la('Node Activity')}/>;
 
     return (
       <div id='admin-nodeActivity' style={page}>
-        <Header title={la('Node Activity')}/>
+        {header}
         {this.getSubHeader()}
         <div style={pageContent}>
           <StatefulTableViewer
             tableData={tableData}
             columns={columns}
             viewState={this.props.viewState}
+            rowHeight={40}
+            virtualized
           />
         </div>
       </div>

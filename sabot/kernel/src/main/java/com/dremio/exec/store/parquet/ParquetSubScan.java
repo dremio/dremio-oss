@@ -21,6 +21,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScanWithProjection;
+import com.dremio.exec.physical.config.BoostPOP;
 import com.dremio.exec.planner.fragment.MinorDataReader;
 import com.dremio.exec.planner.fragment.MinorDataWriter;
 import com.dremio.exec.planner.fragment.SplitNormalizer;
@@ -49,6 +50,7 @@ public class ParquetSubScan extends SubScanWithProjection {
   private final List<List<String>> tablePath;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
+  private final boolean arrowCachingEnabled;
 
   @JsonIgnore
   private List<SplitAndPartitionInfo> splits;
@@ -64,8 +66,8 @@ public class ParquetSubScan extends SubScanWithProjection {
     List<SchemaPath> columns,
     List<String> partitionColumns,
     List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-    ByteString extendedProperty
-  ) {
+    ByteString extendedProperty,
+    boolean arrowCachingEnabled) {
     super(props, fullSchema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
@@ -75,6 +77,7 @@ public class ParquetSubScan extends SubScanWithProjection {
     this.partitionColumns = partitionColumns;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   @JsonCreator
@@ -88,10 +91,11 @@ public class ParquetSubScan extends SubScanWithProjection {
     @JsonProperty("columns") List<SchemaPath> columns,
     @JsonProperty("partitionColumns") List<String> partitionColumns,
     @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-    @JsonProperty("extendedProperty") ByteString extendedProperty) {
+    @JsonProperty("extendedProperty") ByteString extendedProperty,
+    @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled) {
 
     this(props, formatSettings, null, fullSchema, tablePath, conditions, pluginId, columns, partitionColumns,
-      globalDictionaryEncodedColumns, extendedProperty);
+      globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled);
   }
 
   public FileConfig getFormatSettings(){
@@ -126,6 +130,10 @@ public class ParquetSubScan extends SubScanWithProjection {
     return globalDictionaryEncodedColumns;
   }
 
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
+  }
+
   @JsonIgnore
   @Override
   public int getOperatorType() {
@@ -140,5 +148,21 @@ public class ParquetSubScan extends SubScanWithProjection {
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
     splits = SplitNormalizer.read(getProps(), reader);
+  }
+
+  @JsonIgnore
+  @Override
+  public BoostPOP getBoostConfig(List<SchemaPath> columnsToBoost) {
+    return new BoostPOP(
+      this.getProps(),
+      this.getFormatSettings(),
+      this.getSplits(),
+      this.getFullSchema(),
+      this.getTablePath(),
+      this.getPluginId(),
+      columnsToBoost,
+      this.getPartitionColumns(),
+      this.getGlobalDictionaryEncodedColumns(),
+      this.getExtendedProperty());
   }
 }

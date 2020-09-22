@@ -32,8 +32,8 @@ import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -56,7 +56,7 @@ public final class MemoryAllocationUtilities {
   private static void legacySortMemorySetting (
       final PhysicalPlan plan,
       final OptionManager optionManager,
-      final ClusterResourceInformation clusterInfo,
+      final GroupResourceInformation clusterInfo,
       final long memoryAlloc) {
     // look for external sorts
     final List<ExternalSort> sortList = new LinkedList<>();
@@ -85,7 +85,7 @@ public final class MemoryAllocationUtilities {
   public static void setupBoundedMemoryAllocations (
       final PhysicalPlan plan,
       final OptionManager optionManager,
-      final ClusterResourceInformation clusterInfo,
+      final GroupResourceInformation clusterInfo,
       final PlanningSet planningSet,
       final long allocatedMemoryPerQuery
       ) {

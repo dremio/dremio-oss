@@ -22,6 +22,7 @@ import java.util.Set;
 import org.apache.arrow.gandiva.evaluator.Projector;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.gandiva.expression.ExpressionTree;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -34,8 +35,6 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import io.netty.buffer.ArrowBuf;
-
 public class NativeProjector implements AutoCloseable {
   private final VectorAccessible incoming;
   private List<ExpressionTree> columnExprList = new ArrayList<>();
@@ -44,13 +43,15 @@ public class NativeProjector implements AutoCloseable {
   private final Schema schema;
   private final FunctionContext functionContext;
   private final Set<Field> referencedFields;
+  private final boolean optimize;
 
-  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext) {
+  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize) {
     this.incoming = incoming;
     this.schema = schema;
     this.functionContext = functionContext;
     // preserve order of insertion
     referencedFields = Sets.newLinkedHashSet();
+    this.optimize = optimize;
   }
 
   public void add(LogicalExpression expr, FieldVector outputVector) {
@@ -61,7 +62,7 @@ public class NativeProjector implements AutoCloseable {
 
   public void build() throws GandivaException {
     root = GandivaUtils.getSchemaRoot(incoming, referencedFields);
-    projector = Projector.make(root.getSchema(), columnExprList);
+    projector = Projector.make(root.getSchema(), columnExprList, optimize);
   }
 
   public void execute(int recordCount, List<ValueVector> outVectors) throws Exception {

@@ -20,12 +20,15 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import javax.inject.Provider;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -47,8 +50,12 @@ public class TestUniversalExecutorSelector {
     when(optionManager.getOption(eq(ExecutorSelectionService.EXECUTOR_SELECTION_TYPE))).thenReturn("universal");
 
     final ExecutorSelectorFactory executorSelectorFactory = new ExecutorSelectorFactoryImpl();
-    selectionService = new ExecutorSelectionServiceImpl(() -> clusterCoordinator,
-        () -> optionManager,
+
+    Provider<OptionManager> optionManagerProvider = () -> optionManager;
+    selectionService = new ExecutorSelectionServiceImpl(
+        () -> new LocalExecutorSetService(() -> clusterCoordinator,
+                                          optionManagerProvider),
+        optionManagerProvider,
         () -> executorSelectorFactory,
         new ExecutorSelectorProvider());
     selectionService.start();

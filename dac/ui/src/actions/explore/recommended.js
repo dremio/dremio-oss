@@ -15,9 +15,8 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformModelMapper';
-
 
 export const RESET_RECOMMENDED_TRANSFORMS = 'RESET_RECOMMENDED_TRANSFORMS';
 export function resetRecommendedTransforms() {
@@ -40,6 +39,10 @@ function fetchTransformCards(data, transform, dataset, actionType) {
     actionType,
     viewId: LOAD_TRANSFORM_CARDS_VIEW_ID
   };
+
+  const apiCall = new APIV2Call()
+    .paths(`${dataset.getIn(['apiLinks', 'self'])}/${actionType}`);
+
   return {
     [RSAA]: {
       types: [
@@ -50,7 +53,7 @@ function fetchTransformCards(data, transform, dataset, actionType) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(transformModelMapper.transformExportPostMapper(data)),
-      endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}`
+      endpoint: apiCall
     }
   };
 }
@@ -72,6 +75,10 @@ function fetchTransformCardPreview(data, transform, dataset, actionType, index) 
     actionType,
     index
   };
+
+  const apiCall = new APIV2Call()
+    .paths(`${dataset.getIn(['apiLinks', 'self'])}/${actionType}_preview`);
+
   return {
     [RSAA]: {
       types: [
@@ -82,7 +89,7 @@ function fetchTransformCardPreview(data, transform, dataset, actionType, index) 
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(transformModelMapper.transformDynamicPreviewMapper(data, actionType)),
-      endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}_preview`
+      endpoint: apiCall
     }
   };
 }
@@ -107,6 +114,10 @@ function fetchTransformValuesPreview(data, transform, dataset, actionType) {
     transformType: transform.get('transformType'),
     method: transform.get('method') || 'default'
   };
+
+  const apiCall = new APIV2Call()
+    .paths(`${dataset.getIn(['apiLinks', 'self'])}/${actionType}_values_preview`);
+
   return {
     [RSAA]: {
       types: [
@@ -117,7 +128,7 @@ function fetchTransformValuesPreview(data, transform, dataset, actionType) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(transformModelMapper.mapTransformValuesPreview(data, actionType)),
-      endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}_values_preview`
+      endpoint: apiCall
     }
   };
 }

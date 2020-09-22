@@ -20,7 +20,7 @@ describe('DataLoader', () => {
   const onChange = sinon.stub();
 
   beforeEach(() => {
-    onChange.reset();
+    onChange.resetHistory();
   });
 
   it('calls onChange once on mount', () => {
@@ -37,7 +37,7 @@ describe('DataLoader', () => {
 
   it('calls onChange if keyValue is changed', () => {
     const wrapper = mount(<DataLoader onChange={onChange} />);
-    onChange.reset();
+    onChange.resetHistory();
 
     wrapper.setProps({
       keyValue: 1
@@ -48,7 +48,7 @@ describe('DataLoader', () => {
 
   it('calls onChange if isInvalidated changed to true', () => {
     const wrapper = mount(<DataLoader onChange={onChange} isInvalidated={false} />);
-    onChange.reset();
+    onChange.resetHistory();
 
     wrapper.setProps({
       isInvalidated: true
@@ -59,7 +59,7 @@ describe('DataLoader', () => {
 
   it('does NOT call onChange if isInvalidated changed to false', () => {
     const wrapper = mount(<DataLoader onChange={onChange} isInvalidated />);
-    onChange.reset();
+    onChange.resetHistory();
 
     wrapper.setProps({
       isInvalidated: false

@@ -17,6 +17,7 @@ package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.DependencyUtils.filterDatasetDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterReflectionDependencies;
+import static com.dremio.service.reflection.DependencyUtils.filterTableFunctionDependencies;
 import static com.google.common.base.Predicates.not;
 import static com.google.common.base.Predicates.notNull;
 
@@ -27,9 +28,11 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
+import com.dremio.service.reflection.DependencyEntry.TableFunctionDependency;
 import com.dremio.service.reflection.DependencyGraph.DependencyException;
 import com.dremio.service.reflection.proto.DependencyType;
 import com.dremio.service.reflection.proto.Materialization;
@@ -118,6 +121,12 @@ public class DependencyManager {
         final AccelerationSettings settings = reflectionSettings.getReflectionSettings(dependency.getNamespaceKey());
         return Boolean.TRUE.equals(settings.getNeverRefresh());
       }
+    }) && filterTableFunctionDependencies(dependencies).allMatch(new Predicate<TableFunctionDependency>() {
+      @Override
+      public boolean apply( TableFunctionDependency dependency) {
+        final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(dependency.getSourceName()));
+        return Boolean.TRUE.equals(settings.getNeverRefresh());
+      }
     });
   }
 
@@ -186,7 +195,8 @@ public class DependencyManager {
       }
     }
 
-    // go through dataset dependencies and compute last start refresh from refresh period and refresh requests
+    // go through dataset dependencies and table function depedencies to compute last start refresh
+    // from refresh period and refresh requests
     final Iterable<Long> refreshStarts = filterDatasetDependencies(dependencies)
       .transform(new Function<DatasetDependency, Long>() {
         @Override
@@ -204,6 +214,16 @@ public class DependencyManager {
           return refreshStart;
         }
       })
+      .append(filterTableFunctionDependencies(dependencies)
+        .transform(new Function<TableFunctionDependency, Long>() {
+          @Nullable
+          @Override
+          public Long apply(TableFunctionDependency entry) {
+            final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
+            final long refreshStart = Boolean.TRUE.equals(settings.getNeverRefresh()) || settings.getRefreshPeriod() == 0 ? 0 : currentTime -  settings.getRefreshPeriod();
+            return refreshStart;
+          }
+        }))
       .toList();
 
     final boolean dependsOnDatasets = !Iterables.isEmpty(refreshStarts);
@@ -262,7 +282,18 @@ public class DependencyManager {
           return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
         }
       })
-      .filter(notNull());
+      .append(filterTableFunctionDependencies(graph.getPredecessors(reflectionId))
+      .transform(new Function<TableFunctionDependency, Long>() {
+        @Nullable
+        @Override
+        public Long apply(TableFunctionDependency entry) {
+          final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
+          return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
+        }
+      }))
+      .filter(notNull()
+      );
+
 
     if (Iterables.isEmpty(gracePeriods)) {
       return Optional.absent();

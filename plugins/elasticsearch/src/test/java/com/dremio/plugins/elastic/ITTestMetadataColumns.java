@@ -845,17 +845,28 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
       .go();
   }
 
-  @Ignore("DX-7888")
+  /**
+   * Replace all the _ and % characters with \_ and \% for a string which is used in LIKE clause.
+   * @param origin  original string
+   * @return  the string after replacement
+   */
+  private String escape(final String origin) {
+    return origin.replace("_", "\\_").replace("%", "\\%");
+  }
+
   @Test
   public final void testFilterIDLike() throws Exception {
-    final String cond1 = "_id LIKE '%" + ids[1] + "%'";
+    // id might contain _ or % character since it was generated randomly, so need to replace them for LIKE clause
+    final String cond1 = String.format("_id LIKE '%%%s%%' escape '\\'", escape(ids[1]));
     final String sqlQuery = "select _id from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "=[{\n" +
       "  \"from\" : 0,\n" +
       "  \"size\" : 4000,\n" +
       "  \"query\" : {\n" +
-      "    \"match_all\" : { }\n" +
+      "    \"match_all\" : {\n" +
+      "      \"boost\" : 1.0\n" +
+      "    }\n" +
       "  },\n" +
       "  \"_source\" : {\n" +
       "    \"includes\" : [ \"_id\" ],\n" +
@@ -868,17 +879,19 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
       .go();
   }
 
-  @Ignore("DX-7888")
   @Test
   public final void testFilterUIDLike() throws Exception {
-    final String cond1 = "_uid LIKE '%" + uids[1] + "%'";
+    // uid might contain _ or % character since it was generated randomly, so need to replace them for LIKE clause
+    final String cond1 = String.format("_uid LIKE '%%%s%%' escape '\\'", escape(uids[1]));
     final String sqlQuery = "select _uid from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "=[{\n" +
       "  \"from\" : 0,\n" +
       "  \"size\" : 4000,\n" +
       "  \"query\" : {\n" +
-      "    \"match_all\" : { }\n" +
+      "    \"match_all\" : {\n" +
+      "      \"boost\" : 1.0\n" +
+      "    }\n" +
       "  },\n" +
       "  \"_source\" : {\n" +
       "    \"includes\" : [ \"_uid\" ],\n" +
@@ -932,14 +945,14 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
 
-    final String sqlQuery = "select _id from " + TABLENAME + " where contains(_id:" + ids[1] + ")";
+    final String sqlQuery = "select _id from " + TABLENAME + " where contains(_id:\"" + ids[1] + "\")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
       "[{\n" +
       "  \"from\" : 0,\n" +
       "  \"size\" : 4000,\n" +
       "  \"query\" : {\n" +
       "    \"query_string\" : {\n" +
-      "      \"query\" : \"_id : " + ids[1] + "\",\n" +
+      "      \"query\" : \"_id : \\\"" + ids[1] + "\\\"\",\n" +
       "      \"fields\" : [ ],\n" +
       "      \"use_dis_max\" : true,\n" +
       "      \"tie_breaker\" : 0.0,\n" +
@@ -977,14 +990,14 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
 
-    final String sqlQuery = "select _uid from " + TABLENAME + " where contains(_uid:" + uids[1] + ")";
+    final String sqlQuery = "select _uid from " + TABLENAME + " where contains(_uid:\"" + uids[1] + "\")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
         "  \"query\" : {\n" +
         "    \"query_string\" : {\n" +
-        "      \"query\" : \"_uid : " + uids[1] + "\",\n" +
+        "      \"query\" : \"_uid : \\\"" + uids[1] + "\\\"\",\n" +
         "      \"fields\" : [ ],\n" +
         "      \"use_dis_max\" : true,\n" +
         "      \"tie_breaker\" : 0.0,\n" +

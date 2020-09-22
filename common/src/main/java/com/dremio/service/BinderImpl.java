@@ -32,9 +32,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
+import com.google.inject.ConfigurationException;
+import com.google.inject.Injector;
 
 /**
  * A very basic injection provider implementation.
@@ -43,7 +46,9 @@ import com.google.common.collect.Maps;
  */
 public class BinderImpl implements Binder {
 
-  public static enum ResolverType {SINGLETON, INSTANCE}
+  private Injector injector;
+
+  public static enum ResolverType {SINGLETON, INSTANCE, PROVIDER}
 
   private final BinderImpl parent;
   private volatile Map<Class<?>, Resolver> lookups = ImmutableMap.of();
@@ -104,6 +109,14 @@ public class BinderImpl implements Binder {
   public <T> T lookup(Class<T> iface) {
     Preconditions.checkNotNull(iface, "Must provided desired interface or class.");
     Resolver lookup = getResolver(iface);
+
+    if (lookup == null && injector != null) {
+      try {
+        return injector.getInstance(iface);
+      } catch (ConfigurationException ignored) {
+      }
+    }
+
     Preconditions.checkNotNull(lookup, "Unable to find injectable based on %s", iface.getName());
     // safe since the signatures above guarantee this.
     return (T) lookup.get(this);
@@ -160,6 +173,24 @@ public class BinderImpl implements Binder {
     lookups = newLookups.build();
   }
 
+  @Override
+  public synchronized <IFACE> void bindProvider(Class<IFACE> iface, Provider<? extends IFACE> provider) {
+    Preconditions.checkNotNull(iface);
+    final ImmutableMap.Builder<Class<?>, Resolver> newLookups = ImmutableMap.builder();
+    newLookups.putAll(lookups);
+    newLookups.put(iface, wrap(provider));
+    lookups = newLookups.build();
+  }
+
+  @Override
+  public synchronized <IFACE> void replaceProvider(Class<IFACE> iface, Provider<? extends IFACE> provider) {
+    Preconditions.checkNotNull(iface);
+    if (lookups.containsKey(iface)) {
+      remove(iface);
+    }
+    bindProvider(iface, provider);
+  }
+
   private synchronized void remove(final Class<?> iface){
     final ImmutableMap.Builder<Class<?>, Resolver> newLookups = ImmutableMap.builder();
     final Pointer<Resolver> removed = new Pointer<>();
@@ -202,6 +233,8 @@ public class BinderImpl implements Binder {
           return new InstanceBinding(input.getKey(), ((InjectableReference)input.getValue()).clazz);
         case SINGLETON:
           return new SingletonBinding(input.getKey(), input.getValue().get(null));
+        case PROVIDER:
+          return new ProviderBinding(input.getKey(), ((ProviderReference)input.getValue()).getProvider());
         default:
           throw new IllegalStateException();
         }
@@ -262,9 +295,25 @@ public class BinderImpl implements Binder {
     public ResolverType getType() {
       return ResolverType.SINGLETON;
     }
-
   }
 
+  public static class ProviderBinding<T> extends Binding<T> {
+    private final Provider<T> value;
+
+    private ProviderBinding(Class<T> iface, Provider<T> value) {
+      super(iface);
+      this.value = value;
+    }
+
+    public Provider<T> getProvider() {
+      return value;
+    }
+
+    @Override
+    public ResolverType getType() {
+      return ResolverType.PROVIDER;
+    }
+  }
 
   public BindingCreator getBindingCreator(){
     return new BindingCreatorImpl();
@@ -307,6 +356,15 @@ public class BinderImpl implements Binder {
       BinderImpl.this.replace(iface, impl);
     }
 
+    @Override
+    public <IFACE> void bindProvider(Class<IFACE> iface, Provider<? extends IFACE> provider) {
+      BinderImpl.this.bindProvider(iface, provider);
+    }
+
+    @Override
+    public <IFACE> void replaceProvider(Class<IFACE> iface, Provider<? extends IFACE> provider) {
+      BinderImpl.this.replaceProvider(iface, provider);
+    }
   }
 
   public BindingProvider getBindingProvider(){
@@ -347,10 +405,12 @@ public class BinderImpl implements Binder {
     ResolverType getType();
   }
 
-  private Resolver wrap(Object obj){
-    if(obj instanceof Resolver){
+  private Resolver wrap(Object obj) {
+    if (obj instanceof Resolver) {
       return (Resolver) obj;
-    } else if(obj instanceof Class){
+    } else if (obj instanceof Provider) {
+      return new ProviderReference((Provider) obj);
+    } else if (obj instanceof Class) {
       return new InjectableReference((Class<?>) obj);
     } else {
       return new GenericReference(obj);
@@ -407,12 +467,9 @@ public class BinderImpl implements Binder {
           + "constructor marked with @Inject annotation. It has %s constructors with this annotation.", clazz.getName(), annotated.size());
 
       this.constructor = annotated.iterator().next();
-      this.providers = FluentIterable.of(constructor.getParameterTypes()).transform(new Function<Class<?>, FinalResolver>(){
-        @Override
-        public FinalResolver apply(Class<?> input) {
-          return new FinalResolver(input);
-        }}).toList();
-
+      this.providers = Arrays.stream(constructor.getParameterTypes())
+        .map(FinalResolver::new)
+        .collect(ImmutableList.toImmutableList());
     }
 
     @Override
@@ -435,10 +492,35 @@ public class BinderImpl implements Binder {
 
   }
 
+  public static class ProviderReference implements Resolver {
+    private final Provider<?> provider;
+
+    public ProviderReference(Provider<?> provider) {
+      this.provider = provider;
+    }
+
+    @Override
+    public Object get(BindingProvider bindingProvider) {
+      return provider.get();
+    }
+
+    public Provider<?> getProvider() {
+      return provider;
+    }
+
+    @Override
+    public ResolverType getType() {
+      return ResolverType.PROVIDER;
+    }
+  }
+
   @Override
   public Binder newChild() {
     return new BinderImpl(this);
   }
 
-
+  @Override
+  public void registerGuiceInjector(Injector injector) {
+    this.injector = injector;
+  }
 }

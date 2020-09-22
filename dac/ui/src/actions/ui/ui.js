@@ -44,3 +44,11 @@ export function resetResourceTree() {
     dispatch(action);
   };
 }
+
+export const TOGGLE_EXTERNAL_SOURCES_EXPANDED = 'TOGGLE_EXTERNAL_SOURCES_EXPANDED';
+export function toggleExternalSourcesExpanded() {
+  return (dispatch) => {
+    const action = { type: TOGGLE_EXTERNAL_SOURCES_EXPANDED };
+    dispatch(action);
+  };
+}

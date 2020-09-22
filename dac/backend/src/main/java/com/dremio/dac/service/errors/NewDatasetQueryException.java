@@ -17,6 +17,7 @@ package com.dremio.dac.service.errors;
 
 import java.util.List;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
@@ -30,7 +31,7 @@ public class NewDatasetQueryException extends Exception {
   private final ExplorePageInfo details;
 
   public NewDatasetQueryException(ExplorePageInfo details, Exception error) {
-    super(error.getMessage(), error);
+    super(error instanceof UserException ? ((UserException) error).getOriginalMessage(): error.getMessage(), error);
     this.details = details;
   }
 

@@ -25,6 +25,7 @@ export const MAX_UPLOAD_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 export const EXPLORE_PROGRESS_STATES = ['STARTED', 'NOT STARTED', 'RUNNING']; //TODO put back NOT_SUBMITTED when it's working
 export const CONTAINER_ENTITY_TYPES = new Set(['HOME', 'FOLDER', 'SPACE', 'SOURCE']);
 export const HOME_SPACE_NAME = `@home-${uuid.v4()}`; // better to have Symbol here, but there is several problems with it
+export const MSG_CLEAR_DELAY_SEC = 3;
 
 export const EXTRA_POPPER_CONFIG = {
   modifiers: {
@@ -39,4 +40,11 @@ export const ENTITY_TYPES = {
   space: 'space',
   source: 'source',
   folder: 'folder'
+};
+
+export const CLIENT_TOOL_ID = {
+  powerbi: 'client.tools.powerbi',
+  tableau: 'client.tools.tableau',
+  qlik: 'client.tools.qlik',
+  qlikEnabled: 'support.dac.qlik'
 };

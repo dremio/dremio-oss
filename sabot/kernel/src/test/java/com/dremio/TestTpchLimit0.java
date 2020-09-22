@@ -16,10 +16,17 @@
 package com.dremio;
 
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestTpchLimit0 extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchLimit0.class);
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   private void testLimitZeroQuery(String query) throws Exception {
     query = "ALTER SESSION SET \"planner.slice_target\" = 1; select * from \n(" + query.replace(";", ")xyz limit 0;");
@@ -103,42 +110,48 @@ public class TestTpchLimit0 extends BaseTestQuery{
 
   @Test
   public void tpch15() throws Exception{
-    // NB: can't use query 15 directly, as it has four distinct parts. testLimitZero(), above, assumes a single query
-    test("use dfs_test");
     try {
-      test("create view revenue0 (supplier_no, total_revenue) as\n" +
-        "  select\n" +
-        "    l_suppkey,\n" +
-        "    sum(l_extendedprice * (1 - l_discount))\n" +
-        "  from\n" +
-        "    cp.\"tpch/lineitem.parquet\"\n" +
-        "  where\n" +
-        "    l_shipdate >= date '1993-05-01'\n" +
-        "    and l_shipdate < date '1993-05-01' + interval '3' month\n" +
-        "  group by\n" +
-        "    l_suppkey;\n");
-      testLimitZeroQuery("select\n" +
-        "    s.s_suppkey,\n" +
-        "      s.s_name,\n" +
-        "      s.s_address,\n" +
-        "      s.s_phone,\n" +
-        "      r.total_revenue\n" +
-        "    from\n" +
-        "    cp.\"tpch/supplier.parquet\" s,\n" +
-        "      revenue0 r\n" +
-        "      where\n" +
-        "    s.s_suppkey = r.supplier_no\n" +
-        "    and r.total_revenue = (\n" +
-        "      select\n" +
-        "    max(total_revenue)\n" +
-        "    from\n" +
-        "      revenue0\n" +
-        "  )\n" +
-        "    order by\n" +
-        "    s.s_suppkey;\n"
-      );
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+
+      // NB: can't use query 15 directly, as it has four distinct parts. testLimitZero(), above, assumes a single query
+      test("use dfs_test");
+      try {
+        test("create view revenue0 (supplier_no, total_revenue) as\n" +
+          "  select\n" +
+          "    l_suppkey,\n" +
+          "    sum(l_extendedprice * (1 - l_discount))\n" +
+          "  from\n" +
+          "    cp.\"tpch/lineitem.parquet\"\n" +
+          "  where\n" +
+          "    l_shipdate >= date '1993-05-01'\n" +
+          "    and l_shipdate < date '1993-05-01' + interval '3' month\n" +
+          "  group by\n" +
+          "    l_suppkey;\n");
+        testLimitZeroQuery("select\n" +
+          "    s.s_suppkey,\n" +
+          "      s.s_name,\n" +
+          "      s.s_address,\n" +
+          "      s.s_phone,\n" +
+          "      r.total_revenue\n" +
+          "    from\n" +
+          "    cp.\"tpch/supplier.parquet\" s,\n" +
+          "      revenue0 r\n" +
+          "      where\n" +
+          "    s.s_suppkey = r.supplier_no\n" +
+          "    and r.total_revenue = (\n" +
+          "      select\n" +
+          "    max(total_revenue)\n" +
+          "    from\n" +
+          "      revenue0\n" +
+          "  )\n" +
+          "    order by\n" +
+          "    s.s_suppkey;\n"
+        );
+      } finally {
+        test("drop view revenue0");
+      }
     } finally {
-      test("drop view revenue0");
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     }
   }
 
@@ -169,7 +182,6 @@ public class TestTpchLimit0 extends BaseTestQuery{
   }
 
   @Test
-  @Ignore("cartesian")
   public void tpch21() throws Exception{
     testLimitZero("queries/tpch/21.sql");
   }

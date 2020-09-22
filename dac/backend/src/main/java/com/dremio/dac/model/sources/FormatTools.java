@@ -20,36 +20,30 @@ import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.io.FilenameUtils;
 
-import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
-import com.dremio.dac.model.job.ReleaseAfterSerialization;
+import com.dremio.dac.model.job.ReleasingData;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
-import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
@@ -71,13 +65,9 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
+import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
-import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.JobDataFragmentImpl;
-import com.dremio.service.jobs.RecordBatchHolder;
-import com.dremio.service.jobs.RecordBatches;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -189,6 +179,12 @@ public class FormatTools {
     final FileAttributes attributes;
     try {
       attributes = fs.getFileAttributes(path);
+      if (attributes.isDirectory()) {
+        FileFormat fileFormat = plugin.findLayeredFormatMatch(fs, FileSelection.create(fs, path));
+        if (fileFormat != null) {
+          return asLayerFormat(key, fileFormat);
+        }
+      }
     } catch(IOException ex) {
       // we could return unknown but if there no files, what's the point.
       throw UserException.ioExceptionError(ex)
@@ -262,6 +258,17 @@ public class FormatTools {
     return isFolder ? FileFormat.getForFolder(config) : FileFormat.getForFile(config);
   }
 
+  private static FileFormat asLayerFormat(NamespaceKey key, FileFormat fileFormat) {
+    final FileConfig config = new FileConfig()
+      .setCtime(System.currentTimeMillis())
+      .setFullPathList(key.getPathComponents())
+      .setName(key.getName())
+      .setType(fileFormat.getFileType())
+      .setTag(null);
+
+    return FileFormat.getForFolder(config);
+  }
+
   public JobDataFragment previewData(FileFormat format, NamespacePath namespacePath, boolean useFormatLocation) {
     final NamespaceKey key = namespacePath.toNamespaceKey();
     final FileSystemPlugin<?> plugin = getPlugin(key);
@@ -329,8 +336,8 @@ public class FormatTools {
       final BufferAllocator readerAllocator = opCtxt.getAllocator();
       final VectorContainer container = cls.add(new VectorContainer(readerAllocator));
       final Map<String, ValueVector> fieldVectorMap = new HashMap<>();
-      final OutputMutator mutator = new ScanOperator.ScanMutator(container, fieldVectorMap, opCtxt, new SchemaChangeCallBack());
-      final RBDList batches = cls.add(new RBDList(container, readerAllocator));
+      final OutputMutator mutator = new ScanOperator.ScanMutator(container, fieldVectorMap, opCtxt, new MutatorSchemaChangeCallBack());
+      final ReleasingData.RBDList batches = cls.add(new ReleasingData.RBDList(container, readerAllocator));
       int records = 0;
 
       boolean first = true;
@@ -375,9 +382,9 @@ public class FormatTools {
               }
 
               // call to reset state.
-              mutator.isSchemaChanged();
+              mutator.getAndResetSchemaChanged();
             } else {
-              if (mutator.isSchemaChanged()) {
+              if (mutator.getAndResetSchemaChanged()) {
                 // let's stop early and not add this data. For format preview we'll just show data until a schema change.
                 break readersLoop;
               }
@@ -401,56 +408,6 @@ public class FormatTools {
     }
   }
 
-  private static class ReleasingData extends JobDataFragmentImpl implements ReleaseAfterSerialization {
-
-    private final RollbackCloseable closeable;
-
-    public ReleasingData(RollbackCloseable closeable, RBDList rbdList) {
-      super(rbdList.toRecordBatches(), 0, new JobId().setId("preview-job").setName("preview-job"));
-      this.closeable = closeable;
-    }
-
-    @Override
-    public synchronized void close() {
-      List<AutoCloseable> closeables = new ArrayList<>();
-      closeables.add(() -> super.close());
-      List<AutoCloseable> backList = new ArrayList<>();
-      backList.addAll(closeable.getCloseables());
-      Collections.reverse(backList);
-      closeables.addAll(backList);
-      AutoCloseables.closeNoChecked(AutoCloseables.all(closeables));
-    }
-  }
-
-  private class RBDList implements AutoCloseable {
-
-    private final List<RecordBatchData> batches = new ArrayList<>();
-    private final VectorAccessible accessible;
-    private final BufferAllocator allocator;
-
-    public RBDList(VectorAccessible accessible, BufferAllocator allocator) {
-      super();
-      this.accessible = accessible;
-      this.allocator = allocator;
-    }
-
-    public void add() {
-      RecordBatchData d = new RecordBatchData(accessible, allocator);
-      batches.add(d);
-    }
-
-    @Override
-    public void close() throws Exception {
-      AutoCloseables.close(batches);
-    }
-
-    public RecordBatches toRecordBatches() {
-      return new RecordBatches(batches.stream()
-          .map(t -> RecordBatchHolder.newRecordBatchHolder(t, 0, t.getRecordCount()))
-          .collect(Collectors.toList())
-          );
-    }
-  }
 
   private final FileSystemPlugin<?> getPlugin(NamespaceKey key) {
     StoragePlugin plugin = catalogService.getSource(key.getRoot());

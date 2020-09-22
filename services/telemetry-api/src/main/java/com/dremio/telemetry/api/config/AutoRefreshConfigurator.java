@@ -20,8 +20,6 @@ import java.util.function.Consumer;
 
 import javax.inject.Provider;
 
-import com.dremio.common.collections.Tuple;
-
 /**
  * Template for creating auto refreshing configs. Users listen to config changes by implementing
  * a configRefreshListener<T>. As the refresh settings change, they are automatically applied.
@@ -33,7 +31,7 @@ public class AutoRefreshConfigurator<T> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AutoRefreshConfigurator.class);
   private static final long DEFAULT_MINIMUM_REFRESH_FREQUENCY = TimeUnit.SECONDS.toMillis(90);
 
-  private final Provider<Tuple<RefreshConfiguration, T>> getter;
+  private final Provider<CompleteRefreshConfig<T>> getter;
   private final long minRefreshIntervalMS;
 
   private volatile boolean refreshEnabled = true;
@@ -42,11 +40,11 @@ public class AutoRefreshConfigurator<T> {
   private volatile Thread refreshThread;
 
 
-  public AutoRefreshConfigurator(Provider<Tuple<RefreshConfiguration, T>> getter, Consumer<T> listener) {
+  public AutoRefreshConfigurator(Provider<CompleteRefreshConfig<T>> getter, Consumer<T> listener) {
     this(getter, listener, DEFAULT_MINIMUM_REFRESH_FREQUENCY);
   }
 
-  public AutoRefreshConfigurator(Provider<Tuple<RefreshConfiguration, T>> getter, Consumer<T> listener, long minRefreshIntervalMS) {
+  public AutoRefreshConfigurator(Provider<CompleteRefreshConfig<T>> getter, Consumer<T> listener, long minRefreshIntervalMS) {
     this.getter = getter;
     this.minRefreshIntervalMS = minRefreshIntervalMS;
     // In case the first read is bad.
@@ -73,16 +71,17 @@ public class AutoRefreshConfigurator<T> {
   }
 
   private void refreshOnce() {
-    Tuple<RefreshConfiguration, T> newState = getter.get();
+    CompleteRefreshConfig<T> newState = getter.get();
 
     // There could've been an error reading the file. Do nothing.
     if (newState == null) {
       return;
     }
 
-    if (newState.first != null) {
-      refreshEnabled = newState.first.isEnabled();
-      final long proposedRefreshMs = newState.first.getIntervalMS();
+    final RefreshConfiguration refreshConf = newState.getRefreshConfiguration();
+    if (refreshConf != null) {
+      refreshEnabled = refreshConf.isEnabled();
+      final long proposedRefreshMs = refreshConf.getIntervalMS();
 
       if(proposedRefreshMs < minRefreshIntervalMS) {
         logger.warn("Requested configuration refresh frequency {}ms. Adjusting to minimum of {}ms.", proposedRefreshMs, minRefreshIntervalMS);
@@ -94,7 +93,29 @@ public class AutoRefreshConfigurator<T> {
       logger.warn("Could not detect refresh settings. Continuing to refresh at {}s intervals.", TimeUnit.MILLISECONDS.toSeconds(refreshIntervalMS));
     }
 
-    trigger.checkNewValue(newState.second);
+    trigger.checkNewValue(newState.getUserConfig());
+  }
+
+  /**
+   * User config bundled with refresh config.
+   * @param <T> user config type
+   */
+  public static class CompleteRefreshConfig<T> {
+    private final RefreshConfiguration refreshConfiguration;
+    private final T userConfig;
+
+    public CompleteRefreshConfig(RefreshConfiguration refreshConfiguration, T userConfig) {
+      this.refreshConfiguration = refreshConfiguration;
+      this.userConfig = userConfig;
+    }
+
+    public T getUserConfig() {
+      return userConfig;
+    }
+
+    public RefreshConfiguration getRefreshConfiguration() {
+      return refreshConfiguration;
+    }
   }
 
   /**

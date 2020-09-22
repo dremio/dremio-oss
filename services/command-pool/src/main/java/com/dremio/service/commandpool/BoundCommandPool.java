@@ -21,8 +21,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.telemetry.api.metrics.Metrics;
+
+import io.opentracing.Tracer;
 
 /**
  * Bound implementation of {@link CommandPool}.<br>
@@ -32,16 +35,16 @@ import com.dremio.telemetry.api.metrics.Metrics;
 class BoundCommandPool implements CommandPool {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BoundCommandPool.class);
 
-  private final ThreadPoolExecutor executorService;
+  private final ContextMigratingExecutorService<ThreadPoolExecutor> executorService;
 
 
-  BoundCommandPool(final int poolSize) {
-    this.executorService = new ThreadPoolExecutor(
+  BoundCommandPool(final int poolSize, Tracer tracer) {
+    this.executorService = new ContextMigratingExecutorService<>(new ThreadPoolExecutor(
       poolSize, poolSize, // limited pool of threads
       0, TimeUnit.SECONDS, // doesn't matter as number of threads never exceeds core size
       new PriorityBlockingQueue<>(),
       new NamedThreadFactory("bound-command")
-    );
+    ), tracer);
   }
 
   @Override
@@ -60,13 +63,12 @@ class BoundCommandPool implements CommandPool {
 
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("jobs","command_pool", "active_threads"), () -> executorService.getActiveCount());
-    Metrics.newGauge(Metrics.join("jobs","command_pool", "queue_size"), () -> executorService.getQueue().size());
+    Metrics.newGauge(Metrics.join("jobs","command_pool", "active_threads"), () -> executorService.getDelegate().getActiveCount());
+    Metrics.newGauge(Metrics.join("jobs","command_pool", "queue_size"), () -> executorService.getDelegate().getQueue().size());
   }
 
   @Override
   public void close() throws Exception {
     CloseableSchedulerThreadPool.close(executorService, logger);
   }
-
 }

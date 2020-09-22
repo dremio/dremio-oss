@@ -28,7 +28,6 @@ import javax.inject.Named;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FixedWidthVector;
-import org.apache.arrow.vector.ObjectVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -47,6 +46,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.exec.vector.ObjectVector;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -135,7 +135,7 @@ public abstract class HashAggTemplate implements HashAggregator {
           if (vector instanceof FixedWidthVector) {
             ((FixedWidthVector) vector).allocateNew(HashTable.BATCH_SIZE);
           } else if (vector instanceof VariableWidthVector) {
-            ((VariableWidthVector) vector).allocateNew(HashTable.VARIABLE_WIDTH_VECTOR_SIZE * HashTable.BATCH_SIZE,
+            ((VariableWidthVector) vector).allocateNew(((long) HashTable.VARIABLE_WIDTH_VECTOR_SIZE) * HashTable.BATCH_SIZE,
                 HashTable.BATCH_SIZE);
           } else if (vector instanceof ObjectVector) {
             ((ObjectVector) vector).allocateNew(HashTable.BATCH_SIZE);
@@ -175,6 +175,7 @@ public abstract class HashAggTemplate implements HashAggregator {
       }
     }
 
+    @Override
     public void close() {
       aggrValuesContainer.close();
     }
@@ -250,6 +251,7 @@ public abstract class HashAggTemplate implements HashAggregator {
 
     // Get informed when the hash table adds a new batch.
     final HashTable.BatchAddedListener listener = new HashTable.BatchAddedListener(){
+      @Override
       public void batchAdded() {
         @SuppressWarnings("resource")
         final BatchHolder bh = newBatchHolder();
@@ -267,7 +269,7 @@ public abstract class HashAggTemplate implements HashAggregator {
 
     final ChainedHashTable ht =
         new ChainedHashTable(htConfig, producer, allocator, incoming, null /* no incoming probe */, outContainer, listener);
-    this.batchHolders = new ArrayList<BatchHolder>();
+    this.batchHolders = new ArrayList<>();
     this.numGroupByOutFields = groupByOutFieldIds.length;
     this.htable = ht.createAndSetupHashTable(groupByOutFieldIds, optionManager);
 

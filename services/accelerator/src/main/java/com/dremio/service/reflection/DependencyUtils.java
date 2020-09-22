@@ -16,10 +16,10 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
-import static com.google.common.base.Predicates.not;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.service.job.proto.Acceleration;
@@ -31,6 +31,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
+import com.dremio.service.reflection.DependencyEntry.TableFunctionDependency;
 import com.dremio.service.reflection.proto.DependencyType;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshDecision;
@@ -51,6 +52,20 @@ public class DependencyUtils {
     }
   };
 
+  private static final Predicate<DependencyEntry> IS_DATASET = new Predicate<DependencyEntry>() {
+    @Override
+    public boolean apply(DependencyEntry entry) {
+      return entry.getType() == DependencyType.DATASET;
+    }
+  };
+
+  private static final Predicate<DependencyEntry> IS_TABLEFUNCTION = new Predicate<DependencyEntry>() {
+    @Override
+    public boolean apply(DependencyEntry entry) {
+      return entry.getType() == DependencyType.TABLEFUNCTION;
+    }
+  };
+
   public static String describeDependencies(ReflectionId reflectionId, Iterable<DependencyEntry> dependencyEntries) {
     final StringBuilder builder = new StringBuilder();
     builder.append("reflection ").append(reflectionId.getId()).append(" depends on : {\n");
@@ -58,9 +73,12 @@ public class DependencyUtils {
       if (dependency.getType() == DependencyType.REFLECTION) {
         final ReflectionId rId = ((ReflectionDependency) dependency).getReflectionId();
         builder.append("  reflection ").append(rId.getId()).append("\n");
-      } else {
+      } else if (dependency.getType() == DependencyType.DATASET){
         final List<String> path = ((DatasetDependency) dependency).getPath();
         builder.append("  dataset ").append(PathUtils.constructFullPath(path)).append("\n");
+      } else {
+        final String souceName = ((TableFunctionDependency) dependency).getSourceName();
+        builder.append(" table function ").append(souceName);
       }
     }
     builder.append("}\n");
@@ -80,11 +98,22 @@ public class DependencyUtils {
 
   static FluentIterable<DatasetDependency> filterDatasetDependencies(Iterable<DependencyEntry> dependencyEntries) {
     return FluentIterable.from(dependencyEntries)
-      .filter(not(IS_REFLECTION))
+      .filter(IS_DATASET)
       .transform(new Function<DependencyEntry, DatasetDependency>() {
         @Override
         public DatasetDependency apply(DependencyEntry entry) {
           return (DatasetDependency) entry;
+        }
+      });
+  }
+
+  static FluentIterable<TableFunctionDependency> filterTableFunctionDependencies(Iterable<DependencyEntry> dependencyEntries) {
+    return FluentIterable.from(dependencyEntries)
+      .filter(IS_TABLEFUNCTION)
+      .transform(new Function<DependencyEntry, TableFunctionDependency>() {
+        @Override
+        public TableFunctionDependency apply(DependencyEntry entry) {
+          return (TableFunctionDependency) entry;
         }
       });
   }
@@ -118,6 +147,14 @@ public class DependencyUtils {
           final DatasetConfig config = namespaceService.getDataset(new NamespaceKey(path));
           plandDependencies.add(DependencyEntry.of(config.getId().getId(), path));
         }
+      }
+    }
+
+    //add all table function dependencies
+    List<String> externalQuerySourceInfo = jobInfo.getSourceNamesList();
+    if (externalQuerySourceInfo != null) {
+      for(int i = 0; i < externalQuerySourceInfo.size(); i+=2) {
+        plandDependencies.add(DependencyEntry.of(UUID.randomUUID().toString(), externalQuerySourceInfo.get(i), externalQuerySourceInfo.get(i+1)));
       }
     }
 

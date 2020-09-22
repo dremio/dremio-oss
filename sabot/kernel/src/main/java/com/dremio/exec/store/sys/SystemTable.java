@@ -28,6 +28,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.record.BatchSchema;
@@ -72,7 +73,7 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     }
   },
 
-  NODES(true, NodeIterator.NodeInstance.class, "nodes") {
+  NODES(true, NodeInstance.class, "nodes") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new NodeIterator(sContext, context);
@@ -184,6 +185,20 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new CacheManagerFilesIterator(sContext, context);
     }
+  },
+
+  TIMEZONE_ABBREVIATIONS(false, TimezoneAbbreviations.TimezoneAbbr.class, "timezone_abbrevs") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+      return TimezoneAbbreviations.getIterator();
+    }
+  },
+
+  TIMEZONE_NAMES(false, TimezoneNames.TimezoneRegion.class, "timezone_names") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+      return TimezoneNames.getIterator();
+    }
   };
 
   private static final long RECORD_COUNT = 100L;
@@ -233,7 +248,7 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   public BatchSchema getRecordSchema() {
     RecordDataType dataType = new PojoDataType(pojoClass);
     RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
-    return BatchSchema.fromCalciteRowType(type);
+    return CalciteArrowHelper.fromCalciteRowType(type);
   }
 
   @Override

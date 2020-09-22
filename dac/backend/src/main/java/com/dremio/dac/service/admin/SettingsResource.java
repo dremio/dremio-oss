@@ -16,6 +16,7 @@
 package com.dremio.dac.service.admin;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -36,13 +37,17 @@ import javax.ws.rs.core.Response.Status;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.dac.resource.PowerBIResource;
+import com.dremio.dac.resource.TableauResource;
+import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Resource for changing system settings
@@ -53,14 +58,19 @@ import com.google.common.base.Preconditions;
 @RolesAllowed({"admin"})
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Options
 public class SettingsResource {
+  private static final Set<String> CLIENT_TOOL_OPTIONS =
+    ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+      PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName());
 
-
-  private final SystemOptionManager options;
+  private final ProjectOptionManager projectOptionManager;
 
   @Inject
-  public SettingsResource(SabotContext context) {
-    this.options = context.getOptionManager();
+  public SettingsResource(ProjectOptionManager projectOptionManager) {
+    this.projectOptionManager = projectOptionManager;
+    initializeClientTooloptions(ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU,
+      PowerBIResource.CLIENT_TOOLS_POWERBI), projectOptionManager);
   }
 
   @POST
@@ -75,9 +85,9 @@ public class SettingsResource {
 
     List<Setting> settings = new ArrayList<>();
     if (requiredSettings.size() != 0 || request.getIncludeSetSettings()) {
-      for (OptionValue optionValue : options) {
+      for (OptionValue optionValue : projectOptionManager) {
         if (requiredSettings.contains(optionValue.getName()) ||
-          (request.getIncludeSetSettings() && options.isSet(optionValue.getName()))) {
+          (request.getIncludeSetSettings() && projectOptionManager.isSet(optionValue.getName()))) {
           settings.add(toSetting(optionValue));
         }
       }
@@ -129,10 +139,10 @@ public class SettingsResource {
   @GET
   @Path("{id}")
   public Response getSetting(@PathParam("id") String id) {
-    if(!options.isValid(id)){
+    if(!projectOptionManager.isValid(id)){
       return Response.status(Status.NOT_FOUND).build();
     }
-    return Response.ok(toSetting(options.getOption(id))).build();
+    return Response.ok(toSetting(projectOptionManager.getOption(id))).build();
   }
 
   @PUT
@@ -140,25 +150,30 @@ public class SettingsResource {
   public Response setSetting(
       Setting updatedSetting,
       @PathParam("id") String id) {
-    if(!options.isValid(id)){
+    if(!projectOptionManager.isValid(id)){
       return Response.status(Status.NOT_FOUND).build();
     }
 
     OptionValue optionValue = toOptionValue(updatedSetting);
-    options.setOption(optionValue);
-    return Response.ok(toSetting(options.getOption(id))).build();
+    projectOptionManager.setOption(optionValue);
+    return Response.ok(toSetting(projectOptionManager.getOption(id))).build();
   }
 
   @DELETE
   @Path("{id}")
   public Response resetSetting(@PathParam("id") String id) {
-    if(!options.isValid(id)){
+    if(!projectOptionManager.isValid(id)){
       return Response.status(Status.NOT_FOUND).build();
     }
 
-    OptionValue option = options.getOption(id);
+    // Client tool options should not be removable.
+    if (CLIENT_TOOL_OPTIONS.contains(id)) {
+      return Response.status(Status.BAD_REQUEST).build();
+    }
 
-    options.deleteOption(id, option.getType());
+    OptionValue option = projectOptionManager.getOption(id);
+
+    projectOptionManager.deleteOption(id, option.getType());
     return Response.ok().build();
   }
 
@@ -191,5 +206,14 @@ public class SettingsResource {
     default:
       throw new IllegalStateException("Unable to handle kind " + option.getKind());
     }
+  }
+
+  private static void initializeClientTooloptions(Collection<TypeValidators.TypeValidator> options,
+                                                  ProjectOptionManager optionManager) {
+    options.forEach(option -> {
+      if (!optionManager.isSet(option.getOptionName())) {
+        optionManager.setOption(option.getDefault());
+      }
+    });
   }
 }

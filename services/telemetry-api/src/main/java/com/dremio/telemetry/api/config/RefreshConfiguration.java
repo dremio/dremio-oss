@@ -53,4 +53,15 @@ public class RefreshConfiguration {
   public int hashCode() {
     return Objects.hashCode(enabled, refreshIntervalMS);
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof RefreshConfiguration)) {
+      return false;
+    }
+
+    RefreshConfiguration that = (RefreshConfiguration) obj;
+    return this.enabled == that.enabled
+        && this.refreshIntervalMS == that.refreshIntervalMS;
+  }
 }

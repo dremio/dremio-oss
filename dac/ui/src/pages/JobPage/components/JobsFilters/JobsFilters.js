@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import React, { Component } from 'react';
-import Immutable  from 'immutable';
+import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
@@ -32,11 +32,13 @@ import StartTimeSelect from './StartTimeSelect/StartTimeSelect';
 import { ddSort } from './JobsFilters.less';
 
 const itemsForStateFilter = [ // todo: `la` loc not building correctly here
+  {id: 'SETUP', label: ('Setup'), icon: 'PendingDiamond'},
+  {id: 'QUEUED', label: ('Queued'), icon: 'Queued' },
+  {id: 'ENGINE_START', label: ('Engine Start'), icon: 'EngineStart' },
   {id: 'RUNNING', label: ('Running'), icon: 'Loader'},
   {id: 'COMPLETED', label: ('Completed'), icon: 'OKSolid'},
-  {id: 'FAILED', label: ('Failed'), icon: 'ErrorSolid'},
   {id: 'CANCELED', label: ('Canceled'), icon: 'Canceled' },
-  {id: 'ENQUEUED', label: ('Enqueued'), icon: 'Ellipsis' }
+  {id: 'FAILED', label: ('Failed'), icon: 'ErrorSolid'}
 ];
 
 const itemsForQueryTypeFilter = [ // todo: `la` loc not building correctly here
@@ -329,11 +331,7 @@ const styles = {
     paddingLeft: 0
   },
   divider: {
-    background: 'rgba(0,0,0,0.10)',
-    height: 16,
-    width: 1,
-    marginLeft: 10,
-    marginRight: 10
+    width: '25px'
   },
   sortDivider: {
     background: 'rgba(0,0,0,0.10)',

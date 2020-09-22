@@ -18,6 +18,7 @@ package com.dremio.sabot.exec.rpc;
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
@@ -91,7 +92,7 @@ public class ExecProtocol implements FabricProtocol {
 
     case RpcType.REQ_OOB_MESSAGE_VALUE: {
       final OOBMessage oobMessage = RpcBus.get(pBody, OOBMessage.PARSER);
-      handleOobMessage(oobMessage);
+      handleOobMessage(oobMessage, body);
       sender.send(OK);
       return;
     }
@@ -101,8 +102,8 @@ public class ExecProtocol implements FabricProtocol {
     }
   }
 
-  private void handleOobMessage(final OOBMessage message) {
-    fragmentsManager.handle(new OutOfBandMessage(message));
+  private void handleOobMessage(final OOBMessage message, final ByteBuf body) {
+    fragmentsManager.handle(new OutOfBandMessage(message, body));
   }
 
   private void handleReceiverFinished(final FinishedReceiver finishedReceiver) throws RpcException {
@@ -126,8 +127,9 @@ public class ExecProtocol implements FabricProtocol {
 
     try {
 
-      final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, ((NettyArrowBuf) body)
-        .arrowBuf(), ack);
+      ArrowBuf dBodyBuf = (body == null) ? null : ((NettyArrowBuf) body)
+        .arrowBuf();
+      final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, dBodyBuf, ack);
       final int targetCount = fragmentBatch.getReceivingMinorFragmentIdCount();
 
       // randomize who gets first transfer (and thus ownership) so memory usage

@@ -32,12 +32,16 @@ public abstract class HiveStoragePluginConfig extends BaseHiveStoragePluginConfi
     @Tag(2) @DisplayMetadata(label = "SQL Based") SQL,
   }
 
-  //  Note: Tags 1-5 come from BaseHiveStoragePluginConf
+  //  Note: Tags 1-5, 11-14  come from BaseHiveStoragePluginConf
   //  optional string hostname = 1;
   //  optional int32 port = 2 [default = 9083];
   //  optional bool enableSasl = 3 [default = false];
   //  optional string kerberosPrincipal = 4;
   //  repeated Property property = 5;
+  //  optional bool enableAsync = 11;
+  //  optional bool isCachingEnabledForS3AndAzureStorage = 12;
+  //  optional bool isCachingEnabledForHDFS = 13;
+  //  optional int32 maxCacheSpacePct = 14;
   //  optional bool authType = 6;
 
   /*

@@ -16,25 +16,25 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.common.perf.Timer.time;
+import static com.dremio.exec.store.easy.arrow.ArrowFileReader.fromBean;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.record.RecordBatchHolder;
+import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.Service;
@@ -44,62 +44,41 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.FinalizablePhantomReference;
-import com.google.common.base.FinalizableReference;
-import com.google.common.base.FinalizableReferenceQueue;
-import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
  * Stores and manages job results for max 30 days (default).
- * Each node stores job results on local disk.
+ * Each executor node stores job results on local disk.
  */
 public class JobResultsStore implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsStore.class);
-
-  private static final FinalizableReferenceQueue FINALIZABLE_REFERENCE_QUEUE = new FinalizableReferenceQueue();
 
   private final String storageName;
   private final Path jobStoreLocation;
   private final FileSystem dfs;
   private final BufferAllocator allocator;
-  private final Set<FinalizableReference> jobResultReferences = Sets.newConcurrentHashSet();
-  private final LoadingCache<JobId, JobData> jobResults;
-  private final IndexedStore<JobId, JobResult> store;
+  private final LegacyIndexedStore<JobId, JobResult> store;
 
-  public JobResultsStore(final FileSystemPlugin plugin, final IndexedStore<JobId, JobResult> store,
-      final BufferAllocator allocator) throws IOException {
-    this.storageName = plugin.getName();
-    this.dfs = plugin.getSystemUserFS();
-    this.jobStoreLocation = plugin.getConfig().getPath();
-    this.dfs.mkdirs(jobStoreLocation);
+  public JobResultsStore(
+      final JobResultsStoreConfig resultsStoreConfig,
+      final LegacyIndexedStore<JobId, JobResult> store,
+      final BufferAllocator allocator
+  ) throws IOException {
+    this.storageName = resultsStoreConfig.getStorageName();
+    this.dfs = resultsStoreConfig.getFileSystem();
+    this.jobStoreLocation = resultsStoreConfig.getStoragePath();
+    dfs.mkdirs(jobStoreLocation);
+
     this.store = store;
     this.allocator = allocator;
-
-    this.jobResults = CacheBuilder.newBuilder()
-        .maximumSize(100)
-        .expireAfterAccess(15, TimeUnit.MINUTES)
-        .build(
-            new CacheLoader<JobId, JobData>() {
-              @Override
-              public JobData load(JobId key) throws Exception {
-                // CountDownLatch(0) as jobs are completed and metadata should be already collected
-                final JobDataImpl jobDataImpl = new JobDataImpl(new LateJobLoader(key), key, new CountDownLatch(0));
-                return newJobDataReference(jobDataImpl);
-              }
-            });
   }
-
 
   /**
    * Get the output table path for the given id
    */
-  private List<String> getOutputTablePath(final JobId jobId) {
+  public List<String> getOutputTablePath(final JobId jobId) {
     // Get the information from the store or fallback to using job id as the table name
     Optional<JobResult> jobResult = Optional.ofNullable(store.get(jobId));
     return jobResult
@@ -117,8 +96,8 @@ public class JobResultsStore implements Service {
   public boolean cleanup(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      if (dfs.exists(jobOutputDir)) {
-        dfs.delete(jobOutputDir, true);
+      if (doesQueryResultsDirExists(jobOutputDir, jobId)) {
+        deleteQueryResults(jobOutputDir, true, jobId);
         logger.debug("Deleted job output directory : {}", jobOutputDir);
       }
       return true;
@@ -132,40 +111,13 @@ public class JobResultsStore implements Service {
   public boolean jobOutputDirectoryExists(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      return dfs.exists(jobOutputDir);
+      return doesQueryResultsDirExists(jobOutputDir, jobId);
     } catch (IOException e) {
       return false;
     }
   }
 
-  private JobData newJobDataReference(final JobData delegate) {
-    final JobData result = new JobDataWrapper(delegate);
-    FinalizableReference ref = new FinalizablePhantomReference<JobData>(result, FINALIZABLE_REFERENCE_QUEUE) {
-      @Override
-      public void finalizeReferent() {
-        jobResultReferences.remove(this);
-        try {
-          delegate.close();
-        } catch (Exception e) {
-          logger.warn(String.format("Failed to close the data object for job %s", delegate.getJobId()), e);
-        }
-      }
-    };
-
-    jobResultReferences.add(ref);
-
-    return result;
-  }
-
-  JobData cacheNewJob(JobId jobId, JobData data){
-    // put this in cache so that others who want it, won't try to read it before it is done running.
-    final JobData jobDataRef = newJobDataReference(data);
-    jobResults.put(jobId, jobDataRef);
-
-    return jobDataRef;
-  }
-
-  private static JobInfo getLastAttempt(JobResult jobResult) {
+  protected static JobInfo getLastAttempt(JobResult jobResult) {
     return jobResult.getAttemptsList().get(jobResult.getAttemptsList().size() - 1).getInfo();
   }
 
@@ -189,7 +141,7 @@ public class JobResultsStore implements Service {
       }
 
       final Path jobOutputDir = getJobOutputDir(jobId);
-      if (!dfs.isDirectory(jobOutputDir)) {
+      if (!doesQueryResultsDirExists(jobOutputDir, jobId)) {
         throw UserException.dataReadError()
             .message("Job '%s' output doesn't exist", jobId.getId())
             .build(logger);
@@ -228,9 +180,8 @@ public class JobResultsStore implements Service {
       if (resultFilesToRead.isEmpty()) {
         // when the query returns no results at all or the requested range is invalid, return an empty record batch
         // for metadata purposes.
-        try (ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, resultMetadata.get(0), allocator)) {
-          batchHolders.addAll(fileReader.read(0, 0));
-        }
+        batchHolders.addAll(getQueryResults(jobOutputDir, resultMetadata.get(0), allocator, 0, 0));
+
       } else {
         runningFileRecordCount = 0;
         int remaining = limit;
@@ -243,10 +194,8 @@ public class JobResultsStore implements Service {
           // Min of remaining records in file or remaining records in total to read.
           final long fileLimit = Math.min(file.getRecordCount() - fileOffset, remaining);
 
-          try (ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, file, allocator)) {
-            batchHolders.addAll(fileReader.read(fileOffset, fileLimit));
-            remaining -= fileLimit;
-          }
+          batchHolders.addAll(getQueryResults(jobOutputDir, file, allocator, fileOffset, fileLimit));
+          remaining -= fileLimit;
 
           runningFileRecordCount += file.getRecordCount();
         }
@@ -260,12 +209,49 @@ public class JobResultsStore implements Service {
     }
   }
 
-  public JobData get(JobId jobId) {
-    try{
-      return jobResults.get(jobId);
-    }catch(ExecutionException ex){
-      throw Throwables.propagate(ex.getCause());
+  protected List<RecordBatchHolder> getQueryResults(Path jobOutputDir,
+                                                    ArrowFileMetadata arrowFileMetadata,
+                                                    BufferAllocator allocator,
+                                                    long fileOffset,
+                                                    long fileLimit) throws IOException {
+    try(ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, arrowFileMetadata, allocator)) {
+      return fileReader.read(fileOffset, fileLimit);
     }
+  }
+
+  /**
+   * Check if query results directory exists, optionally using jobId
+   *
+   * @param jobOutputDir query results directory
+   * @param jobId might be used in derived class.
+   * @return
+   * @throws IOException
+   */
+  protected boolean doesQueryResultsDirExists(Path jobOutputDir, JobId jobId) throws IOException {
+    Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
+    if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
+      logger.debug("There are no nodeEndpoints where query results dir existence need to be checked." +
+                   "For eg: in non-UI queries, results are not stored on executors.");
+      return false;
+    }
+    return dfs.exists(jobOutputDir);
+  }
+
+  /**
+   * Delete the path recursively optionally using jobId
+   *
+   * @param jobOutputDir
+   * @param recursive
+   * @param jobId Used in derived class.
+   * @return
+   * @throws IOException
+   */
+  protected boolean deleteQueryResults(Path jobOutputDir, boolean recursive, JobId jobId) throws IOException {
+    return dfs.delete(jobOutputDir, recursive);
+  }
+
+  public JobData get(JobId jobId) {
+    return new JobDataImpl(new LateJobLoader(jobId), jobId);
   }
 
   private final class LateJobLoader implements JobLoader {
@@ -300,20 +286,24 @@ public class JobResultsStore implements Service {
 
   @Override
   public void close() throws Exception {
-    // TODO
-    // wait for current operations
-    // reclaim space
+  }
 
+  protected Set<NodeEndpoint> getNodeEndpoints(JobId jobId) {
+    JobResult jobResult = store.get(jobId);
+    List<ArrowFileMetadata> arrowFileMetadataList = getLastAttempt(jobResult).getResultMetadataList();
 
-    jobResults.invalidateAll();
-    jobResults.cleanUp();
+    Set<NodeEndpoint> nodeEndpoints = Sets.newHashSet();
 
-    // Closing open references
-    Iterator<FinalizableReference> iterator = jobResultReferences.iterator();
-    while(iterator.hasNext()) {
-      FinalizableReference ref = iterator.next();
-
-      ref.finalizeReferent();
+    if (arrowFileMetadataList == null || arrowFileMetadataList.isEmpty()) {
+      return nodeEndpoints;
     }
+
+    for(ArrowFileMetadata afm: arrowFileMetadataList) {
+      com.dremio.exec.proto.beans.NodeEndpoint screenNodeEndpoint = afm.getScreenNodeEndpoint();
+      if (screenNodeEndpoint != null) {
+        nodeEndpoints.add(fromBean(screenNodeEndpoint));
+      }
+    }
+    return nodeEndpoints;
   }
 }

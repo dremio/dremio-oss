@@ -123,7 +123,7 @@ public class BasicResourceTest {
     resourceSchedulingProperties.setQueryCost(112100D);
 
     final BasicResourceAllocator resourceAllocator = new BasicResourceAllocator(DirectProvider.wrap
-      (clusterCoordinator));
+      (clusterCoordinator), null);
     resourceAllocator.start();
 
 
@@ -195,7 +195,7 @@ public class BasicResourceTest {
     when(mockClusterCoordinator.getSemaphore("query.small", 2)).thenReturn(mockLease);
 
     final BasicResourceAllocator resourceAllocator =
-      new BasicResourceAllocator(DirectProvider.wrap(mockClusterCoordinator));
+      new BasicResourceAllocator(DirectProvider.wrap(mockClusterCoordinator), null);
     resourceAllocator.start();
 
     try {
@@ -243,7 +243,7 @@ public class BasicResourceTest {
       nodeEndpoint1);
 
     final BasicResourceAllocator resourceAllocator = new BasicResourceAllocator(DirectProvider.wrap
-      (clusterCoordinator));
+      (clusterCoordinator), null);
     resourceAllocator.start();
 
     final ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();

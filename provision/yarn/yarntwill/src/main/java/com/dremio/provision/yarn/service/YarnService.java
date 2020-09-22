@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
+import com.dremio.edition.EditionProvider;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
@@ -91,7 +92,8 @@ public class YarnService implements ProvisioningServiceDelegate {
     ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY
     );
 
-  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider, OptionManager options) {
+  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider,
+                     OptionManager options, EditionProvider editionProvider) {
     this(stateListener, new YarnController(config), executionNodeProvider);
   }
 
@@ -137,6 +139,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     String runId = twillController.getRunId().getId();
     RunId dRunId = new RunId(runId);
     cluster.setState(ClusterState.STARTING);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setRunId(dRunId);
 
     OnRunningRunnable onRunning = new OnRunningRunnable(cluster);
@@ -163,11 +166,13 @@ public class YarnService implements ProvisioningServiceDelegate {
       if (cluster.getState() != ClusterState.STOPPED && cluster.getState() != ClusterState.FAILED) {
         logger.warn("Either cluster is already stopped or YarnTwillRunnerService was not initialized yet. You may want to try again");
         cluster.setState(ClusterState.STOPPED);
+        cluster.setStateChangeTime(System.currentTimeMillis());
       }
       return;
     }
     // async call
     cluster.setState(ClusterState.STOPPING);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     controller.terminate();
     return;
   }
@@ -382,6 +387,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     public void run() {
       // may be no need to do it - just a confirmation that it is indeed running
       cluster.setState(ClusterState.RUNNING);
+      cluster.setStateChangeTime(System.currentTimeMillis());
       cluster.setError(null);
       logger.info("Cluster with ID: {} is started", cluster.getId());
       try {
@@ -415,17 +421,21 @@ public class YarnService implements ProvisioningServiceDelegate {
             case SUCCEEDED:
             case KILLED:
               cluster.setState(ClusterState.STOPPED);
+              cluster.setStateChangeTime(System.currentTimeMillis());
               break;
             case FAILED:
               cluster.setState(ClusterState.FAILED);
+              cluster.setStateChangeTime(System.currentTimeMillis());
               break;
             default:
               logger.error("Unknown terminationStatus {}", terminationStatus);
               cluster.setState(ClusterState.STOPPED);
+              cluster.setStateChangeTime(System.currentTimeMillis());
               break;
           }
         } else {
           cluster.setState(ClusterState.STOPPED);
+          cluster.setStateChangeTime(System.currentTimeMillis());
           logger.info("Cluster with ID: {} is terminated in YARN", cluster.getId());
         }
       } catch (InterruptedException e) {
@@ -435,6 +445,7 @@ public class YarnService implements ProvisioningServiceDelegate {
         logger.error("Exception caused cluster with ID: " + cluster.getId() + " termination", e);
         cluster.setError(e.getCause().getLocalizedMessage());
         cluster.setState(ClusterState.FAILED);
+        cluster.setStateChangeTime(System.currentTimeMillis());
       }
       try {
         if (cluster.getRunId() != null) {

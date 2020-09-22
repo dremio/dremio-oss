@@ -61,7 +61,7 @@ describe('FilterSelectMenu', () => {
 
   it('should render label prop when nothing selected', () => {
     const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-    expect(getSelectViewContent(wrapper).find('span').first().text()).to.eql('');
+    expect(getSelectViewContent(wrapper).find('span')).to.have.length(0);
     wrapper.setProps({selectedValues: Immutable.List()});
     expect(getSelectViewContent(wrapper).find('span').first().text()).to.eql(commonProps.label);
   });

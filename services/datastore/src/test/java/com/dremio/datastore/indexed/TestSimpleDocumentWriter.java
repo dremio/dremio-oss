@@ -15,74 +15,50 @@
  */
 package com.dremio.datastore.indexed;
 
+import static org.junit.Assert.assertTrue;
+
 import org.apache.lucene.document.Document;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.apache.lucene.index.IndexableField;
 
 /**
- * Tests for SimpleDocumentWriter
+ * Tests for SimpleDocumentWriter.
  */
-public class TestSimpleDocumentWriter {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
-  @Test
-  public void testMultiString() {
-    IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class)
-      .build();
-
-    IndexKey testKeyMultiple = IndexKey.newBuilder("testmulti","TEST_MULTI", String.class)
-      .setCanContainMultipleValues(true)
-      .build();
-
-    Document doc = new Document();
-    SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
-
-    documentWriter.write(testKeyMultiple, "foo");
-    documentWriter.write(testKeyMultiple, "bar");
-    documentWriter.write(testKeyMultiple, "baz", "zap");
-
-    documentWriter.write(testKey, "foo");
-    thrown.expect(IllegalStateException.class);
-    documentWriter.write(testKey, "bar");
+public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleDocumentWriter> {
+  @Override
+  protected SimpleDocumentWriter createDocumentWriter() {
+    final Document doc = new Document();
+    return new SimpleDocumentWriter(doc);
   }
 
-  @Test
-  public void testMultiStringList() {
-    IndexKey testKey = IndexKey.newBuilder("test", "TEST", String.class)
-      .build();
-
-    IndexKey testKeyMultiple = IndexKey.newBuilder("testmulti","TEST_MULTI", String.class)
-      .setCanContainMultipleValues(true)
-      .build();
-
-    Document doc = new Document();
-    SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
-
-    documentWriter.write(testKeyMultiple, "baz", "zap");
-
-    thrown.expect(IllegalStateException.class);
-    documentWriter.write(testKey, "foo", "bar");
+  @Override
+  protected void verifySingleIndexValue(SimpleDocumentWriter writer, IndexKey index, Object expectedValue) {
+    final Object value;
+    final IndexableField field = writer.getDoc().getField(index.getIndexFieldName());
+    value = getValueFromField(expectedValue, field);
+    verifyHelper(expectedValue, value);
   }
 
-  @Test
-  public void testMultiNumeric() {
-    IndexKey testKey = IndexKey.newBuilder("test", "TEST", Integer.class)
-      .build();
+  @Override
+  protected void verifyMultiIndexValue(SimpleDocumentWriter writer, IndexKey index, Object... expectedValues) {
+    for (int i = 0; i < expectedValues.length; i++) {
+      final IndexableField field = writer.getDoc().getFields(index.getIndexFieldName())[i];
+      final Object value = getValueFromField(expectedValues[i], field);
+      verifyHelper(expectedValues[i], value);
+    }
+  }
 
-    IndexKey testKeyMultiple = IndexKey.newBuilder("testmulti","TEST_MULTI", Integer.class)
-      .setCanContainMultipleValues(true)
-      .build();
+  @Override
+  protected void verifyNoValues(SimpleDocumentWriter writer, IndexKey index) {
+    assertTrue(writer.getDoc().getFields(index.getIndexFieldName()).length == 0);
+  }
 
-    Document doc = new Document();
-    SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
+  private static Object getValueFromField(Object expectedValue, IndexableField field) {
+    if (expectedValue instanceof String) {
+      return field.stringValue();
+    } else if (expectedValue instanceof byte[]) {
+      return field.binaryValue().bytes;
+    }
 
-    documentWriter.write(testKeyMultiple, 1);
-    documentWriter.write(testKeyMultiple, 2);
-
-    documentWriter.write(testKey, 1);
-    thrown.expect(IllegalStateException.class);
-    documentWriter.write(testKey, 2);
+    return field.numericValue();
   }
 }

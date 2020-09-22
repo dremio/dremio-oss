@@ -16,7 +16,6 @@
 package com.dremio.exec.catalog;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -25,8 +24,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
-import com.dremio.connector.metadata.DatasetSplit;
-import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
@@ -92,21 +89,12 @@ public class DatasetSaver {
     }
     final NamespaceKey canonicalKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
     SplitCompression splitCompression = NamespaceService.SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
-    try (DatasetMetadataSaver saver = systemNamespace.newDatasetMetadataSaver(canonicalKey, datasetConfig.getId(), splitCompression)) {
+    try (DatasetMetadataSaver saver = systemNamespace.newDatasetMetadataSaver(canonicalKey, datasetConfig.getId(), splitCompression, optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX))) {
       final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
           options.asListPartitionChunkOptions(datasetConfig));
-      final Iterator<? extends PartitionChunk> chunks = chunkListing.iterator();
-      while (chunks.hasNext()) {
-        final PartitionChunk chunk = chunks.next();
 
-        final Iterator<? extends DatasetSplit> splits = chunk.getSplits().iterator();
-        while (splits.hasNext()) {
-          final DatasetSplit split = splits.next();
-          saver.saveDatasetSplit(split);
-        }
-        saver.savePartitionChunk(chunk);
-      }
-
+      final long recordCountFromSplits = saver == null || chunkListing == null ? 0 :
+        saver.savePartitionChunks(chunkListing);
       final DatasetMetadata datasetMetadata = sourceMetadata.getDatasetMetadata(handle, chunkListing,
           options.asGetMetadataOptions(datasetConfig));
 
@@ -120,7 +108,7 @@ public class DatasetSaver {
       }
 
       MetadataObjectsUtils.overrideExtended(datasetConfig, datasetMetadata, readSignature,
-          options.maxMetadataLeafColumns());
+        recordCountFromSplits, options.maxMetadataLeafColumns());
       datasetConfig = datasetMutator.apply(datasetConfig);
 
       saver.saveDataset(datasetConfig, opportunisticSave, attributes);

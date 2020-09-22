@@ -23,15 +23,29 @@ export default class AnalyzeMenuItems extends Component {
   static propTypes = {
     openTableau: PropTypes.func,
     openQlikSense: PropTypes.func,
-    openPowerBI: PropTypes.func
+    openPowerBI: PropTypes.func,
+    analyzeToolsConfig: PropTypes.object
   };
 
   render() {
+    const { analyzeToolsConfig } = this.props;
     return (
       <div>
-        <MenuItem onClick={this.props.openTableau}><FormattedMessage id='Dataset.Tableau'/></MenuItem>
-        <MenuItem onClick={this.props.openPowerBI}><FormattedMessage id='Dataset.PowerBI'/></MenuItem>
-        <MenuItem onClick={this.props.openQlikSense}><FormattedMessage id='Dataset.QlikSense'/></MenuItem>
+        {analyzeToolsConfig.tableau.enabled &&
+        <MenuItem onClick={this.props.openTableau}>
+          <FormattedMessage id='Dataset.Tableau'/>
+        </MenuItem>
+        }
+        {analyzeToolsConfig.powerbi.enabled &&
+        <MenuItem onClick={this.props.openPowerBI}>
+          <FormattedMessage id='Dataset.PowerBI'/>
+        </MenuItem>
+        }
+        {analyzeToolsConfig.qlik.enabled &&
+        <MenuItem onClick={this.props.openQlikSense}>
+          <FormattedMessage id='Dataset.QlikSense'/>
+        </MenuItem>
+        }
       </div>
     );
   }

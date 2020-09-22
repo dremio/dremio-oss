@@ -278,7 +278,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     jsonGenerator = null;
     stream = null;
     if (gen != null) {
-      listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber());
+      listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber(), null);
       gen = null;
     }
 

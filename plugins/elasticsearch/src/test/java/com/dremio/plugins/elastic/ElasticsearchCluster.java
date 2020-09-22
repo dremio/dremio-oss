@@ -113,7 +113,7 @@ public class ElasticsearchCluster implements Closeable {
   private static final String BULK_INDEX_TEXT = "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\" } }";
 
   private static final JsonParser PARSER = new JsonParser();
-  public static final int ELASTICSEARCH_PORT = 9200;
+  public static final int ELASTICSEARCH_PORT = Integer.valueOf(System.getProperty("dremio.test.elasticsearch.port", "9200"));
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchCluster.class);
 
@@ -197,8 +197,8 @@ public class ElasticsearchCluster implements Closeable {
     this.port = Integer.valueOf(System.getProperty("dremio.elastic.port", Integer.toString(sslEnabled ? sslPort : ELASTICSEARCH_PORT)));
     this.username = System.getProperty("dremio.elastic.username", "");
     this.password = System.getProperty("dremio.elastic.password", "");
-    this.accessKey = System.getProperty("dremio.elastic.access.key", "");
-    this.accessSecret = System.getProperty("dremio.elastic.access.secret", "");
+    this.accessKey = System.getenv("AWS_QA_ACCESS_KEY_ID");
+    this.accessSecret = System.getenv("AWS_QA_SECRET_ACCESS_KEY");
     this.overwriteRegion = "true".equals(System.getProperty("dremio.elastic.region.overwrite", "false"));
     this.regionName = System.getProperty("dremio.elastic.region.name", "");
     initClient();
@@ -208,7 +208,7 @@ public class ElasticsearchCluster implements Closeable {
     List<Host> hosts = ImmutableList.of(new Host(host, port));
 
     this.pool = new ElasticConnectionPool(hosts, sslEnabled ? TLSValidationMode.UNSECURE : TLSValidationMode.OFF, new ElasticsearchAuthentication(hosts, authenticationType,
-      username, password, accessKey, accessSecret, regionName), 10000, useWhiteList);
+      username, password, accessKey, accessSecret, regionName), 30000, useWhiteList);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();

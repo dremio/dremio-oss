@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
@@ -39,7 +40,6 @@ import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class TestPreallocation extends DremioTest {

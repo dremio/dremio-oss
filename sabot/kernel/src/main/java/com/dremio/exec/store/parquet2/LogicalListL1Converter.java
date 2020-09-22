@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet2.WriterProvider.ListWriterProvider;
 import com.dremio.options.OptionManager;
@@ -39,16 +40,18 @@ import com.dremio.sabot.op.scan.OutputMutator;
 /**
  * First level of LOGICAL LIST conversion. Handles 'list'
  */
-public class LogicalListL1Converter extends GroupConverter {
+public class LogicalListL1Converter extends GroupConverter implements ParquetListElementConverter {
   private static final Logger logger = LoggerFactory.getLogger(LogicalListL1Converter.class);
 
   private final ListWriter listWriter;
-  private final Converter converter;
+  private final LogicalListL2Converter converter;
+  private boolean written = false;
 
   // This function assumes that the fields in the schema parameter are in the same order as the fields in the columns parameter. The
   // columns parameter may have fields that are not present in the schema, though.
   LogicalListL1Converter(
-      final String listName,
+      ParquetColumnResolver columnResolver,
+      String fieldName,
       OutputMutator mutator,
       final WriterProvider writerProvider,
       GroupType schema,
@@ -57,7 +60,8 @@ public class LogicalListL1Converter extends GroupConverter {
       List<Field> arrowSchema,
       SchemaDerivationHelper schemaHelper) {
 
-    listWriter = writerProvider.list(listName);
+    String listFieldName = columnResolver.getBatchSchemaColumnName(fieldName);
+    listWriter = writerProvider.list(ParquetGroupConverter.getNameForChild(listFieldName));
 
     if (!isSupportedSchema(schema)) {
       throw UserException.dataReadError()
@@ -68,6 +72,8 @@ public class LogicalListL1Converter extends GroupConverter {
 
     final GroupType groupType = schema.getFields().get(0).asGroupType();
     converter = new LogicalListL2Converter(
+      columnResolver,
+      fieldName,
       new ListWriterProvider(listWriter),
       mutator,
       groupType,
@@ -110,10 +116,31 @@ public class LogicalListL1Converter extends GroupConverter {
   @Override
   public void start() {
     listWriter.startList();
+    written = true;
+    converter.startList();
   }
 
   @Override
   public void end() {
+    listWriter.endList();
+  }
+
+  public boolean hasWritten() {
+    return written;
+  }
+
+  @Override
+  public void startElement() {
+    written = false;
+  }
+
+  @Override
+  public void endElement() {
+    written = false;
+  }
+
+  @Override
+  public void writeNullListElement() {
     listWriter.endList();
   }
 }

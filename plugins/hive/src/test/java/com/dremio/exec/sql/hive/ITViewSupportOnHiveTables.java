@@ -18,6 +18,7 @@ package com.dremio.exec.sql.hive;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -27,11 +28,13 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
+import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.sql.TestBaseViewSupport;
-import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 
 public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
@@ -42,15 +45,22 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
 
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
   private static final String TEMP_SCHEMA = "dfs_test";
 
   protected static HiveTestDataGenerator hiveTest;
+
+  @Before
+  public void before() {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+  }
 
   @BeforeClass
   public static void generateHive() throws Exception{
     hiveTest = HiveTestDataGenerator.getInstance();
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-    test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   @Test

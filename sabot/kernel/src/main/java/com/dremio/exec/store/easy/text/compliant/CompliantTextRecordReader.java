@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -47,8 +48,6 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.univocity.parsers.common.TextParsingException;
-
-import io.netty.buffer.ArrowBuf;
 
 
 // New text reader, complies with the RFC 4180 standard for text/csv files
@@ -368,7 +367,12 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     }
 
     @Override
-    public boolean isSchemaChanged() {
+    public boolean getAndResetSchemaChanged() {
+      return false;
+    }
+
+    @Override
+    public boolean getSchemaChanged() {
       return false;
     }
 

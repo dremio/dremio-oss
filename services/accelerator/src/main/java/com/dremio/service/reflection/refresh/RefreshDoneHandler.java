@@ -21,6 +21,7 @@ import static com.dremio.service.reflection.ReflectionUtils.getId;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -37,9 +38,10 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.JoinAnalysis;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobData;
+import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobDataFragment;
+import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JoinAnalyzer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
@@ -83,25 +85,31 @@ public class RefreshDoneHandler {
 
   private final ReflectionEntry reflection;
   private final Materialization materialization;
-  private final Job job;
+  private final com.dremio.service.job.JobDetails job;
+  private final JobsService jobsService;
+  private final BufferAllocator allocator;
 
   public RefreshDoneHandler(
-      ReflectionEntry entry,
-      Materialization materialization,
-      Job job,
-      NamespaceService namespaceService,
-      MaterializationStore materializationStore,
-      DependencyManager dependencyManager,
-      Supplier<ExpansionHelper> expansionHelper,
-      Path accelerationBasePath) {
+    ReflectionEntry entry,
+    Materialization materialization,
+    com.dremio.service.job.JobDetails job,
+    JobsService jobsService,
+    NamespaceService namespaceService,
+    MaterializationStore materializationStore,
+    DependencyManager dependencyManager,
+    Supplier<ExpansionHelper> expansionHelper,
+    Path accelerationBasePath,
+    BufferAllocator allocator) {
     this.reflection = Preconditions.checkNotNull(entry, "reflection entry required");
     this.materialization = Preconditions.checkNotNull(materialization, "materialization required");
-    this.job = Preconditions.checkNotNull(job, "job required");
+    this.job = Preconditions.checkNotNull(job, "jobDetails required");
+    this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.dependencyManager = Preconditions.checkNotNull(dependencyManager, "dependencies required");
     this.materializationStore = materializationStore;
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "expansion helper required");
     this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath, "acceleration base path required");
+    this.allocator = allocator;
   }
 
   /**
@@ -112,19 +120,20 @@ public class RefreshDoneHandler {
    * @throws DependencyException if cyclic dependency detected
    */
   public RefreshDecision handle() throws NamespaceException, DependencyException {
-    Preconditions.checkState(job.getJobAttempt().getState() == JobState.COMPLETED,
-      "Cannot handle job with non completed state %s", job.getJobAttempt().getState());
+    JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(job);
+    Preconditions.checkState(lastAttempt.getState() == JobState.COMPLETED,
+      "Cannot handle job with non completed state %s", lastAttempt.getState());
 
-    final RefreshDecision decision = getRefreshDecision(job.getJobAttempt());
+    final RefreshDecision decision = getRefreshDecision(lastAttempt);
 
     final ByteString planBytes = Preconditions.checkNotNull(decision.getLogicalPlan(),
       "refresh jobInfo has no logical plan");
 
-    updateDependencies(reflection.getId(), job.getJobAttempt().getInfo(), decision, namespaceService, dependencyManager);
+    updateDependencies(reflection.getId(), lastAttempt.getInfo(), decision, namespaceService, dependencyManager);
 
     failIfNotEnoughRefreshesAvailable(decision);
 
-    final JobDetails details = ReflectionUtils.computeJobDetails(job.getJobAttempt());
+    final JobDetails details = ReflectionUtils.computeJobDetails(lastAttempt);
     final boolean dataWritten = Optional.fromNullable(details.getOutputRecords()).or(0L) > 0;
     if (dataWritten) {
       createAndSaveRefresh(details, decision);
@@ -182,7 +191,7 @@ public class RefreshDoneHandler {
       throw new IllegalStateException(String.format("Expected to have one refresh decision, saw: %d.", extraInfo.size()));
     }
 
-    return RefreshHandler.SERIALIZER.revert(extraInfo.get(0).getData().toByteArray());
+    return RefreshHandler.ABSTRACT_SERIALIZER.revert(extraInfo.get(0).getData().toByteArray());
   }
 
   /**
@@ -224,11 +233,12 @@ public class RefreshDoneHandler {
   }
 
   private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision) {
+    final JobId jobId = JobsProtoUtil.toStuff(job.getJobId());
     final boolean isFull = decision.getAccelerationSettings().getMethod() == RefreshMethod.FULL;
-    final UpdateId updateId = isFull ? new UpdateId() : getUpdateId(job.getJobId(), job.getData());
-    final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
-    final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(job.getJobAttempt().getInfo());
-    final List<String> refreshPath = ReflectionUtils.getRefreshPath(job.getJobId(), job.getData(), accelerationBasePath);
+    final UpdateId updateId = isFull ? new UpdateId() : getUpdateId(jobId, jobsService, allocator);
+    final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, jobId);
+    final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(JobsProtoUtil.getLastAttempt(job).getInfo());
+    final List<String> refreshPath = ReflectionUtils.getRefreshPath(jobId, accelerationBasePath, jobsService, allocator);
     final Refresh refresh = ReflectionUtils.createRefresh(reflection.getId(), refreshPath, decision.getSeriesId(),
       decision.getSeriesOrdinal(), updateId, details, metrics, dataPartitions);
 
@@ -249,7 +259,7 @@ public class RefreshDoneHandler {
   }
 
   private JoinAnalysis computeJoinAnalysis() {
-    final JobInfo info = job.getJobAttempt().getInfo();
+    final JobInfo info = JobsProtoUtil.getLastAttempt(job).getInfo();
     if (info.getJoinAnalysis() == null) {
       return null;
     }
@@ -278,24 +288,26 @@ public class RefreshDoneHandler {
   /**
    * @return next updateId
    */
-  private static UpdateId getUpdateId(final JobId jobId, final JobData jobData) {
+  private static UpdateId getUpdateId(final JobId jobId, final JobsService jobsService, BufferAllocator allocator) {
     final int fetchLimit = 1000;
     UpdateIdWrapper updateIdWrapper = new UpdateIdWrapper();
 
     int offset = 0;
-    JobDataFragment data = jobData.range(offset, fetchLimit);
-    while (data.getReturnedRowCount() > 0) {
-      for (int i = 0; i < data.getReturnedRowCount(); i++) {
-        byte[] b = (byte[]) data.extractValue(RecordWriter.METADATA_COLUMN, i);
-        if(b == null) {
-          throw new IllegalStateException("Didn't find metadata output for job " + jobId.getId());
+    while (true) {
+      try (final JobDataFragment data = JobDataClientUtils.getJobData(jobsService, allocator, jobId, offset, fetchLimit)) {
+        if (data.getReturnedRowCount() <= 0) {
+          break;
         }
-        updateIdWrapper.update(UpdateIdWrapper.deserialize(b));
+        for (int i = 0; i < data.getReturnedRowCount(); i++) {
+          byte[] b = (byte[]) data.extractValue(RecordWriter.METADATA_COLUMN, i);
+          if(b == null) {
+            throw new IllegalStateException("Didn't find metadata output for job " + jobId.getId());
+          }
+          updateIdWrapper.update(UpdateIdWrapper.deserialize(b));
+        }
+        offset += data.getReturnedRowCount();
       }
-      offset += data.getReturnedRowCount();
-      data = jobData.range(offset, fetchLimit);
     }
-
     return updateIdWrapper.getUpdateId();
   }
 

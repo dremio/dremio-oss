@@ -21,6 +21,8 @@ import PropTypes from 'prop-types';
 
 import classNames from 'classnames';
 import {
+  onoffBtn,
+  onoffDot,
   base,
   labelContent,
   disabled as disabledCls,
@@ -50,7 +52,9 @@ export const checkboxPropTypes = {
   active: PropTypes.any,
   touched: PropTypes.any,
   visited: PropTypes.any,
-  autofilled: PropTypes.any
+  autofilled: PropTypes.any,
+  isOnOffSwitch: PropTypes.bool,
+  toolTip: PropTypes.string
 };
 
 @pureRender
@@ -62,20 +66,42 @@ export default class Checkbox extends Component {
     inputType: 'checkbox'
   };
 
+  renderOnOffSwitch(checked, label, labelBefore) {
+    const extraStyle = {};
+    if (label && labelBefore) {
+      extraStyle.marginLeft = 6;
+    } else if (label) { //label after
+      extraStyle.marginRight = 6;
+    }
+    if (checked) {
+      return <div className={onoffBtn} style={{...styles.switchOnBtn, ...extraStyle}}>
+        On <div className={onoffDot} style={styles.onDot}/>
+      </div>;
+    } else {
+      return <div className={onoffBtn} style={{...styles.switchOffBtn, ...extraStyle}}>
+        <div className={onoffDot} style={styles.offDot}/>
+        Off
+      </div>;
+    }
+  }
+
+  renderLabel(label) {
+    return <span className={labelContent}>{label}</span>;
+  }
+
   renderDummyCheckbox(isChecked, style) {
     return <div className={classNames(dummy, isChecked && 'checked')} style={style}
       data-qa={this.props.dataQa || 'dummyCheckbox'}>
-      {isChecked ? '✔' : '\u00A0'}
+      {isChecked ? <i className='fa fa-check'/> : '\u00A0'}
     </div>;
   }
 
   render() {
     const {
-      style, label, dummyInputStyle,
+      style, label, dummyInputStyle, isOnOffSwitch,
       inputType, labelBefore,
       className, inverted, renderDummyInput,
-      dataQa,
-      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      dataQa, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
       ...props
     } = this.props;
     const labelSpan = <span className={labelContent}>{label}</span>;
@@ -84,14 +110,34 @@ export default class Checkbox extends Component {
     // <input .../> should be before dummy input to '~' css selector work
     return (
       <label className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container' style={style}>
-        {labelBefore && labelSpan}
-        <input type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
-        {renderDummyInput ?
-          renderDummyInput(props.checked, dummyInputStyle) :
-          this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)
-        }
+        {labelBefore && this.renderLabel(label)}
+        <input disabled={this.props.disabled} type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
+        {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
+        {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
+        {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)}
         {!labelBefore && labelSpan}
       </label>
     );
   }
 }
+
+const styles = {
+  switchOnBtn: {
+    color: 'white',
+    backgroundColor: '#43B8C9',
+    paddingLeft: 10
+  },
+  switchOffBtn: {
+    color: '#fff',
+    backgroundColor: '#D0D0D0',
+    flexDirection: 'row-reverse'
+  },
+  onDot: {
+    backgroundColor: '#fff',
+    right: '6px'
+  },
+  offDot: {
+    backgroundColor: '#fff',
+    left: '6px'
+  }
+};

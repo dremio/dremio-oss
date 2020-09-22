@@ -46,13 +46,18 @@ import com.dremio.common.Version;
 import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.services.configuration.ConfigurationStore;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+
+import io.protostuff.ByteString;
 
 /**
  * Test for {@code Upgrade}
@@ -63,7 +68,7 @@ public class TestUpgrade extends DremioTest {
    */
   public static final class TopPriorityTask extends UpgradeTask {
     public TopPriorityTask() {
-      super("test-top-priority-class", ImmutableList.of(UpdateExternalReflectionHash.taskUUID));
+      super("test-top-priority-class", ImmutableList.of(SetTableauDefaults.taskUUID));
     }
 
     @Override
@@ -99,8 +104,8 @@ public class TestUpgrade extends DremioTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private static final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true,
-    false);
+  private static final LegacyKVStoreProvider kvstore =
+      LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
 
   private static UpgradeStore upgradeStore;
 
@@ -370,17 +375,14 @@ public class TestUpgrade extends DremioTest {
 
     // Dremio build contains S3 plugin, UpdateS3CredentialType is included in the list of
     // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore UpdateS3CredentialType
-    // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has two children,
-    // which are UpdateS3CredentialType and MigrateAccelerationMeasures. However UpdateS3CredentialType
-    // should not be included as an upgrade task in the MapR distribution. We want to first determine whether
-    // UpdateDatasetSplitIdTask, UpdateS3CredentialType and MigrateAccelerationMeasures are in the list of tasks,
-    // then test accordingly.
+    // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has a child,
+    // UpdateS3CredentialType, which should not be included as an upgrade task in the MapR distribution.
+    // We want to first determine whether UpdateDatasetSplitIdTask and UpdateS3CredentialType are in the list
+    // of tasks, then test accordingly.
     boolean containsS3Task = false;
     int s3TaskIndex = 0;
     boolean containsDatasetSplitTask = false;
     int datasetSplitTaskIndex = 0;
-    boolean containsMigrateTask = false;
-    int migrateTaskIndex = 0;
 
     for (int i = 0; i < tasks.size(); i++) {
       String taskName = tasks.get(i).getClass().getName();
@@ -390,9 +392,6 @@ public class TestUpgrade extends DremioTest {
       } else if ("com.dremio.dac.cmd.upgrade.UpdateDatasetSplitIdTask".equals(taskName)) {
         containsDatasetSplitTask = true;
         datasetSplitTaskIndex = i;
-      } else if ("com.dremio.dac.cmd.upgrade.MigrateAccelerationMeasures".equals(taskName)) {
-        containsMigrateTask = true;
-        migrateTaskIndex = i;
       }
     }
 
@@ -403,10 +402,8 @@ public class TestUpgrade extends DremioTest {
       // 1. All three tasks are in the list of tasks
       assertTrue(containsDatasetSplitTask);
       assertTrue(containsS3Task);
-      assertTrue(containsMigrateTask);
       // 2. Both child tasks are successive of UpdateDatasetSplitIdTask
       assertTrue(s3TaskIndex > datasetSplitTaskIndex);
-      assertTrue(migrateTaskIndex > datasetSplitTaskIndex);
       // Remove UpdateS3CredentialType from the list, so vanilla and MapR distribution can be
       // tested with the same upgrade task list
       tasks.remove(s3TaskIndex);
@@ -423,12 +420,12 @@ public class TestUpgrade extends DremioTest {
         instanceOf(DatasetConfigUpgrade.class),
         instanceOf(ReIndexAllStores.class),
         instanceOf(UpdateDatasetSplitIdTask.class),
-        instanceOf(MigrateAccelerationMeasures.class),
         instanceOf(DeleteHistoryOfRenamedDatasets.class),
         instanceOf(DeleteHive121BasedInputSplits.class),
         instanceOf(MinimizeJobResultsMetadata.class),
         instanceOf(UpdateExternalReflectionHash.class),
         instanceOf(DeleteSysMaterializationsMetadata.class),
+        instanceOf(SetTableauDefaults.class),
         // Test task
         instanceOf(TopPriorityTask.class),
         // Final test task
@@ -473,17 +470,14 @@ public class TestUpgrade extends DremioTest {
 
     // Dremio build contains S3 plugin, UpdateS3CredentialType is included in the list of
     // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore UpdateS3CredentialType
-    // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has two children,
-    // which are UpdateS3CredentialType and MigrateAccelerationMeasures. However UpdateS3CredentialType
-    // should not be included as an upgrade task in the MapR distribution. We want to first determine whether
-    // UpdateDatasetSplitIdTask, UpdateS3CredentialType and MigrateAccelerationMeasures are in the list of tasks,
-    // then test accordingly.
+    // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has a child,
+    // UpdateS3CredentialType, which should not be included as an upgrade task in the MapR distribution.
+    // We want to first determine whether UpdateDatasetSplitIdTask and UpdateS3CredentialType are in the list
+    // of tasks, then test accordingly.
     boolean containsS3Task = false;
     int s3TaskIndex = 0;
     boolean containsDatasetSplitTask = false;
     int datasetSplitTaskIndex = 0;
-    boolean containsMigrateTask = false;
-    int migrateTaskIndex = 0;
 
     for (int i = 0; i < tasks.size(); i++) {
       String taskName = tasks.get(i).getClass().getName();
@@ -493,9 +487,6 @@ public class TestUpgrade extends DremioTest {
       } else if ("com.dremio.dac.cmd.upgrade.UpdateDatasetSplitIdTask".equals(taskName)) {
         containsDatasetSplitTask = true;
         datasetSplitTaskIndex = i;
-      } else if ("com.dremio.dac.cmd.upgrade.MigrateAccelerationMeasures".equals(taskName)) {
-        containsMigrateTask = true;
-        migrateTaskIndex = i;
       }
     }
 
@@ -506,10 +497,8 @@ public class TestUpgrade extends DremioTest {
       // 1. All three tasks are in the list of tasks
       assertTrue(containsDatasetSplitTask);
       assertTrue(containsS3Task);
-      assertTrue(containsMigrateTask);
       // 2. Both child tasks are successive of UpdateDatasetSplitIdTask
       assertTrue(s3TaskIndex > datasetSplitTaskIndex);
-      assertTrue(migrateTaskIndex > datasetSplitTaskIndex);
       // Remove UpdateS3CredentialType from the list, so vanilla and MapR distribution can be
       // tested with the same upgrade task list
       tasks.remove(s3TaskIndex);
@@ -530,16 +519,52 @@ public class TestUpgrade extends DremioTest {
       instanceOf(DatasetConfigUpgrade.class),
       instanceOf(ReIndexAllStores.class),
       instanceOf(UpdateDatasetSplitIdTask.class),
-      instanceOf(MigrateAccelerationMeasures.class),
       instanceOf(DeleteHistoryOfRenamedDatasets.class),
       instanceOf(DeleteHive121BasedInputSplits.class),
       instanceOf(MinimizeJobResultsMetadata.class),
       instanceOf(UpdateExternalReflectionHash.class),
       instanceOf(DeleteSysMaterializationsMetadata.class),
+      instanceOf(SetTableauDefaults.class),
       // Test task
       instanceOf(TopPriorityTask.class),
       // Final test task
       instanceOf(LowPriorityTask.class)
       ));
+  }
+
+  /**
+   * Tests illegal upgrade from OSS to EE
+   */
+  @Test
+  public void testIllegalUpgrade() throws Exception {
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Illegal upgrade from OSS to EE");
+
+    final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
+    final ConfigurationEntry configurationEntry = new ConfigurationEntry();
+    configurationEntry.setValue(prevEdition);
+    final LegacyKVStoreProvider kvStoreProvider =
+        LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+    kvStoreProvider.start();
+    final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
+    configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "EE");
+  }
+
+  /**
+   * Test legal upgrade if prior dremio edition is not specified or editions match
+   */
+  @Test
+  public void testLegalUpgrade() throws Exception {
+    final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
+    final ConfigurationEntry configurationEntry = new ConfigurationEntry();
+    configurationEntry.setValue(prevEdition);
+    final LegacyKVStoreProvider kvStoreProvider =
+        LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+    kvStoreProvider.start();
+    final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");
+    configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");
   }
 }

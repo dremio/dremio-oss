@@ -38,6 +38,7 @@ export default class AccelerationRaw extends Component {
       'rawReflections[].type',
       'rawReflections[].name',
       'rawReflections[].enabled',
+      'rawReflections[].arrowCachingEnabled',
       'rawReflections[].partitionDistributionStrategy',
       'rawReflections[].partitionFields[].name',
       'rawReflections[].sortFields[].name',
@@ -59,7 +60,7 @@ export default class AccelerationRaw extends Component {
     }, rawReflections.map(e => e.name.value));
 
     rawReflections.addField(reflection);
-  }
+  };
 
   renderHeader = () => {
     return (
@@ -75,7 +76,7 @@ export default class AccelerationRaw extends Component {
           type='button'/>
       </div>
     );
-  }
+  };
 
   render() {
     const {dataset, reflections, fields: {rawReflections}} = this.props;

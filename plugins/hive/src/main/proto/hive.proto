@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package com.dremio.hive.proto;
 
 option java_package = "com.dremio.hive.proto";
@@ -54,6 +55,21 @@ message ColumnInfo {
   optional HivePrimitiveType primitive_type = 1;
   optional int32 precision = 2;
   optional int32 scale = 3;
+  optional bool is_primitive = 4;
+}
+
+message Identifier {
+  repeated string component = 1;
+}
+
+message AttributeValue {
+  oneof attribute_val {
+    int64 long_val = 1;
+    string string_val = 2;
+    bool bool_val = 3;
+    double double_val = 4;
+    Identifier identifier_val = 5;
+  }
 }
 
 message HiveTableXattr {
@@ -79,6 +95,7 @@ message HiveTableXattr {
   optional int32 table_storage_handler_subscript = 16; // lookup this value in storage_handler_dictionary
   optional int32 table_serialization_lib_subscript = 17; // lookup this value in serialization_lib_dictionary
   repeated ColumnInfo column_info = 18;
+  map<string, AttributeValue> dataset_option = 19;
 }
 
 message HiveSplitXattr {

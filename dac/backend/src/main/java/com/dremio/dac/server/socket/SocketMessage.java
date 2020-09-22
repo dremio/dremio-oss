@@ -16,8 +16,9 @@
 package com.dremio.dac.server.socket;
 
 import com.dremio.dac.model.job.PartialJobListItem;
+import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -171,9 +172,9 @@ public class SocketMessage {
       this.update = update;
     }
 
-    public JobProgressUpdate(Job job) {
-      this.id = job.getJobId();
-      this.update = new PartialJobListItem(job);
+    public JobProgressUpdate(JobSummary jobSummary) {
+      this.id = JobsProtoUtil.toStuff(jobSummary.getJobId());
+      this.update = new PartialJobListItem(jobSummary);
     }
 
     public JobId getId() {
@@ -204,6 +205,31 @@ public class SocketMessage {
   }
 
   /**
+   * Message from client > server requesting events about reflection job progress.
+   */
+  @JsonTypeName("reflection-job-progress-listen")
+  public static class ListenReflectionJobProgress extends Payload {
+    private final JobId id;
+    private final String reflectionId;
+
+    @JsonCreator
+    public ListenReflectionJobProgress(@JsonProperty("id") JobId id,
+                          @JsonProperty("reflectionId") String reflectionId) {
+      super();
+      this.id = id;
+      this.reflectionId = reflectionId;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+
+    public String getReflectionId() {
+      return reflectionId;
+    }
+  }
+
+  /**
    * Message from client > server requesting events about job details.
    */
   @JsonTypeName("job-details-listen")
@@ -220,6 +246,31 @@ public class SocketMessage {
       return id;
     }
 
+  }
+
+  /**
+   * Message from client > server requesting events about job details.
+   */
+  @JsonTypeName("reflection-job-details-listen")
+  public static class ListenReflectionJobDetails extends Payload {
+    private final JobId id;
+    private final String reflectionId;
+
+    @JsonCreator
+    public ListenReflectionJobDetails(@JsonProperty("id") JobId id,
+                         @JsonProperty("reflectionId") String reflectionId) {
+      super();
+      this.id = id;
+      this.reflectionId = reflectionId;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+
+    public String getReflectionId() {
+      return reflectionId;
+    }
   }
 
   /**
@@ -259,6 +310,8 @@ public class SocketMessage {
         SocketMessage.ListenRecords.class,
         SocketMessage.ErrorPayload.class,
         SocketMessage.PingPayload.class,
+        SocketMessage.ListenReflectionJobProgress.class,
+        SocketMessage.ListenReflectionJobDetails.class,
         };
   }
 }

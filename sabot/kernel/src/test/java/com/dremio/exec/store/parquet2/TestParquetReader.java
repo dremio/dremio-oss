@@ -24,7 +24,11 @@ import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -35,12 +39,15 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.arrow.DremioArrowSchema;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.Path;
 
 public class TestParquetReader extends BaseTestQuery {
+  private final static String WORKING_PATH = TestTools.getWorkingPath();
+
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
@@ -156,5 +163,143 @@ public class TestParquetReader extends BaseTestQuery {
     } catch (Exception e) {
       // ok
     }
+  }
+
+  @Test
+  public void testFilterOnNonExistentColumn() throws Exception {
+    final String parquetFiles = setupParquetFiles("testFilterOnNonExistentColumn", "nonexistingcols", "bothcols.parquet");
+    try {
+      testBuilder()
+        .sqlQuery("SELECT * FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
+        .ordered()
+        .baselineColumns("col1", "col2")
+        .baselineValues("bothvalscol1", "bothvalscol2")
+        .go();
+
+      testBuilder()
+        .sqlQuery("SELECT col2 FROM dfs.\"" + parquetFiles + "\" where col1 is null")
+        .ordered()
+        .baselineColumns("col2")
+        .baselineValues("singlevalcol2")
+        .go();
+    } finally {
+      delete(Paths.get(parquetFiles));
+    }
+  }
+
+  @Test
+  public void testAggregationFilterOnNonExistentColumn() throws Exception {
+    final String parquetFiles = setupParquetFiles("testAggregationFilterOnNonExistentColumn", "nonexistingcols", "bothcols.parquet");
+    try {
+      testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\" where col1 = 'doesnotexist'")
+        .ordered()
+        .baselineColumns("cnt")
+        .baselineValues(0L)
+        .go();
+
+      testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\"")
+        .ordered()
+        .baselineColumns("cnt")
+        .baselineValues(2L)
+        .go();
+
+      testBuilder()
+        .sqlQuery("SELECT count(*) cnt FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
+        .ordered()
+        .baselineColumns("cnt")
+        .baselineValues(1L)
+        .go();
+    } finally {
+      delete(Paths.get(parquetFiles));
+    }
+  }
+
+  @Test
+  public void testChainedVectorizedRowiseReaderCase() throws Exception {
+    /*
+     * Parquet A and B contain very different columns. We create a filter on a ParquetA column, and try to list ParquetB.
+     * Column chosen for filter condition is vectorisable
+     * Parquet B columns are complex, hence non vectorisable. These are delegated to rowwise reader.
+     *
+     * This case expects no records to be returned in the query when there's no match. Also, there shouldn't be an error.
+     */
+
+    final String parquetFiles = setupParquetFiles("testChainedVectorizedRowiseReaderNoResultCase", "chained_vectorised_rowwise_case", "yes_filter_col.parquet");
+    try {
+      // No match case
+      testBuilder()
+        .sqlQuery("SELECT * FROM dfs.\"" + parquetFiles + "\" where filtercol = 'invalidstring'")
+        .unOrdered()
+        .baselineColumns("messageId", "complexFld1", "complexFld2", "filtercol")
+        .expectsEmptyResultSet() // partition tinyint_part=65 doesn't have any rows.
+        .go();
+
+      // filter column not present in other parquet files.
+      testBuilder()
+        .sqlQuery("SELECT complexFld1, complexFld2 FROM dfs.\"" + parquetFiles + "\" where filtercol = '5'")
+        .ordered()
+        .baselineColumns("complexFld1", "complexFld2")
+        .baselineValues(null, null)
+        .go();
+
+      // filter column not present; should match is null condition
+      testBuilder()
+        .sqlQuery("SELECT complexFld1['cf1subfield1'] as fld1, complexFld2['cf2subfield2'] as fld2 FROM dfs.\"" + parquetFiles + "\" where filtercol is null")
+        .ordered()
+        .baselineColumns("fld1", "fld2")
+        .baselineValues("F1Val1", "F2Val2")
+        .baselineValues("F1Val1", "F2Val2")
+        .go();
+    } finally {
+      delete(Paths.get(parquetFiles));
+    }
+  }
+
+  private String setupParquetFiles(String testName, String folderName, String primaryParquet) throws Exception {
+    /*
+     * Copy primary parquet in a temporary folder and promote the same. This way, primary parquet's schema will be
+     * taken as the dremio dataset's schema. Then copy remaining files and refresh the dataset.
+     */
+    final String parquetRefFolder = WORKING_PATH + "/src/test/resources/parquet/" + folderName;
+    String parquetFiles = Files.createTempDirectory(testName).toString();
+    try {
+      Files.copy(Paths.get(parquetRefFolder, primaryParquet), Paths.get(parquetFiles, primaryParquet), StandardCopyOption.REPLACE_EXISTING);
+      runSQL("SELECT * FROM dfs.\"" + parquetFiles + "\"");  // to detect schema and auto promote
+
+      // Copy remaining files
+      Files.walk(Paths.get(parquetRefFolder))
+        .filter(Files::isRegularFile)
+        .filter(p -> !p.getFileName().toString().equals(primaryParquet))
+        .map(quietExecute(p -> Files.copy(p, Paths.get(parquetFiles, p.getFileName().toString()), StandardCopyOption.REPLACE_EXISTING)))
+        .forEach(p -> {
+        });
+      runSQL("alter table dfs.\"" + parquetFiles + "\" refresh metadata force update");  // so it detects second parquet
+      return parquetFiles;
+    } catch (Exception e) {
+      delete(Paths.get(parquetFiles));
+      throw e;
+    }
+  }
+
+  private static void delete(java.nio.file.Path dir) throws Exception {
+    Files.list(dir).forEach(f -> {try { Files.delete(f); } catch (Exception ex) {}});
+    Files.delete(dir);
+  }
+
+  private static <T, R> Function<T, R> quietExecute(CheckedFunction<T, R> checkedFunction) {
+    return t -> {
+      try {
+        return checkedFunction.apply(t);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+  }
+
+  @FunctionalInterface
+  private interface CheckedFunction<T, R> {
+    R apply(T t) throws Exception;
   }
 }

@@ -20,7 +20,7 @@
 @_border-padding: 15px; // a distance between vertical border and a content
 
 .layout {
-  composes: horizontal-content-padding top-content-padding from '@app/uiTheme/less/layout.less'; // exclude border1 for a while
+  composes: horizontal-content-padding top-content-padding from '~@app/uiTheme/less/layout.less'; // exclude border1 for a while
   display: flex;
   flex: 1;
   align-items: stretch;
@@ -33,7 +33,7 @@
 }
 
 .right-column {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
   width: 400px;
   padding-left: @_border-padding;
 }

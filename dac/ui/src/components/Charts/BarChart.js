@@ -133,7 +133,7 @@ export default class BarChart extends Component {
 
   formatNumber(value) {
     const { type } = this.props;
-    return type === FLOAT || type === DECIMAL ? value.toFixed(5) : value;
+    return type === FLOAT || type === DECIMAL ? (parseFloat(value)).toFixed(5) : value;
   }
 
   formatDate(value, isTooltip) {

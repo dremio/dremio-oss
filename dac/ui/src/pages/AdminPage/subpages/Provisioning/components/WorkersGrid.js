@@ -34,7 +34,7 @@ export default class WorkersGrid extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
     workersStatus: PropTypes.object
-  }
+  };
 
   getGridItemSize(items) {
     const total = items.reduce((acc, i) => acc + i.value, 0);
@@ -53,7 +53,7 @@ export default class WorkersGrid extends Component {
       { workerState: 'active', label: la('Active'), value: active },
       { workerState: 'pending', label: la('Pending'), value: pending },
       { workerState: 'disconnected', label: la('Provisioning or Disconnected'), value: disconnected },
-      { workerState: 'decommissioning', label: la('Decommisioning'), value: decommissioning }
+      {workerState: 'decommissioning', label: la('Decommissioning'), value: decommissioning}
     ];
   }
 

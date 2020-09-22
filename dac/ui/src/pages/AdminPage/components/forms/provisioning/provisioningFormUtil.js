@@ -17,10 +17,14 @@ import FormUtils from '@app/utils/FormUtils/FormUtils';
 
 import {
   AWS_INSTANCE_TYPE_OPTIONS,
+  ENGINE_SIZE_STANDARD_OPTIONS,
   CLUSTER_STATE, DREMIO_CUSTOM_REGION,
   EC2_AWS_CONNECTION_PROPS,
   EC2_AWS_PROPS,
-  EC2_DYNAMIC_CONFIG_FIELDS
+  EC2_DYNAMIC_CONFIG_FIELDS,
+  EC2_AWS_PROPLIST_FIELDS,
+  EC2_UI_FIELDS,
+  EC2_FIELDS_MAP
 } from '@app/constants/provisioningPage/provisioningConstants';
 
 import { EC2_CLUSTER_FIELDS } from 'dyn-load/constants/provisioningPage/provisioningConstants';
@@ -48,6 +52,20 @@ export function getInstanceTypeValue(label) {
   return option && option.value || label;
 }
 
+export function engineSizeValue(containerCount) {
+  const matchingOption = ENGINE_SIZE_STANDARD_OPTIONS.find(option => option.value === containerCount);
+  return matchingOption ? containerCount : -1;
+}
+
+export function getInitPropListValue(provision, prop) {
+  const listProp = provision.getIn(['awsProps', prop]);
+  if (!listProp) return [];
+
+  return listProp.toJS().map((listEntry, idx) => {
+    return {id: idx, name: listEntry.key, value: listEntry.value};
+  });
+}
+
 export function getInitValuesFromProvision(provision, initValues = {}) {
   EC2_CLUSTER_FIELDS.forEach(prop => {
     FormUtils.addInitValue(initValues, prop, provision.get(prop));
@@ -55,25 +73,61 @@ export function getInitValuesFromProvision(provision, initValues = {}) {
   EC2_DYNAMIC_CONFIG_FIELDS.forEach(prop => {
     FormUtils.addInitValue(initValues, prop, provision.getIn(['dynamicConfig', prop]));
   });
+  //engineSize selector does not have direct provision property, it is mapped to containerCount
+  FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.engineSize, engineSizeValue(provision.getIn(['dynamicConfig', 'containerCount'])));
+
   EC2_AWS_PROPS.forEach(prop => {
     FormUtils.addInitValue(initValues, prop, provision.getIn(['awsProps', prop]));
   });
   EC2_AWS_CONNECTION_PROPS.forEach(prop => {
     FormUtils.addInitValue(initValues, prop, provision.getIn(['awsProps', 'connectionProps', prop]));
   });
+  EC2_AWS_PROPLIST_FIELDS.forEach(prop => {
+    FormUtils.addInitValue(initValues, prop, getInitPropListValue(provision, prop));
+  });
+
   return initValues;
 }
+
+const prepareDynamicConfigForSave = (values) => {
+  const size = values[EC2_UI_FIELDS[0]]; //engineSize
+  if (size === -1) {
+    // with custom size option the regular containerCount value is used
+    return addPropsForSave({}, EC2_DYNAMIC_CONFIG_FIELDS, values);
+  } else {
+    // otherwise containerCount is a value from engineSize selector
+    return size ? {containerCount: size} : {};
+  }
+};
+
+const prepareInstanceTypeForSave = (values) => {
+  const size = values[EC2_UI_FIELDS[0]]; //engineSize
+  if (size === -1) {
+    return {}; // instanceType property is visible and used explicitly
+  } else {
+    return {instanceType: AWS_INSTANCE_TYPE_OPTIONS[0].value}; // using default 'Standard'
+  }
+};
+
+export const preparePropertyListFieldForSave = (values) => {
+  const awsTags = values.awsTags
+    ? values.awsTags.map(tag => ({key: tag.name, value: tag.value}))
+    : [];
+  return { awsTags };
+};
 
 export function prepareProvisionValuesForSave(values) {
   const payload = {
     clusterType: 'EC2',
     ...addPropsForSave({}, EC2_CLUSTER_FIELDS, values),
     dynamicConfig: {
-      ...addPropsForSave({}, EC2_DYNAMIC_CONFIG_FIELDS, values)
+      ...prepareDynamicConfigForSave(values)
     },
     yarnProps: null,
     awsProps: {
       ...addPropsForSave({}, EC2_AWS_PROPS, values),
+      ...prepareInstanceTypeForSave(values),
+      ...preparePropertyListFieldForSave(values),
       connectionProps: {
         ...addPropsForSave({}, EC2_AWS_CONNECTION_PROPS, values)
       }

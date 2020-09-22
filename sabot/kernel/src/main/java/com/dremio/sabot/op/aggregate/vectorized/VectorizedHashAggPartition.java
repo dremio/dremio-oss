@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.DecimalVector;
@@ -28,7 +29,6 @@ import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class VectorizedHashAggPartition implements AutoCloseable {

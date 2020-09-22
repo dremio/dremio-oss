@@ -16,13 +16,13 @@
 @import "~@app/uiTheme/less/variables.less";
 
 .base {
-  composes: row-margin row-of-inputs table-row-content-padding-left from '@app/uiTheme/less/forms.less';
+  composes: row-margin row-of-inputs table-row-content-padding-left from '~@app/uiTheme/less/forms.less';
   flex-wrap: nowrap;
   overflow-y: hidden; //for test purposes. content should not run out of the container
   height: @row-element-height
 }
 .column-element {
-  composes: table-row-element-margin from '@app/uiTheme/less/forms.less';
+  composes: table-row-element-margin from '~@app/uiTheme/less/forms.less';
   flex: 1;
 }
 .icon {

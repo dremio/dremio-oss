@@ -111,6 +111,25 @@ public class TestArrowFormatPlugin extends PlanTestBase {
   }
 
   @Test
+  public void arrowReaderTest() throws Exception {
+    // the arrow files used below are as generated in this::generateTestData()
+    // before arrow format change. see DX-18576
+    String query = "SELECT * FROM cp.\"/store/arrow/region/0_0_0.dremarrow1\"";
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .sqlBaselineQuery("SELECT * FROM cp.\"region.json\"")
+      .go();
+
+    query = "SELECT * FROM cp.\"/store/arrow/orders/0_0_0.dremarrow1\"";
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .sqlBaselineQuery("SELECT * FROM cp.\"tpch/orders.parquet\"")
+      .go();
+  }
+
+  @Test
   public void complexProjectPushdown() throws Exception {
     File tmpFile = tmp.newFile("complexPpd.json");
     try (BufferedWriter bw = new BufferedWriter(new FileWriter(tmpFile))) {

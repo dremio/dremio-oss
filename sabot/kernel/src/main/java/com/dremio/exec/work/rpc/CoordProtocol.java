@@ -17,6 +17,8 @@ package com.dremio.exec.work.rpc;
 
 import static com.dremio.exec.rpc.RpcBus.get;
 
+import java.util.Optional;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
@@ -36,7 +38,6 @@ import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
-import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 

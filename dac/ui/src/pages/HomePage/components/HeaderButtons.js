@@ -196,19 +196,19 @@ const styles = {
     display: 'flex'
   },
   button: {
-    background: '#dbe8ed',
-    borderRadius: '2px',
+    background: '#F2F2F2',
+    borderRadius: '4px',
     marginRight: '6px',
-    height: 25,
+    height: 32,
     width: 40,
-    boxShadow: '0 1px 1px #b2bec7',
+    border: '1px solid #D9D9D9',
     cursor: 'pointer',
     display: 'flex',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   largeButton: {
-    width: 54,
-    paddingTop: 1
+    width: 54
   },
   innerTextStyle: {
     top: '-7px',

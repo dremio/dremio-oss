@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +47,10 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Null;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.Metrics;
+import org.apache.iceberg.types.Types.NestedField;
 import org.apache.parquet.NoExceptionAutoCloseables;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnWriteStore;
@@ -53,6 +58,7 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.impl.ColumnWriteStoreV1;
 import org.apache.parquet.column.page.PageWriteStore;
+import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.column.values.factory.DefaultV1ValuesWriterFactory;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.compression.CompressionCodecFactory.BytesInputCompressor;
@@ -60,7 +66,11 @@ import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.CodecFactory.BytesCompressor;
 import org.apache.parquet.hadoop.ColumnChunkPageWriteStoreExposer;
 import org.apache.parquet.hadoop.ParquetFileWriter;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.api.RecordConsumer;
@@ -75,29 +85,42 @@ import org.apache.parquet.schema.Type.Repetition;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.IcebergCatalog;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import io.protostuff.ByteString;
 
 public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetRecordWriter.class);
@@ -109,6 +132,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     AVG_FILE_SIZE, // Average size of files written
     MIN_RECORD_COUNT_IN_FILE, // Minimum number of records written in a file
     MAX_RECORD_COUNT_IN_FILE, // Maximum number of records written in a file
+    MIN_IO_WRITE_TIME, // Minimum IO write time
+    MAX_IO_WRITE_TIME, // Maximum IO write time
+    AVG_IO_WRITE_TIME, // Avg IO write time
+    NUM_IO_WRITE,      // Total Number of IO writes
     ;
 
     @Override
@@ -162,8 +189,14 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private final int memoryThreshold;
   private final long maxPartitions;
   private final long minRecordsForFlush;
+  private List<String> partitionColumns;
+  private boolean isIcebergWriter;
+  private CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap;
 
   private final String queryUser;
+
+  private final int parquetFileWriteTimeThresholdMilliSecs;
+  private final double parquetFileWriteIoRateThresholdMbps;
 
   // metrics workspace variables
   int numFilesWritten = 0;
@@ -191,6 +224,17 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     this.location = writer.getLocation();
     this.prefix = fragmentId;
     this.extension = config.outputExtension;
+    if (writer.getOptions() != null) {
+      this.partitionColumns = writer.getOptions().getPartitionColumns();
+      this.isIcebergWriter = (writer.getOptions().getIcebergWriterOperation() != WriterOptions.IcebergWriterOperation.NONE);
+    } else {
+      this.partitionColumns = null;
+      this.isIcebergWriter = false;
+    }
+
+    if (this.isIcebergWriter && writer.getOptions().getExtendedProperty() != null) {
+      initIcebergColumnIDList(writer.getOptions().getExtendedProperty());
+    }
 
     memoryThreshold = (int) context.getOptions().getOption(ExecConstants.PARQUET_MEMORY_THRESHOLD_VALIDATOR);
     blockSize = (int) context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR);
@@ -218,22 +262,45 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     enableDictionaryForBinary = context.getOptions().getOption(ExecConstants.PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE_VALIDATOR);
     maxPartitions = context.getOptions().getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR);
     minRecordsForFlush = context.getOptions().getOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR);
+    parquetFileWriteTimeThresholdMilliSecs = (int)context.getOptions().getOption(ExecConstants.PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS_VALIDATOR);
+    parquetFileWriteIoRateThresholdMbps = context.getOptions().getOption(ExecConstants.PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS_VALIDATOR);
   }
 
   @Override
   public void setup() throws IOException {
     this.fs = plugin.createFS(queryUser, context);
     this.batchSchema = incoming.getSchema();
+    if (this.isIcebergWriter && this.icebergColumnIDMap == null) {
+      initIcebergColumnIDList();
+    }
     newSchema();
-
   }
 
+  private void initIcebergColumnIDList() {
+    SchemaConverter schemaConverter = new SchemaConverter();
+    org.apache.iceberg.Schema icebergSchema = schemaConverter.toIceberg(batchSchema);
+    Map<String, Integer> schemaNameIDMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
+    this.icebergColumnIDMap = CaseInsensitiveImmutableBiMap.newImmutableMap(schemaNameIDMap);
+  }
+
+  private void initIcebergColumnIDList(ByteString extendedProperty) {
+    try {
+      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER,
+        extendedProperty.toByteArray());
+      List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs = icebergDatasetXAttr.getColumnIdsList();
+      Map<String, Integer> icebergColumns = new HashMap<>();
+      icebergColumnIDs.forEach(field -> icebergColumns.put(field.getSchemaPath(), field.getId()));
+      this.icebergColumnIDMap = CaseInsensitiveImmutableBiMap.newImmutableMap(icebergColumns);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Could not deserialize Parquet dataset info", e);
+    }
+  }
 
   /**
    * Helper method to create a new {@link ParquetFileWriter} as impersonated user.
    * @throws IOException
    */
-  private void initRecordReader() throws IOException {
+  private void initRecordWriter() throws IOException {
 
     this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
     parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
@@ -241,12 +308,26 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     parquetFileWriter.start();
   }
 
-  private void newSchema() throws IOException {
-    // Reset it to half of current number and bound it within the limits
-    recordCountForNextMemCheck = min(max(MINIMUM_RECORD_COUNT_FOR_CHECK, recordCountForNextMemCheck / 2), MAXIMUM_RECORD_COUNT_FOR_CHECK);
+  private MessageType getParquetMessageTypeWithIds(BatchSchema batchSchema, String name) {
+    List<Type> types = Lists.newArrayList();
+    for (Field field : batchSchema) {
+      if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
+        continue;
+      }
+      Type childType = getTypeWithId(field, field.getName());
+      if (childType != null) {
+        types.add(childType);
+      }
+    }
+    Preconditions.checkState(types.size() > 0, "No types for parquet schema");
+    return new MessageType(name, types);
+  }
 
-    String json = new Schema(batchSchema).toJson();
-    extraMetaData.put(DREMIO_ARROW_SCHEMA_2_1, json);
+  private MessageType getParquetMessageType(BatchSchema batchSchema, String name) {
+    if (isIcebergWriter) {
+      return getParquetMessageTypeWithIds(batchSchema, name);
+    }
+
     List<Type> types = Lists.newArrayList();
     for (Field field : batchSchema) {
       if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
@@ -258,7 +339,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       }
     }
     Preconditions.checkState(types.size() > 0, "No types for parquet schema");
-    schema = new MessageType("root", types);
+    return new MessageType(name, types);
+  }
+
+  private void newSchema() throws IOException {
+    // Reset it to half of current number and bound it within the limits
+    recordCountForNextMemCheck = min(max(MINIMUM_RECORD_COUNT_FOR_CHECK, recordCountForNextMemCheck / 2), MAXIMUM_RECORD_COUNT_FOR_CHECK);
+
+    String json = new Schema(batchSchema).toJson();
+    extraMetaData.put(DREMIO_ARROW_SCHEMA_2_1, json);
+    schema = getParquetMessageType(batchSchema, "root");
 
     int dictionarySize = (int)context.getOptions().getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR);
     final ParquetProperties parquetProperties = ParquetProperties.builder()
@@ -313,6 +403,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       }
     };
   }
+
   @Nullable
   private Type getType(Field field) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();
@@ -363,8 +454,95 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
           return null;
         }
         return new GroupType(OPTIONAL, field.getName(), types);
-    default:
+      default:
         return getPrimitiveType(field);
+    }
+  }
+
+  // Includes the column_id for this field and its children in the Parquet schema. The column_id is taken
+  // from the equivalent field with name icebergFieldName from the icebergSchema
+  //
+  // icebergFieldName is the name of this field used by iceberg. Pass null to use the name from the field
+  // icebergSchema contains the iceberg schema with column_ids. If non-null, this method extracts the column id
+  //               for the field from iceberg schema and initializes the Parquet type accordingly
+  @Nullable
+  private Type getTypeWithId(Field field, String icebergFieldName) {
+    MinorType minorType = getMajorTypeForField(field).getMinorType();
+    int column_id = this.icebergColumnIDMap.get(icebergFieldName);
+    switch(minorType) {
+      case STRUCT: {
+        List<Type> types = Lists.newArrayList();
+        for (Field childField : field.getChildren()) {
+          String childName = icebergFieldName + "." + childField.getName();
+          Type childType = getTypeWithId(childField, childName);
+          if (childType != null) {
+            types.add(childType);
+          }
+        }
+        if (types.size() == 0) {
+          return null;
+        }
+        Type groupType = new GroupType(OPTIONAL, field.getName(), types);
+        if (column_id != -1) {
+          groupType = groupType.withId(column_id);
+        }
+
+        return groupType;
+      }
+      case LIST: {
+        /**
+         * We are going to build the following schema
+         * <pre>
+         * optional group <name> (LIST) {
+         *   repeated group list {
+         *     <element-repetition> <element-type> element;
+         *   }
+         * }
+         * </pre>
+         * see <a href="https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#lists">logical lists</a>
+         */
+        Field child = field.getChildren().get(0);
+
+        // Dremio schema for list:
+        // LIST:
+        //   child = $data$ (single child)
+        //      children defining the schema of the list elements
+        // Iceberg schema for list is the same except that the single child's name is 'element' instead of '$data$'
+        // Dremio renames the name to 'element' later by invoking renameChildTypeToElement()
+        // Using 'element' as the field name since this is the name of the child node in the iceberg schema
+        String childName = icebergFieldName + "." + "list.element";
+        Type childType = getTypeWithId(child, childName);
+        if (childType == null) {
+          return null;
+        }
+        childType = renameChildTypeToElement(childType);
+        GroupType groupType = new GroupType(Repetition.REPEATED, "list", childType);
+        Type listType = new GroupType(Repetition.OPTIONAL, field.getName(), OriginalType.LIST, groupType);
+        if (column_id != -1) {
+          listType = listType.withId(column_id);
+        }
+
+        return listType;
+      }
+      case UNION:
+        List<Type> types = Lists.newArrayList();
+        for (Field childField : field.getChildren()) {
+          String childName = icebergFieldName + "." + childField.getName();
+          Type childType = getTypeWithId(childField, childName);
+          if (childType != null) {
+            types.add(childType);
+          }
+        }
+        if (types.size() == 0) {
+          return null;
+        }
+        return new GroupType(OPTIONAL, field.getName(), types);
+    default:
+        PrimitiveType primitiveType = getPrimitiveType(field);
+        if (column_id != -1) {
+          primitiveType = primitiveType.withId(column_id);
+        }
+        return primitiveType;
     }
   }
 
@@ -380,13 +558,18 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         "element",
         childPrimitiveType.getOriginalType(),
         childPrimitiveType.getDecimalMetadata(),
-        null);
+        childPrimitiveType.getId());
     } else {
       GroupType childGroupType = childType.asGroupType();
-      return new GroupType(childType.getRepetition(),
+      Type.ID id = childGroupType.getId();
+      GroupType groupType = new GroupType(childType.getRepetition(),
         "element",
         childType.getOriginalType(),
         childGroupType.getFields());
+      if (id != null) {
+        groupType = groupType.withId(id.hashCode());
+      }
+      return groupType;
     }
   }
 
@@ -397,6 +580,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     if (recordCount > 0) {
+      long writeFileStartTimeMillis = System.currentTimeMillis();
       long memSize = store.getBufferedSize();
       parquetFileWriter.startBlock(recordCount);
       consumer.flush();
@@ -405,11 +589,19 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       parquetFileWriter.endBlock();
       long recordsWritten = recordCount;
 
+      long footerWriteAndFlushStartTimeMillis = System.currentTimeMillis();
       // we are writing one single block per file
       parquetFileWriter.end(extraMetaData);
+
+      long writeFileEndTimeMillis = System.currentTimeMillis();
+
+      logSlowIoWrite(writeFileStartTimeMillis, footerWriteAndFlushStartTimeMillis,  writeFileEndTimeMillis,
+        parquetFileWriter.getPos(), recordsWritten, path);
+
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
       final long fileSize = parquetFileWriter.getPos();
-      listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/, partition.getBucketNumber());
+      listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
+        partition.getBucketNumber(), getIcebergMetaData());
       parquetFileWriter = null;
 
       updateStats(memSize, recordCount);
@@ -424,6 +616,92 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     store = null;
     pageStore = null;
     index++;
+  }
+
+  private void logSlowIoWrite(long writeFileStartTimeMillis, long footerWriteAndFlushStartTimeMillis,
+                             long writeFileEndTimeMillis, long size, long recordsWritten, Path path) {
+
+    long writeBlockDeltaTime = footerWriteAndFlushStartTimeMillis - writeFileStartTimeMillis;
+    long footerWriteAndFlushDeltaTime = writeFileEndTimeMillis - footerWriteAndFlushStartTimeMillis;
+    long totalTime = writeBlockDeltaTime + footerWriteAndFlushDeltaTime;
+    double writeIoRateMbps= Double.MAX_VALUE;
+    if (totalTime > 0) {
+      writeIoRateMbps = ((double)size / (1024 * 1024)) / ((double)totalTime / 1000);
+    }
+
+    if ((totalTime) > parquetFileWriteTimeThresholdMilliSecs && writeIoRateMbps < parquetFileWriteIoRateThresholdMbps) {
+      logger.warn("DHL: ParquetFileWriter took too long (writeBlockDeltaTime {} and footerWriteAndFlushDeltaTime {} milli secs) " +
+          "for writing {} records ({} bytes) to file {} at {} Mbps",
+        writeBlockDeltaTime,footerWriteAndFlushDeltaTime, recordsWritten, size, path, String.format("%.3f",writeIoRateMbps));
+    }
+  }
+
+  private byte[] getIcebergMetaData() throws IOException {
+    if (!this.isIcebergWriter) {
+      return null;
+    }
+
+    final long fileSize = parquetFileWriter.getPos();
+    DataFiles.Builder dataFileBuilder =
+      DataFiles.builder(IcebergCatalog.getIcebergPartitionSpec(this.batchSchema, this.partitionColumns))
+        .withPath(path.toString())
+        .withFileSizeInBytes(fileSize)
+        .withRecordCount(recordCount)
+        .withFormat(FileFormat.PARQUET);
+
+    // add partition info
+    if (partitionColumns != null) {
+      dataFileBuilder = dataFileBuilder.withPartition(partition.getIcebergPartitionData());
+    }
+
+    // add column level metrics
+    Metrics metrics = footerMetricsToIcebergMetrics(parquetFileWriter.getFooter(), batchSchema);
+    dataFileBuilder = dataFileBuilder.withMetrics(metrics);
+    return IcebergSerDe.serializeDataFile(dataFileBuilder.build());
+  }
+
+  public static Metrics footerMetricsToIcebergMetrics(ParquetMetadata metadata, BatchSchema batchSchema) {
+    long rowCount = 0;
+    Map<Integer, Long> columnSizes = Maps.newHashMap();
+    Map<Integer, Long> valueCounts = Maps.newHashMap();
+    Map<Integer, Long> nullValueCounts = Maps.newHashMap();
+    Set<Integer> missingStats = Sets.newHashSet();
+
+    org.apache.iceberg.Schema fileSchema = new SchemaConverter().toIceberg(batchSchema);
+
+    List<BlockMetaData> blocks = metadata.getBlocks();
+    for (BlockMetaData block : blocks) {
+      rowCount += block.getRowCount();
+      for (ColumnChunkMetaData column : block.getColumns()) {
+        ColumnPath columnPath = column.getPath();
+        NestedField field = fileSchema.findField(columnPath.toDotString());
+        if (field == null) {
+          // - lists are called favorite.list.element is parquet and just favorite.element in
+          //   iceberg.
+          // - dremio counts the only the top elements (i.e num lists), parquet counts the
+          //   number of list elements (i.e total elements).
+          // skipping this accounting for lists.
+          continue;
+        }
+
+        int fieldId = field.fieldId();
+        columnSizes.merge(fieldId, column.getTotalSize(), (x, y) -> y + column.getTotalSize());
+        valueCounts.merge(fieldId, column.getValueCount(), (x, y) -> y + column.getValueCount());
+
+        Statistics stats = column.getStatistics();
+        if (stats == null) {
+          missingStats.add(fieldId);
+        } else if (!stats.isEmpty()) {
+          nullValueCounts.merge(fieldId, stats.getNumNulls(), (x, y) -> y + stats.getNumNulls());
+        }
+      }
+    }
+
+    // discard accumulated values if any stats were missing
+    for (Integer fieldId : missingStats) {
+      nullValueCounts.remove(fieldId);
+    }
+    return new Metrics(rowCount, columnSizes, valueCounts, nullValueCounts);
   }
 
   private interface UpdateTrackingConverter {
@@ -768,7 +1046,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
     // we wait until there is at least one record before creating the parquet file
     if (parquetFileWriter == null) {
-      initRecordReader();
+      initRecordWriter();
     }
 
     recordCount++;
@@ -801,6 +1079,21 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   public void close() throws Exception {
     try {
       flushAndClose();
+      OperatorStats operatorStats = context.getStats();
+      OperatorStats.IOStats ioStats = operatorStats.getWriteIOStats();
+
+      if (ioStats != null) {
+        long minIOWriteTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
+        operatorStats.setLongStat(Metric.MIN_IO_WRITE_TIME, minIOWriteTime);
+        operatorStats.setLongStat(Metric.MAX_IO_WRITE_TIME, ioStats.maxIOTime.longValue());
+        operatorStats.setLongStat(Metric.AVG_IO_WRITE_TIME, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
+        operatorStats.addLongStat(Metric.NUM_IO_WRITE, ioStats.numIO.longValue());
+
+        operatorStats.setProfileDetails(UserBitShared.OperatorProfileDetails
+          .newBuilder()
+          .addAllSlowIoInfos(ioStats.slowIOInfoList)
+          .build());
+      }
     } finally {
       try {
         NoExceptionAutoCloseables.close(store, pageStore, parquetFileWriter);

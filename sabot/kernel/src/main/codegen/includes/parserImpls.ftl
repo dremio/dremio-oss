@@ -211,6 +211,58 @@ SqlNode SqlDropView() :
     }
 }
 
+SqlNodeList TableElementList() :
+{
+    final Span s;
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+}
+{
+    <LPAREN> { s = span(); }
+    TableElement(list)
+    (
+        <COMMA> TableElement(list)
+    )*
+    <RPAREN> {
+        return new SqlNodeList(list, s.end(this));
+    }
+}
+
+void TableElement(List<SqlNode> list) :
+{
+    final SqlIdentifier id;
+    final SqlDataTypeSpec type;
+    final boolean nullable;
+    final SqlNode e;
+    final SqlNode constraint;
+    SqlIdentifier name = null;
+    final SqlNodeList columnList;
+    final Span s = Span.of();
+}
+{
+    LOOKAHEAD(2) id = SimpleIdentifier()
+    (
+        type = DataType()
+        (
+            <NULL> { nullable = true; }
+            |
+            <NOT> <NULL> { nullable = false; }
+            |
+            { nullable = true; }
+        )
+        {
+            list.add(
+                    new SqlColumnDeclaration(s.add(id).end(this), id,
+                    type.withNullable(nullable), null));
+        }
+        |
+        { list.add(id); }
+    )
+    |
+    id = SimpleIdentifier() {
+        list.add(id);
+    }
+}
+
 /**
  * Parses a CTAS statement.
  * CREATE TABLE tblname [ (field1, field2, ...) ]
@@ -219,7 +271,7 @@ SqlNode SqlDropView() :
  *       [ LOCALSORT BY (field1, field2, ..) ]
  *       [ STORE AS (opt1 => val1, opt2 => val3, ...) ]
  *       [ WITH SINGLE WRITER ]
- *       AS select_statement.
+ *       [ AS select_statement. ]
  */
 SqlNode SqlCreateTable() :
 {
@@ -243,11 +295,12 @@ SqlNode SqlCreateTable() :
         formatOptions = SqlNodeList.EMPTY;
         singleWriter = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
+        fieldList = SqlNodeList.EMPTY;
     }
     <CREATE> { pos = getPos(); }
     <TABLE>
     tblName = CompoundIdentifier()
-    fieldList = ParseOptionalFieldList("Table")
+    [ fieldList = TableElementList() ]
     (
         (
             <STRIPED> {
@@ -290,11 +343,48 @@ SqlNode SqlCreateTable() :
             singleWriter = SqlLiteral.createBoolean(true, getPos());
         }
     ]
-    <AS>
+        (
+            (
+                <AS>
+                query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+                {
+                    return new SqlCreateTable(pos, tblName, fieldList, partitionDistributionStrategy, partitionFieldList,
+                    formatOptions, singleWriter, sortFieldList, distributeFieldList, query);
+                }
+            )
+            |
+            (
+                {
+                    return new SqlCreateEmptyTable(pos, tblName, fieldList, partitionDistributionStrategy,
+                    partitionFieldList, formatOptions, singleWriter, sortFieldList, distributeFieldList);
+                }
+            )
+        )
+}
+
+/**
+* Parses a insert table or drop table if exists statement.
+* INSERT INTO table_name select_statement;
+*/
+SqlNode SqlInsertTable() :
+{
+  SqlParserPos pos;
+  SqlIdentifier tblName;
+  SqlNode query;
+  SqlNodeList fieldList;
+}
+{
+  {
+    fieldList = SqlNodeList.EMPTY;
+  }
+
+  <INSERT> { pos = getPos(); }
+  <INTO>
+    tblName = CompoundIdentifier()
+    [ fieldList = TableElementList() ]
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateTable(pos, tblName, fieldList, partitionDistributionStrategy, partitionFieldList,
-           formatOptions, singleWriter, query, sortFieldList, distributeFieldList);
+      return new SqlInsertTable(pos, tblName, query, fieldList);
     }
 }
 
@@ -313,6 +403,25 @@ SqlNode SqlDropTable() :
     [ <IF> <EXISTS> { tableExistenceCheck = true; } ]
     {
         return new SqlDropTable(pos, CompoundIdentifier(), tableExistenceCheck);
+    }
+}
+
+/**
+ * Parses a truncate table statement.
+ * TRUNCATE [TABLE] [IF EXISTS] table_name;
+ */
+SqlNode SqlTruncateTable() :
+{
+    SqlParserPos pos;
+    boolean tableExistenceCheck = false;
+    boolean tableKeywordPresent = false;
+}
+{
+    <TRUNCATE> { pos = getPos(); }
+    [ <TABLE> { tableKeywordPresent = true; } ]
+    [ <IF> <EXISTS> { tableExistenceCheck = true; } ]
+    {
+        return new SqlTruncateTable(pos, CompoundIdentifier(), tableExistenceCheck, tableKeywordPresent);
     }
 }
 

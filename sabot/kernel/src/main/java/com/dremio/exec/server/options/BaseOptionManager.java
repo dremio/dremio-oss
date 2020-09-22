@@ -15,16 +15,23 @@
  */
 package com.dremio.exec.server.options;
 
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 
-abstract class BaseOptionManager implements OptionManager {
+public abstract class BaseOptionManager implements OptionManager {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseOptionManager.class);
+  private final OptionValidatorListing optionValidatorListing;
+
+  protected BaseOptionManager(OptionValidatorListing optionValidatorListing) {
+    this.optionValidatorListing = optionValidatorListing;
+  }
 
   /**
    * Gets the current option value given a validator.
@@ -36,6 +43,14 @@ abstract class BaseOptionManager implements OptionManager {
   private OptionValue getOptionSafe(OptionValidator validator)  {
     return getOption(validator.getOptionName());
   }
+
+  /**
+   * Check to see if implementations of this manager support the given option type.
+   *
+   * @param type option type
+   * @return true iff the type is supported
+   */
+  abstract protected boolean supportsOptionType(OptionValue.OptionType type);
 
   @Override
   public boolean getOption(BooleanValidator validator) {
@@ -55,5 +70,20 @@ abstract class BaseOptionManager implements OptionManager {
   @Override
   public String getOption(StringValidator validator) {
     return getOptionSafe(validator).getStringVal();
+  }
+
+  @Override
+  public OptionList getDefaultOptions() {
+    return new OptionList();
+  }
+
+  @Override
+  public OptionList getNonDefaultOptions() {
+    return new OptionList();
+  }
+
+  @Override
+  public OptionValidatorListing getOptionValidatorListing() {
+    return optionValidatorListing;
   }
 }

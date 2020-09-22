@@ -33,13 +33,29 @@ import com.google.common.base.Throwables;
 public class RpcException extends IOException {
   private static final long serialVersionUID = -5964230316010502319L;
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcException.class);
+  private final String status;
+  private final String errorId;
 
   public RpcException() {
     super();
+    this.status = null;
+    this.errorId = null;
   }
 
   public RpcException(String message, Throwable cause) {
-    super(format(message), cause);
+    this(message, null, null, cause);
+  }
+
+  public RpcException(String errMsg, String status, String errorId, Throwable cause) {
+    super(format(errMsg), cause);
+    this.status = status;
+    this.errorId = errorId;
+  }
+
+  public RpcException(String errMsg, String status, String errorId) {
+    super(format(errMsg));
+    this.status = status;
+    this.errorId = errorId;
   }
 
   private static String format(String message) {
@@ -47,16 +63,18 @@ public class RpcException extends IOException {
   }
 
   public RpcException(String message) {
-    super(format(message));
+    this(message, null, null);
   }
 
   public RpcException(Throwable cause) {
     super(cause);
+    this.status = null;
+    this.errorId = null;
   }
 
   public static RpcException mapException(Throwable t) {
     while (t instanceof ExecutionException) {
-      t = ((ExecutionException)t).getCause();
+      t = t.getCause();
     }
     if (t instanceof RpcException) {
       return ((RpcException) t);
@@ -66,7 +84,7 @@ public class RpcException extends IOException {
 
   public static RpcException mapException(String message, Throwable t) {
     while (t instanceof ExecutionException) {
-      t = ((ExecutionException)t).getCause();
+      t = t.getCause();
     }
     return new RpcException(message, t);
   }
@@ -139,5 +157,13 @@ public class RpcException extends IOException {
       }
     }
     Throwables.propagateIfPossible(t, clazz);
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public String getErrorId() {
+    return errorId;
   }
 }

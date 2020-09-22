@@ -17,12 +17,12 @@ import { RSAA } from 'redux-api-middleware';
 import { replace } from 'react-router-redux';
 import uuid from 'uuid';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
 
 import previewTableSchema from 'schemas/previewTable';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const TRANSFORM_PEEK_START   = 'TRANSFORM_PEEK_START';
 export const TRANSFORM_PEEK_SUCCESS = 'TRANSFORM_PEEK_SUCCESS';
@@ -37,6 +37,9 @@ function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
   const peekId = uuid.v4();
   const uiPropsForEntity = [{ key: 'id', value: peekId }];
   const meta = { viewId, peekId, submitType };
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -51,7 +54,7 @@ function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
         ...apiUtils.getJobDataNumbersAsStringsHeader()
       },
       body: JSON.stringify(body),
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }

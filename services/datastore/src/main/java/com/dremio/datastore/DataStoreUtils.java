@@ -16,6 +16,7 @@
 package com.dremio.datastore;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 import com.google.common.base.Preconditions;
 
@@ -23,25 +24,6 @@ import com.google.common.base.Preconditions;
  * Utilities for datastore and other applications
  */
 public final class DataStoreUtils {
-
-  public static KVStoreInfo toInfo(StoreBuilderConfig builderConfig) {
-    return new KVStoreInfo()
-        .setTablename(builderConfig.getName())
-        .setKeySerializerClassName(builderConfig.getKeySerializerClassName())
-        .setValueSerializerClassName(builderConfig.getValueSerializerClassName())
-        .setDocumentConverterClassName(builderConfig.getDocumentConverterClassName())
-        .setVersionExtractorClassName(builderConfig.getVersionExtractorClassName());
-  }
-
-  public static StoreBuilderConfig toBuilderConfig(KVStoreInfo kvStoreMetadata) {
-    final StoreBuilderConfig storeBuilderConfig = new StoreBuilderConfig();
-    storeBuilderConfig.setName(kvStoreMetadata.getTablename());
-    storeBuilderConfig.setKeySerializerClassName(kvStoreMetadata.getKeySerializerClassName());
-    storeBuilderConfig.setValueSerializerClassName(kvStoreMetadata.getValueSerializerClassName());
-    storeBuilderConfig.setDocumentConverterClassName(kvStoreMetadata.getDocumentConverterClassName());
-    storeBuilderConfig.setVersionExtractorClassName(kvStoreMetadata.getVersionExtractorClassName());
-    return storeBuilderConfig;
-  }
 
   /**
    * Convert a class name to an instance.
@@ -52,7 +34,7 @@ public final class DataStoreUtils {
    * @return The newly created instance (or null if !failOnEmpty and emptry string used).
    */
   @SuppressWarnings("unchecked")
-  static <T> T getInstance(String className, Class<T> clazz, boolean failOnEmpty) {
+  public static <T> T getInstance(String className, Class<T> clazz, boolean failOnEmpty) {
     if (className == null || className.isEmpty()) {
       if (failOnEmpty) {
         throw new DatastoreException(String.format(
@@ -65,9 +47,7 @@ public final class DataStoreUtils {
       try {
         final Class<?> outcome = Class.forName(Preconditions.checkNotNull(className));
         Preconditions.checkArgument(clazz.isAssignableFrom(outcome));
-        Constructor<?> constructor = outcome.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        return (T) constructor.newInstance();
+        return (T) getInstance(outcome);
       } catch (Exception ex) {
         throw new DatastoreException(String.format(
             "Failure while trying to load class named %s which should be a subclass of %s. ",
@@ -78,5 +58,23 @@ public final class DataStoreUtils {
   }
 
   private DataStoreUtils() {
+  }
+
+  /**
+   * Makes a constructor accessible so classes are instantiable.
+   * @param clazz to instantiate
+   * @param <T> type to instantiate
+   * @return instance
+   * @throws DatastoreException if constructor cannot be invoked.
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> T getInstance(Class<T> clazz) throws DatastoreException {
+    try {
+      Constructor<?> constructor = clazz.getDeclaredConstructor();
+      constructor.setAccessible(true);
+      return (T) constructor.newInstance();
+    } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new DatastoreException("Could not get instance of class: " + clazz.getName(), e);
+    }
   }
 }

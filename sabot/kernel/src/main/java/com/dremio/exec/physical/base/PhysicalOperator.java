@@ -16,6 +16,7 @@
 package com.dremio.exec.physical.base;
 
 import java.util.List;
+import java.util.Set;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphValue;
@@ -85,4 +86,13 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
 
   @JsonIgnore
   public int getOperatorType();
+
+  /**
+   * Other major fragments, this operator will be interested in sending messages to.
+   * This is processed only once per major fragment.
+   *
+   * @return
+   */
+  @JsonIgnore
+  Set<Integer> getExtCommunicableMajorFragments();
 }

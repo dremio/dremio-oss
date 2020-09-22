@@ -37,10 +37,12 @@ public class HadoopAsyncByteReader implements AsyncByteReader {
 
   private final Path path;
   private final FSInputStream inputStream;
+  private final String threadName;
 
   public HadoopAsyncByteReader(final Path path, final FSInputStream inputStream) {
     this.path = path;
     this.inputStream = inputStream;
+    this.threadName = Thread.currentThread().getName();
   }
 
   @Override
@@ -49,9 +51,9 @@ public class HadoopAsyncByteReader implements AsyncByteReader {
     return CompletableFuture.runAsync(() -> {
       try {
         readFully(inputStream, offset, dstBuf.nioBuffer(dstOffset, len));
-        logger.debug("Completed request for path {} for offset {} len {}", path, offset, len);
+        logger.debug("[{}] Completed request for path {} for offset {} len {}", threadName, path, offset, len);
       } catch (Exception e) {
-        logger.debug("Failed request for path {} for offset {} len {}", path, offset, len, e);
+        logger.error("[{}] Failed request for path {} for offset {} len {}", threadName, path, offset, len, e);
         throw new CompletionException(e);
       }
     }, threadPool);

@@ -51,6 +51,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.util.Closeable;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
@@ -117,13 +118,13 @@ public class HiveUtilities {
    * @throws Exception
    */
   public static final Class<? extends InputFormat<?, ?>> getInputFormatClass(final JobConf jobConf, Optional<String> inputFormat,
-                                                                             Optional<String> storageHandlerName) throws Exception {
+    Optional<String> storageHandlerName) throws Exception {
     if (inputFormat.isPresent()) {
       return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
     }
 
     if (storageHandlerName.isPresent()) {
-      try (final ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance()) {
+      try (final Closeable swapper = HivePf4jPlugin.swapClassLoader()) {
         // HiveUtils.getStorageHandler() depends on the current context classloader if you query and HBase table,
         // and don't have an HBase session open.
         final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(jobConf, storageHandlerName.get());

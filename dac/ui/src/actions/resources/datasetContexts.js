@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-// import { CALL_MOCK_API } from 'mockApi';
-import { API_URL_V2 } from '@app/constants/Api';
 
 import datasetContextSchema from 'schemas/v2/datasetContext';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_DATASET_CONTEXT_VIEW_ID = 'LOAD_DATASET_CONTEXT_VIEW_ID';
 
@@ -29,6 +28,9 @@ export const LOAD_DATASET_CONTEXT_FAILURE = 'LOAD_DATASET_CONTEXT_FAILURE';
 function fetchDatasetContext(entity) {
   const href = entity.getIn(['links', 'context']);
   const meta = {viewId: LOAD_DATASET_CONTEXT_VIEW_ID};
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -37,7 +39,7 @@ function fetchDatasetContext(entity) {
         { type: LOAD_DATASET_CONTEXT_FAILURE, meta }
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }

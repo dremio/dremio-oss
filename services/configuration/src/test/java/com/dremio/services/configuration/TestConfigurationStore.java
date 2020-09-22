@@ -18,8 +18,8 @@ package com.dremio.services.configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.dremio.test.DremioTest;
 
@@ -31,7 +31,8 @@ import io.protostuff.ByteString;
 public class TestConfigurationStore {
   @Test
   public void testStore() throws Exception {
-    try(final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try(final LegacyKVStoreProvider kvstore =
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       ConfigurationStore store = new ConfigurationStore(kvstore);
 
@@ -43,6 +44,10 @@ public class TestConfigurationStore {
       ConfigurationEntry retrieved = store.get("key");
       Assert.assertEquals(retrieved.getType(), supportEntry.getType());
       Assert.assertEquals(retrieved.getValue(), supportEntry.getValue());
+
+      store.delete("key");
+      retrieved = store.get("key");
+      Assert.assertEquals(retrieved, null);
     }
   }
 }

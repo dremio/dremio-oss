@@ -18,6 +18,7 @@ package com.dremio.exec.expr.fn.impl;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.DateMilliHolder;
 import org.apache.arrow.vector.holders.IntervalDayHolder;
@@ -40,8 +41,6 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.sabot.exec.context.ContextInformation;
-
-import io.netty.buffer.ArrowBuf;
 
 public class DateTypeFunctions {
 
@@ -466,7 +465,7 @@ public class DateTypeFunctions {
       @Param VarCharHolder inputDateValue;
       @Param VarCharHolder inputPattern;
       @Output BigIntHolder out;
-      @Workspace org.joda.time.LocalDateTime date;
+      @Workspace org.joda.time.DateTime date;
       @Workspace org.joda.time.format.DateTimeFormatter formatter;
 
       @Override
@@ -478,8 +477,52 @@ public class DateTypeFunctions {
       @Override
       public void eval() {
           String inputDate = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(inputDateValue.start, inputDateValue.end, inputDateValue.buffer);
-          date = formatter.parseLocalDateTime(inputDate);
+          date = formatter.parseDateTime(inputDate);
           out.value = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
       }
     }
+
+    @FunctionTemplate(name = "convert_timezone", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+    public static class ConvertTimeZoneFromUTC implements SimpleFunction {
+        @Param(constant = true) VarCharHolder destTz;
+        @Param TimeStampMilliHolder in;
+        @Output TimeStampMilliHolder out;
+        @Inject FunctionErrorContext errCtx;
+
+        @Workspace String targetTimezone;
+
+        @Override
+        public void setup() {
+            targetTimezone = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(destTz.start, destTz.end, destTz.buffer);
+        }
+
+        @Override
+        public void eval() {
+            out.value = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.convertTimeZone(targetTimezone, in.value, errCtx);
+        }
+    }
+
+    @FunctionTemplate(name = "convert_timezone", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+    public static class ConvertTimeZone implements SimpleFunction {
+        @Param(constant = true) VarCharHolder srcTz;
+        @Param(constant = true) VarCharHolder destTz;
+        @Param TimeStampMilliHolder in;
+        @Output TimeStampMilliHolder out;
+        @Inject FunctionErrorContext errCtx;
+
+        @Workspace String sourceTimezone;
+        @Workspace String targetTimezone;
+
+        @Override
+        public void setup() {
+            sourceTimezone = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(srcTz.start, srcTz.end, srcTz.buffer);
+            targetTimezone = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(destTz.start, destTz.end, destTz.buffer);
+        }
+
+        @Override
+        public void eval() {
+            out.value = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.convertTimeZone(sourceTimezone, targetTimezone, in.value, errCtx);
+        }
+    }
+
 }

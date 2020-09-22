@@ -78,7 +78,7 @@ export default class CellPopover extends Component {
   getMapModel(keyPath) {
     const mapPathList = keyPath.slice().reverse();
     // we need concat item of list with parent like "list[indexOfList]"
-    const path = mapPathList.reduce((prev, cur, curIndex) => {
+    const path = mapPathList.reduce((prev, cur) => {
       if (typeof cur === 'number') {
         prev[prev.length - 1] = prev[prev.length - 1] + `[${cur}]`;
       } else {
@@ -125,7 +125,7 @@ export default class CellPopover extends Component {
     if (this.props.onCurrentPathChange && !this.props.isDumbTable) {
       this.props.onCurrentPathChange(keyPath && keyPath.slice().reverse().join('.'));
     }
-  }
+  };
 
   selectItem(e, keyPath) {
     if (e.target.tagName === 'DIV' || this.props.isDumbTable) {
@@ -164,7 +164,7 @@ export default class CellPopover extends Component {
     const selection = this.getMapValueFromSelection();
     exploreUtils.copySelection(selection);
     this.hideDrop();
-  }
+  };
 
   renderLabel(keyPath) {
     const {isDumbTable} = this.props;

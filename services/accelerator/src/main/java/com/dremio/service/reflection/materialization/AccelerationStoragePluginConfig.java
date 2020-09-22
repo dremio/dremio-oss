@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection.materialization;
 
+import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.net.URI;
@@ -27,9 +28,11 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.CacheProperties;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.google.common.collect.ImmutableList;
@@ -59,10 +62,14 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Tag(5)
   public int maxCacheSpacePercent = MAX_CACHE_SPACE_PERCENT;
 
+  @Tag(6)
+  public boolean enableS3FileStatusCheck = true;
+
   public AccelerationStoragePluginConfig() {
   }
 
-  public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent) {
+  public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
+                                         boolean enableS3FileStatusCheck) {
     if(path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -75,6 +82,7 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     this.enableAsync = enableAsync;
     this.enableCaching = enableCaching;
     this.maxCacheSpacePercent = maxCacheSpacePercent;
+    this.enableS3FileStatusCheck = enableS3FileStatusCheck;
   }
 
   @Override
@@ -112,9 +120,11 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     return SchemaMutability.SYSTEM_TABLE;
   }
 
-  public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent) {
+  public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
+                                    boolean enableS3FileStatusCheck) {
     SourceConfig conf = new SourceConfig();
-    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync, enableCaching, maxCacheSpacePercent);
+    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync,
+      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -131,11 +141,18 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     return enableAsync;
   }
 
+  public boolean isS3FileStatusCheckEnabled() {
+    return enableS3FileStatusCheck;
+  }
+
   @Override
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override
-      public boolean isCachingEnabled() {
+      public boolean isCachingEnabled(final OptionManager optionManager) {
+        if (FileSystemConf.isCloudFileSystemScheme(connection)) {
+          return optionManager.getOption(CLOUD_CACHING_ENABLED) ;
+        }
         return enableCaching;
       }
 

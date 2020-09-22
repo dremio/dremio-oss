@@ -21,20 +21,23 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.LoadingCacheWithExpiry;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.planner.fragment.CachedFragmentReader;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
@@ -43,10 +46,10 @@ import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
-import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
@@ -61,11 +64,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Sets;
+import com.google.protobuf.Empty;
+
+import io.grpc.stub.StreamObserver;
 
 /**
  * A type of map used to help manage fragments.
@@ -74,58 +79,41 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutors.class);
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
-  private final LoadingCache<FragmentHandle, FragmentHandler> handlers = CacheBuilder.newBuilder()
-    .build(new CacheLoader<FragmentHandle, FragmentHandler>() {
-      @Override
-      public FragmentHandler load(FragmentHandle key) throws Exception {
-        return new FragmentHandler(key, evictionDelayMillis);
-      }
-    });
+  private final LoadingCacheWithExpiry<FragmentHandle, FragmentHandler> handlers;
   private final AtomicInteger numRunningFragments = new AtomicInteger();
-
-  private final CloseableSchedulerThreadPool scheduler = new CloseableSchedulerThreadPool("fragment-handler-cleaner", 1);
 
   private final TaskPool pool;
   private final ExitCallback callback;
   private final long evictionDelayMillis;
+  private final MaestroProxy maestroProxy;
+  private final int warnMaxTime;
 
   public FragmentExecutors(
-    final ExecToCoordTunnelCreator tunnelCreator,
+    final MaestroProxy maestroProxy,
     final ExitCallback callback,
     final TaskPool pool,
     final OptionManager options) {
+    this.maestroProxy = maestroProxy;
     this.callback = callback;
     this.pool = pool;
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
 
-    initEvictionThread(evictionDelayMillis);
-  }
+    this.handlers = new LoadingCacheWithExpiry<>("fragment-handler",
+      new CacheLoader<FragmentHandle, FragmentHandler>() {
+        @Override
+        public FragmentHandler load(FragmentHandle key) throws Exception {
+          return new FragmentHandler(key, evictionDelayMillis);
+        }
+      },
+      null, evictionDelayMillis);
 
-  /**
-   * schedules a thread that will asynchronously evict expired FragmentHandler from the cache.
-   * First update will be scheduled after refreshDelayMs, and each subsequent update will start after
-   * the previous update finishes + refreshDelayMs
-   *
-   * @param refreshDelayMs delay, in seconds, between successive eviction checks
-   */
-  private void initEvictionThread(long refreshDelayMs) {
-    scheduler.scheduleWithFixedDelay(getEvictionAction(), refreshDelayMs, refreshDelayMs, TimeUnit.MILLISECONDS);
+    this.warnMaxTime = (int) options.getOption(ExecConstants.SLICING_WARN_MAX_RUNTIME_MS);
   }
 
   @VisibleForTesting
-  Runnable getEvictionAction() {
-    return () -> {
-      for (FragmentHandler handler : handlers.asMap().values()) {
-        try {
-          if (handler.isExpired()) {
-            handlers.invalidate(handler.getHandle());
-          }
-        } catch (Throwable e) {
-          logger.warn("Failed to evict FragmentHandler for {}", QueryIdHelper.getQueryIdentifier(handler.getHandle()), e);
-        }
-      }
-    };
+  void checkAndEvict() {
+    handlers.checkAndEvict();
   }
 
   @Override
@@ -153,7 +141,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   }
 
   public void startFragments(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
-                             final ResponseSender sender, final NodeEndpoint identity) {
+                             final StreamObserver<Empty> sender, final NodeEndpoint identity) {
     final SchedulingInfo schedulingInfo = fragments.hasSchedulingInfo() ? fragments.getSchedulingInfo() : null;
     QueryStarterImpl queryStarter = new QueryStarterImpl(fragments, builder, sender, identity, schedulingInfo);
     builder.buildAndStartQuery(queryStarter.getFirstFragment(), schedulingInfo, queryStarter);
@@ -171,6 +159,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
    * @param clerk
    */
   public void activateFragments(QueryId queryId, QueriesClerk clerk) {
+    logger.debug("received activation for query {}", QueryIdHelper.getQueryId(queryId));
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
       activateFragment(fragmentTicket.getHandle());
     }
@@ -186,6 +175,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
    * @param clerk
    */
   public void cancelFragments(QueryId queryId, QueriesClerk clerk) {
+    logger.debug("received cancel for query {}", QueryIdHelper.getQueryId(queryId));
+    maestroProxy.setQueryCancelled(queryId);
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
       cancelFragment(fragmentTicket.getHandle());
     }
@@ -262,7 +253,51 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       }
     }
 
-    AutoCloseables.close(scheduler);
+    AutoCloseables.close(handlers);
+  }
+
+  public void startFragmentOnLocal(PlanFragmentFull planFragmentFull, FragmentExecutorBuilder fragmentExecutorBuilder) {
+    CoordExecRPC.InitializeFragments.Builder fb = CoordExecRPC.InitializeFragments.newBuilder();
+    CoordExecRPC.PlanFragmentSet.Builder setB = fb.getFragmentSetBuilder();
+    setB.addMajor(planFragmentFull.getMajor());
+    setB.addMinor(planFragmentFull.getMinor());
+    // No minor specific attributes since there is one minor
+    // No endpoint index since this is supposed to run on localhost
+
+    // Set the workload class to be background
+    CoordExecRPC.SchedulingInfo.Builder scheduleB = fb.getSchedulingInfoBuilder();
+    // Dont need to set queueId for WorkloadClass BACKGROUND
+    scheduleB.setWorkloadClass(UserBitShared.WorkloadClass.BACKGROUND);
+
+    CoordExecRPC.InitializeFragments initializeFragments = fb.build();
+
+    UserBitShared.QueryId queryId = planFragmentFull.getHandle().getQueryId();
+    maestroProxy.doNotTrack(queryId);
+
+    startFragments(initializeFragments, fragmentExecutorBuilder, new StreamObserver<Empty>() {
+      @Override
+      public void onNext(Empty empty) {}
+
+      @Override
+      public void onError(Throwable throwable) {
+        logger.error("Unable to execute query due to {}", throwable);
+      }
+
+      @Override
+      public void onCompleted() {
+        logger.info("Completed executing query");
+      }
+    }, fragmentExecutorBuilder.getNodeEndpoint());
+
+    activateFragments(queryId, fragmentExecutorBuilder.getClerk());
+  }
+
+  public QueryId getQueryIdForLocalQuery() {
+    UUID queryUUID = UUID.randomUUID();
+    return UserBitShared.QueryId.newBuilder()
+      .setPart1(queryUUID.getMostSignificantBits())
+      .setPart2(queryUUID.getLeastSignificantBits())
+      .build();
   }
 
   /**
@@ -271,14 +306,14 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private class QueryStarterImpl implements QueryStarter {
     final InitializeFragments initializeFragments;
     final FragmentExecutorBuilder builder;
-    final ResponseSender sender;
+    final StreamObserver<Empty> sender;
     final NodeEndpoint identity;
     final SchedulingInfo schedulingInfo;
     final CachedFragmentReader fragmentReader;
     List<PlanFragmentFull> fullFragments;
 
     QueryStarterImpl(final InitializeFragments initializeFragments, final FragmentExecutorBuilder builder,
-                     final ResponseSender sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
+                     final StreamObserver<Empty> sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
       this.initializeFragments = initializeFragments;
       this.builder = builder;
       this.sender = sender;
@@ -311,6 +346,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
     @Override
     public void buildAndStartQuery(final QueryTicket queryTicket) {
+      QueryId queryId = queryTicket.getQueryId();
+
       /**
        * To avoid race conditions between creation and deletion of phase/fragment tickets,
        * build all the fragments first (creates the tickets) and then, start the fragments (can
@@ -318,9 +355,20 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
        */
       List<FragmentExecutor> fragmentExecutors = new ArrayList<>();
       UserRpcException userRpcException = null;
+      Set<FragmentHandle> fragmentHandlesForQuery = Sets.newHashSet();
       try {
+        if (!maestroProxy.tryStartQuery(queryId, queryTicket)) {
+          boolean isDuplicateStart = maestroProxy.isQueryStarted(queryId);
+          if (isDuplicateStart) {
+            // duplicate op, do nothing.
+            return;
+          } else {
+            throw new IllegalStateException("query already cancelled");
+          }
+        }
         for (PlanFragmentFull fragment : fullFragments) {
           FragmentExecutor fe = buildFragment(queryTicket, fragment, schedulingInfo);
+          fragmentHandlesForQuery.add(fe.getHandle());
           fragmentExecutors.add(fe);
         }
       } catch (UserRpcException e) {
@@ -328,28 +376,35 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       } catch (Exception e) {
         userRpcException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
       } finally {
+        if (fragmentHandlesForQuery.size() > 0) {
+          maestroProxy.initFragmentHandlesForQuery(queryId, fragmentHandlesForQuery);
+        }
         for (FragmentExecutor fe : fragmentExecutors) {
           startFragment(fe);
         }
-        if (queryTicket != null) {
-          queryTicket.release();
-        }
+        queryTicket.release();
 
         if (userRpcException == null) {
-          sender.send(OK);
+          sender.onNext(Empty.getDefaultInstance());
+          sender.onCompleted();
         } else {
-          sender.sendFailure(userRpcException);
+          sender.onError(userRpcException);
         }
+      }
+
+      // if there was a cancel while the start was in-progress, clean up.
+      if (maestroProxy.isQueryCancelled(queryId)) {
+        cancelFragments(queryId, builder.getClerk());
       }
     }
 
     @Override
     public void unableToBuildQuery(Exception e) {
       if (e instanceof UserRpcException) {
-        sender.sendFailure((UserRpcException) e);
+        sender.onError((UserRpcException) e);
       } else {
         final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
-        sender.sendFailure(genericException);
+        sender.onError(genericException);
       }
     }
 
@@ -389,11 +444,14 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
             numRunningFragments.decrementAndGet();
             handler.invalidate();
 
+            maestroProxy.markQueryAsDone(handler.getHandle().getQueryId());
+
             if (callback != null) {
               callback.indicateIfSafeToExit();
             }
           }
-        });
+        },
+        warnMaxTime);
 
       handler.setExecutor(executor);
       pool.execute(task);

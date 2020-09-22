@@ -20,7 +20,7 @@
 
  // we should show a spliter/border on the left and add a padding for wiki button
  .wiki-collapsed {
-   composes: sidebar-border from '@app/pages/HomePage/components/Columns.less';
+   composes: sidebar-border from '~@app/pages/HomePage/components/Columns.less';
    padding-left: 10px;
  }
 
@@ -62,7 +62,7 @@
     .ReactVirtualized__Table__headerRow {
       .formLabel();
       text-transform: initial;
-      height: 40px;
+      height: 30px;
       vertical-align: bottom;
       border-bottom: 1px solid rgba(0,0,0,.1);
     }
@@ -170,9 +170,9 @@
     .main-settings-holder{
       position: relative;
       display: inline-block;
-      margin: 9px 0 8px;
+      margin: 7px 0 8px;
       .button-white:hover{
-        background: #C7DEE6 !important;
+        background: #F9F9F9 !important;
       }
       .settings-button{
         padding: 0;
@@ -272,7 +272,7 @@
       margin: 0 10px;
       .title{
         font-size: 13px;
-        font-weight: bold;
+        font-weight: 500;
         margin: 0 0 7px;
       }
     }

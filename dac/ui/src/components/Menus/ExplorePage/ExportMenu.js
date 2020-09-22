@@ -18,20 +18,19 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
 
-import { MAP, LIST, MIXED } from '@app/constants/DataTypes';
-import { API_URL_V2 } from '@app/constants/Api';
+import { LIST, MAP, MIXED } from '@app/constants/DataTypes';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import { addParameterToUrl } from '@app/utils/urlUtils';
 import { getExploreJobId, getExploreState } from '@app/selectors/explore';
 import { isSqlChanged } from '@app/sagas/utils';
 import { addNotification } from 'actions/notification';
+import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
+import { APIV2Call } from '@app/core/APICall';
+import MenuItem from './MenuItem';
+import Menu from './Menu';
 
 const UNSUPPORTED_TYPE_COLUMNS = {
   'CSV': new Set([MAP, LIST, MIXED])
 };
-
-import MenuItem from './MenuItem';
-import Menu from './Menu';
 
 const TYPES = [
   { label: 'JSON', name: 'JSON' },
@@ -54,9 +53,18 @@ export class ExportMenu extends PureComponent {
 
   makeUrl = (type) => {
     const {jobId} = this.props;
-    const downloadUrl = `/job/${encodeURIComponent(jobId)}/download?downloadFormat=${type.name}`;
     const token = localStorageUtils.getAuthToken();
-    return `${API_URL_V2}${addParameterToUrl(downloadUrl, 'Authorization', token)}`;
+
+    const apiCall = new APIV2Call()
+      .path('job')
+      .path(jobId)
+      .path('download')
+      .params({
+        downloadFormat: type.name,
+        Authorization: token
+      });
+
+    return apiCall.toString();
   };
 
   renderMenuItems() {
@@ -79,7 +87,7 @@ export class ExportMenu extends PureComponent {
     const { intl } = this.props;
     const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, {type});
     const message = <span>{notificationMessage}</span>;
-    this.props.addNotification(message, 'success', 10);
+    this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
   }
 
   render() {
@@ -87,7 +95,7 @@ export class ExportMenu extends PureComponent {
   }
 }
 
-function mapStateToProps(state, props) {
+function mapStateToProps(state) {
   const explorePageState = getExploreState(state);
   const currentSql = explorePageState.view.currentSql;
 

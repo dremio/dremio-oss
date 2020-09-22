@@ -26,6 +26,9 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
+/**
+ * Physical Relation Node
+ */
 public interface Prel extends RelNode, Iterable<Prel>{
 
   final long DEFAULT_RESERVE = 1_000_000;

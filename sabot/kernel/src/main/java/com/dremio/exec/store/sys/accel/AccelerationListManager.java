@@ -45,10 +45,11 @@ public interface AccelerationListManager extends Service {
     public final String measures;
     public final String displayColumns;
     public final String externalReflection;
+    public final boolean arrow_cache;
 
     public ReflectionInfo(String reflectionId, String name, String type, String status, int numFailures, String dataset,
         String sortColumns, String partitionColumns, String distributionColumns, String dimensions, String measures,
-        String displayColumns, String externalReflection) {
+        String displayColumns, String externalReflection, boolean arrowCachingEnabled) {
       this.reflection_id = reflectionId;
       this.name = name;
       this.type = type;
@@ -62,6 +63,7 @@ public interface AccelerationListManager extends Service {
       this.measures = measures;
       this.displayColumns = displayColumns;
       this.externalReflection = externalReflection;
+      this.arrow_cache = arrowCachingEnabled;
     }
 
     public ReflectionRPC.ReflectionInfo toProto() {
@@ -123,7 +125,8 @@ public interface AccelerationListManager extends Service {
         reflectionInfoProto.getDimensions(),
         reflectionInfoProto.getMeasures(),
         reflectionInfoProto.getDisplayColumns(),
-        reflectionInfoProto.getExternalReflection());
+        reflectionInfoProto.getExternalReflection(),
+        reflectionInfoProto.getArrowCachingEnabled());
     }
   }
 

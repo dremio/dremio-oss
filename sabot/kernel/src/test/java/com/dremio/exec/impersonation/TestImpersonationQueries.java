@@ -30,15 +30,19 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Maps;
 
 /**
@@ -46,9 +50,14 @@ import com.google.common.collect.Maps;
  * a nested view.
  */
 public class TestImpersonationQueries extends BaseTestImpersonation {
+  @ClassRule
+  public static TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @BeforeClass
   public static void setup() throws Exception {
     assumeNonMaprProfile();
+
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
     startMiniDfsCluster(TestImpersonationQueries.class.getSimpleName());
     addMiniDfsBasedStorage(createTestWorkspaces(), /*impersonationEnabled=*/true);
     createTestData();
@@ -253,8 +262,12 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
 
   @AfterClass
   public static void removeMiniDfsBasedStorage() throws Exception {
-    SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    try {
+      SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
+      ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    } catch (NamespaceNotFoundException e) {
+      // ignore if source is not found
+    }
     stopMiniDfsCluster();
   }
 }

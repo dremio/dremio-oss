@@ -29,7 +29,7 @@ package com.dremio.exec.expr.fn.impl.gcast;
 <#include "/@includes/vv_imports.ftl" />
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;

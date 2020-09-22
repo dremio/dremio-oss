@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.service;
 
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,10 +26,13 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Iterator;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -38,11 +42,11 @@ import org.junit.rules.ExpectedException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.sources.PhysicalDataset;
@@ -53,6 +57,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -60,10 +65,11 @@ import com.dremio.io.file.Path;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.PartitionChunkId;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -77,6 +83,7 @@ import com.google.common.base.Charsets;
  * Tests to create, update and execute queries on physical datasets..
  */
 public class TestPhysicalDatasets extends BaseTestServer {
+  private BufferAllocator allocator;
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
@@ -94,6 +101,12 @@ public class TestPhysicalDatasets extends BaseTestServer {
       sourceService.registerSourceWithRuntime(source);
 //      namespaceService.addOrUpdateSource(new SourcePath(new SourceName(nas.getName())).toNamespaceKey(), nas.asSourceConfig());
     }
+    allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+  }
+
+  @After
+  public void cleanUp() {
+    allocator.close();
   }
 
   private static String getSchemaPath(String file) throws IOException {
@@ -118,7 +131,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
       }
     }
     for (PhysicalDataset physicalDataset : parent.getContents().getPhysicalDatasets()) {
-      if (name.equals(physicalDataset.getDatasetName())) {
+      if (name.equals(physicalDataset.getDatasetName().getName())) {
         assertEquals("jobCount for physical dataset " + parentPath + "/" + name, jobCount, (int)physicalDataset.getJobCount());
         return;
       }
@@ -131,36 +144,34 @@ public class TestPhysicalDatasets extends BaseTestServer {
     }
   }
 
+  private JobRequest sqlQueryRequestFromFile(String file) throws IOException {
+    return JobRequest.newBuilder().setSqlQuery(createQuery(file)).setQueryType(QueryType.UI_RUN).build();
+  }
+
   @Test
   public void testJsonFile() throws Exception {
-    final JobDataFragment jobData = JobUI.getJobData(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/datasets/users.json"))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(3, jobData.getReturnedRowCount());
-    assertEquals(2, jobData.getColumns().size());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/users.json"), 0, 500, allocator)) {
+      assertEquals(3, jobData.getReturnedRowCount());
+      assertEquals(2, jobData.getColumns().size());
 
 
-    String fileUrlPath = getUrlPath("/datasets/users.json");
-    String fileParentUrlPath = getUrlPath("/datasets/");
+      String fileUrlPath = getUrlPath("/datasets/users.json");
+      String fileParentUrlPath = getUrlPath("/datasets/");
 
-    JsonFileConfig jsonFileConfig = new JsonFileConfig();
-    doc("preview json source file");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath)).buildPost(Entity.json(jsonFileConfig)), JobDataFragment.class);
-    assertEquals(3, data.getReturnedRowCount());
-    assertEquals(2, data.getColumns().size());
+      JsonFileConfig jsonFileConfig = new JsonFileConfig();
+      doc("preview json source file");
+      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview" + fileUrlPath)).buildPost(Entity.json(jsonFileConfig)), JobDataFragment.class);
+      assertEquals(3, data.getReturnedRowCount());
+      assertEquals(2, data.getColumns().size());
 
-    doc("creating dataset from source file");
-    InitialPreviewResponse createResponse = expectSuccess(getBuilder(getAPIv2().path(
+      doc("creating dataset from source file");
+      InitialPreviewResponse createResponse = expectSuccess(getBuilder(getAPIv2().path(
         "source/dacfs_test/new_untitled_from_file/" + getUrlPath("/datasets/users.json"))).buildPost(Entity.json("")),
         InitialPreviewResponse.class);
-    assertEquals(2, createResponse.getData().getColumns().size());
+      assertEquals(2, createResponse.getData().getColumns().size());
 
-    checkCounts(fileParentUrlPath, "users.json", true, 2, 0, 0);
+      checkCounts(fileParentUrlPath, "users.json", true, 2, 0, 0);
+    }
   }
 
   @Test
@@ -182,7 +193,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testCommaSeparatedCsv() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
     TextFileConfig fileConfig = new TextFileConfig();
     fileConfig.setFieldDelimiter(",");
     fileConfig.setLineDelimiter("\n");
@@ -202,23 +212,17 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
 
-    final JobDataFragment jobData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/datasets/text/comma.txt"))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(3, jobData.getReturnedRowCount());
-    assertEquals(3, jobData.getColumns().size());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/text/comma.txt"),
+      0, 500, allocator)) {
+      assertEquals(3, jobData.getReturnedRowCount());
+      assertEquals(3, jobData.getColumns().size());
+    }
 
     checkCounts(fileParentUrlPath, "comma.txt", true, 1, 0, 0);
   }
 
   @Test
   public void testCommaSeparatedCsvWindowsLineEndings() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
     TextFileConfig fileConfig = new TextFileConfig();
     fileConfig.setFieldDelimiter(",");
     fileConfig.setName("comma_windows_lineseparator.csv");
@@ -237,16 +241,11 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data.getReturnedRowCount());
     assertEquals(3, data.getColumns().size());
 
-    final JobDataFragment jobData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/datasets/csv/comma_windows_lineseparator.csv"))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(3, jobData.getReturnedRowCount());
-    assertEquals(3, jobData.getColumns().size());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/csv/comma_windows_lineseparator.csv"),
+      0, 500, allocator)) {
+      assertEquals(3, jobData.getReturnedRowCount());
+      assertEquals(3, jobData.getColumns().size());
+    }
 
     checkCounts(fileParentUrlPath, "comma_windows_lineseparator.csv", true, 1, 0, 0);
   }
@@ -311,26 +310,23 @@ public class TestPhysicalDatasets extends BaseTestServer {
   @Test
   public void testLargeJsonFile() throws Exception {
     thrown.expect(UserException.class);
-    JobUI.getJobData(l(JobsService.class).submitJob(JobRequest.newBuilder()
-      .setSqlQuery(createQuery("/datasets/wide_table.json"))
-      .setQueryType(QueryType.UI_RUN)
-      .build(), NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
+    try (final JobDataFragment data = submitJobAndGetData(l(JobsService.class),
+      sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator)) {
+      noop();
+    }
   }
 
   @Test
   public void testLargeNestedJsonFile() throws Exception {
     thrown.expect(UserException.class);
-    JobUI.getJobData(l(JobsService.class).submitJob(JobRequest.newBuilder()
-      .setSqlQuery(createQuery("/datasets/wide_nested_table.json"))
-      .setQueryType(QueryType.UI_RUN)
-      .build(), NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
+    try (final JobDataFragment data = submitJobAndGetData(l(JobsService.class),
+      sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator)) {
+      noop();
+    }
   }
 
   @Test
   public void testParquetFile() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
     String fileUrlPath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
     String fileParentUrlPath = getUrlPath("/singlefile_parquet_dir/");
 
@@ -339,17 +335,11 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(25, data.getReturnedRowCount());
     assertEquals(4, data.getColumns().size());
 
-    final JobDataFragment jobData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/singlefile_parquet_dir/0_0_0.parquet"))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(25, jobData.getReturnedRowCount());
-    assertEquals(4, jobData.getColumns().size());
-
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/singlefile_parquet_dir/0_0_0.parquet"),
+      0, 500, allocator)) {
+      assertEquals(25, jobData.getReturnedRowCount());
+      assertEquals(4, jobData.getColumns().size());
+    }
     checkCounts(fileParentUrlPath, "0_0_0.parquet", true, 1, 0, 0);
   }
 
@@ -365,16 +355,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testCreateExternalDatasetOnFile() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
-
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/datasets/csv/comma.csv"))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(sqlQueryRequestFromFile("/datasets/csv/comma.csv"));
     String filePath1 = getUrlPath("/datasets/csv/comma.csv");
     String fileParentUrlPath = getUrlPath("/datasets/");
 
@@ -383,14 +364,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertNotNull(format1);
     assertEquals(FileType.TEXT, format1.getFileType());
 
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/datasets/tab.tsv"))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(sqlQueryRequestFromFile("/datasets/tab.tsv"));
     filePath1 = getUrlPath("/datasets/tab.tsv");
     format1 = (TextFileConfig) expectSuccess(getBuilder(getAPIv2().path(
       "/source/dacfs_test/file_format/" + filePath1)).buildGet(), FileFormatUI.class).getFileFormat();
@@ -422,6 +396,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
     checkCounts(fileParentPath, "folderdataset", true, 1, 0, 0);
   }
 
+  private void noop() {
+  }
   /*
   @Test
   public void testSubSchemaListing() throws Exception {
@@ -454,7 +430,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   */
 
   @Test
-  public void listSource() throws Exception {
+  public void listSource() {
     SourceUI source = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test")).buildGet(), SourceUI.class);
     System.out.println(source.getContents());
   }
@@ -513,10 +489,9 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String folderFormatUrl = "/source/LocalFS1/file_format/tmp/_dac2/folderTSV/file.tsv";
     FileFormatUI defaultFormat = expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
     assertEquals(FileType.TEXT, defaultFormat.getFileFormat().getFileType());
-    assertEquals(false, defaultFormat.getFileFormat().getIsFolder());
+    assertFalse(defaultFormat.getFileFormat().getIsFolder());
     assertEquals(folderFormatUrl, defaultFormat.getLinks().get("self"));
   }
-
 
   @Test
   public void testPhysicalDatasetSourceFolders() throws Exception {
@@ -737,7 +712,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   private Invocation getExcelTestQueryInvocation(String filePath, String sheet, boolean extractHeader,
-                                                 boolean hasMergedCells) throws Exception {
+                                                 boolean hasMergedCells) {
     ExcelFileConfig fileConfig = new ExcelFileConfig();
     fileConfig.setSheetName(sheet);
     if (extractHeader) {
@@ -752,7 +727,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   private Invocation getXlsTestQueryInvocation(String filePath, String sheet, boolean extractHeader,
-                                                 boolean hasMergedCells) throws Exception {
+                                                 boolean hasMergedCells) {
     XlsFileConfig fileConfig = new XlsFileConfig();
     fileConfig.setSheetName(sheet);
     if (extractHeader) {
@@ -769,30 +744,21 @@ public class TestPhysicalDatasets extends BaseTestServer {
   // Based off data created by TestParquetMetadataCache:testCache
   @Test
   public void testQueryOnParquetDirWithMetadata() throws Exception {
-    final JobDataFragment jobData = JobUI.getJobData(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/nation_ctas"))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(50, jobData.getReturnedRowCount());
-    // extra column for "dir" (t1 and t2 are directories under nation_ctas)
-    assertEquals(5, jobData.getColumns().size());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/nation_ctas"),
+      0, 500, allocator)) {
+      assertEquals(50, jobData.getReturnedRowCount());
+      // extra column for "dir" (t1 and t2 are directories under nation_ctas)
+      assertEquals(5, jobData.getColumns().size());
+    }
   }
 
   @Test
   public void testQueryOnParquetDirWithSingleFile() throws Exception {
-    final JobDataFragment jobData = JobUI.getJobData(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/singlefile_parquet_dir"))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-
-    assertEquals(25, jobData.getReturnedRowCount());
-    assertEquals(4, jobData.getColumns().size());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),sqlQueryRequestFromFile("/singlefile_parquet_dir"),
+      0, 500, allocator)) {
+      assertEquals(25, jobData.getReturnedRowCount());
+      assertEquals(4, jobData.getColumns().size());
+    }
   }
 
   @Test
@@ -906,7 +872,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testQueryTinyAcqWithHeader() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
     TextFileConfig fileConfig = new TextFileConfig();
     fileConfig.setFieldDelimiter("|");
     fileConfig.setLineDelimiter("\n");
@@ -916,15 +881,55 @@ public class TestPhysicalDatasets extends BaseTestServer {
     String fileUrlPath = getUrlPath("/datasets/tinyacq.txt");
 
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
-    final JobDataFragment jobData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(createQuery("/datasets/tinyacq.txt"))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(23, jobData.getColumns().size());
-    assertEquals(500, jobData.getReturnedRowCount());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/tinyacq.txt"),
+      0, 500, allocator)) {
+      assertEquals(23, jobData.getColumns().size());
+      assertEquals(500, jobData.getReturnedRowCount());
+    }
+  }
+
+  @Test
+  public void testParquetPartitionChunkCount() throws Exception {
+    ParquetFileConfig fileConfig = new ParquetFileConfig();
+    fileConfig.setName("parquet");
+    String filePath = getUrlPath("/datasets/parquet_2p_4s");
+    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+
+    int expectedNumOfPartitionChunks = 2;
+    int expectedNumOfSplitsPerPartition = 2;
+    DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/parquet_2p_4s")).toNamespaceKey());
+    Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
+      .findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();
+    for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
+      assertTrue(iter.hasNext());
+      PartitionChunkMetadata partitionChunkMetadata = iter.next();
+      assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
+    }
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testTextPartitionChunkCount() throws Exception {
+    TextFileConfig fileConfig = new TextFileConfig();
+    fileConfig.setFieldDelimiter("|");
+    fileConfig.setLineDelimiter("\n");
+    fileConfig.setName("tinyacq.txt");
+    fileConfig.setExtractHeader(true);
+
+    String filePath = getUrlPath("/datasets/text_2p_4s");
+    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+
+    int expectedNumOfPartitionChunks = 2;
+    int expectedNumOfSplitsPerPartition = 2;
+    DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/text_2p_4s")).toNamespaceKey());
+    Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
+      .findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();
+    for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
+      assertTrue(iter.hasNext());
+      PartitionChunkMetadata partitionChunkMetadata = iter.next();
+      assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
+    }
+    assertFalse(iter.hasNext());
   }
 
   /*

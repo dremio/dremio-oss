@@ -147,4 +147,58 @@ public class TestSystemTable extends BaseTestQuery {
 
     test.go();
   }
+
+  @Test
+  public void timezoneAbbreviationsTable() throws Exception {
+    String query = "SELECT * from sys.timezone_abbrevs limit 1";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("timezone_abbrev", "tz_offset", "is_daylight_savings")
+      .baselineValues("ACDT", "+10:30", true)
+      .go();
+
+    // test results are sorted by timezone_abbrev
+    testBuilder()
+      .sqlQuery("SELECT * from sys.timezone_abbrevs")
+      .ordered()
+      .sqlBaselineQuery("SELECT * from sys.timezone_abbrevs order by timezone_abbrev asc")
+      .go();
+
+    query = "SELECT tz_offset, is_daylight_savings from sys.timezone_abbrevs where timezone_abbrev = 'PDT'";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("tz_offset", "is_daylight_savings")
+      .baselineValues("-07:00", true)
+      .go();
+  }
+
+  @Test
+  public void timezoneNames() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT * from sys.timezone_names limit 1")
+      .ordered()
+      .baselineColumns("timezone_name", "tz_offset", "offset_daylight_savings", "is_daylight_savings")
+      .baselineValues("Africa/Abidjan", "+00:00", "+00:00", false)
+      .go();
+
+    testBuilder()
+      .sqlQuery("SELECT * from sys.timezone_names")
+      .ordered()
+      .sqlBaselineQuery("SELECT * from sys.timezone_names order by timezone_name asc")
+      .go();
+  }
+
+  @Test
+  @Ignore
+  public void timezoneNames2() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT * from sys.timezone_names where timezone_name = 'America/Los_Angeles'")
+      .ordered()
+      .baselineColumns("timezone_name", "tz_offset", "offset_daylight_savings", "is_daylight_savings")
+      .baselineValues("America/Los_Angeles", "-08:00", "-07:00", true)
+      .go();
+  }
+
 }

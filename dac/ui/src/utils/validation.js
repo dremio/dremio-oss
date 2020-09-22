@@ -189,6 +189,15 @@ export function noDoubleQuotes(key) {
   };
 }
 
+export function noSpaces(key) {
+  return function(values) {
+    const value = result(values, key);
+    if (value && value.includes(' ')) {
+      return set({}, key, 'Spaces are not allowed.');
+    }
+  };
+}
+
 export function applyValidators(values, validators) {
   const messages = merge({}, ...validators.map((v) => v(values)));
   return messages;

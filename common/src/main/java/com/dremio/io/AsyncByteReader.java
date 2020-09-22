@@ -84,6 +84,8 @@ public interface AsyncByteReader extends AutoCloseable {
     public double getValue() {
       return value;
     }
+
+    public void setValue(double newValue) { value = newValue;}
   }
 
   /**

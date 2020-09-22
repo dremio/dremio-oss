@@ -25,6 +25,7 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
+import com.dremio.exec.expr.CodeModelArrowHelper;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.FunctionContext;
@@ -99,7 +100,7 @@ class AggrFunctionHolder extends BaseFunctionHolder {
 
         for(int i =0 ; i < workspaceVars.length; i++) {
           if (!workspaceVars[i].isInject()) {
-            setupBlock.assign(workspaceJVars[i], JExpr._new(workspaceVars[i].completeType.getHolderType(g.getModel())));
+            setupBlock.assign(workspaceJVars[i], JExpr._new(CodeModelArrowHelper.getHolderType(workspaceVars[i].completeType, g.getModel())));
           }
         }
 
@@ -129,7 +130,7 @@ class AggrFunctionHolder extends BaseFunctionHolder {
     HoldingContainer out = g.declare(resolvedOutput, false);
     JBlock sub = new JBlock();
     g.getEvalBlock().add(sub);
-    JVar internalOutput = sub.decl(JMod.FINAL, resolvedOutput.getHolderType(g.getModel()), getReturnName(), JExpr._new(resolvedOutput.getHolderType(g.getModel())));
+    JVar internalOutput = sub.decl(JMod.FINAL, CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel()), getReturnName(), JExpr._new(CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel())));
     addProtectedBlock(g, sub, output(), null, workspaceJVars, false);
     sub.assign(out.getHolder(), internalOutput);
         //hash aggregate uses workspace vectors. Initialization is done in "setup" and does not require "reset" block.
@@ -159,7 +160,7 @@ class AggrFunctionHolder extends BaseFunctionHolder {
         Preconditions.checkState(workspaceVars[i].completeType.isFixedWidthScalar(), "Workspace variable '%s' in aggregation function '%s' is not allowed to have variable length type.", workspaceVars[i].name, registeredNames[0]);
 
         //workspaceJVars[i] = g.declareClassField("work", g.getHolderType(workspaceVars[i].majorType), JExpr._new(g.getHolderType(workspaceVars[i].majorType)));
-        workspaceJVars[i] = g.declareClassField("work", workspaceVars[i].completeType.getHolderType(g.getModel()));
+        workspaceJVars[i] = g.declareClassField("work", CodeModelArrowHelper.getHolderType(workspaceVars[i].completeType, g.getModel()));
 
         //Declare a workspace vector for the workspace var.
         TypedFieldId typedFieldId = new TypedFieldId(workspaceVars[i].completeType, g.getWorkspaceTypes().size());
@@ -224,7 +225,7 @@ class AggrFunctionHolder extends BaseFunctionHolder {
       } else {
         cond._then().assign(workspaceJVars[i].ref("value"), getValueAccessor.arg(wsIndexVariable));
       }
-      internalVars[i] = sub.decl(workspaceVars[i].completeType.getHolderType(g.getModel()),  workspaceVars[i].name, workspaceJVars[i]);
+      internalVars[i] = sub.decl(CodeModelArrowHelper.getHolderType(workspaceVars[i].completeType, g.getModel()),  workspaceVars[i].name, workspaceJVars[i]);
     }
 
     Preconditions.checkNotNull(body);

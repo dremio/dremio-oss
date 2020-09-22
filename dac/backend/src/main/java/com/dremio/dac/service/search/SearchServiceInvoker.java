@@ -16,16 +16,17 @@
 package com.dremio.dac.service.search;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.RemoteNamespaceException;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
@@ -37,7 +38,6 @@ import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.ByteString;
 
-import io.netty.buffer.ArrowBuf;
 import io.protostuff.LinkedBuffer;
 
 /**
@@ -47,22 +47,25 @@ public class SearchServiceInvoker implements SearchService {
   private static final int TYPE_SEARCH_QUERY = 0;
 
   private final boolean isMaster;
+  private final Provider<NodeEndpoint> nodeEndpointProvider;
+  private final Provider<Optional<NodeEndpoint>> taskLeaderProvider;
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
   private final SearchService searchService;
-  private final Provider<SabotContext> sabotContext;
 
   private SendEndpointCreator<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse> findEndpointCreator;
 
   public SearchServiceInvoker(
     boolean isMaster,
-    Provider<SabotContext> sabotContext,
+    Provider<NodeEndpoint> nodeEndpointProvider,
+    final Provider<Optional<NodeEndpoint>> taskLeaderProvider,
     Provider<FabricService> fabricService,
     BufferAllocator allocator,
     SearchService searchService
   ) {
     this.isMaster = isMaster;
-    this.sabotContext = sabotContext;
+    this.nodeEndpointProvider = nodeEndpointProvider;
+    this.taskLeaderProvider = taskLeaderProvider;
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.searchService = searchService;
@@ -136,9 +139,8 @@ public class SearchServiceInvoker implements SearchService {
   @Override
   public List<SearchContainer> search(String query, String username) throws NamespaceException {
     // TODO DX-14433 - should have better way to deal with Local/Remote KVStore
-    final NodeEndpoint master =
-      sabotContext.get().getServiceLeader(SearchServiceImpl.LOCAL_TASK_LEADER_NAME).orElse(null);
-    final NodeEndpoint thisNode = sabotContext.get().getEndpoint();
+    final NodeEndpoint master = taskLeaderProvider.get().orElse(null);
+    final NodeEndpoint thisNode = nodeEndpointProvider.get();
     if (isMaster && thisNode.equals(master)) {
       return searchService.search(query, username);
     }
@@ -183,8 +185,8 @@ public class SearchServiceInvoker implements SearchService {
   }
 
   private SendEndpoint<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse> newFindEndpoint() throws RpcException {
-    final NodeEndpoint master = sabotContext.get().getServiceLeader(SearchServiceImpl.LOCAL_TASK_LEADER_NAME)
-      .orElse(null);
+    final NodeEndpoint master = taskLeaderProvider.get().orElse(null);
+
     if (master == null) {
       throw new RpcException("master node is down");
     }
@@ -195,9 +197,8 @@ public class SearchServiceInvoker implements SearchService {
   @Override
   public void wakeupManager(String reason) {
     // TODO DX-14433 - should have better way to deal with Local/Remote KVStore
-    final NodeEndpoint master =
-      sabotContext.get().getServiceLeader(SearchServiceImpl.LOCAL_TASK_LEADER_NAME).orElse(null);
-    final NodeEndpoint thisNode = sabotContext.get().getEndpoint();
+    final NodeEndpoint master = taskLeaderProvider.get().orElse(null);
+    final NodeEndpoint thisNode = nodeEndpointProvider.get();
 
     if (isMaster && thisNode.equals(master)) {
       searchService.wakeupManager(reason);

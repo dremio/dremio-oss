@@ -95,7 +95,7 @@ public class TestDatasetManager {
     final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
     when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
     doReturn(fakeSource).when(managedStoragePlugin).getConnectionConf();
-    when(managedStoragePlugin.isValid(any(), any())).thenReturn(true);
+    when(managedStoragePlugin.isCompleteAndValid(any(), any())).thenReturn(true);
     // newaccessuser should be used and not username
     doThrow(new RuntimeException("Wrong username"))
       .when(managedStoragePlugin).checkAccess(namespaceKey, datasetConfig, "username", metadataRequestOptions);
@@ -144,7 +144,7 @@ public class TestDatasetManager {
 
     final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
     when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
-    when(managedStoragePlugin.isValid(any(), any())).thenReturn(false);
+    when(managedStoragePlugin.isCompleteAndValid(any(), any())).thenReturn(false);
     when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(DatasetRetrievalOptions.DEFAULT);
     when(managedStoragePlugin.getDatasetHandle(any(), any(), any())).thenAnswer(invocation -> {
       Assert.assertEquals(invocation.getArgumentAt(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(), Integer.MAX_VALUE);

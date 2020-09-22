@@ -17,7 +17,10 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import { ApiError } from 'redux-api-middleware/lib/errors';
 
-import {Support} from './Support';
+import { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
+import { RESERVED as INTERNAL_SUPPORT_RESERVED } from '@app/pages/AdminPage/subpages/InternalSupportEmail';
+
+import {Support, RESERVED} from './Support';
 import { LABELS } from './settingsConfig';
 
 describe('Support', () => {
@@ -227,4 +230,10 @@ describe('Support', () => {
     });
   });
 
+});
+
+describe('RESERVED', () => {
+  it('should include only email and analyze tools fields', () => {
+    expect(RESERVED.size).to.equal(ANALYZE_TOOLS_RESERVED.length + INTERNAL_SUPPORT_RESERVED.length);
+  });
 });

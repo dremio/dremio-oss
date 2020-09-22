@@ -17,16 +17,21 @@ package com.dremio.exec.planner.fragment;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
 
+import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * To test SoftAffinityFragmentParallelizer
@@ -47,7 +52,8 @@ public class TestSoftAffinityFragmentParallelizer {
   }
 
   private static final ParallelizationParameters newParameters(final long threshold, final int maxWidthPerNode,
-                                                               final int maxGlobalWidth, final double affinityFactor) {
+                                                               final int maxGlobalWidth, final double affinityFactor,
+                                                               final boolean shouldIgnoreLeafAffinity) {
     return new ParallelizationParameters() {
       @Override
       public long getSliceTarget() {
@@ -78,6 +84,11 @@ public class TestSoftAffinityFragmentParallelizer {
       public double getAssignmentCreatorBalanceFactor() {
         return 1.5;
       }
+
+      @Override
+      public boolean shouldIgnoreLeafAffinity() {
+        return shouldIgnoreLeafAffinity;
+      }
     };
   }
 
@@ -98,7 +109,7 @@ public class TestSoftAffinityFragmentParallelizer {
       activeEndpoints,
       endpointAffinityMap, 1,
         newParameters(3, 5,
-    10, 0.3D));
+    10, 0.3D, false));
 
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
@@ -114,11 +125,123 @@ public class TestSoftAffinityFragmentParallelizer {
         activeEndpoints,
         endpointAffinityMap, 1,
         newParameters(3, 5,
-          10, 0.3D));
+          10, 0.3D, false));
 
     // Regardless of affinity, the result must be one of the endpoints in the activeEndpoints list
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
     assertEquals(N2_EP1, endpoints.get(0));
+  }
+
+  @Test
+  public void testNodesIgnoreAffinity() throws Exception {
+
+    List<CoordinationProtos.NodeEndpoint> activeEndpoints = ImmutableList.of(N1_EP1, N1_EP2, N2_EP1);
+
+    EndpointAffinity N1_EP1_A = new EndpointAffinity(N1_EP1, 0.5);
+    EndpointAffinity N1_EP2_A = new EndpointAffinity(N1_EP2, 0.5);
+    EndpointAffinity N2_EP1_A = new EndpointAffinity(N2_EP1, 0.6);
+
+    Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> endpointAffinityMap = ImmutableMap.of(N1_EP1, N1_EP1_A,
+      N1_EP2, N1_EP2_A, N2_EP1, N2_EP1_A);
+
+    ParallelizationParameters params = newParameters(3, 1,
+      1, 0.3D, false);
+    Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> updatedAffinityMap = SoftAffinityFragmentParallelizer.INSTANCE
+      .getEndpointAffinityMap(endpointAffinityMap, true, params);
+    List<CoordinationProtos.NodeEndpoint> endpoints = SoftAffinityFragmentParallelizer.INSTANCE
+      .findEndpoints(
+        activeEndpoints,
+        updatedAffinityMap, 1,
+        params);
+
+    assertNotNull(endpoints);
+    assertEquals(1, endpoints.size());
+    assertEquals(N2_EP1, endpoints.get(0));
+
+    /*
+     * Run 100*numNodes times. Ideally, each node should be selected 100 times. Assert that each node gets selected at
+     * least 25 times.
+     */
+    ParallelizationParameters ignoreAffinityParams = newParameters(3, 1,
+      1, 0.3D, true);
+
+    Map<CoordinationProtos.NodeEndpoint, Integer> nodeEndpointFrequencyMap = new HashMap<>();
+    int numExpected = 100;
+    for (int i = 0; i < numExpected * endpoints.size(); ++i) {
+      Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> updated = SoftAffinityFragmentParallelizer.INSTANCE
+        .getEndpointAffinityMap(endpointAffinityMap, true, ignoreAffinityParams);
+
+      List<CoordinationProtos.NodeEndpoint> selected = SoftAffinityFragmentParallelizer.INSTANCE
+        .findEndpoints(
+          activeEndpoints,
+          updated, 1,
+          ignoreAffinityParams);
+
+      assertEquals(1, selected.size());
+      nodeEndpointFrequencyMap.merge(selected.get(0), 1, Integer::sum);
+    }
+
+    assertEquals(activeEndpoints.size(), nodeEndpointFrequencyMap.size());
+    for (Integer frequency : nodeEndpointFrequencyMap.values()) {
+      assertTrue("frequency " + frequency + ", expected minimum " + (numExpected / 10),
+        frequency >= numExpected / 10);
+    }
+  }
+
+  private void nodesFromSelectedWithAffinity(int totalNodes, int nodesInEngine, int affinityNodeStartIdx, int affinityNodeEndIdx) throws Exception {
+    List<CoordinationProtos.NodeEndpoint> allEndpoints = new ArrayList<>();
+    for (int i = 0; i < totalNodes; ++i) {
+      allEndpoints.add(CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("node" + i)
+        .setFabricPort(9000)
+        .build());
+    }
+
+    Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> endpointAffinityMap = new HashMap<>();
+    for (int i = affinityNodeStartIdx; i <= affinityNodeEndIdx; ++i) {
+      CoordinationProtos.NodeEndpoint ep = allEndpoints.get(i);
+      endpointAffinityMap.put(ep, new EndpointAffinity(ep, 0.3));
+    }
+    List<CoordinationProtos.NodeEndpoint> endpointsInSelectedEngine = allEndpoints.subList(0, nodesInEngine);
+
+    ParallelizationParameters params = newParameters(3, 1000,
+      1000, 0.2D, false);
+
+    List<CoordinationProtos.NodeEndpoint> endpoints = SoftAffinityFragmentParallelizer.INSTANCE
+      .findEndpoints(
+        endpointsInSelectedEngine,
+        endpointAffinityMap, 100,
+        params);
+
+    assertEquals(100, endpoints.size());
+    assertTrue("one or more executors " + EndpointHelper.getMinimalString(endpoints) +
+        " selected from outside the engine " + EndpointHelper.getMinimalString(endpointsInSelectedEngine),
+      ImmutableSet.copyOf(endpointsInSelectedEngine).containsAll(endpoints));
+  }
+
+  @Test
+  public void testSelectionWithAllInEngineAffined() throws Exception {
+    nodesFromSelectedWithAffinity(10, 3, 0, 5);
+  }
+
+  @Test
+  public void testSelectionWithSomeInEngineAffined() throws Exception {
+    nodesFromSelectedWithAffinity(10, 5, 3, 8);
+  }
+
+  @Test
+  public void testSelectionWithAllAffined() throws Exception {
+    nodesFromSelectedWithAffinity(10, 3, 0, 9);
+  }
+
+  @Test
+  public void testSelectionWithNoneAffined() throws Exception {
+    nodesFromSelectedWithAffinity(10, 3, 0, 0);
+  }
+
+  @Test
+  public void testSelectionWithNoneInEngineAffined() throws Exception {
+    nodesFromSelectedWithAffinity(10, 3, 4, 6);
   }
 }

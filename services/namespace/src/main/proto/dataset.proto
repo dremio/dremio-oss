@@ -1,0 +1,150 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto2";
+package com.dremio.service.namespace.dataset.proto;
+
+option java_package = "com.dremio.service.namespace.dataset.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "DatasetProtobuf";
+
+import "dataset-common.proto";
+import "namespace-common.proto";
+import "namespace-file.proto";
+
+// root of the persisted Dataset information
+message DatasetConfig {
+  // Dataset id
+  optional com.dremio.service.namespace.proto.EntityId id = 1;
+  // the name of the dataset
+  optional string name = 2;
+  optional string owner = 3;
+  optional com.dremio.service.namespace.dataset.proto.DatasetType type = 4;
+  // creation timestamp of this version
+  optional int64 createdAt = 5;
+  repeated string fullPath = 6;
+  // version actually saved of a dataset
+  optional int64 version = 7 [deprecated = true];
+  // Acceleration id
+  optional string accelerationId = 8 [deprecated = true];
+  optional VirtualDataset virtualDataset = 9;
+  optional PhysicalDataset physicalDataset = 10;
+  repeated DatasetField dataset_fields = 11;
+
+  // cached metadata for this dataset.
+  optional ReadDefinition read_definition = 12;
+  optional int32 schema_version = 13 [default = 0];
+  optional bytes record_schema = 14; // batch schema
+  optional int64 lastModified = 15;
+  optional string tag = 16;
+  optional int32 total_num_splits = 17; // recomputed every time metadata is fetched from connector
+}
+
+message VirtualDataset {
+  // dataset version
+  optional string version = 1 [value_type=com.dremio.service.namespace.dataset.DatasetVersion];
+  // current sql generated from the state
+  optional string sql = 2;
+  // The fields of the dataset from a View perspective. This is generated from the view's batch schema
+  repeated ViewFieldType sql_fields = 3;
+  // list of datasets that this dataset refers to (first level only)
+  repeated ParentDataset parents = 4;
+  // context
+  repeated string context = 5;
+  repeated FieldOrigin fieldOrigins = 6;
+  // list of all parents of parents.
+  repeated ParentDataset grandParents = 7;
+
+  // list of field names that are NOT nullable (NOT NULL)
+  repeated string required_fields = 8; // DEPRECATED
+
+  // The fields of the dataset from a View perspective. This is generated from the view's rowType
+  repeated ViewFieldType calcite_fields = 9;
+}
+
+enum SortOrder {
+  ASC = 1;
+  DESC = 2;
+}
+
+enum ScanStatsType {
+  NO_EXACT_ROW_COUNT = 1;
+  EXACT_ROW_COUNT = 2;
+}
+
+message ScanStats {
+  optional ScanStatsType type = 1;
+  optional int64 record_count = 2;
+  optional float cpu_cost = 3;
+  optional float disk_cost = 4;
+  optional double scan_factor = 5;
+}
+
+message ReadDefinition {
+  // last time the definition was updated
+  optional int64 last_refresh_date = 1;
+
+  // minimal plugin specific signature to identify whether the dataset has changed since last updated.
+  optional bytes read_signature = 2; 
+  
+  repeated string partitionColumns = 3;
+  
+  // in order
+  repeated string sortColumns = 4;
+
+  optional ScanStats scanStats = 5;
+  
+  // source specific information about this dataset
+  optional bytes extendedProperty = 6;
+
+  optional int64 splitVersion = 7; // increasing number assigned to map read definition to its latest splits
+
+}
+
+message PhysicalDataset {
+  optional com.dremio.service.namespace.file.proto.FileConfig formatSettings = 1;
+  optional bytes deprecated_dataset_schema = 2; // FlatBuffer encoded schema
+  optional bool isAppendOnly = 3 [default = false];
+  optional AccelerationSettings accelerationSettings = 4;
+  optional bool allow_approx_stats = 5 [default = false];
+}
+
+message DatasetField {
+  optional string field_name = 1;
+  optional bytes field_schema = 2; // FlatBuffer encoded schema
+}
+
+message AccelerationSettings {
+  // acceleration ttl
+  optional TimePeriod accelerationTTL = 1 [deprecated = true];
+  // refresh method whether to fully or incrementally update the cache
+  optional RefreshMethod method = 2 [default = FULL];
+  // if incremental which field should we use to incrementally update(for non-filesystem tables only)
+  optional string refreshField = 3;
+  // materialization refresh period
+  optional int64 refreshPeriod = 4;
+  // materialization grace period
+  optional int64 gracePeriod = 5;
+  optional int64 version = 6 [deprecated = true];
+  optional bool neverExpire = 7 [default = false];
+  optional bool neverRefresh = 8 [default = false];
+  optional string tag = 9;
+}
+
+enum RefreshMethod {
+  FULL = 1;
+  INCREMENTAL = 2;
+}

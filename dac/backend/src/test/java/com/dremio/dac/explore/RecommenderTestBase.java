@@ -22,7 +22,9 @@ import static org.junit.Assert.assertNull;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
@@ -33,10 +35,11 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.CardExamplePosition;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACSecurityContext;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.Lists;
@@ -51,15 +54,22 @@ public class RecommenderTestBase extends BaseTestServer {
   public static final TemporaryFolder temp = new TemporaryFolder();
 
   private static final DatasetPath datasetPath = new DatasetPath("test.dataset");
+  private BufferAllocator allocator;
 
   private QueryExecutor executor;
   private DatasetVersion version;
 
   @Before
   public void setupTest() throws Exception {
-    LocalJobsService jobsService = (LocalJobsService) l(JobsService.class);
+    HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
+    allocator = l(ContextService.class).get().getAllocator().newChildAllocator("RecommenderTestBase", 0, Long.MAX_VALUE);
     executor = new QueryExecutor(jobsService, l(CatalogService.class), DACSecurityContext.system());
     version = DatasetVersion.newVersion();
+  }
+
+  @After
+  public void cleanUpTest() {
+    allocator.close();
   }
 
   protected<T> void validate(String dataFile, TransformRuleWrapper<T> ruleWrapper, Object[] functionArgs, List<Object> outputs,
@@ -84,31 +94,33 @@ public class RecommenderTestBase extends BaseTestServer {
     }
 
     SqlQuery sqlQuery = new SqlQuery(queryB.toString(), DEFAULT_USERNAME);
-    JobDataFragment data = executor.runQuery(sqlQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version).truncate(outputs.size());
+    try (JobDataFragment data = executor.runQueryAndWaitForCompletion(sqlQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version)
+      .truncate(allocator, outputs.size())) {
 
-    assertEquals(outputs.size(), data.getReturnedRowCount());
-    for(int i = 0; i < data.getReturnedRowCount(); i++) {
-      if (outputs.get(i) == null) {
-        assertNull(data.extractString("f", i));
-      } else {
-        assertEquals(outputs.get(i).toString(), data.extractString("f", i));
-      }
-
-      final boolean actualMatch = data.extractValue("m", i) != null && (Boolean)data.extractValue("m", i);
-      assertEquals(matches.get(i).booleanValue(), actualMatch);
-
-      if (highlights != null) {
-        Object ex = data.extractValue("e", i);
-        if (highlights.get(i) == null) {
-          assertNull(ex);
+      assertEquals(outputs.size(), data.getReturnedRowCount());
+      for(int i = 0; i < data.getReturnedRowCount(); i++) {
+        if (outputs.get(i) == null) {
+          assertNull(data.extractString("f", i));
         } else {
-          List<Map<Integer, Integer>> poss = (List<Map<Integer, Integer>>) ex;
-          List<CardExamplePosition> positions = Lists.newArrayList();
-          for(Map<Integer, Integer> pos : poss) {
-            positions.add(new CardExamplePosition(pos.get("offset"), pos.get("length")));
-          }
+          assertEquals(outputs.get(i).toString(), data.extractString("f", i));
+        }
 
-          assertEquals(highlights.get(i), positions);
+        final boolean actualMatch = data.extractValue("m", i) != null && (Boolean)data.extractValue("m", i);
+        assertEquals(matches.get(i).booleanValue(), actualMatch);
+
+        if (highlights != null) {
+          Object ex = data.extractValue("e", i);
+          if (highlights.get(i) == null) {
+            assertNull(ex);
+          } else {
+            List<Map<String, Integer>> poss = (List<Map<String, Integer>>) ex;
+            List<CardExamplePosition> positions = Lists.newArrayList();
+            for(Map<String, Integer> pos : poss) {
+              positions.add(new CardExamplePosition(pos.get("offset"), pos.get("length")));
+            }
+
+            assertEquals(highlights.get(i), positions);
+          }
         }
       }
     }

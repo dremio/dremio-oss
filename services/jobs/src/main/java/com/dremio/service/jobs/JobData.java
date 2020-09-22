@@ -59,9 +59,4 @@ public interface JobData extends AutoCloseable {
    * Load the data
    */
   void loadIfNecessary();
-
-  /**
-   * Load the data
-   */
-  void waitForMetadata();
 }

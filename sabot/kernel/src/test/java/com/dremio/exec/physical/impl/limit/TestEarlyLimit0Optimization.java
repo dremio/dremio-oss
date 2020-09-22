@@ -23,6 +23,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -32,8 +33,10 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Lists;
 
 public class TestEarlyLimit0Optimization extends BaseTestQuery {
@@ -45,8 +48,12 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
     return "SELECT * FROM (" + query + ") LZT LIMIT 0";
   }
 
+  @ClassRule
+  public static TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @BeforeClass
   public static void createView() throws Exception {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
     test("USE dfs_test");
     test(String.format("CREATE OR REPLACE VIEW %s AS SELECT " +
         "CAST(employee_id AS INT) AS employee_id, " +

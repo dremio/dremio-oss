@@ -44,15 +44,19 @@ import javax.inject.Provider;
 import com.dremio.common.WakeupHandler;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.service.collaboration.CollaborationTagStore;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchTypes;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.ImmutableFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.indexed.AuxiliaryIndex;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.scheduler.SchedulerService;
@@ -68,23 +72,27 @@ public class SearchServiceImpl implements SearchService {
 
   public static final String LOCAL_TASK_LEADER_NAME = "searchservice";
 
-  private final Provider<SabotContext> sabotContext;
-  private final Provider<KVStoreProvider> storeProvider;
+  private final Provider<NamespaceService> namespaceServiceProvider;
+  private final Provider<OptionManager> optionManagerProvider;
+
+  private final Provider<LegacyKVStoreProvider> storeProvider;
   private final Provider<SchedulerService> schedulerService;
   private final ExecutorService executorService;
   private WakeupHandler wakeupHandler;
   private SearchIndexManager manager;
   private CollaborationTagStore collaborationTagStore;
   private ConfigurationStore configurationStore;
-  private AuxiliaryIndex<byte[], NameSpaceContainer, SearchContainer> searchIndex;
+  private AuxiliaryIndex<String, NameSpaceContainer, SearchContainer> searchIndex;
 
   public SearchServiceImpl(
-    Provider<SabotContext> sabotContext,
-    Provider<KVStoreProvider> storeProvider,
+    Provider<NamespaceService> namespaceServiceProvider,
+    Provider<OptionManager> optionManagerProvider,
+    Provider<LegacyKVStoreProvider> storeProvider,
     Provider<SchedulerService> schedulerService,
     ExecutorService executorService
   ) {
-    this.sabotContext = sabotContext;
+    this.namespaceServiceProvider = namespaceServiceProvider;
+    this.optionManagerProvider = optionManagerProvider;
     this.storeProvider = storeProvider;
     this.schedulerService = schedulerService;
     this.executorService = executorService;
@@ -92,17 +100,18 @@ public class SearchServiceImpl implements SearchService {
 
   @Override
   public void start() throws Exception {
-    KVStoreProvider kvStoreProvider = storeProvider.get();
+    LegacyKVStoreProvider kvStoreProvider = storeProvider.get();
+    final LocalKVStoreProvider localKVStoreProvider = kvStoreProvider.unwrap(LocalKVStoreProvider.class);
     // TODO DX-14433 - should have better way to deal with Local/Remote KVStore
-    if (!(kvStoreProvider instanceof LocalKVStoreProvider)) {
+    if (localKVStoreProvider == null) {
       logger.warn("Search search could not start as kv store is not local");
       return;
     }
 
-    searchIndex = ((LocalKVStoreProvider) kvStoreProvider).getAuxiliaryIndex("catalog-search", DAC_NAMESPACE, SearchIndexManager.NamespaceSearchConverter.class);
+    searchIndex = localKVStoreProvider.getAuxiliaryIndex("catalog-search", DAC_NAMESPACE, SearchIndexManager.NamespaceSearchConverter.class);
     collaborationTagStore = new CollaborationTagStore(storeProvider.get());
     configurationStore = new ConfigurationStore(storeProvider.get());
-    manager = new SearchIndexManager(sabotContext.get(), collaborationTagStore, configurationStore, searchIndex);
+    manager = new SearchIndexManager(namespaceServiceProvider, collaborationTagStore, configurationStore, searchIndex);
     wakeupHandler = new WakeupHandler(executorService, manager);
 
     schedulerService.get().schedule(scheduleForRunningOnceAt(
@@ -147,7 +156,7 @@ public class SearchServiceImpl implements SearchService {
    * @param results list of SearchContainer with no tags
    */
   private void fillCollaborationTags(List<SearchContainer> results) {
-    final IndexedStore.FindByCondition findByCondition = new IndexedStore.FindByCondition();
+    final LegacyIndexedStore.LegacyFindByCondition findByCondition = new LegacyIndexedStore.LegacyFindByCondition();
     final List<SearchTypes.SearchQuery> searchQueries = StreamSupport.stream(results.spliterator(), false)
       .map(input -> {
         return newTermQuery(CollaborationTagStore.ENTITY_ID, NamespaceUtils.getId(input.getNamespaceContainer()));
@@ -187,16 +196,25 @@ public class SearchServiceImpl implements SearchService {
       });
     }
 
-    final IndexedStore.FindByCondition findByCondition = getFindByCondition(queries);
-    Iterable<Map.Entry<KVStoreTuple<byte[]>, KVStoreTuple<NameSpaceContainer>>> entries = searchIndex.find(findByCondition);
+    final FindByCondition findByCondition = getFindByCondition(queries);
+    Iterable<Document<KVStoreTuple<String>, KVStoreTuple<NameSpaceContainer>>> entries = searchIndex.find(findByCondition);
 
     return StreamSupport.stream(entries.spliterator(), false).map(input -> {
       return input.getValue().getObject();
     });
   }
 
-  protected IndexedStore.FindByCondition getFindByCondition(List<SearchTypes.SearchQuery> queries) {
-    return new IndexedStore.FindByCondition().setCondition(or(queries)).setLimit(MAX_SEARCH_RESULTS);
+  protected FindByCondition getFindByCondition(List<SearchTypes.SearchQuery> queries) {
+    final ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder()
+      .setCondition(or(queries));
+
+    // Note: Reproducing the behavior of the legacy version of FindByCondition, which sets the page
+    // size to be the limit if the page size is smaller than the limit.
+    if (FindByCondition.DEFAULT_PAGE_SIZE < MAX_SEARCH_RESULTS) {
+      builder.setPageSize(MAX_SEARCH_RESULTS);
+    }
+    builder.setLimit(MAX_SEARCH_RESULTS);
+    return builder.build();
   }
 
   private List<SearchTypes.SearchQuery> getQueriesForSearchTerm(String term, int boostMultiplier) {
@@ -225,12 +243,12 @@ public class SearchServiceImpl implements SearchService {
   }
 
   private Instant getNextRefreshTimeInMillis() {
-    long option = sabotContext.get().getOptionManager().getOption(ExecConstants.SEARCH_MANAGER_REFRESH_MILLIS);
+    long option = optionManagerProvider.get().getOption(ExecConstants.SEARCH_MANAGER_REFRESH_MILLIS);
     return Instant.ofEpochMilli(System.currentTimeMillis() + option);
   }
 
   private long getNextReleaseLeadership() {
-    return sabotContext.get().getOptionManager().getOption(SEARCH_SERVICE_RELEASE_LEADERSHIP_MS);
+    return optionManagerProvider.get().getOption(SEARCH_SERVICE_RELEASE_LEADERSHIP_MS);
   }
 
   @Override

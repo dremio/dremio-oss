@@ -14,26 +14,81 @@
  * limitations under the License.
  */
 
+import SourceProperties from '@app/components/Forms/SourceProperties';
+
 export const CLUSTER_STATE = {
-  running: 'RUNNING', stopped: 'STOPPED', starting: 'STARTING', stopping: 'STOPPING', deleted: 'DELETED'
+  running: 'RUNNING',
+  stopped: 'STOPPED',
+  starting: 'STARTING',
+  stopping: 'STOPPING',
+  deleted: 'DELETED',
+  pending: 'PENDING',
+  provisioning: 'PROVISIONING',
+  failed: 'FAILED',
+  unknown: 'UNKNOWN'
+};
+
+// labels used in nodes list
+export const CLUSTER_STATE_LABEL = {
+  running: 'Running',
+  pending: 'Pending',
+  provisioning: 'Provisioning or Disconnected',
+  decommissioning: 'Decommissioning'
+};
+
+export const CLUSTER_STATE_ICON = {
+  [CLUSTER_STATE.running]: {src: 'Online.svg', text: 'Online'},
+  [CLUSTER_STATE.stopped]: {src: 'Disconnected.svg', text: 'Stopped'},
+  [CLUSTER_STATE.starting]: {src: 'StartingEngine.svg', text: 'Starting'},
+  [CLUSTER_STATE.stopping]: {src: 'Decommissioning.svg', text: 'Stopping'},
+  [CLUSTER_STATE.deleted]: {src: 'Blocked.svg', text: 'Deleted'},
+  [CLUSTER_STATE.pending]: {src: 'PendingState.svg', text: 'Pending'},
+  [CLUSTER_STATE.provisioning]: {src: 'Provisioning.svg', text: 'Provisioning'},
+  [CLUSTER_STATE.failed]: {src: 'Error.svg', text: 'Failed'},
+  [CLUSTER_STATE.unknown]: {src: 'Trace.svg', text: 'Unknown'}
 };
 
 export const EC2_CLUSTER_FIELDS = ['name'];
+export const EC2_UI_FIELDS = ['engineSize'];
 export const EC2_DYNAMIC_CONFIG_FIELDS = ['containerCount'];
 export const EC2_AWS_PROPS = [
   'vpc', 'nodeIamInstanceProfile', 'amiId', 'sshKeyName', 'securityGroupId', 'subnetId', 'instanceType',
   'extraConfProps', 'useClusterPlacementGroup'
 ];
+export const EC2_AWS_PROPLIST_FIELDS = ['awsTags'];
 export const EC2_AWS_CONNECTION_PROPS = [
-  'authMode', 'accessKey', 'secretKey', 'region', 'endpoint', 'assumeRole'
+  'authMode', 'accessKey', 'secretKey', 'endpoint', 'assumeRole'
 ];
-export const EC2_FIELDS = [...EC2_CLUSTER_FIELDS, ...EC2_DYNAMIC_CONFIG_FIELDS, ...EC2_AWS_PROPS, ...EC2_AWS_CONNECTION_PROPS];
+export const EC2_FIELDS = [
+  ...EC2_CLUSTER_FIELDS,
+  ...EC2_UI_FIELDS,
+  ...EC2_DYNAMIC_CONFIG_FIELDS,
+  ...EC2_AWS_PROPS,
+  ...SourceProperties.getFields({propName: EC2_AWS_PROPLIST_FIELDS[0]}),
+  ...EC2_AWS_CONNECTION_PROPS];
 export const EC2_FIELDS_MAP = EC2_FIELDS.reduce((a, field) => {
   a[field] = field;
   return a;
 }, {});
 
 export const DREMIO_CUSTOM_REGION = '$DREMIO_CUSTOM_ENDPOINT_URL$';
+
+export const AWS_INSTANCE_TYPE_OPTIONS = [
+  {label: 'Standard m5d.8xlarge (32c/128gb)', value: 'm5d.8xlarge'},
+  {label: 'High Memory r5d.4xlarge (16c/128gb)', value: 'r5d.4xlarge'},
+  {label: 'High CPU c5d.18xlarge (72c/144gb)', value: 'c5d.18xlarge'},
+  {label: 'High Cache i3.4xlarge (16c/122gb)', value: 'i3.4xlarge'}
+];
+
+export const ENGINE_SIZE = [
+  {id: 'SMALL', label: 'Small - 2', value: 2},
+  {id: 'MEDIUM', label: 'Medium - 4', value: 4},
+  {id: 'LARGE', label: 'Large - 8', value: 8},
+  {id: 'X_LARGE', label: 'XLarge - 16', value: 16},
+  {id: 'XX_LARGE', label: '2XLarge - 32', value: 32},
+  {id: 'XXX_LARGE', label: '3XLarge - 64', value: 64},
+  {id: 'CUSTOM', label: 'Custom', value: -1}
+];
 
 export const AWS_REGION_OPTIONS = [
   {label: 'US East (N. Virginia)', value: 'us-east-1'},
@@ -43,178 +98,142 @@ export const AWS_REGION_OPTIONS = [
   {label: 'Asia Pacific (Singapore)', value: 'ap-southeast-1'}
 ];
 
-export const AWS_INSTANCE_TYPE_OPTIONS = [
-  {label: 'm5d.8xlarge (32c/128gb)', value: 'm5d.8xlarge'},
-  {label: 'r5d.4xlarge (16c/128gb)', value: 'r5d.4xlarge'},
-  {label: 'c5d.18xlarge (72c/144gb)', value: 'c5d.18xlarge'},
-  {label: 'r5ad.4xlarge (16c/128gb)', value: 'r5ad.4xlarge'},
-  {label: 'i3.4xlarge (16c/122gb)', value: 'i3.4xlarge'}
+export const ENGINE_FILTER_NAME = {
+  status: 'st',
+  size: 'sz'
+};
+
+const stateOptions = Object.keys(CLUSTER_STATE_ICON).map(key => {
+  return {id: key, label: CLUSTER_STATE_ICON[key].text};
+});
+export const ENGINE_FILTER_ITEMS = {
+  [ENGINE_FILTER_NAME.status]: stateOptions.slice(0, stateOptions.length - 1),
+  [ENGINE_FILTER_NAME.size]: ENGINE_SIZE
+};
+export const DEFAULT_ENGINE_FILTER_SELECTIONS = {
+  [ENGINE_FILTER_NAME.status]: [],
+  [ENGINE_FILTER_NAME.size]: []
+};
+export const ENGINE_FILTER_LABEL = {
+  [ENGINE_FILTER_NAME.status]: 'Status',
+  [ENGINE_FILTER_NAME.size]: 'Size'
+};
+
+export const ENGINE_COLUMNS_CONFIG = [
+  {key: 'status', label: '', width: 25, flexGrow: 0, style: {marginRight: 3}},
+  {key: 'engine', label: 'Engine', flexGrow: 1, headerStyle: {marginLeft: -6}},
+  {key: 'size', label: 'Size', width: 90, headerStyle: {marginLeft: -6}}, //# of workers
+  {key: 'cores', label: 'Cores per Executor', width: 130, headerStyle: {marginLeft: -6}},
+  {key: 'memory', label: 'Memory per Executor', width: 130, headerStyle: {marginLeft: -6}},
+  {key: 'ip', label: 'IP address', width: 120, headerStyle: {marginLeft: -6}},
+  {key: 'nodes', label: 'Online Nodes', width: 100},
+  {key: 'action', label: 'Action', width: 100, disableSort: true}
 ];
 
-//TODO use field constants in VLH
+export const NODE_COLUMNS_CONFIG = [
+  { key: 'status', label: 'Status', flexGrow: 2 },
+  { key: 'host', label: 'Host', flexGrow: 4 },
+  { key: 'memoryMB', label: 'Memory (MB)', align: 'right', width: 131 },
+  { key: 'virtualCoreCount', label: 'Virtual Cores', align: 'right', width: 126 }
+];
+
+export const QUEUE_COLUMNS_CONFIG = [
+  {key: 'name', label: 'Name', flexGrow: 2},
+  {key: 'priority', label: 'CPU Priority', flexGrow: 1},
+  {key: 'concurrency', label: 'Concurrency Limits', width: 140},
+  {key: 'queueMemory', label: 'Queue Memory Limit', width: 140},
+  {key: 'jobMemory', label: 'Job Memory Limit', width: 140}
+];
+
+export const ENGINE_SIZE_STANDARD_OPTIONS = [
+  {value: 2, label: 'Small (2 nodes)', container: {}},
+  {value: 4, label: 'Medium (4 nodes)', container: {}},
+  {value: 8, label: 'Large (8 nodes)', container: {}},
+  {value: 16, label: 'XLarge (16 nodes)', container: {}},
+  {value: 32, label: '2XLarge (32 nodes)', container: {}},
+  {value: 64, label: '3XLarge (64 nodes)', container: {}}
+];
+
 export const EC2_FORM_TAB_VLH = {
   sections: [
     {
-      name: ' ',
+      name: '',
       layout: 'row',
       elements: [
         {
           type: 'text',
           propName: 'name',
           propertyName: 'name',
-          tooltip: 'Name of the engine',
-          size: 'half',
-          label: 'Name'
+          tooltip: 'A name for this engine. When editing a queue, you can specify the name of the engine to use for queries in that queue.',
+          label: 'Engine Name',
+          size: 446
         },
         {
           type: 'container_selection',
+          propName: 'engineSize',
+          propertyName: 'engineSize',
+          tooltip: 'Number or Executor nodes for this engine.',
+          label: 'Engine Size (Nodes)',
           selectorType: 'select',
-          propName: 'region',
-          propertyName: 'region',
-          label: 'Region',
-          tooltip: 'AWS Region to deploy engine',
-          size: 'full',
-          options: [...AWS_REGION_OPTIONS.map(region => ({...region, container: {}})),
+          size: 446,
+          options: [
+            ...ENGINE_SIZE_STANDARD_OPTIONS,
             {
-              label: 'Endpoint Override',
-              value: '$DREMIO_CUSTOM_ENDPOINT_URL$',
+              value: -1,
+              label: 'Custom...',
               container: {
-                type: 'text',
-                propName: 'endpoint',
-                propertyName: 'endpoint',
-                label: 'Endpoint'
+                layout: 'row',
+                elements: [
+                  {
+                    type: 'number',
+                    propName: 'containerCount',
+                    propertyName: 'containerCount',
+                    label: 'Number of Nodes',
+                    tooltip: 'Number of execution nodes',
+                    size: 126
+                  },
+                  {
+                    type: 'select',
+                    propName: 'instanceType',
+                    propertyName: 'instanceType',
+                    label: 'Engine Node Type',
+                    tooltip: 'The instance type to use in for the nodes of this engine. You can choose an instance type that has more CPU, more memory or more NVMe to optimize this engine for your query workload. If you’re not sure, choose the Standard instance type.',
+                    size: 310,
+                    options: AWS_INSTANCE_TYPE_OPTIONS
+                  }
+                ]
               }
             }
           ]
-        },
-        {
-          type: 'select',
-          propName: 'instanceType',
-          propertyName: 'instanceType',
-          label: 'Instance Type',
-          tooltip: 'AWS Instance type used to execution nodes',
-          size: 'half',
-          options: AWS_INSTANCE_TYPE_OPTIONS
-        },
-        {
-          type: 'number',
-          propName: 'containerCount',
-          propertyName: 'containerCount',
-          label: 'Instance Count',
-          tooltip: 'Number of execution nodes',
-          size: 'half'
         }
       ]
     },
     {
-      name: '',
-      elements: [
-        {
-          type: 'text',
-          propName: 'sshKeyName',
-          propertyName: 'sshKeyName',
-          size: 'half',
-          tooltip: 'The AWS Key pair name used to log onto server instances',
-          label: 'EC2 Key Pair Name'
-        },
-        {
-          type: 'text',
-          propName: 'securityGroupId',
-          propertyName: 'securityGroupId',
-          size: 'half',
-          tooltip: 'The Group ID of the Security group to use, e.g. “sg-0e7662f1d7a81abff”',
-          label: 'Security Group ID'
-        },
-        {
-          type: 'text',
-          propName: 'nodeIamInstanceProfile',
-          propertyName: 'nodeIamInstanceProfile',
-          size: 'half',
-          tooltip: 'The IAM role used to access S3 buckets',
-          label: 'IAM Role for S3 Access'
-        }
-      ]
-    },
-    {
-      name: 'Advanced Properties',
+      name: 'Advanced Options',
       collapsible: {initCollapsed: true},
       elements: [
         {
           type: 'checkbox',
           propName: 'useClusterPlacementGroup',
           propertyName: 'useClusterPlacementGroup',
-          tooltip: 'Whether or not to use placement groups which locates instances close together inside an Availability Zone (optional)',
+          tooltip: 'Use placement groups to pack instances close together inside an Availability Zone. This provides higher performance but may require more time to start all of the nodes of this engine. (optional)',
           label: 'Use Clustered Placement'
         },
         {
           type: 'text',
-          propName: 'vpc',
-          propertyName: 'vpc',
-          size: 'half',
-          tooltip: 'The VPC ID of the Virtual Private Network to run in, e.g. vpc-04ee018cabe5a30ac (optional)',
-          label: 'VPC'
+          propName: 'sshKeyName',
+          propertyName: 'sshKeyName',
+          size: 446,
+          tooltip: ' The name of the EC2 key pair that you will use to SSH into the nodes of this engine if necessary (e.g., to collect log files for troubleshooting).',
+          label: 'EC2 Key Pair'
         },
         {
           type: 'text',
-          propName: 'subnetId',
-          propertyName: 'subnetId',
+          propName: 'securityGroupId',
+          propertyName: 'securityGroupId',
           size: 'half',
-          tooltip: 'The Subnet ID within the VPN to run within, e.g. subnet-0b18cf53f02d3bf0e (optional)',
-          label: 'Subnet ID'
-        },
-        {
-          type: 'text',
-          propName: 'amiId',
-          propertyName: 'amiId',
-          size: 'half',
-          tooltip: 'The AMI used for execution and coordinator nodes, e.g. ami-00002c141987d373c (optional)',
-          label: 'AMI Identifier'
-        },
-        {
-          type: 'container_selection',
-          propName: 'authMode',
-          propertyName: 'authMode',
-          label: 'AWS Api Authentication Mode',
-          options: [
-            {
-              value: 'AUTO',
-              label: 'Auto',
-              container: {}
-            },
-            {
-              value: 'SECRET',
-              label: 'Key / Secret',
-              container: {
-                layout: 'row',
-                elements: [
-                  {
-                    type: 'text',
-                    propName: 'accessKey',
-                    propertyName: 'accessKey',
-                    label: 'Access Key',
-                    size: 'half',
-                    errMsg: 'Both access secret and key are required.'
-                  },
-                  {
-                    type: 'text',
-                    propName: 'secretKey',
-                    propertyName: 'secretKey',
-                    label: 'Secret',
-                    size: 'half',
-                    secure: true,
-                    errMsg: 'Both access secret and key are required.'
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          type: 'text',
-          propName: 'assumeRole',
-          propertyName: 'assumeRole',
-          tooltip: 'The IAM role used by Dremio to manage the engine (optional)',
-          label: 'IAM Role for API Operations'
+          tooltip: 'Security group for EC2 instances in this engine, e.g. “sg-0e7662f1d7a81abff”. Leave blank to use the coordinator node’s security group. (optional)',
+          label: 'Security Group ID'
         },
         {
           type: 'textarea',
@@ -222,6 +241,14 @@ export const EC2_FORM_TAB_VLH = {
           propertyName: 'extraConfProps',
           tooltip: 'Additional Dremio configuration options (optional)',
           label: 'Extra Dremio Configuration Properties'
+        },
+        {
+          type: 'property_list',
+          propName: 'awsTags',
+          propertyName: 'awsTags',
+          addLabel: 'Add tag',
+          emptyLabel: '(No tags added)',
+          label: 'Engine Tags'
         }
       ]
     }

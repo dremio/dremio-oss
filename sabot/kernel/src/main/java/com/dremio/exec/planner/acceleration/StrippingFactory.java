@@ -45,13 +45,13 @@ public class StrippingFactory {
   }
 
   public StripResult strip(RelNode query, ReflectionType type, boolean isIncremental) {
-    NodeStripper stripper = config.getInstance(NODE_STRIPPER, NodeStripper.class, NO_OP_STRIPPER);
+    NodeStripper stripper = type == ReflectionType.EXTERNAL ? new PassThruNodeStripper() : config.getInstance(NODE_STRIPPER, NodeStripper.class, NO_OP_STRIPPER);
     return stripper.apply(options, type, query, isIncremental);
   }
 
   /**
    * Return a strip result with no stripping applied.
-   * @param query
+   * @param node
    * @return
    */
   public static StripResult noStrip(RelNode node) {

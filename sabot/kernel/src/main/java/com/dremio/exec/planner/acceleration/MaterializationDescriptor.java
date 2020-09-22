@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -139,7 +140,7 @@ public class MaterializationDescriptor {
 
   @Override
   public int hashCode() {
-    return Objects.hash(reflection, planBytes, path, originalCost);
+    return Objects.hash(reflection, Arrays.hashCode(planBytes), path, originalCost);
   }
 
   public DremioMaterialization getMaterializationFor(SqlConverter converter) {
@@ -159,6 +160,7 @@ public class MaterializationDescriptor {
     private final String reflectionId;
     private final ReflectionType type;
     private final String name;
+    private final boolean arrowCachingEnabled;
     private final List<String> sortColumns;
     private final List<String> partitionColumns;
     private final List<String> distributionColumns;
@@ -170,6 +172,7 @@ public class MaterializationDescriptor {
         String reflectionId,
         ReflectionType type,
         String name,
+        boolean arrowCachingEnabled,
         List<String> sortColumns,
         List<String> partitionColumns,
         List<String> distributionColumns,
@@ -180,6 +183,7 @@ public class MaterializationDescriptor {
       this.name = name;
       this.type = type;
       this.reflectionId = reflectionId;
+      this.arrowCachingEnabled = arrowCachingEnabled;
       this.sortColumns = sortColumns == null ? ImmutableList.of() : ImmutableList.copyOf(sortColumns);
       this.partitionColumns = partitionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(partitionColumns);
       this.distributionColumns = distributionColumns == null ? ImmutableList.of() : ImmutableList.copyOf(distributionColumns);
@@ -210,6 +214,10 @@ public class MaterializationDescriptor {
 
     public String getName() {
       return name;
+    }
+
+    public boolean isArrowCachingEnabled() {
+      return arrowCachingEnabled;
     }
 
     public ReflectionType getType() {

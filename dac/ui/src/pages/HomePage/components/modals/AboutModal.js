@@ -23,7 +23,7 @@ import { formDescription } from 'uiTheme/radium/typography';
 import Modal from 'components/Modals/Modal';
 import Art from 'components/Art';
 
-import { getEdition } from 'dyn-load/utils/versionUtils';
+import { getEdition } from '@inject/utils/versionUtils';
 import config from 'dyn-load/utils/config';
 import timeUtils from 'utils/timeUtils';
 
@@ -111,7 +111,7 @@ const styles = {
   },
 
   dtStyle: {
-    fontWeight: 'bold',
+    fontWeight: '500',
     marginTop: 15,
     fontSize: '14px'
   }

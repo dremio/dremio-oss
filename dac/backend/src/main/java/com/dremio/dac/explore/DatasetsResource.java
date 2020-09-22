@@ -58,6 +58,8 @@ import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
+import com.dremio.dac.resource.BaseResourceWithAllocator;
+import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -65,8 +67,8 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.search.SearchContainer;
 import com.dremio.datastore.SearchTypes.SortOrder;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
@@ -92,39 +94,47 @@ import com.google.common.base.Preconditions;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/datasets")
-public class DatasetsResource {
+public class DatasetsResource extends BaseResourceWithAllocator {
 
   private final DatasetVersionMutator datasetService;
   private final NamespaceService namespaceService;
   private final DatasetTool tool;
   private final ConnectionReader connectionReader;
-  private final Catalog catalog;
+  private final DatasetCatalog datasetCatalog;
   private final CatalogServiceHelper catalogServiceHelper;
 
   @Inject
   public DatasetsResource(
-      NamespaceService namespaceService,
-      DatasetVersionMutator datasetService,
-      JobsService jobsService,
-      QueryExecutor executor,
-      ConnectionReader connectionReader,
-      @Context SecurityContext securityContext,
-      Catalog catalog,
-      CatalogServiceHelper catalogServiceHelper) {
-    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext), connectionReader, catalog, catalogServiceHelper);
+    NamespaceService namespaceService,
+    DatasetVersionMutator datasetService,
+    JobsService jobsService,
+    QueryExecutor executor,
+    ConnectionReader connectionReader,
+    @Context SecurityContext securityContext,
+    DatasetCatalog datasetCatalog,
+    CatalogServiceHelper catalogServiceHelper,
+    BufferAllocatorFactory allocatorFactory
+      ) {
+    this(namespaceService, datasetService,
+      new DatasetTool(datasetService, jobsService, executor, securityContext),
+      connectionReader, datasetCatalog, catalogServiceHelper, allocatorFactory);
   }
 
   protected DatasetsResource(NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
       DatasetTool tool,
       ConnectionReader connectionReader,
-      Catalog catalog,
-      CatalogServiceHelper catalogServiceHelper) {
+      DatasetCatalog datasetCatalog,
+      CatalogServiceHelper catalogServiceHelper,
+      BufferAllocatorFactory allocatorFactory
+      )
+   {
+     super(allocatorFactory);
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.tool = tool;
     this.connectionReader = connectionReader;
-    this.catalog = catalog;
+    this.datasetCatalog = datasetCatalog;
     this.catalogServiceHelper = catalogServiceHelper;
   }
 
@@ -140,7 +150,7 @@ public class DatasetsResource {
                                              DatasetSummary parentSummary, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    return tool.newUntitled(from, newVersion, context, parentSummary, false, limit);
+    return tool.newUntitled(getOrCreateAllocator("newUntitled"), from, newVersion, context, parentSummary, false, limit);
   }
 
   /**
@@ -204,25 +214,25 @@ public class DatasetsResource {
   public InitialPreviewResponse createUntitledFromSourceFile(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
-    return tool.newUntitled(new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
+    return tool.newUntitled(getOrCreateAllocator("createUntitledFromSourceFile"), new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
   }
 
   public InitialPreviewResponse createUntitledFromSourceFolder(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    return tool.newUntitled(new FromTable(folderPath.toPathString()), DatasetVersion.newVersion(), folderPath.toPathList(), limit);
+    return tool.newUntitled(getOrCreateAllocator("createUntitledFromSourceFolder"), new FromTable(folderPath.toPathString()), DatasetVersion.newVersion(), folderPath.toPathList(), limit);
   }
 
   public InitialPreviewResponse createUntitledFromPhysicalDataset(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     PhysicalDatasetPath datasetPath = PhysicalDatasetPath.fromURLPath(sourceName, path);
-    return tool.newUntitled(new FromTable(datasetPath.toPathString()), DatasetVersion.newVersion(), datasetPath.toParentPathList(), limit);
+    return tool.newUntitled(getOrCreateAllocator("createUntitledFromPhysicalDataset"), new FromTable(datasetPath.toPathString()), DatasetVersion.newVersion(), datasetPath.toParentPathList(), limit);
   }
 
   public InitialPreviewResponse createUntitledFromHomeFile(HomeName homeName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
-    return tool.newUntitled(new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
+    return tool.newUntitled(getOrCreateAllocator("createUntitledFromHomeFile"), new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
   }
 
 
@@ -255,7 +265,7 @@ public class DatasetsResource {
   }
 
   private DatasetSummary getDatasetSummary(DatasetPath datasetPath) throws NamespaceException, DatasetNotFoundException {
-    final DremioTable table = catalog.getTable(datasetPath.toNamespaceKey());
+    final DremioTable table = datasetCatalog.getTable(datasetPath.toNamespaceKey());
     if (table == null) {
       throw new DatasetNotFoundException(datasetPath);
     }

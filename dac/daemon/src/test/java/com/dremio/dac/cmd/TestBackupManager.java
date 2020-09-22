@@ -17,22 +17,32 @@ package com.dremio.dac.cmd;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
@@ -49,8 +59,9 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.TestHomeFiles;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.BackupRestoreUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
@@ -58,9 +69,9 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
@@ -80,6 +91,7 @@ import com.google.common.io.Files;
 /**
  * Test backup and restore.
  */
+@RunWith(Parameterized.class)
 public class TestBackupManager extends BaseTestServer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestBackupManager.class);
 
@@ -94,17 +106,25 @@ public class TestBackupManager extends BaseTestServer {
     .inMemoryStorage(false)
     .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
+  private static FileSystem fs;
+
   @BeforeClass
   public static void init() throws Exception {
+    fs = HadoopFileSystem.getLocal(new Configuration());
     Assume.assumeFalse(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
       logger.info("Running tests in local mode ");
       dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
       startDaemon();
     }
+    populateInitialData();
   }
 
   private static void startDaemon() throws Exception {
+    startDaemon(dacConfig);
+  }
+
+  private static void startDaemon(DACConfig dacConfig) throws Exception {
     setCurrentDremioDaemon(DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT));
     setMasterDremioDaemon(null);
     getCurrentDremioDaemon().init();
@@ -121,21 +141,30 @@ public class TestBackupManager extends BaseTestServer {
     ));
   }
 
+  private final String mode;
+  public TestBackupManager(String mode) {
+    this.mode = mode;
+  }
+
+  @Parameters(name="mode={0}")
+  public static Iterable<? extends Object> data() {
+      return Arrays.asList("json", "binary");
+  }
+
   @Test
   public void testBackup() throws Exception {
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    populateInitialData();
-    Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+    boolean binary = "binary".equals(mode);
     int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
-    dacConfig = dacConfig.httpPort(httpPort);
+    DACConfig dacConfig = TestBackupManager.dacConfig.httpPort(httpPort);
+    Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
 
-    LocalKVStoreProvider localKVStoreProvider = (LocalKVStoreProvider) l(KVStoreProvider.class);
+    LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
     HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
 
     // take backup 1
     CheckPoint cp1 = checkPoint();
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, Path.of(BaseTestServer.folder1.newFolder().getAbsolutePath()), localKVStoreProvider, homeFileStore).getBackupPath());
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
 
     // add dataset, delete dataset, upload file
     getPopulator().putDS("DG", "dsg11", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
@@ -147,13 +176,15 @@ public class TestBackupManager extends BaseTestServer {
     Path textFile = Path.of(tmpFile.getAbsolutePath());
     TestHomeFiles.uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 
-    TestHomeFiles.runQuery("comma", 4, 3, null);
+    try (BufferAllocator allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE)) {
+      runQuery(l(JobsService.class), "comma", 4, 3, null, allocator);
+    }
     CheckPoint cp2 = checkPoint();
 
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
     Path backupDir2 = Path.of(
-      Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath)
+      Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false)
       .getBackupPath());
 
     // destroy everything
@@ -168,9 +199,9 @@ public class TestBackupManager extends BaseTestServer {
     BackupRestoreUtil.restore(fs, backupDir2, dacConfig);
 
     // restart
-    startDaemon();
+    startDaemon(dacConfig);
 
-    localKVStoreProvider = (LocalKVStoreProvider) l(KVStoreProvider.class);
+    localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
     cp2.checkEquals(checkPoint());
     DatasetConfig dsg11 = newNamespaceService().getDataset(new DatasetPath("DG.dsg11").toNamespaceKey());
     assertNotNull(dsg11);
@@ -183,7 +214,9 @@ public class TestBackupManager extends BaseTestServer {
     }
 
     // query uploaded file
-    TestHomeFiles.runQuery("comma", 4, 3, null);
+    try (BufferAllocator allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE)) {
+      runQuery(l(JobsService.class), "comma", 4, 3, null, allocator);
+    }
 
     // destroy everything
     l(HomeFileTool.class).clearUploads();
@@ -197,7 +230,7 @@ public class TestBackupManager extends BaseTestServer {
     // restore
     BackupRestoreUtil.restore(fs, backupDir1, dacConfig);
     // restart
-    startDaemon();
+    startDaemon(dacConfig);
 
     cp1.checkEquals(checkPoint());
     DatasetConfig dsg10 = newNamespaceService().getDataset(datasetPath.toNamespaceKey());
@@ -215,6 +248,94 @@ public class TestBackupManager extends BaseTestServer {
       fail("@tshiran.comma should not be present in backup1");
     } catch (NamespaceNotFoundException e) {
     }
+  }
+
+  @Test
+  public void testLocalAttach() throws Exception {
+    boolean binary = "binary".equals(mode);
+    Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+    LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
+    HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
+
+    final String tempPath = TEMP_FOLDER.getRoot().getAbsolutePath();
+
+    Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
+
+    // Do some things
+    getPopulator().putDS("DG", "dsg12", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
+    CheckPoint cp = checkPoint();
+
+    // Backup
+    final String[] backupArgs;
+    if (binary) {
+      backupArgs = new String[]{"backup", tempPath, "true", "false"};
+    } else {
+      backupArgs = new String[]{"backup", tempPath, "false", "false"};
+    }
+    final String vmid = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+    DremioAttach.main(vmid, backupArgs);
+    //verify that repeated backup calls don't cause an exception
+    DremioAttach.main(vmid, backupArgs);
+
+    // Destroy everything
+    l(HomeFileTool.class).clearUploads();
+    localKVStoreProvider.deleteEverything();
+    getCurrentDremioDaemon().close();
+
+    fs.delete(dbDir, true);
+    fs.mkdirs(dbDir);
+
+    // Get last modified backup file
+    final Optional<java.nio.file.Path> restorePath = java.nio.file.Files.list(Paths.get(tempPath))
+      .filter(f -> java.nio.file.Files.isDirectory(f))
+      .filter(f -> f.getFileName().toString().startsWith("dremio_backup"))
+      .max(Comparator.comparingLong(f -> f.toFile().lastModified()));
+
+    //verify that backup in default(binary) format has some number of
+    //files with .pb extension
+    final File[] files = new File(restorePath.get().toString()).listFiles();
+    final int binaryFilesCount = (int) Arrays.stream(files)
+      .filter(file -> FilenameUtils.getExtension(file.getName()).equals("pb")).count();
+
+    if (binary) {
+      assertNotEquals(0, binaryFilesCount);
+    } else {
+      assertEquals(0, binaryFilesCount);
+    }
+    // restore
+    if (!restorePath.isPresent()) {
+      throw new AssertionError("Could not find restore directory.");
+    }
+    BackupRestoreUtil.restore(fs, Path.of(restorePath.get().toString()), dacConfig);
+
+    // restart
+    startDaemon();
+
+    // verify
+    cp.checkEquals(checkPoint());
+
+    // try adding something else, should not match checkpoint
+    getPopulator().putDS("DG", "dsg13", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
+    try {
+      cp.checkEquals(checkPoint());
+      throw new AssertionError();
+    } catch (AssertionError ignored) {
+    }
+
+    // destroy everything
+    l(HomeFileTool.class).clearUploads();
+    localKVStoreProvider.deleteEverything();
+    getCurrentDremioDaemon().close();
+
+    // recreate dirs
+    fs.delete(dbDir, true);
+    fs.mkdirs(dbDir);
+
+    // restore
+    BackupRestoreUtil.restore(fs, backupDir1, dacConfig);
+    // restart
+    startDaemon(dacConfig);
   }
 
   private CheckPoint checkPoint() throws Exception {
@@ -243,7 +364,7 @@ public class TestBackupManager extends BaseTestServer {
      */
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
         .setFilterString("")
-        .setUsername("tshiran")
+        .setUserName("tshiran")
         .build();
 
     checkPoint.jobs = ImmutableList.copyOf(jobsService.searchJobs(request));
@@ -257,7 +378,7 @@ public class TestBackupManager extends BaseTestServer {
     private List<DatasetConfig> datasets;
     private List<? extends User> users;
     private List<VirtualDatasetUI> virtualDatasetVersions;
-    private List<Job> jobs;
+    private List<JobSummary> jobs;
 
     private void checkEquals(CheckPoint o) {
       assertTrue(CollectionUtils.isEqualCollection(sources, o.sources));

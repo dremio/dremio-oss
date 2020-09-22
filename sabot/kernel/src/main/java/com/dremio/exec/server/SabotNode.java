@@ -15,41 +15,76 @@
  */
 package com.dremio.exec.server;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.zookeeper.Environment;
 
+import com.dremio.common.GuiceServiceModule;
 import com.dremio.common.StackTrace;
+import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.context.RequestContext;
+import com.dremio.context.TenantContext;
+import com.dremio.context.UserContext;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.InformationSchemaServiceImpl;
+import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.exception.NodeStartupException;
+import com.dremio.exec.maestro.MaestroForwarder;
+import com.dremio.exec.maestro.MaestroService;
+import com.dremio.exec.maestro.MaestroServiceImpl;
+import com.dremio.exec.maestro.NoOpMaestroForwarder;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
+import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.service.executor.ExecutorServiceProductClientFactory;
+import com.dremio.exec.service.jobresults.JobResultsSoftwareClientFactory;
+import com.dremio.exec.service.jobtelemetry.JobTelemetrySoftwareClientFactory;
+import com.dremio.exec.service.maestro.MaestroGrpcServerFacade;
+import com.dremio.exec.service.maestro.MaestroSoftwareClientFactory;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
-import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
+import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.ClusterResourceInformation;
+import com.dremio.resource.GroupResourceInformation;
+import com.dremio.resource.QueryCancelTool;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.basic.BasicResourceAllocator;
+import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.sabot.exec.FragmentWorkManager;
 import com.dremio.sabot.exec.TaskPoolInitializer;
 import com.dremio.sabot.exec.WorkloadTicketDepot;
@@ -57,25 +92,41 @@ import com.dremio.sabot.exec.WorkloadTicketDepotService;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.op.common.spill.SpillServiceOptionsImpl;
 import com.dremio.sabot.rpc.CoordExecService;
-import com.dremio.sabot.rpc.CoordToExecHandler;
-import com.dremio.sabot.rpc.ExecToCoordHandler;
+import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
+import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
-import com.dremio.service.DirectProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
+import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.conduit.client.ConduitProviderImpl;
+import com.dremio.service.conduit.server.ConduitServer;
+import com.dremio.service.conduit.server.ConduitServiceRegistry;
+import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ExecutorSetService;
+import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
 import com.dremio.service.execselector.ExecutorSelectorFactory;
 import com.dremio.service.execselector.ExecutorSelectorFactoryImpl;
 import com.dremio.service.execselector.ExecutorSelectorProvider;
+import com.dremio.service.executor.ExecutorServiceClientFactory;
+import com.dremio.service.grpc.GrpcChannelBuilderFactory;
+import com.dremio.service.grpc.GrpcServerBuilderFactory;
+import com.dremio.service.grpc.MultiTenantGrpcServerBuilderFactory;
+import com.dremio.service.grpc.SingleTenantGrpcChannelBuilderFactory;
+import com.dremio.service.jobresults.client.JobResultsClientFactory;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
+import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
+import com.dremio.service.jobtelemetry.server.LocalJobTelemetryServer;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.listing.DatasetListingServiceImpl;
+import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
@@ -85,9 +136,20 @@ import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import com.google.inject.util.Modules;
+import com.google.inject.util.Providers;
+
+import io.opentracing.Tracer;
 
 /**
  * Test class to start execution framework without ui.
@@ -109,194 +171,84 @@ public class SabotNode implements AutoCloseable {
 
   private final SingletonRegistry registry = new SingletonRegistry();
 
+  private Injector injector;
+
   private ShutdownThread shutdownHook;
+  private GuiceServiceModule guiceSingletonHandler;
+  private List<AbstractModule> overrideModules;
 
   public SabotNode(
-      final SabotConfig config,
-      final ClusterCoordinator clusterCoordinator) throws Exception {
+          final SabotConfig config,
+          final ClusterCoordinator clusterCoordinator) throws Exception {
     this(config, clusterCoordinator, ClassPathScanner.fromPrescan(config), true);
   }
 
   @VisibleForTesting
   public SabotNode(
-      final SabotConfig config,
-      final ClusterCoordinator clusterCoordinator,
-      final ScanResult classpathScan,
-      boolean allRoles) throws Exception {
-    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles);
+          final SabotConfig config,
+          final ClusterCoordinator clusterCoordinator,
+          final ScanResult classpathScan,
+          boolean allRoles) throws Exception {
+    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles, null);
+  }
+
+  @VisibleForTesting
+  public SabotNode(
+          final SabotConfig config,
+          final ClusterCoordinator clusterCoordinator,
+          final ScanResult classpathScan,
+          boolean allRoles,
+          List<AbstractModule> overrideModules) throws Exception {
+    init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles, overrideModules);
   }
 
   protected void init(
-      SingletonRegistry registry,
-      SabotConfig config,
-      ClusterCoordinator clusterCoordinator,
-      ScanResult classpathScan,
-      boolean allRoles) throws Exception {
-    final boolean allowPortHunting = true;
-    final boolean useIP = false;
+          SingletonRegistry registry,
+          SabotConfig config,
+          ClusterCoordinator clusterCoordinator,
+          ScanResult classpathScan,
+          boolean allRoles,
+          List<AbstractModule> overrideModules) throws Exception {
+    this.overrideModules = overrideModules;
     DremioConfig dremioConfig = DremioConfig.create(null, config);
     dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
 
-    // eagerly created.
-    final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(dremioConfig, classpathScan, registry));
+    final BootStrapContext bootstrap = new BootStrapContext(dremioConfig, classpathScan, registry);
+    guiceSingletonHandler = new GuiceServiceModule();
+    injector = createInjector(dremioConfig, classpathScan, registry, clusterCoordinator, allRoles, bootstrap);
+    registry.registerGuiceInjector(injector);
+  }
 
-    final Provider<OptionManager> optionsProvider = () -> registry.provider(SabotContext.class).get().getOptionManager();
+  protected Injector createInjector(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry,
+                                    ClusterCoordinator clusterCoordinator, boolean allRoles,
+                                    BootStrapContext bootStrapContext) {
+    final SabotModule sabotModule = new SabotModule(config, classpathScan, registry, clusterCoordinator, allRoles, bootStrapContext);
 
-    registry.bind(ConnectionReader.class, ConnectionReader.of(bootstrap.getClasspathScan(), config));
-    // bind default providers.
-    registry.bind(MaterializationDescriptorProvider.class, MaterializationDescriptorProvider.EMPTY);
-    registry.bind(QueryObserverFactory.class, QueryObserverFactory.DEFAULT);
-    // no authentication
-    registry.bind(UserService.class, (UserService) null);
-    registry.bind(NamespaceService.Factory.class, NamespaceServiceImpl.Factory.class);
+    return createInjector(sabotModule);
+  }
 
-    // cluster coordinator
-    registry.bind(ClusterCoordinator.class, clusterCoordinator);
+  protected Injector createInjector(Module mainModule) {
+    if (overrideModules != null && !overrideModules.isEmpty()) {
+      return Guice.createInjector(Modules.override(guiceSingletonHandler, mainModule).with(overrideModules));
+    }
 
-    // KVStore.
-    registry.bind(KVStoreProvider.class, new LocalKVStoreProvider(bootstrap.getClasspathScan(), null, true, true));
+    return Guice.createInjector(guiceSingletonHandler, mainModule);
+  }
 
-    registry.bind(PersistentStoreProvider.class,
-      new KVPersistentStoreProvider(registry.provider(KVStoreProvider.class)));
-
-    // Fabric Service
-    final String address = FabricServiceImpl.getAddress(useIP);
-    registry.bind(FabricService.class, new FabricServiceImpl(
-        address,
-        45678,
-        allowPortHunting,
-        config.getInt(ExecConstants.BIT_SERVER_RPC_THREADS),
-        bootstrap.getAllocator(),
-        0,
-        Long.MAX_VALUE,
-        config.getInt(RpcConstants.BIT_RPC_TIMEOUT),
-        bootstrap.getExecutor()
-    ));
-
-    // RPC Endpoints.
-    registry.bindSelf(new UserServer(bootstrap,
-        registry.provider(SabotContext.class),
-        registry.provider(UserWorker.class),
-        allowPortHunting));
-
-    registry.bindSelf(new CoordExecService(
-        bootstrap.getConfig(),
-        bootstrap.getAllocator(),
-        registry.getBindingCreator(),
-        registry.provider(FabricService.class),
-        registry.provider(CoordToExecHandler.class),
-        registry.provider(ExecToCoordHandler.class)
-        ));
-
-    registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
-    registry.bind(DatasetListingService.class, new DatasetListingServiceImpl(
-        registry.provider(NamespaceService.Factory.class)));
-
-    registry.bind(AccelerationManager.class, AccelerationManager.NO_OP);
-
-    // Note: corePoolSize param below should be more than 1 to show any multithreading issues
-    registry.bind(SchedulerService.class, new LocalSchedulerService(2));
-
-    registry.bind(ContextService.class, new ContextService(
-        registry.getBindingCreator(),
-        bootstrap,
-        registry.provider(ClusterCoordinator.class),
-        registry.provider(PersistentStoreProvider.class),
-        registry.provider(WorkStats.class),
-        registry.provider(KVStoreProvider.class),
-        registry.provider(FabricService.class),
-        registry.provider(UserServer.class),
-        registry.provider(MaterializationDescriptorProvider.class),
-        registry.provider(QueryObserverFactory.class),
-        registry.provider(AccelerationManager.class),
-        registry.provider(AccelerationListManager.class),
-        registry.provider(NamespaceService.Factory.class),
-        registry.provider(DatasetListingService.class),
-        registry.provider(UserService.class),
-        registry.provider(CatalogService.class),
-        null,
-        registry.provider(SpillService.class),
-        registry.provider(ConnectionReader.class),
-        CredentialsService::new,
-        DirectProvider.wrap(JobResultSchemaProvider.NOOP),
-        allRoles
-        ));
-
-    registry.bind(SpillService.class, new SpillServiceImpl(
-      dremioConfig,
-      new SpillServiceOptionsImpl(registry.provider(SabotContext.class)),
-      registry.provider(SchedulerService.class)
-    ));
-
-    registry.bindSelf(new SystemTablePluginConfigProvider());
-
-    registry.bind(CatalogService.class, new CatalogServiceImpl(
-        registry.provider(SabotContext.class),
-        registry.provider(SchedulerService.class),
-        registry.provider(SystemTablePluginConfigProvider.class),
-        registry.provider(FabricService.class),
-        registry.provider(ConnectionReader.class)
-        ));
-
-    registry.bind(ResourceAllocator.class,
-      new BasicResourceAllocator(registry.provider(ClusterCoordinator.class)));
-    registry.bind(ExecutorSelectorFactory.class, new ExecutorSelectorFactoryImpl());
-    ExecutorSelectorProvider executorSelectorProvider = new ExecutorSelectorProvider();
-    registry.bind(ExecutorSelectorProvider.class, executorSelectorProvider);
-    registry.bind(ExecutorSelectionService.class,
-        new ExecutorSelectionServiceImpl(
-            registry.provider(ClusterCoordinator.class),
-            optionsProvider,
-            registry.provider(ExecutorSelectorFactory.class),
-            executorSelectorProvider
-        )
-    );
-
-    registry.bindSelf(new ContextInformationFactory());
-    registry.bindSelf(new TaskPoolInitializer(registry.provider(SabotContext.class), registry.getBindingCreator()));
-    registry.bindSelf(
-        new WorkloadTicketDepotService(bootstrap,
-            registry.getBindingCreator(),
-            registry.provider(TaskPool.class)));
-    registry.bindSelf(
-        new FragmentWorkManager(bootstrap,
-            registry.provider(NodeEndpoint.class),
-            registry.provider(SabotContext.class),
-            registry.provider(FabricService.class),
-            registry.provider(CatalogService.class),
-            registry.provider(ContextInformationFactory.class),
-            registry.provider(WorkloadTicketDepot.class),
-            registry.getBindingCreator(),
-            registry.provider(TaskPool.class)));
-    registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(dremioConfig));
-
-    registry.bindSelf(
-        new ForemenWorkManager(
-            registry.provider(ClusterCoordinator.class),
-            registry.provider(FabricService.class),
-            registry.provider(SabotContext.class),
-            registry.provider(ResourceAllocator.class),
-            registry.provider(CommandPool.class),
-            registry.provider(ExecutorSelectionService.class),
-            registry.getBindingCreator()
-            )
-        );
-    registry.bind(NodeRegistration.class, new NodeRegistration(
-        registry.provider(SabotContext.class),
-        registry.provider(FragmentWorkManager.class),
-        registry.provider(ForemenWorkManager.class),
-        registry.provider(ClusterCoordinator.class)
-        ));
+  protected List<AbstractModule> getOverrideModules() {
+    return overrideModules;
   }
 
   public LocalQueryExecutor getLocalQueryExecutor(){
-    return registry.lookup(LocalQueryExecutor.class);
+    return injector.getInstance(LocalQueryExecutor.class);
   }
 
   public void run() throws Exception {
     final Stopwatch w = Stopwatch.createStarted();
     logger.debug("Startup begun.");
+
     registry.start();
+
     shutdownHook = new ShutdownThread(this, new StackTrace());
     Runtime.getRuntime().addShutdownHook(shutdownHook);
     logger.info("Startup completed ({} ms).", w.elapsed(TimeUnit.MILLISECONDS));
@@ -326,6 +278,7 @@ public class SabotNode implements AutoCloseable {
 
     try {
       registry.close();
+      guiceSingletonHandler.close(getInjector());
     } catch(Exception e) {
       logger.warn("Failure on close()", e);
     }
@@ -382,7 +335,7 @@ public class SabotNode implements AutoCloseable {
 
   @VisibleForTesting
   public SabotContext getContext() {
-    return registry.lookup(SabotContext.class);
+    return injector.getInstance(SabotContext.class);
   }
 
   @VisibleForTesting
@@ -393,6 +346,11 @@ public class SabotNode implements AutoCloseable {
   @VisibleForTesting
   public BindingProvider getBindingProvider(){
     return registry.getBindingProvider();
+  }
+
+  @VisibleForTesting
+  public Injector getInjector() {
+    return injector;
   }
 
   public static void main(final String[] cli) throws NodeStartupException {
@@ -409,12 +367,12 @@ public class SabotNode implements AutoCloseable {
   }
 
   public static SabotNode start(final SabotConfig config, final ClusterCoordinator clusterCoordinator)
-      throws NodeStartupException {
+          throws NodeStartupException {
     return start(config, clusterCoordinator, ClassPathScanner.fromPrescan(config));
   }
 
   public static SabotNode start(final SabotConfig config, final ClusterCoordinator clusterCoordinator, ScanResult classpathScan)
-      throws NodeStartupException {
+          throws NodeStartupException {
     logger.debug("Starting new SabotNode.");
     SabotNode bit;
     try {
@@ -433,4 +391,495 @@ public class SabotNode implements AutoCloseable {
     return bit;
   }
 
+  /**
+   * Guice Module for SabotNode dependancy injection
+   */
+  protected class SabotModule extends AbstractModule {
+    private final DremioConfig config;
+    private final ScanResult classpathScan;
+    private final SingletonRegistry registry;
+    private final ClusterCoordinator clusterCoordinator;
+    private final boolean allRoles;
+    private final BootStrapContext bootstrap;
+    private final RequestContext defaultRequestContext;
+
+    public SabotModule(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry,
+                       ClusterCoordinator clusterCoordinator, boolean allRoles, BootStrapContext bootstrap) {
+      this.config = config;
+      this.classpathScan = classpathScan;
+      this.registry = registry;
+      this.clusterCoordinator = clusterCoordinator;
+      this.allRoles = allRoles;
+      this.defaultRequestContext = RequestContext.empty()
+          .with(TenantContext.CTX_KEY, new TenantContext(TenantContext.DEFAULT_PRODUCT_TENANT_ID))
+          .with(UserContext.CTX_KEY, new UserContext(SYSTEM_USERNAME));
+      this.bootstrap = bootstrap;
+    }
+
+    @Override
+    protected void configure() {
+      try {
+        bind(DremioConfig.class).toInstance(config);
+        bind(Tracer.class).toInstance(TracerFacade.INSTANCE);
+        bind(BootStrapContext.class).toInstance(bootstrap);
+        bind(BufferAllocator.class).toInstance(bootstrap.getAllocator());
+        bind(ExecutorService.class).toInstance(bootstrap.getExecutor());
+        bind(LogicalPlanPersistence.class).toInstance(new LogicalPlanPersistence(config.getSabotConfig(), classpathScan));
+        bind(OptionValidatorListing.class).toInstance(new OptionValidatorListingImpl(classpathScan));
+
+        // KVStore
+        final KVStoreProvider kvStoreProvider = new LocalKVStoreProvider(classpathScan, null, true, true);
+        bind(KVStoreProvider.class).toInstance(kvStoreProvider);
+
+        bind(ConnectionReader.class).toInstance(ConnectionReader.of(classpathScan, config.getSabotConfig()));
+        // bind default providers.
+        bind(MaterializationDescriptorProvider.class).toInstance(MaterializationDescriptorProvider.EMPTY);
+        bind(QueryObserverFactory.class).toInstance(QueryObserverFactory.DEFAULT);
+        bind(GrpcChannelBuilderFactory.class).toInstance(
+          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, defaultRequestContext));
+
+        GrpcServerBuilderFactory gRpcServerBuilderFactory =
+          new MultiTenantGrpcServerBuilderFactory(TracerFacade.INSTANCE);
+        bind(GrpcServerBuilderFactory.class).toInstance(gRpcServerBuilderFactory);
+
+        // no authentication
+        bind(UserService.class).toProvider(Providers.of(null));
+        bind(NamespaceService.Factory.class).to(NamespaceServiceImpl.Factory.class);
+
+        final boolean allowPortHunting = true;
+        final boolean useIP = false;
+
+        final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
+        bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
+
+        bind(NodeRegistration.class).asEagerSingleton();
+
+        final MetadataRefreshInfoBroadcaster broadcaster = new MetadataRefreshInfoBroadcaster(
+          getProvider(ConduitProvider.class),
+          () -> registry.provider(ClusterCoordinator.class)
+            .get()
+            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+            .getAvailableEndpoints(),
+          () -> registry.provider(SabotContext.class).get().getEndpoint()
+        );
+
+        // CatalogService is expensive to create so we eagerly create it
+        bind(CatalogService.class).toInstance(new CatalogServiceImpl(
+                getProvider(SabotContext.class),
+                getProvider(SchedulerService.class),
+                getProvider(SystemTablePluginConfigProvider.class),
+                getProvider(FabricService.class),
+                getProvider(ConnectionReader.class),
+                getProvider(BufferAllocator.class),
+                getProvider(LegacyKVStoreProvider.class),
+                getProvider(DatasetListingService.class),
+                getProvider(OptionManager.class),
+                () -> broadcaster,
+                config,
+                EnumSet.allOf(ClusterCoordinator.Role.class)
+        ));
+
+        conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
+          bootstrap::getExecutor));
+
+        // cluster coordinator
+        bind(ClusterCoordinator.class).toInstance(clusterCoordinator);
+
+        // RPC Endpoints - eagerly created
+        bind(UserServer.class).toInstance(new UserServer(
+                config,
+                getProvider(ExecutorService.class),
+                getProvider(BufferAllocator.class),
+                getProvider(UserService.class),
+                getProvider(NodeEndpoint.class),
+                getProvider(UserWorker.class),
+                allowPortHunting,
+                TracerFacade.INSTANCE,
+                getProvider(OptionValidatorListing.class)
+        ));
+
+        // Fabric Service - eagerly created
+        final String address = FabricServiceImpl.getAddress(useIP);
+        final FabricServiceImpl fabricService = new FabricServiceImpl(
+                address,
+                45678,
+                allowPortHunting,
+                config.getSabotConfig().getInt(ExecConstants.BIT_SERVER_RPC_THREADS),
+                bootstrap.getAllocator(),
+                0,
+                Long.MAX_VALUE,
+                config.getSabotConfig().getInt(RpcConstants.BIT_RPC_TIMEOUT),
+                bootstrap.getExecutor()
+        );
+        bind(FabricService.class).toInstance(fabricService);
+
+        bind(ConduitServer.class).toInstance(new ConduitServer(getProvider(ConduitServiceRegistry.class), 0,
+          Optional.empty()));
+        bind(ConduitProvider.class)
+            .toInstance(new ConduitProviderImpl(getProvider(NodeEndpoint.class), Optional.empty()));
+
+        final CoordExecService coordExecService = new CoordExecService(
+                bootstrap.getConfig(),
+                bootstrap.getAllocator(),
+                getProvider(FabricService.class),
+                getProvider(com.dremio.exec.service.executor.ExecutorService.class),
+                getProvider(ExecToCoordResultsHandler.class),
+                getProvider(ExecToCoordStatusHandler.class),
+                getProvider(NodeEndpoint.class),
+                getProvider(JobTelemetryClient.class)
+        );
+        bind(CoordExecService.class).toInstance(coordExecService);
+
+        bind(NamespaceService.class).to(NamespaceServiceImpl.class);
+        bind(DatasetListingService.class).toInstance(new DatasetListingServiceImpl(
+                getProvider(NamespaceService.Factory.class)
+        ));
+
+        bind(AccelerationManager.class).toInstance(AccelerationManager.NO_OP);
+
+        // Note: corePoolSize param below should be more than 1 to show any multithreading issues
+        final LocalSchedulerService localSchedulerService = new LocalSchedulerService(2);
+        bind(SchedulerService.class).toInstance(localSchedulerService);
+
+        bind(AccelerationListManager.class).toProvider(Providers.of(null));
+
+        bind(SystemTablePluginConfigProvider.class).toInstance(new SystemTablePluginConfigProvider());
+
+        bind(ResourceAllocator.class).toInstance(new BasicResourceAllocator(getProvider(ClusterCoordinator.class),
+          getProvider(GroupResourceInformation.class)));
+
+        bind(ExecutorSelectorFactory.class).toInstance(new ExecutorSelectorFactoryImpl());
+
+        final ExecutorSelectorProvider executorSelectorProvider = new ExecutorSelectorProvider();
+        bind(ExecutorSelectorProvider.class).toInstance(executorSelectorProvider);
+
+        bind(ContextInformationFactory.class).toInstance(new ContextInformationFactory());
+
+        bind(CommandPool.class).toInstance(CommandPoolFactory.INSTANCE.newPool(config, TracerFacade.INSTANCE));
+
+        bind(LocalJobTelemetryServer.class).toInstance(new LocalJobTelemetryServer(
+          gRpcServerBuilderFactory, getProvider(LegacyKVStoreProvider.class),
+          getProvider(NodeEndpoint.class)));
+
+        bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Provides
+    @Singleton
+    SystemOptionManager getSystemOptionManager(OptionValidatorListing optionValidatorListing, LogicalPlanPersistence lpp, Provider<LegacyKVStoreProvider> kvStoreProvider) throws Exception {
+      return new SystemOptionManager(optionValidatorListing, lpp, kvStoreProvider, false);
+    }
+
+    @Provides
+    @Singleton
+    OptionManager getOptionManager(OptionValidatorListing optionValidatorListing, SystemOptionManager systemOptionManager) throws Exception {
+      return OptionManagerWrapper.Builder.newBuilder()
+        .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+        .withOptionManager(systemOptionManager)
+        .build();
+    }
+
+    @Provides
+    @Singleton
+    FragmentWorkManager getFragmentWorkManager(
+            Provider<NodeEndpoint> nodeEndpoint,
+            Provider<SabotContext> sabotContext,
+            Provider<FabricService> fabricService,
+            Provider<CatalogService> catalogService,
+            Provider<ContextInformationFactory> contextInformationFactory,
+            Provider<WorkloadTicketDepot> workloadTicketDepot,
+            Provider<TaskPool> taskPool,
+            Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
+            Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
+            Provider<JobResultsClientFactory> jobResultsSoftwareClientFactoryProvider
+    ) {
+      return new FragmentWorkManager(
+        bootstrap,
+        nodeEndpoint,
+        sabotContext,
+        fabricService,
+        catalogService,
+        contextInformationFactory,
+        workloadTicketDepot,
+        taskPool,
+        maestroServiceClientFactoryProvider,
+        jobTelemetryClientFactoryProvider,
+        jobResultsSoftwareClientFactoryProvider
+      );
+    }
+
+    @Provides
+    WorkStats getWorkStats(FragmentWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getWorkStats();
+    }
+
+    @Provides
+    @Singleton
+    ContextService getContextService(
+            Provider<ClusterCoordinator> clusterCoordinator,
+            Provider<GroupResourceInformation> resourceInformation,
+            Provider<WorkStats> workStats,
+            Provider<LegacyKVStoreProvider> kvStoreProvider,
+            Provider<FabricService> fabricService,
+            Provider<ConduitServer> conduitServer,
+            Provider<UserServer> userServer,
+            Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
+            Provider<QueryObserverFactory> queryObserverFactory,
+            Provider<AccelerationManager> accelerationManager,
+            Provider<AccelerationListManager> accelerationListManager,
+            Provider<NamespaceService.Factory> namespaceServiceFactory,
+            Provider<DatasetListingService> datasetListingService,
+            Provider<UserService> userService,
+            Provider<CatalogService> catalogService,
+            Provider<ConduitProvider> conduitProvider,
+            Provider<SpillService> spillService,
+            Provider<ConnectionReader> connectionReader,
+            Provider<OptionManager> optionManagerProvider,
+            Provider<SystemOptionManager> systemOptionManagerProvider,
+            Provider<OptionValidatorListing> optionValidatorListingProvider
+    ) {
+      return new ContextService(
+              bootstrap,
+              clusterCoordinator,
+              resourceInformation,
+              workStats,
+              kvStoreProvider,
+              fabricService,
+              conduitServer,
+              userServer,
+              materializationDescriptorProvider,
+              queryObserverFactory,
+              accelerationManager,
+              accelerationListManager,
+              namespaceServiceFactory,
+              datasetListingService,
+              userService,
+              catalogService,
+              conduitProvider,
+              Providers.of(null),
+              spillService,
+              connectionReader,
+              CredentialsService::new,
+              () -> JobResultInfoProvider.NOOP,
+              optionManagerProvider,
+              systemOptionManagerProvider,
+              Providers.of(null),
+              Providers.of(null),
+              optionValidatorListingProvider,
+              allRoles
+      );
+    }
+
+    @Singleton
+    @Provides
+    NodeEndpoint getNodeEndpoint(ContextService contextService) {
+      return contextService.get().getEndpoint();
+    }
+
+    @Singleton
+    @Provides
+    GroupResourceInformation getGroupResourceInformation(Provider<ClusterCoordinator> coordinatorProvider) {
+      return new ClusterResourceInformation(coordinatorProvider);
+    }
+
+    @Singleton
+    @Provides
+    SpillService getSpillService(Provider<OptionManager> optionManager, Provider<SchedulerService> schedulerService) {
+      return new SpillServiceImpl(
+              config,
+              new SpillServiceOptionsImpl(optionManager),
+              schedulerService
+      );
+    }
+
+    @Provides
+    @Singleton
+    ExecutorSelectionService getExecutorSelectionService(
+            Provider<ExecutorSetService> executorSetService,
+            Provider<OptionManager> optionManagerProvider,
+            Provider<ExecutorSelectorFactory> executorSelectorFactory,
+            Provider<ExecutorSelectorProvider> executorSelectorProvider
+    ) {
+      return new ExecutorSelectionServiceImpl(
+              executorSetService,
+              optionManagerProvider,
+              executorSelectorFactory,
+              executorSelectorProvider.get()
+      );
+    }
+
+    @Provides
+    @Singleton
+    ForemenWorkManager getForemenWorkManager(
+            Provider<FabricService> fabricService,
+            Provider<SabotContext> sabotContext,
+            Provider<CommandPool> commandPool,
+            Provider<MaestroService> maestroService,
+            Provider<JobTelemetryClient> jobTelemetryClient,
+            Provider<MaestroForwarder> forwarderProvider
+    ) {
+      return new ForemenWorkManager(
+              fabricService,
+              sabotContext,
+              commandPool,
+              maestroService,
+              jobTelemetryClient,
+              forwarderProvider,
+              TracerFacade.INSTANCE
+      );
+    }
+
+    @Provides
+    @Singleton
+    ExecutorSetService getExecutorSetService(
+            Provider<ClusterCoordinator> clusterCoordinator,
+            Provider<OptionManager> optionManagerProvider) {
+      return new LocalExecutorSetService(clusterCoordinator,
+                                         optionManagerProvider);
+    }
+
+    @Provides
+    com.dremio.exec.service.executor.ExecutorService getExecutorService(FragmentWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getExecutorService();
+    }
+
+    @Provides
+    @Singleton
+    MaestroService getMaestroService(
+            Provider<ExecutorSetService> executorSetService,
+            Provider<FabricService> fabricService,
+            Provider<SabotContext> sabotContext,
+            Provider<ResourceAllocator> resourceAllocator,
+            Provider<CommandPool> commandPool,
+            Provider<ExecutorSelectionService> executorSelectionService,
+            Provider<ExecutorServiceClientFactory> executorServiceClientFactory,
+            Provider<JobTelemetryClient> jobTelemetryClient,
+            Provider<MaestroForwarder> forwarderProvider
+    ) {
+      return new MaestroServiceImpl(
+              executorSetService,
+              fabricService,
+              sabotContext,
+              resourceAllocator,
+              commandPool,
+              executorSelectionService,
+              executorServiceClientFactory,
+              jobTelemetryClient,
+              forwarderProvider
+              );
+    }
+
+    @Provides
+    ExecToCoordStatusHandler getExecToCoordStatusHandler(MaestroService maestroService) {
+      return maestroService.getExecStatusHandler();
+    }
+
+    @Provides
+    LocalQueryExecutor getLocalQueryExecutor(ForemenWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getLocalQueryExecutor();
+    }
+
+    @Provides
+    ExecutorServiceClientFactory getExecutorServiceClientFactory(CoordToExecTunnelCreator tunnelCreator) {
+      return new ExecutorServiceProductClientFactory(tunnelCreator);
+    }
+
+    @Provides
+    ExecToCoordResultsHandler getExecToCoordHandler(ForemenWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getExecToCoordResultsHandler();
+    }
+
+    @Provides
+    ForemenTool getForemenTool(ForemenWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getForemenTool();
+    }
+
+    @Provides
+    CoordTunnelCreator getCoordTunnelCreator(ForemenWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getCoordTunnelCreator();
+    }
+
+    @Provides
+    ExecToCoordTunnelCreator getExecTunnelCreator(Provider<FabricService> fabricService) {
+      return new ExecToCoordTunnelCreator(fabricService);
+    }
+
+    @Provides
+    MaestroClientFactory getMaestroServiceClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
+      return new MaestroSoftwareClientFactory(tunnelCreator);
+    }
+
+    @Provides
+    JobTelemetryExecutorClientFactory getJobTelemetryExecutionClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
+      return new JobTelemetrySoftwareClientFactory(tunnelCreator);
+    }
+
+    @Provides
+    JobResultsClientFactory getJobResultsSoftwareClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
+      return new JobResultsSoftwareClientFactory(tunnelCreator);
+    }
+
+    @Provides
+    MaestroGrpcServerFacade getMaestroAdapter(Provider<ExecToCoordStatusHandler> execToCoordStatusHandlerProvider) {
+      return new MaestroGrpcServerFacade(execToCoordStatusHandlerProvider);
+    }
+
+    @Provides
+    QueryCancelTool getQueryCancelTool(ForemenWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getQueryCancelTool();
+    }
+
+    @Provides
+    UserWorker getUserWorker(ForemenWorkManager fragmentWorkManager) {
+      return fragmentWorkManager.getUserWorker();
+    }
+
+    @Provides
+    @Singleton
+    TaskPoolInitializer getTaskPoolInitializer(Provider<OptionManager> optionManager) {
+      return new TaskPoolInitializer(optionManager, config);
+    }
+
+    @Provides
+    TaskPool getTaskPool(TaskPoolInitializer taskPoolInitializer) {
+      return taskPoolInitializer.getTaskPool();
+    }
+
+    @Provides
+    @Singleton
+    WorkloadTicketDepotService getWorkloadTicketDepotService(
+            Provider<BufferAllocator> bufferAllocator,
+            Provider<TaskPool> taskPool,
+            Provider<DremioConfig> dremioConfig
+    ) {
+      return new WorkloadTicketDepotService(bufferAllocator, taskPool, dremioConfig);
+    }
+
+    @Provides
+    WorkloadTicketDepot getWorkloadTicketDepot(WorkloadTicketDepotService workloadTicketDepotService) {
+      return workloadTicketDepotService.getTicketDepot();
+    }
+
+    @Provides
+    @Singleton
+    SabotContext getSabotContext(ContextService contextService) {
+      return contextService.get();
+    }
+
+    @Provides
+    @Singleton
+    JobTelemetryClient getJobTelemetryClient(GrpcChannelBuilderFactory grpcChannelBuilderFactory,
+                                             Provider<NodeEndpoint> nodeEndpointProvider) {
+      return new JobTelemetryClient(grpcChannelBuilderFactory, nodeEndpointProvider);
+    }
+
+    @Provides
+    @Singleton
+    LegacyKVStoreProvider getLegacyKVStoreProvider(KVStoreProvider kvStoreProvider) {
+      return new LegacyKVStoreProviderAdapter(kvStoreProvider);
+    }
+  }
 }

@@ -26,6 +26,7 @@ import com.dremio.exec.physical.base.AbstractGroupScan;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -45,23 +46,26 @@ public class ParquetGroupScan extends AbstractGroupScan {
   private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
+  private final boolean arrowCachingEnabled;
 
   public ParquetGroupScan(
-      OpProps props,
-      TableMetadata dataset,
-      List<SchemaPath> columns,
-      ParquetScanFilter filter,
-      List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-      RelDataType cachedRelDataType) {
+    OpProps props,
+    TableMetadata dataset,
+    List<SchemaPath> columns,
+    ParquetScanFilter filter,
+    List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+    RelDataType cachedRelDataType,
+    boolean arrowCachingEnabled) {
     super(props, dataset, columns);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = cachedRelDataType;
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) {
-    final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  BatchSchema.fromCalciteRowType(cachedRelDataType);
+    final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  CalciteArrowHelper.fromCalciteRowType(cachedRelDataType);
 
     List<SplitAndPartitionInfo> splits = work.stream()
         .map(SplitWork::getSplitAndPartitionInfo)
@@ -90,7 +94,8 @@ public class ParquetGroupScan extends AbstractGroupScan {
         ImmutableList.of(getDataset().getName().getPathComponents()),
         filter == null ? null : filter.getConditions(),
         dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(),
-        globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
+        globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty(),
+      arrowCachingEnabled);
   }
 
   /*
@@ -109,6 +114,10 @@ public class ParquetGroupScan extends AbstractGroupScan {
 
   public ParquetScanFilter getFilter() {
     return filter;
+  }
+
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
   }
 
   @Override

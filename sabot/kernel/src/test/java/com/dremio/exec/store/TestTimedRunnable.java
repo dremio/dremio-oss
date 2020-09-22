@@ -113,4 +113,15 @@ public class TestTimedRunnable extends DremioTest {
 
     TimedRunnable.run("Execution with lots of tasks", logger, tasks, 16);
   }
+
+  @Test
+  public void withOverriddenHighTimeout() throws Exception {
+    List<TimedRunnable<Void>> tasks = Lists.newArrayList();
+
+    for(int i=0; i<10; i++){
+      tasks.add(new TestTask(20_000));
+    }
+
+    TimedRunnable.run("Execution without triggering timeout", logger, tasks, 2, 150_000);
+  }
 }

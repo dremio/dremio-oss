@@ -15,9 +15,8 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Interface for implementing a measure. Maintains an array of workspace and/or

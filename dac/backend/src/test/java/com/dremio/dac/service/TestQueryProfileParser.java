@@ -27,12 +27,14 @@ import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobStats;
-import com.dremio.service.jobs.GetJobRequest;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -46,22 +48,24 @@ public class TestQueryProfileParser extends BaseTestServer {
 
     getPreview(getDataset(new DatasetPath("testA.dsA1")));
     final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testA.dsA1").toPathList())
+          .build())
         .setLimit(1000)
         .build();
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(searchJobsRequest));
+    List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(searchJobsRequest));
 
     assertNotNull(jobs);
     assertTrue(jobs.size() > 0);
     JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId())).buildGet(), JobUI.class);
-    assertEquals(jobs.get(0).getJobId(), job1.getJobId());
+    assertEquals(JobsProtoUtil.toStuff(jobs.get(0).getJobId()), job1.getJobId());
 
-    GetJobRequest getJobRequest = GetJobRequest.newBuilder()
+    JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
       .setJobId(jobs.get(0).getJobId())
       .build();
-    final Job job = l(JobsService.class).getJob(getJobRequest);
-    final JobDetails jobDetails = job.getJobAttempt().getDetails();
-    final JobStats jobStats = job.getJobAttempt().getStats();
+    final com.dremio.service.job.JobDetails job = l(JobsService.class).getJobDetails(jobDetailsRequest);
+    final JobDetails jobDetails = JobsProtoUtil.getLastAttempt(job).getDetails();
+    final JobStats jobStats = JobsProtoUtil.getLastAttempt(job).getStats();
     assertEquals(1, jobDetails.getTableDatasetProfilesList().size());
     assertEquals(1000, (long)jobDetails.getOutputRecords()); // leaf limit is 10k
     assertEquals(16250, (long) jobDetails.getDataVolume());

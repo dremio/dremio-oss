@@ -19,29 +19,35 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.util.Numbers;
+import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.LBlockHashTableKeyReader;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.ObjectArrays;
+import com.google.common.collect.Streams;
 import com.google.common.primitives.Longs;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHashCapacities;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -52,6 +58,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public final class LBlockHashTable implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LBlockHashTable.class);
+  private static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
   public static final int CONTROL_WIDTH = 8;
   public static final int VAR_OFFSET_SIZE = 4;
   public static final int VAR_LENGTH_SIZE = 4;
@@ -131,7 +138,8 @@ public final class LBlockHashTable implements AutoCloseable {
     this.MAX_VALUES_PER_BATCH = Numbers.nextPowerOfTwo(maxHashTableBatchSize);
     this.BITS_IN_CHUNK = Long.numberOfTrailingZeros(MAX_VALUES_PER_BATCH);
     this.CHUNK_OFFSET_MASK = (1 << BITS_IN_CHUNK) - 1;
-    this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 : (MAX_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
+    this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 :
+      (ACTUAL_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
     this.preallocatedSingleBatch = false;
     this.allocatedForFixedBlocks = 0;
     this.allocatedForVarBlocks = 0;
@@ -483,8 +491,8 @@ public final class LBlockHashTable implements AutoCloseable {
     }
 
     /* bump these stats iff we are going to skip ordinals */
-    final int curFixedBlockWritePos = fixedBlocks[currentChunkIndex].getBufferLength();
-    final int curVarBlockWritePos = variableBlocks[currentChunkIndex].getBufferLength();
+    final long curFixedBlockWritePos = fixedBlocks[currentChunkIndex].getBufferLength();
+    final long curVarBlockWritePos = variableBlocks[currentChunkIndex].getBufferLength();
     unusedForFixedBlocks += fixedBlocks[currentChunkIndex].getCapacity() - curFixedBlockWritePos;
     unusedForVarBlocks += variableBlocks[currentChunkIndex].getCapacity() - curVarBlockWritePos;
 
@@ -600,7 +608,7 @@ public final class LBlockHashTable implements AutoCloseable {
    */
   public int getRecordsInBatch(final int batchIndex) {
     Preconditions.checkArgument(batchIndex < blocks(), "Error: invalid batch index");
-    final int records = (fixedBlocks[batchIndex].getUnderlying().readableBytes())/pivot.getBlockWidth();
+    final int records = LargeMemoryUtil.checkedCastToInt((fixedBlocks[batchIndex].getUnderlying().readableBytes())/pivot.getBlockWidth());
     Preconditions.checkArgument(records <= MAX_VALUES_PER_BATCH, "Error: detected invalid number of records in batch");
     return records;
   }
@@ -903,7 +911,13 @@ public final class LBlockHashTable implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close((Iterable<AutoCloseable>) Iterables.concat(FluentIterable.of(controlBlocks).toList(), FluentIterable.of(fixedBlocks).toList(), FluentIterable.of(variableBlocks).toList()));
+    AutoCloseables.close(
+      Streams.concat(
+        Arrays.stream(controlBlocks),
+        Arrays.stream(fixedBlocks),
+        Arrays.stream(variableBlocks)
+      ).collect(ImmutableList.toImmutableList())
+    );
   }
 
   private void tryRehashForExpansion() {
@@ -1238,5 +1252,46 @@ public final class LBlockHashTable implements AutoCloseable {
 
   public static long mix(long hash) {
     return (hash & 0x7FFFFFFFFFFFFFFFL);
+  }
+
+  /**
+   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
+   * the consumer. Instead, they get an empty optional.
+   * @param fieldNames
+   * @param sizeDynamically Size the filter according to the number of entries in table.
+   * @return
+   */
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+    if (CollectionUtils.isEmpty(fieldNames)) {
+      return Optional.empty();
+    }
+
+    // Not dropping the filter even if expected size is more than max possible size since there could be repeated keys.
+    long bloomFilterSize = sizeDynamically ? Math.min(BloomFilter.getOptimalSize(size()),
+            BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
+
+    LBlockHashTableKeyReader.Builder keyReaderBuilder = new LBlockHashTableKeyReader.Builder()
+            .setBufferAllocator(this.allocator)
+            .setFieldsToRead(fieldNames)
+            .setPivot(pivot)
+            .setMaxValuesPerBatch(MAX_VALUES_PER_BATCH)
+            .setTableFixedAddresses(tableFixedAddresses)
+            .setTableVarAddresses(initVariableAddresses)
+            .setTotalNumOfRecords(size());
+    final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
+    try (RollbackCloseable closeOnError = new RollbackCloseable();
+         LBlockHashTableKeyReader keyReader = keyReaderBuilder.build()) {
+      closeOnError.add(bloomFilter);
+      bloomFilter.setup();
+      final ArrowBuf keyHolder = keyReader.getKeyHolder();
+      while(keyReader.loadNextKey()) {
+        bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
+      }
+      closeOnError.commit();
+      return Optional.of(bloomFilter);
+    } catch (Exception e) {
+      logger.warn("Unable to prepare bloomfilter for " + fieldNames, e);
+      return Optional.empty();
+    }
   }
 }

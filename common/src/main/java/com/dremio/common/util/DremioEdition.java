@@ -19,35 +19,49 @@ package com.dremio.common.util;
  * Expose the current loaded edition of Dremio software
  */
 public enum DremioEdition {
-  COMMUNITY, ENTERPRISE;
+  OSS, COMMUNITY, ENTERPRISE, MARKETPLACE;
 
   private static final DremioEdition CURRENT;
-  static DremioEdition current() {
-    return CURRENT;
-  }
 
   static {
-    DremioEdition edition = DremioEdition.COMMUNITY;
-    outside: {
-      if(is("Enterprise")) {
-        edition = DremioEdition.ENTERPRISE;
-        break outside;
-      }
+    DremioEdition edition = DremioEdition.OSS;
+
+    if (is("Marketplace")) {
+      edition = DremioEdition.MARKETPLACE;
+    } else if (is("Enterprise")) {
+      edition = DremioEdition.ENTERPRISE;
+    } else if (is("Community")) {
+      edition = DremioEdition.COMMUNITY;
     }
 
     CURRENT = edition;
   }
 
-  public static final DremioEdition get() {
+  public static DremioEdition get() {
     return CURRENT;
   }
 
-  private static final boolean is(String name) {
+  public static String getAsString() {
+    switch (CURRENT) {
+      case OSS:
+        return "OSS";
+      case COMMUNITY:
+        return "CE";
+      case ENTERPRISE:
+        return "EE";
+      case MARKETPLACE:
+        return "ME";
+      default:
+        return CURRENT.name();
+    }
+  }
+
+  private static boolean is(String name) {
     try {
       Class.forName("com.dremio.edition." + name);
       return true;
     } catch (Exception e) {
+      return false;
     }
-    return false;
   }
 }

@@ -20,17 +20,26 @@
 
 package com.dremio.exec.store.dfs.implicit;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.util.MemoryUtil;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.holders.DecimalHolder;
+import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+
+import io.netty.util.internal.PlatformDependent;
 
 /**
  * generated from ${.template_name}
@@ -102,8 +111,14 @@ public class ConstantColumnPopulators {
   </#switch>
 
   private static final class ${minor.class}Populator implements Populator, AutoCloseable {
+    // This should be a multiple of 8 to allow copying validity buffers one after the other
+    final static int NUM_PRE_FILLED_RECORDS = 4096; // pre-fill the value in these many records
     private NameValuePair pair;
     private ${minor.class}Vector vector;
+    private ${minor.class}Vector tmpVector;
+    private int elementSize;
+    private int sizeOfPreFilledRecords;
+    private List<AutoCloseable> closeableList = Lists.newArrayList();
     <#if minor.class == "VarChar">
     private byte[] value;
     <#else>
@@ -128,44 +143,102 @@ public class ConstantColumnPopulators {
         vector = output.addField(CompleteType.${completeType}.toField(pair.name), ${minor.class}Vector.class);
         </#if>
       }
+      closeableList.add(vector);
+      elementSize = 0;
+      if (value != null) {
+        <#if minor.class == "Decimal">
+        tmpVector = new ${minor.class}Vector(pair.getName(), vector.getAllocator(), value.precision, value.scale);
+        <#else>
+        tmpVector = new ${minor.class}Vector(pair.getName(), vector.getAllocator());
+        </#if>
+        for(int i = 0; i < NUM_PRE_FILLED_RECORDS; i++) {
+        <#switch minor.class>
+        <#case "Bit">
+            ((${minor.class}Vector) tmpVector).setSafe(i, value ? 1 : 0);
+        <#break>
+        <#case "Int">
+        <#case "BigInt">
+        <#case "Float4">
+        <#case "Float8">
+        <#case "DateMilli">
+        <#case "TimeMilli">
+        <#case "TimeStampMilli">
+            elementSize = vector.getTypeWidth();
+            ((${minor.class}Vector) tmpVector).setSafe(i, value);
+        <#break>
+        <#case "Decimal">
+            elementSize = vector.getTypeWidth();
+            ((DecimalVector) tmpVector).setSafe(i, value);
+        <#break>
+        <#case "VarBinary">
+        <#case "VarChar">
+            elementSize = value.length;
+            ((${minor.class}Vector) tmpVector).setSafe(i, value, 0, value.length);
+        <#break>
+        </#switch>
+        }
+        tmpVector.setValueCount(NUM_PRE_FILLED_RECORDS);
+        sizeOfPreFilledRecords = tmpVector.getBufferSize();
+        closeableList.add(tmpVector);
+      }
     }
 
     public void populate(final int count){
-      for (int i = 0; i < count; i++) {
-        if(value != null) {
-      <#switch minor.class>
-      <#case "Bit">
-          ((${minor.class}Vector) vector).setSafe(i, value ? 1 : 0);
-      <#break>
-      <#case "Int">
-      <#case "BigInt">
-      <#case "Float4">
-      <#case "Float8">
-      <#case "DateMilli">
-      <#case "TimeMilli">
-      <#case "TimeStampMilli">
-          ((${minor.class}Vector) vector).setSafe(i, value);
-      <#break>
-      <#case "Decimal">
-          ((DecimalVector) vector).setSafe(i, value);
-      <#break>
-      <#case "VarBinary">
-      <#case "VarChar">
-          ((${minor.class}Vector) vector).setSafe(i, value, 0, value.length);
-      <#break>
-      </#switch>
-        }
+      if ((count == 0) || (value == null)) {
+        vector.setValueCount(count);
+        return;
       }
+
+      // allocate memory
+      ValueVector valueVector = (ValueVector)vector;
+      int numCopies = ((count - 1) / NUM_PRE_FILLED_RECORDS) + 1;
+      ArrowBuf arrowBuf = vector.getAllocator().buffer(numCopies * sizeOfPreFilledRecords);
+
+      int validityBufSize = (NUM_PRE_FILLED_RECORDS / 8);
+      int endSize = validityBufSize * numCopies;
+      ArrowBuf validityBuf = arrowBuf.slice(0, endSize);
+
+      <#if minor.class == "Bit">
+      int dataBufSize = NUM_PRE_FILLED_RECORDS / 8;
+      <#else>
+      int dataBufSize = NUM_PRE_FILLED_RECORDS * elementSize;
+      </#if>
+
+      ArrowBuf dataBuf = arrowBuf.slice(endSize, numCopies * dataBufSize);
+      endSize += numCopies * dataBufSize;
+      for(int i = 0; i < numCopies; i++) {
+        validityBuf.setBytes(i * validityBufSize, tmpVector.getValidityBuffer(), 0, validityBufSize);
+        dataBuf.setBytes(i * dataBufSize, tmpVector.getDataBuffer(), 0, dataBufSize);
+      }
+
+      ArrowFieldNode arrowFieldNode = new ArrowFieldNode(numCopies * NUM_PRE_FILLED_RECORDS, 0);
+      <#if minor.class == "VarBinary" ||
+           minor.class == "VarChar">
+      ArrowBuf offsetBuf = null;
+      if (valueVector instanceof BaseVariableWidthVector) {
+        BaseVariableWidthVector baseVariableWidthVector = (BaseVariableWidthVector)vector;
+        int offsetBufSize = (numCopies * NUM_PRE_FILLED_RECORDS + 1) * (BaseVariableWidthVector.OFFSET_WIDTH);
+        int currentSize = 0;
+        offsetBuf = arrowBuf.slice(endSize, offsetBufSize);
+        for(int i = 0; i < offsetBufSize; i += 4, currentSize += elementSize) {
+          offsetBuf.setInt(i, currentSize);
+        }
+        baseVariableWidthVector.loadFieldBuffers(arrowFieldNode, Lists.newArrayList(validityBuf, offsetBuf, dataBuf));
+      }
+      <#else>
+      BaseFixedWidthVector baseFixedWidthVector = (BaseFixedWidthVector)vector;
+      baseFixedWidthVector.loadFieldBuffers(arrowFieldNode, Lists.newArrayList(validityBuf, dataBuf));
+      </#if>
+      arrowBuf.release();
       vector.setValueCount(count);
     }
 
     public void allocate(){
-      vector.allocateNew();
     }
 
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(vector);
+      AutoCloseables.close(closeableList);
     }
 
     @Override
@@ -192,6 +265,78 @@ public class ConstantColumnPopulators {
 
     public Populator createPopulator(){
       return new ${minor.class}Populator(this);
+    }
+
+    public int getValueTypeSize() {
+      <#switch minor.class>
+      <#case "Bit">
+      return -1;
+      <#break>
+      <#case "Int">
+      <#case "Float4">
+      <#case "TimeMilli">
+      return 4;
+      <#break>
+      <#case "BigInt">
+      <#case "Float8">
+      <#case "DateMilli">
+      <#case "TimeStampMilli">
+      return 8;
+      <#break>
+      <#case "Decimal">
+      return 16;
+      <#break>
+      <#case "VarBinary">
+      <#case "VarChar">
+      return Integer.MAX_VALUE;
+      </#switch>
+    }
+
+    public byte[] getValueBytes() {
+      if (value != null) {
+    <#switch minor.class >
+    <#case "Bit" >
+          byte[] arr = new byte[1];
+          arr[0] = (byte) (value ? 1 : 0);
+          return arr;
+    <#break>
+    <#case "Int" >
+    <#case "TimeMilli" >
+          byte[] arr = new byte[Integer.BYTES];
+          MemoryUtil.UNSAFE.putInt(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "BigInt" >
+    <#case "DateMilli" >
+    <#case "TimeStampMilli" >
+          byte[] arr = new byte[Long.BYTES];
+          MemoryUtil.UNSAFE.putLong(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "Float4" >
+          byte[] arr = new byte[Float.BYTES];
+          MemoryUtil.UNSAFE.putFloat(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "Float8" >
+          byte[] arr = new byte[Double.BYTES];
+          MemoryUtil.UNSAFE.putDouble(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "Decimal" >
+          byte[] arr = new byte[16];
+          value.buffer.getBytes(0, arr);
+          return arr;
+    <#break>
+    <#case "VarBinary" >
+          return value;
+    <#break>
+    <#case "VarChar" >
+          return value.getBytes(StandardCharsets.UTF_8);
+    </#switch>
+      } else {
+        return null;
+      }
     }
   }
 </#if>

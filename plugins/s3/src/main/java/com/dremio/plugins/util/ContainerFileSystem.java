@@ -28,8 +28,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import javax.annotation.Nullable;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -46,12 +44,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.util.RemoteIterators;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -398,32 +396,20 @@ public abstract class ContainerFileSystem extends FileSystem {
   @Override
   public FileStatus[] listStatus(final Path f) throws FileNotFoundException, IOException {
     if (isRoot(f)) {
-      return FluentIterable.from(containerMap.keySet())
-          .transform(new Function<String,FileStatus>() {
-            @Nullable
-            @Override
-            public FileStatus apply(@Nullable String containerName) {
-              return new FileStatus(0, true, 0, 0, 0, new Path(containerName));
-            }
-      }).toArray(FileStatus.class);
+      return containerMap.keySet().stream()
+        .map((Function<String, FileStatus>) containerName ->
+          new FileStatus(0, true, 0, 0, 0, new Path(containerName)))
+        .toArray(FileStatus[]::new);
     }
 
     final String containerName = getContainerName(f);
     final Path pathWithoutContainerName = pathWithoutContainer(f);
-    return FluentIterable.of(getFileSystemForPath(f).fs().listStatus(pathWithoutContainerName))
-        .transform(new Function<FileStatus, CorrectableFileStatus>(){
-          @Override
-          public CorrectableFileStatus apply(FileStatus status) {
-            return new CorrectableFileStatus(status, pathWithoutContainerName);
-          }})
-        .filter(listFileStatusPredicate)
-        .transform(new Function<CorrectableFileStatus, FileStatus>(){
-
-          @Override
-          public FileStatus apply(CorrectableFileStatus input) {
-            return transform(input.getStatus(), containerName);
-          }})
-        .toArray(FileStatus.class);
+    return Arrays.stream(getFileSystemForPath(f).fs().listStatus(pathWithoutContainerName))
+      .map((Function<FileStatus, CorrectableFileStatus>) status ->
+        new CorrectableFileStatus(status, pathWithoutContainerName))
+      .filter(listFileStatusPredicate)
+      .map(input -> transform(input.getStatus(), containerName))
+      .toArray(FileStatus[]::new);
   }
 
   /**
@@ -456,10 +442,16 @@ public abstract class ContainerFileSystem extends FileSystem {
    * @param containerName
    * @return
    */
-  private static Path transform(Path path, String containerName) {
-    String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString());
-    Path containerPath  = new Path(Path.SEPARATOR + containerName);
-    return Strings.isNullOrEmpty(relativePath) ? containerPath : new Path(containerPath, relativePath);
+  @VisibleForTesting
+  static Path transform(Path path, String containerName) {
+    final String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString());
+    final Path containerPath  = new Path(Path.SEPARATOR + containerName);
+
+    // If relativePath is not null or empty, ensure that it is treated as a real relative path by
+    // constructing a new {@link Path} object where the schema and the authority fields are set to null.
+    // If this is not done, and a relative path contains special characters (like a colon), this breaks the
+    // URI#checkPath(String, String, String) method.
+    return Strings.isNullOrEmpty(relativePath) ? containerPath : new Path(containerPath, new Path(null, null, relativePath));
   }
 
   /**

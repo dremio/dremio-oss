@@ -23,7 +23,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.hive.HiveStoragePlugin;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 
 /**

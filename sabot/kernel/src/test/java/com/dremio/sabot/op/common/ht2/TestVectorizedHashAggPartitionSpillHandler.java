@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
@@ -48,9 +49,10 @@ import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.work.AttemptId;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
@@ -71,7 +73,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -339,8 +340,9 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
           }
         }).when(spillService).getSpillSubdir(any(String.class));
 
+        OptionManager optionManager = mock(OptionManager.class);
         partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(partitions,
-          fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
+          fragmentHandle, optionManager, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
 
         /* insert incoming into partitions */
         insertAndAccumulateForAllPartitions(allocator, records, pivot, partitions, expectedOrdinals);

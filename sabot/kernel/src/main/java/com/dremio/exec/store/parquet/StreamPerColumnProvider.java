@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.io.FSInputStream;
@@ -35,16 +34,17 @@ public class StreamPerColumnProvider implements InputStreamProvider {
   private final FileSystem fs;
   private final Path path;
   private final long length;
-  private ParquetMetadata footer;
+  private MutableParquetMetadata footer;
   private final long maxFooterLen;
 
   private final List<BulkInputStream> streams = new ArrayList<>();
 
-  public StreamPerColumnProvider(FileSystem fs, Path path, long length, long maxFooterLen, OperatorStats stats) {
+  public StreamPerColumnProvider(FileSystem fs, Path path, long length, long maxFooterLen, MutableParquetMetadata footer, OperatorStats stats) {
     this.fs = fs;
     this.path = path;
     this.length = length;
     this.maxFooterLen = maxFooterLen;
+    this.footer = footer;
   }
 
   @Override
@@ -61,10 +61,10 @@ public class StreamPerColumnProvider implements InputStreamProvider {
   }
 
   @Override
-  public ParquetMetadata getFooter() throws IOException {
+  public MutableParquetMetadata getFooter() throws IOException {
     if(footer == null) {
       SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
-      footer = footerCache.getFooter(getStream(null), path.toString(), length, fs, maxFooterLen);
+      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), length, fs, maxFooterLen));
     }
     return footer;
   }

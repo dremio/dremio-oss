@@ -19,12 +19,24 @@ import java.io.File;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 
 public class TestViewSupport extends TestBaseViewSupport {
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  @Before
+  public void before() {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+  }
+
   @Test
   public void referToSchemaInsideAndOutsideView() throws Exception {
     String use = "use dfs_test;";

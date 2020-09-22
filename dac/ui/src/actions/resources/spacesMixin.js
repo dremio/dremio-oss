@@ -13,8 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { addParameterToUrl } from '@app/utils/urlUtils';
-
-export const detailParamName = 'include';
-export const addDetailsForSpacesUrl = getDataUrl => addParameterToUrl(getDataUrl, detailParamName, 'datasetCount');
+export const getParamsForSpacesUrl = () => ['datasetCount'];
 

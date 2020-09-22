@@ -56,6 +56,7 @@ import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.UserExceptionMatcher;
@@ -299,27 +300,27 @@ public class TestNewTextReader extends BaseTestQuery {
     List<SchemaPath> columns = new ArrayList<>(1);
     columns.add(column);
     SabotContext context = mock(SabotContext.class);
-    BufferAllocator allocator = allocatorRule.newAllocator("test-new-text-reader", 0, Long.MAX_VALUE);
-    when(context.getAllocator()).thenReturn(allocator);
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-new-text-reader", 0, Long.MAX_VALUE)) {
+      when(context.getAllocator()).thenReturn(allocator);
 
-    OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES))
-      .thenReturn(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
+      OptionManager optionManager = mock(OptionManager.class);
+      when(optionManager.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES))
+        .thenReturn(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
+      when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
 
-    Path path = Path.of("/notExist");
-    try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, optionManager, 1000);
-         FileSystem dfs = HadoopFileSystem.get(path, new Configuration(), null);
-         SampleMutator mutator = new SampleMutator(sampleAllocator);
-         CompliantTextRecordReader reader = new CompliantTextRecordReader(split, HadoopCompressionCodecFactory.DEFAULT, dfs, operatorContext, settings, columns);
-    ){
-      reader.setup(mutator);
-    } catch (Exception e) {
-      // java.io.FileNotFoundException is expected, but memory leak is not expected.
-      assertTrue(e.getCause() instanceof FileNotFoundException);
+      Path path = Path.of("/notExist");
+      try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
+           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, optionManager, 1000);
+           FileSystem dfs = HadoopFileSystem.get(path, new Configuration(), null);
+           SampleMutator mutator = new SampleMutator(sampleAllocator);
+           CompliantTextRecordReader reader = new CompliantTextRecordReader(split, HadoopCompressionCodecFactory.DEFAULT, dfs, operatorContext, settings, columns);
+      ) {
+        reader.setup(mutator);
+      } catch (Exception e) {
+        // java.io.FileNotFoundException is expected, but memory leak is not expected.
+        assertTrue(e.getCause() instanceof FileNotFoundException);
+      }
     }
-
-    allocator.close();
   }
 
   @Test

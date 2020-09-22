@@ -16,6 +16,8 @@
 package com.dremio.sabot.exec;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -52,19 +54,18 @@ public class QueryTicket extends TicketWithChildren {
   private final QueryId queryId;
   private final NodeEndpoint foreman;
   private final NodeEndpoint assignment;
-  private final ExecToCoordTunnelCreator tunnelCreator;
   private final ConcurrentMap<Integer, PhaseTicket> phaseTickets = Maps.newConcurrentMap();
   private final Collection<NodePhaseStatus> completed = Queues.newConcurrentLinkedQueue();
   private final long enqueuedTime;
+  private volatile NodeQueryStatus finalQueryStatus;
 
   public QueryTicket(WorkloadTicket workloadTicket, QueryId queryId, BufferAllocator allocator, NodeEndpoint foreman,
-                     NodeEndpoint assignment, ExecToCoordTunnelCreator tunnelCreator, long enqueuedTime) {
+                     NodeEndpoint assignment, long enqueuedTime) {
     super(allocator);
     this.workloadTicket = workloadTicket;
     this.queryId = Preconditions.checkNotNull(queryId, "queryId cannot be null");
     this.foreman = foreman;
     this.assignment = assignment;
-    this.tunnelCreator = tunnelCreator;
     this.enqueuedTime = enqueuedTime;
   }
 
@@ -114,26 +115,23 @@ public class QueryTicket extends TicketWithChildren {
 
   /**
    * Remove a phase ticket from this query ticket. When the last phase ticket is removed, this query ticket is
-   * removed from the queries clerk, and a node query status is sent to the coordinator
+   * removed from the queries clerk.
    *
    * Multi-thread safe
    */
   public void removePhaseTicket(PhaseTicket phaseTicket) throws Exception{
     final NodePhaseStatus finalStatus = phaseTicket.getStatus();
+    completed.add(finalStatus);
 
     final PhaseTicket removedPhaseTicket = phaseTickets.remove(phaseTicket.getMajorFragmentId());
     Preconditions.checkState(removedPhaseTicket == phaseTicket,
       "closed phase ticket was not found in the phase tickets' map");
     try {
       AutoCloseables.close(phaseTicket);
-
-      completed.add(finalStatus);
     } finally {
       if (this.release()) {
-        NodeQueryStatus finalQueryStatus = getStatus();
+        finalQueryStatus = getStatus();
         workloadTicket.removeQueryTicket(this);
-        // NB: not waiting for an ack. Status report is on a best effort basis
-        tunnelCreator.getTunnel(getForeman()).sendNodeQueryStatus(finalQueryStatus);
       }
     }
   }
@@ -146,20 +144,46 @@ public class QueryTicket extends TicketWithChildren {
   }
 
   /**
+   * @return true if there is at least one active phase ticket.
+   */
+  boolean hasActivePhaseTickets() {
+    return phaseTickets.size() > 0;
+  }
+
+  /**
    * Return the per-node query status for the query tracked by this ticket
    */
   NodeQueryStatus getStatus() {
+    if (finalQueryStatus != null) {
+      return finalQueryStatus;
+    }
+
     final NodeQueryStatus.Builder b = NodeQueryStatus.newBuilder()
       .setId(queryId)
       .setEndpoint(assignment)
       .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
       .setTimeEnqueuedBeforeSubmitMs(getEnqueuedTime());
 
+    Set<Integer> addedPhases = new HashSet<>();
     for (NodePhaseStatus nodePhaseStatus : completed) {
-      b.addPhaseStatus(nodePhaseStatus);
+      if (!addedPhases.contains(nodePhaseStatus.getMajorFragmentId())) {
+        b.addPhaseStatus(nodePhaseStatus);
+        addedPhases.add(nodePhaseStatus.getMajorFragmentId());
+      }
     }
     for (PhaseTicket phaseTicket : getActivePhaseTickets()) {
-      b.addPhaseStatus(phaseTicket.getStatus());
+      if (!addedPhases.contains(phaseTicket.getMajorFragmentId())) {
+        b.addPhaseStatus(phaseTicket.getStatus());
+        addedPhases.add(phaseTicket.getMajorFragmentId());
+      }
+    }
+    // it's possible some phase switched from active -> completed in between the two
+    // loops above. so, process the completed list again.
+    for (NodePhaseStatus nodePhaseStatus : completed) {
+      if (!addedPhases.contains(nodePhaseStatus.getMajorFragmentId())) {
+        b.addPhaseStatus(nodePhaseStatus);
+        addedPhases.add(nodePhaseStatus.getMajorFragmentId());
+      }
     }
     return b.build();
   }

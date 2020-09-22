@@ -31,8 +31,8 @@ public class InvalidQueryException extends IllegalArgumentException {
 
   private final Details details;
 
-  public InvalidQueryException(Details details, Throwable cause) {
-    super(cause.getMessage(), cause);
+  public InvalidQueryException(Details details, Throwable cause, String message) {
+    super(message, cause);
     this.details = details;
   }
 

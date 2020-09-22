@@ -19,8 +19,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
+import javax.inject.Provider;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
@@ -52,22 +54,27 @@ import com.google.common.collect.Iterables;
 /**
  * Exposes the acceleration manager interface to the rest of the system (coordinator side)
  */
-class AccelerationManagerImpl implements AccelerationManager {
+public class AccelerationManagerImpl implements AccelerationManager {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationManagerImpl.class);
 
-  private final NamespaceService namespace;
-  private final ReflectionService reflectionService;
+  private final Provider<NamespaceService> namespaceService;
+  private final Provider<ReflectionAdministrationService.Factory> reflectionAdministrationServiceFactory;
+  private final Provider<ReflectionService> reflectionService;
 
-  public AccelerationManagerImpl(ReflectionService reflectionService, NamespaceService namespace) {
+  public AccelerationManagerImpl(
+    Provider<ReflectionService> reflectionService,
+    Provider<ReflectionAdministrationService.Factory> reflectionAdministrationServiceFactory,
+    Provider<NamespaceService> namespaceService) {
     super();
     this.reflectionService = reflectionService;
-    this.namespace = namespace;
+    this.namespaceService = namespaceService;
+    this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
   }
 
   @Override
   public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
-    return reflectionService.getExcludedReflectionsProvider();
+    return reflectionService.get().getExcludedReflectionsProvider();
   }
 
   @Override
@@ -75,12 +82,12 @@ class AccelerationManagerImpl implements AccelerationManager {
   }
 
   @Override
-  public void addLayout(List<String> path, LayoutDefinition definition) {
+  public void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext) {
     final NamespaceKey key = new NamespaceKey(path);
     final DatasetConfig dataset;
 
     try {
-      dataset = namespace.getDataset(key);
+      dataset = namespaceService.get().getDataset(key);
       if(dataset == null) {
         throw UserException.validationError().message("Unable to find requested dataset %s.", key).build(logger);
       }
@@ -102,11 +109,12 @@ class AccelerationManagerImpl implements AccelerationManager {
         PartitionDistributionStrategy.STRIPED : PartitionDistributionStrategy.CONSOLIDATED);
 
     goal.setName(definition.getName());
+    goal.setArrowCachingEnabled(definition.getArrowCachingEnabled());
     goal.setState(ReflectionGoalState.ENABLED);
     goal.setType(definition.getType() == Type.AGGREGATE ? ReflectionType.AGGREGATION : ReflectionType.RAW);
     goal.setDatasetId(dataset.getId().getId());
 
-    reflectionService.create(goal);
+    reflectionAdministrationServiceFactory.get().get(reflectionContext).create(goal);
   }
 
   private List<ReflectionDimensionField> toDimensionFields(List<SqlCreateReflection.NameAndGranularity> fields) {
@@ -173,40 +181,42 @@ class AccelerationManagerImpl implements AccelerationManager {
   }
 
   @Override
-  public void addExternalReflection(String name, List<String> table, List<String> targetTable) {
-    reflectionService.createExternalReflection(name, table, targetTable);
+  public void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext) {
+    reflectionAdministrationServiceFactory.get().get(reflectionContext).createExternalReflection(name, table, targetTable);
   }
 
   @Override
-  public void dropLayout(List<String> path, final String layoutIdOrName) {
+  public void dropLayout(List<String> path, final String layoutIdOrName, ReflectionContext reflectionContext) {
     NamespaceKey key = new NamespaceKey(path);
-    for (ReflectionGoal rg : reflectionService.getReflectionsByDatasetPath(key)) {
+    ReflectionAdministrationService administrationReflectionService = reflectionAdministrationServiceFactory.get().get(reflectionContext);
+    for (ReflectionGoal rg : administrationReflectionService.getReflectionsByDatasetPath(key)) {
       if (rg.getId().getId().equals(layoutIdOrName) || layoutIdOrName.equals(rg.getName())) {
-        reflectionService.remove(rg);
+        administrationReflectionService.remove(rg);
         // only match first and exist.
         return;
       }
     }
 
-    Optional<ExternalReflection> er = Iterables.tryFind(reflectionService.getExternalReflectionByDatasetPath(path), new Predicate<ExternalReflection>() {
-        @Override
-        public boolean apply(@Nullable ExternalReflection externalReflection) {
-          return layoutIdOrName.equalsIgnoreCase(externalReflection.getName()) ||
-            layoutIdOrName.equals(externalReflection.getId());
-        }
-      });
+    Optional<ExternalReflection> er = Iterables.tryFind(administrationReflectionService.getExternalReflectionByDatasetPath(path), new Predicate<ExternalReflection>() {
+      @Override
+      public boolean apply(@Nullable ExternalReflection externalReflection) {
+        return layoutIdOrName.equalsIgnoreCase(externalReflection.getName()) ||
+          layoutIdOrName.equals(externalReflection.getId());
+      }
+    });
 
     if (er.isPresent()) {
-      reflectionService.dropExternalReflection(er.get().getId());
+      administrationReflectionService.dropExternalReflection(er.get().getId());
       return;
     }
     throw UserException.validationError().message("No matching reflection found.").build(logger);
   }
 
   @Override
-  public void toggleAcceleration(List<String> path, Type type, boolean enable) {
+  public void toggleAcceleration(List<String> path, Type type, boolean enable, ReflectionContext reflectionContext) {
     Exception ex = null;
-    for(ReflectionGoal g : reflectionService.getReflectionsByDatasetPath(new NamespaceKey(path))) {
+    ReflectionAdministrationService administrationReflectionService = reflectionAdministrationServiceFactory.get().get(reflectionContext);
+    for(ReflectionGoal g : administrationReflectionService.getReflectionsByDatasetPath(new NamespaceKey(path))) {
       if(
           (type == Type.AGGREGATE && g.getType() != ReflectionType.AGGREGATION) ||
           (type == Type.RAW && g.getType() != ReflectionType.RAW) ||
@@ -218,7 +228,7 @@ class AccelerationManagerImpl implements AccelerationManager {
 
       try {
         g.setState(enable ? ReflectionGoalState.ENABLED : ReflectionGoalState.DISABLED);
-        reflectionService.update(g);
+        administrationReflectionService.update(g);
       } catch(Exception e) {
         if(ex == null) {
           ex = e;
@@ -239,14 +249,14 @@ class AccelerationManagerImpl implements AccelerationManager {
 
   @Override
   public AccelerationDetailsPopulator newPopulator() {
-    return new ReflectionDetailsPopulatorImpl(namespace, reflectionService);
+    return new ReflectionDetailsPopulatorImpl(namespaceService.get(), reflectionService.get());
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public <T> T unwrap(Class<T> clazz) {
     if(ReflectionService.class.isAssignableFrom(clazz)) {
-      return (T) reflectionService;
+      return (T) reflectionService.get();
     }
     return null;
   }

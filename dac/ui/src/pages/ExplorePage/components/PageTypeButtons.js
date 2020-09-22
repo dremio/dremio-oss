@@ -106,22 +106,22 @@ const PageTypeButton = withRouter(ButtonController);
 const buttonsConfigs = {
   [PageTypes.default]: {
     intlId: 'Dataset.Data',
-    icon: 'Data',
+    icon: 'HeaderData',
     dataQa: 'Data'
   },
   [PageTypes.wiki]: {
     intlId: 'Dataset.Wiki',
-    icon: 'Wiki',
+    icon: 'HeaderMetadata',
     dataQa: 'Wiki'
   },
   [PageTypes.graph]: {
     intlId: 'Dataset.Graph',
-    icon: 'DataGraph',
+    icon: 'HeaderGraph',
     dataQa: 'Graph'
   },
   [PageTypes.reflections]: {
     intlId: 'Reflection.Reflections',
-    icon: 'FlameDisabled',
+    icon: 'HeaderReflection',
     dataQa: 'Reflections'
   }
 };

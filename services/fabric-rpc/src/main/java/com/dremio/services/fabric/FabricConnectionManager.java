@@ -23,9 +23,9 @@ import com.dremio.exec.rpc.BasicClient;
 import com.dremio.exec.rpc.ReconnectingConnection;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
+import com.dremio.ssl.SSLEngineFactory;
 
 import io.netty.channel.EventLoopGroup;
 

@@ -19,7 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
- * Interface to access listLocatedStatus not direclty inside a FileSystem subclass.
+ * Interface to access listLocatedStatus not directly inside a FileSystem subclass.
  */
 public final class ListAccessor {
 

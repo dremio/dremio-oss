@@ -25,6 +25,8 @@ import java.util.Properties;
 
 import org.junit.Test;
 
+import com.dremio.ssl.SSLConfig;
+
 /**
  * Tests {@link SSLConfig}.
  */

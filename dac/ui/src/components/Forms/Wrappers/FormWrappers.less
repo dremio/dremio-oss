@@ -19,7 +19,7 @@
 }
 
 .field-with-error {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
   flex: 1;
   margin-bottom: 0;
 }
@@ -34,6 +34,10 @@
   width: 100%;
 }
 
+.text-field-body-fixed {
+  margin-bottom: 0;
+}
+
 .text-area-body {
   flex: 1;
   width: 100%;
@@ -45,17 +49,12 @@
 }
 
 .radio-column-wrapper {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
 }
 
 .radio-top-label {
   display: flex;
-  font-weight: 500;
-  margin-bottom: -5px;
-}
-
-.radio-body {
-  font-weight: 500;
+  margin-top: 16px;
 }
 
 .radio-body-column {
@@ -75,13 +74,14 @@
 
 .select-field-with-error {
   display: inline-flex;
-  width: 115px;
+  width: 135px;
 }
 
 .duration-label {
   display: inline-flex;
-  align-items: left;
+  align-items: flex-start;
   width: 200px;
+  margin-bottom: 6px;
 }
 
 .duration-body {

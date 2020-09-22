@@ -27,6 +27,7 @@ public class ResourceSchedulingProperties {
   private String queryType;
   private String routingQueue;
   private String routingTag;
+  private String routingEngine;
 
   public ResourceSchedulingProperties() {
 
@@ -92,6 +93,15 @@ public class ResourceSchedulingProperties {
 
   public ResourceSchedulingProperties setRoutingTag(String tag) {
     this.routingTag = tag;
+    return this;
+  }
+
+  public String getRoutingEngine() {
+    return routingEngine;
+  }
+
+  public ResourceSchedulingProperties setRoutingEngine(String routingEngine) {
+    this.routingEngine = routingEngine;
     return this;
   }
 }

@@ -23,11 +23,13 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.ProcessExit;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -43,6 +45,8 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
@@ -69,9 +73,11 @@ import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.spill.SpillService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
@@ -87,6 +93,10 @@ import io.netty.util.internal.OutOfDirectMemoryError;
 public class FragmentExecutor {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutor.class);
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(FragmentExecutor.class);
+
+  @VisibleForTesting
+  public static final String INJECTOR_DO_WORK = "injectOOMOnRun";
 
   /** threadsafe fields, influenced by external events. **/
   private final FragmentExecutorListener listener = new FragmentExecutorListener();
@@ -104,7 +114,6 @@ public class FragmentExecutor {
   private final SharedResourceManager sharedResources;
   private final OperatorCreatorRegistry opCreator;
   private final BufferAllocator allocator;
-  private final ContextInformation contextInfo;
   private final OperatorContextCreator contextCreator;
   private final FunctionLookupContext functionLookupContext;
   private final FunctionLookupContext decimalFunctionLookupContext;
@@ -135,6 +144,8 @@ public class FragmentExecutor {
   private final FragmentWorkQueue workQueue;
 
   private final SettableFuture<Boolean> cancelled;
+
+  private final ExecutionControls executionControls;
 
   // The fragment will not be activated until it gets :
   // a. a activate/cancel from the foreman (or)
@@ -175,7 +186,6 @@ public class FragmentExecutor {
     this.functionLookupContext = functionLookupContext;
     this.decimalFunctionLookupContext = decimalFunctionLookupContext;
     this.allocator = allocator;
-    this.contextInfo = contextInfo;
     this.contextCreator = contextCreator;
     this.tunnelProvider = tunnelProvider;
     this.flushable = flushable;
@@ -192,6 +202,7 @@ public class FragmentExecutor {
       fragment, allocator, config, executionControls, spillService, reader.getPlanFragmentsIndex());
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
+    this.executionControls = executionControls;
   }
 
   /**
@@ -277,10 +288,14 @@ public class FragmentExecutor {
         transitionToFinished();
       }
 
-    } catch (OutOfMemoryError e) {
+      injector.injectChecked(executionControls, INJECTOR_DO_WORK, OutOfMemoryError.class);
+
+    } catch (OutOfMemoryError | OutOfMemoryException e) {
       // handle out of memory errors differently from other error types.
-      if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage())) {
-        transitionToFailed(UserException.memoryError(e).build(logger));
+      if (e instanceof OutOfDirectMemoryError || e instanceof OutOfMemoryException || "Direct buffer memory".equals(e.getMessage()) || INJECTOR_DO_WORK.equals(e.getMessage())) {
+        transitionToFailed(UserException.memoryError(e)
+            .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(new OutOfMemoryException(e), allocator))
+            .buildSilently());
       } else {
         // we have a heap out of memory error. The JVM in unstable, exit.
         ProcessExit.exitHeap(e);
@@ -359,7 +374,7 @@ public class FragmentExecutor {
       functionLookupContextToUse = decimalFunctionLookupContext;
     }
     pipeline = PipelineCreator.get(
-        new FragmentExecutionContext(major.getForeman(), sources, cancelled),
+        new FragmentExecutionContext(major.getForeman(), sources, cancelled, major.getContext()),
         buffers,
         opCreator,
         contextCreator,
@@ -419,10 +434,11 @@ public class FragmentExecutor {
   }
 
   private void retire() {
-    Preconditions.checkArgument(!retired, "Fragment executor already required.");
+    Preconditions.checkArgument(!retired, "Fragment executor already retired.");
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
+      logger.debug("fragment retire blocked on downstream");
       taskState = State.BLOCKED_ON_DOWNSTREAM;
       return;
     }
@@ -434,18 +450,23 @@ public class FragmentExecutor {
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
+      logger.debug("fragment retire blocked on downstream");
       taskState = State.BLOCKED_ON_DOWNSTREAM;
       return;
     } else {
       taskState = State.DONE;
     }
 
+    workQueue.retire();
     clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).removeNodeStatusListener(crashListener);
 
     deferredException.suppressingClose(contextCreator);
     deferredException.suppressingClose(outputAllocator);
     deferredException.suppressingClose(allocator);
     deferredException.suppressingClose(ticket);
+    if (tunnelProvider != null && tunnelProvider.getCoordTunnel() != null) {
+      deferredException.suppressingClose(tunnelProvider.getCoordTunnel().getTunnel());
+    }
 
     // if defferedexception is set, update state to failed.
     if(deferredException.hasException()){
@@ -610,6 +631,8 @@ public class FragmentExecutor {
 
     public void handle(OutOfBandMessage message) {
       requestActivate("out of band message");
+      message.retainBufferIfPresent();
+      final AutoCloseable closeable = message.getBuffer() != null ? (NettyArrowBuf) message.getBuffer() : () -> {};
       workQueue.put(() -> {
           try {
             if (!isSetup) {
@@ -624,13 +647,21 @@ public class FragmentExecutor {
             } else {
               pipeline.workOnOOB(message);
             }
-          } catch(Exception e) {
+          } catch(IllegalStateException e) {
             logger.warn("Failure while handling OOB message. {}", message, e);
-
-            //propagate the exception
             throw e;
+          } catch (Exception e) {
+            //propagate the exception
+            logger.warn("Failure while handling OOB message. {}", message, e);
+            throw new IllegalStateException(e);
+          } finally {
+            try {
+              closeable.close();
+            } catch (Exception e) {
+              logger.error("Error while closing OOBMessage ref", e);
+            }
           }
-      });
+      }, closeable);
     }
 
     public void activate() {

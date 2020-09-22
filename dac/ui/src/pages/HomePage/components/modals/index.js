@@ -13,10 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export AddFileModal from './AddFileModal/AddFileModal';
-export UpdateDataset from './UpdateDataset/UpdateDataset';
-export DatasetSettingsModal from './DatasetSettings/DatasetSettingsModal';
-export AddFolderModal from './AddFolderModal';
-export SpaceModal from './SpaceModal';
-export AddSourceModal from './AddSourceModal/AddSourceModal';
-export EditSourceModal from './EditSourceModal';
+import AddFileModal from './AddFileModal/AddFileModal';
+import UpdateDataset from './UpdateDataset/UpdateDataset';
+import DatasetSettingsModal from './DatasetSettings/DatasetSettingsModal';
+import AddFolderModal from './AddFolderModal';
+import SpaceModal from './SpaceModal';
+import AddSourceModal from './AddSourceModal/AddSourceModal';
+import EditSourceModal from './EditSourceModal';
+
+
+export {
+  AddFileModal,
+  UpdateDataset,
+  DatasetSettingsModal,
+  AddFolderModal,
+  SpaceModal,
+  AddSourceModal,
+  EditSourceModal
+};

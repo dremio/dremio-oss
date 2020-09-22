@@ -17,11 +17,10 @@ package com.dremio.exec.store.easy.excel;
 
 import static org.apache.poi.ss.util.CellReference.convertColStringToIndex;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 
 import com.dremio.common.types.TypeProtos.MinorType;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Holder class to represent the merged cell boundaries and provide helpful methods to match.

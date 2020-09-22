@@ -26,6 +26,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.Path;
@@ -39,7 +40,7 @@ public class Backup {
    * Command line options for backup
    */
   @Parameters(separators = "=")
-  private static final class BackupManagerOptions {
+  static final class BackupManagerOptions {
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
 
@@ -57,6 +58,13 @@ public class Backup {
 
     @Parameter(names= {"-a", "--accept-all"}, description="accept all ssl certificates")
     private boolean acceptAll = false;
+
+    @Parameter(names= {"-j", "--json"}, description="do json backup (defaults to binary)")
+    private boolean json = false;
+
+    @Parameter(names= {"-i", "--include-profiles"}, description="include profiles in backup")
+    private boolean profiles = false;
+
   }
 
   public static BackupStats createBackup(
@@ -64,11 +72,13 @@ public class Backup {
     String userName,
     String password,
     boolean checkSSLCertificates,
-    URI uri)
-      throws IOException, GeneralSecurityException {
+    URI uri,
+    boolean binary,
+    boolean includeProfiles
+    ) throws IOException, GeneralSecurityException {
     final WebClient client = new WebClient(dacConfig, userName, password, checkSSLCertificates);
-
-    return client.buildPost(BackupStats.class, "/backup", uri.toString());
+    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles);
+    return client.buildPost(BackupStats.class, "/backup", options);
   }
 
   private static boolean validateOnlineOption(BackupManagerOptions options) {
@@ -115,7 +125,7 @@ public class Backup {
       URI target = backupDir.toURI();
 
       if (options.localAttach) {
-        String[] backupArgs = {"backup",options.backupDir};
+        String[] backupArgs = {"backup",options.backupDir, Boolean.toString(!options.json), Boolean.toString(options.profiles)};
         try {
           DremioAttach.main(backupArgs);
         } catch (NoClassDefFoundError error) {
@@ -132,7 +142,7 @@ public class Backup {
         if (!validateOnlineOption(options)) {
           throw new ParameterException("User credential is required.");
         }
-        BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target);
+        BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target, !options.json, options.profiles);
         AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
           backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
       }

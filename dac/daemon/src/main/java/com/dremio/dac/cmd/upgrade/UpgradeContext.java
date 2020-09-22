@@ -17,7 +17,7 @@ package com.dremio.dac.cmd.upgrade;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 
 /**
@@ -25,13 +25,13 @@ import com.dremio.exec.catalog.ConnectionReader;
  */
 public class UpgradeContext {
 
-  private final KVStoreProvider kvStoreProvider;
+  private final LegacyKVStoreProvider kvStoreProvider;
   private final LogicalPlanPersistence lpPersistence;
   private final ConnectionReader connectionReader;
   private final ScanResult scanResult;
 
   UpgradeContext(
-      KVStoreProvider kvStoreProvider,
+      LegacyKVStoreProvider kvStoreProvider,
       LogicalPlanPersistence lpPersistence,
       ConnectionReader connectionReader,
       ScanResult scanResult
@@ -42,7 +42,7 @@ public class UpgradeContext {
     this.scanResult = scanResult;
   }
 
-  public KVStoreProvider getKVStoreProvider() {
+  public LegacyKVStoreProvider getKVStoreProvider() {
     return kvStoreProvider;
   }
 

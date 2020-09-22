@@ -69,7 +69,7 @@ h3 {
 .panel-heading .panel-title {
   font-size: 14px;
   color: #333;
-  font-weight: bold;
+  font-weight: 500;
 }
 .panel-heading .panel-title a:hover,
 .panel-heading .panel-title a:focus {

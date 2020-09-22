@@ -61,10 +61,10 @@ export default class YarnProperty extends Component {
             style={{width: 120}}/>
         </FieldWithError>
         <FieldWithError label='Name' {...name} style={{display: 'inline-block', paddingRight: 5}}>
-          <TextField {...name} />
+          <TextField style={{width: 250}} {...name} />
         </FieldWithError>
         <FieldWithError label='Value' {...value} style={{display: 'inline-block'}}>
-          <TextField {...value} />
+          <TextField style={{width: 250}} {...value} />
         </FieldWithError>
       </div>
     );

@@ -14,21 +14,13 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { connect } from 'react-redux';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import uuid from 'uuid';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 
-import { loadJobDetails, cancelJobAndShowNotification, showJobProfile } from 'actions/jobs/jobs';
-import { downloadFile } from 'sagas/downloadFile';
-import socket from 'utils/socket';
-import { getViewState } from 'selectors/resources';
-import { getEntity } from 'selectors/resources';
-import { updateViewState } from 'actions/resources';
 import { flexElementAuto } from '@app/uiTheme/less/layout.less';
 
 import HeaderDetails from './HeaderDetails';
@@ -36,11 +28,9 @@ import TabsNavigation from './TabsNavigation';
 import TabsContent from './TabsContent';
 import './JobDetails.less';
 
-const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
-
 @Radium
 @PureRender
-export class JobDetails extends Component {
+export default class JobDetails extends Component {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     jobId: PropTypes.string,
@@ -48,11 +38,10 @@ export class JobDetails extends Component {
     askGnarly: PropTypes.func,
 
     // actions
-    loadJobDetails: PropTypes.func,
     cancelJob: PropTypes.func,
     downloadFile: PropTypes.func,
     showJobProfile: PropTypes.func,
-    updateViewState: PropTypes.func,
+    downloadJobProfile: PropTypes.func,
 
     //connected
     viewState: PropTypes.instanceOf(Immutable.Map)
@@ -62,62 +51,8 @@ export class JobDetails extends Component {
     jobDetails: Immutable.Map()
   }
 
-  constructor(props) {
-    super(props);
-    this.receiveProps(props, {});
-  }
-
   state = {
     activeTab: 'overview'
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.receiveProps(nextProps, this.props);
-  }
-
-  componentWillUnmount() {
-    this.stopListenToJobChange(this.props.jobId);
-  }
-
-  receiveProps(nextProps, oldProps) {
-    const jobId = nextProps.jobId;
-    const oldJobId = oldProps.jobId;
-
-    if (jobId && jobId !== oldJobId) {
-      this.stopListenToJobChange(oldJobId);
-      this.load(jobId);
-    }
-  }
-
-  load = (jobId = this.props.jobId) => {
-    return this.props.loadJobDetails(jobId, VIEW_ID).then((response) => {
-      if (!response || (response.error && !response.payload)) return; // no-payload error check for DX-9340
-
-      if (response.meta.jobId !== jobId) return;
-
-      if (!response.error) {
-        socket.startListenToJobChange(jobId);
-      } else if (response.payload.status === 404) {
-        this.props.updateViewState(VIEW_ID, {
-          isFailed: false,
-          isWarning: true,
-          error: {
-            message: la('Could not find the specified job\'s details, they may have been cleaned up.'),
-            id: uuid.v4()
-          }
-        });
-      }
-    });
-  }
-
-  stopListenToJobChange(jobId) {
-    if (jobId) {
-      socket.stopListenToJobChange(jobId);
-    }
-  }
-
-  cancelJob = () => {
-    this.props.cancelJob(this.props.jobId);
   }
 
   changeTab = (id) => this.setState({ activeTab: id})
@@ -132,7 +67,7 @@ export class JobDetails extends Component {
           { haveDetails &&
             <div style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
               <HeaderDetails
-                cancelJob={this.cancelJob}
+                cancelJob={this.props.cancelJob}
                 jobId={jobId}
                 style={styles.header}
                 jobDetails={jobDetails}
@@ -153,6 +88,7 @@ export class JobDetails extends Component {
                 changeTab={this.changeTab}
                 activeTab={this.state.activeTab}
                 className={flexElementAuto} // take a rest of available space
+                downloadJobProfile={this.props.downloadJobProfile}
               />
             </div>
           }
@@ -176,19 +112,3 @@ const styles = {
     flexShrink: 0
   }
 };
-
-function mapStateToProps(state, ownProps) {
-  return {
-    viewState: getViewState(state, VIEW_ID),
-    jobDetails: getEntity(state, ownProps.jobId, 'jobDetails')
-  };
-}
-
-
-export default connect(mapStateToProps, {
-  cancelJob: cancelJobAndShowNotification,
-  loadJobDetails,
-  downloadFile,
-  showJobProfile,
-  updateViewState
-})(JobDetails);

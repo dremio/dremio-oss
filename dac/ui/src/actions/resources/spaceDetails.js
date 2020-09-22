@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
-
-import { makeUncachebleURL } from 'ie11.js';
 
 import folderSchema from 'schemas/folder';
 import datasetSchema from 'schemas/dataset';
@@ -28,6 +25,7 @@ import { constructFullPathAndEncode } from 'utils/pathUtils';
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
 import { getEntityType, getNormalizedEntityPath } from '@app/selectors/home';
 import { ENTITY_TYPES } from '@app/constants/Constants';
+import { APIV2Call } from '@app/core/APICall';
 
 export const ADD_FOLDER_START = 'ADD_FOLDER_START';
 export const ADD_FOLDER_SUCCESS = 'ADD_FOLDER_SUCCESS';
@@ -40,6 +38,11 @@ export const addNewFolderForSpace = (name) => (dispatch, getState) => {
   const resourcePath = parentType === ENTITY_TYPES.folder ? `${parentPath}`
     : `${parentPath}/folder/`;
   const meta = { resourcePath, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
+
+  const apiCall = new APIV2Call()
+    .paths(resourcePath)
+    .uncachable();
+
   return dispatch({
     [RSAA]: {
       types: [
@@ -58,8 +61,7 @@ export const addNewFolderForSpace = (name) => (dispatch, getState) => {
       body: JSON.stringify({
         name
       }),
-
-      endpoint: makeUncachebleURL(`${API_URL_V2}${resourcePath}`)
+      endpoint: apiCall
     }
   });
 };
@@ -74,6 +76,11 @@ function fetchRemoveFolder(folder) {
     resourcePath,
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
   };
+
+  const apiCall = new APIV2Call()
+    .paths(resourcePath)
+    .params({version: folder.get('version')});
+
   return {
     [RSAA]: {
       types: [
@@ -97,7 +104,7 @@ function fetchRemoveFolder(folder) {
         }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}${resourcePath}?version=${folder.get('version')}`
+      endpoint: apiCall
     }
   };
 }
@@ -119,6 +126,11 @@ function fetchRemoveFile(file) {
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
   };
   const errorMessage = la('There was an error removing the file.');
+
+  const apiCall = new APIV2Call()
+    .paths(resourcePath)
+    .params({version: file.getIn(['fileFormat', 'version'])});
+
   return {
     [RSAA]: {
       types: [
@@ -139,7 +151,7 @@ function fetchRemoveFile(file) {
         }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}${resourcePath}?version=${file.getIn(['fileFormat', 'version'])}`
+      endpoint: apiCall
     }
   };
 }
@@ -160,6 +172,10 @@ function fetchRemoveFileFormat(file) {
   };
   const errorMessage = la('There was an error removing the format for the file.');
   const entityRemovePaths = [['fileFormat', file.getIn(['fileFormat', 'id'])]];
+
+  const apiCall = new APIV2Call()
+    .fullpath(file.getIn(['links', 'delete_format']));
+
   return {
     [RSAA]: {
       types: [
@@ -174,7 +190,7 @@ function fetchRemoveFileFormat(file) {
         }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}${file.getIn(['links', 'delete_format'])}`
+      endpoint: apiCall
     }
   };
 }
@@ -192,8 +208,12 @@ export const RENAME_SPACE_DATASET_FAILURE = 'RENAME_SPACE_DATASET_FAILURE';
 
 function fetchRenameDataset(dataset, newName) {
   const href = constructFullPathAndEncode(dataset.get('fullPathList'));
-  const encodedNewName = encodeURIComponent(newName);
   const meta = { newName, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
+
+  const apiCall = new APIV2Call()
+    .paths(`dataset/${href}/rename`)
+    .params({renameTo: newName});
+
   return {
     [RSAA]: {
       types: [
@@ -208,7 +228,7 @@ function fetchRenameDataset(dataset, newName) {
         }
       ],
       method: 'POST',
-      endpoint: `${API_URL_V2}/dataset/${href}/rename?renameTo=${encodedNewName}`
+      endpoint: apiCall
     }
   };
 }
@@ -234,6 +254,11 @@ function fetchRemoveDataset(dataset) {
     level: 'success'
   };
   const errorMessage = la('There was an error removing the dataset.');
+
+  const apiCall = new APIV2Call()
+    .fullpath(href)
+    .params({savedTag: dataset.getIn(['datasetConfig', 'savedTag'])});
+
   return {
     [RSAA]: {
       types: [
@@ -252,7 +277,8 @@ function fetchRemoveDataset(dataset) {
         }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}${href}?savedTag=${dataset.getIn(['datasetConfig', 'savedTag'])}`    }
+      endpoint: apiCall
+    }
   };
 }
 
@@ -268,6 +294,11 @@ export const RENAME_FOLDER_FAILURE = 'RENAME_FOLDER_FAILURE';
 
 function fetchRenameFolder(folder, newName) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
+
+  const apiCall = new APIV2Call()
+    .paths(folder.getIn(['links', 'rename']))
+    .params({renameTo: newName});
+
   return {
     [RSAA]: {
       types: [
@@ -285,7 +316,7 @@ function fetchRenameFolder(folder, newName) {
         }
       ],
       method: 'POST',
-      endpoint: `${API_URL_V2}${folder.getIn(['links', 'rename'])}?renameTo=${newName}`
+      endpoint: apiCall
     }
   };
 }
@@ -302,11 +333,15 @@ export const LOAD_DEPENDENT_DATASETS_FAILURE = 'LOAD_DEPENDENT_DATASETS_FAILURE'
 
 function fetchDependentDatasets(fullPath) {
   const href = constructFullPathAndEncode(fullPath);
+
+  const apiCall = new APIV2Call()
+    .paths(`dataset/${href}/descendants`);
+
   return {
     [RSAA]: {
       types: [LOAD_DEPENDENT_DATASETS_STARTED, LOAD_DEPENDENT_DATASETS_SUCCESS, LOAD_DEPENDENT_DATASETS_FAILURE],
       method: 'GET',
-      endpoint: `${API_URL_V2}/dataset/${href}/descendants`
+      endpoint: apiCall
     }
   };
 }
@@ -325,6 +360,12 @@ export const LOAD_PARENTS_FAILURE = 'LOAD_PARENTS_FAILURE';
 function fetchParents(fullPath, version, viewId) {
   const href = constructFullPathAndEncode(fullPath);
   const meta = {viewId};
+
+  const apiCall = new APIV2Call()
+    .paths(`dataset/${href}/version`)
+    .path(version)
+    .path('parents');
+
   return {
     [RSAA]: {
       types: [{
@@ -335,7 +376,7 @@ function fetchParents(fullPath, version, viewId) {
         type: LOAD_PARENTS_FAILURE, meta
       }],
       method: 'GET',
-      endpoint: `${API_URL_V2}/dataset/${href}/version/${version}/parents`
+      endpoint: apiCall
     }
   };
 }

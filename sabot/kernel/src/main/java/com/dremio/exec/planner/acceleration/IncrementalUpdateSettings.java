@@ -45,6 +45,7 @@ public class IncrementalUpdateSettings {
     return incremental && updateField == null;
   }
 
+  @Override
   public boolean equals(Object o) {
     if (this == o) {
       return true;
@@ -57,7 +58,8 @@ public class IncrementalUpdateSettings {
         Objects.equals(updateField, that.updateField);
   }
 
-  public int hashcode() {
+  @Override
+  public int hashCode() {
     return Objects.hash(incremental,updateField);
   }
 }

@@ -17,7 +17,9 @@ package com.dremio.exec.expr.fn.impl;
 
 import static org.junit.Assert.assertEquals;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -26,8 +28,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Unit tests for StringFunctionUtil
@@ -66,8 +66,9 @@ public class TestStringFunctionUtil extends DremioTest {
     src.writeByte(0x20);  // one extra byte, just to test startIdx != 0
     src.writeBytes(in);
 
-    int destLen = StringFunctionUtil.copyUtf8(src.asNettyBuffer(), src.readerIndex() + 1, src.writerIndex(),
-      dest);
+    int destLen = StringFunctionUtil.copyUtf8(
+      src.asNettyBuffer(), LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
+      LargeMemoryUtil.checkedCastToInt(src.writerIndex()), dest);
     assertSameAsExpected(expected, dest, destLen);
     src.release();
     dest.release();
@@ -89,8 +90,9 @@ public class TestStringFunctionUtil extends DremioTest {
     src.writeByte(0x20);  // one extra byte, just to test startIdx != 0
     src.writeBytes(in);
 
-    int destLen = StringFunctionUtil.copyReplaceUtf8(src.asNettyBuffer(), src.readerIndex() + 1, src.writerIndex
-      (), dest.asNettyBuffer(), replace);
+    int destLen = StringFunctionUtil.copyReplaceUtf8(
+      src.asNettyBuffer(), LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
+      LargeMemoryUtil.checkedCastToInt(src.writerIndex()), dest.asNettyBuffer(), replace);
     assertSameAsExpected(expected, dest, destLen);
     src.release();
     dest.release();
@@ -110,7 +112,9 @@ public class TestStringFunctionUtil extends DremioTest {
     src.writeByte(0x20);  // one extra byte, just to test startIdx != 0
     src.writeBytes(in);
 
-    assertEquals(expected, GuavaUtf8.isUtf8(src.asNettyBuffer(), src.readerIndex() + 1, src.writerIndex()));
+    assertEquals(expected, GuavaUtf8.isUtf8(src.asNettyBuffer(),
+      LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
+      LargeMemoryUtil.checkedCastToInt(src.writerIndex())));
     src.release();
   }
 

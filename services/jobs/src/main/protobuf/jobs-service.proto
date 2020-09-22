@@ -1,0 +1,349 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+option java_package = "com.dremio.service.job";
+option optimize_for = SPEED;
+
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_outer_classname = "JobsServiceRPC";
+
+package dremio.job;
+
+import "jobs-metadata.proto";
+import "job.proto";
+import "UserBitShared.proto";
+import "Coordination.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service JobsService {
+
+  rpc SubmitJob(SubmitJobRequest) returns (stream JobEvent) {}
+
+  rpc Cancel (CancelJobRequest) returns (google.protobuf.Empty) {}
+
+  rpc SubscribeToJobEvents(com.dremio.service.job.proto.JobId) returns (stream JobEvent) {}
+
+  rpc SubscribeToReflectionJobEvents(ReflectionJobEventsRequest) returns (stream JobEvent) {}
+
+  rpc CancelReflectionJob (CancelReflectionJobRequest) returns (google.protobuf.Empty) {}
+}
+
+service Chronicle {
+
+  rpc GetJobDetails (JobDetailsRequest) returns (JobDetails) {}
+
+  rpc GetJobSummary (JobSummaryRequest) returns (JobSummary) {}
+
+  rpc GetJobCounts (JobCountsRequest) returns (JobCounts) {}
+
+  rpc GetJobStats (JobStatsRequest) returns (JobStats) {}
+
+  rpc GetProfile (QueryProfileRequest) returns (exec.shared.QueryProfile) {}
+
+  rpc SearchJobs (SearchJobsRequest) returns (stream JobSummary) {}
+
+  // response does not provide information about job result data
+  rpc GetJobsForParent (JobsWithParentDatasetRequest) returns (stream JobDetails) {}
+
+  rpc StoreJobResult (StoreJobResultRequest) returns (google.protobuf.Empty) {}
+
+  rpc GetReflectionJobSummary (ReflectionJobSummaryRequest) returns (JobSummary) {}
+
+  rpc GetReflectionJobDetails (ReflectionJobDetailsRequest) returns (JobDetails) {}
+
+  rpc SearchReflectionJobs (SearchReflectionJobsRequest) returns (stream JobSummary) {}
+
+  rpc GetReflectionJobProfile (ReflectionJobProfileRequest) returns (exec.shared.QueryProfile) {}
+}
+
+message JobEvent {
+  oneof event {
+    com.dremio.service.job.proto.JobId job_id = 1;
+    google.protobuf.Empty job_submitted = 2;
+    dremio.job.QueryMetadata query_metadata = 3;
+    JobSummary progress_job_summary = 4;
+    JobSummary final_job_summary = 5;
+  }
+}
+
+message StoreJobResultRequest {
+  JobState job_state = 1;
+  com.dremio.service.job.proto.JobId job_id = 2;
+  string attempt_id = 3;
+  exec.NodeEndpoint endpoint = 4;
+  string sql = 5;
+  RequestType request_type = 6;
+  string user = 7;
+  int64 start_time = 8;
+  int64 finish_time = 9;
+  QueryType query_type = 10;
+  string description = 11;
+  double original_cost = 12;
+  repeated string output_table = 13;
+  VersionedDatasetPath dataset = 14;
+  repeated exec.shared.AttemptEvent state_list = 15;
+}
+
+message JobSummaryRequest {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  string user_name = 2;
+  bool from_store = 3;
+}
+
+message JobSummary {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  JobState job_state = 2;
+  string failure_info = 3;
+  com.dremio.service.job.proto.JobFailureInfo detailed_job_failure_info = 4;
+  com.dremio.service.job.proto.JobCancellationInfo cancellation_info = 5;
+  string user = 6;
+  int64 start_time = 7;
+  int64 end_time = 8;
+  string description = 9;
+  repeated string dataset_path = 10;
+  com.dremio.service.job.proto.ParentDatasetInfo parent = 11;
+  RequestType request_type = 12;
+  QueryType query_type = 13;
+  bool accelerated = 14;
+  string dataset_version = 15;
+  bool snowflake_accelerated = 16;
+  bool spilled = 17;
+  string sql = 18; // consumed in QueryExecutor when trying to run a given query with given listener
+  int64 num_attempts = 19;
+  int64 output_records = 20;
+  bool output_limited = 21;
+  int64 record_count = 22;
+  repeated exec.shared.AttemptEvent state_list = 23;
+}
+
+//proto2 enums cannot be used directly in proto3 syntax
+//definition already exists UserBitShared.proto
+message AttemptEvent {
+	enum State {
+    INVALID_STATE = 0;
+    PENDING = 1;
+    METADATA_RETRIEVAL = 2;
+    PLANNING = 3;
+    QUEUED = 4;
+    ENGINE_START = 5;
+    EXECUTION_PLANNING = 6;
+    STARTING = 7;
+    RUNNING = 8;
+    COMPLETED = 9;
+    CANCELED = 10;
+    FAILED = 11;
+  }
+}
+
+message JobDetailsRequest {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  string user_name = 2;
+  bool from_store = 3;
+  bool provide_result_info = 4; // if the response should contain information about job result data
+}
+
+message JobDetails {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  repeated com.dremio.service.job.proto.JobAttempt attempts = 2;
+  string job_result_table_name = 3;
+  bool completed = 4;
+  bool has_results = 5;
+}
+
+message QueryProfileRequest {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  int32 attempt = 2;
+  string user_name = 3;
+}
+
+//proto2 enums cannot be used directly in proto3 syntax (it's okay if an imported proto2 message uses them)
+//https://developers.google.com/protocol-buffers/docs/proto3#using-proto2-message-types
+enum JobState {
+  INVALID_JOB_STATE = 0;
+  NOT_SUBMITTED = 1;
+  ENQUEUED = 2;
+  PLANNING = 3;
+  STARTING = 4;
+  RUNNING = 5;
+  CANCELLATION_REQUESTED = 6;
+  CANCELED = 7;
+  FAILED = 8;
+  COMPLETED = 9;
+  PENDING = 10;
+  METADATA_RETRIEVAL = 11;
+  QUEUED = 12;
+  ENGINE_START = 13;
+  EXECUTION_PLANNING = 14;
+}
+
+enum QueryType {
+  UNKNOWN = 0;
+  UI_INITIAL_PREVIEW = 100; // create initial preview response
+  UI_INTERNAL_PREVIEW = 101; // a preview query internal to the operation of the dac such as format settings preview
+  UI_PREVIEW = 102; // run in preview mode
+  PREPARE_INTERNAL = 103;
+  UI_INTERNAL_RUN = 104; // a run query internal to operation of the dac such as histograms, transformation previews, card generation, etc.
+  UI_RUN = 105; //actual run on the data
+  UI_EXPORT = 106; // UI downloaded query
+  ACCELERATOR_CREATE = 200; //accelerated dataset creation
+  ACCELERATOR_DROP = 201; //accelerated  dataset drop
+  ACCELERATOR_EXPLAIN = 202; //dependency graph construction
+  ODBC = 300; //query submitted by odbc client
+  JDBC = 400; //query submitted by jdbc client
+  REST = 500; //query submitted by public rest interfaces
+}
+
+enum RequestType {
+  INVALID_REQUEST_TYPE = 0;
+  GET_CATALOGS = 1;
+  GET_COLUMNS = 2;
+  GET_SCHEMAS = 3;
+  GET_TABLES = 4;
+  CREATE_PREPARE = 5;
+  EXECUTE_PREPARE = 6;
+  RUN_SQL = 7;
+  GET_SERVER_META = 8;
+}
+
+message VersionedDatasetPath {
+  repeated string path = 1;
+  string version = 2;
+}
+
+message JobCountsRequest {
+  repeated VersionedDatasetPath datasets = 1;
+}
+
+message JobCounts {
+  repeated int32 count = 1;
+}
+
+message JobStatsRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+}
+
+message JobStats {
+  enum Type {
+    UI = 0;
+    EXTERNAL = 1;
+    ACCELERATION = 2;
+    DOWNLOAD = 3;
+    INTERNAL = 4;
+  }
+
+  message JobCountWithType {
+    Type type = 1;
+    int32 count = 2;
+  }
+
+  repeated JobCountWithType counts = 1;
+}
+
+message CancelJobRequest {
+  string username = 1;
+  com.dremio.service.job.proto.JobId job_id = 2;
+  string reason = 3;
+}
+
+message SearchJobsRequest {
+  enum SortOrder {
+    ASCENDING = 0;
+    DESCENDING = 1;
+  }
+  VersionedDatasetPath dataset = 1;
+  string filter_string = 2;
+  string user_name = 3;
+  string sort_column = 4;
+  int32 offset = 5;
+  int32 limit = 6;
+  SortOrder sort_order = 7;
+}
+
+message JobsWithParentDatasetRequest {
+  VersionedDatasetPath dataset = 1;
+  int32 limit = 2;
+}
+
+message SqlQuery {
+  string sql = 1;
+  repeated string context = 2;
+  string username = 3;
+}
+
+message SubstitutionSettings {
+  repeated string exclusions = 1;
+  repeated string inclusions = 2;
+}
+
+message SubmitJobRequest {
+  oneof RequestSettings {
+    DownloadSettings downloadSettings = 1;
+    MaterializationSettings materializationSettings = 2;
+  };
+  SqlQuery sqlQuery = 3;
+  QueryType queryType = 4;
+  string username = 5;
+  VersionedDatasetPath versionedDataset = 6;
+  bool runInSameThread = 7;
+}
+
+message MaterializationSettings {
+  com.dremio.service.job.proto.MaterializationSummary materializationSummary = 1;
+  SubstitutionSettings substitutionSettings = 2;
+}
+
+message DownloadSettings {
+  string downloadId = 1;
+  string filename = 2;
+  bool runInSingleThread = 3;
+}
+
+message ReflectionJobSummaryRequest {
+  JobSummaryRequest job_summary_request = 1;
+  string reflection_id = 2;
+}
+
+message ReflectionJobDetailsRequest {
+  JobDetailsRequest job_details_request = 1;
+  string reflection_id = 2;
+}
+
+message SearchReflectionJobsRequest {
+  string user_name = 1;
+  string reflection_id = 2;
+  int32 offset = 3;
+  int32 limit = 4;
+}
+
+message ReflectionJobEventsRequest {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  string reflectionId= 2;
+  string user_name = 3;
+}
+
+message ReflectionJobProfileRequest {
+  QueryProfileRequest query_profile_request = 1;
+  string reflection_id = 2;
+}
+
+message CancelReflectionJobRequest {
+  CancelJobRequest cancel_job_request = 1;
+  string reflection_id = 4;
+}

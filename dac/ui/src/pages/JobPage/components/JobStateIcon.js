@@ -45,6 +45,7 @@ export default class JobStateIcon extends PureComponent {
     return <Art
       src={`${src}.svg`}
       alt={this.props.intl.formatMessage({id: 'Job.State.' + state})}
+      title
       style={{height: 24, ...this.props.style}}
       className={className}
     />;
@@ -53,11 +54,17 @@ export default class JobStateIcon extends PureComponent {
 
 const icons = {
   'NOT_SUBMITTED': 'Ellipsis',
-  'STARTING': 'Ellipsis',
+  'STARTING': 'Starting',
   'RUNNING': { src: 'Loader', className: 'spinner' },
   'COMPLETED': 'OKSolid',
   'CANCELED': 'Canceled',
   'FAILED': 'ErrorSolid',
   'CANCELLATION_REQUESTED': 'CanceledGray',
-  'ENQUEUED': 'Ellipsis'
+  'ENQUEUED': 'Ellipsis',
+  'PLANNING': 'Planning',
+  'PENDING': 'PendingDiamond',
+  'METADATA_RETRIEVAL': 'Planning',
+  'QUEUED': 'Queued',
+  'ENGINE_START': 'EngineStart',
+  'EXECUTION_PLANNING': 'Starting'
 };

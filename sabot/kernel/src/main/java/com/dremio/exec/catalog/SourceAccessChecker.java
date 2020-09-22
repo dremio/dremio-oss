@@ -18,12 +18,16 @@ package com.dremio.exec.catalog;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -31,7 +35,11 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.ischema.tables.TablesTable;
+import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.service.catalog.Schema;
+import com.dremio.service.catalog.SearchQuery;
+import com.dremio.service.catalog.Table;
+import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -66,15 +74,15 @@ class SourceAccessChecker implements Catalog {
         !"$scratch".equalsIgnoreCase(root);
   }
 
-  private void throwIfInvisible(NamespaceKey key, String format, Object... args) {
+  private void throwIfInvisible(NamespaceKey key) {
     if (isInvisible(key)) {
       throw UserException.validationError()
-          .message(format, args)
+          .message("Unknown source %s", key.getRoot())
           .buildSilently();
     }
   }
 
-  private DremioTable checkAndGetTable(NamespaceKey key, Supplier<DremioTable> tableSupplier) {
+  private DremioTable getIfVisible(NamespaceKey key, Supplier<DremioTable> tableSupplier) {
     if (key != null && isInvisible(key)) {
       return null;
     }
@@ -84,23 +92,38 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public void validateSelection() {
+    delegate.validateSelection();
+  }
+
+  @Override
   public DremioTable getTableNoResolve(NamespaceKey key) {
-    return checkAndGetTable(key, () -> delegate.getTableNoResolve(key));
+    return getIfVisible(key, () -> delegate.getTableNoResolve(key));
   }
 
   @Override
   public DremioTable getTableNoColumnCount(NamespaceKey key) {
-    return checkAndGetTable(key, () -> delegate.getTableNoColumnCount(key));
+    return getIfVisible(key, () -> delegate.getTableNoColumnCount(key));
+  }
+
+  @Override
+  public void addOrUpdateDataset(NamespaceKey key, DatasetConfig dataset) throws NamespaceException {
+    delegate.addOrUpdateDataset(key, dataset);
+  }
+
+  @Override
+  public void deleteDataset(NamespaceKey key, String version) throws NamespaceException {
+    delegate.deleteDataset(key, version);
   }
 
   @Override
   public DremioTable getTable(String datasetId) {
-    return checkAndGetTable(null, () -> delegate.getTable(datasetId));
+    return getIfVisible(null, () -> delegate.getTable(datasetId));
   }
 
   @Override
   public DremioTable getTable(NamespaceKey key) {
-    return checkAndGetTable(key, () -> delegate.getTable(key));
+    return getIfVisible(key, () -> delegate.getTable(key));
   }
 
   @Override
@@ -123,11 +146,6 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public String getUser() {
-    return delegate.getUser();
-  }
-
-  @Override
   public NamespaceKey resolveToDefault(NamespaceKey key) {
     return delegate.resolveToDefault(key);
   }
@@ -138,61 +156,89 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public CreateTableEntry createNewTable(
-      NamespaceKey key,
-      WriterOptions writerOptions,
-      Map<String, Object> storageOptions
-  ) {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+  public void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions) {
+    delegate.createEmptyTable(key, batchSchema, writerOptions);
+  }
 
-    return delegate.createNewTable(key, writerOptions, storageOptions);
+  @Override
+  public CreateTableEntry createNewTable(
+    NamespaceKey key,
+    IcebergTableProps icebergTableProps,
+    WriterOptions writerOptions,
+    Map<String, Object> storageOptions) {
+    throwIfInvisible(key);
+    return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions);
   }
 
   @Override
   public void createView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     delegate.createView(key, view, attributes);
   }
 
   @Override
   public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     delegate.updateView(key, view, attributes);
   }
 
   @Override
   public void dropView(NamespaceKey key) throws IOException {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     delegate.dropView(key);
   }
 
   @Override
   public void dropTable(NamespaceKey key) {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     delegate.dropTable(key);
   }
 
   @Override
+  public void truncateTable(NamespaceKey key) {
+    throwIfInvisible(key);
+    delegate.truncateTable(key);
+  }
+
+  @Override
+  public void addColumns(NamespaceKey table, List<Field> colsToAdd) {
+    throwIfInvisible(table);
+    delegate.addColumns(table, colsToAdd);
+  }
+
+  @Override
+  public void dropColumn(NamespaceKey table, String columnToDrop) {
+    throwIfInvisible(table);
+    delegate.dropColumn(table, columnToDrop);
+  }
+
+  @Override
+  public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration) {
+    throwIfInvisible(table);
+    delegate.changeColumn(table, columnToChange, fieldFromSqlColDeclaration);
+  }
+
+  @Override
   public void createDataset(NamespaceKey key, Function<DatasetConfig, DatasetConfig> datasetMutator) {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     delegate.createDataset(key, datasetMutator);
   }
 
   @Override
   public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     return delegate.refreshDataset(key, retrievalOptions);
   }
 
   @Override
   public SourceState refreshSourceStatus(NamespaceKey key) throws Exception {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     return delegate.refreshSourceStatus(key);
   }
@@ -203,7 +249,7 @@ class SourceAccessChecker implements Catalog {
       List<String> partitionColumns,
       List<String> partitionValues
   ) throws PartitionNotFoundException {
-    throwIfInvisible(key, "Unknown source %s", key.getRoot());
+    throwIfInvisible(key);
 
     return delegate.getSubPartitions(key, partitionColumns, partitionValues);
   }
@@ -216,21 +262,21 @@ class SourceAccessChecker implements Catalog {
       DatasetConfig datasetConfig,
       NamespaceAttribute... attributes
   ) throws NamespaceException {
-    throwIfInvisible(source, "Unknown source %s", source.getRoot());
+    throwIfInvisible(source);
 
     return delegate.createOrUpdateDataset(userNamespaceService, source, datasetPath, datasetConfig, attributes);
   }
 
   @Override
   public void updateDatasetSchema(NamespaceKey datasetKey, BatchSchema newSchema) {
-    throwIfInvisible(datasetKey, "Unknown source %s", datasetKey.getRoot());
+    throwIfInvisible(datasetKey);
 
     delegate.updateDatasetSchema(datasetKey, newSchema);
   }
 
   @Override
   public void updateDatasetField(NamespaceKey datasetKey, String originField, CompleteType fieldSchema) {
-    throwIfInvisible(datasetKey, "Unknown source %s", datasetKey.getRoot());
+    throwIfInvisible(datasetKey);
 
     delegate.updateDatasetField(datasetKey, originField, fieldSchema);
   }
@@ -255,16 +301,6 @@ class SourceAccessChecker implements Catalog {
     delegate.deleteSource(config);
   }
 
-  @Override
-  public boolean isSourceConfigMetadataImpacting(SourceConfig sourceConfig) {
-    return delegate.isSourceConfigMetadataImpacting(sourceConfig);
-  }
-
-  @Override
-  public SourceState getSourceState(String name) {
-    return delegate.getSourceState(name);
-  }
-
   private <T> Iterable<T> checkAndGetList(NamespaceKey path, Supplier<Iterable<T>> iterableSupplier) {
     if (path.size() != 0 && isInvisible(path)) {
       return Collections.emptyList();
@@ -279,7 +315,7 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public Iterable<TablesTable.Table> listDatasets(NamespaceKey path) {
+  public Iterable<Table> listDatasets(NamespaceKey path) {
     return checkAndGetList(path, () -> delegate.listDatasets(path));
   }
 
@@ -307,7 +343,7 @@ class SourceAccessChecker implements Catalog {
 
   @Override
   public Catalog resolveCatalog(NamespaceKey newDefaultSchema) {
-    return secureIfNeeded(options.cloneWith(getUser(), newDefaultSchema), delegate.resolveCatalog(newDefaultSchema));
+    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getUserName(), newDefaultSchema), delegate.resolveCatalog(newDefaultSchema));
   }
 
   /**
@@ -321,5 +357,36 @@ class SourceAccessChecker implements Catalog {
     return options.getSchemaConfig().exposeInternalSources() ||
         SystemUser.isSystemUserName(options.getSchemaConfig().getUserName())
         ? delegate : new SourceAccessChecker(options, delegate);
+  }
+
+  @Override
+  public boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes) {
+    throwIfInvisible(key);
+    return delegate.alterDataset(key, attributes);
+  }
+
+  @Override
+  public Iterator<com.dremio.service.catalog.Catalog> listCatalogs(SearchQuery searchQuery) {
+    return delegate.listCatalogs(searchQuery);
+  }
+
+  @Override
+  public Iterator<Schema> listSchemata(SearchQuery searchQuery) {
+    return delegate.listSchemata(searchQuery);
+  }
+
+  @Override
+  public Iterator<Table> listTables(SearchQuery searchQuery) {
+    return delegate.listTables(searchQuery);
+  }
+
+  @Override
+  public Iterator<com.dremio.service.catalog.View> listViews(SearchQuery searchQuery) {
+    return delegate.listViews(searchQuery);
+  }
+
+  @Override
+  public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
+    return delegate.listTableSchemata(searchQuery);
   }
 }

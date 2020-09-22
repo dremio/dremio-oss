@@ -40,8 +40,10 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
@@ -104,9 +106,15 @@ public class ExecTest extends DremioTest {
   }
 
   protected QueryContext mockQueryContext(SabotContext dbContext) throws Exception {
-    final UserSession userSession = UserSession.Builder.newBuilder().withOptionManager(dbContext.getOptionManager()).build();
-    final SessionOptionManager sessionOptions = (SessionOptionManager) userSession.getOptions();
-    final QueryOptionManager queryOptions = new QueryOptionManager(sessionOptions);
+    final SessionOptionManager sessionOptionManager = new SessionOptionManagerImpl(dbContext.getOptionValidatorListing());
+
+    final UserSession userSession = UserSession.Builder.newBuilder()
+      .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
+      .build();
+    final OptionManager queryOptions = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(userSession.getOptions())
+      .withOptionManager(new QueryOptionManager(userSession.getOptions().getOptionValidatorListing()))
+      .build();
     final ExecutionControls executionControls = new ExecutionControls(queryOptions, NodeEndpoint.getDefaultInstance());
     FunctionImplementationRegistry functions = queryOptions.getOption(PlannerSettings
       .ENABLE_DECIMAL_V2) ? DECIMAL_FUNCTIONS() : FUNCTIONS();
@@ -119,10 +127,13 @@ public class ExecTest extends DremioTest {
     when(context.getLpPersistence()).thenReturn(lp);
     when(context.getCatalogService()).thenReturn(registry);
     when(context.getFunctionRegistry()).thenReturn(functions);
-    when(context.getSession()).thenReturn(UserSession.Builder.newBuilder().setSupportComplexTypes(true).build());
+    when(context.getSession()).thenReturn(UserSession.Builder.newBuilder()
+      .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
+      .setSupportComplexTypes(true).build());
     when(context.getCurrentEndpoint()).thenReturn(NodeEndpoint.getDefaultInstance());
     when(context.getActiveEndpoints()).thenReturn(ImmutableList.of(NodeEndpoint.getDefaultInstance()));
-    when(context.getPlannerSettings()).thenReturn(new PlannerSettings(dbContext.getConfig(), queryOptions, dbContext.getClusterResourceInformation()));
+    when(context.getPlannerSettings()).thenReturn(new PlannerSettings(dbContext.getConfig(), queryOptions,
+      () -> dbContext.getClusterResourceInformation()));
     when(context.getOptions()).thenReturn(queryOptions);
     when(context.getConfig()).thenReturn(DEFAULT_SABOT_CONFIG);
     when(context.getOperatorTable()).thenReturn(table);

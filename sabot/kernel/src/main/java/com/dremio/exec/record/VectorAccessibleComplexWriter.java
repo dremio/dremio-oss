@@ -19,6 +19,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
@@ -28,7 +29,7 @@ public class VectorAccessibleComplexWriter extends NonNullableStructVector {
   private final VectorContainer vc;
 
   public VectorAccessibleComplexWriter(VectorContainer vc) {
-    super("", null, null);
+    super("", null, new FieldType(false, ArrowType.Struct.INSTANCE, null, null), null);
     this.vc = vc;
   }
   @Override

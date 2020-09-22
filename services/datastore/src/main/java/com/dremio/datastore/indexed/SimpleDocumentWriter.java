@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore.indexed;
 
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
@@ -29,8 +30,8 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 
-import com.dremio.datastore.KVStoreProvider.DocumentWriter;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
+import com.dremio.datastore.api.DocumentWriter;
 import com.google.common.base.Preconditions;
 
 /**
@@ -79,14 +80,19 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     addToDoc(key, values);
   }
 
+  @VisibleForTesting
+  Document getDoc() {
+    return doc;
+  }
+
   private void addToDoc(IndexKey key, String... values){
     Preconditions.checkArgument(key.getValueType() == String.class);
     final boolean sorted = key.isSorted();
     if (sorted) {
-      checkIfSorted(key, values);
+      checkIfSorted(key, (Object[]) values);
     }
 
-    checkIfMultiValueField(key, values);
+    checkIfMultiValueField(key, (Object[]) values);
 
     final String indexFieldName = key.getIndexFieldName();
     final Store stored = key.isStored() ? Store.YES : Store.NO;
@@ -108,10 +114,10 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     Preconditions.checkArgument(key.getValueType() == String.class);
     final boolean sorted = key.isSorted();
     if (sorted) {
-      checkIfSorted(key, values);
+      checkIfSorted(key, (Object[]) values);
     }
 
-    checkIfMultiValueField(key, values);
+    checkIfMultiValueField(key, (Object[]) values);
 
     final String indexFieldName = key.getIndexFieldName();
     final Store stored = key.isStored() ? Store.YES : Store.NO;

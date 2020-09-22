@@ -15,24 +15,26 @@
  */
 package com.dremio.sabot.exec;
 
+import javax.inject.Provider;
+
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
+import com.dremio.sabot.rpc.Protocols;
 import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.services.fabric.api.FabricRunnerFactory;
+import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Preconditions;
 
 public class ExecToCoordTunnelCreator {
 
-  private final FabricRunnerFactory factory;
+  private final Provider<FabricService> factory;
 
-  public ExecToCoordTunnelCreator(FabricRunnerFactory factory) {
+  public ExecToCoordTunnelCreator(Provider<FabricService> factory) {
     super();
     this.factory = factory;
   }
 
   public ExecToCoordTunnel getTunnel(NodeEndpoint identity){
     Preconditions.checkArgument(ClusterCoordinator.Role.fromEndpointRoles(identity.getRoles()).contains(ClusterCoordinator.Role.COORDINATOR), "SabotNode %s is not a coordinator node.", identity);
-    return new ExecToCoordTunnel(identity, factory.getCommandRunner(identity.getAddress(), identity.getFabricPort()));
-
+    return new ExecToCoordTunnel(identity, factory.get().getProtocol(Protocols.COORD_TO_EXEC).getCommandRunner(identity.getAddress(), identity.getFabricPort()));
   }
 }

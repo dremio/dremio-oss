@@ -1,0 +1,83 @@
+{
+  "tables": [
+    {
+      "dbname":"default",
+      "tablename": "nation_table",
+      "fields": [
+        { "type":"bigint", "name":"n_nationkey" },
+        { "type":"string", "name":"n_name"},
+        { "type":"bigint", "name":"n_regionkey"},
+        { "type":"binary", "name":"n_comment"}
+      ],
+      "serdeprops":[],
+      "location":"s3a://qa1.dremio.com/test/",
+      "inputformat":"org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+      "outputformat":"org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+      "serializationlib":"org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+      "sizekey":"3133",
+      "recordcount":"25",
+      "tabletype":"EXTERNAL_TABLE"
+    },
+    {
+      "dbname":"default",
+      "tablename": "csv_table",
+      "fields": [
+        {"type":"int", "name":"col1"},
+        {"type":"int", "name":"col2"}
+      ],
+      "serdeprops":[{"field.delim":","}],
+      "location":"s3a://qa1.dremio.com/csvtest/",
+      "inputformat":"org.apache.hadoop.mapred.TextInputFormat",
+      "outputformat":"org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+      "serializationlib":"org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+      "sizekey":"12",
+      "recordcount":"3",
+      "tabletype":"EXTERNAL_TABLE"
+    },
+    {
+      "dbname":"default",
+      "tablename": "csv_table_2",
+      "fields": [
+        {"type":"string", "name":"col1"},
+        {"type":"string", "name":"col2"}
+      ],
+      "serdeprops":[{"field.delim":","}],
+      "location":"s3a://qa1.dremio.com/csvtest/",
+      "inputformat":"org.apache.hadoop.mapred.TextInputFormat",
+      "outputformat":"org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+      "serializationlib":"org.apache.hadoop.hive.serde2.OpenCSVSerde",
+      "sizekey":"14",
+      "recordcount":"3",
+      "tabletype":"EXTERNAL_TABLE"
+    },
+    {
+      "dbname":"default",
+      "tablename": "json_table",
+      "fields": [
+        {"type":"int", "name":"col1"},
+        {"type":"int", "name":"col2"}
+      ],
+      "serdeprops":[{"field.delim":","}],
+      "location":"s3a://qa1.dremio.com/csvtest/",
+      "inputformat":"org.apache.hadoop.mapred.TextInputFormat",
+      "outputformat":"org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+      "serializationlib":"org.openx.data.jsonserde.JsonSerDe",
+      "sizekey":"12",
+      "recordcount":"3",
+      "tabletype":"EXTERNAL_TABLE"
+    },
+    {
+      "dbname":"default",
+      "tablename": "no_inputformat_table",
+      "fields": [
+        {"type":"int", "name":"col1"},
+        {"type":"int", "name":"col2"}
+      ],
+      "serdeprops":[{"field.delim":","}],
+      "location":"s3a://qa1.dremio.com/csvtest/",
+      "sizekey":"12",
+      "recordcount":"3",
+      "tabletype":"EXTERNAL_TABLE"
+    },
+  ]
+}

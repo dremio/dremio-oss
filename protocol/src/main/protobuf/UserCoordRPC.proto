@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.user;
 
 option java_package = "com.dremio.exec.proto";
 option java_outer_classname = "UserProtos";
 option optimize_for = SPEED;
 
-import "SchemaDef.proto";
 import "Types.proto";
 import "UserBitShared.proto";
 import "CoordExecRPC.proto";
-import "ExecRPC.proto";
-import "ExecutionProtos.proto";
 
 
 ////// UserToBit RPC ///////

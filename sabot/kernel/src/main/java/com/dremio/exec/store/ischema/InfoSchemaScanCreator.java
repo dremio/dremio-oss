@@ -20,27 +20,24 @@ import java.util.Collections;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.listing.DatasetListingService;
 
 public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchemaSubScan>{
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, InfoSchemaSubScan config) throws ExecutionSetupException {
-    final InfoSchemaTable table = config.getTable();
+    final InformationSchemaTable table = config.getTable();
     final InfoSchemaStoragePlugin plugin = fec.getStoragePlugin(config.getPluginId());
-    final DatasetListingService datasetListing = plugin.getSabotContext().getDatasetListing();
     final String catalogName =
         context.getOptions().getOption(ExecConstants.USE_LEGACY_CATALOG_NAME)
             ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME
             : InfoSchemaConstants.IS_CATALOG_NAME;
-    final RecordReader reader =
-        table.asReader(catalogName, config.getProps().getUserName(), datasetListing, config
-                .getQuery(), config.getColumns(), context.getTargetBatchSize());
+    final RecordReader reader = new InformationSchemaRecordReader(context, config.getColumns(),
+        plugin.getSabotContext().getInformationSchemaServiceBlockingStub(), table,
+        catalogName, config.getProps().getUserName(), config.getQuery());
 
     return new ScanOperator(config, context, Collections.singleton(reader).iterator());
   }

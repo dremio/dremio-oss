@@ -13,14 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-
 package com.dremio.exec.expr.fn.impl;
 
-import io.netty.buffer.ArrowBuf;
-import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
+import io.netty.util.internal.PlatformDependent;
 
 /**
  *
@@ -45,7 +42,10 @@ public final class MurmurHash3 extends HashBase{
   Take 64 bit of murmur3_128's output
    */
   public static long murmur3_64(long bStart, long bEnd, ArrowBuf buffer, int seed) {
+    return murmur3_128(bStart, bEnd, buffer, seed).getHash1();
+  }
 
+  public static HashValPair murmur3_128(long bStart, long bEnd, ArrowBuf buffer, int seed) {
     long h1 = seed & 0x00000000FFFFFFFFL;
     long h2 = seed & 0x00000000FFFFFFFFL;
 
@@ -116,7 +116,7 @@ public final class MurmurHash3 extends HashBase{
     h1 += h2;
     h2 += h1;
     // murmur3_128 should return 128 bit (h1,h2), now we return only 64bits,
-    return h1;
+    return new HashValPair(h1, h2);
   }
 
   public static long murmur3_64(long val, int seed) {

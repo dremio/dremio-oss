@@ -56,7 +56,6 @@ public class APIServer extends ResourceConfig {
     register(JsonMappingExceptionMapper.class);
 
     // PROPERTIES
-    property(ServerProperties.METAINF_SERVICES_LOOKUP_DISABLE, true);
     property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
 
     final String disableMoxy = PropertiesHelper.getPropertyNameForRuntime(CommonProperties.MOXY_JSON_FEATURE_DISABLE,

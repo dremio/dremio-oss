@@ -15,8 +15,8 @@
  */
 package com.dremio.service.reflection.proto;
 
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "job.proto";
+import "dataset.proto";
 
 option java_package = "com.dremio.service.reflection.proto";
 option optimize_for = SPEED;
@@ -37,6 +37,11 @@ enum MaterializationState {
 
 message ReflectionId {
   required string id = 1;
+}
+
+// A repeatable hash of all fields, including nested fields, used to create reflections and materializations
+message ReflectionGoalHash {
+  required string hash = 1;
 }
 
 // defines type of layout. ROLLUP for aggregation layouts, RAW otherwise

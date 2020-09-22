@@ -80,7 +80,7 @@ public class SetPassword {
 
     try(LocalKVStoreProvider kvStoreProvider = providerOptional.get()) {
       kvStoreProvider.start();
-      new SimpleUserService(kvStoreProvider).setPassword(userName, password);
+      new SimpleUserService(() -> kvStoreProvider.asLegacy()).setPassword(userName, password);
     }
     AdminLogger.log("Password changed");
   }

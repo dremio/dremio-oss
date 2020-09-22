@@ -19,6 +19,7 @@ import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
 import java.util.Iterator;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.holders.VarCharHolder;
@@ -27,8 +28,6 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.vector.complex.MapUtility;
 import com.google.common.base.Charsets;
-
-import io.netty.buffer.ArrowBuf;
 
 public class MappifyUtility {
 

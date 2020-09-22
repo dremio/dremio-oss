@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.7.3-202008270723550726-918276ee</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -30,7 +30,7 @@
   <name>Contrib - Shaded Hive 2 JAR</name>
 
   <properties>
-    <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
+    <hive.version>${plugin.hive2.hive.version}</hive.version>
   </properties>
 
   <!-- Need to overwrite dependency management for calcite
@@ -76,6 +76,9 @@
   </dependencyManagement>
 
   <profiles>
+   <!-- Main (non-mapr) build requires a shimloader fix to support Hadoop 3
+        But shim is not compatible with mapr, so only add exclusion for non-mapr
+   -->
    <profile>
      <id>notmapr</id>
      <activation>
@@ -86,6 +89,14 @@
      <build>
        <plugins>
          <plugin>
+           <!-- Enable compilation -->
+           <groupId>org.apache.maven.plugins</groupId>
+           <artifactId>maven-compiler-plugin</artifactId>
+           <configuration>
+             <skipMain>false</skipMain>
+           </configuration>
+         </plugin>
+         <plugin>
            <groupId>org.apache.maven.plugins</groupId>
            <artifactId>maven-shade-plugin</artifactId>
            <executions>
@@ -95,7 +106,12 @@
                  <goal>shade</goal>
                </goals>
                <configuration>
-                 <filters>
+                 <artifactSet>
+                  <includes combine.children="append">
+                    <include>com.amazonaws.glue:aws-glue-datacatalog-hive2-client</include>
+                  </includes>
+                 </artifactSet>
+                 <filters combine.children="append">
                    <filter>
                      <artifact>org.apache.hive:hive-exec</artifact>
                      <excludes>
@@ -109,6 +125,28 @@
          </plugin>
        </plugins>
      </build>
+     <dependencies>
+       <dependency>
+         <groupId>com.amazonaws.glue</groupId>
+         <artifactId>aws-glue-datacatalog-hive2-client</artifactId>
+         <version>${plugin.hive2.aws.glue.version}</version>
+         <exclusions>
+           <exclusion>
+             <!-- The JAR is shading all glue dependencies but pom doesn't reflect it -->
+             <groupId>com.amazonaws.glue</groupId>
+             <artifactId>*</artifactId>
+           </exclusion>
+           <exclusion>
+             <artifactId>commons-logging-api</artifactId>
+             <groupId>commons-logging</groupId>
+           </exclusion>
+           <exclusion>
+             <artifactId>commons-logging</artifactId>
+             <groupId>commons-logging</groupId>
+           </exclusion>
+         </exclusions>
+       </dependency>
+     </dependencies>
    </profile>
    <profile>
     <!-- Added this dependency explicitely, as in newer versions
@@ -120,29 +158,15 @@
       </property>
     </activation>
     <properties>
-      <hive.version>2.1.1-mapr-1803-201908200826380359-c333a66</hive.version>
+      <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>
     </properties>
     <dependencies>
       <dependency>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
-        <version>1.7.5</version>
         <scope>compile</scope>
       </dependency>
     </dependencies>
-    <build>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <configuration>
-            <excludes>
-              <exclude>org/apache/hadoop/hive/shims/ShimLoader.java</exclude>
-            </excludes>
-          </configuration>
-        </plugin>
-      </plugins>
-    </build>
    </profile>
   </profiles>
 
@@ -153,6 +177,10 @@
       <version>${hive.version}</version>
       <scope>compile</scope>
       <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-ant</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-slf4j-impl</artifactId>
@@ -193,6 +221,22 @@
           <groupId>com.google.protobuf</groupId>
           <artifactId>protobuf-java</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-yarn-registry</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- Overwrite thrift version packaged with hive-exec -->
+    <dependency>
+      <groupId>org.apache.thrift</groupId>
+      <artifactId>libthrift</artifactId>
+      <version>0.9.3-2dremio</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -210,6 +254,14 @@
   <build>
     <plugins>
       <plugin>
+        <!-- Skip compilation (might be changed by profile -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <skipMain>true</skipMain>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
@@ -222,6 +274,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.hive:hive-exec</include>
+                  <include>org.apache.thrift:libthrift</include>
                   <!-- Added avro and commons-lang3 explicitely for shading as newer version of 
                        hive-exec pom may not have it -->
                   <include>org.apache.avro:avro</include>
@@ -246,12 +299,10 @@
                     <exclude>*.thrift</exclude>
                     <exclude>*-log4j.properties</exclude>
                     <!-- also expressed as a dependency -->
-                    <exclude>org/apache/thrift/**</exclude>
                     <exclude>templates/**</exclude>
                     <exclude>org/apache/hadoop/hive/llap/**</exclude>
-                    <exclude>org/apache/hadoop/hive/metastore/**</exclude>
-                    <exclude>com/facebook/fb303/**</exclude>
-                    <exclude>java/jdo/**</exclude>
+                    <!-- Exclude Thrift version packaged inside hive-exec -->
+                    <exclude>org/apache/thrift/**</exclude>
                   </excludes>
                 </filter>
                 <filter>
@@ -272,12 +323,16 @@
               </filters>
               <relocations>
                 <relocation>
-                  <pattern>com.google.</pattern>
-                  <shadedPattern>hive.com.google.</shadedPattern>
+                  <pattern>com.facebook.</pattern>
+                  <shadedPattern>hive.com.facebook.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson.</pattern>
                   <shadedPattern>hive.com.fasterxml.jackson.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.</pattern>
+                  <shadedPattern>hive.com.google.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.parquet.</pattern>
@@ -306,6 +361,11 @@
                 <relocation>
                   <pattern>org.apache.commons.lang.</pattern>
                   <shadedPattern>hive.org.apache.commons.lang.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <!-- Required by some dremio code -->
+                  <pattern>org.apache.thrift.</pattern>
+                  <shadedPattern>com.dremio.hive.thrift.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.joda.</pattern>

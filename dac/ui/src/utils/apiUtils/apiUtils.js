@@ -17,7 +17,8 @@ import uuid from 'uuid';
 import Immutable from 'immutable';
 
 import { API_URL_V2, API_URL_V3 } from '@app/constants/Api';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import APICall from '@app/core/APICall';
 
 /**
  * Error names from api middleware.
@@ -56,36 +57,6 @@ class ApiUtils {
 
   getEntityFromResponse(entityType, response) {
     return response.payload.getIn(['entities', entityType, response.payload.get('result')]);
-  }
-
-  loadDatasetInfo(resourceId, tableId) {
-    return $.ajax({
-      url: `${API_URL_V2}/dataset/${resourceId}.${tableId}?view=explore`,
-      type: 'GET',
-      error: (error) => {
-        console.error('LOADING ROWS REQUEST FAILED', error);
-      }
-    });
-  }
-
-  createFormAsyncValidate(path, mapper) {
-    return function(values) {
-      return fetch(`${API_URL_V2}${path}`, {
-        method: 'POST',
-        body: JSON.stringify(mapper(values))
-      }).then((response) => {
-        if (response.ok) {
-          return response;
-        }
-        throw {_error: response.statusText};
-      }).then(
-        (response) => response.json()
-      ).then((data) => {
-        if (data.validationError) {
-          throw data.validationError;
-        }
-      });
-    };
   }
 
   parseErrorsToObject(response) {
@@ -147,7 +118,26 @@ class ApiUtils {
       ...options.headers
     }); // protect against older chrome browsers
 
-    return fetch(`${apiVersion}/${endpoint}`, { ...options, headers }).then(response => response.ok ? response : Promise.reject(response));
+    let url;
+
+    if (endpoint instanceof APICall) {
+      url = endpoint.toString();
+    } else {
+      url = endpoint.startsWith('/') ? `${apiVersion}${endpoint}` : `${apiVersion}/${endpoint}`;
+    }
+
+    return fetch(url, {...options, headers})
+      .then(response => response.ok ? response : Promise.reject(response));
+  }
+
+  fetchJson(endpoint, jsonHandler, errorHandler, options = {}, version = 3) {
+    return this.fetch(endpoint, options, version)
+      .then(response => { // handle ok response
+        return response.json()
+          .then(json => jsonHandler(json)) // handle json from response
+          .catch(e => errorHandler(e));
+      })
+      .catch(error => errorHandler(error));
   }
 
   /**
@@ -165,6 +155,8 @@ class ApiUtils {
 
   // error response may contain moreInfo or errorMessage field, that should be used for error message
   async getErrorMessage(prefix, response) {
+    if (!response || !response.json) return prefix;
+
     const err = await response.json();
     const errText = err && (err.moreInfo || err.errorMessage) || '';
     return errText.length ? `${prefix}: ${errText}` : `${prefix}.`;

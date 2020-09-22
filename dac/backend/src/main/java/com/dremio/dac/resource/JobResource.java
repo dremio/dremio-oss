@@ -19,57 +19,59 @@ import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
-import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.hadoop.io.IOUtils;
+import org.glassfish.jersey.server.ChunkedOutput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.resource.NotificationResponse.ResponseType;
+import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetDownloadManager;
-import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.errors.InvalidReflectionJobException;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
+import com.dremio.dac.util.DownloadUtil;
+import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.CancelReflectionJobRequest;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
-import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.GetJobRequest;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobWarningException;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
+import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.base.Strings;
 
 /**
  * Resource for getting single job summary/overview/details
@@ -78,10 +80,8 @@ import com.google.common.collect.ImmutableSet;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/job/{jobId}")
-public class JobResource {
+public class JobResource extends BaseResourceWithAllocator {
   private static final Logger logger = LoggerFactory.getLogger(JobResource.class);
-  private static final Set<QueryType> JOB_TYPES_TO_DOWNLOAD = ImmutableSet.of(QueryType.UI_RUN,
-    QueryType.UI_PREVIEW, QueryType.UI_INTERNAL_RUN, QueryType.UI_INTERNAL_PREVIEW, QueryType.UI_EXPORT);
 
   private final JobsService jobsService;
   private final DatasetVersionMutator datasetService;
@@ -89,10 +89,12 @@ public class JobResource {
 
   @Inject
   public JobResource(
-      JobsService jobsService,
-      DatasetVersionMutator datasetService,
-      @Context SecurityContext securityContext
-      ) {
+    JobsService jobsService,
+    DatasetVersionMutator datasetService,
+    @Context SecurityContext securityContext,
+    BufferAllocatorFactory allocatorFactory
+  ) {
+    super(allocatorFactory);
     this.jobsService = jobsService;
     this.datasetService = datasetService;
     this.securityContext = securityContext;
@@ -105,15 +107,7 @@ public class JobResource {
   @GET
   @Produces(APPLICATION_JSON)
   public JobUI getJob(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
-    try {
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(new JobId(jobId))
-        .setUserName(securityContext.getUserPrincipal().getName())
-        .build();
-      return new JobUI(jobsService.getJob(request));
-    } catch (JobNotFoundException e) {
-      throw JobResourceNotFoundException.fromJobNotFoundException(e);
-    }
+    return new JobUI(jobsService, new JobId(jobId), securityContext.getUserPrincipal().getName());
   }
 
   @POST
@@ -122,7 +116,11 @@ public class JobResource {
   public NotificationResponse cancel(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     try {
       final String username = securityContext.getUserPrincipal().getName();
-      jobsService.cancel(username, new JobId(jobId), String.format("Query cancelled by user '%s'", username));
+      jobsService.cancel(CancelJobRequest.newBuilder()
+          .setUsername(username)
+          .setJobId(JobsProtoUtil.toBuf(new JobId(jobId)))
+          .setReason(String.format("Query cancelled by user '%s'", username))
+          .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch(JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -138,18 +136,19 @@ public class JobResource {
   @Path("/details")
   @Produces(APPLICATION_JSON)
   public JobDetailsUI getJobDetail(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
-    final Job job;
+    final JobDetails jobDetails;
     try {
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(new JobId(jobId))
-        .setUserName(securityContext.getUserPrincipal().getName())
-        .build();
-      job = jobsService.getJob(request);
+      JobDetailsRequest request = JobDetailsRequest.newBuilder()
+          .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId).build())
+          .setUserName(securityContext.getUserPrincipal().getName())
+          .setProvideResultInfo(true)
+          .build();
+      jobDetails = jobsService.getJobDetails(request);
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
-    return JobDetailsUI.of(job);
+    return JobDetailsUI.of(jobDetails);
   }
 
   public static String getPaginationURL(JobId jobId) {
@@ -167,20 +166,20 @@ public class JobResource {
     Preconditions.checkArgument(limit > 0, "Limit should be greater than 0");
     Preconditions.checkArgument(offset >= 0, "Limit should be greater than or equal to 0");
 
-    final Job job;
     try {
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(jobId)
+      jobsService.getJobSummary(JobSummaryRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
         .setUserName(securityContext.getUserPrincipal().getName())
-        .build();
-      job = jobsService.getJob(request);
+        .build());
     } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
+    JobDataClientUtils.waitForFinalState(jobsService, jobId);
     // job results in pagination requests.
-    return new JobUI(job).getData().range(offset, limit);
+    return new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName())
+      .range(getOrCreateAllocator("getDataForVersion"), offset, limit);
   }
 
   @GET
@@ -193,25 +192,17 @@ public class JobResource {
     Preconditions.checkArgument(rowNum >= 0, "Row number shouldn't be negative");
     Preconditions.checkNotNull(columnName, "Expected a non-null column name");
 
-    final Job job;
-    try {
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(jobId)
-        .setUserName(securityContext.getUserPrincipal().getName())
-        .build();
-      job = jobsService.getJob(request);
-    } catch (JobNotFoundException e) {
-      logger.warn("job not found: {}", jobId);
-      throw JobResourceNotFoundException.fromJobNotFoundException(e);
-    }
+    JobDataClientUtils.waitForFinalState(jobsService, jobId);
+    try (final JobDataFragment dataFragment = new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName())
+      .range(getOrCreateAllocator("getCellFullValue"), rowNum, 1)) {
 
-    return new JobUI(job).getData().range(rowNum, 1).extractValue(columnName, 0);
+      return dataFragment.extractValue(columnName, 0);
+    }
   }
 
-  public static String getDownloadURL(Job job) {
-    final JobInfo jobInfo = job.getJobAttempt().getInfo();
-    if (jobInfo.getQueryType() == QueryType.UI_EXPORT) {
-      return format("/job/%s/download", job.getJobId().getId());
+  public static String getDownloadURL(JobDetails jobDetails) {
+    if (JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getQueryType() == QueryType.UI_EXPORT) {
+      return format("/job/%s/download", jobDetails.getJobId().getId());
     }
     return null;
   }
@@ -229,104 +220,138 @@ public class JobResource {
   @GET
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response download(@PathParam("jobId") JobId previewJobId,
-    @QueryParam("downloadFormat")
-      DownloadFormat downloadFormat)
-    throws IOException, JobResourceNotFoundException, JobNotFoundException {
+  public Response download(
+    @PathParam("jobId") JobId previewJobId,
+    @QueryParam("downloadFormat") DownloadFormat downloadFormat
+  ) throws JobResourceNotFoundException, JobNotFoundException {
+    return doDownload(previewJobId, downloadFormat);
+  }
 
+  // Get details of reflection job
+  @GET
+  @Path("/reflection/{reflectionId}/details")
+  @Produces(APPLICATION_JSON)
+  public JobDetailsUI getReflectionJobDetail(@PathParam("jobId") String jobId,
+                                             @PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+    final JobDetails jobDetails;
+
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .build();
+    }
+
+    try {
+      JobDetailsRequest.Builder jobDetailsRequestBuilder = JobDetailsRequest.newBuilder()
+        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(jobId).build())
+        .setProvideResultInfo(true)
+        .setUserName(securityContext.getUserPrincipal().getName());
+
+      ReflectionJobDetailsRequest request = ReflectionJobDetailsRequest.newBuilder()
+        .setJobDetailsRequest(jobDetailsRequestBuilder.build())
+        .setReflectionId(reflectionId)
+        .build();
+
+      jobDetails = jobsService.getReflectionJobDetails(request);
+    } catch (JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+    } catch (ReflectionJobValidationException e) {
+      throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
+    }
+
+    return JobDetailsUI.of(jobDetails);
+  }
+
+  @POST
+  @Path("/reflection/{reflectionId}/cancel")
+  @Produces(APPLICATION_JSON)
+  public NotificationResponse cancelReflectionJob(@PathParam("jobId") String jobId,
+                                                  @PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .build();
+    }
+
+    try {
+      final String username = securityContext.getUserPrincipal().getName();
+
+
+      CancelJobRequest cancelJobRequest = CancelJobRequest.newBuilder()
+        .setUsername(username)
+        .setJobId(JobsProtoUtil.toBuf(new JobId(jobId)))
+        .setReason(String.format("Query cancelled by user '%s'", username))
+        .build();
+
+      CancelReflectionJobRequest cancelReflectionJobRequest = CancelReflectionJobRequest.newBuilder()
+        .setCancelJobRequest(cancelJobRequest)
+        .setReflectionId(reflectionId)
+        .build();
+
+      jobsService.cancelReflectionJob(cancelReflectionJobRequest);
+      return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
+    } catch(JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+    } catch (ReflectionJobValidationException e) {
+      throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
+    } catch(JobWarningException e) {
+      return new NotificationResponse(ResponseType.WARN, e.getMessage());
+    } catch(JobException e) {
+      return new NotificationResponse(ResponseType.ERROR, e.getMessage());
+    }
+  }
+
+  protected Response doDownload(JobId previewJobId, DownloadFormat downloadFormat) throws JobResourceNotFoundException, JobNotFoundException {
     final String currentUser = securityContext.getUserPrincipal().getName();
 
     //first check that current user has access to preview data
-    final GetJobRequest previewJobRequest = GetJobRequest.newBuilder()
-      .setJobId(previewJobId)
+    final JobDetailsRequest previewJobRequest = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(previewJobId))
       .setUserName(currentUser)
       .build();
 
-    // ensure that we could access to the job.
-    Job previewJob = jobsService.getJob(previewJobRequest);
+    final JobDetails jobDetails = jobsService.getJobDetails(previewJobRequest);
 
-    final JobInfo previewJobInfo = previewJob.getJobAttempt().getInfo();
-    final List<String> datasetPath = previewJobInfo.getDatasetPathList();
+    final DownloadUtil downloadUtil = new DownloadUtil(jobsService, datasetService);
+    final ChunkedOutput<byte[]> output = downloadUtil.startChunckedDownload(previewJobId, currentUser, downloadFormat, getDelay());
 
-    if (!JOB_TYPES_TO_DOWNLOAD.contains(previewJobInfo.getQueryType())) {
-      logger.error("Not supported job type: {} for job '{}'. Supported job types are: {}",
-        previewJobInfo.getQueryType(), previewJobId,
-        String.join(", ", JOB_TYPES_TO_DOWNLOAD.stream()
-          .map(queryType -> String.valueOf(queryType.getNumber()))
-          .collect(Collectors.toList())));
-      throw new IllegalArgumentException("Data for the job could not be downloaded");
+    final String contentType;
+    if (downloadFormat != null) {
+      switch (downloadFormat) {
+        case JSON:
+          contentType = APPLICATION_JSON;
+          break;
+        case CSV:
+          contentType = "text/csv";
+          break;
+        default:
+          contentType = MediaType.APPLICATION_OCTET_STREAM;
+          break;
+      }
+    } else {
+      contentType = MediaType.APPLICATION_OCTET_STREAM;
     }
+
+    final JobInfo info = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
 
     final String outputFileName;
     // job id is already a download job. So just extract a filename from it
-    if (previewJobInfo.getQueryType() == QueryType.UI_EXPORT) {
-      outputFileName = previewJobInfo.getDownloadInfo().getFileName();
+    if (info.getQueryType() == QueryType.UI_EXPORT) {
+      outputFileName = info.getDownloadInfo().getFileName();
     } else {
       // must use DatasetDownloadManager.getDownloadFileName. If a naming convention is changed, the change should go to
       // DatasetDownloadManager.getDownloadFileName method.
       outputFileName = DatasetDownloadManager.getDownloadFileName(previewJobId, downloadFormat);
     }
 
-    final StreamingOutput streamingOutput = new StreamingOutput() {
-      @Override
-      public void write(OutputStream output) throws IOException, WebApplicationException {
-        try {
-          JobsServiceUtil.waitForJobCompletion(CompletableFuture.completedFuture(previewJob));
-
-          //read current job state
-          final Job previewJob = jobsService.getJob(previewJobRequest);
-          checkJobCompletionState(previewJob);
-
-
-          Job downloadJob = previewJob;
-          if (previewJobInfo.getQueryType() != QueryType.UI_EXPORT) {
-            DatasetDownloadManager manager = datasetService.downloadManager();
-
-            downloadJob = manager.scheduleDownload(datasetPath, previewJobInfo.getSql(),
-              downloadFormat, previewJobInfo.getContextList(), -1 /* no limit */, currentUser, previewJobId);
-
-            JobsServiceUtil.waitForJobCompletion(CompletableFuture.completedFuture(downloadJob));
-            //get the final state of a job after completion
-            downloadJob = jobsService.getJob(GetJobRequest.newBuilder()
-              .setUserName(currentUser)
-              .setJobId(downloadJob.getJobId())
-              .build());
-            checkJobCompletionState(downloadJob);
-          }
-
-          final DownloadDataResponse downloadDataResponse =
-            datasetService.downloadData(downloadJob.getJobAttempt().getInfo().getDownloadInfo(), currentUser);
-
-          IOUtils.copyBytes(downloadDataResponse.getInput(), output, 4096, true);
-        } catch (JobNotFoundException e) {
-          throw new WebApplicationException(e);
-        }
-      }
-    };
-
-    return Response.ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
-      .header("Content-Disposition", "attachment; filename=\"" + outputFileName + "\"").build();
-
+    return Response.ok(output, contentType)
+      .header("Content-Disposition", "attachment; filename=\"" + outputFileName + "\"")
+      // stops the browser from trying to determine the type of the file based on the content.
+      .header( "X-Content-Type-Options", "nosniff")
+      .build();
   }
 
-  private static void checkJobCompletionState(final Job job) throws ForbiddenException {
-    final JobState jobState = job.getJobAttempt().getState();
-    final JobInfo jobInfo = job.getJobAttempt().getInfo();
-
-    // requester should check that job state is COMPLETED before downloading, but return nicely
-    switch (jobState) {
-      case COMPLETED:
-        // job is completed. Do nothing
-        break;
-      case FAILED:
-        throw new ForbiddenException(jobInfo.getFailureInfo());
-      case CANCELED:
-        if (jobInfo.getCancellationInfo() != null) {
-          throw new ForbiddenException(jobInfo.getCancellationInfo().getMessage());
-        }
-        throw new ForbiddenException("Download job was canceled, but further information is unavailable");
-      default:
-        throw new ForbiddenException(format("Could not download results (job: %s, state: %s)", job.getJobId(), jobState));
-    }
+  protected long getDelay() {
+    return 0L;
   }
 }

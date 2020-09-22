@@ -29,24 +29,24 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.explore.model.DownloadFormat;
+import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.service.job.DownloadSettings;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobSubmittedListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Schedule download jobs and read output of job for dataset download
@@ -90,13 +90,13 @@ public class DatasetDownloadManager {
     return format("%s.%s", jobId.getId(), extensions.get(downloadFormat));
   }
 
-  public Job scheduleDownload(List<String> datasetPath,
+  public JobId scheduleDownload(List<String> datasetPath,
     String sql,
     DownloadFormat downloadFormat,
     List<String> context,
     int limit,
     String userName,
-    JobId jobId) throws IOException {
+    JobId jobId) {
 
     final String downloadId = UUID.randomUUID().toString();
     final String fileName = getDownloadFileName(jobId, downloadFormat);
@@ -119,14 +119,22 @@ public class DatasetDownloadManager {
     String ctasSql = format("CREATE TABLE %s.%s STORE AS (%s) WITH SINGLE WRITER AS %s",
       SqlUtils.quoteIdentifier(DATASET_DOWNLOAD_STORAGE_PLUGIN), SqlUtils.quoteIdentifier(downloadFilePath.toString()), getTableOptions(downloadFormat), selectQuery);
 
-    final Job job = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newDownloadJobBuilder(downloadId, fileName, getDataFromJobsResultsDirectly)
-          .setSqlQuery(new SqlQuery(ctasSql, context, userName))
-          .build(), NoOpJobStatusListener.INSTANCE)
-    );
-    logger.debug("Scheduled download job {} for {}", job.getJobId(), String.join("/", datasetPath));
-    return job;
+    final JobSubmittedListener listener = new JobSubmittedListener();
+    jobId = jobsService.submitJob(
+      SubmitJobRequest.newBuilder()
+        .setDownloadSettings(DownloadSettings.newBuilder()
+          .setDownloadId(downloadId)
+          .setFilename(fileName)
+          .build())
+        .setRunInSameThread(getDataFromJobsResultsDirectly)
+        .setQueryType(QueryType.UI_EXPORT)
+        .setSqlQuery(JobRequestUtil.createSqlQuery(ctasSql, context, userName))
+        .build(),
+      listener);
+    listener.await();
+
+    logger.debug("Scheduled download job {} for {}", jobId.getId(), datasetPath);
+    return jobId;
   }
 
   public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo) throws IOException {

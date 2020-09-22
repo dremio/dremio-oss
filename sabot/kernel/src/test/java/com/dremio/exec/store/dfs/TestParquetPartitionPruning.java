@@ -91,7 +91,7 @@ public class TestParquetPartitionPruning extends PlanTestBase {
         .go();
 
     final String q2 = "SELECT a, b FROM dfs_test.pruningNullParts WHERE b IS NULL";
-    testPlanMatchingPatterns(q2, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"}, "Filter");
+    testPlanMatchingPatterns(q2, new String[]{"columns=\\[`a`\\]", "splits=\\[1\\]"}, "Filter");
     testBuilder()
         .sqlQuery(q2)
         .unOrdered()
@@ -132,7 +132,7 @@ public class TestParquetPartitionPruning extends PlanTestBase {
           .go();
 
       final String q2 = "SELECT a, b FROM dfs_test.decimalPartitions WHERE b IS NULL";
-      testPlanMatchingPatterns(q2, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"}, "Filter");
+      testPlanMatchingPatterns(q2, new String[]{"columns=\\[`a`\\]", "splits=\\[1\\]"}, "Filter");
       testBuilder()
           .sqlQuery(q2)
           .unOrdered()

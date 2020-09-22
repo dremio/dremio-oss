@@ -140,6 +140,9 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
            Thread.sleep(5);
          }
 
+         // wait for a while to let a scheduled task which will increase a counter to run
+         Thread.sleep(100);
+
          TaskLeaderElection leader =
            checkLeader(nodeEndpoint1, wasRun1.get(), taskLeaderElectionServiceList);
 
@@ -335,7 +338,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
     CloseableSchedulerThreadPool schedulerPool1 = new CloseableSchedulerThreadPool("test-scheduler", 1);
     LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1, null, null, true);
 
-    AtomicBoolean checkLost = new AtomicBoolean(false);
+    AtomicBoolean checkLost = new AtomicBoolean(true);
     AtomicBoolean checkRelinquish = new AtomicBoolean(false);
     AtomicBoolean checkGainedLeadership = new AtomicBoolean(false);
     AtomicInteger regularRuns = new AtomicInteger(0);
@@ -375,7 +378,6 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
     TaskLeaderChangeListener taskLeaderChangeListener = schedulerService1.getTaskLeaderChangeListener(cancellable1);
 
     // should not interrupt run
-    checkLost.set(true);
     // let run start
     Thread.sleep(4*1000);
 

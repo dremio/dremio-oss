@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent, Fragment } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
@@ -46,17 +46,21 @@ import { startDownloadDataset } from 'actions/explore/download';
 import { performNextAction, NEXT_ACTIONS } from 'actions/explore/nextAction';
 
 import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
+import ExploreInfoHeaderMixin from 'dyn-load/pages/ExplorePage/components/ExploreInfoHeaderMixin';
+import config from 'dyn-load/utils/config';
+import { getAnalyzeToolsConfig } from '@app/utils/config';
 
 import SaveMenu, { DOWNLOAD_TYPES } from 'components/Menus/ExplorePage/SaveMenu';
 import CombinedActionMenu from '@app/components/Menus/ExplorePage/CombinedActionMenu';
 import BreadCrumbs from 'components/BreadCrumbs';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
+import SimpleButton from '@app/components/Buttons/SimpleButton';
+import Art from '@app/components/Art';
 
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { formLabel } from 'uiTheme/radium/typography';
 import { getHistory, getTableColumns, getExploreState } from 'selectors/explore';
 
 import './ExploreInfoHeader.less';
@@ -66,6 +70,7 @@ export const QLIK_TOOL_NAME = 'Qlik Sense';
 
 @injectIntl
 @Radium
+@ExploreInfoHeaderMixin
 export class ExploreInfoHeader extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
@@ -83,6 +88,7 @@ export class ExploreInfoHeader extends PureComponent {
     queryContext: PropTypes.instanceOf(Immutable.List),
     currentSql: PropTypes.string,
     tableColumns: PropTypes.instanceOf(Immutable.List),
+    settings: PropTypes.instanceOf(Immutable.Map),
 
     // actions
     transformHistoryCheck: PropTypes.func.isRequired,
@@ -139,10 +145,6 @@ export class ExploreInfoHeader extends PureComponent {
     case DOWNLOAD_TYPES.csv:
     case DOWNLOAD_TYPES.parquet:
       return this.downloadDataset(actionType);
-    case NEXT_ACTIONS.openTableau:
-    case NEXT_ACTIONS.openPowerBI:
-    case NEXT_ACTIONS.openQlik:
-      return this.handleShowBI(actionType);
     default:
       break;
     }
@@ -308,7 +310,7 @@ export class ExploreInfoHeader extends PureComponent {
       <DatasetItemLabel
         customNode={ // todo: string replace loc
           <div className='flexbox-truncate-text-fix'>
-            <div style={{...style.dbName, ...formLabel}} data-qa={nameForDisplay}>
+            <div style={{...style.dbName}} data-qa={nameForDisplay}>
               <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? edited : ''}`}>
                 <span>{nameForDisplay}</span>
                 <span data-qa='dataset-edited'>{isEditedDataset ? edited : ''}</span>
@@ -357,6 +359,7 @@ export class ExploreInfoHeader extends PureComponent {
     return (
       <div className='right-part'>
         { this.renderAccelerationButton() }
+        { this.renderAnalyzeButtons() }
         { this.renderEllipsisButton() }
         { this.renderSaveButton() }
         { this.renderRunButton('preview', this.doButtonAction) }
@@ -370,7 +373,7 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   renderAccelerationButton = () => {
-    if (!this.isCreatedAndNamedDataset()) {
+    if (!this.showAccelerationButton()) {
       return null;
     }
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);
@@ -379,6 +382,33 @@ export class ExploreInfoHeader extends PureComponent {
         style={{ marginLeft: 20 }}
         fullPath={fullPath}
         isEditedDataset={this.isEditedDataset()}/>
+    );
+  };
+
+  openTableau = () => {
+    this.handleShowBI(NEXT_ACTIONS.openTableau);
+  };
+  openPowerBi = () => {
+    this.handleShowBI(NEXT_ACTIONS.openPowerBI);
+  };
+
+  renderAnalyzeButton = (name, icon, onclick, iconSize) => {
+    return (<SimpleButton buttonStyle='secondary' onClick={onclick} data-qa={name} style={style.iconButton}>
+      <Art src={icon} alt={name} title={name} style={{...style.icon, height: iconSize, width: iconSize}}/>
+    </SimpleButton> );
+  };
+  renderAnalyzeButtons = () => {
+    const { settings } = this.props;
+
+    const analyzeToolsConfig = getAnalyzeToolsConfig(settings, config);
+    const showTableau = analyzeToolsConfig.tableau.enabled;
+    const showPowerBI = analyzeToolsConfig.powerbi.enabled;
+    if (!showTableau && !showPowerBI) return null;
+    return (
+      <Fragment>
+        {showPowerBI && this.renderAnalyzeButton(la('Power BI'), 'PowerBi.svg', this.openPowerBi, 24)}
+        {showTableau && this.renderAnalyzeButton(la('Tableau'), 'Tableau.svg', this.openTableau, 19)}
+      </Fragment>
     );
   };
 
@@ -401,7 +431,6 @@ export class ExploreInfoHeader extends PureComponent {
           downloadAction={this.downloadDataset}
           action={this.doButtonAction}
           isSettingsDisabled={isSettingsDisabled}
-          isActionDisabled={isActionDisabled}
         />}
       />
     );
@@ -488,7 +517,8 @@ function mapStateToProps(state, ownProps) {
     history: getHistory(state, ownProps.dataset.get('tipVersion')),
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
-    tableColumns: getTableColumns(state, ownProps.dataset.get('datasetVersion'))
+    tableColumns: getTableColumns(state, ownProps.dataset.get('datasetVersion')),
+    settings: state.resources.entities.get('setting')
   };
 }
 
@@ -552,7 +582,9 @@ const style = {
   dbName: {
     maxWidth: 300,
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    color: '#333',
+    fontWeight: 500
   },
   pullout: {
     backgroundColor: 'transparent',
@@ -599,5 +631,15 @@ const style = {
   },
   popover: {
     padding: 0
+  },
+  iconButton: {
+    minWidth: 40,
+    outline: 0
+  },
+  icon: {
+    width: 20,
+    height: 20,
+    display: 'flex',
+    margin: '0 auto'
   }
 };

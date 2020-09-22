@@ -68,6 +68,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.client.Entity;
@@ -79,6 +80,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.explore.model.CellPOJO;
 import com.dremio.dac.explore.model.CleanDataCard;
 import com.dremio.dac.explore.model.CleanDataCard.ConvertToSingleType;
@@ -183,18 +185,20 @@ import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.resource.SystemResource;
+import com.dremio.dac.resource.TableauResource;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.LocalJobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -233,39 +237,18 @@ public class TestServerExplore extends BaseTestServer {
   }
 
   @Test
-  public void testTableauVirtual() throws Exception {
-    setSpace();
-    DatasetUI ui = saveAs(
-      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
-    ).getDataset();
-    expectSuccess(
-        getBuilder(
-            getAPIv2()
-                .path("tableau")
-                .path(new NamespaceKey(ui.getDisplayFullPath()).toUrlEncodedString()))
-        .header("Accept", "*/*")
-        .header("host", "localhost")
-        .buildGet());
+  public void testTableauPhysical() throws Exception {
+    testBIEndpoint("tableau", () -> {
+      final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
+      optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM,
+        TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), true));
+      return null;
+    });
   }
 
   @Test
-  public void testTableauPhysical() throws Exception {
-    setSpace();
-    // create dataset so we get a namespace entry for the physical dataset.
-    DatasetUI ui = saveAs(
-      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
-    ).getDataset();
-
-    expectSuccess(
-        getBuilder(
-            getAPIv2()
-                .path("tableau")
-                .path(new NamespaceKey(Arrays.asList("cp", "tpch/supplier.parquet")).toUrlEncodedString())
-                )
-        .header("Accept", "*/*")
-        .header("host", "localhost")
-        .buildGet());
-
+  public void testPowerBIPhysical() throws Exception {
+    testBIEndpoint("powerbi", null);
   }
 
   @Test
@@ -1378,49 +1361,41 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testVirtualDatasetWithNotNullFields() throws Exception {
-    final LocalJobsService jobsService = (LocalJobsService) l(JobsService.class);
+    final HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
     expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
       "select row_number() over (order by a) as rnk, a from cp.\"json/numbers.json\"", ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select t1.rnk, t1.a from %s t1 join %s t2 on t1.rnk = t2.rnk+1", pathName, pathName));
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
   public void testVirtualDatasetWithTimestampDiff() throws Exception {
-    final LocalJobsService jobsService = (LocalJobsService) l(JobsService.class);
+    final HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
     expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
     final String pathName = "space1.v1";
     final DatasetPath datetimePath = new DatasetPath(pathName);
     DatasetUI dateTimeVD = createDatasetFromSQLAndSave(datetimePath,
       "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"", ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
   }
 
   @Test
   public void testVirtualDatasetWithChar() throws Exception {
-    final LocalJobsService jobsService = (LocalJobsService) l(JobsService.class);
+    final HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
     expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null,"space1", null, null, null, 0, null))), Space.class);
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
       "select CASE WHEN a > 2 THEN 'less than 2' ELSE 'greater than 2' END as twoInfo, a from cp.\"json/numbers.json\"", ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
 
     final SqlQuery query2 = getQueryFromSQL(String.format("select count(*) from %s where a > 2", pathName));
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query2).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query2).build());
   }
 
   @Test
@@ -1966,10 +1941,19 @@ public class TestServerExplore extends BaseTestServer {
             .buildGet(), Nodes.class);
     if(isMultinode()){
       assertEquals(3, nodes.size());
+      final Nodes.NodeInfo master = nodes.get(0);
+      assertTrue(master.getIsMaster() && master.getIsCoordinator() && !master.getIsExecutor());
+      final Nodes.NodeInfo coord = nodes.get(1);
+      assertTrue(!coord.getIsMaster() && coord.getIsCoordinator() && !coord.getIsExecutor());
+      final Nodes.NodeInfo exec = nodes.get(2);
+      assertTrue(!exec.getIsMaster() && !exec.getIsCoordinator() && exec.getIsExecutor());
     }else {
       assertEquals("green", nodes.get(0).getStatus());
       assertEquals(1, nodes.size());
+      final Nodes.NodeInfo masterExec = nodes.get(0);
+      assertTrue(masterExec.getIsMaster() && masterExec.getIsCoordinator() && masterExec.getIsExecutor());
     }
+    assertTrue(nodes.stream().allMatch(node -> node.getVersion().equals(DremioVersionInfo.getVersion())));
   }
 
   @Test
@@ -2346,5 +2330,27 @@ public class TestServerExplore extends BaseTestServer {
     //should success to edit original sql for a dataset that is copied, moved, and renamed
     final DatasetUI testDS = createDatasetFromParent("space2.ds1-copied-moved").getDataset();
     expectSuccess(reapplyInvocation(getDatasetVersionPath(testDS)));
+  }
+
+  private void testBIEndpoint(String endpoint, Callable<Void> biToolSetupCallback) throws Exception {
+    setSpace();
+    // create dataset so we get a namespace entry for the physical dataset.
+    final DatasetUI ui = saveAs(
+      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
+    ).getDataset();
+
+    if (biToolSetupCallback != null) {
+      biToolSetupCallback.call();
+    }
+
+    expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path(endpoint)
+          .path(ui.getEntityId())
+      )
+        .header("Accept", "*/*")
+        .header("host", "localhost")
+        .buildGet());
   }
 }

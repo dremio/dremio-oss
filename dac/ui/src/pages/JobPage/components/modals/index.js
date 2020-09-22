@@ -13,5 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export JobProfileModal from './JobProfileModal';
-export AccelerationModal from 'pages/AdminPage/components/modals/AccelerationModal';
+import AccelerationModal from 'pages/AdminPage/components/modals/AccelerationModal';
+import JobProfileModal from './JobProfileModal';
+
+export {
+  JobProfileModal,
+  AccelerationModal
+};

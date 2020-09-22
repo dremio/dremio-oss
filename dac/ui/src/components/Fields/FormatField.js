@@ -50,7 +50,7 @@ export default class FormatField extends Component {
     const items = options.concat([{label: 'Custom…', option: ''}]);
 
     return (
-      <FieldWithError {...props} errorPlacement='top'>
+      <FieldWithError {...props}>
         <div style={styles.wrapper}>
           <Select
             disabled={props.disabled}

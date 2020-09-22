@@ -16,23 +16,20 @@
 package com.dremio.sabot.exec;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
-import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.GeneralRPCProtos.Ack;
-import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.Empty;
 
 /**
- * Periodically gather current statistics. {@link Foreman} uses a
- * FragmentStatusListener to maintain changes to state, and should be current.
- * However, we want to collect current statistics about RUNNING queries, such as
- * current memory consumption, number of rows processed, and so on. The
- * FragmentStatusListener only tracks changes to state, so the statistics kept
- * there will be stale; this thread probes for current values.
+ * Periodically gather current statistics.
+ *
+ * We use a thread that runs periodically to collect current statistics about RUNNING queries,
+ * such as current memory consumption, number of rows processed, and so on.
  */
 public class FragmentStatusThread extends Thread implements AutoCloseable {
 
@@ -42,25 +39,25 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
 
   private final Iterable<FragmentExecutor> executors;
   private final QueriesClerk clerk;
-  private final ExecToCoordTunnelCreator tunnelCreator;
+  private final MaestroProxy maestroProxy;
 
-  public FragmentStatusThread(Iterable<FragmentExecutor> executors, QueriesClerk clerk, ExecToCoordTunnelCreator tunnelCreator) {
+  public FragmentStatusThread(Iterable<FragmentExecutor> executors, QueriesClerk clerk, MaestroProxy maestroProxy) {
     super();
     setDaemon(true);
     setName("fragment-status-reporter");
     this.executors = executors;
     this.clerk = clerk;
-    this.tunnelCreator = tunnelCreator;
+    this.maestroProxy = maestroProxy;
   }
 
   @Override
   public void run() {
 
     while (true) {
-      final List<RpcFuture<Ack>> futures = Lists.newArrayList();
+      final List<ListenableFuture<Empty>> futures = Lists.newArrayList();
       try {
-        sendFragmentStatuses(futures);
-        sendPhaseStatuses(futures);
+        refreshFragmentStatuses();
+        sendQueryProfiles(futures);
       } catch (Exception e) {
         // Exception ignored. Status sender thread should not die due to a random exception
       }
@@ -82,31 +79,29 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
   }
 
   /**
-   * Send the status for all minor fragments currently running on this executor to the coordinator that initiated the
-   * minor fragment
+   * Refresh the status/metrics for all running fragments.
    */
-  private void sendFragmentStatuses(List<RpcFuture<Ack>> futures) {
+  private void refreshFragmentStatuses() {
     for (final FragmentExecutor fragmentExecutor : executors) {
       final FragmentStatus status = fragmentExecutor.getStatus();
       if (status == null) {
         continue;
       }
 
-      final NodeEndpoint ep = fragmentExecutor.getForeman();
-      futures.add(tunnelCreator.getTunnel(ep).sendFragmentStatus(status));
+      maestroProxy.refreshFragmentStatus(status);
     }
   }
 
   /**
-   * Send the status for all phases (major fragments) of all queries currently running on this executor, to the
+   * Send the profiles for all queries currently running on this executor, to the
    * coordinator that initiated the respective query
    */
-  private void sendPhaseStatuses(List<RpcFuture<Ack>> futures) {
+  private void sendQueryProfiles(List<ListenableFuture<Empty>> futures) {
     for (final WorkloadTicket workloadTicket : clerk.getWorkloadTickets()) {
       for (final QueryTicket queryTicket : workloadTicket.getActiveQueryTickets()) {
-        NodeQueryStatus queryStatus = queryTicket.getStatus();
-        final NodeEndpoint ep = queryTicket.getForeman();
-        futures.add(tunnelCreator.getTunnel(ep).sendNodeQueryStatus(queryStatus));
+        Optional<ListenableFuture<Empty>> future =
+          maestroProxy.sendQueryProfile(queryTicket.getQueryId());
+        future.ifPresent((x) -> futures.add(x));
       }
     }
   }

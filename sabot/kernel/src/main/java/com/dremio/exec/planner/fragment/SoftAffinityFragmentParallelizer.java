@@ -23,16 +23,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 
 /**
  * Implementation of {@link FragmentParallelizer} where fragment has zero or more endpoints with affinities. Width
@@ -88,8 +89,10 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     fragmentWrapper.setWidth(width);
 
     final List<NodeEndpoint> assignedEndpoints = findEndpoints(activeEndpoints,
-        parallelizationInfo.getEndpointAffinityMap(), fragmentWrapper.getWidth(), parameters);
-
+        getEndpointAffinityMap(parallelizationInfo.getEndpointAffinityMap(),
+          fragmentWrapper.getFragmentDependencies().isEmpty(),
+          parameters),
+        fragmentWrapper.getWidth(), parameters);
     fragmentWrapper.assignEndpoints(parameters, assignedEndpoints);
   }
 
@@ -100,6 +103,14 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     return getWidth(stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, Integer.MAX_VALUE);
   }
 
+  @VisibleForTesting
+  Map<NodeEndpoint, EndpointAffinity> getEndpointAffinityMap(final Map<NodeEndpoint, EndpointAffinity> inputAffinityMap,
+                                                             final boolean isLeafFragment,
+                                                             final ParallelizationParameters parameters) {
+
+    return parameters.shouldIgnoreLeafAffinity() && isLeafFragment ? Collections.emptyMap() : inputAffinityMap;
+  }
+
   // Assign endpoints based on the given endpoint list, affinity map and width.
   @VisibleForTesting
   List<NodeEndpoint> findEndpoints(final Collection<NodeEndpoint> activeEndpoints,
@@ -107,22 +118,31 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
       final ParallelizationParameters parameters)
     throws PhysicalOperatorSetupException {
 
-    final List<NodeEndpoint> endpoints = Lists.newArrayList();
-
-    if (endpointAffinityMap.size() > 0) {
+    List<EndpointAffinity> sortedAffinityList;
+    Set<NodeEndpoint> endpointsWithAffinity;
+    if (endpointAffinityMap.isEmpty()) {
+      endpointsWithAffinity = ImmutableSet.of();
+      sortedAffinityList = ImmutableList.of();
+    } else {
       // Pick endpoints from the list of active endpoints, sorted by affinity (descending, i.e., largest affinity first)
       // In other words: find the active endpoints which have the highest affinity
       final Set<NodeEndpoint> activeEndpointsSet = ImmutableSet.copyOf(activeEndpoints);
-      List<EndpointAffinity> sortedAffinityList = endpointAffinityMap.values()
-          .stream()
-          .filter((endpointAffinity) -> activeEndpointsSet.contains(endpointAffinity.getEndpoint()))
-          .sorted(Comparator.comparing(EndpointAffinity::getAffinity).reversed())
-          .collect(Collectors.toList());
-      sortedAffinityList = Collections.unmodifiableList(sortedAffinityList);
+      sortedAffinityList = endpointAffinityMap.values()
+        .stream()
+        .filter((endpointAffinity) -> activeEndpointsSet.contains(endpointAffinity.getEndpoint()))
+        .sorted(Comparator.comparing(EndpointAffinity::getAffinity).reversed())
+        .collect(ImmutableList.toImmutableList());
 
+      endpointsWithAffinity = sortedAffinityList.stream()
+        .map(EndpointAffinity::getEndpoint)
+        .collect(ImmutableSet.toImmutableSet());
+    }
+
+    final List<NodeEndpoint> endpoints = Lists.newArrayList();
+    if (!sortedAffinityList.isEmpty()) {
       // Find the number of mandatory nodes (nodes with +infinity affinity).
       int numRequiredNodes = 0;
-      for(EndpointAffinity ep : sortedAffinityList) {
+      for (EndpointAffinity ep : sortedAffinityList) {
         if (ep.isAssignmentRequired()) {
           numRequiredNodes++;
         } else {
@@ -137,7 +157,7 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
             "less than the number of mandatory nodes (" + numRequiredNodes + " nodes with +INFINITE affinity).");
       }
 
-      // Find the maximum number of slots which should go to endpoints with affinity (See DRILL-825 for details)
+      // Find the maximum number of slots which should go to endpoints with affinity (See DRILL-855 for details)
       int affinedSlots =
           Math.max(1, (int) (parameters.getAffinityFactor() * width / activeEndpoints.size())) * sortedAffinityList.size();
 
@@ -150,7 +170,7 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
       Iterator<EndpointAffinity> affinedEPItr = Iterators.cycle(sortedAffinityList);
 
       // Keep adding until we have selected "affinedSlots" number of endpoints.
-      while(endpoints.size() < affinedSlots) {
+      while (endpoints.size() < affinedSlots) {
         EndpointAffinity ea = affinedEPItr.next();
         endpoints.add(ea.getEndpoint());
       }
@@ -160,19 +180,12 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     if (endpoints.size() < width) {
       // Get a list of endpoints that are not part of the affinity endpoint list
       List<NodeEndpoint> endpointsWithNoAffinity;
-      final Set<NodeEndpoint> endpointsWithAffinity = endpointAffinityMap.keySet();
-
-      if (endpointAffinityMap.size() > 0) {
-        endpointsWithNoAffinity = Lists.newArrayList();
-        for (NodeEndpoint ep : activeEndpoints) {
-          if (!endpointsWithAffinity.contains(ep)) {
-            endpointsWithNoAffinity.add(ep);
-          }
-        }
-      } else {
+      if (endpointsWithAffinity.isEmpty()) {
         endpointsWithNoAffinity = Lists.newArrayList(activeEndpoints); // Need to create a copy instead of an
         // immutable copy, because we need to shuffle the list (next statement) and Collections.shuffle() doesn't
         // support immutable copy as input.
+      } else {
+        endpointsWithNoAffinity = Lists.newArrayList(Sets.difference(ImmutableSet.copyOf(activeEndpoints), endpointsWithAffinity));
       }
 
       // round robin with random start.

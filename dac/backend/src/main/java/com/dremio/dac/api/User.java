@@ -29,6 +29,7 @@ public class User {
   private final String lastName;
   private final String email;
   private final String tag;
+  private final String extra;
   /**
    * A password. Used only when we going to update a user. So api consumer could send a password, but could not read it
    * (A internal getter)
@@ -43,7 +44,8 @@ public class User {
     @JsonProperty("lastName") String lastName,
     @JsonProperty("email") String email,
     @JsonProperty("tag") String tag,
-    @JsonProperty("password") String password
+    @JsonProperty("password") String password,
+    @JsonProperty("extra") String extra
   ) {
     this.id = id;
     this.name = name;
@@ -52,6 +54,7 @@ public class User {
     this.email = email;
     this.tag = tag;
     this.password = password;
+    this.extra = extra;
   }
 
   public String getId() {
@@ -78,6 +81,9 @@ public class User {
     return tag;
   }
 
+  public String getExtra() {
+    return extra;
+  }
   @JsonIgnore
   public String getPassword() {
     return password;
@@ -85,7 +91,7 @@ public class User {
 
   public static User fromUser(com.dremio.service.users.User user) {
     return new User(user.getUID().getId(), user.getUserName(), user.getFirstName(), user.getLastName(),
-      user.getEmail(), user.getVersion(), null); // never send a password to a consumer
+      user.getEmail(), user.getVersion(), null, user.getExtra()); // never send a password to a consumer
   }
 
 }

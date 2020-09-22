@@ -114,7 +114,7 @@ export default class SplitFooter extends Component {
     return (
       <div style={{display: 'flex', marginBottom: 5}} className={classNames('extract-footer', sectionMargin)}>
         <div className={fieldsHorizontalSpacing}>
-          <span style={formLabel}>{la('Position')}</span>
+          <div style={formLabel}>{la('Position')}</div>
           <Select
             items={this.options}
             className={rowMargin}
@@ -134,8 +134,6 @@ const styles = {
     height: 24
   },
   select: {
-    marginLeft: -2,
-    width: 100,
-    height: 24
+    width: 100
   }
 };

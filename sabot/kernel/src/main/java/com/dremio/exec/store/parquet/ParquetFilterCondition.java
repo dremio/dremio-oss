@@ -26,6 +26,7 @@ import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 
@@ -38,6 +39,7 @@ public class ParquetFilterCondition {
   private final ParquetFilterIface filter;
   private final LogicalExpression expr;
   private final int sort;
+  private boolean filterChanged = false;
 
   @JsonCreator
   public ParquetFilterCondition(@JsonProperty("path") SchemaPath path, @JsonProperty("filter") ParquetFilterIface filter, @JsonProperty("expr") LogicalExpression expr, @JsonProperty("sort") int sort) {
@@ -62,6 +64,16 @@ public class ParquetFilterCondition {
 
   public int getSort() {
     return sort;
+  }
+
+  @JsonIgnore
+  public boolean isModifiedForPushdown() {
+    return filterChanged;
+  }
+
+  @JsonIgnore
+  public void setFilterModifiedForPushdown(boolean filterChanged) {
+    this.filterChanged = filterChanged;
   }
 
   @Override

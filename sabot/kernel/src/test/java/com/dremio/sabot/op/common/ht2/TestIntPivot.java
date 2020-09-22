@@ -20,12 +20,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.IntVector;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestIntPivot extends BaseTestWithAllocator {
 

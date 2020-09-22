@@ -20,10 +20,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.google.common.collect.Sets;
@@ -45,10 +47,13 @@ public class GandivaRegistryWrapper {
     Set<FunctionSignature> updatedSignatures = new HashSet<>();
     for (FunctionSignature signature : signatures) {
       FunctionSignature updated = signature;
+      if (shouldBlackListFunction(signature)) {
+        continue;
+      }
 
       // To make this fit in dremio model of type inference, add dummy args for precision and
       // scale.
-      if (signature.getName().equals("castDECIMAL")) {
+      if (signature.getName().equals("castDECIMAL") || signature.getName().equals("castDECIMALNullOnOverflow")) {
         List<ArrowType> args = new ArrayList<>(signature.getParamTypes());
         args.add(new ArrowType.Int(64, true)); // precision
         args.add(new ArrowType.Int(64, true)); // scale
@@ -59,6 +64,26 @@ public class GandivaRegistryWrapper {
       addNonDecimalMethods(signature, updated);
     }
     this.supportedFunctionsDecimal = updatedSignatures;
+  }
+
+  private boolean shouldBlackListFunction(FunctionSignature signature) {
+    ArrowType.Date dateDay = new ArrowType.Date(DateUnit.DAY);
+    List<ArrowType> dateDayArgs =
+      signature.getParamTypes().stream().filter(type-> {
+        return type.equals(dateDay);
+      }).collect(Collectors.toList());
+
+    // suppress all date32 functions. date32 is not a supported dremio type;
+    if (!dateDayArgs.isEmpty() || signature.getReturnType().equals(dateDay)) {
+      return true;
+    }
+
+    // blacklisting castINT variants on string param till DX-24609 is fixed.
+    if ((signature.getName().equals("castINT") || signature.getName().equals("castBIGINT"))
+      && signature.getParamTypes().size() == 1 && signature.getParamTypes().get(0).equals(new ArrowType.Utf8())) {
+      return true;
+    }
+    return false;
   }
 
   private void addNonDecimalMethods(FunctionSignature signature, FunctionSignature updated) {

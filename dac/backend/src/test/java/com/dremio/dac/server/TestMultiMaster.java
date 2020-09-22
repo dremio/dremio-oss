@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
+import javax.inject.Provider;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -69,19 +71,23 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.zk.KillZkSession;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
+import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
@@ -122,6 +128,8 @@ public class TestMultiMaster extends BaseClientUtils {
   private DACDaemon masterDremioDaemon1;
   private DACDaemon masterDremioDaemon2;
 
+  private Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
+
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -129,24 +137,22 @@ public class TestMultiMaster extends BaseClientUtils {
   public void init() throws Exception {
     Assume.assumeTrue(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), 21518, true);
+      zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), 2181, true);
       zkServer.start();
 
       final File masterPath = temporaryFolder.newFolder("master");
       masterDremioDaemon1 = DACDaemon.newDremioDaemon(
           DACConfig
             .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-            .autoPort(false)
+            .autoPort(true)
             .addDefaultUser(true)
             .allowTestApis(true)
             .serveUI(false)
+            .jobServerEnabled(false)
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-            .localPort(21515)
-            .httpPort(21516)
             .zk("localhost:" + zkServer.getPort())
-            .with(DremioConfig.CLIENT_PORT_INT, 21517)
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -168,16 +174,14 @@ public class TestMultiMaster extends BaseClientUtils {
         masterDremioDaemon2 = DACDaemon.newDremioDaemon(
           DACConfig
             .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-            .autoPort(false)
+            .autoPort(true)
             .allowTestApis(true)
             .serveUI(false)
+            .jobServerEnabled(false)
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-            .localPort(21525)
-            .httpPort(21526)
             .zk("localhost:" + zkServer.getPort())
-            .with(DremioConfig.CLIENT_PORT_INT, 21527)
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -201,15 +205,12 @@ public class TestMultiMaster extends BaseClientUtils {
         DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .isMaster(false)
-          .autoPort(false)
+          .autoPort(true)
           .allowTestApis(true)
           .serveUI(false)
           .inMemoryStorage(true)
           .writePath(temporaryFolder.newFolder("remote").getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(21530)
-          .httpPort(21531)
-          .with(DremioConfig.CLIENT_PORT_INT, 21532)
           .zk("localhost:" + zkServer.getPort()),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
@@ -325,7 +326,7 @@ public class TestMultiMaster extends BaseClientUtils {
         public void onFailure(Throwable t) {
           promise.setException(t);
         }
-      });
+      }, MoreExecutors.directExecutor());
     }
     return promise;
   }
@@ -341,6 +342,7 @@ public class TestMultiMaster extends BaseClientUtils {
       public void run() {
         try {
           currentDremioDaemon.startServices(); // waiting
+          currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
         } catch (Exception e) {
           throw Throwables.propagate(e);
         }
@@ -359,6 +361,7 @@ public class TestMultiMaster extends BaseClientUtils {
           try {
             daemon.startPreServices();
             daemon.startServices();
+            daemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
             return daemon;
           } catch(Exception e) {
             throw Throwables.propagate(e);
@@ -367,82 +370,95 @@ public class TestMultiMaster extends BaseClientUtils {
       }));
     }
 
-    // Discover which master is hot and which one is cold
-    ListenableFuture<DACDaemon> hotMasterDremioDaemonStarted = any(masterDremioDaemonsStarted);
-    // Wait on the first master candidate to start
-    DACDaemon hotMasterDremioDaemon = hotMasterDremioDaemonStarted.get();
-    ListenableFuture<DACDaemon> coldMasterDremioDaemonStarted = null;
-    DACDaemon coldMasterDremioDaemon = null;
-    for(int i = 0; i < dacDaemons.length; i++) {
-      if (dacDaemons[i] == hotMasterDremioDaemon) {
-        continue;
+    try {
+      // Discover which master is hot and which one is cold
+      ListenableFuture<DACDaemon> hotMasterDremioDaemonStarted = any(masterDremioDaemonsStarted);
+      // Wait on the first master candidate to start
+      DACDaemon hotMasterDremioDaemon = hotMasterDremioDaemonStarted.get();
+      ListenableFuture<DACDaemon> coldMasterDremioDaemonStarted = null;
+      DACDaemon coldMasterDremioDaemon = null;
+      for (int i = 0; i < dacDaemons.length; i++) {
+        if (dacDaemons[i] == hotMasterDremioDaemon) {
+          continue;
+        }
+        coldMasterDremioDaemon = dacDaemons[i];
+        coldMasterDremioDaemonStarted = masterDremioDaemonsStarted.get(i);
+        break;
       }
-      coldMasterDremioDaemon = dacDaemons[i];
-      coldMasterDremioDaemonStarted = masterDremioDaemonsStarted.get(i);
-      break;
-    }
 
-    // Let's check that the loop worked correctly
-    assertNotNull(coldMasterDremioDaemonStarted);
-    assertNotNull(coldMasterDremioDaemon);
+      // Let's check that the loop worked correctly
+      assertNotNull(coldMasterDremioDaemonStarted);
+      assertNotNull(coldMasterDremioDaemon);
 
-    // Let's confirm that the cold master hasn't started yet
-    assertFalse(coldMasterDremioDaemonStarted.isDone());
+      // Let's confirm that the cold master hasn't started yet
+      assertFalse(coldMasterDremioDaemonStarted.isDone());
 
-    // Let's wait on the current daemon to start too now that one master is up
-    currentDremioDaemonStarted.get();
-    initClient();
+      // Let's wait on the current daemon to start too now that one master is up
+      currentDremioDaemonStarted.get();
+      initClient();
 
-    initHotMasterClient(hotMasterDremioDaemon);
-    checkHotMasterOk();
-    checkNodeOk();
-    NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
-    final SabotContext sabotContext = mp.lookup(SabotContext.class);
+      initHotMasterClient(hotMasterDremioDaemon);
+      checkHotMasterOk();
+      checkNodeOk();
+      NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
+      final SabotContext sabotContext = mp.lookup(SabotContext.class);
 
-    final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
+      final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
         mp.lookup(InitializerRegistry.class),
-        mp.lookup(KVStoreProvider.class),
+        mp.lookup(LegacyKVStoreProvider.class),
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
         sabotContext.getOptionManager());
 
 
-    TestUtilities.addClasspathSourceIf(sabotContext.getCatalogService());
+      TestUtilities.addClasspathSourceIf(sabotContext.getCatalogService());
 
-    DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-    SampleDataPopulator populator = new SampleDataPopulator(
-      sabotContext,
-      new SourceService(
-        ns,
+      currentDremioDaemon.getBindingCreator().bindProvider(ReflectionAdministrationService.class, () -> {
+        ReflectionAdministrationService.Factory factory = mp.lookup(ReflectionAdministrationService.Factory.class);
+        return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
+      });
+
+      DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+      SampleDataPopulator populator = new SampleDataPopulator(
+        sabotContext,
+        new SourceService(
+          ns,
+          datasetVersionMutator,
+          sabotContext.getCatalogService(),
+          mp.lookup(ReflectionServiceHelper.class),
+          new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+          ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
+          dacSecurityContext
+        ),
         datasetVersionMutator,
-        sabotContext.getCatalogService(),
-        mp.lookup(ReflectionServiceHelper.class),
-        new CollaborationHelper(mp.lookup(KVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
-        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
-        dacSecurityContext
-      ),
-      datasetVersionMutator,
-      mp.lookup(UserService.class),
-      ns,
-      DEFAULT_USERNAME
-    );
-    populator.populateInitialData();
+        mp.lookup(UserService.class),
+        ns,
+        DEFAULT_USERNAME
+      );
+      populator.populateInitialData();
 
-    sanityCheck();
-    checkHotMasterOk();
-    checkNodeOk();
+      sanityCheck();
+      checkHotMasterOk();
+      checkNodeOk();
 
-    // stop hot master and wait for cold master to take relay
-    hotMasterDremioDaemon.close();
-    coldMasterDremioDaemonStarted.get();
-    // can only init client once server is started (because of port hunting)
-    initColdMasterClient(coldMasterDremioDaemon);
+      // stop hot master and wait for cold master to take relay
+      hotMasterDremioDaemon.close();
+      coldMasterDremioDaemonStarted.get();
+      // can only init client once server is started (because of port hunting)
+      initColdMasterClient(coldMasterDremioDaemon);
 
-    checkNodeOk();
-    checkColdMasterOk();
+      checkNodeOk();
+      checkColdMasterOk();
 
-    sanityCheck();
+      sanityCheck();
+    } catch (AssertionError | Exception e) {
+      // let both dremio daemon start threads exit to avoid deadlock in teardown
+      for (ListenableFuture<DACDaemon> dremioDaemonStarted : masterDremioDaemonsStarted) {
+        dremioDaemonStarted.cancel(true);
+      }
+      throw e;
+    }
   }
 
   @Test
@@ -456,6 +472,7 @@ public class TestMultiMaster extends BaseClientUtils {
       public void run() {
         try {
           currentDremioDaemon.startServices(); // waiting
+          currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
         } catch (Exception e) {
           throw Throwables.propagate(e);
         }
@@ -474,6 +491,7 @@ public class TestMultiMaster extends BaseClientUtils {
           try {
             daemon.startPreServices();
             daemon.startServices();
+            daemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
             return daemon;
           } catch(Exception e) {
             throw Throwables.propagate(e);
@@ -482,81 +500,94 @@ public class TestMultiMaster extends BaseClientUtils {
       }));
     }
 
-    // Discover which master is hot and which one is cold
-    ListenableFuture<DACDaemon> hotMasterDremioDaemonStarted = any(masterDremioDaemonsStarted);
-    // Wait on the first master candidate to start
-    DACDaemon hotMasterDremioDaemon = hotMasterDremioDaemonStarted.get();
-    ListenableFuture<DACDaemon> coldMasterDremioDaemonStarted = null;
-    DACDaemon coldMasterDremioDaemon = null;
-    for(int i = 0; i < dacDaemons.length; i++) {
-      if (dacDaemons[i] == hotMasterDremioDaemon) {
-        continue;
+    try {
+      // Discover which master is hot and which one is cold
+      ListenableFuture<DACDaemon> hotMasterDremioDaemonStarted = any(masterDremioDaemonsStarted);
+      // Wait on the first master candidate to start
+      DACDaemon hotMasterDremioDaemon = hotMasterDremioDaemonStarted.get();
+      ListenableFuture<DACDaemon> coldMasterDremioDaemonStarted = null;
+      DACDaemon coldMasterDremioDaemon = null;
+      for (int i = 0; i < dacDaemons.length; i++) {
+        if (dacDaemons[i] == hotMasterDremioDaemon) {
+          continue;
+        }
+        coldMasterDremioDaemon = dacDaemons[i];
+        coldMasterDremioDaemonStarted = masterDremioDaemonsStarted.get(i);
+        break;
       }
-      coldMasterDremioDaemon = dacDaemons[i];
-      coldMasterDremioDaemonStarted = masterDremioDaemonsStarted.get(i);
-      break;
-    }
 
-    // Let's check that the loop worked correctly
-    assertNotNull(coldMasterDremioDaemonStarted);
-    assertNotNull(coldMasterDremioDaemon);
+      // Let's check that the loop worked correctly
+      assertNotNull(coldMasterDremioDaemonStarted);
+      assertNotNull(coldMasterDremioDaemon);
 
-    // Let's confirm that the cold master hasn't started yet
-    assertFalse(coldMasterDremioDaemonStarted.isDone());
+      // Let's confirm that the cold master hasn't started yet
+      assertFalse(coldMasterDremioDaemonStarted.isDone());
 
-    // Let's wait on the current daemon to start too now that one master is up
-    currentDremioDaemonStarted.get();
-    initClient();
+      // Let's wait on the current daemon to start too now that one master is up
+      currentDremioDaemonStarted.get();
+      initClient();
 
-    initHotMasterClient(hotMasterDremioDaemon);
-    checkHotMasterOk();
-    checkNodeOk();
-    NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
-    final SabotContext sabotContext = mp.lookup(SabotContext.class);
+      initHotMasterClient(hotMasterDremioDaemon);
+      checkHotMasterOk();
+      checkNodeOk();
+      NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
+      final SabotContext sabotContext = mp.lookup(SabotContext.class);
 
-    final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
+      final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
         mp.lookup(InitializerRegistry.class),
-        mp.lookup(KVStoreProvider.class),
+        mp.lookup(LegacyKVStoreProvider.class),
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
         sabotContext.getOptionManager());
 
-    TestUtilities.addClasspathSourceIf(mp.lookup(CatalogService.class));
-    DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+      TestUtilities.addClasspathSourceIf(mp.lookup(CatalogService.class));
+      DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
 
-    SampleDataPopulator populator = new SampleDataPopulator(
-      sabotContext,
-      new SourceService(
+      currentDremioDaemon.getBindingCreator().bindProvider(ReflectionAdministrationService.class, () -> {
+        ReflectionAdministrationService.Factory factory = mp.lookup(ReflectionAdministrationService.Factory.class);
+        return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
+      });
+
+      SampleDataPopulator populator = new SampleDataPopulator(
+        sabotContext,
+        new SourceService(
           ns,
           datasetVersionMutator,
           sabotContext.getCatalogService(),
           mp.lookup(ReflectionServiceHelper.class),
-          new CollaborationHelper(mp.lookup(KVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+          new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
           ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
           dacSecurityContext
-      ),
-      datasetVersionMutator,
-      mp.lookup(UserService.class),
-      ns,
-      DEFAULT_USERNAME
-    );
-    populator.populateInitialData();
+        ),
+        datasetVersionMutator,
+        mp.lookup(UserService.class),
+        ns,
+        DEFAULT_USERNAME
+      );
+      populator.populateInitialData();
 
-    sanityCheck();
-    checkHotMasterOk();
-    checkNodeOk();
+      sanityCheck();
+      checkHotMasterOk();
+      checkNodeOk();
 
-    // "kill" zookeeper connection and check hot is killed
-    KillZkSession.kill((ZKClusterCoordinator) hotMasterDremioDaemon.getBindingProvider().lookup(ClusterCoordinator.class));
-    coldMasterDremioDaemonStarted.get();
-    // can only init client once server is started (because of port hunting)
-    initColdMasterClient(coldMasterDremioDaemon);
+      // "kill" zookeeper connection and check hot is killed
+      KillZkSession.kill((ZKClusterCoordinator) hotMasterDremioDaemon.getBindingProvider().lookup(ClusterCoordinator.class));
+      coldMasterDremioDaemonStarted.get();
+      // can only init client once server is started (because of port hunting)
+      initColdMasterClient(coldMasterDremioDaemon);
 
-    checkNodeOk();
-    checkColdMasterOk();
+      checkNodeOk();
+      checkColdMasterOk();
 
-    sanityCheck();
+      sanityCheck();
+    } catch (AssertionError | Exception e) {
+      // let both dremio daemon start threads exit to avoid deadlock in teardown
+      for (ListenableFuture<DACDaemon> dremioDaemonStarted : masterDremioDaemonsStarted) {
+        dremioDaemonStarted.cancel(true);
+      }
+      throw e;
+    }
   }
 
   public UserLoginSession login() {

@@ -30,6 +30,8 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -37,24 +39,24 @@ import org.mockito.Mockito;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.NoOutputLogger;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ControlsInjectionUtil;
 import com.dremio.exec.testing.InjectedOutOfMemoryError;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.user.LocalUserUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.collect.Sets;
 
@@ -78,7 +80,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
   }
 
   private NonNullableStructVector structVector(String name) {
-    NonNullableStructVector vector = new NonNullableStructVector(name, allocator, null);
+    NonNullableStructVector vector = new NonNullableStructVector(name, allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null), null);
 
     ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", vector);
 

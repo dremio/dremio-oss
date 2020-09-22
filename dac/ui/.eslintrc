@@ -1,7 +1,9 @@
 {
-  "extends": "eslint:recommended",
-
-  "parser": "babel-eslint",
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
   "plugins": [
     "react", "import"
   ],
@@ -168,6 +170,18 @@
     ],
     "keyword-spacing": ["error", { "before": true, "after": true }]
   },
+  "overrides": [
+    {
+      "files": ["*.js"],
+      "rules": {
+        "@typescript-eslint/no-var-requires": ["off"],
+        "@typescript-eslint/no-use-before-define": ["off"],
+        "@typescript-eslint/no-empty-function": ["off"],
+        "prefer-rest-params": ["off"],
+        "@typescript-eslint/explicit-function-return-type": ["off"]
+      }
+    }
+  ],
   "settings": {
     "import/core-modules": [
       "redux-saga/effects"

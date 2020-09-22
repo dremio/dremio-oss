@@ -319,7 +319,7 @@
   }
 
 
-  a{
+  a, .link {
     color: @blue;
     text-decoration: none;
     outline: 0;
@@ -327,6 +327,10 @@
     &:hover{
       text-decoration: underline;
     }
+  }
+  .message-content a {
+    color: #333;
+    text-decoration: underline;
   }
   button:not([disabled]){
     cursor: pointer;
@@ -401,8 +405,8 @@
 
   /* generic style for data tables */
   .data-table {
-    .ReactVirtualized__Table__row {
-      border-top: 1px solid #eaeaea;
+    .ReactVirtualized__Table__row:nth-child(even) {
+      background-color: #f9f9f9;
     }
   }
 }

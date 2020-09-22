@@ -30,7 +30,7 @@ public class TestVHashJoin extends BaseTestJoin {
 
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type, Set<Integer> buildProjected, Set<Integer> probeProjected) {
-    return new JoinInfo(VectorizedHashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, type, true));
+    return new JoinInfo(VectorizedHashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, type, true, null));
   }
 
   @Test

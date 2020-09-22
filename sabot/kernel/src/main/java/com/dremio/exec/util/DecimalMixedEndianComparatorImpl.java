@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.util;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * Mixed endian decimal bytes comparator

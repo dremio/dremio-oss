@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.store.hive.orc;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -30,6 +33,7 @@ import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.hive.HiveRulesFactory.HiveScanDrel;
 import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.exec.store.hive.exec.HiveORCVectorizedReader;
@@ -69,7 +73,7 @@ public class ORCFilterPushDownRule extends RelOptRule {
     }
     try {
       final HiveTableXattr tableXattr =
-          HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray());
+          HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
       final Optional<String> inputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
       return inputFormat.isPresent() && inputFormat.get().equals(OrcInputFormat.class.getCanonicalName());
     } catch (InvalidProtocolBufferException e) {
@@ -97,10 +101,28 @@ public class ORCFilterPushDownRule extends RelOptRule {
           ORCFindRelevantFilters.convertBooleanInputRefToFunctionCall(rexBuilder, filterThatCanBePushed);
 
       final HiveTableXattr tableXattr =
-        HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray());
+        HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
       final List<HiveReaderProto.ColumnInfo> columnInfos = tableXattr.getColumnInfoList();
+      List<HiveReaderProto.ColumnInfo> selectedColumnInfos = new ArrayList<>();
+      final List<String> columnNames = scan.getRowType().getFieldNames();
+      final Set<String> columnNameSet = columnNames.stream().map(String::toUpperCase).collect(Collectors.toSet());
+      final BatchSchema scanTableSchema = scan.getTableMetadata().getSchema();
 
-      final ORCSearchArgumentGenerator sargGenerator = new ORCSearchArgumentGenerator(scan.getRowType().getFieldNames(), columnInfos);
+      // columnInfos contains hive data type info
+      // scanTableSchema is table BatchSchema
+      // columnNames are selected / projected column names
+      // Here we prepare column info that contains hive data type information for selected columns
+      // Iterate over all fields of table schema, and if it is in projected columnNames list,
+      // then add ColumnInfo to selectedColumnInfos
+      if (columnInfos.size() == scanTableSchema.getFieldCount()) {
+        for (int fieldPos = 0; fieldPos < scanTableSchema.getFieldCount(); ++fieldPos) {
+          if (columnNameSet.contains(scanTableSchema.getColumn(fieldPos).getName().toUpperCase())) {
+            selectedColumnInfos.add(columnInfos.get(fieldPos));
+          }
+        }
+      }
+
+      final ORCSearchArgumentGenerator sargGenerator = new ORCSearchArgumentGenerator(columnNames, selectedColumnInfos);
       filterThatCanBePushed.accept(sargGenerator);
       final SearchArgument sarg = sargGenerator.get();
 
