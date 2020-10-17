@@ -85,7 +85,8 @@ public class TestClassTransformation extends BaseTestQuery {
   public void testCompilationNoDebug() throws CompileException, ClassNotFoundException, ClassTransformationException, IOException {
     CodeGenerator<ExampleInner> cg = newCodeGenerator(ExampleInner.class, ExampleTemplateWithInner.class);
     ClassSet classSet = new ClassSet(null, cg.getDefinition().getTemplateClassName(), cg.getMaterializedClassName());
-    String sourceCode = cg.generateAndGet();
+    cg.generate();
+    String sourceCode = cg.getGeneratedCode();
     sessionOptions.setOption(OptionValue.createString(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_OPTION, ClassCompilerSelector.CompilerPolicy.JDK.name()));
 
     sessionOptions.setOption(OptionValue.createBoolean(OptionType.SESSION, ClassCompilerSelector.JAVA_COMPILER_DEBUG_OPTION, false));
@@ -120,7 +121,8 @@ public class TestClassTransformation extends BaseTestQuery {
     CodeGenerator<ExampleInner> cg = newCodeGenerator(ExampleInner.class, ExampleTemplateWithInner.class);
 
     ClassTransformer ct = new ClassTransformer(sessionOptions);
-    Class<? extends ExampleInner> c = (Class<? extends ExampleInner>) ct.getImplementationClass(loader, cg.getDefinition(), cg.generateAndGet(), cg.getMaterializedClassName());
+    cg.generate();
+    Class<? extends ExampleInner> c = (Class<? extends ExampleInner>) ct.getImplementationClass(loader, cg.getDefinition(), cg.getGeneratedCode(), cg.getMaterializedClassName());
     ExampleInner t = c.newInstance();
     t.doOutside();
     t.doInsideOutside();

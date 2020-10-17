@@ -123,6 +123,10 @@ public class Utilities {
       return WorkloadType.ODBC;
     }
 
+    if (name.contains("flight")) {
+      return WorkloadType.FLIGHT;
+    }
+
     return WorkloadType.UNKNOWN;
   }
 
@@ -148,6 +152,8 @@ public class Utilities {
         return "UI Run";
       case UI_DOWNLOAD:
         return "UI Download";
+      case FLIGHT:
+        return "Flight";
       case UNKNOWN:
       default:
         return "Other";

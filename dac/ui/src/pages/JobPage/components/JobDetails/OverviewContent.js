@@ -86,7 +86,7 @@ class OverviewContent extends PureComponent {
       } else if (isMetadata) {
         return 'Job.ODBCMetadataRequest';
       }
-      return 'ODBCClient';
+      return 'Job.ODBCClient';
     case 'JDBC':
       if (isPrepareCreate) {
         return 'Job.JDBCCreate';
@@ -95,7 +95,7 @@ class OverviewContent extends PureComponent {
       } else if (isMetadata) {
         return 'Job.JDBCMetadataRequest';
       }
-      return 'JDBCClient';
+      return 'Job.JDBCClient';
     case 'REST':
       return 'Job.RESTApp';
     case 'ACCELERATOR_CREATE':
@@ -104,6 +104,13 @@ class OverviewContent extends PureComponent {
       return 'Job.AcceleratorRefresh';
     case 'ACCELERATOR_DROP':
       return 'Job.AcceleratorRemoval';
+    case 'FLIGHT':
+      if (isPrepareCreate) {
+        return 'Job.FlightCreate';
+      } else if (isPrepareExecute) {
+        return 'Job.FlightExecute';
+      }
+      return 'Job.FlightClient';
     case 'UNKNOWN':
     default:
       return 'File.Unknown';

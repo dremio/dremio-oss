@@ -25,8 +25,6 @@ public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
 
   private DefaultRelMetadataProvider() {
     super(ImmutableList.of(
-        // MetadataProvider for Projectable aggregates. Should be before default ones
-        RelMdProjectableAggregate.SOURCE,
         // Mostly relies on Calcite default with some adjustments...
         RelMdRowCount.SOURCE,
         RelMdDistinctRowCount.SOURCE,

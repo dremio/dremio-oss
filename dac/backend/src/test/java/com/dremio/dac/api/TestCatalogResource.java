@@ -677,6 +677,84 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   @Test
+  public void testMetadataTooLarge() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+
+    TemporaryFolder folder = new TemporaryFolder();
+    folder.create();
+
+    final NASConf config = new NASConf();
+    config.path = folder.getRoot().getAbsolutePath();
+
+    java.io.File srcFolder = folder.getRoot();
+    try (PrintStream file = new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), "zmyFile1.json"))) {
+      file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+    }
+
+    String nestedDir = srcFolder + java.io.File.separator + "nestedDir";
+    java.io.File dir = new java.io.File(nestedDir);
+    dir.mkdirs();
+
+    try (PrintStream file = new PrintStream(new java.io.File(dir.getAbsolutePath(), "nestedFile1.json"))) {
+      file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+    }
+    try (PrintStream file = new PrintStream(new java.io.File(dir.getAbsolutePath(), "nestedFile2.json"))) {
+      file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+    }
+
+    Source newSource = new Source();
+    newSource.setName(sourceName1);
+    newSource.setType("NAS");
+    newSource.setConfig(config);
+    newSource.setCreatedAt(1000L);
+
+    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)), new GenericType<Source>() {});
+    newSource = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(), new GenericType<Source>() {});
+
+    DatasetPath path = new DatasetPath(ImmutableList.of(sourceName1, "nestedDir"));
+    DatasetConfig dataset = new DatasetConfig()
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path.toPathList())
+      .setName(path.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setTag(null)
+      .setOwner(DEFAULT_USERNAME)
+      .setPhysicalDataset(new PhysicalDataset()
+        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+
+    path = new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json"));
+    dataset = new DatasetConfig()
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path.toPathList())
+      .setName(path.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setTag(null)
+      .setOwner(DEFAULT_USERNAME)
+      .setPhysicalDataset(new PhysicalDataset()
+        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+
+    NamespaceKey datasetKey = new DatasetPath(ImmutableList.of(sourceName1, "zmyFile1.json")).toNamespaceKey();
+    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(datasetKey);
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, "dremio.store.dfs.max_files", 1));
+
+    java.io.File deleted = new java.io.File(srcFolder.getAbsolutePath(), "zmyFile1.json");
+    boolean bool = deleted.delete();
+
+    // After delete "zmyFile1.json" from the source, if the refresh succeeds, it will delete the dataset from the kv store.
+    // If we query "nestedDir", it will be still in the kv store. If we query "zmyFile1.json", it will throw namespace exception.
+    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService()).refreshSource(new NamespaceKey(sourceName1), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName1, "nestedDir")).toNamespaceKey());
+    assertEquals("nestedDir", dataset1.getName());
+    thrown.expect(NamespaceException.class);
+    p(NamespaceService.class).get().getDataset(datasetKey);
+
+  }
+
+  @Test
   public void testVDSConcurrency() throws Exception {
     Space space = createSpace("concurrency");
 

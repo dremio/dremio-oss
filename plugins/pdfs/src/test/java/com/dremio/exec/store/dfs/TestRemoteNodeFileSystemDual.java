@@ -44,10 +44,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.exec.hadoop.PathCanonicalizer;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.Roles;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.store.dfs.PDFSService.PDFSMode;
 import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.BaseTestFabric;

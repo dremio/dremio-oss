@@ -25,6 +25,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.SimpleBigIntVector;
 
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.ValueListFilter;
 import com.dremio.sabot.op.common.ht2.BlockChunk;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashComputation;
@@ -122,6 +123,11 @@ public class BlockJoinTable implements JoinTable {
   @Override
   public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
     return table.prepareBloomFilter(fieldNames, sizeDynamically);
+  }
+
+  @Override
+  public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
+    return table.prepareValueListFilter(fieldName, maxElements);
   }
 
   @Override

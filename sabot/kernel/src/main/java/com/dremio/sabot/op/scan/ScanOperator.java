@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -72,7 +71,6 @@ import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.ParquetSubScan;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
-import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.sabot.exec.context.MetricDef;
@@ -149,7 +147,16 @@ public class ScanOperator implements ProducerOperator {
     MAX_BOOSTED_FILE_READ_TIME_NS, // Max Boosted IO read Time.
     AVG_BOOSTED_FILE_READ_TIME_NS, // Average Boosted IO time.
     TOTAL_BOOSTED_BYTES_READ, // Total Boosted Bytes Read.
-    NUM_COLUMNS_BOOSTED
+    NUM_COLUMNS_BOOSTED, // Number of Boosted Files Read.
+    OFFSET_INDEX_READ, // Offset Index Read,
+    COLUMN_INDEX_READ, // Column Index Read.
+    NUM_BOOSTED_RECORD_BATCHES_PRUNED, //Due to Filter how many record batches have been skipped
+    NUM_PAGES_PRUNED, // Number of pages skipped based on stats
+    NUM_PAGES_READ, // Number of pages checked upon
+    PAGE_DECOMPRESSION_TIME_NS, // Total time taken for page decompression in nanos
+    NUM_RUNTIME_FILTERS, // Number of runtime filter received at scan
+    RUNTIME_COL_FILTER_DROP_COUNT, // Number of non partition column filters dropped due to schema incompatibility
+    ROW_GROUPS_SCANNED_WITH_RUNTIME_FILTER // Number of rowgroups scanned with runtime filter
     ;
 
     @Override
@@ -246,15 +253,12 @@ public class ScanOperator implements ProducerOperator {
   }
 
   protected void setupReader(RecordReader reader) throws Exception {
-    try(RollbackCloseable commit = AutoCloseables.rollbackable(reader)){
+    try {
       BatchSchema initialSchema = outgoing.getSchema();
+      runtimeFilters.stream().forEach(reader::addRuntimeFilter);
       setupReaderAsCorrectUser(reader);
       checkAndLearnSchema();
       Preconditions.checkArgument(initialSchema.equals(outgoing.getSchema()), "Schema changed but not detected.");
-      for (RuntimeFilter runtimeFilter : runtimeFilters) {
-        reader.addRuntimeFilter(runtimeFilter);
-      }
-      commit.commit();
     } catch (Exception e) {
       if (ErrorHelper.findWrappedCause(e, FileNotFoundException.class) != null) {
         if (e instanceof UserException) {
@@ -341,37 +345,30 @@ public class ScanOperator implements ProducerOperator {
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
-    final ArrowBuf msgBuf = message.getBuffer();
     final String senderInfo = String.format("Frag %d:%d, OpId %d", message.getSendingMajorFragmentId(),
             message.getSendingMinorFragmentId(), message.getSendingOperatorId());
-    if (msgBuf==null || msgBuf.capacity()==0) {
+    if (message.getBuffers()==null || message.getBuffers().length!=1) {
       logger.warn("Empty runtime filter received from {}", senderInfo);
       return;
     }
-    msgBuf.retain();
+    ArrowBuf msgBuf = message.getIfSingleBuffer().get();
 
     logger.info("Filter received from {}", senderInfo);
-    try(RollbackCloseable closeOnErr = new RollbackCloseable()) {
-      closeOnErr.add(msgBuf);
+    try {
       // scan operator handles the OOB message that it gets from the join operator
-      final BloomFilter bloomFilter = BloomFilter.prepareFrom(msgBuf);
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, bloomFilter, senderInfo);
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, context.getStats());
 
       boolean isAlreadyPresent = this.runtimeFilters.stream().anyMatch(r -> r.isOnSameColumns(filter));
-      if (protoFilter.getPartitionColumnFilter().getSizeBytes() != bloomFilter.getSizeInBytes()) {
-        logger.error("Invalid incoming runtime filter size. Expected size {}, actual size {}, filter {}",
-                protoFilter.getPartitionColumnFilter().getSizeBytes(), bloomFilter.getSizeInBytes(), bloomFilter.toString());
-        AutoCloseables.close(filter);
-      } else if (isAlreadyPresent) {
+      if (isAlreadyPresent) {
         logger.debug("Skipping enforcement because filter is already present {}", filter);
         AutoCloseables.close(filter);
       } else {
-        logger.debug("Adding filter to the record readers {}, current reader {}, FPP {}.", filter, this.currentReader.getClass().getName(), bloomFilter.getExpectedFPP());
+        logger.debug("Adding filter to the record readers {}, current reader {}.", filter, this.currentReader.getClass().getName());
         this.runtimeFilters.add(filter);
         this.currentReader.addRuntimeFilter(filter);
+        context.getStats().addLongStat(Metric.NUM_RUNTIME_FILTERS, 1);
       }
-      closeOnErr.commit();
     } catch (Exception e) {
       logger.warn("Error while merging runtime filter piece from " + message.getSendingMajorFragmentId() + ":"
               + message.getSendingMinorFragmentId(), e);

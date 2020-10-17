@@ -43,6 +43,7 @@ export default class TableViewer extends Component {
       PropTypes.shape({
         key: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
         label: PropTypes.string.isRequired, // todo what do we allow here????
+        renderer: PropTypes.func,
         align: PropTypes.oneOf(Object.values(cellAlignment)),
         flexGrow: PropTypes.number,
         width: PropTypes.number
@@ -63,6 +64,7 @@ export default class TableViewer extends Component {
   getColumnByConfig = ( /* columnConfig */ {
     key,
     label,
+    renderer,
     align = cellAlignment.left,
     flexGrow = 0,
     width = 20
@@ -73,7 +75,7 @@ export default class TableViewer extends Component {
       width={width}
       columnKey={key}
       align={align}
-      header={<Cell>{label}</Cell>}
+      header={renderer ? renderer(label) : <Cell>{label}</Cell>}
       cell={this.renderCell(label)}
     />);
   };

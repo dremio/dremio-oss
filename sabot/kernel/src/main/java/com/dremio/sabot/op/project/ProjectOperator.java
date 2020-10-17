@@ -173,7 +173,11 @@ public class ProjectOperator implements SingleInputOperator {
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
 
-    cacheExpressions(nonDirectExprs);
+    if (nonDirectExprs.size() > 0) {
+      // caching all expressions since whether an valuevectorread expression is transferred or evaluated is also determined by
+      // other direct transfer expressions (if it is already transfered the expression is evaluated)
+      cacheExpressions(exprs);
+    }
     return outgoing;
   }
 

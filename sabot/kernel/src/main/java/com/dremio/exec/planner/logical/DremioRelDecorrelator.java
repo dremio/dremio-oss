@@ -19,9 +19,13 @@ import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Correlate;
+import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
+
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.service.Pointer;
 
 /**
  * Dremio version of RelDecorrelator extended from Calcite
@@ -73,5 +77,33 @@ public class DremioRelDecorrelator extends RelDecorrelator {
       newRootRel = decorrelator.decorrelate(newRootRel);
     }
     return newRootRel;
+  }
+
+  public static RelNode decorrelateQuery(RelNode rootRel, RelBuilder relBuilder, boolean isRelPlanning) {
+    final RelNode decorrelatedWithValueGenerator = decorrelateQuery(rootRel, relBuilder, true, isRelPlanning);
+    if (correlateCount(decorrelatedWithValueGenerator) != 0) {
+      return decorrelateQuery(rootRel, relBuilder, false, isRelPlanning);
+    }
+    return decorrelatedWithValueGenerator;
+  }
+
+  public static int correlateCount(RelNode rel) {
+    final Pointer<Integer> count = new Pointer<>(0);
+    rel.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof Correlate) {
+          count.value++;
+        }
+        return super.visit(other);
+      }
+
+      @Override
+      public RelNode visit(LogicalCorrelate correlate) {
+        count.value++;
+        return super.visit(correlate);
+      }
+    });
+    return count.value;
   }
 }

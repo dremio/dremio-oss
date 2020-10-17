@@ -19,7 +19,10 @@ import { runDataset, transformAndRunDataset } from 'actions/explore/dataset/run'
 import { expandExploreSql } from 'actions/explore/ui';
 import { newUntitledSql, newUntitledSqlAndRun } from 'actions/explore/dataset/new';
 import { runTableTransform } from 'actions/explore/dataset/transform';
+import { resetViewState } from 'actions/resources';
 import { transformHistoryCheck } from 'sagas/transformHistoryCheck';
+
+import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
 
 import apiUtils from 'utils/apiUtils/apiUtils';
 import { transformThenNavigate } from './transformWatcher';
@@ -225,6 +228,8 @@ describe('performTransform saga', () => {
           viewId
         });
         goToTransformData(transformData);
+        expect(next.value).to.be.eql(put(resetViewState(EXPLORE_TABLE_ID)));
+        next = gen.next(mockApiAction);
         expect(next.value).to.be.eql(call(transformAndRunDataset, dataset, transformData, viewId));
 
         const mockApiAction = 'mock api call';

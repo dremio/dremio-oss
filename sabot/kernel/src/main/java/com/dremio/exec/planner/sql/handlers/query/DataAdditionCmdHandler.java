@@ -237,7 +237,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       icebergTableProps = new IcebergTableProps(null, queryId,
         null,
         isCreate() ? options.getPartitionColumns() : partitionColumns,
-        isCreate() ? IcebergOperation.Type.CREATE : IcebergOperation.Type.INSERT);
+        isCreate() ? IcebergOperation.Type.CREATE : IcebergOperation.Type.INSERT,
+        key.getName());
 
     }
 

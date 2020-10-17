@@ -24,6 +24,8 @@ option java_outer_classname = "OptionsProtobuf";
 
 package dremio.options;
 
+import "google/protobuf/empty.proto";
+
 // OptionValue representation
 message OptionValueProto {
   string name = 1;
@@ -39,3 +41,11 @@ message OptionValueProto {
 message OptionValueProtoList {
   repeated OptionValueProto options = 1;
 }
+
+service OptionNotificationService {
+  rpc SystemOptionFetch (OptionChangeNotification) returns (google.protobuf.Empty);
+}
+
+message OptionChangeNotification {
+}
+

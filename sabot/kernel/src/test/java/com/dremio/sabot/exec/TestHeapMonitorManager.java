@@ -25,8 +25,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
-import java.util.Set;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import org.junit.Test;
 
@@ -34,7 +33,6 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
@@ -75,7 +73,7 @@ public class TestHeapMonitorManager {
 
   @Test
   public void testCoordinatorHeapMonitorEnabledDisabled() throws Exception {
-    BiConsumer<Set<QueryState>, String> noOpCancelConsumer = (queryStates, cancelReason) -> {};
+    Consumer<CancelQueryContext> noOpCancelConsumer = (cancelQueryContext) -> {};
     HeapClawBackStrategy heapClawBackStrategy = new CoordinatorHeapClawBackStrategy(noOpCancelConsumer);
     testHeapMonitorEnabledDisabled(heapClawBackStrategy,
                                    ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING,

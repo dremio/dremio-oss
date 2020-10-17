@@ -638,19 +638,21 @@ public class FragmentExecutor {
     public void handle(OutOfBandMessage message) {
       requestActivate("out of band message");
       synchronized (allocatorLock) {
-        if (message.getBuffer()!=null) {
+        Optional<ArrowBuf> msgBuffer = message.getIfSingleBuffer();
+        if (msgBuffer.isPresent()) {
           try {
             allocator.assertOpen(); // throws exception if allocator is closed
-            final ArrowBuf transferredBuf = message.getBuffer().getReferenceManager()
-                    .transferOwnership(message.getBuffer(), allocator).getTransferredBuffer();
+            final ArrowBuf transferredBuf = msgBuffer.get().getReferenceManager()
+                    .transferOwnership(msgBuffer.get(), allocator).getTransferredBuffer();
             message = new OutOfBandMessage(message.toProtoMessage(), transferredBuf);
+            msgBuffer = Optional.of(transferredBuf);
           } catch (Exception e) {
             logger.error("Error while transferring OOBMessage buffer to the fragment allocator", e);
             return; // Fragment will not be able to handle the buffer.
           }
         }
+        final AutoCloseable closeable = msgBuffer.map(AutoCloseable.class::cast).orElse(() -> {});
 
-        final AutoCloseable closeable = message.getBuffer()!=null ? message.getBuffer():() -> {};
         final OutOfBandMessage finalMessage = message;
         workQueue.put(() -> {
           try {

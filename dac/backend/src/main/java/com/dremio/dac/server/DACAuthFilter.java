@@ -26,8 +26,8 @@ import javax.ws.rs.ext.Provider;
 
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.usergroup.UserName;
-import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenUtils;
+import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;

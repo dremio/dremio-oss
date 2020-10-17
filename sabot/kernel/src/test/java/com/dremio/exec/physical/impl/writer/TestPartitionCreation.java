@@ -37,7 +37,7 @@ public class TestPartitionCreation extends BaseTestQuery {
     // confirm that the data has been properly partitioned
     testBuilder()
       .unOrdered()
-      .sqlQuery("SELECT COUNT(*) c FROM dfs_test.\"nulls/DREMIO_DEFAULT_NULL_PARTITION__\"")
+      .sqlQuery("SELECT COUNT(*) c FROM dfs_test.\"nulls/0_DREMIO_DEFAULT_NULL_PARTITION__\"")
       .baselineColumns("c")
       .baselineValues(3L)
       .go();
@@ -52,25 +52,25 @@ public class TestPartitionCreation extends BaseTestQuery {
     // confirm that the data has been properly partitioned
     testBuilder()
       .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/a\"")
+      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/2_a\"")
       .baselineColumns("c")
       .baselineValues(1L)
       .go();
     testBuilder()
       .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/b\"")
+      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/3_b\"")
       .baselineColumns("c")
       .baselineValues(1L)
       .go();
     testBuilder()
       .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/DREMIO_DEFAULT_NULL_PARTITION__\"")
+      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/4_DREMIO_DEFAULT_NULL_PARTITION__\"")
       .baselineColumns("c")
       .baselineValues(1L)
       .go();
     testBuilder()
         .unOrdered()
-        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/DREMIO_DEFAULT_EMPTY_VALUE_PARTITION__\"")
+        .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_mixed/0_DREMIO_DEFAULT_EMPTY_VALUE_PARTITION__\"")
         .baselineColumns("c")
         .baselineValues(2L)
         .go();
@@ -86,13 +86,13 @@ public class TestPartitionCreation extends BaseTestQuery {
     // confirm that the data has been properly partitioned
     testBuilder()
       .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/0\"")
+      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/0_0\"")
       .baselineColumns("c")
       .baselineValues(2L)
       .go();
     testBuilder()
       .unOrdered()
-      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/DREMIO_DEFAULT_NULL_PARTITION__\"")
+      .sqlQuery("SELECT count(*) c FROM dfs_test.\"nulls_int/2_DREMIO_DEFAULT_NULL_PARTITION__\"")
       .baselineColumns("c")
       .baselineValues(3L)
       .go();

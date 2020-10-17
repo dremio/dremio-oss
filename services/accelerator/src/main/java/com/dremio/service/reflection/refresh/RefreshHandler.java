@@ -30,7 +30,6 @@ import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
@@ -42,7 +41,6 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
@@ -52,12 +50,11 @@ import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.ReflectionSettings;
+import com.dremio.service.reflection.WriterOptionManager;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
-import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionEntry;
-import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshDecision;
@@ -77,9 +74,12 @@ public class RefreshHandler implements SqlToPlanHandler {
   public static final String DECISION_NAME = RefreshDecision.class.getName();
   public static final Serializer<RefreshDecision, byte[]> ABSTRACT_SERIALIZER = ProtostuffSerializer.of(RefreshDecision.getSchema());
 
+  private final WriterOptionManager writerOptionManager;
+
   private String textPlan;
 
   public RefreshHandler() {
+    this.writerOptionManager = WriterOptionManager.Instance;
   }
 
   @Override
@@ -88,7 +88,8 @@ public class RefreshHandler implements SqlToPlanHandler {
       final SqlRefreshReflection materialize = SqlNodeUtil.unwrap(sqlNode, SqlRefreshReflection.class);
 
       if(!SystemUser.SYSTEM_USERNAME.equals(config.getContext().getQueryUserName())) {
-        throw SqlExceptionHelper.parseError("$MATERIALIZE not supported.", sql, materialize.getParserPosition()).build(logger);
+        throw SqlExceptionHelper.parseError("$MATERIALIZE not supported.", sql, materialize.getParserPosition())
+          .build(logger);
       }
 
       ReflectionService service = config.getContext().getAccelerationManager().unwrap(ReflectionService.class);
@@ -145,7 +146,7 @@ public class RefreshHandler implements SqlToPlanHandler {
           materializationStore);
       config.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
 
-      final Rel drel = PrelTransformer.convertToDrel(config, initial);
+      final Rel drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
       final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());
 
       // Append the attempt number to the table path
@@ -157,11 +158,16 @@ public class RefreshHandler implements SqlToPlanHandler {
         reflectionId.getId(),
         materialization.getId().getId() + "_" + attemptId.getAttemptNum());
 
-      final Rel writerDrel = new WriterRel(drel.getCluster(), drel.getCluster().traitSet().plus(Rel.LOGICAL),
-          drel, config.getContext().getCatalog().createNewTable(
-              new NamespaceKey(tablePath), null,
-              getWriterOptions(0, goal, fields), ImmutableMap.of()
-              ), initial.getRowType());
+      final Rel writerDrel = new WriterRel(
+        drel.getCluster(),
+        drel.getCluster().traitSet().plus(Rel.LOGICAL),
+        drel,
+        config.getContext().getCatalog().createNewTable(
+          new NamespaceKey(tablePath),
+          null,
+          writerOptionManager.buildWriterOptionForReflectionGoal(0, goal, fields),
+          ImmutableMap.of()),
+        initial.getRowType());
 
       final RelNode doubleWriter = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(), config.getContext(), writerDrel);
 
@@ -180,44 +186,6 @@ public class RefreshHandler implements SqlToPlanHandler {
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
-  }
-
-  private WriterOptions getWriterOptions(Integer ringCount, ReflectionGoal goal, Set<String> availableFields) {
-    ReflectionDetails details = goal.getDetails();
-
-    PartitionDistributionStrategy dist;
-    switch(details.getPartitionDistributionStrategy()) {
-    case STRIPED:
-      dist = PartitionDistributionStrategy.STRIPED;
-      break;
-    case CONSOLIDATED:
-    default:
-      dist = PartitionDistributionStrategy.HASH;
-    }
-
-    return new WriterOptions(ringCount,
-        toStrings(details.getPartitionFieldList(), availableFields),
-        toStrings(details.getSortFieldList(), availableFields),
-        toStrings(details.getDistributionFieldList(), availableFields),
-        dist,
-        false,
-        Long.MAX_VALUE);
-  }
-
-  private static List<String> toStrings(List<ReflectionField> fields, Set<String> knownFields){
-    if(fields == null || fields.isEmpty()) {
-      return ImmutableList.of();
-    }
-
-    ImmutableList.Builder<String> fieldList = ImmutableList.builder();
-    for(ReflectionField f : fields) {
-      if(!knownFields.contains(f.getName())) {
-        throw UserException.validationError().message("Unable to find field %s.", f).build(logger);
-      }
-
-      fieldList.add(f.getName());
-    }
-    return fieldList.build();
   }
 
   private RelNode determineMaterializationPlan(

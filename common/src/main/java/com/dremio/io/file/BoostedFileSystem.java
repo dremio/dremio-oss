@@ -23,6 +23,8 @@ import com.dremio.io.FSOutputStream;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
+
 /**
  * This interface used to boost access to Parquet files
  *
@@ -51,7 +53,7 @@ public interface BoostedFileSystem {
    * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> open a Stream to read CachedFile.
    * @return
    */
-  Tuple<FSInputStream, Long> getBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName, List<AsyncByteReader.ReaderStat> stats) throws IOException;
+  Tuple<FSInputStream, Long> getBoostFile(AsyncByteReader.FileKey fileKey, long offset, String columnName, List<AsyncByteReader.ReaderStat> stats, BufferAllocator allocator) throws IOException;
 
   /**
    * For a given tuple <ParquetFilePath, RowGroupID, ColumnName, Version> commit any inFlight instances.

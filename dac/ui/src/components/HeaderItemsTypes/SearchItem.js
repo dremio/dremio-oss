@@ -161,7 +161,8 @@ export default connect(mapStateToProps, {loadSearchData})(SearchItem);
 
 const styles = {
   searchStyle: {
-    margin: '9px 0 0 -18px'
+    margin: '9px 0 0 -18px',
+    zIndex: 1001
   },
   searchItem: {
     display: 'flex'

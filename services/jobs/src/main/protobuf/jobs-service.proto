@@ -207,6 +207,7 @@ enum QueryType {
   ODBC = 300; //query submitted by odbc client
   JDBC = 400; //query submitted by jdbc client
   REST = 500; //query submitted by public rest interfaces
+  FLIGHT = 600; //query submitted by FlightClient
 }
 
 enum RequestType {

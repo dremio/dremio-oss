@@ -30,6 +30,7 @@ public class IcebergTableProps {
   private BatchSchema fullSchema;
   private List<String> partitionColumnNames;
   private IcebergOperation.Type icebergOpType;
+  private String tableName;
 
   @JsonCreator
   public IcebergTableProps(
@@ -37,13 +38,15 @@ public class IcebergTableProps {
     @JsonProperty("uuid") String uuid,
     @JsonProperty("fullSchema") BatchSchema fullSchema,
     @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
-    @JsonProperty("icebergOpType") IcebergOperation.Type icebergOpType
+    @JsonProperty("icebergOpType") IcebergOperation.Type icebergOpType,
+    @JsonProperty("tableName") String tableName
     ) {
       this.tableLocation = tableLocation;
       this.uuid = uuid;
       this.fullSchema = fullSchema;
       this.partitionColumnNames = partitionColumnNames;
       this.icebergOpType = icebergOpType;
+      this.tableName = tableName;
   }
 
   public IcebergTableProps(final IcebergTableProps other){
@@ -52,6 +55,7 @@ public class IcebergTableProps {
     this.uuid = other.uuid;
     this.fullSchema = other.fullSchema;
     this.icebergOpType = other.icebergOpType;
+    this.tableName = other.tableName;
   }
 
   public String getTableLocation() {
@@ -82,7 +86,12 @@ public class IcebergTableProps {
     return partitionColumnNames;
   }
 
-  public void setPartitionColumnNames(List<String> partitionColumnNames) {
-    this.partitionColumnNames = ImmutableList.copyOf(partitionColumnNames);
+  public String getTableName() {
+    return tableName;
   }
+
+  public void setTableName(String tableName) {
+    this.tableName = tableName;
+  }
+
 }

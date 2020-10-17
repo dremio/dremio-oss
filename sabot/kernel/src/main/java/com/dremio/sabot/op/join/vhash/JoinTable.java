@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.ValueListFilter;
 
 public interface JoinTable extends AutoCloseable {
   public void insert(final long outputAddr, final int records);
@@ -57,6 +58,21 @@ public interface JoinTable extends AutoCloseable {
    * @return
    */
   default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+    return Optional.empty();
+  }
+
+  /**
+   * Returns distinct keys for a given field. In case of composite keys, this method can be used to get distinct values
+   * for a given join field. Returns empty if number of distinct keys are more than max elements or if there is an
+   * error while processing keys.
+   *
+   * Primarily used for Runtime Filtering at Joins
+   *
+   * @param fieldName
+   * @param maxElements
+   * @return
+   */
+  default Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
     return Optional.empty();
   }
 }

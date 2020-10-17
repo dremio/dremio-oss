@@ -25,8 +25,6 @@ import org.apache.http.HttpHeaders;
  */
 public final class TokenUtils {
 
-  public static final String TOKENS_TABLE_NAME = "tokens";
-
   public static final String AUTH_HEADER_PREFIX = "_dremio";
 
   /**

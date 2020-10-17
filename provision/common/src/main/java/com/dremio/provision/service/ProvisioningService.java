@@ -146,6 +146,14 @@ public interface ProvisioningService extends Service {
   public List<ClusterId> getRunningStoppableClustersByName(String name);
 
   /**
+   * Return info about clusters of a particular {@link ClusterType}
+   * @param name
+   * @return List<ClusterId>
+   * @throws ProvisioningService.NoClusterException
+   */
+  public List<ClusterId> getClustersByName(String name);
+
+  /**
    * Exception that identifies an action that is not allowed.
    */
   public static class ActionDisallowed extends RuntimeException{}

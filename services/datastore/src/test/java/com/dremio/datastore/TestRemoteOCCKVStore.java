@@ -20,9 +20,9 @@ import org.junit.After;
 import org.junit.Rule;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;

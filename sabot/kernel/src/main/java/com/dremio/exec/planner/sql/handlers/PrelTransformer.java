@@ -259,7 +259,15 @@ public class PrelTransformer {
 
       RelNode postLogical;
       if (config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
-        final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateQuery(intermediateNode, DremioRelFactories.LOGICAL_BUILDER.create(intermediateNode.getCluster(), null), true, true);
+        RelNode relWithoutMultipleConstantGroupKey;
+        try {
+          // Try removing multiple constants group keys from aggregates. Any unexpected failures in this process shouldn't fail the whole query.
+          relWithoutMultipleConstantGroupKey = MoreRelOptUtil.removeConstantGroupKeys(intermediateNode, DremioRelFactories.LOGICAL_BUILDER);
+        } catch (Exception ex) {
+          logger.error("Failure while removing multiple constant group by keys in aggregate, ", ex);
+          relWithoutMultipleConstantGroupKey = intermediateNode;
+        }
+        final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
         final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, decorrelatedNode, decorrelatedNode.getTraitSet().plus(Rel.LOGICAL), true);
         postLogical = jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
       } else {
@@ -299,6 +307,23 @@ public class PrelTransformer {
         throw ex;
       }
     }
+  }
+
+  /***
+   * Converts to drel then adds a project to maintain the result names if necessary.
+   *
+   * @param config
+   * @param relNode
+   * @return
+   * @throws SqlUnsupportedException
+   * @throws RelConversionException
+   */
+  public static Rel convertToDrelMaintainingNames(
+    SqlHandlerConfig config,
+    RelNode relNode
+  ) throws SqlUnsupportedException, RelConversionException {
+    Rel drel = convertToDrel(config, relNode);
+    return addRenamedProject(config, drel, relNode.getRowType());
   }
 
   /**

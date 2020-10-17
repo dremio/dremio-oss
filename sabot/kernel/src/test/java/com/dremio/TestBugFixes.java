@@ -71,6 +71,11 @@ public class TestBugFixes extends BaseTestQuery {
   }
 
   @Test
+  public void TestAlternatePagesFilterMatch() throws Exception {
+    test("select col1,col2,col3 from cp.\"parquet/alternate_pages.parquet\"  where col1 = 256");
+  }
+
+  @Test
   public void DRILL1061() throws Exception {
     String query = "select foo.mycol.x as COMPLEX_COL from (select convert_from('{ x : [1,2], y : 100 }', 'JSON') as mycol from cp.\"tpch/nation.parquet\") as foo(mycol) limit 1";
     test(query);

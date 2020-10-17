@@ -33,32 +33,9 @@ import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
 import { isCME } from 'dyn-load/utils/versionUtils';
 import { PASSWORD_FIELD, SECRET_RESOURCE_URL_FIELD, USER_NAME_FIELD } from '@app/components/Forms/Credentials';
+import addAlwaysPresent from 'dyn-load/utils/FormUtils/globalSourceConfigUtil';
 
 export default class SourceFormJsonPolicy {
-  static addAlwaysPresent(functionalConfig, uiConfig) {
-    if (functionalConfig.elements) {
-      functionalConfig.elements.push({
-        label: la('Enable this source to be used with other sources even though Disable Cross Source is configured'),
-        propertyName: 'allowCrossSourceSelection',
-        type: 'boolean'
-      });
-    }
-
-    if (uiConfig.form && uiConfig.form.tabs[1]) {
-      uiConfig.form.tabs[1].sections.push({
-        'elements': [
-          {
-            'propName': 'allowCrossSourceSelection',
-            'visibilityControl': {
-              'config': 'crossSourceDisabled',
-              'showCondition': true
-            }
-          }
-        ]
-      });
-    }
-  }
-
   static deepCopyConfig(config) {
     return FormUtils.deepCopyConfig(config);
   }
@@ -121,7 +98,7 @@ export default class SourceFormJsonPolicy {
     if (!uiConfig) return this.makeCombinedFromFunctionalConfig(functionalConfig);
 
     // add any always preset source options
-    this.addAlwaysPresent(functionalConfig, uiConfig);
+    addAlwaysPresent(functionalConfig, uiConfig);
 
     // combine high level form properties
     const mergedMetaConfig = this.mergeFormMetadataConfig(uiConfig, functionalConfig);

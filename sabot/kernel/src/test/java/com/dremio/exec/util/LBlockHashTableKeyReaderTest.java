@@ -38,6 +38,8 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -45,11 +47,14 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.ByteArrayUtil;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
+import com.dremio.sabot.op.common.ht2.VectorPivotDef;
 import com.dremio.test.AllocatorRule;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import io.netty.util.internal.PlatformDependent;
@@ -102,6 +107,49 @@ public class LBlockHashTableKeyReaderTest {
                     assertEquals("Key mismatched", (key == null) ? 0 : key, reader.getKeyHolder().getInt(1));
                 }
                 assertFalse("Reader has more keys than expected", reader.loadNextKey());
+            }
+        }
+    }
+
+    @Test (expected = IllegalArgumentException.class)
+    public void testComplexKeyLoad1() throws Exception {
+        final FieldType complexStruct = CompleteType.struct(
+                CompleteType.INT.toField("int"))
+                .toField("complexStruct")
+                .getFieldType();
+        try (FieldVector structfield = new StructVector("structfield", allocator, complexStruct, null);
+             ArrowBuf tableData = allocator.buffer(32)) {
+
+            long[] tableFixedAddresses = {tableData.memoryAddress()};
+            VectorPivotDef v = new VectorPivotDef(PivotBuilder.FieldType.FOUR_BYTE, 0, 0, 0,
+                    new FieldVectorPair(structfield, structfield));
+
+            PivotDef pivot = new PivotDef(4, 0, 0, ImmutableList.of(v));
+            List<String> fieldsToRead = Lists.newArrayList("structfield");
+            try (LBlockHashTableKeyReader reader = newKeyReaderFixed(fieldsToRead, 1000,
+                    pivot, tableFixedAddresses)) {
+            }
+        }
+    }
+
+    @Test (expected = IllegalArgumentException.class)
+    public void testComplexKeyLoad2() throws Exception {
+        final FieldType complexStruct = CompleteType.struct(
+                CompleteType.VARCHAR.toField("varchar"))
+                .toField("complexStruct")
+                .getFieldType();
+        try (FieldVector structfield = new StructVector("structfield", allocator, complexStruct, null);
+             ArrowBuf tableData = allocator.buffer(32)) {
+
+            long[] tableFixedAddresses = {tableData.memoryAddress()};
+            long[] tableVarAddresses = {tableData.memoryAddress()};
+            VectorPivotDef v = new VectorPivotDef(PivotBuilder.FieldType.VARIABLE, 0, 0, 0,
+                    new FieldVectorPair(structfield, structfield));
+
+            PivotDef pivot = new PivotDef(-1, 1, 0, ImmutableList.of(v));
+            List<String> fieldsToRead = Lists.newArrayList("structfield");
+            try (LBlockHashTableKeyReader reader = newKeyReader(fieldsToRead, 1000,
+                    pivot, tableVarAddresses, tableFixedAddresses)) {
             }
         }
     }
@@ -300,8 +348,50 @@ public class LBlockHashTableKeyReaderTest {
                     byte[] expectedKey = new byte[32];
                     if (key != null) {
                         expectedKey[0] = (byte) 1;
-                        byte[] stringBytes = key.length() <= 31 ? padZeroBytes(key.getBytes(), 31) : key.substring(0, 31).getBytes();
+                        byte[] stringBytes = key.length() <= 31 ? padZeroBytes(key.getBytes(StandardCharsets.UTF_8), 31)
+                                : key.substring(0, 31).getBytes(StandardCharsets.UTF_8);
                         System.arraycopy(stringBytes, 0, expectedKey, 1, 31);
+                    }
+                    reader.getKeyHolder().getBytes(0, keyBytes);
+                    assertTrue("Key mismatched", Arrays.equals(expectedKey, keyBytes));
+                }
+                assertFalse("Reader has more keys than expected", reader.loadNextKey());
+            }
+        }
+    }
+
+    @Test
+    public void testSingleStringWithLen() throws Exception {
+        List<String> keysToFeed = Arrays.asList("61a20b7d-4f5c-493a-acaf-b6d4be4a094a", "short1", "8488fa8d-7f34-4152-97a8-c54292c74340", null, "535e0790-c851-4b1d-a0bb-74ed796825be");
+        try (FieldVector stringField = new VarCharVector("stringfield", allocator);
+             ArrowBuf tableData = setupTableData(keysToFeed);
+             ArrowBuf fixedBlocks = allocator.buffer(8 * keysToFeed.size())) {
+
+            long startAddress = fixedBlocks.memoryAddress();
+            for (int i = 0; i < keysToFeed.size(); ++i, startAddress += 8) {
+                PlatformDependent.putInt(startAddress, keysToFeed.get(i) == null ? 0 : 1);
+            }
+
+            long[] tableVarAddresses = {tableData.memoryAddress()};
+            long[] tableFixedAddresses = {fixedBlocks.memoryAddress()};
+            PivotDef pivot = buildPivot(stringField);
+            List<String> fieldsToRead = Lists.newArrayList("stringfield");
+            try (LBlockHashTableKeyReader reader = newKeyReader(fieldsToRead, keysToFeed.size(), pivot, tableVarAddresses, tableFixedAddresses, true)) {
+                assertEquals("Invalid keybuf size", 32, reader.getKeyBufSize());
+                assertTrue("Keys not trimmed", reader.isKeyTrimmedToFitSize());
+
+                assertFalse("Identified as a composite key", reader.isCompositeKey());
+                byte[] keyBytes = new byte[32];
+                for (String key : keysToFeed) {
+                    assertTrue("Reader has less keys than expected", reader.loadNextKey());
+                    byte[] expectedKey = new byte[32];
+                    if (key != null) {
+                        expectedKey[0] = (byte) 1;
+                        byte keyLen = (byte) Math.min(key.getBytes(StandardCharsets.UTF_8).length, 31);
+                        expectedKey[1] = keyLen;
+                        byte[] stringBytes = key.length() <= 30 ?
+                                padZeroBytes(key.getBytes(StandardCharsets.UTF_8), 30) : key.substring(0, 30).getBytes(StandardCharsets.UTF_8);
+                        System.arraycopy(stringBytes, 0, expectedKey, 2, 30);
                     }
                     reader.getKeyHolder().getBytes(0, keyBytes);
                     assertTrue("Key mismatched", Arrays.equals(expectedKey, keyBytes));
@@ -542,11 +632,18 @@ public class LBlockHashTableKeyReaderTest {
     }
 
     private LBlockHashTableKeyReader newKeyReader(List<String> fieldNames, int numOfKeys, PivotDef pivot, long[] tableVarAddresses, long[] tableFixedAddresses) {
+        return newKeyReader(fieldNames, numOfKeys, pivot, tableVarAddresses, tableFixedAddresses, false);
+    }
+
+    private LBlockHashTableKeyReader newKeyReader(List<String> fieldNames, int numOfKeys, PivotDef pivot,
+                                                  long[] tableVarAddresses, long[] tableFixedAddresses,
+                                                  boolean setVarFieldLenInFirstByte) {
         LBlockHashTableKeyReader.Builder builder = new LBlockHashTableKeyReader.Builder()
                 .setBufferAllocator(allocator)
                 .setPivot(pivot)
                 .setFieldsToRead(fieldNames)
                 .setTotalNumOfRecords(numOfKeys)
+                .setSetVarFieldLenInFirstByte(setVarFieldLenInFirstByte)
                 .setMaxValuesPerBatch(4096);
         if (!ArrayUtils.isEmpty(tableVarAddresses)) {
             builder.setTableVarAddresses(tableVarAddresses);

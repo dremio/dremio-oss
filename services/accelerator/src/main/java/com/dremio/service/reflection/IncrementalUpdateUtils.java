@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
@@ -23,9 +24,12 @@ import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
@@ -87,6 +91,7 @@ public class IncrementalUpdateUtils {
     private final ReflectionSettings reflectionSettings;
 
     private RelNode unsupportedOperator = null;
+    private List<SqlAggFunction> unsupportedAggregates = new ArrayList<>();
     private boolean isIncremental = false;
     private int aggCount = 0;
 
@@ -97,6 +102,11 @@ public class IncrementalUpdateUtils {
     public boolean isIncremental() {
       if (unsupportedOperator != null) {
         logger.debug("Cannot do incremental update because {} does not support incremental update", unsupportedOperator.getRelTypeName());
+        return false;
+      }
+
+      if (!unsupportedAggregates.isEmpty()) {
+        logger.debug("Cannot do incremental update because Aggregate operator has unsupported aggregate functions: {}", unsupportedAggregates);
         return false;
       }
 
@@ -133,7 +143,22 @@ public class IncrementalUpdateUtils {
 
     public RelNode visit(LogicalAggregate aggregate) {
       aggCount++;
+      aggregate.getAggCallList().forEach(a -> {
+        if (!canRollUp(a.getAggregation())) {
+          unsupportedAggregates.add(a.getAggregation());
+        }
+      });
       return visitChild(aggregate, 0, aggregate.getInput());
+    }
+
+    private static boolean canRollUp(final SqlAggFunction aggregation) {
+      final SqlKind kind = aggregation.getKind();
+      return kind == SqlKind.SUM
+        || kind == SqlKind.SUM0
+        || kind == SqlKind.MIN
+        || kind == SqlKind.MAX
+        || kind == SqlKind.COUNT
+        || HyperLogLog.HLL.getName().equals(aggregation.getName());
     }
 
     @Override

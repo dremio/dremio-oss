@@ -102,14 +102,14 @@ public class WriterCommitterOperator implements SingleInputOperator {
       switch (icebergTableProps.getIcebergOpType()) {
         case CREATE:
           icebergOpCommitter = IcebergOperation.getCreateTableCommitter(
-            Path.of(icebergTableProps.getTableLocation()),
+            icebergTableProps.getTableName(), Path.of(icebergTableProps.getTableLocation()),
             icebergTableProps.getFullSchema(),
             icebergTableProps.getPartitionColumnNames(),
             config.getPlugin().getFsConfCopy());
           break;
         case INSERT:
           icebergOpCommitter = IcebergOperation.getInsertTableCommitter(
-            Path.of(icebergTableProps.getTableLocation()),
+            icebergTableProps.getTableName(), Path.of(icebergTableProps.getTableLocation()),
             icebergTableProps.getFullSchema(),
             icebergTableProps.getPartitionColumnNames(),
             config.getPlugin().getFsConfCopy());

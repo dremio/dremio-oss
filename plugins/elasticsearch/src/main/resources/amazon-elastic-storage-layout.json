@@ -92,7 +92,11 @@
               },
               {
                 "propName": "config.warnOnRowCountMismatch"
-              },
+              }
+            ]
+          },
+          {
+            "elements": [
               {
                 "propName": "config.readTimeoutMillis",
                 "size": "half",

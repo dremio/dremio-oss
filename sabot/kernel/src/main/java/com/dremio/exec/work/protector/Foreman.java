@@ -262,11 +262,16 @@ public class Foreman {
   }
 
   public synchronized void cancel(String reason, boolean clientCancelled) {
+    cancel(reason, clientCancelled, null, false);
+  }
+
+  public synchronized void cancel(String reason, boolean clientCancelled, String cancelContext,
+                                  boolean isCancelledByHeapMonitor) {
     if (!canceled) {
       canceled = true;
 
       if (attemptManager != null) {
-        attemptManager.cancel(reason, clientCancelled);
+        attemptManager.cancel(reason, clientCancelled, cancelContext, isCancelledByHeapMonitor);
       }
     }
   }

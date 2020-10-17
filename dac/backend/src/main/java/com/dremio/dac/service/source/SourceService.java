@@ -666,9 +666,6 @@ public class SourceService {
     final AccelerationSettings settings = reflectionServiceHelper.getReflectionSettings().getReflectionSettings(new NamespaceKey(sourceConfig.getName()));
     Source source = new Source(sourceConfig, settings, getConnectionReader(), children);
 
-    // we should not set fields that expose passwords and other private parts of the source
-    source.getConfig().clearSecrets();
-
     SourceState state = getStateForSource(sourceConfig);
     source.setState(state);
 

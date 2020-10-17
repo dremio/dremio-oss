@@ -61,7 +61,8 @@ public class JobTelemetryClient implements Service {
         JobTelemetryRpcUtils.getJobTelemetryPort());
     }
 
-    channel = builder.maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
+    channel = builder.maxInboundMetadataSize(Integer.MAX_VALUE)
+      .maxInboundMessageSize(Integer.MAX_VALUE)
       .usePlaintext()
       .build();
 

@@ -498,7 +498,7 @@ public class QueryMetadata {
     final Set<String> sources = Sets.newHashSet();
     if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
       getSourcesForVds(datasetConfig.getVirtualDataset(), sources);
-    } else {
+    } else if (datasetConfig.getFullPathList() != null && datasetConfig.getFullPathList().size() > 0) {
       sources.add(datasetConfig.getFullPathList().get(0));
     }
     return new ArrayList<>(sources);

@@ -17,6 +17,7 @@ import { all, put, call, takeEvery, spawn, select, take, fork} from 'redux-saga/
 import invariant from 'invariant';
 import { newUntitledSql, newUntitledSqlAndRun } from 'actions/explore/dataset/new';
 import { PERFORM_TRANSFORM, runTableTransform } from 'actions/explore/dataset/transform';
+import { resetViewState } from 'actions/resources';
 import { initializeExploreJobProgress } from '@app/actions/explore/dataset/data';
 import {
   PERFORM_TRANSFORM_AND_RUN,
@@ -25,6 +26,8 @@ import {
   RUN_DATASET_SQL
 } from 'actions/explore/dataset/run';
 import { expandExploreSql } from 'actions/explore/ui';
+
+import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
 
 import { loadTableData, cancelDataLoad, loadDataset, focusSqlEditorSaga } from '@app/sagas/performLoadDataset';
 import { transformHistoryCheck } from 'sagas/transformHistoryCheck';
@@ -169,6 +172,7 @@ export function* getFetchDatasetMetaAction({
       navigateOptions = { changePathname: true }; //changePathname to navigate to newUntitled
     } else if (finalTransformData) {
       // transform is requested. Transform and run.
+      yield put(resetViewState(EXPLORE_TABLE_ID)); // Clear error from previous query run
       apiAction = yield call(transformAndRunDataset, dataset, finalTransformData, viewId);
     } else {
       // just run

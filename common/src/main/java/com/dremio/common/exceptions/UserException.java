@@ -46,6 +46,8 @@ public class UserException extends RuntimeException {
 
   public static final String MEMORY_ERROR_MSG = "Query was cancelled because it exceeded the memory limits set by the administrator.";
 
+  public static final String OOM_MSG = "Query canceled - out of memory, check the query profile for details";
+
   public static final String QUERY_REJECTED_MSG = "Rejecting query because it exceeded the maximum allowed number of live queries in a single coordinator";
   /**
    * Creates a new INVALID_DATASET_METADATA exception builder.

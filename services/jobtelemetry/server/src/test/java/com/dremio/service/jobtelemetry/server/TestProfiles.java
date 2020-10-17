@@ -430,7 +430,7 @@ public class TestProfiles {
       .thenReturn(Stream.of(profileSet.executorQueryProfileRequests.get(0).getProfile()));
 
     // fail putFullProfile some number of times
-    final int attempts = 10;
+    final int attempts = 3;
     final int[] count = {0};
     Mockito.doAnswer(new Answer() {
       @Override

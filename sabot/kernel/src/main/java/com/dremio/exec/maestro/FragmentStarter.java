@@ -63,6 +63,7 @@ import io.grpc.stub.StreamObserver;
 class FragmentStarter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStarter.class);
   private static final long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000;
+  private static final long RPC_MIN_WAIT_IN_MSECS = 30000;
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(FragmentStarter.class);
 
@@ -177,7 +178,7 @@ class FragmentStarter {
         endpointLatch, fragmentSubmitFailures, stats);
     }
 
-    final long timeout = RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments;
+    final long timeout = Long.max(RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments, RPC_MIN_WAIT_IN_MSECS);
     if (numFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)){
       long numberRemaining = endpointLatch.getCount();
       throw UserException.connectionError()

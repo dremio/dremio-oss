@@ -45,7 +45,6 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -113,12 +112,6 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     return null;
   }
 
-  @Override
-  public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
-    return getContext().getConfig().getClass("dremio.plugins.acceleration.rulesfactory",
-        StoragePluginRulesFactory.class,
-        super.getRulesFactoryClass());
-  }
   private List<String> normalizeComponents(final List<String> components) {
     if (components.size() != 2 && components.size() != 3) {
       return null;

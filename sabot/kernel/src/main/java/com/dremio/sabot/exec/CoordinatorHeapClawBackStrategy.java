@@ -15,8 +15,7 @@
  */
 package com.dremio.sabot.exec;
 
-import java.util.Set;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
@@ -26,16 +25,24 @@ import com.google.common.collect.Sets;
  * This implementation of HeapClawBackStrategy is to be used on coordinator side.
  */
 public class CoordinatorHeapClawBackStrategy implements HeapClawBackStrategy {
-  private final BiConsumer<Set<QueryState>, String> cancelBiConsumer;
+  private final Consumer<CancelQueryContext> cancelConsumer;
+  // CancelQueryContext for cancelling queries in planning phase.
+  private static final CancelQueryContext CANCEL_QUERY_CONTEXT =
+    new CancelQueryContext(Sets.newHashSet(QueryState.ENQUEUED),
+                           UserException.OOM_MSG,
+                          "Query cancelled by coordinator heap monitor",
+                          true);
 
-  public CoordinatorHeapClawBackStrategy(BiConsumer<Set<QueryState>, String> biConsumer) {
-    cancelBiConsumer = biConsumer;
+  public CoordinatorHeapClawBackStrategy(Consumer<CancelQueryContext> cancelConsumer) {
+    this.cancelConsumer = cancelConsumer;
   }
 
   @Override
   public void clawBack() {
-    // Cancel queries in all QueryStates.
-    cancelBiConsumer.accept(Sets.newHashSet(QueryState.values()),
-                            UserException.MEMORY_ERROR_MSG);
+    cancelConsumer.accept(CANCEL_QUERY_CONTEXT);
+  }
+
+  public static CancelQueryContext getCancelQueryContext() {
+    return CANCEL_QUERY_CONTEXT;
   }
 }

@@ -18,6 +18,8 @@ package com.dremio.exec.store.hive.exec;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -594,9 +596,25 @@ public class HiveORCCopiers {
 
   private static class DateMilliCopier  extends ORCCopierBase  {
     private static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
+    private static final long EPOCH_DAY_FOR_1582_10_15 = LocalDate.parse("1582-10-15").toEpochDay();
 
     private LongColumnVector inputVector;
     private DateMilliVector outputVector;
+
+    /**
+     * Hive 2.x uses DateWritable for converting date to epoch days and the conversion is buggy because
+     * of the Julian and Gregorian calendar changes. This issue does not occur for Hive 3.x which uses
+     * DateWritableV2 which uses {@link LocalDate#toEpochDay} to do the conversion
+     *
+     * Hence we do the appropriate conversion if the date is prior to 1582-10-15
+     * Else, no conversion is required
+     */
+    private long getTrueEpochInMillis(long epochInDays) {
+      if (epochInDays > EPOCH_DAY_FOR_1582_10_15) {
+        return epochInDays * MILLIS_PER_DAY;
+      }
+      return new Date(epochInDays * MILLIS_PER_DAY).toLocalDate().toEpochDay() * MILLIS_PER_DAY;
+    }
 
     DateMilliCopier(LongColumnVector inputVector, DateMilliVector outputVector) {
       this.inputVector = inputVector;
@@ -617,19 +635,19 @@ public class HiveORCCopiers {
         if (inputVector.isNull[0]) {
           return; // If all repeating values are null, then there is no need to write anything to vector
         }
-        final long value = input[0] * MILLIS_PER_DAY;
+        final long value = getTrueEpochInMillis(input[0]);
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.set(outputIdx, value);
         }
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-          outputVector.set(outputIdx, input[inputIdx] * MILLIS_PER_DAY);
+          outputVector.set(outputIdx, getTrueEpochInMillis(input[inputIdx]));
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
-            outputVector.set(outputIdx, input[inputIdx] * MILLIS_PER_DAY);
+            outputVector.set(outputIdx, getTrueEpochInMillis(input[inputIdx]));
           }
         }
       }

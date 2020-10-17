@@ -27,9 +27,9 @@ import org.junit.After;
 import org.junit.Before;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.rpc.RpcException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;

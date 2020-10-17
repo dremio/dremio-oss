@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.dremio.common.collections.Tuple;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -64,6 +65,7 @@ public class MetadataSynchronizer {
   private final NamespaceService systemNamespace;
   private final NamespaceKey sourceKey;
   private final SourceMetadata sourceMetadata;
+  private final ManagedStoragePlugin.MetadataBridge bridge;
   private final DatasetSaver saver;
   private final DatasetRetrievalOptions options;
 
@@ -76,14 +78,15 @@ public class MetadataSynchronizer {
   MetadataSynchronizer(
       NamespaceService systemNamespace,
       NamespaceKey sourceKey,
-      SourceMetadata sourceMetadata,
+      ManagedStoragePlugin.MetadataBridge bridge,
       MetadataPolicy metadataPolicy,
       DatasetSaver saver,
       DatasetRetrievalOptions options
   ) {
     this.systemNamespace = Preconditions.checkNotNull(systemNamespace);
     this.sourceKey = Preconditions.checkNotNull(sourceKey);
-    this.sourceMetadata = Preconditions.checkNotNull(sourceMetadata);
+    this.bridge = Preconditions.checkNotNull(bridge);
+    this.sourceMetadata = Preconditions.checkNotNull(bridge.getMetadata());
     this.saver = saver;
     this.options = options;
 
@@ -171,22 +174,28 @@ public class MetadataSynchronizer {
     logger.trace("Source '{}' syncing datasets", sourceKey);
     try (DatasetHandleListing datasetListing = getDatasetHandleListing(options.asGetDatasetOptions(null))) {
       final Iterator<? extends DatasetHandle> iterator = datasetListing.iterator();
-      while (iterator.hasNext()) {
-
-        final DatasetHandle handle = iterator.next();
-        final NamespaceKey datasetKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
-        final boolean existing = existingDatasets.remove(datasetKey);
-        if (logger.isTraceEnabled()) {
-          logger.trace("Dataset '{}' sync started ({})", datasetKey, existing ? "existing" : "new");
+      do {
+        try {
+          if (!iterator.hasNext()) {
+            break;
+          }
+          final DatasetHandle handle = iterator.next();
+          final NamespaceKey datasetKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
+          final boolean existing = existingDatasets.remove(datasetKey);
+          if (logger.isTraceEnabled()) {
+            logger.trace("Dataset '{}' sync started ({})", datasetKey, existing ? "existing" : "new");
+          }
+          if (existing) {
+            addAncestors(datasetKey, ancestorsToKeep);
+            handleExistingDataset(datasetKey, handle);
+          } else {
+            handleNewDataset(datasetKey, handle);
+          }
+        } catch (DatasetMetadataTooLargeException e) {
+          final boolean existing = existingDatasets.remove(new NamespaceKey(PathUtils.parseFullPath(e.getMessage())));
+          logger.warn("Dataset {} sync failed ({}) due to Metadata too large. Please check.", e.getMessage(), existing ? "existing" : "new");
         }
-
-        if (existing) {
-          addAncestors(datasetKey, ancestorsToKeep);
-          handleExistingDataset(datasetKey, handle);
-        } else {
-          handleNewDataset(datasetKey, handle);
-        }
-      }
+      } while (true);
     }
   }
 
@@ -354,9 +363,14 @@ public class MetadataSynchronizer {
    */
   private void deleteOrphanedDatasets() {
     if (!options.deleteUnavailableDatasets()) {
-      logger.debug("Source '{}' has {} unavailable datasets, but not deleted: {}",
-          sourceKey, existingDatasets.size(), existingDatasets);
+      logger.debug("Source '{}' in state {} has {} unavailable datasets, but not deleted: {}",
+        sourceKey, bridge.getState(), existingDatasets.size(), existingDatasets);
       return;
+    }
+
+    if (existingDatasets.size() > 0) {
+      logger.warn("Source '{}' in state {} has {} unavailable datasets to be deleted: {}",
+        sourceKey, bridge.getState(), existingDatasets.size(), existingDatasets.stream().limit(Math.min(existingDatasets.size(),100)).collect(Collectors.toSet()));
     }
 
     for (NamespaceKey toBeDeleted : existingDatasets) {
@@ -377,7 +391,7 @@ public class MetadataSynchronizer {
         logger.debug("Dataset '{}' not found", toBeDeleted);
         // continue;
       } catch (NamespaceException e) {
-        logger.trace("Dataset '{}' to be deleted, but lookup failed", toBeDeleted, e);
+        logger.debug("Dataset '{}' to be deleted, but lookup failed", toBeDeleted, e);
         failedDatasets.add(Tuple.of(toBeDeleted.getSchemaPath(), e.getMessage()));
         // continue;
       }

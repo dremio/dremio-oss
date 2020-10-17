@@ -50,9 +50,8 @@ public class CodeGenerator<T> {
   private final String className;
   private final String fqcn;
 
-  private final JCodeModel model;
-  private final ClassGenerator<T> rootGenerator;
-  private String generatedCode;
+  private JCodeModel model;
+  private ClassGenerator<T> rootGenerator;
   private String generifiedCode;
 
   CodeGenerator(CodeCompiler compiler, TemplateClassDefinition<T> definition, FunctionContext functionContext) {
@@ -68,7 +67,7 @@ public class CodeGenerator<T> {
     this.fqcn = PACKAGE_NAME + "." + className;
     try {
       this.model = new JCodeModel();
-      JDefinedClass clazz = model._package(PACKAGE_NAME)._class(className);
+      JDefinedClass clazz = model._package(PACKAGE_NAME)._class("GenericGenerated");
       clazz = clazz._extends(model.directClass(definition.getTemplateClassName()));
       clazz.constructor(JMod.PUBLIC).body().invoke(SignatureHolder.INIT_METHOD);
       rootGenerator = new ClassGenerator<>(this, mappingSet, definition.getSignature(), new EvaluationVisitor(functionContext), clazz, model);
@@ -82,12 +81,17 @@ public class CodeGenerator<T> {
   }
 
   public void generate() throws IOException {
+    Preconditions.checkNotNull(model, "model can not be null");
+    Preconditions.checkNotNull(rootGenerator, "rootGenerator can not be null");
+
     rootGenerator.flushCode();
 
     SingleClassStringWriter w = new SingleClassStringWriter();
     model.build(w);
-
-    this.generatedCode = w.getCode().toString()
+    //Free up unused Space early : model, rootGenerator.
+    model = null;
+    rootGenerator = null;
+    this.generifiedCode = w.getCode().toString()
         // hack for single type variables.
         .replaceAll(Pattern.quote("new BigIntHolder()"), "new NullableBigIntHolder()")
         .replaceAll(Pattern.quote("new IntHolder()"), "new NullableIntHolder()")
@@ -100,17 +104,10 @@ public class CodeGenerator<T> {
         .replaceAll(Pattern.quote("new TimeMilliHolder()"), "new NullableTimeMilliHolder()")
         .replaceAll(Pattern.quote("new DecimalHolder()"), "new NullableDecimalHolder()");
 
-    this.generifiedCode = generatedCode.replaceAll(this.className, "GenericGenerated");
-
-  }
-
-  public String generateAndGet() throws IOException {
-    generate();
-    return generatedCode;
   }
 
   public String getGeneratedCode() {
-    return generatedCode;
+    return generifiedCode.replaceAll("GenericGenerated", this.className);
   }
 
   public TemplateClassDefinition<T> getDefinition() {

@@ -90,6 +90,7 @@ public class DremioConfig extends NestedConfig {
   public static final String CLIENT_PORT_INT = "services.coordinator.client-endpoint.port";
   public static final String SERVER_PORT_INT = "services.fabric.port";
   public static final String CONDUIT_PORT_INT = "services.conduit.port";
+  public static final String FLIGHT_SERVICE_PORT_INT = "services.flight.port";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
 

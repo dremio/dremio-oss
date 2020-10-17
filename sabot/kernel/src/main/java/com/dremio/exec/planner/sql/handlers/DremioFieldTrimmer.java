@@ -32,6 +32,7 @@ import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Correlate;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
@@ -39,6 +40,8 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
+import org.apache.calcite.rel.logical.LogicalAggregate;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.MultiJoin;
@@ -138,6 +141,28 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
   }
 
   /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link Aggregate}.
+   */
+  @Override
+  public TrimResult trimFields(
+    Aggregate aggregate,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields) {
+    TrimResult result = super.trimFields(aggregate, fieldsUsed, extraFields);
+    if (result.left instanceof LogicalAggregate) {
+      LogicalAggregate logicalAggregate = (LogicalAggregate) result.left;
+      if (((aggregate.getGroupCount() == 0 && aggregate.getAggCallList().size() != 0) || (aggregate.getGroupCount() != 0 && aggregate.getAggCallList().size() == 0)) &&
+        (logicalAggregate.getGroupCount() == 0 && logicalAggregate.getAggCallList().size() == 0)) {
+        // If a logical aggregate has no groups and no agg function after trimming, we have trimmed all the columns
+        // and the operator above does not need any column from us. Return a single dummy row.
+        Mapping newMapping = Mappings.create(MappingType.INVERSE_SURJECTION, result.right.getSourceCount(), 1);
+        result = new TrimResult(LogicalValues.createOneRow(logicalAggregate.getCluster()), newMapping);
+      }
+    }
+    return result;
+  }
+
+  /**
    * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link com.dremio.exec.planner.logical.CorrelateRel}.
    */
   public TrimResult trimFields(
@@ -156,6 +181,11 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     inputBitSet.addAll(fieldsUsed);
     int changeCount = 0;
     inputBitSet.addAll(correlate.getRequiredColumns());
+    int leftFieldCount = correlate.getLeft().getRowType().getFieldCount();
+    int rightfieldCount = correlate.getRight().getRowType().getFieldCount();
+    for (int i = leftFieldCount ; i < leftFieldCount + rightfieldCount ; i++) {
+      inputBitSet.set(i);
+    }
 
     final ImmutableBitSet fieldsUsedPlus = inputBitSet.build();
 

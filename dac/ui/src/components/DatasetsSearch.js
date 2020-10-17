@@ -47,6 +47,10 @@ export default class DatasetsSearch extends Component {
     intl: PropTypes.object.isRequired
   };
 
+  onClickDataSetItem = () => {
+    this.props.handleSearchHide();
+  }
+
   getDatasetsList(searchData, inputValue) {
     const { globalSearch } = this.props;
     return searchData.map((value, key) => {
@@ -73,7 +77,7 @@ export default class DatasetsSearch extends Component {
       );
       return globalSearch
         ? <Link key={key} className='dataset' style={{textDecoration: 'none'}}
-          to={value.getIn(['links', 'self'])}>{datasetItem}</Link>
+          to={value.getIn(['links', 'self'])} onClick={this.onClickDataSetItem}>{datasetItem}</Link>
         : datasetItem;
     });
   }

@@ -18,6 +18,7 @@ package com.dremio.exec.work;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
@@ -59,5 +60,14 @@ public class TestNodeStatsListener {
   private CoordExecRPC.NodeStatResp getNodeStatsResponse(String s) {
     return CoordExecRPC.NodeStatResp.newBuilder().setNodeStats(CoordExecRPC.NodeStats.newBuilder().setName(s).setPort(1234).build())
       .setEndpoint(CoordinationProtos.NodeEndpoint.getDefaultInstance()).build();
+  }
+
+  @Test(expected = TimeoutException.class)
+  public void testTimeout() throws Exception {
+    CoordExecRPC.NodeStatResp [] responses ={getNodeStatsResponse("test-1")};
+    NodeStatsListener nodeStatsListener = new NodeStatsListener(2);
+    nodeStatsListener.onNext(responses[0]);
+    nodeStatsListener.onCompleted();
+    nodeStatsListener.waitForFinish();
   }
 }

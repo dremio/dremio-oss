@@ -195,7 +195,8 @@ public class TestIcebergPartitionData extends BaseTestQuery {
 
   private void verifyPartitionValue(PartitionSpec partitionSpec, IcebergPartitionData partitionData,
                                     String columnName, Class expectedClass, Object expectedValue) throws Exception {
-    File tableFolder = new File(folder.getRoot(), "icebergPartitionTest");
+    String tableName = "icebergPartitionTest";
+    File tableFolder = new File(folder.getRoot(), tableName);
     try {
       tableFolder.mkdir();
       File dataFile = new File(folder.getRoot(), "a.parquet");
@@ -209,7 +210,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
         .withPartition(partitionData)
         .build();
 
-      IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(Path.of(tableFolder.toPath().toString()),
+      IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(tableName, Path.of(tableFolder.toPath().toString()),
         (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
       committer.consumeData(Lists.newArrayList(d1));
       committer.commit();

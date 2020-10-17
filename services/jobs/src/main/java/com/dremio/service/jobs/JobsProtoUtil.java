@@ -515,6 +515,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.QueryType.ACCELERATOR_EXPLAIN;
       case UI_INITIAL_PREVIEW:
         return com.dremio.service.job.QueryType.UI_INITIAL_PREVIEW;
+      case FLIGHT:
+        return com.dremio.service.job.QueryType.FLIGHT;
       default:
         return QueryType.UNKNOWN;
     }
@@ -653,6 +655,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.proto.QueryType.JDBC;
       case REST:
         return com.dremio.service.job.proto.QueryType.REST;
+      case FLIGHT:
+        return com.dremio.service.job.proto.QueryType.FLIGHT;
       default:
         return com.dremio.service.job.proto.QueryType.UNKNOWN;
     }

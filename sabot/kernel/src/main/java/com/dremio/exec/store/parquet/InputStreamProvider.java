@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
@@ -50,4 +51,17 @@ public interface InputStreamProvider extends AutoCloseable {
    * @throws IOException
    */
   default Tuple<FSInputStream, Long> getBoostedStream(ColumnChunkMetaData column) throws IOException { return null; }
+
+
+  /**
+   * getOffsetIndexProvider.
+   */
+
+  OffsetIndexProvider getOffsetIndexProvider(List<ColumnChunkMetaData> columns);
+
+  /**
+   * getColumnIndexProvider.
+   */
+
+  ColumnIndexProvider getColumnIndexProvider(List<ColumnChunkMetaData> columns);
 }

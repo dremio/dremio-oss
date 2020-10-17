@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELERATOR_STORAGEPLUGIN_NAME;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -82,6 +83,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetOperatorCreator.class);
 
   public static BooleanValidator PREFETCH_READER = new BooleanValidator("store.parquet.prefetch_reader", true);
+  public static BooleanValidator READ_COLUMN_INDEXES = new BooleanValidator("store.parquet.read_column_indexes", true);
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
@@ -303,6 +305,10 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           final List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
           ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, getIcebergColumnIDList());
 
+          // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
+          boolean readColumnIndices = (context.getOptions().getOption(READ_COLUMN_INDEXES) &&
+                                      ((config.getConditions() != null) && (config.getConditions().size() >= 1)));
+
           inputStreamProvider = factory.create(
               fs,
               context,
@@ -316,7 +322,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               readFullFile,
               dataset,
               mTime,
-              config.isArrowCachingEnabled());
+              config.isArrowCachingEnabled(),
+              readColumnIndices);
           return null;
         });
       }
@@ -389,8 +396,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
                 vectorize,
                 enableDetailedTracing,
                 supportsColocatedReads,
-                inputStreamProvider
-              );
+                inputStreamProvider,
+                new ArrayList<>());
               inner = readerConfig.wrapIfNecessary(context.getAllocator(), innerParquetReader, datasetSplit);
             }
             return inner;

@@ -641,6 +641,7 @@ public class HiveTestDataGenerator {
 
     createTextTableWithDateColumn(hiveDriver, "text_date");
     createOrcTableWithDateColumn(hiveDriver, "orc_date", "text_date");
+    createOrcTableWithAncientDates(hiveDriver, "orc_date_table");
 
     createBigIntParquetTable(hiveDriver, "parquet_bigint");
 
@@ -2398,6 +2399,32 @@ public class HiveTestDataGenerator {
       String query = String.format("INSERT INTO %s (int_col) values(%s)", tableName, valueToInsert);
       executeQuery(hiveDriver, query);
     }
+  }
+
+  private void createOrcTableWithAncientDates(Driver hiveDriver, String tableName) {
+    String createCmd = "CREATE TABLE " + tableName + " (date_col date)" +
+      "ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.orc.OrcSerde'" +
+      "STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat'" +
+      "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'";
+
+    String insertCmd1 = "INSERT INTO " + tableName + " values('0001-01-01')";
+    String insertCmd2 = "INSERT INTO " + tableName + " values('0110-05-12')";
+    String insertCmd3 = "INSERT INTO " + tableName + " values('1105-10-06')";
+    String insertCmd4 = "INSERT INTO " + tableName + " values('1301-01-01')";
+    String insertCmd5 = "INSERT INTO " + tableName + " values('1476-05-31')";
+    String insertCmd6 = "INSERT INTO " + tableName + " values('1582-10-01')";
+    String insertCmd7 = "INSERT INTO " + tableName + " values('1790-07-17')";
+    String insertCmd8 = "INSERT INTO " + tableName + " values('2015-01-01')";
+
+    executeQuery(hiveDriver, createCmd);
+    executeQuery(hiveDriver, insertCmd1);
+    executeQuery(hiveDriver, insertCmd2);
+    executeQuery(hiveDriver, insertCmd3);
+    executeQuery(hiveDriver, insertCmd4);
+    executeQuery(hiveDriver, insertCmd5);
+    executeQuery(hiveDriver, insertCmd6);
+    executeQuery(hiveDriver, insertCmd7);
+    executeQuery(hiveDriver, insertCmd8);
   }
 
   private void insertValuesIntoTextTable(Driver hiveDriver, String table, List<String> valuesToInsert) {

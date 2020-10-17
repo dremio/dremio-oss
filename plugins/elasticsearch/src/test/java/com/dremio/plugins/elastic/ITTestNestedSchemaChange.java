@@ -17,12 +17,17 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.TestBuilder.mapOf;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.TestBuilder;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 
 /**
@@ -34,6 +39,9 @@ public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
 
   private static final String NEW_NESTED_COLUMN_1 = "/json/nested/new_nested_column/file1.json";
   private static final String NEW_NESTED_COLUMN_2 = "/json/nested/new_nested_column/file2.json";
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void enableReattempts() throws Exception {

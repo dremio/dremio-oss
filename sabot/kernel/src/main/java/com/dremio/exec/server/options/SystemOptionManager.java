@@ -38,6 +38,7 @@ import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.serialization.JacksonSerializer;
 import com.dremio.options.OptionChangeListener;
+import com.dremio.options.OptionChangeNotification;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
@@ -48,7 +49,11 @@ import com.dremio.options.OptionValueProto;
 import com.dremio.options.OptionValueProtoList;
 import com.dremio.service.Pointer;
 import com.dremio.service.Service;
+import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.SchedulerService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import com.google.inject.util.Providers;
 
 /**
  * {@link OptionManager} that holds options.  Only one instance of this class exists per node. Options set at the system
@@ -63,11 +68,19 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
   private static final String LEGACY_PROTO_STORE_NAME = "options";
   static final String OPTIONS_KEY = "options";
 
+  public static final String LOCAL_TASK_LEADER_NAME = "systemoptionpolling";
+  private static final int FETCH_SYSTEM_OPTION_POLLING_FREQUENCY_MIN = 1;
+
   private final OptionValidatorListing optionValidatorListing;
   private final LogicalPlanPersistence lpPersistance;
   private final Provider<LegacyKVStoreProvider> storeProvider;
+  private final Provider<SchedulerService> scheduler;
+  private final OptionChangeBroadcaster broadcaster;
   private final boolean inMemory;
   private final Set<OptionChangeListener> listeners = Sets.newConcurrentHashSet();
+  private volatile List<OptionValueProto> cachedOptionProtoList;
+  private long cacheCalls;
+  private long kvStoreCalls;
 
   /**
    * Persistent store for options that have been changed from default.
@@ -75,15 +88,33 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
    */
   private LegacyKVStore<String, OptionValueProtoList> options;
 
-  public SystemOptionManager(OptionValidatorListing optionValidatorListing,
-                             LogicalPlanPersistence lpPersistence,
-                             final Provider<LegacyKVStoreProvider> storeProvider,
-                             boolean inMemory) {
+  public SystemOptionManager(
+    OptionValidatorListing optionValidatorListing,
+    LogicalPlanPersistence lpPersistence,
+    final Provider<LegacyKVStoreProvider> storeProvider,
+    boolean inMemory
+  ) {
+    this(optionValidatorListing, lpPersistence, storeProvider, Providers.of(null), null, inMemory);
+  }
+
+  public SystemOptionManager(
+    OptionValidatorListing optionValidatorListing,
+    LogicalPlanPersistence lpPersistence,
+    final Provider<LegacyKVStoreProvider> storeProvider,
+    Provider<SchedulerService> scheduler,
+    OptionChangeBroadcaster broadcaster,
+    boolean inMemory
+  ) {
     super(optionValidatorListing);
     this.optionValidatorListing = optionValidatorListing;
     this.lpPersistance = lpPersistence;
     this.storeProvider = storeProvider;
     this.inMemory = inMemory;
+    this.scheduler = scheduler;
+    this.broadcaster = broadcaster;
+    cachedOptionProtoList = Collections.emptyList();
+    cacheCalls = 0;
+    kvStoreCalls = 0;
   }
 
     /**
@@ -98,6 +129,11 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     migrateLegacyOptions();
     updateBasedOnSystemProperties();
     filterInvalidOptions();
+    populateCache();
+    if (scheduler.get() != null) {
+      scheduler.get().schedule(Schedule.Builder.everyMinutes(FETCH_SYSTEM_OPTION_POLLING_FREQUENCY_MIN).build(),
+        new FetchSystemOptionTask());
+    }
   }
 
   private void filterInvalidOptions() {
@@ -143,6 +179,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     );
     if (!optionList.isEmpty()) {
       options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(optionList));
+      populateCache();
     }
     // Remove after the fact in case migration fails
     legacyOptionValues.forEach(
@@ -165,6 +202,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     );
     if (!optionList.isEmpty()) {
       options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(optionList));
+      populateCache();
     }
     // Remove after the fact in case migration fails
     legacyOptionValues.forEach(
@@ -207,9 +245,36 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     }
   }
 
-  private List<OptionValueProto> getOptionProtoList() {
+  private long getCacheCalls() {
+    return cacheCalls;
+  }
+
+  private long getKvStoreCalls() {
+    return kvStoreCalls;
+  }
+
+  public void populateCache() {
+    cachedOptionProtoList = getOptionProtoListFromStore();
+    notifyListeners();
+  }
+
+  @VisibleForTesting
+  public void clearCachedOptionProtoList() {
+    cachedOptionProtoList = Collections.emptyList();
+  }
+
+  public List<OptionValueProto> getOptionProtoListFromStore() {
     final OptionValueProtoList optionValueProtoList = options.get(OPTIONS_KEY);
+    kvStoreCalls++;
     return optionValueProtoList == null ? Collections.emptyList() : optionValueProtoList.getOptionsList();
+  }
+
+  private List<OptionValueProto> getOptionProtoList() {
+    if (broadcaster != null) {
+      cacheCalls++;
+      return cachedOptionProtoList;
+    }
+    return getOptionProtoListFromStore();
   }
 
   private OptionValueProto getOptionProto(String name) {
@@ -271,6 +336,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     }
     optionMap.put(name, OptionValueProtoUtils.toOptionValueProto(value));
     options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(optionMap.values()));
+    refreshAndNotifySiblings();
     notifyListeners();
     return true;
   }
@@ -294,6 +360,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
 
     if (needUpdate.value) {
       options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(newOptionValueProtoList));
+      refreshAndNotifySiblings();
     }
     notifyListeners();
     return true;
@@ -303,8 +370,21 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
   public boolean deleteAllOptions(OptionType type) {
     checkArgument(type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
     options.put(OPTIONS_KEY, OptionValueProtoList.newBuilder().build());
+    refreshAndNotifySiblings();
     notifyListeners();
     return true;
+  }
+
+  private void refreshAndNotifySiblings() {
+    populateCache();
+    if (broadcaster != null) {
+      final OptionChangeNotification request = OptionChangeNotification.newBuilder().build();
+      try {
+        broadcaster.communicateChange(request);
+      } catch (Exception e) {
+        logger.warn("Unable to communicate system option fetch request with other coordinators.", e);
+      }
+    }
   }
 
   private void notifyListeners() {
@@ -331,7 +411,6 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
   @Override
   public void close() throws Exception {
   }
-
 
   private void updateBasedOnSystemProperties() {
 
@@ -384,4 +463,15 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
   protected boolean supportsOptionType(OptionType type) {
     return type == OptionType.SYSTEM;
   }
+
+  class FetchSystemOptionTask implements Runnable {
+
+    @Override
+    public void run() {
+      logger.debug("Background fetch system option from kv store started.");
+      populateCache();
+      logger.debug("Up to now, there are {} cache calls and {} kv store call for system options", getCacheCalls(), getKvStoreCalls());
+    }
+  }
+
 }

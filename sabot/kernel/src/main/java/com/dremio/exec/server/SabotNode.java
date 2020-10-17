@@ -57,7 +57,9 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionChangeBroadcaster;
 import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionNotificationService;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.service.executor.ExecutorServiceProductClientFactory;
@@ -525,6 +527,8 @@ public class SabotNode implements AutoCloseable {
         );
         bind(ConduitProvider.class).toInstance(conduitProvider);
 
+        conduitServiceRegistry.registerService(new OptionNotificationService(registry.provider(SystemOptionManager.class)));
+
         final CoordExecService coordExecService = new CoordExecService(
                 bootstrap.getConfig(),
                 bootstrap.getAllocator(),
@@ -577,8 +581,16 @@ public class SabotNode implements AutoCloseable {
 
     @Provides
     @Singleton
-    SystemOptionManager getSystemOptionManager(OptionValidatorListing optionValidatorListing, LogicalPlanPersistence lpp, Provider<LegacyKVStoreProvider> kvStoreProvider) throws Exception {
-      return new SystemOptionManager(optionValidatorListing, lpp, kvStoreProvider, false);
+    SystemOptionManager getSystemOptionManager(OptionValidatorListing optionValidatorListing, LogicalPlanPersistence lpp, Provider<LegacyKVStoreProvider> kvStoreProvider, Provider<SchedulerService> schedulerService) throws Exception {
+      final OptionChangeBroadcaster systemOptionChangeBroadcaster =
+        new OptionChangeBroadcaster(
+          registry.provider(ConduitProvider.class),
+          () -> registry.provider(ClusterCoordinator.class)
+            .get()
+            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+            .getAvailableEndpoints(),
+          () -> registry.provider(SabotContext.class).get().getEndpoint());
+      return new SystemOptionManager(optionValidatorListing, lpp, kvStoreProvider, schedulerService, systemOptionChangeBroadcaster, false);
     }
 
     @Provides

@@ -34,6 +34,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -159,8 +160,8 @@ public class IcebergParquetReader implements RecordReader {
       vectorize,
       enableDetailedTracing,
       supportsColocatedReads,
-      inputStreamProvider
-    );
+      inputStreamProvider,
+      new ArrayList<>());
     currentReader.setIgnoreSchemaLearning(true);
     currentReader.setup(output);
   }
@@ -180,6 +181,13 @@ public class IcebergParquetReader implements RecordReader {
     }
 
     return currentReader.next();
+  }
+
+  @Override
+  public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    if (runtimeFilter != null) {
+      this.currentReader.addRuntimeFilter(runtimeFilter);
+    }
   }
 
   @Override

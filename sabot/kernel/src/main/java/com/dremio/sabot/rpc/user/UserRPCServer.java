@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import static com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowReq;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -373,6 +375,13 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         break;
       }
 
+      case RpcType.CREATE_PREPARED_STATEMENT_ARROW_VALUE: {
+        final CreatePreparedStatementArrowReq req = parse(pBody, CreatePreparedStatementArrowReq.PARSER, CreatePreparedStatementArrowReq.class);
+        UserRequest request = new UserRequest(RpcType.CREATE_PREPARED_STATEMENT_ARROW, req);
+        worker.submitWork(connection.getSession(), new PreparedStatementProvider.PreparedStatementArrowHandler(responseSender), request, registry);
+        break;
+      }
+
       case RpcType.GET_SERVER_META_VALUE: {
         final GetServerMetaReq req = parse(pBody, GetServerMetaReq.PARSER, GetServerMetaReq.class);
         UserRequest request = new UserRequest(RpcType.GET_SERVER_META, req);
@@ -695,7 +704,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   /**
    * Complete building the given builder for <i>BitToUserHandshake</i> message with given status and error details.
    *
-   * @param respBuilder Instance of {@link com.dremio.exec.proto.UserProtos.BitToUserHandshake} builder which
+   * @param respBuilder Instance of {@link BitToUserHandshake} builder which
    *                    has RPC version field already set.
    * @param status  Status of handling handshake request.
    * @param errMsg  Error message.

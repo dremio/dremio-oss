@@ -217,8 +217,8 @@ public class TestCTASWithOptions extends PlanTestBase {
           .sqlQuery("SELECT dir0, region_id, sales_city FROM TABLE(\"dfs_test\".\"testParquetWithPartition\"(type => 'parquet'))")
           .unOrdered()
           .baselineColumns("dir0", "region_id", "sales_city")
-          .baselineValues("0", 0L, "None")
-          .baselineValues("1", 1L, "San Francisco")
+          .baselineValues("0_0", 0L, "None")
+          .baselineValues("1_1", 1L, "San Francisco")
           .go();
     } finally {
       test("DROP TABLE dfs_test.testParquetWithPartition");

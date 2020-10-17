@@ -17,6 +17,8 @@ package com.dremio.exec.work;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.dremio.common.DeferredException;
 import com.dremio.exec.proto.CoordExecRPC.NodeStatResp;
@@ -28,6 +30,8 @@ import io.grpc.stub.StreamObserver;
  * Allows a set of node statistic responses to be collected and considered upon completion.
  */
 public class NodeStatsListener implements StreamObserver<NodeStatResp> {
+  private static final int TIMEOUT = 15;
+
   private final CountDownLatch latch;
 
   private final DeferredException ex;
@@ -40,7 +44,10 @@ public class NodeStatsListener implements StreamObserver<NodeStatResp> {
   }
 
   public void waitForFinish() throws Exception {
-    latch.await();
+    boolean succeed = latch.await(TIMEOUT, TimeUnit.SECONDS);
+    if (!succeed) {
+      ex.addException(new TimeoutException("Failed to collect node statistics within timeout"));
+    }
     ex.close();
   }
 

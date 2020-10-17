@@ -137,6 +137,8 @@ public class ExpressionTest extends ExecTest {
     when(mockFunctionContext.getCompilationOptions()).thenReturn(compilationOptions);
     final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, null, mockFunctionContext).getRoot();
     cg.addExpr(new ValueVectorWriteExpression(new TypedFieldId(materializedExpr.getCompleteType(), -1), materializedExpr));
-    return cg.getCodeGenerator().generateAndGet();
+    CodeGenerator codeGen = cg.getCodeGenerator();
+    codeGen.generate();
+    return codeGen.getGeneratedCode();
   }
 }

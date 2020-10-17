@@ -74,6 +74,7 @@ export const EC2_FIELDS_MAP = EC2_FIELDS.reduce((a, field) => {
 export const DREMIO_CUSTOM_REGION = '$DREMIO_CUSTOM_ENDPOINT_URL$';
 
 export const AWS_INSTANCE_TYPE_OPTIONS = [
+  {label: 'Evaluation m5d.2xlarge (8c/32gb)', value: 'm5d.2xlarge'},
   {label: 'Standard m5d.8xlarge (32c/128gb)', value: 'm5d.8xlarge'},
   {label: 'High Memory r5d.4xlarge (16c/128gb)', value: 'r5d.4xlarge'},
   {label: 'High CPU c5d.18xlarge (72c/144gb)', value: 'c5d.18xlarge'},

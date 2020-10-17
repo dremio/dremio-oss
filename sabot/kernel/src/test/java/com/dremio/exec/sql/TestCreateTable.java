@@ -161,8 +161,8 @@ public class TestCreateTable extends PlanTestBase {
       HadoopTables hadoopTables = new HadoopTables(new Configuration());
 
       Schema schema = new Schema(
-        Types.NestedField.optional(1, "col1", Types.MapType.ofOptional(1, 2, Types.IntegerType.get(), Types.StringType.get())),
-        Types.NestedField.optional(2, "col2", Types.IntegerType.get())
+        Types.NestedField.optional(1, "col1", Types.MapType.ofOptional(2, 3, Types.IntegerType.get(), Types.StringType.get())),
+        Types.NestedField.optional(4  , "col2", Types.IntegerType.get())
       );
       PartitionSpec spec = PartitionSpec
         .builderFor(schema)

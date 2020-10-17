@@ -33,8 +33,8 @@
   </appender>
 
   <logger name="com.dremio" additivity="false">
-    <level value="debug" />
-    <appender-ref ref="SOCKET" />
+    <level value="error" />
+    <appender-ref ref="STDOUT" />
   </logger>
 
   <logger name="query.logger" additivity="false">

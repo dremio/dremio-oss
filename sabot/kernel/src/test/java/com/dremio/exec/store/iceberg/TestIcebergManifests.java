@@ -116,30 +116,31 @@ public class TestIcebergManifests extends BaseTestQuery {
 
   public int getManifestFileCount(PartitionSpec partitionSpec, int partitionValueSize, int dataFilesCount,
                                    String columnName, int insertCount) throws Exception {
-    File tableFolder = new File(folder.getRoot(), "icebergPartitionTest");
+    String tableName = "icebergPartitionTest";
+    File tableFolder = new File(folder.getRoot(), tableName);
     try {
       tableFolder.mkdir();
 
-      IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(Path.of(tableFolder.toPath().toString()),
+      IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(tableName, Path.of(tableFolder.toPath().toString()),
         (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
       committer.consumeData(getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName));
       committer.commit();
 
       Table table = new HadoopTables(new Configuration()).load(tableFolder.getPath());
-      Assert.assertEquals(1, table.currentSnapshot().manifests().size());
+      Assert.assertEquals(1, table.currentSnapshot().allManifests().size());
 
       table.updateProperties()
         .set(TableProperties.MANIFEST_TARGET_SIZE_BYTES, "20480")
         .commit();
 
       for (int i=0; i<insertCount; ++i) {
-        committer = IcebergOperation.getInsertTableCommitter(Path.of(tableFolder.toPath().toString()),
-          (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
+        committer = IcebergOperation.getInsertTableCommitter(tableName,
+          Path.of(tableFolder.toPath().toString()), (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
         committer.consumeData(getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName));
         committer.commit();
       }
       table = new HadoopTables(new Configuration()).load(tableFolder.getPath());
-      return table.currentSnapshot().manifests().size();
+      return table.currentSnapshot().allManifests().size();
     }
     finally {
       tableFolder.delete();

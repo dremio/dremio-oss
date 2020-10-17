@@ -163,17 +163,26 @@ public class JobResultsStore implements Service {
 
       final List<ArrowFileMetadata> resultFilesToRead = Lists.newArrayList();
       int runningFileRecordCount = 0;
+      int remainingRecords = limit;
       for(ArrowFileMetadata fileMetadata : resultMetadata) {
         if (offset < runningFileRecordCount + fileMetadata.getRecordCount()) {
           resultFilesToRead.add(fileMetadata);
 
+          // offset within current file to read records
+          long fileOffset = 0; // fileOffset will be 0 from second file to be read for records.
           if (resultFilesToRead.size() == 1) {
             // update the given offset to start from the current file
             offset -= runningFileRecordCount;
+            fileOffset = offset; // fileOffset will be "offset" for the first file to be read for records.
           }
 
-          // Check if the offset + limit falls within the current file
-          if (offset + limit <= runningFileRecordCount + fileMetadata.getRecordCount()) {
+          // Find how many records to read from current file.
+          // Min of remaining records in file or remaining records in total to read.
+          long fileLimit = Math.min(fileMetadata.getRecordCount() - fileOffset, remainingRecords);
+          remainingRecords -= fileLimit;
+
+          // stop including files if there are no remainingRecords to be included.
+          if (remainingRecords <=0) {
             break;
           }
         }
@@ -305,6 +314,7 @@ public class JobResultsStore implements Service {
 
     for(ArrowFileMetadata afm: arrowFileMetadataList) {
       com.dremio.exec.proto.beans.NodeEndpoint screenNodeEndpoint = afm.getScreenNodeEndpoint();
+
       if (screenNodeEndpoint != null) {
         nodeEndpoints.add(fromBean(screenNodeEndpoint));
       }

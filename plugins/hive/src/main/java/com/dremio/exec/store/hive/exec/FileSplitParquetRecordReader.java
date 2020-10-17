@@ -16,6 +16,7 @@
 package com.dremio.exec.store.hive.exec;
 
 import static com.dremio.exec.store.parquet.ParquetOperatorCreator.PREFETCH_READER;
+import static com.dremio.exec.store.parquet.ParquetOperatorCreator.READ_COLUMN_INDEXES;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -36,6 +37,8 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -53,7 +56,9 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.resolver.TypeCastRules;
+import com.dremio.exec.store.CompositeColumnFilter;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.AsyncStreamConf;
 import com.dremio.exec.store.dfs.EmptySplitReaderCreator;
@@ -66,6 +71,7 @@ import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
 import com.dremio.exec.store.parquet.ManagedSchema;
+import com.dremio.exec.store.parquet.ManagedSchemaField;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
@@ -75,6 +81,7 @@ import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.exec.util.BatchSchemaField;
+import com.dremio.exec.util.ValueListFilter;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -125,8 +132,10 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final ManagedSchema managedSchema;
   private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
   private Iterator<RecordReader> innerReadersIter;
+  private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
   private FileSplitParquetRecordReader nextFileSplitReader;
+  private OutputMutator outputMutator;
 
   public FileSplitParquetRecordReader(
     final BaseHiveStoragePlugin hiveStoragePlugin,
@@ -222,6 +231,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       org.apache.hadoop.fs.Path finalPath  = new org.apache.hadoop.fs.Path(uri);
+      boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
 
       final PrivilegedExceptionAction<FileSystem> getFsAction =
         () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled()),
@@ -261,8 +271,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
         readFullFile,
         dataset,
         fileAttributes.lastModifiedTime().toMillis(),
-        false
-      );
+        false,
+        (((conditions != null) && (conditions.size() >=1)) && (readColumnIndices == true)));
     } catch (Exception e) {
       // Close input stream provider in case of errors
       if (inputStreamProviderOfFirstRowGroup != null) {
@@ -287,6 +297,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
+    this.outputMutator = output;
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
       // no-op except for the first split
@@ -326,7 +337,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       ((SampleMutator) output).getContainer().buildSchema();
       output.getAndResetSchemaChanged();
       checkFieldTypesCompatibleWithHiveTable(output, tableSchema);
-
+      removeIncompatibleFilters();
       oContext.getStats()
         .addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
 
@@ -385,6 +396,80 @@ public class FileSplitParquetRecordReader implements RecordReader {
       fileAttributes = null;
     }
   }
+
+  private void removeIncompatibleFilters() {
+    this.runtimeFilters = runtimeFilters.stream().map(this::removeIncompatibleCols)
+            .filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+  }
+
+  private Optional<RuntimeFilter> removeIncompatibleCols(RuntimeFilter runtimeFilter) {
+    if (outputMutator==null) {
+      return Optional.empty();
+    }
+
+    try {
+      final List<CompositeColumnFilter> compositeColumnFilters = new ArrayList<>(runtimeFilter.getNonPartitionColumnFilters().size());
+      for (CompositeColumnFilter colFilter : runtimeFilter.getNonPartitionColumnFilters()) {
+        final ValueListFilter valueList = colFilter.getValueList();
+        final String colName = colFilter.getColumnsList().get(0).toLowerCase();
+
+        final Optional<ManagedSchemaField> fieldOptional = managedSchema.getField(colName);
+        if (!fieldOptional.isPresent()) {
+          logger.warn("Runtime filter for col {} is dropped because it is not found in hive schema.", colFilter.getColumnsList());
+          oContext.getStats().addLongStat(ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT, 1);
+          continue;
+        }
+        final ManagedSchemaField field = fieldOptional.get();
+        if (field.isTextField() && !field.isUnbounded()) {
+          logger.warn("Runtime filter for col {} is dropped because varchar truncation is enabled.", colFilter.getColumnsList());
+          oContext.getStats().addLongStat(ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT, 1);
+          continue;
+        }
+
+        if (valueList.getFieldType()==Types.MinorType.DECIMAL) {
+          Optional<ArrowType.Decimal> parquetColType = getParquetDecimalType(colName, this.outputMutator);
+          boolean isCompatibleDecimal = parquetColType.isPresent()
+                  && parquetColType.get().getPrecision()==valueList.getPrecision()
+                  && parquetColType.get().getScale()==valueList.getScale();
+          if (!isCompatibleDecimal) {
+            logger.warn("Runtime filter for col [{}] is dropped because decimal precision scale {}:{} are different from the parquet schema {}:{}.",
+                    colName, valueList.getPrecision(), valueList.getScale(), parquetColType.get().getPrecision(), parquetColType.get().getScale());
+            oContext.getStats().addLongStat(ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT, 1);
+            continue;
+          }
+        }
+
+        compositeColumnFilters.add(colFilter);
+      }
+      if (compositeColumnFilters.isEmpty()) {
+        logger.warn("Runtime filter from {} dropped because all individual column filters are dropped.", runtimeFilter.getSenderInfo());
+        // TO DO: Update filter drop statistics
+        return Optional.empty();
+      }
+      final RuntimeFilter returnFilter = new RuntimeFilter(runtimeFilter.getPartitionColumnFilter(),
+              runtimeFilter.getNonPartitionColumnFilters(), runtimeFilter.getSenderInfo());
+      return Optional.of(returnFilter);
+    } catch (Exception e) {
+      logger.warn("Error while evaluating compatibility of runtime filters. Hence, dropping the filter " + runtimeFilter, e);
+      oContext.getStats().addLongStat(ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT,
+              runtimeFilter.getNonPartitionColumnFilters().size());
+      return Optional.empty();
+    }
+  }
+
+  private Optional<ArrowType.Decimal> getParquetDecimalType(String colName, OutputMutator mutator) {
+    if (mutator == null) {
+      return Optional.empty();
+    }
+    final ValueVector vv = mutator.getVector(colName);
+    if (vv == null) {
+      Optional.empty();
+    }
+
+    final ArrowType arrowType = vv.getField().getType();
+    return (arrowType instanceof ArrowType.Decimal) ? Optional.of((ArrowType.Decimal)arrowType) : Optional.empty();
+  }
+
 
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
@@ -593,7 +678,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
             vectorize,
             enableDetailedTracing,
             true,
-            inputStreamProvider
+            inputStreamProvider,
+            runtimeFilters
           );
           innerReader.setIgnoreSchemaLearning(true);
 
@@ -620,10 +706,12 @@ public class FileSplitParquetRecordReader implements RecordReader {
         }
         handleEx(() -> {
           final List<String> dataset = tablePath == null || tablePath.isEmpty() ? null : tablePath.iterator().next();
+          boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
           inputStreamProvider = inputStreamProviderFactory.create(fs, oContext, path, fileLength, splitXAttr.getLength(),
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, (f) -> splitXAttr.getRowGroupIndex(),
             (a, b) -> {}, // prefetching happens in this.createRecordReader()
-            readFullFile, dataset, splitXAttr.getLastModificationTime(), false);
+            readFullFile, dataset, splitXAttr.getLastModificationTime(), false,
+            ((conditions != null) && (conditions.size() >=1) && readColumnIndices));
           return null;
         });
       }
@@ -633,5 +721,17 @@ public class FileSplitParquetRecordReader implements RecordReader {
         AutoCloseables.close(innerReader, inputStreamProvider);
       }
     }
+  }
+
+  @Override
+  public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    if (runtimeFilter == null || runtimeFilters.contains(runtimeFilter)) {
+      return;
+    }
+
+    removeIncompatibleCols(runtimeFilter).ifPresent(filter -> {
+      Optional.ofNullable(this.currentReader).ifPresent(cr -> cr.addRuntimeFilter(runtimeFilter));
+    });
+    this.runtimeFilters.add(runtimeFilter);
   }
 }

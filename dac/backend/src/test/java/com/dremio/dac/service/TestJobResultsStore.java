@@ -43,6 +43,7 @@ import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -59,6 +60,7 @@ import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobDataFragment;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobResultsStore;
 import com.dremio.service.jobs.JobsProtoUtil;
@@ -102,8 +104,7 @@ public class TestJobResultsStore extends BaseTestServer {
    */
   @Test
   public void testResultsHonoringOffsetLimit() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
-    SqlQuery sqlQuery = getQueryFromSQL("select * from cp.\"datasets/parquet/5000rows.parquet\" LIMIT 5000");
+    SqlQuery sqlQuery = getQueryFromSQL("select * from cp.\"datasets/5000rows/5000rows.parquet\" LIMIT 5000");
     final JobId jobId = submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
                 .setSqlQuery(sqlQuery)
@@ -116,20 +117,55 @@ public class TestJobResultsStore extends BaseTestServer {
     int[] expectedRows = new int[] {5000, 100,  100,  100, 1032};
 
     for(int i=0;i<offsets.length; i++) {
+      fetchValidateResultsAtOffset(jobId, offsets[i], limits[i], expectedRows[i]);
+    }
+  }
 
-     try (
-        final JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, offsets[i], limits[i]);
-        final JobDataFragment result = JobDataClientUtils.getJobData(jobsService,
-                                                                     allocator,
-                                                                     jobId,
-                                                                     offsets[i],
-                                                                     limits[i]);
-      ) {
-        assertEquals("Number of records received are incorrect for offset:" + offsets[i] + ", limit:" + limits[i],
-                     expectedRows[i] ,
-                     result.getReturnedRowCount());
-        validateResults(storedResult, result);
+  private void fetchValidateResultsAtOffset(JobId jobId, int offset, int limit, int expectedRows) throws JobNotFoundException {
+    try (
+      JobDataFragment expectedResult = l(LocalJobsService.class).getJobData(jobId, offset, limit);
+      JobDataFragment actualResult = JobDataClientUtils.getJobData(l(JobsService.class), allocator, jobId, offset, limit);
+    ) {
+      assertEquals("Number of records received are incorrect for offset:" + offset + ", limit:" + limit,
+                   expectedRows,
+                   actualResult.getReturnedRowCount());
+      validateResults(expectedResult, actualResult);
+    }
+  }
+
+  /**
+   * Are UI query results honoring offset and limit properly ?
+   * Are actual results same as expected results ?
+   * This unit test tests when results are stored in multiple arrow files
+   * and offset and limit spans multiple arrow files.
+   */
+  @Test
+  public void testResultsHonoringOffsetLimitMultipleArrowFiles() throws Exception {
+    SqlQuery sqlQuery = getQueryFromSQL("SELECT * " +
+                                        "FROM      cp.\"datasets/parquet_offset/offset1.parquet\" a " +
+                                        "FULL JOIN cp.\"datasets/parquet_offset/offset2.parquet\" b " +
+                                        "ON a.column1 = b.column1 ");
+
+    // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
+    // This is reset at end of this method.
+    setSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, "5");
+    try {
+      final JobId jobId = submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+          .setSqlQuery(sqlQuery)
+          .setQueryType(QueryType.UI_RUN)
+          .build()
+      );
+
+      int[] offsets = new int[]      {2007785};
+      int[] limits = new int[]       {    500};
+      int[] expectedRows = new int[] {    500};
+
+      for (int i = 0; i < offsets.length; i++) {
+        fetchValidateResultsAtOffset(jobId, offsets[i], limits[i], expectedRows[i]);
       }
+    } finally {
+      resetSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 

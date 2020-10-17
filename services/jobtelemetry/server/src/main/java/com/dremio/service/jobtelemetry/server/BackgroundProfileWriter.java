@@ -22,9 +22,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 
 import io.opentracing.Tracer;

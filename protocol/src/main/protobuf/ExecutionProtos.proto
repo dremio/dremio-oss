@@ -64,6 +64,7 @@ message CompositeColumnFilter {
   optional RuntimeFilterType filterType = 1;
   repeated string columns = 2; // the order in which the columns are encoded in the serializedFilter
   optional int64 sizeBytes = 3;
+  optional int64 valueCount = 4;
 }
 
 /**

@@ -366,10 +366,17 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
     try {
       systemUserFS.access(config.getPath(), ImmutableSet.of(AccessMode.READ));
-      return SourceState.GOOD;
+    } catch (AccessControlException ace) {
+      logger.debug("Falling back to listing of source to check health", ace);
+      try {
+        systemUserFS.list(config.getPath());
+      } catch (Exception e) {
+        return SourceState.badState("", e);
+      }
     } catch (Exception e) {
       return SourceState.badState("", e);
     }
+    return SourceState.GOOD;
   }
 
   @Override
@@ -1086,24 +1093,25 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public void truncateTable(NamespaceKey key, SchemaConfig schemaConfig) {
-    IcebergOperation.truncateTable(validateAndGetPath(key, schemaConfig), fsConf);
+    IcebergOperation.truncateTable(getTableName(key), validateAndGetPath(key, schemaConfig), fsConf);
   }
 
   @Override
   public void addColumns(NamespaceKey key, List<Field> columnsToAdd, SchemaConfig schemaConfig) {
-    IcebergOperation.addColumns(validateAndGetPath(key, schemaConfig),
-        columnsToAdd.stream().map(SchemaConverter::toIcebergColumn).collect(Collectors.toList()), fsConf);
+    SchemaConverter.NextIDImpl id = new SchemaConverter.NextIDImpl();
+    IcebergOperation.addColumns(getTableName(key),
+      validateAndGetPath(key, schemaConfig), columnsToAdd.stream().map(f -> SchemaConverter.toIcebergColumn(f, id)).collect(Collectors.toList()), fsConf);
   }
 
   @Override
   public void dropColumn(NamespaceKey table, String columnToDrop, SchemaConfig schemaConfig) {
-    IcebergOperation.dropColumn(validateAndGetPath(table, schemaConfig), columnToDrop, fsConf);
+    IcebergOperation.dropColumn(getTableName(table), validateAndGetPath(table, schemaConfig), columnToDrop, fsConf);
   }
 
   @Override
   public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSql, SchemaConfig schemaConfig) {
-    IcebergOperation.changeColumn(validateAndGetPath(table, schemaConfig), columnToChange,
-        fieldFromSql, fsConf);
+    IcebergOperation.changeColumn(getTableName(table), validateAndGetPath(table, schemaConfig),
+      columnToChange, fieldFromSql, fsConf);
   }
 
   private Path validateAndGetPath(NamespaceKey table, SchemaConfig schemaConfig) {
@@ -1264,7 +1272,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       throw UserException.validationError(e).message("Failure to check if table already exists at path %s.", key).buildSilently();
     }
 
-    IcebergOpCommitter icebergOpCommitter = IcebergOperation.getCreateTableCommitter(path, batchSchema,
+    IcebergOpCommitter icebergOpCommitter = IcebergOperation.getCreateTableCommitter(tableName, path, batchSchema,
       writerOptions.getPartitionColumns(), fsConf);
     icebergOpCommitter.consumeData(Collections.emptyList()); // adds snapshot
     icebergOpCommitter.commit();
@@ -1314,6 +1322,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     if (icebergTableProps != null) {
       icebergTableProps = new IcebergTableProps(icebergTableProps);
       icebergTableProps.setTableLocation(path.toString());
+      icebergTableProps.setTableName(tableName);
       Preconditions.checkState(icebergTableProps.getUuid() != null &&
         !icebergTableProps.getUuid().isEmpty(), "Unexpected state. UUID must be set");
       path = path.resolve(icebergTableProps.getUuid());

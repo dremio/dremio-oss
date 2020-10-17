@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
+import static com.dremio.exec.ExecConstants.ELASTIC_ACTION_RETRIES_VALIDATOR;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.aliasName;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
 import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
@@ -51,6 +52,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionValue;
 import com.dremio.plugins.Version;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
@@ -180,8 +182,8 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       allowPushdownNormalizedOrAnalyzedFields = pushdownAnalyzed.enabled();
     }
 
-
-    elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled);
+    getSabotContext().getOptionManager().setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ELASTIC_ACTION_RETRIES, 3));
+    elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled, getSabotContext().getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR));
     SourceConfig sc = new SourceConfig();
     sc.setName("elasticsearch");
     sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields));

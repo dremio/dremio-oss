@@ -169,20 +169,35 @@ public class SchemaConverter {
     }
   }
 
+  public static class NextIDImpl implements TypeUtil.NextID {
+    private int id = 0;
+    public int get() {
+      int curid = id;
+      id++;
+      return curid;
+    }
+  }
+
   public org.apache.iceberg.Schema toIceberg(BatchSchema schema) {
+    NextIDImpl id = new NextIDImpl();
+    return toIceberg(schema, id);
+  }
+
+  public org.apache.iceberg.Schema toIceberg(BatchSchema schema, TypeUtil.NextID id) {
     org.apache.iceberg.Schema icebergSchema = new org.apache.iceberg.Schema(schema
       .getFields()
       .stream()
       .filter(x -> !x.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD))
-      .map(x -> toIcebergColumn(x))
+      .map(x -> toIcebergColumn(x, id))
       .collect(Collectors.toList()));
 
     return TypeUtil.assignIncreasingFreshIds(icebergSchema);
   }
 
-  public static NestedField toIcebergColumn(Field field) {
+  public static NestedField changeIcebergColumn(Field field, NestedField icebergField) {
     try {
-      return NestedField.optional(0, field.getName(), toIcebergType(CompleteType.fromField(field)));
+      return NestedField.optional(icebergField.fieldId(), field.getName(),
+        icebergField.type().isPrimitiveType() ? toIcebergType(CompleteType.fromField(field), new NextIDImpl()) : icebergField.type());
     } catch (Exception e) {
       throw UserException.unsupportedError(e)
         .message("conversion from arrow type to iceberg type failed for field " + field.getName())
@@ -190,7 +205,17 @@ public class SchemaConverter {
     }
   }
 
-  private static Type toIcebergType(CompleteType completeType) {
+  public static NestedField toIcebergColumn(Field field, TypeUtil.NextID id) {
+    try {
+      return NestedField.optional(id.get(), field.getName(), toIcebergType(CompleteType.fromField(field), id));
+    } catch (Exception e) {
+      throw UserException.unsupportedError(e)
+        .message("conversion from arrow type to iceberg type failed for field " + field.getName())
+        .buildSilently();
+    }
+  }
+
+  private static Type toIcebergType(CompleteType completeType, TypeUtil.NextID id) {
     ArrowType arrowType = completeType.getType();
     return arrowType.accept(new ArrowTypeVisitor<Type>() {
       @Override
@@ -203,14 +228,14 @@ public class SchemaConverter {
         List<NestedField> children = completeType
           .getChildren()
           .stream()
-          .map(x -> toIcebergColumn(x))
+          .map(x -> toIcebergColumn(x, id))
           .collect(Collectors.toList());
         return StructType.of(children);
       }
 
       @Override
       public Type visit(ArrowType.List list) {
-        NestedField inner = toIcebergColumn(completeType.getOnlyChild());
+        NestedField inner = toIcebergColumn(completeType.getOnlyChild(), id);
         return ListType.ofOptional(inner.fieldId(), inner.type());
       }
 
@@ -229,7 +254,7 @@ public class SchemaConverter {
         List<NestedField> children = completeType
           .getChildren()
           .stream()
-          .map(x -> toIcebergColumn(x))
+          .map(x -> toIcebergColumn(x, id))
           .collect(Collectors.toList());
         return MapType.ofOptional(
           children.get(0).fieldId(),

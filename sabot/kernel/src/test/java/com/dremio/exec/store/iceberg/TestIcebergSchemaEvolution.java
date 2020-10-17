@@ -200,10 +200,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
       changeColumn(TEMP_SCHEMA + "." + complex_column_rename_test, "col2", "c2", "int");
       Thread.sleep(1001);
 
-      IcebergOperation.renameColumn(
-        Path.of(getDfsTestTmpSchemaLocation()).resolve(complex_column_rename_test),
-        "col1", "c1",
-        new Configuration());
+      IcebergOperation.renameColumn(complex_column_rename_test,
+              Path.of(getDfsTestTmpSchemaLocation()).resolve(complex_column_rename_test), "col1",
+              "c1", new Configuration());
       Thread.sleep(1001);
 
       String metadataRefresh = "alter table " + TEMP_SCHEMA + "." + complex_column_rename_test +

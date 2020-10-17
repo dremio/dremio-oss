@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.joda.time.Period;
 
 import com.dremio.common.exceptions.UserException;
@@ -32,8 +33,10 @@ import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.ColumnSearchability;
 import com.dremio.exec.proto.UserProtos.ColumnUpdatability;
+import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowResp;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
 import com.dremio.exec.proto.UserProtos.PreparedStatement;
+import com.dremio.exec.proto.UserProtos.PreparedStatementArrow;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
 import com.dremio.exec.proto.UserProtos.ResultColumnMetadata;
@@ -42,6 +45,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.work.protector.ResponseSenderHandler;
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.ByteString;
 
 /**
  * Contains worker {@link Runnable} for creating a prepared statement and helper methods.
@@ -77,17 +81,54 @@ public class PreparedStatementProvider {
       .put(MinorType.UNION, Object.class.getName())
       .build();
 
-  public static CreatePreparedStatementResp build(BatchSchema schema, ServerPreparedStatementState handle,
+  public static CreatePreparedStatementResp build(BatchSchema batchSchema, ServerPreparedStatementState handle,
                                                   QueryId queryId, String catalogName) {
     final CreatePreparedStatementResp.Builder respBuilder = CreatePreparedStatementResp.newBuilder();
     final PreparedStatement.Builder prepStmtBuilder = PreparedStatement.newBuilder();
     prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
-    for (Field field : schema) {
+
+    for (Field field : batchSchema) {
       prepStmtBuilder.addColumns(serializeColumn(field, catalogName));
     }
+
     respBuilder.setStatus(RequestStatus.OK);
     respBuilder.setPreparedStatement(prepStmtBuilder.build());
     respBuilder.setQueryId(queryId);
+
+    return respBuilder.build();
+  }
+
+  public static CreatePreparedStatementArrowResp buildArrow(BatchSchema batchSchema, ServerPreparedStatementState handle,
+                                                  QueryId queryId, String catalogName) {
+    final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
+    final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
+    prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
+
+    // Capture flatbuffer arrow schema representation of fields for use by some clients.
+    final Schema arrowSchema = new Schema(batchSchema.getFields());
+    prepStmtBuilder.setArrowSchema(ByteString.copyFrom(arrowSchema.toByteArray()));
+
+    respBuilder.setStatus(RequestStatus.OK);
+    respBuilder.setPreparedStatement(prepStmtBuilder.build());
+    respBuilder.setQueryId(queryId);
+
+    return respBuilder.build();
+  }
+
+  public static CreatePreparedStatementArrowResp buildArrow(BatchSchema batchSchema, ServerPreparedStatementState handle,
+                                                  QueryId queryId) {
+    final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
+    final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
+    prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
+
+    // Capture flatbuffer arrow schema representation of fields for use by some clients.
+    final Schema arrowSchema = new Schema(batchSchema.getFields());
+    prepStmtBuilder.setArrowSchema(ByteString.copyFrom(arrowSchema.toByteArray()));
+
+    respBuilder.setStatus(RequestStatus.OK);
+    respBuilder.setPreparedStatement(prepStmtBuilder.build());
+    respBuilder.setQueryId(queryId);
+
     return respBuilder.build();
   }
 
@@ -197,6 +238,22 @@ public class PreparedStatementProvider {
     @Override
     protected CreatePreparedStatementResp getException(UserException ex) {
       final CreatePreparedStatementResp.Builder respBuilder = CreatePreparedStatementResp.newBuilder();
+      respBuilder.setStatus(RequestStatus.FAILED);
+      respBuilder.setError(ex.getOrCreatePBError(false));
+      return respBuilder.build();
+    }
+
+  }
+
+  public static class PreparedStatementArrowHandler extends ResponseSenderHandler<CreatePreparedStatementArrowResp> {
+
+    public PreparedStatementArrowHandler(ResponseSender sender) {
+      super(RpcType.PREPARED_STATEMENT_ARROW, CreatePreparedStatementArrowResp.class, sender);
+    }
+
+    @Override
+    protected CreatePreparedStatementArrowResp getException(UserException ex) {
+      final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
       respBuilder.setStatus(RequestStatus.FAILED);
       respBuilder.setError(ex.getOrCreatePBError(false));
       return respBuilder.build();

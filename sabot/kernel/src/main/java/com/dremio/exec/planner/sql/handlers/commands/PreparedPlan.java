@@ -17,7 +17,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.sql.handlers.commands.HandlerToPreparePlan.RecordingObserver;
+import com.dremio.exec.planner.sql.handlers.commands.HandlerToPreparePlanBase.RecordingObserver;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 
 /**

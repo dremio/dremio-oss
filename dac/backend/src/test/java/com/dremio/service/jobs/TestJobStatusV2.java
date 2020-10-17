@@ -19,6 +19,7 @@ import static com.dremio.BaseTestQuery.getFile;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -30,12 +31,14 @@ import java.util.UUID;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.modelmapper.internal.util.Assert;
 
 import com.dremio.BaseTestQuery.QueryIdCapturingListener;
 import com.dremio.QueryTestUtil;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.datastore.DatastoreException;
 import com.dremio.exec.maestro.QueryTrackerImpl;
 import com.dremio.exec.maestro.ResourceTracker;
 import com.dremio.exec.proto.UserBitShared;
@@ -50,6 +53,7 @@ import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
+import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsServiceGrpc;
@@ -57,6 +61,7 @@ import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Preconditions;
 
+import ch.qos.logback.classic.Level;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -67,6 +72,7 @@ import io.grpc.inprocess.InProcessServerBuilder;
  * Tests for JobStatusV2
  */
 public class TestJobStatusV2 extends BaseTestServer {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJobStatusV2.class);
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   private static String query;
 
@@ -74,6 +80,9 @@ public class TestJobStatusV2 extends BaseTestServer {
   private static ManagedChannel channel;
   private static JobsServiceStub asyncStub;
   private static ChronicleBlockingStub chronicleStub;
+
+  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static Level originalLogLevel;
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -92,10 +101,15 @@ public class TestJobStatusV2 extends BaseTestServer {
     chronicleStub = ChronicleGrpc.newBlockingStub(channel);
 
     query = getFile("tpch_quoted.sql");
+    originalLogLevel = rootLogger.getLevel();
+    rootLogger.setLevel(Level.DEBUG);
+    LocalJobsService localJobsService = l(LocalJobsService.class);
+    localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
   }
 
   @AfterClass
   public static void cleanUp() {
+    rootLogger.setLevel(originalLogLevel);
     if (server != null) {
       server.shutdown();
     }
@@ -415,5 +429,163 @@ public class TestJobStatusV2 extends BaseTestServer {
       .build();
 
     injectException(controls, AttemptManager.INJECTOR_PLAN_ERROR);
+  }
+
+  private void injectTailProfileException(String controls, String expectedDesc) throws Exception {
+    JobId jobId = null;
+    try {
+      ControlsInjectionUtil.setControls(getRpcClient(), controls);
+      QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
+      final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+      QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener);
+
+      // wait till we have a queryId
+      UserBitShared.QueryId queryId;
+      while ((queryId = capturingListener.getQueryId()) == null) {
+        Thread.sleep(10);
+      }
+      jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+      listener.await();
+    } catch (UserRemoteException e) {
+      assertTrue(e.getMessage().contains(expectedDesc));
+    }
+
+    Assert.notNull(jobId);
+
+    JobState jobState = chronicleStub.getJobSummary(
+      JobSummaryRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setUserName(DEFAULT_USERNAME)
+        .build()).getJobState();
+
+    Assert.isTrue(jobState == JobState.FAILED);
+
+  }
+
+  @Test
+  public void testTailProfileFailedState() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(AttemptManager.class, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR,
+        RuntimeException.class)
+      .build();
+
+    injectTailProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR);
+  }
+
+  private void injectAttemptCompletionException(String controls) throws Exception {
+    JobId jobId = null;
+    ControlsInjectionUtil.setControls(getRpcClient(), controls);
+    QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener);
+
+    // wait till we have a queryId
+    UserBitShared.QueryId queryId;
+    while ((queryId = capturingListener.getQueryId()) == null) {
+      Thread.sleep(10);
+    }
+    jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+    listener.await();
+
+    Assert.notNull(jobId);
+
+    while (true) {
+      JobState jobState = chronicleStub.getJobSummary(
+        JobSummaryRequest.newBuilder()
+          .setJobId(JobsProtoUtil.toBuf(jobId))
+          .setUserName(DEFAULT_USERNAME)
+          .build()).getJobState();
+      if(jobState == JobState.FAILED) {
+        break;
+      }
+      Thread.sleep(50);
+    }
+  }
+
+  @Test
+  public void testAttemptCompletionFailedState() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+        IOException.class)
+      .build();
+
+    injectAttemptCompletionException(controls);
+  }
+
+  @Test
+  public void testAttemptCompletionKVFailedState() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_KV_ERROR,
+        DatastoreException.class)
+      .build();
+
+    injectAttemptCompletionException(controls);
+  }
+
+  private void injectAttemptCompletionExceptionMulti(String controls) throws Exception {
+    final String controls1 = Controls.newBuilder()
+      .addPause(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE)
+      .build();
+
+    JobId jobId1 = null;
+    ControlsInjectionUtil.setControls(getRpcClient(), controls1);
+    QueryIdCapturingListener capturingListener1 = new QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener1 = new AwaitableUserResultsListener(capturingListener1);
+    QueryTestUtil.testWithListener(getRpcClient(), QueryType.SQL, query, listener1);
+
+    // wait till we have a queryId
+    UserBitShared.QueryId queryId1;
+    while ((queryId1 = capturingListener1.getQueryId()) == null) {
+      Thread.sleep(10);
+    }
+    jobId1 = new JobId(new UUID(queryId1.getPart1(), queryId1.getPart2()).toString());
+
+    while (true) {
+      JobSummary jobSummary = chronicleStub.getJobSummary(
+        JobSummaryRequest.newBuilder()
+          .setJobId(JobsProtoUtil.toBuf(jobId1))
+          .setUserName(DEFAULT_USERNAME)
+          .build());
+      JobState jobState = jobSummary.getJobState();
+      // wait for the pause to be hit
+      if (jobState == JobState.PLANNING) {
+        break;
+      }
+      Thread.sleep(50);
+    }
+
+    Thread.sleep(1000);
+
+    injectAttemptCompletionException(controls);
+
+    // resume now.
+    getRpcClient().resumeQuery(queryId1);
+
+    listener1.await();
+
+    UserBitShared.QueryResult.QueryState queryState;
+    while ((queryState = capturingListener1.getQueryState()) == null) {
+      Thread.sleep(10);
+    }
+
+    assertEquals(QueryState.COMPLETED, queryState);
+    JobState jobState = chronicleStub.getJobSummary(
+      JobSummaryRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId1))
+        .setUserName(DEFAULT_USERNAME)
+        .build()).getJobState();
+    Assert.isTrue(jobState == JobState.COMPLETED);
+  }
+
+  @Test
+  public void testAttemptCompletionFailedStateMultipleJobs() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+        IOException.class)
+      .build();
+
+    injectAttemptCompletionExceptionMulti(controls);
   }
 }

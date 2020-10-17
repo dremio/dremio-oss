@@ -240,6 +240,7 @@ enum QueryType {
   PREPARE_INTERNAL = 12;
   ACCELERATOR_EXPLAIN = 13; // dependency graph construction
   UI_INITIAL_PREVIEW = 14;
+  FLIGHT = 15; // for queries submitted outside of dac using a FlightClient
 }
 
 message JobStats {

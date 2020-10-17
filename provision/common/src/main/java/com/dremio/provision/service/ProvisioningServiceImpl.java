@@ -37,6 +37,7 @@ import org.apache.arrow.util.AutoCloseables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
@@ -47,7 +48,6 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.edition.EditionProvider;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.options.OptionManager;
 import com.dremio.provision.AwsProps;
 import com.dremio.provision.AwsProps.AuthMode;
@@ -875,5 +875,10 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       }
     }
     return ids;
+  }
+
+  @Override
+  public List<ClusterId> getClustersByName(String name) {
+    return findClusters(name).stream().map(c -> c.getId()).collect(Collectors.toList());
   }
 }

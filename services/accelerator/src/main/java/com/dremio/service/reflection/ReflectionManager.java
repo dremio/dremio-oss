@@ -364,8 +364,18 @@ public class ReflectionManager implements Runnable {
     // handle job completion
     final Materialization m = Preconditions.checkNotNull(materializationStore.getLastMaterialization(entry.getId()),
       "Reflection in refreshing state has no materialization entries", entry.getId());
-    Preconditions.checkState(m.getState() == MaterializationState.RUNNING,
-      "Reflection in refreshing state should have a materialization in RUNNING state but was %s instead", m.getState());
+    if (m.getState() != MaterializationState.RUNNING) {
+      // Reflection in refreshing state should have a materialization in RUNNING state but if somehow we end up
+      // in this weird state where the materialization store has an entry not in RUNNING state, we need to cleanup that entry.
+      try {
+        deleteMaterialization(m);
+        deleteReflection(entry);
+        descriptorCache.invalidate(m.getId());
+      } catch (Exception e) {
+        logger.warn("Couldn't clean up {} materialization {} during refresh", m.getState(), getId(m));
+      }
+      return;
+    }
 
     com.dremio.service.job.JobDetails job;
     try {

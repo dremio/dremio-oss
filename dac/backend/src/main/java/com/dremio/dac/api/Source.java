@@ -94,6 +94,10 @@ public class Source implements CatalogEntity {
 
     // TODO: use our own config classes
     this.config = reader.getConnectionConf(config);
+    if (this.config != null) {
+      // since this is a REST API class, clear any secrets
+      this.config.clearSecrets();
+    }
   }
 
   @JsonIgnore
@@ -170,6 +174,8 @@ public class Source implements CatalogEntity {
   }
 
   public void setConfig(ConnectionConf<?, ?> config) {
+    // We do NOT want to clear secrets here as this is called when receiving a REST API call which will include the
+    // password during creation.
     this.config = config;
   }
 

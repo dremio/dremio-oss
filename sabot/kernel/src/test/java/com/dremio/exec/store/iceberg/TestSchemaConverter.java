@@ -219,7 +219,7 @@ public class TestSchemaConverter extends DremioTest {
     String rootPath = folder.getRoot().toString();
     Configuration conf = new Configuration();
     IcebergCatalog catalog = new IcebergCatalog(rootPath, conf);
-    catalog.beginCreateTable(schema, Collections.emptyList());
+    catalog.beginCreateTable("testTableName", schema, Collections.emptyList());
     catalog.endCreateTable();
 
     Table table = new HadoopTables(conf).load(rootPath);

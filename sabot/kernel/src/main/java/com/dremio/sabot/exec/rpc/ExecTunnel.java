@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.exec.rpc;
 
+import java.util.Optional;
+
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
@@ -119,7 +121,11 @@ public class ExecTunnel {
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      ByteBuf[] buffers = (message.getBuffer()==null) ? new ByteBuf[0]:new ByteBuf[]{message.getBuffer().asNettyBuffer()};
+      final int buffCount = Optional.ofNullable(message).map(m -> m.getBuffers().length).orElse(0);
+      final ByteBuf[] buffers = new ByteBuf[buffCount];
+      for (int i=0; i < buffCount; i++) {
+        buffers[i] = message.getBuffers()[i].asNettyBuffer();
+      }
       connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message.toProtoMessage(), Ack.class, buffers);
     }
 

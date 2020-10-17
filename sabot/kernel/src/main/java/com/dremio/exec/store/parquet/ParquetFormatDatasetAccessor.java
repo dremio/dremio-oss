@@ -270,7 +270,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
         final long maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null);
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null, false);
             RecordReader reader = new AdditionalColumnsRecordReader(operatorContext, new ParquetRowiseReader(operatorContext, mutableParquetMetadata, 0,
                  firstFile.getPath().toString(), ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
                  fs, schemaHelper, streamProvider, codec, true), finder.getImplicitFieldsForSample(selection), sampleAllocator)) {

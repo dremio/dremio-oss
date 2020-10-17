@@ -29,6 +29,8 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
   protected FragmentExecutors fragmentExecutors;
   protected QueriesClerk queriesClerk;
 
+  private final String failContext = "Query canceled by executor heap monitor";
+
   public AbstractHeapClawBackStrategy(FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
     this.queriesClerk = queriesClerk;
     this.fragmentExecutors = fragmentExecutors;
@@ -70,7 +72,8 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
   protected void failQueries(List<QueryId> queries) {
     for (QueryId queryId : queries) {
       fragmentExecutors.failFragments(queryId, queriesClerk,
-        new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"));
+        new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"),
+        failContext);
     }
   }
 }

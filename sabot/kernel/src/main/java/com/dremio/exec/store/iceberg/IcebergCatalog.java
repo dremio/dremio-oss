@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg;
 import static org.apache.iceberg.Transactions.createTableTransaction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -104,7 +105,7 @@ public class IcebergCatalog {
     }
   }
 
-  public void beginCreateTable(BatchSchema writerSchema, List<String> partitionColumns) {
+  public void beginCreateTable(String tableName, BatchSchema writerSchema, List<String> partitionColumns) {
     Preconditions.checkState(transaction == null, "Unexpected state");
     IcebergTableOperations tableOperations = new IcebergTableOperations(fsPath, configuration);
     SchemaConverter schemaConverter = new SchemaConverter();
@@ -115,8 +116,8 @@ public class IcebergCatalog {
       throw UserException.validationError(ex).buildSilently();
     }
     PartitionSpec partitionSpec = getIcebergPartitionSpec(writerSchema, partitionColumns);
-    TableMetadata metadata = TableMetadata.newTableMetadata(tableOperations, schema, partitionSpec, fsPath.toString());
-    transaction = createTableTransaction(tableOperations, metadata);
+    TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, fsPath.toString(), Collections.emptyMap());
+    transaction = createTableTransaction(tableName, tableOperations, metadata);
     table = transaction.table();
     beginInsert();
   }
@@ -192,7 +193,7 @@ public class IcebergCatalog {
     table.updateSchema().deleteColumn(columnInIceberg.name()).commit();
   }
 
-  public void changeColumn(String columnToChange, Types.NestedField newDef) {
+  public void changeColumn(String columnToChange, Field batchField) {
     IcebergTableOperations tableOperations = new IcebergTableOperations(fsPath, configuration);
     table = new BaseTable(tableOperations, fsPath.getName());
     Types.NestedField columnToChangeInIceberg = table.schema().caseInsensitiveFindField(columnToChange);
@@ -200,6 +201,8 @@ public class IcebergCatalog {
       throw UserException.unsupportedError().message("[%s] is a partition column. Partition spec change is not supported.",
           columnToChangeInIceberg.name()).buildSilently();
     }
+
+    Types.NestedField newDef = SchemaConverter.changeIcebergColumn(batchField, columnToChangeInIceberg);
 
     if (!TypeUtil.isPromotionAllowed(columnToChangeInIceberg.type(), newDef.type()
         .asPrimitiveType())) {

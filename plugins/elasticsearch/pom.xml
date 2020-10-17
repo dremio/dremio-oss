@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.8.0-202009180238090394-b0a98b73</version>
+    <version>4.9.0-202010170313000159-4a37757a</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -217,6 +217,7 @@
           <clusterName>test</clusterName>
           <transportPort>${tests.elasticsearch.transportPort}</transportPort>
           <httpPort>${tests.elasticsearch.httpPort}</httpPort>
+          <timeout>60</timeout>
           <skip>${tests.elasticsearch.api.on}</skip>
         </configuration>
         <executions>

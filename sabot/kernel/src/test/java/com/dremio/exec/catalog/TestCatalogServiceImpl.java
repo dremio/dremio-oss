@@ -51,6 +51,7 @@ import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.AutoCloseableLock;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -79,7 +80,6 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.OptionManagerWrapper;

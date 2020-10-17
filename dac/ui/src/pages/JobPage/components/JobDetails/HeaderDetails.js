@@ -61,7 +61,8 @@ class HeaderDetails extends Component {
     const currentJobState = jobDetails.get('state');
 
     // if the query is running or pending, expose the cancel button.
-    if (JobsUtils.getRunning(currentJobState) || currentJobState === JobState.ENQUEUED) {
+    if (JobsUtils.getRunning(currentJobState) || currentJobState === JobState.ENQUEUED
+        || currentJobState === JobState.PLANNING) {
       return (
         <Button
           type={ButtonTypes.CUSTOM}

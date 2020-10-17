@@ -84,6 +84,7 @@ import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowReq;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
 import com.dremio.exec.proto.UserProtos.GetCatalogsReq;
 import com.dremio.exec.proto.UserProtos.GetColumnsReq;
@@ -167,7 +168,12 @@ public class CommandCreator {
 
       case CREATE_PREPARED_STATEMENT: {
         final CreatePreparedStatementReq req = request.unwrap(CreatePreparedStatementReq.class);
-        return getSqlCommand(req.getSqlQuery(), true);
+        return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.USER_RPC);
+      }
+
+      case CREATE_PREPARED_STATEMENT_ARROW: {
+        final CreatePreparedStatementArrowReq req = request.unwrap(CreatePreparedStatementArrowReq.class);
+        return getSqlCommand(req.getSqlQuery(), PrepareMetadataType.ARROW);
       }
 
       case GET_SERVER_META:
@@ -211,7 +217,7 @@ public class CommandCreator {
               }
             }
 
-            return getSqlCommand(preparedStatement.getSqlQuery(), false);
+            return getSqlCommand(preparedStatement.getSqlQuery(), PrepareMetadataType.NONE);
 
           } catch (InvalidProtocolBufferException e){
             throw UserException.connectionError(e)
@@ -221,7 +227,7 @@ public class CommandCreator {
           }
 
         case SQL:
-          return getSqlCommand(query.getPlan(), false);
+          return getSqlCommand(query.getPlan(), PrepareMetadataType.NONE);
 
         case PHYSICAL: // should be deprecated once tests are removed.
           return new PhysicalPlanCommand(dbContext.getPlanReader(), query.getPlanBytes());
@@ -250,7 +256,7 @@ public class CommandCreator {
     return ReflectionContext.SYSTEM_USER_CONTEXT;
   }
 
-  private CommandRunner<?> getSqlCommand(String sql, boolean isPrepare) {
+  private CommandRunner<?> getSqlCommand(String sql, PrepareMetadataType prepareMetadataType) {
     try{
       final SqlConverter parser = new SqlConverter(
           context.getPlannerSettings(),
@@ -273,8 +279,8 @@ public class CommandCreator {
 
       validateCommand(sqlNode);
 
-      final DirectBuilder direct = new DirectBuilder(sql, sqlNode, isPrepare);
-      final AsyncBuilder async = new AsyncBuilder(sql, sqlNode, isPrepare);
+      final DirectBuilder direct = new DirectBuilder(sql, sqlNode, prepareMetadataType);
+      final AsyncBuilder async = new AsyncBuilder(sql, sqlNode, prepareMetadataType);
 
       //TODO DX-10976 refactor all handlers to use similar Creator interfaces
       if(sqlNode instanceof SqlToPlanHandler.Creator) {
@@ -374,12 +380,12 @@ public class CommandCreator {
   private class DirectBuilder {
     private final String sql;
     private final SqlNode sqlNode;
-    private final boolean prepare;
+    private final PrepareMetadataType prepareMetadataType;
     private final boolean storeResults;
 
-    DirectBuilder(String sql, SqlNode sqlNode, boolean prepare) {
+    DirectBuilder(String sql, SqlNode sqlNode, PrepareMetadataType prepareMetadataType) {
       this.sqlNode = sqlNode;
-      this.prepare = prepare;
+      this.prepareMetadataType = prepareMetadataType;
       this.sql = sql;
 
       final StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
@@ -390,34 +396,55 @@ public class CommandCreator {
     }
 
     // handlers in handlers.direct package
-    public CommandRunner<?> create(SqlDirectHandler<?> handler){
-      if(prepare) {
-        return new HandlerToPrepareDirect(sql, context, handler);
+    public CommandRunner<?> create(SqlDirectHandler<?> handler) {
+      switch (prepareMetadataType) {
+        case USER_RPC:
+          return new HandlerToPrepareDirect(sql, context, handler);
+        case ARROW:
+          return new HandlerToPrepareArrowDirect(sql, context, handler);
+        case NONE:
+        default: {
+          if (storeResults) {
+            return new DirectWriterCommand<>(sql, context, sqlNode, handler, observer);
+          }
+          return new DirectCommand<>(sql, context, sqlNode, handler, observer);
+        }
       }
-      if(storeResults) {
-        return new DirectWriterCommand<>(sql, context, sqlNode, handler, observer);
-      }
-      return new DirectCommand<>(sql, context, sqlNode, handler, observer);
     }
   }
 
   private class AsyncBuilder {
     private final SqlNode sqlNode;
     private final String sql;
-    private final boolean prepare;
+    private final PrepareMetadataType prepareMetadataType;
 
-    AsyncBuilder(String sql, SqlNode sqlNode, boolean prepare) {
+    AsyncBuilder(String sql, SqlNode sqlNode, PrepareMetadataType prepareMetadataType) {
       this.sqlNode = sqlNode;
       this.sql = sql;
-      this.prepare = prepare;
+      this.prepareMetadataType = prepareMetadataType;
     }
 
     // handlers in handlers.query package
     public CommandRunner<?> create(SqlToPlanHandler handler, SqlHandlerConfig config){
-      if(prepare){
-        return new HandlerToPreparePlan(context, sqlNode, handler, plans, sql, observer, config);
+      switch (prepareMetadataType) {
+        case USER_RPC:
+          return new HandlerToPreparePlan(context, sqlNode, handler, plans, sql, observer, config);
+        case ARROW:
+          return new HandlerToPrepareArrowPlan(context, sqlNode, handler, plans, sql, observer, config);
+        case NONE:
+        default:
+          return new HandlerToExec(observer, sql, sqlNode, handler, config);
       }
-      return new HandlerToExec(observer, sql, sqlNode, handler, config);
     }
+  }
+
+  /**
+   * Helper values to distinguish between handlers needing to provide no plans, plans with
+   * USER_RPC metadata, or Arrow metadata.
+   */
+  private enum PrepareMetadataType {
+    NONE,
+    USER_RPC,
+    ARROW
   }
 }

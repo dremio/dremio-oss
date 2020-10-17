@@ -15,28 +15,39 @@
  */
 package com.dremio.exec.store;
 
+import static com.dremio.sabot.op.scan.ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT;
+import static org.apache.arrow.util.Preconditions.checkArgument;
+import static org.apache.arrow.util.Preconditions.checkState;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.apache.arrow.memory.ArrowBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.ValueListFilter;
+import com.dremio.exec.util.ValueListFilterBuilder;
+import com.dremio.sabot.exec.context.OperatorStats;
 
 /**
  * A POJO helper class for the protobuf struct RuntimeFilter
  * The CompositeColumnFilter fields hold the deserialized bloom filter.
  */
 public class RuntimeFilter implements AutoCloseable {
+  private static Logger logger = LoggerFactory.getLogger(RuntimeFilter.class);
   private CompositeColumnFilter partitionColumnFilter;
-  private List<CompositeColumnFilter> nonPartitionColumnFilter;
+  private List<CompositeColumnFilter> nonPartitionColumnFilters;
   private String senderInfo;
 
-  public RuntimeFilter(CompositeColumnFilter partitionColumnFilter, List<CompositeColumnFilter> nonPartitionColumnFilter, String senderInfo) {
+  public RuntimeFilter(CompositeColumnFilter partitionColumnFilter, List<CompositeColumnFilter> nonPartitionColumnFilters, String senderInfo) {
     this.partitionColumnFilter = partitionColumnFilter;
-    this.nonPartitionColumnFilter = nonPartitionColumnFilter;
+    this.nonPartitionColumnFilters = nonPartitionColumnFilters;
     this.senderInfo = senderInfo;
   }
 
@@ -44,8 +55,8 @@ public class RuntimeFilter implements AutoCloseable {
     return partitionColumnFilter;
   }
 
-  public List<CompositeColumnFilter> getNonPartitionColumnFilter() {
-    return nonPartitionColumnFilter;
+  public List<CompositeColumnFilter> getNonPartitionColumnFilters() {
+    return nonPartitionColumnFilters;
   }
 
   public String getSenderInfo() {
@@ -53,20 +64,55 @@ public class RuntimeFilter implements AutoCloseable {
   }
 
   public static RuntimeFilter getInstance(final ExecProtos.RuntimeFilter protoFilter,
-                                          final BloomFilter bloomFilter,
-                                          final String senderInfo) {
-    final CompositeColumnFilter partitionColumnFilter = Optional.ofNullable(protoFilter.getPartitionColumnFilter())
-            .map(proto -> new CompositeColumnFilter.Builder()
-                    .setProtoFields(protoFilter.getPartitionColumnFilter())
-                    .setBloomFilter(bloomFilter)
-                    .build())
-            .orElse(null);
-    final List<CompositeColumnFilter> nonPartitionColumnFilter = Optional.ofNullable(protoFilter.getNonPartitionColumnFilterList()).orElse(new ArrayList<>(0))
-            .stream()
-            .map(proto -> new CompositeColumnFilter.Builder().setProtoFields(proto).build())
-            .collect(Collectors.toList());
+                                          final ArrowBuf msgBuf,
+                                          final String senderInfo,
+                                          final OperatorStats stats) {
+    ExecProtos.CompositeColumnFilter partitionColFilterProto = protoFilter.getPartitionColumnFilter();
+    CompositeColumnFilter partitionColFilter = null;
+    long nextSliceStart = 0L;
+    if (partitionColFilterProto != null && !partitionColFilterProto.getColumnsList().isEmpty()) {
+      checkArgument(msgBuf.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
+              "Buffer capacity is %s, expected filter size %s", msgBuf.capacity(), partitionColFilterProto.getSizeBytes());
+      try {
+        final BloomFilter bloomFilter = BloomFilter.prepareFrom(msgBuf.slice(nextSliceStart, partitionColFilterProto.getSizeBytes()));
+        nextSliceStart += partitionColFilterProto.getSizeBytes();
+        checkState(bloomFilter.getNumBitsSet()==partitionColFilterProto.getValueCount(),
+                "BloomFilter value count mismatched. Expected %s, Actual %s", partitionColFilterProto.getValueCount(), bloomFilter.getNumBitsSet());
+        partitionColFilter = new CompositeColumnFilter.Builder().setProtoFields(protoFilter.getPartitionColumnFilter())
+                .setBloomFilter(bloomFilter).build();
+        bloomFilter.getDataBuffer().retain();
+      } catch (Exception e) {
+        stats.addLongStat(RUNTIME_COL_FILTER_DROP_COUNT, 1);
+        logger.warn("Error while processing partition column filter from {} : {}", senderInfo, e.getMessage());
+      }
+    }
 
-    return new RuntimeFilter(partitionColumnFilter, nonPartitionColumnFilter, senderInfo);
+    final List<CompositeColumnFilter> nonPartitionColFilters = new ArrayList<>(protoFilter.getNonPartitionColumnFilterCount());
+    for (int i =0; i < protoFilter.getNonPartitionColumnFilterCount(); i++) {
+      final ExecProtos.CompositeColumnFilter nonPartitionColFilterProto = protoFilter.getNonPartitionColumnFilter(i);
+      final String fieldName = nonPartitionColFilterProto.getColumns(0);
+      checkArgument(msgBuf.capacity() >= nextSliceStart + nonPartitionColFilterProto.getSizeBytes(),
+              "Invalid filter buffer size for non partition col %s.", fieldName);
+      try {
+        final ValueListFilter valueListFilter = ValueListFilterBuilder
+                .fromBuffer(msgBuf.slice(nextSliceStart, nonPartitionColFilterProto.getSizeBytes()));
+        nextSliceStart += nonPartitionColFilterProto.getSizeBytes();
+        checkState(valueListFilter.getValueCount()==nonPartitionColFilterProto.getValueCount(),
+                "ValueListFilter %s count mismatched. Expected %s, found %s", fieldName,
+                nonPartitionColFilterProto.getValueCount(), valueListFilter.getValueCount());
+        valueListFilter.setFieldName(fieldName);
+        final CompositeColumnFilter nonPartitionColFilter = new CompositeColumnFilter.Builder()
+                .setProtoFields(nonPartitionColFilterProto).setValueList(valueListFilter).build();
+        nonPartitionColFilters.add(nonPartitionColFilter);
+        valueListFilter.buf().retain();
+      } catch (Exception e) {
+        stats.addLongStat(RUNTIME_COL_FILTER_DROP_COUNT, 1);
+        logger.warn("Error while processing non-partition column filter on column {}, from {} : {}",
+                protoFilter.getNonPartitionColumnFilter(i).getColumns(0), senderInfo, e.getMessage());
+      }
+    }
+    checkState(partitionColFilter != null || !nonPartitionColFilters.isEmpty(), "All filters are dropped.");
+    return new RuntimeFilter(partitionColFilter, nonPartitionColFilters, senderInfo);
   }
 
   /**
@@ -82,8 +128,13 @@ public class RuntimeFilter implements AutoCloseable {
     if ((this.getPartitionColumnFilter() == null) != (that.getPartitionColumnFilter() == null)) {
       return false;
     }
-    return Objects.equals(this.getPartitionColumnFilter().getColumnsList(), that.getPartitionColumnFilter().getColumnsList());
-    // TODO: Extend for non partition columns
+
+    final boolean sameNonPartitionColumns = (this.getNonPartitionColumnFilters().size() == that.getNonPartitionColumnFilters().size())
+            && !IntStream.range(0, this.nonPartitionColumnFilters.size())
+            .anyMatch(i -> !Objects.equals(this.nonPartitionColumnFilters.get(i).getColumnsList(),
+                    that.nonPartitionColumnFilters.get(i).getColumnsList()));
+    return sameNonPartitionColumns && Objects.equals(this.getPartitionColumnFilter().getColumnsList(),
+            that.getPartitionColumnFilter().getColumnsList());
   }
 
 
@@ -91,13 +142,16 @@ public class RuntimeFilter implements AutoCloseable {
   public String toString() {
     return "RuntimeFilter{" +
             "partitionColumnFilter=" + partitionColumnFilter +
-            ", nonPartitionColumnFilter=" + nonPartitionColumnFilter +
+            ", nonPartitionColumnFilters=" + nonPartitionColumnFilters +
             ", senderInfo='" + senderInfo + '\'' +
             '}';
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(partitionColumnFilter);
+    final List<AutoCloseable> closeables = new ArrayList<>(nonPartitionColumnFilters.size() + 1);
+    closeables.addAll(nonPartitionColumnFilters);
+    closeables.add(partitionColumnFilter);
+    AutoCloseables.close(closeables);
   }
 }

@@ -80,7 +80,7 @@ public class ArrowFlatBufRecordReader implements RecordReader {
           .build(logger);
       }
 
-      final long TAIL_SIZE_GUESS = 16 * 1024;
+      final long TAIL_SIZE_GUESS = MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE;
       final int tailSize = (int)Math.min(size, TAIL_SIZE_GUESS);
       final byte[] tailBytes = new byte[tailSize];
 

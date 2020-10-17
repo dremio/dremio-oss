@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.8.0-202009180238090394-b0a98b73</version>
+  <version>4.9.0-202010170313000159-4a37757a</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>1.0.0-20200901214046-ee3a072f13-dremio</arrow.version>
+    <arrow.version>1.0.0-20201007115417-a54a430847-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202008202058330769-66e82b2</calcite.version>
+    <calcite.version>1.16.0-202010100046060961-8adb4de</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -53,7 +53,7 @@
 
     <hadoop.version>3.2.1-dremio-202007112304180043-647afb0</hadoop.version>
     <avro.version>1.9.2</avro.version>
-    <iceberg.version>0.7.0-incubating</iceberg.version>
+    <iceberg.version>0.9.0</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive2.azure-datalake.version>
@@ -111,7 +111,7 @@
     <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
     <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
     <pf4j.version>3.0.1</pf4j.version>
-    <postgresql.version>42.2.5</postgresql.version>
+    <postgresql.version>42.2.17</postgresql.version>
     <protobuf.version>3.9.1</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
@@ -1856,6 +1856,25 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.arrow</groupId>
         <artifactId>flight-core</artifactId>
+        <version>${arrow.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-unix-common</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-kqueue</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-epoll</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.arrow</groupId>
+        <artifactId>flight-grpc</artifactId>
         <version>${arrow.version}</version>
       </dependency>
       <dependency>

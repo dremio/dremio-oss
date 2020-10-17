@@ -20,6 +20,8 @@ import java.util.Optional;
 
 import com.dremio.common.EventProcessor;
 import com.dremio.common.ProcessExit;
+import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.common.exceptions.UserCancellationException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -35,6 +37,7 @@ import com.dremio.exec.planner.sql.handlers.commands.CommandRunner.CommandType;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -114,6 +117,9 @@ public class AttemptManager implements Runnable {
 
   @VisibleForTesting
   public static final String INJECTOR_PLAN_ERROR = "plan-error";
+
+  @VisibleForTesting
+  public static final String INJECTOR_TAIL_PROFLE_ERROR = "tail-profile-error";
 
   @VisibleForTesting
   public static final String INJECTOR_METADATA_RETRIEVAL_PAUSE = "metadata-retrieval-pause";
@@ -285,14 +291,20 @@ public class AttemptManager implements Runnable {
    * @param clientCancelled true if the client application explicitly issued a cancellation (via end user action), or
    *                        false otherwise (i.e. when pushing the cancellation notification to the end user)
    */
-  public void cancel(String reason, boolean clientCancelled) {
+  public void cancel(String reason, boolean clientCancelled, String cancelContext, boolean isCancelledByHeapMonitor) {
     // Note this can be called from outside of run() on another thread, or after run() completes
     this.clientCancelled = clientCancelled;
     profileTracker.setCancelReason(reason);
     // Set the cancelFlag, so that query in planning phase will be canceled
     // by super.checkCancel() in DremioVolcanoPlanner and DremioHepPlanner
-    queryContext.getPlannerSettings().cancelPlanning(reason);
-    addToEventQueue(QueryState.CANCELED, null);
+    queryContext.getPlannerSettings().cancelPlanning(reason,
+                                                     queryContext.getCurrentEndpoint(),
+                                                     cancelContext,
+                                                     isCancelledByHeapMonitor);
+    // Do not cancel queries in running state when canceled by coordinator heap monitor
+    if (!isCancelledByHeapMonitor) {
+      addToEventQueue(QueryState.CANCELED, null);
+    }
   }
 
   /**
@@ -375,8 +387,13 @@ public class AttemptManager implements Runnable {
         ProcessExit.exitHeap(e);
       }
     } catch (Throwable ex) {
-      moveToState(QueryState.FAILED,
-        new ForemanException("Unexpected exception during fragment initialization: " + ex.getMessage(), ex));
+      UserCancellationException t = ErrorHelper.findWrappedCause(ex, UserCancellationException.class);
+      if (t != null) {
+        moveToState(QueryState.CANCELED, null);
+      } else {
+        moveToState(QueryState.FAILED,
+          new ForemanException("Unexpected exception during fragment initialization: " + ex.getMessage(), ex));
+      }
 
     } finally {
       /*
@@ -600,7 +617,7 @@ public class AttemptManager implements Runnable {
       }
       observer.beginState(AttemptObserver.toEvent(convertTerminalToAttemptState(resultState)));
 
-      final UserException uex;
+      UserException uex;
       if (resultException != null) {
         uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
       } else {
@@ -613,12 +630,40 @@ public class AttemptManager implements Runnable {
        * possible the connection has gone away, so this is irrelevant because there's nowhere to
        * send anything to.
        */
+
       try {
         // send whatever result we ended up with
+        injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_TAIL_PROFLE_ERROR);
         profileTracker.sendTailProfile(uex);
+      } catch (Exception e) {
+        logger.warn("Exception sending tail profile. Setting query state to failed", resultException);
+        addException(e);
+        recordNewState(QueryState.FAILED);
+        resultState = QueryState.FAILED;
+        if (uex == null) {
+          uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+        }
+      }
 
+      UserBitShared.QueryProfile queryProfile = null;
+      try {
+        queryProfile = profileTracker.getFullProfile();
+      } catch (Exception e) {
+        logger.warn("Exception while getting full profile. Setting query state to failed", e);
+        addException(e);
+        recordNewState(QueryState.FAILED);
+        resultState = QueryState.FAILED;
+        if (uex == null) {
+          uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+        }
+        // As full profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
+        // to use in query result.
+        queryProfile = profileTracker.getPlanningProfile();
+      }
+
+      try {
         final UserResult result = new UserResult(extraResultData, queryId, resultState,
-          profileTracker.getFullProfile(), uex, profileTracker.getCancelReason(), clientCancelled);
+          queryProfile, uex, profileTracker.getCancelReason(), clientCancelled);
         observer.attemptCompletion(result);
       } catch(final Exception e) {
         addException(e);

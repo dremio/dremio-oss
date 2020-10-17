@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.Preconditions;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -45,8 +46,6 @@ import io.netty.util.internal.PlatformDependent;
  * The functionality uses a fixed ArrowBuf and uses the same for delivering all parsed keys. The keys are loaded in same space.
  */
 public class LBlockHashTableKeyReader implements AutoCloseable {
-    private static final int MAX_KEY_SIZE = 32;
-
     private ArrowBuf keyBuf;
     private int keyBufSize = 32; // max
     private long tableFixedAddresses[];
@@ -65,6 +64,7 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
     private boolean isVarWidthColPresent = false;
     private long currentFixedAddr = -1L;
     private long currentVarAddr = -1L;
+    private boolean setVarFieldLenInFirstByte = false;
 
     private LBlockHashTableKeyReader() {
         // Always use builder
@@ -72,6 +72,15 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
 
     public int getKeyBufSize() {
         return keyBufSize;
+    }
+
+    /**
+     * Size after removing the validity bytes
+     *
+     * @return
+     */
+    public byte getEffectiveKeySize() {
+        return (byte) (getKeyBufSize() - keyValidityBytes);
     }
 
     public boolean isCompositeKey() {
@@ -145,10 +154,16 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
                       keyAddr += (4 + PlatformDependent.getInt(keyAddr));
                     }
                     int keyFieldLength = PlatformDependent.getInt(keyAddr);
-
+                    int allocatedLen = keyPosition.allocatedLength;
                     // prefix pad with 0 bytes if data value is shorter than allocation
-                    int keySizeForCopy = Math.min(keyPosition.allocatedLength, keyFieldLength);
-                    Copier.copy(keyAddr + 4, keyBuf.memoryAddress() + keyBufValueOffset + keyPosition.allocatedLength - keySizeForCopy, keySizeForCopy);
+                    int keySizeForCopy = Math.min(allocatedLen, keyFieldLength);
+                    int offset = keyBufValueOffset;
+                    if (setVarFieldLenInFirstByte) {
+                        keyBuf.setByte(offset++, (byte) keySizeForCopy);
+                        keySizeForCopy = (keySizeForCopy==allocatedLen) ? keySizeForCopy - 1:keySizeForCopy;
+                        allocatedLen--;
+                    }
+                    Copier.copy(keyAddr + 4, keyBuf.memoryAddress() + offset + allocatedLen - keySizeForCopy, keySizeForCopy);
                     break;
                 }
             }
@@ -192,6 +207,30 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
         return keyBuf;
     }
 
+    /**
+     * Key without validity byte
+     * @return
+     */
+    public ArrowBuf getKeyValBuf() {
+        return keyBuf.slice(keyValidityBytes, keyBufSize - keyValidityBytes);
+    }
+
+    /**
+     * Checks the validity byte if all values are null.
+     *
+     * @return
+     */
+    public boolean areAllValuesNull() {
+        byte[] validityBytes = new byte[keyValidityBytes];
+        keyBuf.getBytes(0, validityBytes);
+        for (byte validityByte : validityBytes) {
+            if (validityByte != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public void close() throws Exception {
         AutoCloseables.close(keyBuf);
@@ -203,9 +242,15 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
         private PivotDef pivot;
         private int maxValuesPerBatch = -1;
         private BufferAllocator bufferAllocator;
+        private int maxKeySize = 32;
 
         public Builder setFieldsToRead(List<String> fieldNames) {
             this.fieldNames = fieldNames;
+            return this;
+        }
+
+        public Builder setMaxKeySize(int maxKeySize) {
+            this.maxKeySize = maxKeySize;
             return this;
         }
 
@@ -239,6 +284,11 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
             return this;
         }
 
+        public Builder setSetVarFieldLenInFirstByte(boolean setVarFieldLenInFirstByte) {
+            keyReader.setVarFieldLenInFirstByte = setVarFieldLenInFirstByte;
+            return this;
+        }
+
         public LBlockHashTableKeyReader build() {
             checkArgument(keyReader.totalNumOfRecords > 0, "Total number of records not set");
             checkArgument(CollectionUtils.isNotEmpty(fieldNames), "Fields to read cannot be empty");
@@ -269,7 +319,7 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
             // Take slices of keys so total key fits in 16 bytes
             final Map<String, Integer> keySizes = keyReader.keyPositions.stream()
                     .collect(Collectors.toMap(KeyPosition::getKey, KeyPosition::getAllocatedLength));
-            final KeyFairSliceCalculator fairSliceCalculator = new KeyFairSliceCalculator(keySizes, MAX_KEY_SIZE);
+            final KeyFairSliceCalculator fairSliceCalculator = new KeyFairSliceCalculator(keySizes, maxKeySize);
             keyReader.keyPositions.stream().forEach(k -> k.setAllocatedLength(fairSliceCalculator.getKeySlice(k.getKey())));
             keyReader.keyBufSize = fairSliceCalculator.getTotalSize();
             keyReader.isKeyTrimmedToFitSize = fairSliceCalculator.keysTrimmed();
@@ -297,7 +347,9 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
             // Search in variable width fields
             int sequencePosition = 1;
             for (VectorPivotDef vectorPivotDef : this.pivot.getVariablePivots()) {
-                if (vectorPivotDef.getIncomingVector().getField().getName().equalsIgnoreCase(fieldName)) {
+                final Field field = vectorPivotDef.getIncomingVector().getField();
+                if (field.getName().equalsIgnoreCase(fieldName)) {
+                    checkArgument(!field.getType().isComplex(), "Runtime filter not supported on complex type fields");
                     return Optional.of(new KeyPosition(fieldName, sequencePosition, vectorPivotDef.getNullByteOffset(), vectorPivotDef.getNullBitOffset(), Integer.MAX_VALUE, FieldMode.VARIABLE));
                 }
                 sequencePosition++;
@@ -306,11 +358,16 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
         }
 
         private Optional<KeyPosition> findKeyPositionInFixedWidthCols(String fieldName) {
-            return pivot.getFixedPivots()
-              .stream()
-              .filter(p -> p.getIncomingVector().getField().getName().equalsIgnoreCase(fieldName))
-              .map(p -> new KeyPosition(fieldName, p.getOffset(), p.getNullByteOffset(), p.getNullBitOffset(), p.getType().byteSize, p.getType().mode))
-              .findFirst();
+            for (VectorPivotDef vectorPivotDef : this.pivot.getFixedPivots()) {
+                final Field field = vectorPivotDef.getIncomingVector().getField();
+                if (field.getName().equalsIgnoreCase(fieldName)) {
+                    checkArgument(!field.getType().isComplex(), "Runtime filter not supported on complex type fields");
+                    return Optional.of(new KeyPosition(fieldName, vectorPivotDef.getOffset(), vectorPivotDef.getNullByteOffset(),
+                            vectorPivotDef.getNullBitOffset(), vectorPivotDef.getType().byteSize, vectorPivotDef.getType().mode));
+                }
+            }
+
+            return Optional.empty();
         }
     }
 

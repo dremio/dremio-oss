@@ -181,7 +181,7 @@ public class DremioORCRecordUtils {
     private CompressionKind compressionKind;
     private final BufferAllocator allocator;
     private boolean useDirectMemory = true;
-    private boolean doComputeLocality = true;
+    private final boolean doComputeLocality;
     private boolean remoteRead = false;
     private final Set<ByteBuffer> buffersToRelease = Sets.newIdentityHashSet();
     private final Set<ByteBuffer> directBuffersToRelease = Sets.newIdentityHashSet();

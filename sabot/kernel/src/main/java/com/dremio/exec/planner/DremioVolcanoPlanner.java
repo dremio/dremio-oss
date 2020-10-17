@@ -131,8 +131,9 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   @Override
   public void checkCancel() {
     if (cancelFlag.isCancelRequested()) {
-      throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
-                                       cancelFlag.getTimeoutInSecs()), null);
+      ExceptionUtils.throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
+                                                      cancelFlag.getTimeoutInSecs()),
+                                        null, plannerSettings, phase, logger);
     }
 
     if (executionControls != null) {
@@ -142,22 +143,12 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     try {
       super.checkCancel();
     } catch (CalciteException e) {
-      throwUserException(plannerSettings.getCancelReason(), e);
+      if (plannerSettings.isCancelledByHeapMonitor()) {
+        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, logger);
+      } else {
+        ExceptionUtils.throwUserCancellationException(plannerSettings);
+      }
     }
-  }
-
-  private void throwUserException(String message, Throwable t) {
-    UserException.Builder builder;
-    if (t != null) {
-      builder = UserException.planError(t);
-    } else {
-      builder = UserException.planError();
-    }
-    builder = builder.message(message);
-    if (phase != null) {
-      builder = builder.addContext("Planner Phase", phase.description);
-    }
-    throw builder.build(logger);
   }
 
   @Override

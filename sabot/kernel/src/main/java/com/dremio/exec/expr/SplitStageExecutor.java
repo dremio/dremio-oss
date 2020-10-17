@@ -63,7 +63,7 @@ class SplitStageExecutor implements AutoCloseable {
   final NativeProjectorBuilder nativeProjectorBuilder;
 
   // Class generator for Java classes
-  final ClassGenerator<Projector> cg;
+  ClassGenerator<Projector> cg;
 
   // All java splits that are to be evaluated
   final List<ExpressionSplit> javaSplits = Lists.newArrayList();
@@ -180,6 +180,9 @@ class SplitStageExecutor implements AutoCloseable {
 
     javaCodeGenWatch.start();
     javaProjector = cg.getCodeGenerator().getImplementationClass();
+    // CodeGenerator is no longer required since the code has been generated
+    // Releasing heap memory
+    cg = null;
     javaProjector.setup(
       context.getFunctionContext(),
       incoming,

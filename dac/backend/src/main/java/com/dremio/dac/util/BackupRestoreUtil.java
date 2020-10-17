@@ -35,6 +35,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import javax.ws.rs.core.UriBuilder;
 import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.ProtostuffUtil;
@@ -61,14 +63,12 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.proto.model.backup.BackupFileInfo;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.KVStoreInfo;
 import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore.PutOption;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.store.dfs.PseudoDistributedFileSystem;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -77,6 +77,7 @@ import com.dremio.io.file.Path;
 import com.dremio.io.file.PathFilters;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.tokens.TokenStoreCreator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -227,6 +228,16 @@ public final class BackupRestoreUtil {
         coreKVStore.put(key, value, PutOption.CREATE);
       }
     }
+  }
+
+  private static boolean isGoodRestoreLocation(File path) {
+    if (!path.isDirectory()) {
+      return false;
+    }
+    String[] pathList = path.list();
+    // The directory must be empty or contain just the invisible ".DS_Store" file on a Mac.
+    return pathList.length == 0 ||
+        pathList.length == 1 && pathList[0].equals(".DS_Store");
   }
 
   private static Map<String, BackupFileInfo> scanInfoFiles(FileSystem fs, Path backupDir) throws IOException {
@@ -394,7 +405,7 @@ public final class BackupRestoreUtil {
     return CompletableFuture.runAsync(() -> {
       try {
         final KVStoreInfo kvstoreInfo = entry.getKey();
-        if (TokenUtils.TOKENS_TABLE_NAME.equals(kvstoreInfo.getTablename())) {
+        if (TokenStoreCreator.TOKENS_TABLE_NAME.equals(kvstoreInfo.getTablename())) {
           // Skip creating a backup of tokens table
           // TODO: In the future, if there are other tables that should not be backed up, this could be part of
           // StoreBuilderConfig interface
@@ -414,12 +425,34 @@ public final class BackupRestoreUtil {
     }, e);
   }
 
-  public static BackupStats restore(FileSystem fs, Path backupDir, DACConfig dacConfig) throws Exception {
+  /**
+   * Stats and exceptions thrown during the restore process.
+   */
+  public static class RestorationResults {
+    public RestorationResults(BackupStats stats, List<Exception> exceptions) {
+      this.stats = stats;
+      this.exceptions = exceptions;
+    }
+
+    public List<Exception> getExceptions() {
+      return exceptions;
+    }
+
+    public BackupStats getStats() {
+      return stats;
+    }
+
+    private BackupStats stats;
+    private List<Exception> exceptions;
+  }
+
+  public static RestorationResults restore(
+      FileSystem fs, Path backupDir, DACConfig dacConfig) throws Exception {
     final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
     URI uploads = dacConfig.getConfig().getURI(DremioConfig.UPLOADS_PATH_STRING);
     File dbPath = new File(dbDir);
 
-    if (!dbPath.isDirectory() || dbPath.list().length > 0) {
+    if (!isGoodRestoreLocation(dbPath)) {
       throw new IllegalArgumentException(format("Path %s must be an empty directory.", dbDir));
     }
 
@@ -439,35 +472,41 @@ public final class BackupRestoreUtil {
       Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);
       final BackupStats backupStats = new BackupStats();
       backupStats.backupPath = backupDir.toURI().getPath();
+      List<Exception> restoreTableExceptions = new ArrayList<>();
 
       try (CloseableThreadPool ctp = new CloseableThreadPool("restore")) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.addAll(tableToInfo.keySet().stream().map(table -> {
-          return CompletableFuture.runAsync(() -> {
-            BackupFileInfo info = tableToInfo.get(table);
-            final CoreKVStore<?, ?> store = localKVStoreProvider.getStore(info.getKvstoreInfo());
-            try {
-              restoreTable(fs, store, tableToBackupFiles.get(table), info.getBinary(), info.getRecords());
-            } catch (IOException e) {
-              throw new CompletionException(e);
-            }
-            backupStats.incrementTables();
-          }, ctp);
-        }).collect(Collectors.toList()));
+        Map<String, CompletableFuture<Void>> futureMap = new HashMap<>();
+        for (String tableName : tableToInfo.keySet()) {
+          CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 
-        futures.add(CompletableFuture.runAsync(() -> {
+            try {
+              BackupFileInfo info = tableToInfo.get(tableName);
+              final CoreKVStore<?, ?> store = localKVStoreProvider.getStore(info.getKvstoreInfo());
+              try {
+                restoreTable(fs, store, tableToBackupFiles.get(tableName),
+                  info.getBinary(), info.getRecords());
+                backupStats.incrementTables();
+              } catch (Exception e) {
+                throw new CompletionException(
+                  String.format("Restore failed for the '%s' table backup", tableName), e);
+              }
+            } catch (Exception e) {
+              restoreTableExceptions.add(e);
+            }
+
+          }, ctp);
+          futureMap.put(tableName, future);
+        }
+        futureMap.put("restore uploads", CompletableFuture.runAsync(() -> {
           try {
             restoreUploadedFiles(fs, backupDir, homeFileConf, backupStats, dacConfig.getConfig().getThisNode());
           } catch (IOException e) {
-            throw new CompletionException(e);
+            restoreTableExceptions.add(new CompletionException(e));
           }
         }, ctp));
-
-        checkFutures(futures);
-
+        checkFutures(futureMap.values().stream().collect(Collectors.toList()));
       }
-
-      return backupStats;
+      return new RestorationResults(backupStats, restoreTableExceptions);
     }
   }
 

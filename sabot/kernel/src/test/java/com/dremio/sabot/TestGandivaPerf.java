@@ -176,6 +176,17 @@ public class TestGandivaPerf extends BaseTestOperator {
   }
 
   @Test
+  public void testProjectConcat() throws Exception {
+    int delta = compareProject(TpchTable.CUSTOMER, 6, "concat(c_name, c_mktsegment, c_comment)");
+    Assert.assertTrue(delta > 0);
+    delta = compareProject(TpchTable.CUSTOMER, 6, "concat(c_name, c_mktsegment, c_name, c_address, c_comment, c_phone)");
+    Assert.assertTrue(delta > 0);
+    delta = compareProject(TpchTable.CUSTOMER, 6, "concat(c_phone, c_name, c_comment, c_mktsegment, c_name, " +
+      "c_address, c_comment, c_phone, c_mktsegment, c_address)");
+    Assert.assertTrue(delta > 0);
+  }
+
+  @Test
   public void testFilterSimple() throws Exception {
     int delta = compareFilter(TpchTable.CUSTOMER, 6, "c_custkey < c_nationkey");
     Assert.assertTrue(delta > 0);

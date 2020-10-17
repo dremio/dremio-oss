@@ -23,6 +23,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.RemoteKVStoreProvider;
 import com.dremio.datastore.api.IndexedStore;
@@ -30,7 +31,6 @@ import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.indexed.doughnut.Doughnut;
 import com.dremio.datastore.indexed.doughnut.DoughnutIndexedStore;
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;

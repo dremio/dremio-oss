@@ -17,11 +17,13 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface ParquetReaderFactory {
@@ -33,18 +35,20 @@ public interface ParquetReaderFactory {
   boolean isSupported(ColumnChunkMetaData chunk);
 
   RecordReader newReader(OperatorContext context,
-      ParquetScanProjectedColumns projectedColumns,
-      String path,
-      CompressionCodecFactory codecFactory,
-      List<ParquetFilterCondition> conditions,
-      ParquetFilterCreator filterCreator,
-      ParquetDictionaryConvertor dictionaryConvertor,
-      boolean enableDetailedTracing,
-      MutableParquetMetadata footer,
-      int rowGroupIndex,
-      SimpleIntVector deltas,
-      SchemaDerivationHelper schemaHelper,
-      InputStreamProvider inputStreamProvider);
+                         ParquetScanProjectedColumns projectedColumns,
+                         String path,
+                         CompressionCodecFactory codecFactory,
+                         List<ParquetFilterCondition> conditions,
+                         ParquetFilterCreator filterCreator,
+                         ParquetDictionaryConvertor dictionaryConvertor,
+                         boolean enableDetailedTracing,
+                         MutableParquetMetadata footer,
+                         int rowGroupIndex,
+                         SimpleIntVector deltas,
+                         SchemaDerivationHelper schemaHelper,
+                         InputStreamProvider inputStreamProvider,
+                         List<RuntimeFilter> runtimeFilters,
+                         ArrowBuf validityBuf);
 
   ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema schema);
 
@@ -70,7 +74,9 @@ public interface ParquetReaderFactory {
                                   int rowGroupIndex,
                                   SimpleIntVector deltas,
                                   SchemaDerivationHelper schemaHelper,
-                                  InputStreamProvider inputStreamProvider) {
+                                  InputStreamProvider inputStreamProvider,
+                                  List<RuntimeFilter> runtimeFilters,
+                                  ArrowBuf validityBuf) {
 
       throw new UnsupportedOperationException();
     }

@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -80,6 +81,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -92,6 +94,7 @@ import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.datastore.DatastoreException;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
@@ -138,12 +141,16 @@ import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.JobResultInfoProvider;
+import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.exec.work.protector.UserRequest;
@@ -241,6 +248,7 @@ import io.protostuff.ByteString;
 public class LocalJobsService implements Service, JobResultInfoProvider {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
   private static final Logger QUERY_LOGGER = LoggerFactory.getLogger("query.logger");
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(LocalJobsService.class);
 
   private static final ObjectMapper MAPPER = createMapper();
 
@@ -260,6 +268,14 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
   private static final int SEARCH_JOBS_PAGE_SIZE = 100;
 
+  private static final long LOCAL_ABANDONED_JOBS_TASK_SCHEDULE_MILLIS = 1800000;
+
+  @VisibleForTesting
+  public static final String INJECTOR_ATTEMPT_COMPLETION_ERROR = "attempt-completion-error";
+
+  @VisibleForTesting
+  public static final String INJECTOR_ATTEMPT_COMPLETION_KV_ERROR = "attempt-completion-kv-error";
+
   private final Provider<LocalQueryExecutor> queryExecutor;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobResultsStoreConfig> jobResultsStoreConfig;
@@ -278,6 +294,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
   private final Provider<JobTelemetryClient> jobTelemetryClientProvider;
   private final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverter;
   private final boolean isMaster;
+  private final LocalAbandonedJobsHandler localAbandonedJobsHandler;
 
   private NodeEndpoint identity;
   private LegacyIndexedStore<JobId, JobResult> store;
@@ -336,6 +353,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     this.jobTelemetryClientProvider = jobTelemetryClientProvider;
     this.isMaster = isMaster;
     this.forwarder = new RemoteJobServiceForwarder(conduitProvider);
+    this.localAbandonedJobsHandler = new LocalAbandonedJobsHandler();
   }
 
   public QueryObserverFactory getQueryObserverFactory() {
@@ -432,6 +450,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         .schedule(abandonedJobsSchedule, new AbandonLocalJobsTask());
     }
 
+    // schedule the task every 30 minutes to set abandoned jobs state to FAILED.
+    localAbandonedJobsHandler.schedule(LOCAL_ABANDONED_JOBS_TASK_SCHEDULE_MILLIS);
+
     MapFilterToJobState.init();
     logger.info("JobsService is up");
   }
@@ -457,7 +478,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
           && !coordEndpoints.contains(JobsServiceUtil.toPB(lastAttempt.getEndpoint()));
 
         if (shouldAbandon) {
-          logger.debug("failing abandoned job {}", lastAttempt.getInfo().getJobId().getId());
+          logger.debug("Failing abandoned job {}", lastAttempt.getInfo().getJobId().getId());
           final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
               .setInfo(lastAttempt.getInfo()
                   .setFinishTime(System.currentTimeMillis())
@@ -490,7 +511,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       abandonLocalJobsTask = null;
     }
 
-    AutoCloseables.close(jobResultsStore, allocator);
+    AutoCloseables.close(localAbandonedJobsHandler, jobResultsStore, allocator);
     logger.info("Stopped JobsService");
   }
 
@@ -1102,7 +1123,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       List<ParentDatasetInfo> parentsList = jobInfo.getParentsList();
       if (parentsList != null) {
         for (ParentDatasetInfo parentDatasetInfo : parentsList) {
-          final NamespaceKey parentDatasetPath = new NamespaceKey(parentDatasetInfo.getDatasetPathList());
+          List<String> pathList = listNotNull(parentDatasetInfo.getDatasetPathList());
+          final NamespaceKey parentDatasetPath = new NamespaceKey(pathList);
           parentDatasets.add(parentDatasetPath);
           allDatasets.add(parentDatasetPath);
         }
@@ -1165,7 +1187,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
       final Job job = new Job(jobId, jobAttempt);
 
-      QueryListener listener = new QueryListener(job, handler);
+      QueryListener listener = new QueryListener(job, handler, session.getSessionOptionManager());
       runningJobs.put(jobId, listener);
       storeJob(job);
 
@@ -1187,8 +1209,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     private final DeferredException exception = new DeferredException();
 
     private JobResultListener attemptObserver;
+    private SessionOptionManager sessionOptionManager = null;
+    private ExecutionControls executionControls;
 
-    private QueryListener(Job job, UserResponseHandler connection) {
+    private QueryListener(Job job, UserResponseHandler connection, SessionOptionManager sessionOptionManager) {
       this.job = job;
       externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
       this.responseHandler = Preconditions.checkNotNull(connection, "handler cannot be null");
@@ -1197,6 +1221,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       isInternal = false;
       this.job.setIsInternal(false);
       setupJobData();
+      this.sessionOptionManager = sessionOptionManager;
     }
 
     private QueryListener(
@@ -1254,6 +1279,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       } else {
         attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator, listeners);
       }
+      if (!isInternal) {
+        this.executionControls = new ExecutionControls(sessionOptionManager, JobsServiceUtil.toPB(identity));
+      } else {
+        this.executionControls = new ExecutionControls(optionManagerProvider.get(), JobsServiceUtil.toPB(identity));
+      }
 
       storeJob(job);
 
@@ -1285,10 +1315,13 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             job.getJobAttempt().getInfo().setJoinAnalysis(joinAnalysis);
           }
         }
+
+        injector.injectChecked(executionControls, INJECTOR_ATTEMPT_COMPLETION_ERROR, IOException.class);
+        injector.injectChecked(executionControls, INJECTOR_ATTEMPT_COMPLETION_KV_ERROR, DatastoreException.class);
         // includes a call to storeJob()
         addAttemptToJob(job, state, profile);
 
-      } catch (IOException e) {
+      } catch (Exception e) {
         exception.addException(e);
       }
 
@@ -2357,5 +2390,101 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     }
 
     return false;
+  }
+
+  class LocalAbandonedJobsHandler implements  AutoCloseable {
+
+    private ScheduledFuture abandonedJobsTask;
+    private final CloseableSchedulerThreadPool threadPool;
+
+    public LocalAbandonedJobsHandler() {
+      this.threadPool = new CloseableSchedulerThreadPool("local-abandoned-jobs-handler", 1);
+    }
+
+    void schedule(long scheduleInterval) {
+      abandonedJobsTask = threadPool.scheduleAtFixedRate(() -> terminateLocalAbandonedJobs(), 0, scheduleInterval, TimeUnit.MILLISECONDS);
+      logger.info("Scheduled abandonedJobsTask for interval {}", scheduleInterval);
+    }
+
+    @Override
+    public void close() throws Exception {
+      cancel();
+      AutoCloseables.close(threadPool);
+    }
+
+    private void cancel() {
+      if (abandonedJobsTask != null) {
+        abandonedJobsTask.cancel(true);
+        abandonedJobsTask = null;
+      }
+    }
+
+    @VisibleForTesting
+    public void reschedule(long scheduleInterval) {
+      cancel();
+      schedule(scheduleInterval);
+    }
+
+    private JobAttempt getJobAttemptIfNotFinalState(JobResult jobResult) {
+      final List<JobAttempt> attempts = jobResult.getAttemptsList();
+      final int numAttempts = attempts.size();
+      if (numAttempts > 0) {
+        final JobAttempt lastAttempt = attempts.get(numAttempts - 1);
+        if (JobsServiceUtil.isNonFinalState(lastAttempt.getState())) {
+          return lastAttempt;
+        }
+      }
+      return null;
+    }
+
+    private void terminateLocalAbandonedJobs() {
+      try {
+        final Set<Entry<JobId, JobResult>> apparentlyAbandoned =
+          StreamSupport.stream(store.find(new LegacyFindByCondition()
+            .setCondition(JobsServiceUtil.getApparentlyAbandonedQuery())).spliterator(), false)
+            .collect(Collectors.toSet());
+
+        for (final Entry<JobId, JobResult> entry : apparentlyAbandoned) {
+          JobResult jobResult = entry.getValue();
+          JobAttempt lastAttempt = getJobAttemptIfNotFinalState(jobResult);
+          if (lastAttempt != null) {
+            boolean isLocalJob = lastAttempt.getEndpoint().equals(identity);
+            boolean isJobInProgress = true;
+            if (isLocalJob) {
+              isJobInProgress = runningJobs.get(lastAttempt.getInfo().getJobId()) != null;
+            }
+
+            if (!isJobInProgress) {
+              //Before updating the job to FAILED state check if the job status in store is not final state.
+              //This is required because between the time apparentlyAbandoned jobs are retrieved and the time the job
+              //is verified to be not running in runningJobs, the job status might have got changed.
+              jobResult = store.get(lastAttempt.getInfo().getJobId());
+              if (jobResult != null) {
+                lastAttempt = getJobAttemptIfNotFinalState(jobResult);
+                if (lastAttempt != null) {
+                  logger.info("Failing abandoned job {}", lastAttempt.getInfo().getJobId().getId());
+                  final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
+                    .setInfo(lastAttempt.getInfo().setFinishTime(System.currentTimeMillis())
+                    .setFailureInfo("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
+                  final List<JobAttempt> attempts = jobResult.getAttemptsList();
+                  final int numAttempts = attempts.size();
+                  attempts.remove(numAttempts - 1);
+                  attempts.add(newLastAttempt);
+                  jobResult.setCompleted(true); // mark the job as completed
+                  store.put(entry.getKey(), jobResult);
+                }
+              }
+            }
+          }
+        }
+      } catch (Exception e) {
+        logger.error("Error while setting FAILED state for any abandoned jobs that may be present. Will attempt in next invocation", e);
+      }
+    }
+  }
+
+  @VisibleForTesting
+  public LocalAbandonedJobsHandler getLocalAbandonedJobsHandler() {
+    return localAbandonedJobsHandler;
   }
 }

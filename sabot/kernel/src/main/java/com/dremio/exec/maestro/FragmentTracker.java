@@ -253,8 +253,11 @@ class FragmentTracker implements AutoCloseable {
 
   // Save and propagate the first reported by any executor.
   void checkAndUpdateFirstError(Exception e) {
-    if (firstError.compareAndSet(null, e)) {
-      completionListener.failed(e);
+    // if another thread set the firstError, wait till it finishes the failed() callback too.
+    synchronized (firstError) {
+      if (firstError.compareAndSet(null, e)) {
+        completionListener.failed(e);
+      }
     }
     checkAndCloseQuery();
   }

@@ -19,32 +19,45 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.base.Preconditions;
 
 /**
  * An InputStreamProvider that opens a separate stream for each column.
  */
+
 public class StreamPerColumnProvider implements InputStreamProvider {
   private final FileSystem fs;
   private final Path path;
   private final long length;
   private MutableParquetMetadata footer;
   private final long maxFooterLen;
+  final boolean readColumnOffsetIndexes;
+  private final BufferAllocator allocator;
+  private final OperatorContext context;
 
   private final List<BulkInputStream> streams = new ArrayList<>();
 
-  public StreamPerColumnProvider(FileSystem fs, Path path, long length, long maxFooterLen, MutableParquetMetadata footer, OperatorStats stats) {
+  public StreamPerColumnProvider(FileSystem fs, Path path, long length, long maxFooterLen, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndexes) {
     this.fs = fs;
     this.path = path;
     this.length = length;
     this.maxFooterLen = maxFooterLen;
     this.footer = footer;
+    this.readColumnOffsetIndexes = readColumnOffsetIndexes;
+    if (context != null) {
+      this.allocator = context.getAllocator();
+    } else {
+      this.allocator = null;
+    }
+    this.context = context;
   }
 
   @Override
@@ -58,6 +71,48 @@ public class StreamPerColumnProvider implements InputStreamProvider {
   @Override
   public boolean isSingleStream() {
     return false;
+  }
+
+  @Override
+  public OffsetIndexProvider getOffsetIndexProvider(List<ColumnChunkMetaData> columns) {
+    if (readColumnOffsetIndexes) {
+      if ((columns.size() == 0) || (columns.get(0).getOffsetIndexReference() == null)) {
+          return null;
+      }
+      OffsetIndexProvider offsetIndexProvider;
+      Preconditions.checkState(allocator != null, "Allocator null when trying to getOffsetIndexProvider");
+      try (BulkInputStream inputStream = BulkInputStream.wrap(Streams.wrap(fs.open(path)))) {
+        offsetIndexProvider = new OffsetIndexProvider(inputStream, allocator, columns);
+        if ((context != null) && (context.getStats() != null)) {
+          context.getStats().addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.OFFSET_INDEX_READ, 1);
+        }
+        return offsetIndexProvider;
+      } catch (IOException ex) {
+        //Ignore IOException.
+      }
+    }
+    return null;
+  }
+
+  @Override
+  public ColumnIndexProvider getColumnIndexProvider(List<ColumnChunkMetaData> columns) {
+    if (readColumnOffsetIndexes) {
+      if ((columns.size() == 0) || (columns.get(0).getColumnIndexReference() == null)) {
+        return null;
+      }
+      Preconditions.checkState(allocator != null, "Allocator null when trying to getColumnIndexProvider");
+      try (BulkInputStream inputStream = BulkInputStream.wrap(Streams.wrap(fs.open(path)))) {
+        ColumnIndexProvider columnIndexProvider;
+        columnIndexProvider = new ColumnIndexProvider(inputStream, allocator, columns);
+        if ((context != null) && (context.getStats() != null)) {
+          context.getStats().addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.COLUMN_INDEX_READ, 1);
+        }
+        return columnIndexProvider;
+      } catch (IOException ex) {
+        //Ignore IOException.
+      }
+    }
+    return null;
   }
 
   @Override

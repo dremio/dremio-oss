@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.elastic;
 
+import static com.dremio.exec.ExecConstants.ELASTIC_ACTION_RETRIES_VALIDATOR;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -155,7 +157,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
           config.getAccessSecret(),
           config.getRegionName()),
         config.getReadTimeoutMillis(),
-        config.isUseWhitelist());
+        config.isUseWhitelist(),
+        context.getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR));
     } catch (IllegalArgumentException e) {
       throw UserException.connectionError(e)
         .message("Failed to authenticate with Elasticsearch cluster %s", config.getHostList().stream()

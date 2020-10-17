@@ -15,7 +15,9 @@
  */
 package com.dremio.sabot.exec.fragment;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.arrow.memory.ArrowBuf;
 
@@ -41,7 +43,7 @@ public class OutOfBandMessage {
   private final int sendingOperatorId;
   private final Payload payload;
   private final boolean isOptional;
-  private volatile ArrowBuf buffer;
+  private volatile ArrowBuf[] buffers;
 
   public QueryId getQueryId() {
     return queryId;
@@ -71,14 +73,16 @@ public class OutOfBandMessage {
     return sendingOperatorId;
   }
 
-  public ArrowBuf getBuffer() {
-    return buffer;
+  public ArrowBuf[] getBuffers() {
+    return buffers;
   }
 
-  public void retainBufferIfPresent() {
-    if (buffer != null && buffer.capacity() > 0) {
-      buffer.retain();
+  public Optional<ArrowBuf> getIfSingleBuffer() {
+    if (buffers == null || buffers.length != 1) {
+      return Optional.empty();
     }
+
+    return Optional.ofNullable(buffers[0]);
   }
 
   public <T> T getPayload(Parser<T> parser) {
@@ -100,6 +104,10 @@ public class OutOfBandMessage {
   public boolean getIsOptional() { return isOptional; }
 
   public OutOfBandMessage(final OOBMessage message, final ArrowBuf body) {
+    this(message, body == null ? new ArrowBuf[0] : new ArrowBuf[] {body});
+  }
+
+  private OutOfBandMessage(final OOBMessage message, final ArrowBuf[] bodyBufs) {
     queryId = message.getQueryId();
     operatorId = message.getReceivingOperatorId();
     majorFragmentId = message.getReceivingMajorFragmentId();
@@ -110,7 +118,7 @@ public class OutOfBandMessage {
 
     payload = new Payload(message.getType(), message.getData().toByteArray());
     isOptional = message.hasIsOptional() ? message.getIsOptional() : true;
-    buffer = body;
+    buffers = bodyBufs;
   }
 
   public OOBMessage toProtoMessage() {
@@ -141,7 +149,7 @@ public class OutOfBandMessage {
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf buffer, boolean isOptional) {
+      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf[] buffers, boolean isOptional) {
     super();
     this.queryId = queryId;
     this.majorFragmentId = majorFragmentId;
@@ -152,11 +160,13 @@ public class OutOfBandMessage {
     this.sendingOperatorId = sendingOperatorId;
     this.payload = payload;
     this.isOptional = isOptional;
-    this.buffer = buffer;
+    this.buffers = buffers;
 
     // Caller is expected to release its own copy
-    if (this.buffer != null) {
-      this.buffer.retain();
+    if (this.buffers != null && this.buffers.length > 0) {
+      Arrays.stream(this.buffers).forEach(ArrowBuf::retain);
+    } else {
+      this.buffers = new ArrowBuf[0];
     }
   }
 
@@ -183,7 +193,5 @@ public class OutOfBandMessage {
     public byte[] getBytes() {
       return bytes;
     }
-
   }
-
 }

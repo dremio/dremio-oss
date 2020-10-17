@@ -17,6 +17,8 @@ package com.dremio.sabot.op.common.ht2;
 
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
+import static org.apache.arrow.util.Preconditions.checkNotNull;
+import static org.apache.arrow.util.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,13 +30,18 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.LBlockHashTableKeyReader;
+import com.dremio.exec.util.ValueListFilter;
+import com.dremio.exec.util.ValueListFilterBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -59,6 +66,8 @@ import io.netty.util.internal.PlatformDependent;
 public final class LBlockHashTable implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LBlockHashTable.class);
   private static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
+  private static int MAX_VAL_LIST_FILTER_KEY_SIZE = 17;
+
   public static final int CONTROL_WIDTH = 8;
   public static final int VAR_OFFSET_SIZE = 4;
   public static final int VAR_LENGTH_SIZE = 4;
@@ -1270,7 +1279,95 @@ public final class LBlockHashTable implements AutoCloseable {
     long bloomFilterSize = sizeDynamically ? Math.min(BloomFilter.getOptimalSize(size()),
             BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
 
-    LBlockHashTableKeyReader.Builder keyReaderBuilder = new LBlockHashTableKeyReader.Builder()
+
+    final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
+    try (RollbackCloseable closeOnError = new RollbackCloseable();
+         LBlockHashTableKeyReader keyReader = getKeyReaderBuilder(fieldNames).build()) {
+      closeOnError.add(bloomFilter);
+      bloomFilter.setup();
+      final ArrowBuf keyHolder = keyReader.getKeyHolder();
+      while(keyReader.loadNextKey()) {
+        bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
+      }
+      checkState(!bloomFilter.isCrossingMaxFPP(), "Bloom filter overflown over its capacity.");
+      closeOnError.commit();
+      return Optional.of(bloomFilter);
+    } catch (Exception e) {
+      logger.warn("Unable to prepare bloomfilter for " + fieldNames, e);
+      return Optional.empty();
+    }
+  }
+
+  public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
+    if (StringUtils.isEmpty(fieldName)) {
+      return Optional.empty();
+    }
+    final boolean isBooleanField = isBoolField(fieldName);
+    final LBlockHashTableKeyReader.Builder keyReaderBuilder = getKeyReaderBuilder(ImmutableList.of(fieldName))
+            .setSetVarFieldLenInFirstByte(true) // Set length at first byte, to avoid comparison issues for different size values.
+            .setMaxKeySize(MAX_VAL_LIST_FILTER_KEY_SIZE); // Max key size 16, excluding one byte for validity bits.
+    try (LBlockHashTableKeyReader keyReader = keyReaderBuilder.build();
+         ValueListFilterBuilder filterBuilder =
+                 new ValueListFilterBuilder(allocator, maxElements, isBooleanField ? 0 : keyReader.getEffectiveKeySize(), isBooleanField)) {
+      filterBuilder.setup();
+      filterBuilder.setFieldName(fieldName);
+      filterBuilder.setName(Thread.currentThread().getName());
+      setFieldType(filterBuilder, fieldName);
+      final ArrowBuf key = keyReader.getKeyValBuf();
+      while (keyReader.loadNextKey()) {
+        if (keyReader.areAllValuesNull()) {
+          filterBuilder.insertNull();
+        } else if (isBooleanField) {
+          filterBuilder.insertBooleanVal(readBoolean(keyReader.getKeyHolder()));
+        } else {
+          filterBuilder.insert(key);
+        }
+      }
+      return Optional.of(filterBuilder.build());
+    } catch (Exception e) {
+      logger.info("Unable to prepare value list filter for {} because {}", fieldName, e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  private boolean readBoolean(final ArrowBuf key) {
+    // reads the first column
+    return (key.getByte(0) & (1L << 1)) != 0;
+  }
+
+  private void setFieldType(final ValueListFilterBuilder filterBuilder, final String fieldName) {
+    // Check fixed and variable width vectorPivotDefs one by one
+    ArrowType fieldType = getFieldType(pivot.getFixedPivots(), fieldName);
+    byte precision = 0;
+    byte scale = 0;
+    if (fieldType == null) {
+      fieldType = getFieldType(pivot.getVariablePivots(), fieldName);
+      filterBuilder.setFixedWidth(false);
+    }
+    checkNotNull(fieldType, "Not able to find %s in build pivot", fieldName);
+    if (fieldType instanceof ArrowType.Decimal) {
+      precision = (byte) ((ArrowType.Decimal) fieldType).getPrecision();
+      scale = (byte) ((ArrowType.Decimal) fieldType).getScale();
+    }
+
+    filterBuilder.setFieldType(Types.getMinorTypeForArrowType(fieldType), precision, scale);
+  }
+
+  private ArrowType getFieldType(final List<VectorPivotDef> vectorPivotDefs, final String fieldName) {
+    return vectorPivotDefs.stream()
+            .map(p -> p.getIncomingVector().getField())
+            .filter(f -> f.getName().equalsIgnoreCase(fieldName))
+            .map(f -> f.getType())
+            .findAny().orElse(null);
+  }
+
+  private boolean isBoolField(final String fieldName) {
+    return pivot.getBitPivots().stream().anyMatch(p -> p.getIncomingVector().getField().getName()
+            .equalsIgnoreCase(fieldName));
+  }
+
+  private LBlockHashTableKeyReader.Builder getKeyReaderBuilder(List<String> fieldNames) {
+    return new LBlockHashTableKeyReader.Builder()
             .setBufferAllocator(this.allocator)
             .setFieldsToRead(fieldNames)
             .setPivot(pivot)
@@ -1278,20 +1375,5 @@ public final class LBlockHashTable implements AutoCloseable {
             .setTableFixedAddresses(tableFixedAddresses)
             .setTableVarAddresses(initVariableAddresses)
             .setTotalNumOfRecords(size());
-    final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
-    try (RollbackCloseable closeOnError = new RollbackCloseable();
-         LBlockHashTableKeyReader keyReader = keyReaderBuilder.build()) {
-      closeOnError.add(bloomFilter);
-      bloomFilter.setup();
-      final ArrowBuf keyHolder = keyReader.getKeyHolder();
-      while(keyReader.loadNextKey()) {
-        bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
-      }
-      closeOnError.commit();
-      return Optional.of(bloomFilter);
-    } catch (Exception e) {
-      logger.warn("Unable to prepare bloomfilter for " + fieldNames, e);
-      return Optional.empty();
-    }
   }
 }

@@ -23,6 +23,7 @@ import org.apache.arrow.memory.RootAllocatorFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
@@ -31,7 +32,6 @@ import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.store.sys.MemoryIterator;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.telemetry.api.Telemetry;

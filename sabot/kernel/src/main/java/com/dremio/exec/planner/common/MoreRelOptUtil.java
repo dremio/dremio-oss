@@ -18,10 +18,14 @@ package com.dremio.exec.planner.common;
 import java.util.AbstractList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -32,9 +36,12 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -63,6 +70,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
@@ -798,6 +807,131 @@ public final class MoreRelOptUtil {
 
     Preconditions.checkNotNull(node);
     return node;
+  }
+
+  /**
+   * Removes constant group keys in aggregate and adds a project on top.
+   * Returns the original rel if there is a failure handling the rel.
+   */
+  public static RelNode removeConstantGroupKeys(RelNode rel, RelBuilderFactory factory) {
+    return rel.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof Aggregate) {
+          Aggregate agg = (Aggregate) super.visitChildren(other);
+          RelNode newRel = handleAggregate(agg, factory.create(agg.getCluster(), null));
+          if (newRel == null) {
+            return agg;
+          }
+          return newRel;
+        }
+        return super.visit(other);
+      }
+
+      @Override
+      public RelNode visit(LogicalAggregate aggregate) {
+        Aggregate agg = (Aggregate) super.visitChildren(aggregate);
+        RelNode newRel = handleAggregate(agg, factory.create(agg.getCluster(), null));
+        if (newRel == null) {
+          return agg;
+        }
+        return newRel;
+      }
+    });
+  }
+
+  private static RelNode handleAggregate(Aggregate agg, RelBuilder relBuilder) {
+    final Set<Integer> newGroupKeySet = new HashSet<>();
+    relBuilder.push(agg.getInput());
+
+    // 1. Create an array with the number of group by keys in Aggregate
+    // 2. Partially fill out the array with constant fields at the original position in the rowType
+    // 3. Add a project below aggregate by reordering the fields in a way that non-constant fields come first
+    // 3. Build an aggregate for the remaining fields
+    // 4. Fill out the rest of the array by getting fields from constructed aggregate
+    // 5. Create a Project with removed constants along with original fields from input
+    int numGroupKeys = agg.getGroupSet().cardinality();
+    if (numGroupKeys == 0) {
+      return null;
+    }
+    final RexNode[] groupProjects = new RexNode[numGroupKeys];
+    final LinkedHashSet<Integer> constantInd = new LinkedHashSet<>();
+    final LinkedHashSet<Integer> groupInd = new LinkedHashSet<>();
+    final Map<Integer, Integer> mapping = new HashMap<>();
+    for (int i = 0 ; i < agg.getGroupSet().cardinality() ; i++) {
+      RexLiteral literal = projectedLiteral(agg.getInput(), i);
+      if(literal != null) {
+        groupProjects[i] = literal;
+        constantInd.add(i);
+      } else {
+        groupProjects[i] = null;
+        newGroupKeySet.add(groupInd.size());
+        groupInd.add(i);
+      }
+    }
+
+    final List<RexNode> projectBelowAggregate = new ArrayList<>();
+    if (constantInd.size() <= 1 || constantInd.size() == numGroupKeys) {
+      return null;
+    }
+
+    for(int ind : groupInd) {
+      mapping.put(ind, projectBelowAggregate.size());
+      projectBelowAggregate.add(relBuilder.field(ind));
+    }
+
+    for(int ind : constantInd) {
+      mapping.put(ind, projectBelowAggregate.size());
+      projectBelowAggregate.add(relBuilder.field(ind));
+    }
+
+    for(int i = 0 ; i < relBuilder.fields().size() ; i++) {
+      if(!constantInd.contains(i) && !groupInd.contains(i)) {
+        mapping.put(i, projectBelowAggregate.size());
+        projectBelowAggregate.add(relBuilder.field(i));
+      }
+    }
+
+    final List<AggregateCall> aggregateCalls = new ArrayList<>();
+    for (final AggregateCall aggregateCall : agg.getAggCallList()) {
+      List<Integer> newArgList = new ArrayList<>();
+      for (final int argIndex : aggregateCall.getArgList()) {
+        newArgList.add(mapping.get(argIndex));
+      }
+      aggregateCalls.add(aggregateCall.copy(newArgList, aggregateCall.filterArg));
+    }
+
+    ImmutableBitSet newGroupSet = ImmutableBitSet.of(newGroupKeySet);
+    relBuilder.project(projectBelowAggregate).aggregate(relBuilder.groupKey(newGroupSet.toArray()), aggregateCalls);
+
+    int count = 0;
+    for(int i = 0; i < groupProjects.length; i++) {
+      if (groupProjects[i] == null) {
+        groupProjects[i] = relBuilder.field(count);
+        count++;
+      }
+    }
+
+    List<RexNode> projects = new ArrayList<>(Arrays.asList(groupProjects));
+    for(int i = 0 ; i < agg.getAggCallList().size() ; i++) {
+      projects.add(relBuilder.field(i+newGroupKeySet.size()));
+    }
+    RelNode newRel = relBuilder.project(projects, agg.getRowType().getFieldNames()).build();
+    if (!RelOptUtil.areRowTypesEqual(newRel.getRowType(), agg.getRowType(), true)) {
+      return null;
+    }
+    return newRel;
+  }
+  private static RexLiteral projectedLiteral(RelNode rel, int i) {
+    if (rel instanceof Project) {
+      Project project = (Project)rel;
+      RexNode node = (RexNode)project.getProjects().get(i);
+      if (node instanceof RexLiteral) {
+        return (RexLiteral)node;
+      }
+    }
+
+    return null;
   }
 
   public static List<RexNode> identityProjects(RelDataType type, ImmutableBitSet selectedColumns) {

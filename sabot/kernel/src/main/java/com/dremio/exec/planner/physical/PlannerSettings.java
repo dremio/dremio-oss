@@ -28,6 +28,7 @@ import org.apache.calcite.util.CancelFlag;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.CachingOptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
@@ -272,6 +273,10 @@ public class PlannerSettings implements Context{
 
   // This is used to set reason for cancelling the query in DremioHepPlanner and DremioVolcanoPlanner
   private String cancelReason = "";
+  private String cancelContext = null;
+  private volatile boolean isCancelledByHeapMonitor = false;
+
+  private NodeEndpoint nodeEndpoint = null;
 
   public PlannerSettings(SabotConfig config, OptionManager options,
                          Supplier<GroupResourceInformation> resourceInformation) {
@@ -599,12 +604,27 @@ public class PlannerSettings implements Context{
     }
   }
 
-  public void cancelPlanning(String cancelReason) {
+  public void cancelPlanning(String cancelReason, NodeEndpoint nodeEndpoint, String cancelContext, boolean isCancelledByHeapMonitor) {
     this.cancelReason = cancelReason;
+    this.nodeEndpoint = nodeEndpoint;
+    this.cancelContext = cancelContext;
+    this.isCancelledByHeapMonitor = isCancelledByHeapMonitor;
     cancelFlag.requestCancel();
   }
 
   public String getCancelReason() {
     return cancelReason;
+  }
+
+  public NodeEndpoint getNodeEndpoint() {
+    return nodeEndpoint;
+  }
+
+  public String getCancelContext() {
+    return cancelContext;
+  }
+
+  public boolean isCancelledByHeapMonitor() {
+    return isCancelledByHeapMonitor;
   }
 }

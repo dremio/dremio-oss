@@ -54,6 +54,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 
@@ -147,6 +148,7 @@ public class ElasticsearchCluster implements Closeable {
   private final boolean showIDColumn;
   private final boolean sslEnabled;
   private final boolean useWhiteList;
+  private final long actionRetries;
 
   private ElasticConnectionPool pool;
   private ElasticConnection connection;
@@ -156,19 +158,20 @@ public class ElasticsearchCluster implements Closeable {
   private Client client;
   private int scrollSize;
 
-  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled) throws IOException {
-    this(scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, null);
+  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, long actionRetries) throws IOException {
+    this(scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, actionRetries, null);
   }
 
   /**
    * @param sslEnabled only compatible with size == 1
    * @throws IOException
    */
-  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, Integer presetSSLPort) throws IOException {
+  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, long actionRetries, Integer presetSSLPort) throws IOException {
     this.scrollSize = scrollSize;
     this.random = random;
     this.scriptsEnabled = scriptsEnabled;
     this.showIDColumn = showIDColumn;
+    this.actionRetries = actionRetries;
 
     this.testAuthenticationType = System.getProperty("dremio.elastic.authentication.type", "NONE").toUpperCase();
     switch (testAuthenticationType) {
@@ -208,7 +211,7 @@ public class ElasticsearchCluster implements Closeable {
     List<Host> hosts = ImmutableList.of(new Host(host, port));
 
     this.pool = new ElasticConnectionPool(hosts, sslEnabled ? TLSValidationMode.UNSECURE : TLSValidationMode.OFF, new ElasticsearchAuthentication(hosts, authenticationType,
-      username, password, accessKey, accessSecret, regionName), 30000, useWhiteList);
+      username, password, accessKey, accessSecret, regionName), 30000, useWhiteList, actionRetries);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();
@@ -418,7 +421,7 @@ public class ElasticsearchCluster implements Closeable {
    */
   public void wipe() {
     try {
-      new DeleteIndex("*").getResult(webTarget);
+      getResultWithRetries(new DeleteIndex("*"));
     } catch (Exception e) {
       logger.warn("--> failed to wipe test indices");
     }
@@ -430,7 +433,7 @@ public class ElasticsearchCluster implements Closeable {
   public void wipe(String... indices) {
     for (String index : indices) {
       try {
-        new DeleteIndex(index).getResult(pool.getRandomConnection().getTarget());
+        getResultWithRetries(new DeleteIndex(index));
       } catch (Exception e) {
         logger.warn("--> failed to delete index: {}", index);
       }
@@ -480,7 +483,7 @@ public class ElasticsearchCluster implements Closeable {
         i++;
       }
     }
-    Result response = bulk.getResult(webTarget);
+    Result response = getResultWithRetries(bulk);
     if (response.getAsJsonObject().get("errors").getAsBoolean()) {
       fail(response.toString());
     }
@@ -517,7 +520,7 @@ public class ElasticsearchCluster implements Closeable {
       bulk.add(sb.toString());
     }
 
-    Result response = bulk.getResult(webTarget);
+    Result response = getResultWithRetries(bulk);
     if (response.getAsJsonObject().get("errors").getAsBoolean()) {
       fail(response.toString());
     }
@@ -526,6 +529,23 @@ public class ElasticsearchCluster implements Closeable {
   }
 
   public void load(String schema, String table, ColumnData[] data) throws IOException {
+    final int retries = 3;
+    for (int i = 0; i <= retries; i++) {
+      try {
+        this.loadData(schema, table, data);
+        return;
+      } catch (BadRequestException e) {
+        if (i == retries) {
+          throw new RuntimeException(String.format("Failed to load data after %d retries.", retries), e);
+        }
+        logger.warn("Failed to load data for #{} try.", i + 1, e);
+        this.wipe();
+      }
+    }
+    throw new RuntimeException(String.format("Failed to load data after %d retries.", retries));
+  }
+
+  public void loadData(String schema, String table, ColumnData[] data) throws IOException {
 
     schema(1, 0, schema);
 
@@ -581,7 +601,7 @@ public class ElasticsearchCluster implements Closeable {
       bulk.add(json.endObject().string());
     }
 
-    Result response = bulk.getResult(webTarget);
+    Result response = getResultWithRetries(bulk);
     if (response.getAsJsonObject().get("errors").getAsBoolean()) {
       fail(response.toString());
     }
@@ -736,10 +756,25 @@ public class ElasticsearchCluster implements Closeable {
     schema(1, 0, schemas);
   }
 
+  private Result getResultWithRetries(ElasticActions.ElasticAction action) {
+    for (int i = 0; i <= actionRetries; i++) {
+      try {
+        return action.getResult(webTarget);
+      } catch (Exception e) {
+        if (i == actionRetries) {
+          throw e;
+        }
+        logger.warn("Failed to get result for #{} try.", i + 1, e);
+      }
+    }
+    throw new RuntimeException(String.format("Failed to get result after %d retries.", actionRetries));
+  }
+
   /**
    * Creates schemas with the given name(s).
    */
   public void schema(int shards, int replicas, String... schemas) {
+    logger.info("creating schema for {}, {}, {}.", shards, replicas);
     for (String schema : schemas) {
 
       if (deleteExisting) {
@@ -748,15 +783,17 @@ public class ElasticsearchCluster implements Closeable {
 
       IndexExists indexExists = new IndexExists();
       indexExists.addIndex(schema);
-      Result result = indexExists.getResult(webTarget);
+      Result result = getResultWithRetries(indexExists);
 
       if (result.success()) {
+        logger.info("schema already exists {}.", schema);
         continue;
       }
 
       CreateIndex createIndex = new CreateIndex(schema, shards, replicas);
+      logger.info("schema not exist, so trying to create {}, {}, {}, createIndex is {}", schema, shards, replicas, createIndex);
 
-      createIndex.getResult(webTarget);
+      getResultWithRetries(createIndex);
     }
   }
 
@@ -768,7 +805,7 @@ public class ElasticsearchCluster implements Closeable {
     for (String schema : schemas) {
       createAliases.addAlias(schema, alias);
     }
-    createAliases.getResult(webTarget);
+    getResultWithRetries(createAliases);
   }
 
   public void aliasWithFilter(String alias, String filter, String... schemas) {
@@ -776,7 +813,7 @@ public class ElasticsearchCluster implements Closeable {
     for (String schema : schemas) {
       createAliases.addAlias(schema, alias, filter);
     }
-    createAliases.getResult(webTarget);
+    getResultWithRetries(createAliases);
   }
 
   public void alias(List<AliasActionDef> aliasActions) {
@@ -792,7 +829,7 @@ public class ElasticsearchCluster implements Closeable {
       }
     }
 
-    createAliases.getResult(webTarget);
+    getResultWithRetries(createAliases);
   }
 
   /**
@@ -1019,7 +1056,7 @@ public class ElasticsearchCluster implements Closeable {
       bulk.add(json.endObject().string());
     }
 
-    Result response = bulk.getResult(webTarget);
+    Result response = getResultWithRetries(bulk);
     if (response.getAsJsonObject().get("errors").getAsBoolean()) {
       logger.error("Failed to index test data:\n{}", response.toString());
       fail();
@@ -1080,7 +1117,7 @@ public class ElasticsearchCluster implements Closeable {
    * @throws Exception
    */
   public static void main(String[] args) throws Exception {
-    ElasticsearchCluster c = new ElasticsearchCluster(4000, new Random(), true, false, false, true, 4443);
+    ElasticsearchCluster c = new ElasticsearchCluster(4000, new Random(), true, false, false, true, 3, 4443);
     System.out.println(c);
     ColumnData[] data = ElasticBaseTestQuery.getBusinessData();
     c.load("foo", "bar", data);

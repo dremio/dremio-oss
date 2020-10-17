@@ -182,7 +182,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.fs = fs;
       this.attributes = attributes;
       final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null, null);
+      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null, null, false);
       this.footer = this.streamProvider.getFooter();
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;

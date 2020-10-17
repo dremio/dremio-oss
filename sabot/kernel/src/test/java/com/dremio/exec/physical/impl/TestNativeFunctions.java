@@ -769,6 +769,73 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void testRound() throws Exception {
+    // round for integers / longs
+    testFunctions(new Object[][] {
+      {"round(c0, c1)", 7589, -1, 7590},
+      {"round(c0, c1)", 8532, -2, 8500},
+      {"round(c0, c1)", -8579, -1, -8580},
+      {"round(c0, c1)", -8612, -2, -8600},
+      {"round(c0, c1)", -3874, -6, 0},
+      {"round(c0, c1)", 758, 2, 758},
+      {"round(c0, c1)", 3453562312L, -2, 3453562300L},
+      {"round(c0, c1)", 3453562343L, -5, 3453600000L},
+      {"round(c0, c1)", -345353425343L, 12, -345353425343L},
+      {"round(c0, c1)", -23453462343L, -4, -23453460000L},
+      {"round(c0, c1)", -23453462343L, -5, -23453500000L},
+      {"round(c0, c1)", 345353425343L, -12, 0L}
+    });
+  }
+
+  @Test
+  public void testConcat() throws Exception {
+    testFunctions(new Object[][]{
+      { "concat(c0, c1)", "abc", "ABC", "abcABC"},
+      { "concat(c0, c1)", "abc", NULL_VARCHAR, "abc"},
+      { "concat(c0, c1)", "", "ABC", "ABC"},
+      { "concat(c0, c1)", NULL_VARCHAR, NULL_VARCHAR, ""},
+      { "concat(c0, c1, c2)", "abcd", "a", "bcd", "abcdabcd"},
+      { "concat(c0, c1, c2)", NULL_VARCHAR, "pq", "ard", "pqard"},
+      { "concat(c0, c1, c2)", "abcd", NULL_VARCHAR, "-a", "abcd-a"},
+      { "concat(c0, c1, c2, c3)", "pqrs", "", "[n]abc", "y", "pqrs[n]abcy"},
+      { "concat(c0, c1, c2, c3)", "", "pq", "ard", NULL_VARCHAR, "pqard"},
+      { "concat(c0, c1, c2, c3, c4)", "", "npq", "ARD", "", "abc", "npqARDabc"},
+      { "concat(c0, c1, c2, c3, c4)", "pqrs", NULL_VARCHAR, "nabc", "=y123",
+        NULL_VARCHAR, "pqrsnabc=y123"},
+      { "concat(c0, c1, c2, c3, c4, c5)", ":a", "npq", "ard", "", "abcn",
+        "sdfgs", ":anpqardabcnsdfgs"},
+      { "concat(c0, c1, c2, c3, c4, c5)", "PQRS", NULL_VARCHAR, "abc", "y",
+        NULL_VARCHAR, "bcd", "PQRSabcybcd"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6)", ":o", "npq", "ard", "==", "abcn",
+        "sdfgs", "", ":onpqard==abcnsdfgs"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6)", "pqrs", NULL_VARCHAR, "abc-n",
+        "YABC", NULL_VARCHAR, "asdf", "jkl", "pqrsabc-nYABCasdfjkl"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6, c7)", "", "##npq", "ard",
+        "", "abcn", "sdf*gs", "", "", "##npqardabcnsdf*gs"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6, c7)", NULL_VARCHAR, "pqrs",
+        "abc", "y", NULL_VARCHAR, "asdf", "jkl", "$$", "pqrsabcyasdfjkl$$"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6, c7, c8)", "abcd", "", "pq", "ard",
+        "", "abcn", "sdfgs", "", "qwert|n", "abcdpqardabcnsdfgsqwert|n"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6, c7, c8)", NULL_VARCHAR, "abcd", "npq",
+        "sdfgs", "", "uwu", "wfw", "ABC", NULL_VARCHAR, "abcdnpqsdfgsuwuwfwABC"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9)", "abcd", "", "pq", "ard", "",
+        "ABCN", "sdfgs", "", "qwert|n", "a", "abcdpqardABCNsdfgsqwert|na"},
+      { "concat(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9)", NULL_VARCHAR, "abcd", "npq",
+        "sdfgs", "", "uwu", "wfw", "ABC", NULL_VARCHAR, "1234", "abcdnpqsdfgsuwuwfwABC1234"},
+    });
+  }
+
+  @Test
+  public void testConcatOperator() throws Exception {
+    testFunctions(new Object[][]{
+      { "concatOperator(c0, c1)", "abcd", "ABCD", "abcdABCD"},
+      { "concatOperator(c0, c1)", "", "ABCD", "ABCD"},
+      { "concatOperator(c0, c1)", NULL_VARCHAR, "abc", NULL_VARCHAR},
+      { "concatOperator(c0, c1)", "", "", ""},
+    });
+  }
+
+  @Test
   public void testFlippedCodeGenerator() throws Exception {
     ArrowType strType = new ArrowType.Utf8();
     ArrowType bigIntType = new ArrowType.Int(64, true);

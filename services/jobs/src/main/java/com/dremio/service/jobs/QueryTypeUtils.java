@@ -55,6 +55,7 @@ final class QueryTypeUtils {
     case JDBC:
     case REST:
     case UI_INITIAL_PREVIEW:
+    case FLIGHT:
     case UNKNOWN:
     default:
       return false;
@@ -100,6 +101,7 @@ final class QueryTypeUtils {
     case UI_EXPORT:
     case UI_INTERNAL_RUN:
     case UI_RUN:
+    case FLIGHT:
     default:
       return WorkloadClass.GENERAL;
     }
@@ -146,6 +148,10 @@ final class QueryTypeUtils {
       return QueryType.ODBC;
     }
 
+    if (name.contains("flight")) {
+      return QueryType.FLIGHT;
+    }
+
     return QueryType.UNKNOWN;
   }
 
@@ -174,6 +180,8 @@ final class QueryTypeUtils {
       case ACCELERATOR_CREATE:
       case ACCELERATOR_EXPLAIN:
         return WorkloadType.ACCELERATOR;
+      case FLIGHT:
+        return WorkloadType.FLIGHT;
       case UNKNOWN:
       default:
         return WorkloadType.UNKNOWN;

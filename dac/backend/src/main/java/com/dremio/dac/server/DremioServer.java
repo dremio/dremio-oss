@@ -43,13 +43,13 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.socket.SocketServlet;
-import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tracing.ServerTracingDynamicFeature;
 import com.dremio.dac.server.tracing.SpanFinishingFilter;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.tokens.TokenManager;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.opentracing.Tracer;

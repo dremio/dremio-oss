@@ -37,7 +37,7 @@ public interface InputStreamProviderFactory {
                              Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                              MutableParquetMetadata footerIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
                              BiConsumer<Path, MutableParquetMetadata> depletionListener, boolean readFullFile,
-                             List<String> dataset, long mTime, boolean enableBoosting) throws IOException;
+                             List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
@@ -45,7 +45,7 @@ public interface InputStreamProviderFactory {
                                       Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                                       MutableParquetMetadata footerIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
                                       BiConsumer<Path, MutableParquetMetadata> depletionListener, boolean readFullFile,
-                                      List<String> dataset, long mTime, boolean enableBoosting) throws IOException {
+                                      List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices) throws IOException {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream
@@ -60,8 +60,8 @@ public interface InputStreamProviderFactory {
 
       final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
       return useSingleStream
-        ? new SingleStreamProvider(fs, path, fileLength, maxFooterLen, readFullFile, footerIfKnown, context)
-        : new StreamPerColumnProvider(fs, path, fileLength, maxFooterLen, footerIfKnown, context.getStats());
+        ? new SingleStreamProvider(fs, path, fileLength, maxFooterLen, readFullFile, footerIfKnown, context, readColumnIndices)
+        : new StreamPerColumnProvider(fs, path, fileLength, maxFooterLen, footerIfKnown, context, readColumnIndices);
     }
   };
 

@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.orc;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 
@@ -58,6 +59,7 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
   private final SearchArgument.Builder sargBuilder;
   private final List<String> columnNames;
   private final List<HiveReaderProto.ColumnInfo> columnInfos;
+  private static final long EPOCH_DAY_FOR_1582_10_15 = LocalDate.parse("1582-10-15").toEpochDay();
 
   ORCSearchArgumentGenerator(final List<String> columnNames, List<HiveReaderProto.ColumnInfo> columnInfos) {
     super(true);
@@ -229,6 +231,13 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
                 break;
               default:
                 break;
+            }
+          } else if (columnInfo.hasIsPrimitive() && columnInfo.getIsPrimitive() &&
+            columnInfo.getPrimitiveType() == HiveReaderProto.HivePrimitiveType.DATE) {
+            long epochInDays = LocalDate.parse(literalValue.toString()).toEpochDay();
+            // DX-23234: let us not use pushdown filter for dates older than 1582-10-15
+            if(epochInDays < EPOCH_DAY_FOR_1582_10_15) {
+              return null;
             }
           } else if (!columnInfo.hasIsPrimitive() &&
             (literalValue.getClass() == HiveDecimalWritable.class ||

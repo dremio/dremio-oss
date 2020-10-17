@@ -19,6 +19,7 @@ import static java.lang.Math.toIntExact;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,6 +48,7 @@ import org.pf4j.PluginManager;
 import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.utils.PathUtils;
@@ -309,6 +311,13 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
         }
       }
     } catch (IOException ioe) {
+      if (ioe instanceof FileNotFoundException) {
+        throw UserException.invalidMetadataError(ioe)
+          .addContext(ioe.getMessage())
+          .setAdditionalExceptionContext(
+            new InvalidMetadataErrorContext(ImmutableList.of(key.getPathComponents()))
+          ).build(logger);
+      }
       throw UserException.dataReadError(ioe).build(logger);
     }
     return true;

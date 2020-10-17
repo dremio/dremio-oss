@@ -68,15 +68,15 @@
 |Apache Hadoop YARN Common                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop YARN Server Common                            |2.8.5               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.9               |Apache 2.0          |
-|Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
-|Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
-|Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
-|Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
-|Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
+|Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
+|Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
+|Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
+|Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
+|Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
+|Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
 |Apache Log4j API                                            |2.13.3              |Apache 2.0          |
 |Apache Log4j to SLF4J Adapter                               |2.13.3              |Apache 2.0          |
 |Apache Parquet Arrow                                        |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Avro                                         |1.10.1              |Apache 2.0          |
 |Apache Parquet Column                                       |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
 |Apache Parquet Common                                       |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
 |Apache Parquet Encodings                                    |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
@@ -102,12 +102,12 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
-|Arrow Format                                                |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
-|Arrow Memory                                                |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
-|Arrow Vectors                                               |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |1.0.0-20201007115417-a54a430847-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |1.0.0-20201007115417-a54a430847-dremio|Apache 2.0          |
+|Arrow Format                                                |1.0.0-20201007115417-a54a430847-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |1.0.0-20201007115417-a54a430847-dremio|Apache 2.0          |
+|Arrow Memory                                                |1.0.0-20201007115417-a54a430847-dremio|Apache 2.0          |
+|Arrow Vectors                                               |1.0.0-20201007115417-a54a430847-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -154,8 +154,8 @@
 |brcast                                                      |3.0.1               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202008202058330769-66e82b2|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202008202058330769-66e82b2|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202010100046060961-8adb4de|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202010100046060961-8adb4de|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
@@ -222,12 +222,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.8.0               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.8.0               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.8.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.8.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.8.0               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.8.0               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.9.0               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.9.0               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.9.0               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.9.0               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.9.0               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.9.0               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -251,7 +251,6 @@
 |Expression Language 3.0 API                                 |3.0.0               |CDDL + GPLv2        |
 |fbjs                                                        |0.8.16              |MIT                 |
 |file-saver                                                  |1.3.3               |MIT                 |
-|Findbugs Annotations under Apache License                   |1.3.9-1             |Apache 2.0          |
 |FindBugs-Annotations                                        |3.0.1               |LGPL v2             |
 |FindBugs-jsr305                                             |3.0.1               |Apache 2.0          |
 |fixed-data-table-2                                          |0.8.6               |BSD-3-Clause        |
@@ -624,7 +623,7 @@
 |platform                                                    |1.3.4               |MIT                 |
 |Plugin Framework for Java                                   |3.0.1               |Apache 2.0          |
 |popper.js                                                   |1.14.7              |MIT                 |
-|PostgreSQL JDBC Driver                                      |42.2.5              |BSD 2-clause        |
+|PostgreSQL JDBC Driver                                      |42.2.17             |BSD 2-clause        |
 |process-nextick-args                                        |2.0.1               |MIT                 |
 |Prometheus Java Simpleclient                                |0.7.0               |Apache 2.0          |
 |Prometheus Java Simpleclient Common                         |0.7.0               |Apache 2.0          |

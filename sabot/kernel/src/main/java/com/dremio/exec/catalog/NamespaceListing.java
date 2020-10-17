@@ -133,6 +133,8 @@ public class NamespaceListing implements DatasetHandleListing {
         final Optional<DatasetHandle> handle;
         try {
           handle = sourceMetadata.getDatasetHandle(entityPath, options.asGetDatasetOptions(currentConfig));
+        } catch (DatasetMetadataTooLargeException e) {
+          throw new DatasetMetadataTooLargeException(nextKey.getSchemaPath(), e);
         } catch (ConnectorException e) {
           throw new RuntimeException(e);
         }

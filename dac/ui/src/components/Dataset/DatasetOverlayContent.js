@@ -93,7 +93,7 @@ export class DatasetOverlayContent extends Component {
         <div style={{display: 'flex', marginRight: 5}}>
           { /* disabled pending DX-6596 Edit link from DatasetOverlay is broken */ }
           {false && this.renderPencil(summaryDataset)}
-          <Link to={summaryDataset.getIn(['links', 'query'])}><FontIcon tooltip={la('Query')} type='Query'/></Link>
+          <Link to={summaryDataset.getIn(['links', 'query'])} onClick={(e) => e.stopPropagation()}><FontIcon tooltip={la('Query')} type='Query'/></Link>
         </div>
       </div>
     );

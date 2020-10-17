@@ -310,7 +310,7 @@ public class TestCTAS extends PlanTestBase {
           .sqlQuery(selectFromCreatedTable)
           .ordered()
           .baselineColumns("dir0", "n_nationkey", "n_regionkey")
-          .baselineValues("0", 0, 0)
+          .baselineValues("0_0", 0, 0)
           .build()
           .run();
     } finally {

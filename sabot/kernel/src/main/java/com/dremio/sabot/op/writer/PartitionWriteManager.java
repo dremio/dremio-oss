@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.writer;
 
+import static java.lang.String.format;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -132,7 +134,7 @@ class PartitionWriteManager {
     }
     String[] paths = new String[partitions.size()];
     for(int i = 0; i < paths.length; i++){
-      paths[i] = fromObj(partitions.get(i).getObject(offset));
+      paths[i] = format("%s_%s", offset, fromObj(partitions.get(i).getObject(offset)));
       if (icebergPartitionData != null) {
         icebergPartitionData.set(i, partitionFields.get(i), partitions.get(i), offset);
       }

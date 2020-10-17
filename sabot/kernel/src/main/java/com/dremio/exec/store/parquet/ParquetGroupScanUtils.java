@@ -23,14 +23,17 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -165,6 +168,13 @@ public class ParquetGroupScanUtils {
     if (schemaPath.getAsUnescapedPath().equals(UPDATE_COLUMN)) {
       return true;
     }
+
+    // if field present in schema is of union type, then don't use it as partitioned column
+    Optional<Field> field = this.schema.findFieldIgnoreCase(schemaPath.getRootSegment().getNameSegment().getPath());
+    if (field.isPresent() && CompleteType.fromField(field.get()).isUnion()) {
+      return false;
+    }
+
     final PrimitiveTypeName primitiveType = fileMetadata.getPrimitiveType(columnMetadata.getName());
     final OriginalType originalType = fileMetadata.getOriginalType(columnMetadata.getName());
 

@@ -155,6 +155,10 @@ public final class DACConfig {
     return with(DremioConfig.LOCAL_WRITE_PATH_STRING, writePath);
   }
 
+  public DACConfig distWritePath(String writePath) {
+    return with(DremioConfig.DIST_WRITE_PATH_STRING, writePath);
+  }
+
   public DACConfig clusterMode(ClusterMode clusterMode) {
     return with(DremioConfig.DEBUG_SINGLE_NODE_BOOL, clusterMode == ClusterMode.LOCAL);
   }

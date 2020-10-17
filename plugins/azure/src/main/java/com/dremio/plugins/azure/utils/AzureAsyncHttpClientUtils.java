@@ -62,7 +62,7 @@ public final class AzureAsyncHttpClientUtils {
   }
 
   public static String encodeUrl(String raw) {
-    return Utility.urlEncode(Utility.urlDecode(raw));
+    return Utility.urlEncode(raw);
   }
 
   public static String toHttpDateFormat(final long timeInMillis) {

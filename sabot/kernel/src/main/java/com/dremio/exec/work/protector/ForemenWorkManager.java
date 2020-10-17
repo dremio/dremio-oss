@@ -19,7 +19,6 @@ import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
@@ -48,11 +48,9 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.rpc.Acks;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
@@ -66,6 +64,7 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.QueryCancelTool;
+import com.dremio.sabot.exec.CancelQueryContext;
 import com.dremio.sabot.rpc.CoordExecService.NoExecToCoordResultsHandler;
 import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
 import com.dremio.sabot.rpc.user.UserRpcUtils;
@@ -317,16 +316,18 @@ public class ForemenWorkManager implements Service, SafeExit {
   }
 
   /**
-   * Cancel queries in given list of queryStates
+   * Cancel queries in given cancel query context
    *
-   * @param queryStates
-   * @param cancelReason
+   * @param cancelQueryContext
    */
-  public void cancel(Set<QueryState> queryStates, String cancelReason) {
+  public void cancel(CancelQueryContext cancelQueryContext) {
     externalIdToForeman.values()
                        .stream()
-                       .filter(mf->queryStates.contains(mf.foreman.getState()))
-                       .forEach(mf->mf.foreman.cancel(cancelReason, false));
+                       .filter(mf->cancelQueryContext.getCancelQueryStates().contains(mf.foreman.getState()))
+                       .forEach(mf->mf.foreman.cancel(cancelQueryContext.getCancelReason(),
+                                                     false,
+                                                      cancelQueryContext.getCancelContext(),
+                                                      cancelQueryContext.isCancelledByHeapMonitor()));
   }
 
   public boolean resume(ExternalId externalId) {

@@ -115,6 +115,7 @@ public class AdditionalColumnsRecordReader implements RecordReader {
 
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    inner.addRuntimeFilter(runtimeFilter);
     if (skipPartition) {
       return;
     }

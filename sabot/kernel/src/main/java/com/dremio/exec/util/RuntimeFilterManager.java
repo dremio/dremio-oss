@@ -17,22 +17,27 @@
 package com.dremio.exec.util;
 
 import static org.apache.arrow.util.Preconditions.checkArgument;
-import static org.apache.arrow.util.Preconditions.checkNotNull;
+import static org.apache.arrow.util.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.proto.ExecProtos.CompositeColumnFilter;
 import com.dremio.exec.proto.ExecProtos.RuntimeFilter;
+import com.dremio.exec.proto.ExecProtos.RuntimeFilterType;
 
 
 /**
@@ -41,14 +46,18 @@ import com.dremio.exec.proto.ExecProtos.RuntimeFilter;
  */
 @NotThreadSafe
 public class RuntimeFilterManager implements AutoCloseable {
-    // TODO: Extend for non-partitoned column cases and value filters.
-
     private static Logger logger = LoggerFactory.getLogger(RuntimeFilterManager.class);
     private List<RuntimeFilterManagerEntry> filterEntries = new ArrayList<>();
     private final Set<Integer> allMinorFragments;
     private long filterDropCount = 0L;
-    public RuntimeFilterManager(Set<Integer> allMinorFragments) {
+    private long subFilterDropCount = 0L;
+    private final BufferAllocator allocator;
+    private final int valFilterMaxSize;
+
+    public RuntimeFilterManager(final BufferAllocator allocator, final int valFilterMaxSize, final Set<Integer> allMinorFragments) {
         this.allMinorFragments = allMinorFragments;
+        this.allocator = allocator;
+        this.valFilterMaxSize = valFilterMaxSize;
     }
 
     /**
@@ -58,14 +67,20 @@ public class RuntimeFilterManager implements AutoCloseable {
      * @param partitionColFilter
      * @throws Exception
      */
-    public RuntimeFilterManagerEntry coalesce(RuntimeFilter filter, BloomFilter partitionColFilter, int minorFragmentId) {
+    public RuntimeFilterManagerEntry coalesce(RuntimeFilter filter, Optional<BloomFilter> partitionColFilter,
+                                              List<ValueListFilter> nonPartitionColFilters, int minorFragmentId) {
         Optional<RuntimeFilterManagerEntry> filterEntry = filterEntries.stream().filter(f -> f.isTargetedToSameScan(filter)).findAny();
         if (filterEntry.isPresent()) {
-            return merge(filter, partitionColFilter, filterEntry.get(), minorFragmentId);
+            return merge(filter, partitionColFilter, nonPartitionColFilters, filterEntry.get(), minorFragmentId);
         } else {
-            RuntimeFilterManagerEntry newEntry = new RuntimeFilterManagerEntry(filter, allMinorFragments, partitionColFilter);
+            // Retain the buffers as these will be kept as a base entry
+            partitionColFilter.map(BloomFilter::getDataBuffer).ifPresent(ArrowBuf::retain);
+            nonPartitionColFilters.stream().map(ValueListFilter::buf).forEach(ArrowBuf::retain);
+
+            RuntimeFilterManagerEntry newEntry = new RuntimeFilterManagerEntry(filter, allMinorFragments,
+                    partitionColFilter, nonPartitionColFilters);
             newEntry.remainingMinorFragments.remove(minorFragmentId);
-            logger.debug("New filter entry created {}, remaining fragments {}", partitionColFilter.getName(), newEntry.remainingMinorFragments);
+            logger.debug("New filter entry created. remaining fragments {}", newEntry.remainingMinorFragments);
             filterEntries.add(newEntry);
             return newEntry;
         }
@@ -76,36 +91,42 @@ public class RuntimeFilterManager implements AutoCloseable {
      * on the basis of probe scan coordinates (operator id, major fragment id).
      *
      * @param filterPiece
-     * @param partitionColFilterPiece
+     * @param partitionColFilter
      * @param minorFragmentId
      */
-    private RuntimeFilterManagerEntry merge(RuntimeFilter filterPiece, BloomFilter partitionColFilterPiece, RuntimeFilterManagerEntry baseEntry, int minorFragmentId) {
-        final String incomingName = partitionColFilterPiece.getName();
-        final String existingName = baseEntry.getPartitionColFilter().getName();
+    private RuntimeFilterManagerEntry merge(RuntimeFilter filterPiece,
+                                            Optional<BloomFilter> partitionColFilter,
+                                            List<ValueListFilter> nonPartitionColFilters,
+                                            RuntimeFilterManagerEntry baseEntry,
+                                            int minorFragmentId) {
         try {
-            checkNotNull(partitionColFilterPiece);
             checkArgument(baseEntry.getRemainingMinorFragments().contains(minorFragmentId), "Not expecting filter piece from "
                     + minorFragmentId + ", remaining minor fragments: " + baseEntry.getRemainingMinorFragments());
             baseEntry.remainingMinorFragments.remove(minorFragmentId);
 
-            if (baseEntry.isNotDropped() && partitionColFilterPiece!=null && baseEntry.getPartitionColFilter()!=null) {
-                logger.debug("Merging incoming filter {} into existing filter {}. Remaining fragments {}", incomingName, existingName, baseEntry.getRemainingMinorFragments());
-                baseEntry.getPartitionColFilter().merge(partitionColFilterPiece);
-                baseEntry.evaluateFppTolerance();
-                filterDropCount = baseEntry.isNotDropped() ? filterDropCount: filterDropCount + 1;
-            } else {
+            if (baseEntry.isDropped()) {
                 logger.info("Skipping merge of filter piece from {} in {}", minorFragmentId, toCoordinates(filterPiece));
+                return baseEntry;
             }
-
+            logger.debug("Merging incoming filter from minor fragment {}, targeted to {}. Remaining fragments {}",
+                    minorFragmentId, baseEntry.getProbeScanCoordinates(), baseEntry.getRemainingMinorFragments());
+            baseEntry.merge(partitionColFilter);
+            baseEntry.mergeAll(nonPartitionColFilters);
+            baseEntry.resetValueCounts();
             return baseEntry;
         } catch (Exception e) {
-            logger.error("Error while merging " + incomingName + " into " + existingName, e);
+            logger.error("Error while merging the filter from " + minorFragmentId + ", target " + baseEntry.getProbeScanCoordinates(), e);
             baseEntry.drop();
-            filterDropCount = filterDropCount + 1;
-        } finally {
-            partitionColFilterPiece.close();
         }
         return baseEntry;
+    }
+
+    private static void quietClose(List<AutoCloseable> closeables) {
+        try {
+            AutoCloseables.close(closeables);
+        } catch (Exception e) {
+            logger.warn("Error on close", e);
+        }
     }
 
     /**
@@ -131,24 +152,43 @@ public class RuntimeFilterManager implements AutoCloseable {
         return this.filterDropCount;
     }
 
+    /**
+     * Number of individual column filters dropped
+     * @return
+     */
+    public long getSubFilterDropCount() {
+        return subFilterDropCount;
+    }
+
+    public void incrementDropCount() {
+        this.filterDropCount++;
+    }
+
+    public void incrementColFilterDropCount() {
+        this.subFilterDropCount++;
+    }
+
     @Override
     public void close() throws Exception {
         // Wrap up remaining entries
-        List<BloomFilter> allCloseables = filterEntries.stream().map(RuntimeFilterManagerEntry::getPartitionColFilter).collect(Collectors.toList());
-        AutoCloseables.close(allCloseables);
+        AutoCloseables.close(filterEntries);
         filterEntries.clear();
     }
 
-    public class RuntimeFilterManagerEntry {
+    public class RuntimeFilterManagerEntry implements AutoCloseable {
         private RuntimeFilter compositeFilter;
         private Set<Integer> remainingMinorFragments = new HashSet<>();
         private BloomFilter partitionColFilter;
+        private Map<String, ValueListFilter> nonPartitionColFilters;
         private boolean isDroppedFromProcessing = false;
 
-        private RuntimeFilterManagerEntry(RuntimeFilter compositeFilter, Set<Integer> remainingMinorFragments, BloomFilter partitionColFilter) {
+        private RuntimeFilterManagerEntry(RuntimeFilter compositeFilter, Set<Integer> remainingMinorFragments,
+                                          Optional<BloomFilter> partitionColFilter, List<ValueListFilter> nonPartitionColFilters) {
             this.compositeFilter = compositeFilter;
             this.remainingMinorFragments.addAll(remainingMinorFragments);
-            this.partitionColFilter = partitionColFilter;
+            this.partitionColFilter = partitionColFilter.orElse(null);
+            this.nonPartitionColFilters = nonPartitionColFilters.stream()
+                    .collect(Collectors.toMap(v -> v.getFieldName(), v -> v));
         }
 
         public RuntimeFilter getCompositeFilter() {
@@ -163,6 +203,22 @@ public class RuntimeFilterManager implements AutoCloseable {
             return partitionColFilter;
         }
 
+        public ValueListFilter getNonPartitionColFilter(final String colName) {
+            return nonPartitionColFilters.get(colName);
+        }
+
+        /**
+         * Returns ValusListFilters for non partition columns ordered according to the payload.
+         *
+         * @return
+         */
+        public List<ValueListFilter> getNonPartitionColFilters() {
+            return compositeFilter.getNonPartitionColumnFilterList()
+                    .stream()
+                    .map(c -> nonPartitionColFilters.get(c.getColumns(0)))
+                    .collect(Collectors.toList());
+        }
+
         public boolean isComplete() {
             return getRemainingMinorFragments().isEmpty();
         }
@@ -171,25 +227,168 @@ public class RuntimeFilterManager implements AutoCloseable {
             return String.format("OperatorId: %s, MajorFragmentID: %s", compositeFilter.getProbeScanOperatorId(), compositeFilter.getProbeScanMajorFragmentId());
         }
 
-        public boolean isNotDropped() {
-            return !isDroppedFromProcessing;
-        }
-
-        public void evaluateFppTolerance() {
-            if (partitionColFilter.isCrossingMaxFPP()) {
-                logger.info("The error rate of combined filter {} is dropped below 5% at {}. " +
-                        "Hence, dropping the filter.", partitionColFilter.getName(), partitionColFilter.getExpectedFPP());
-                drop();
-            }
+        public boolean isDropped() {
+            return isDroppedFromProcessing;
         }
 
         public void drop() {
             isDroppedFromProcessing = true;
+            filterDropCount++;
         }
 
         public boolean isTargetedToSameScan(RuntimeFilter that) {
             return this.compositeFilter.getProbeScanMajorFragmentId()==that.getProbeScanMajorFragmentId()
                     && this.compositeFilter.getProbeScanOperatorId()==that.getProbeScanOperatorId();
+        }
+
+        public void merge(Optional<BloomFilter> incomingFilter) {
+            if (this.partitionColFilter==null) {
+                return;
+            }
+            checkArgument(incomingFilter.isPresent());
+            final String incomingName = incomingFilter.get().getName();
+            String existingName = this.partitionColFilter.getName();
+            try {
+                logger.debug("Merging incoming filter {} into existing filter {}", incomingName, partitionColFilter);
+                partitionColFilter.merge(incomingFilter.get());
+                if (partitionColFilter.isCrossingMaxFPP()) {
+                    dropPartitionColFilter();
+                }
+            } catch (Exception e) {
+                logger.warn("Error while merging " + incomingName + " into " + existingName, e);
+                dropPartitionColFilter();
+            }
+        }
+
+        public void mergeAll(final List<ValueListFilter> incomingFilters) {
+            final List<CompositeColumnFilter> baseEntryFilters = compositeFilter.getNonPartitionColumnFilterList();
+            for (int i = 0; i < baseEntryFilters.size(); i++) {
+                CompositeColumnFilter nonPartitionColFilterProto = baseEntryFilters.get(i);
+                checkArgument(nonPartitionColFilterProto.getColumnsCount() == 1,
+                        "Non partition column filter should have single column");
+                checkArgument(nonPartitionColFilterProto.getFilterType().equals(RuntimeFilterType.VALUE_LIST),
+                        "All non partition column filters should be of same value");
+                final String colName = nonPartitionColFilterProto.getColumns(0);
+                Optional<ValueListFilter> incomingFilter = incomingFilters.stream()
+                        .filter(f -> f.getFieldName().equalsIgnoreCase(colName)).findAny();
+                if (incomingFilter.isPresent()) {
+                    merge(colName, incomingFilter.get());
+                } else {
+                    // It is already dropped by the incoming module. Drop in the base entry as the piece is not available.
+                    dropNonPartitionColFilter(colName);
+                }
+            }
+        }
+
+        public void merge(String fieldName, ValueListFilter thatFilter) {
+            List<AutoCloseable> closeables = new ArrayList<>(3);
+            try {
+                if (isDropped() || getNonPartitionColFilter(fieldName)==null) {
+                    logger.info("Skipping merge of non-partition col filter for the field {}", fieldName);
+                    return;
+                }
+
+                final ValueListFilter thisFilter = getNonPartitionColFilter(fieldName);
+                checkArgument(thisFilter.isBoolField() == thatFilter.isBoolField(), "Cannot merge a boolean filter from a non-boolean one.");
+                ValueListFilter mergedFilter = ValueListFilterBuilder.buildPlainInstance(allocator,
+                        thatFilter.getBlockSize(), valFilterMaxSize, thisFilter.isBoolField());
+                closeables.add(mergedFilter);
+
+                ValueListFilter.merge(thisFilter, thatFilter, mergedFilter);
+                checkState(mergedFilter.getValueCount() <= valFilterMaxSize, "Merged valuelistfilter overflown for %s.", fieldName);
+                logger.debug("Merged value list filter for column {}", fieldName);
+                closeables.remove(mergedFilter);
+                closeables.add(thisFilter);
+                nonPartitionColFilters.put(fieldName, mergedFilter);
+            } catch (Exception e) {
+                logger.warn("Error while merging non-partition column filter for field " + fieldName, e);
+                dropNonPartitionColFilter(fieldName);
+            } finally {
+                quietClose(closeables);
+            }
+        }
+
+        private void dropPartitionColFilter() {
+            try {
+                partitionColFilter.close();
+
+                // Remove from proto message. Since object is immutable we have copy -> edit -> re-store.
+                compositeFilter = RuntimeFilter.newBuilder(compositeFilter).clearPartitionColumnFilter().build();
+            } catch (Exception e) {
+                logger.warn("Error while closing partition col filter for " + getProbeScanCoordinates(), e.getMessage());
+            } finally {
+                partitionColFilter = null;
+                subFilterDropCount++;
+                evaluateDropStatus();
+            }
+        }
+
+        private void dropNonPartitionColFilter(String name) {
+            ValueListFilter valFilter = getNonPartitionColFilter(name);
+            if (valFilter == null) {
+                logger.debug("Filter for {} is already dropped.", name);
+                return;
+            }
+
+            try {
+                valFilter.close();
+
+                // Remove from proto message. Since object is immutable we have copy -> edit -> store
+                final List<CompositeColumnFilter> compositeColumnFilters = compositeFilter.getNonPartitionColumnFilterList();
+                RuntimeFilter.Builder msgFilterBuilder = RuntimeFilter.newBuilder();
+                if (msgFilterBuilder.hasPartitionColumnFilter()) {
+                        msgFilterBuilder.setPartitionColumnFilter(compositeFilter.getPartitionColumnFilter());
+                }
+                compositeColumnFilters.stream().filter(c -> !c.getColumnsList().contains(name))
+                        .forEach(msgFilterBuilder::addNonPartitionColumnFilter);
+                compositeFilter = msgFilterBuilder
+                        .setProbeScanOperatorId(compositeFilter.getProbeScanOperatorId())
+                        .setProbeScanMajorFragmentId(compositeFilter.getProbeScanMajorFragmentId())
+                        .build();
+            } catch (Exception e) {
+                logger.warn(String.format("Error while closing non-partition col filter for field %s, target %s",
+                        name, getProbeScanCoordinates()), e.getMessage());
+            } finally {
+                nonPartitionColFilters.put(name, null);
+                subFilterDropCount++;
+                evaluateDropStatus();
+            }
+        }
+
+        private void evaluateDropStatus() {
+            final boolean allNonPartitionColFiltersDropped =
+                    nonPartitionColFilters.entrySet().stream().anyMatch(e -> e.getValue() != null) == false;
+            if (partitionColFilter == null && allNonPartitionColFiltersDropped) {
+                drop();
+            }
+        }
+
+        private void resetValueCounts() {
+            RuntimeFilter.Builder protoFilterBuilder = RuntimeFilter.newBuilder(this.compositeFilter);
+            if (this.partitionColFilter!=null) {
+                final CompositeColumnFilter partitionColFilter = CompositeColumnFilter.newBuilder(compositeFilter.getPartitionColumnFilter())
+                        .setValueCount(this.partitionColFilter.getNumBitsSet()).build();
+                protoFilterBuilder.setPartitionColumnFilter(partitionColFilter);
+            }
+            for (int i = 0; i < this.compositeFilter.getNonPartitionColumnFilterCount(); i++) {
+                final CompositeColumnFilter current = this.compositeFilter.getNonPartitionColumnFilter(i);
+                final ValueListFilter valueListFilter = this.getNonPartitionColFilter(current.getColumns(0));
+                final CompositeColumnFilter nonPartitionColFilter = CompositeColumnFilter
+                        .newBuilder(current)
+                        .setValueCount(valueListFilter.getValueCount())
+                        .setSizeBytes(valueListFilter.getSizeInBytes())
+                        .build();
+                protoFilterBuilder.setNonPartitionColumnFilter(i, nonPartitionColFilter);
+            }
+            this.compositeFilter = protoFilterBuilder.build();
+        }
+
+        @Override
+        public void close() throws Exception {
+            List<AutoCloseable> allCloseables = new ArrayList<>(nonPartitionColFilters.size() + 1);
+            allCloseables.addAll(nonPartitionColFilters.values());
+            allCloseables.add(partitionColFilter);
+            AutoCloseables.close(allCloseables);
         }
     }
 }

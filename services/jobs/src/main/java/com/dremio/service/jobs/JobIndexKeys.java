@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN;
+import static com.dremio.service.job.proto.QueryType.FLIGHT;
 import static com.dremio.service.job.proto.QueryType.JDBC;
 import static com.dremio.service.job.proto.QueryType.ODBC;
 import static com.dremio.service.job.proto.QueryType.PREPARE_INTERNAL;
@@ -59,7 +60,8 @@ public final class JobIndexKeys {
   public static final SearchQuery EXTERNAL_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ODBC.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", JDBC.toString()),
-      SearchQueryUtils.newTermQuery("QUERY_TYPE", REST.toString()));
+      SearchQueryUtils.newTermQuery("QUERY_TYPE", REST.toString()),
+      SearchQueryUtils.newTermQuery("QUERY_TYPE", FLIGHT.toString()));
 
   public static final SearchQuery UI_EXTERNAL_JOBS_FILTER = SearchQueryUtils.or(
       UI_JOBS_FILTER,

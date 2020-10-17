@@ -38,7 +38,7 @@ public class TestIcebergOperation {
     String tableName = "icebergtable";
     BatchSchema schema = BatchSchema.newBuilder().addField(CompleteType.INT.toField("int")).build();
     IcebergOpCommitter createTableCommitter = IcebergOperation.getCreateTableCommitter(
-      Path.of(tempDir.getRoot().getPath()).resolve(tableName),
+            tableName, Path.of(tempDir.getRoot().getPath()).resolve(tableName),
       schema,
       null,
       new Configuration());

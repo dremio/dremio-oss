@@ -196,6 +196,21 @@ public class TestAzureAsyncReader {
   }
 
   @Test
+  public void testAsyncReaderWithRandomCharacterInPath() {
+    AsyncHttpClient client = mock(AsyncHttpClient.class);
+    try {
+      LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
+      AzureAsyncReader azureAsyncReader = new AzureAsyncReader(
+        "account", new Path("/testdir/$#%&New Folder to test abc 123/0_0_0.parquet"),
+        getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
+        false, client
+      );
+    } catch (Exception e) {
+      fail(e.getMessage());
+    }
+  }
+
+  @Test
   public void testAsyncHttpClientClosedError() {
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     when(client.isClosed()).thenReturn(true);

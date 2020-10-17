@@ -228,10 +228,9 @@ public class ReflectionExpander {
     // for old systems, make sure we have a default measure list if one is not specificed.
     List<MeasureType> measures = field.getMeasureTypeList() == null || field.getMeasureTypeList().isEmpty() ? DEFAULT_MEASURE_LIST : field.getMeasureTypeList();
     List<AggregateCall> calls = new ArrayList<>();
-    final int inputRef = getField(field.getName()).getIndex();
-    int inFieldIndex = 0;
+    final RelDataTypeField f = getField(field.getName());
     for(MeasureType t : measures) {
-      AggregateCall c = createMeasureFor(inputRef, inFieldIndex, typeFamily.get(), t);
+      AggregateCall c = createMeasureFor(f, typeFamily.get(), t);
       if(c == null) {
         continue;
       }
@@ -259,13 +258,12 @@ public class ReflectionExpander {
 
   /**
    * For a particular input and type family, create the request type if it is allowed.
-   * @param inputRef The input of that this measure will be applied to.
-   * @param index The index of this measure when the collection of measure for this input field.
+   * @param field The field of that this measure will be applied to.
    * @param family The type family of the field.
    * @param type The type of measure to generate.
    * @return An aggregate call or null if we can't create a measure of the requested type.
    */
-  private AggregateCall createMeasureFor(int inputRef, int index, SqlTypeFamily family, MeasureType type) {
+  private AggregateCall createMeasureFor(RelDataTypeField field, SqlTypeFamily family, MeasureType type) {
 
     // skip measure columns for invalid types.
     if(!ReflectionValidator.getValidMeasures(family).contains(type)) {
@@ -274,19 +272,23 @@ public class ReflectionExpander {
 
     switch(type) {
     case APPROX_COUNT_DISTINCT:
-      return AggregateCall.create(HyperLogLog.HLL, false, ImmutableList.of(inputRef), -1, 1, view, null, String.format("agg-%s-%s", inputRef, index));
+      return AggregateCall.create(HyperLogLog.HLL, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("hll-%s", hyphenLower(field.getName())));
     case COUNT:
-      return AggregateCall.create(SqlStdOperatorTable.COUNT, false, ImmutableList.of(inputRef), -1, 1, view, null, String.format("agg-%s-%s", inputRef, index));
+      return AggregateCall.create(SqlStdOperatorTable.COUNT, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("count-%s", hyphenLower(field.getName())));
     case MAX:
-      return AggregateCall.create(SqlStdOperatorTable.MAX, false, ImmutableList.of(inputRef), -1, 1, view, null, String.format("agg-%s-%s", inputRef, index));
+      return AggregateCall.create(SqlStdOperatorTable.MAX, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("max-%s", hyphenLower(field.getName())));
     case MIN:
-      return AggregateCall.create(SqlStdOperatorTable.MIN, false, ImmutableList.of(inputRef), -1, 1, view, null, String.format("agg-%s-%s", inputRef, index));
+      return AggregateCall.create(SqlStdOperatorTable.MIN, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("min-%s", hyphenLower(field.getName())));
     case SUM:
-      return AggregateCall.create(SqlStdOperatorTable.SUM, false, ImmutableList.of(inputRef), -1, 1, view, null, String.format("agg-%s-%s", inputRef, index));
+      return AggregateCall.create(SqlStdOperatorTable.SUM, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("sum-%s", hyphenLower(field.getName())));
     case UNKNOWN:
     default:
       throw new UnsupportedOperationException(type.name());
     }
+  }
+
+  private String hyphenLower(String s) {
+    return s.toLowerCase().replaceAll(" ", "-");
   }
 
   private Stream<AggregateCall> createDefaultMeasures(final RelNode view) {

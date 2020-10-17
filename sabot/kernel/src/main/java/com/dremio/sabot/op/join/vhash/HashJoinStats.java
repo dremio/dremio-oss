@@ -53,7 +53,8 @@ public class HashJoinStats {
     OUTPUT_RECORDS,
     HASHCOMPUTATION_TIME_NANOS,  /* used by hash agg and build side of hash join */
     PROBE_HASHCOMPUTATION_TIME_NANOS, /* used by probe side of hash join */
-    RUNTIME_FILTER_DROP_COUNT;
+    RUNTIME_FILTER_DROP_COUNT,
+    RUNTIME_COL_FILTER_DROP_COUNT;
 
 
     @Override

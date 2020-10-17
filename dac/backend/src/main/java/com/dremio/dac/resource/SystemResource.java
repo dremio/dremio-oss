@@ -139,11 +139,12 @@ public class SystemResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   public List<NodeInfo> getNodes(){
     final List<NodeInfo> result = new ArrayList<>();
-    final Map<String, NodeEndpoint> map = new HashMap<>();
+    final Map<String, NodeEndpoint> execMap = new HashMap<>();
+    final Map<String, NodeEndpoint> coordMap = new HashMap<>();
 
     // first get the coordinator nodes (in case there are no executors running)
     for(NodeEndpoint ep : context.get().getCoordinators()){
-      map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
+      coordMap.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
     }
 
     // try to get any executor nodes, but don't throw a UserException if we can't find any
@@ -160,19 +161,19 @@ public class SystemResource extends BaseResourceWithAllocator {
       try {
         nodeStatsListener.waitForFinish();
       } catch (Exception ex) {
-        throw UserException.connectionError(ex).message("Error while collecting node statistics")
-          .build(logger);
+        logger.warn("Error while collecting node statistics: {}", ex.getMessage());
       }
 
       ConcurrentHashMap<String, NodeInstance> nodeStats = nodeStatsListener.getResult();
 
       for (NodeEndpoint ep : context.get().getExecutors()) {
-        map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
+        execMap.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
       }
 
       for (Map.Entry<String, NodeInstance> statsEntry : nodeStats.entrySet()) {
         NodeInstance stat = statsEntry.getValue();
-        NodeEndpoint ep = map.remove(statsEntry.getKey());
+        NodeEndpoint ep = execMap.remove(statsEntry.getKey());
+        coordMap.remove(statsEntry.getKey());
         if (ep == null) {
           logger.warn("Unable to find node with identity: {}", statsEntry.getKey());
           continue;
@@ -185,7 +186,7 @@ public class SystemResource extends BaseResourceWithAllocator {
 
     final List<NodeInfo> finalList = new ArrayList<>();
     final List<NodeInfo> coord = new ArrayList<>();
-    for (NodeEndpoint ep : map.values()){
+    for (NodeEndpoint ep : coordMap.values()){
       final NodeInfo nodeInfo = NodeInfo.fromEndpoint(ep);
       if (nodeInfo.getIsMaster()) {
         finalList.add(nodeInfo);
@@ -194,9 +195,16 @@ public class SystemResource extends BaseResourceWithAllocator {
       }
     }
 
+    final List<NodeInfo> failedNodes = new ArrayList<>();
+    for (NodeEndpoint ep : execMap.values()){
+      final NodeInfo nodeInfo = NodeInfo.fromUnresponsiveEndpoint(ep);
+      failedNodes.add(nodeInfo);
+    }
+
     // put coordinators first.
     finalList.addAll(coord);
     finalList.addAll(result);
+    finalList.addAll(failedNodes);
 
     return finalList;
   }

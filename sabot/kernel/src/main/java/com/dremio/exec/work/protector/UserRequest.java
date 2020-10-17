@@ -20,6 +20,7 @@ import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.proto.UserBitShared.WorkloadType;
+import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowReq;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
 import com.dremio.exec.proto.UserProtos.GetCatalogsReq;
 import com.dremio.exec.proto.UserProtos.GetColumnsReq;
@@ -80,6 +81,7 @@ public class UserRequest {
   public QueryPriority getPriority(){
     switch(type){
     case CREATE_PREPARED_STATEMENT:
+    case CREATE_PREPARED_STATEMENT_ARROW:
     case GET_CATALOGS:
     case GET_COLUMNS:
     case GET_QUERY_PLAN_FRAGMENTS:
@@ -103,6 +105,7 @@ public class UserRequest {
   public long getMaxAllocation(){
     switch(type){
     case CREATE_PREPARED_STATEMENT:
+    case CREATE_PREPARED_STATEMENT_ARROW:
     case GET_CATALOGS:
     case GET_COLUMNS:
     case GET_SCHEMAS:
@@ -124,6 +127,9 @@ public class UserRequest {
     switch(type){
     case CREATE_PREPARED_STATEMENT:
       return "[Prepare Statement] " + unwrap(CreatePreparedStatementReq.class).getSqlQuery();
+
+    case CREATE_PREPARED_STATEMENT_ARROW:
+      return "[Prepare Statement Arrow Flight] " + unwrap(CreatePreparedStatementArrowReq.class).getSqlQuery();
 
     case GET_CATALOGS: {
       GetCatalogsReq req = unwrap(GetCatalogsReq.class);
@@ -183,6 +189,8 @@ public class UserRequest {
     switch(type){
     case CREATE_PREPARED_STATEMENT:
       return unwrap(CreatePreparedStatementReq.class).getSqlQuery();
+    case CREATE_PREPARED_STATEMENT_ARROW:
+      return unwrap(CreatePreparedStatementArrowReq.class).getSqlQuery();
     case  RUN_QUERY:
       return getSql(unwrap(RunQuery.class));
     default:
@@ -193,6 +201,7 @@ public class UserRequest {
   public RequestType getRequestType() {
     switch (type) {
     case CREATE_PREPARED_STATEMENT:
+    case CREATE_PREPARED_STATEMENT_ARROW:
       return RequestType.CREATE_PREPARE;
     case GET_CATALOGS:
       return RequestType.GET_CATALOGS;

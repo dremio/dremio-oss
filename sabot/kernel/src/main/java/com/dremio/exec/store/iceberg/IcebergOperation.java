@@ -31,16 +31,17 @@ import com.google.common.base.Preconditions;
  */
 public class IcebergOperation {
   private IcebergOperation(Type opType,
-                          Path tableFolder,
-                          BatchSchema batchSchema,
-                          List<String> partitionColumnNames,
-                          Configuration configuration) {
+                           String tableName, Path tableFolder,
+                           BatchSchema batchSchema,
+                           List<String> partitionColumnNames,
+                           Configuration configuration) {
     this.opType = opType;
     this.tableFolder = tableFolder;
     this.batchSchema = batchSchema;
     this.configuration = configuration;
     this.icebergCatalog = new IcebergCatalog(this.tableFolder.toString(), this.configuration);
     this.partitionColumnNames = partitionColumnNames;
+    this.tableName = tableName;
   }
 
   public enum Type {
@@ -51,11 +52,12 @@ public class IcebergOperation {
   }
 
   private final Type opType;
-  private IcebergCatalog icebergCatalog;
-  private Path tableFolder;
-  private BatchSchema batchSchema;
-  private Configuration configuration;
-  private List<String> partitionColumnNames;
+  private final IcebergCatalog icebergCatalog;
+  private final Path tableFolder;
+  private final BatchSchema batchSchema;
+  private final Configuration configuration;
+  private final List<String> partitionColumnNames;
+  private final String tableName;
 
   /**
    * This method starts create table operation
@@ -64,7 +66,8 @@ public class IcebergOperation {
     Preconditions.checkState(icebergCatalog != null, "Unexpected state");
     Preconditions.checkState(tableFolder != null, "Invalid path found");
     Preconditions.checkState(batchSchema != null, "Schema must be present");
-    icebergCatalog.beginCreateTable(batchSchema, partitionColumnNames);
+    Preconditions.checkState(tableName != null, "Table name must be present");
+    icebergCatalog.beginCreateTable(tableName, batchSchema, partitionColumnNames);
     return new IcebergTableCreationCommitter(this);
   }
 
@@ -99,21 +102,21 @@ public class IcebergOperation {
     icebergCatalog.consumeData(dataFiles);
   }
 
-  public static IcebergOpCommitter getCreateTableCommitter(Path tableFolder,
+  public static IcebergOpCommitter getCreateTableCommitter(String tableName, Path tableFolder,
                                                            BatchSchema batchSchema,
                                                            List<String> partitionColumnNames,
                                                            Configuration configuration) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.CREATE,
-      tableFolder, batchSchema, partitionColumnNames, configuration);
+      tableName, tableFolder, batchSchema, partitionColumnNames, configuration);
     return icebergOperation.beginCreateTable();
   }
 
-  public static IcebergOpCommitter getInsertTableCommitter(Path tableFolder,
+  public static IcebergOpCommitter getInsertTableCommitter(String tableName, Path tableFolder,
                                                            BatchSchema batchSchema,
                                                            List<String> partitionColumnNames,
                                                            Configuration configuration) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.INSERT,
-      tableFolder, batchSchema, partitionColumnNames, configuration);
+      tableName, tableFolder, batchSchema, partitionColumnNames, configuration);
     return icebergOperation.beginInsertTable();
   }
 
@@ -121,15 +124,15 @@ public class IcebergOperation {
     icebergCatalog.truncateTable();
   }
 
-  public static void truncateTable(Path tableFolder, Configuration configuration) {
+  public static void truncateTable(String tableName, Path tableFolder, Configuration configuration) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.TRUNCATE,
-      tableFolder, null, null, configuration);
+      tableName, tableFolder, null, null, configuration);
     icebergOperation.truncateTable();
   }
 
-  public static void addColumns(Path path, List<Types.NestedField> columnsToAdd, Configuration fsConf) {
+  public static void addColumns(String tableName, Path path, List<Types.NestedField> columnsToAdd, Configuration fsConf) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.METADATA,
-        path, null, null, fsConf);
+      tableName, path, null, null, fsConf);
     icebergOperation.addColumns(columnsToAdd);
   }
 
@@ -137,9 +140,9 @@ public class IcebergOperation {
     icebergCatalog.addColumns(columnsToAdd);
   }
 
-  public static void dropColumn(Path path, String columnToDrop, Configuration fsConf) {
+  public static void dropColumn(String tableName, Path path, String columnToDrop, Configuration fsConf) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.METADATA,
-        path, null, null, fsConf);
+      tableName, path, null, null, fsConf);
     icebergOperation.dropColumn(columnToDrop);
   }
 
@@ -147,21 +150,21 @@ public class IcebergOperation {
     icebergCatalog.dropColumn(columnToDrop);
   }
 
-  public static void changeColumn(Path path, String columnToChange, Field newDef, Configuration fsConf) {
+  public static void changeColumn(String tableName, Path path, String columnToChange, Field newDef, Configuration fsConf) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.METADATA,
-        path, null, null, fsConf);
-    icebergOperation.changeColumn(columnToChange, SchemaConverter.toIcebergColumn(newDef));
+      tableName, path, null, null, fsConf);
+    icebergOperation.changeColumn(columnToChange, newDef);
   }
 
-  private void changeColumn(String columnToChange, Types.NestedField newDef) {
+  private void changeColumn(String columnToChange, Field newDef) {
     icebergCatalog.changeColumn(columnToChange, newDef);
   }
 
   // TODO: currently this function is called from unit tests only.
   //  Need to revisit it when we implement alter table rename column command
-  public static void renameColumn(Path path, String name, String newName, Configuration fsConf) {
+  public static void renameColumn(String tableName, Path path, String name, String newName, Configuration fsConf) {
     IcebergOperation icebergOperation = new IcebergOperation(Type.METADATA,
-      path, null, null, fsConf);
+      tableName, path, null, null, fsConf);
     icebergOperation.renameColumn(name, newName);
   }
 

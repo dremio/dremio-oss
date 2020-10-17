@@ -400,8 +400,8 @@ class SourceMetadataManager implements AutoCloseable {
       }
 
       final Stopwatch stopwatch = Stopwatch.createStarted();
-      final MetadataSynchronizer synchronizeRun = new MetadataSynchronizer(systemNamespace, sourceKey, bridge.getMetadata(),
-          metadataPolicy, getSaver(), retrievalOptions);
+      final MetadataSynchronizer synchronizeRun = new MetadataSynchronizer(systemNamespace, sourceKey,
+          bridge, metadataPolicy, getSaver(), retrievalOptions);
       synchronizeRun.setup();
       final SyncStatus syncStatus = synchronizeRun.go();
 

@@ -15,11 +15,17 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.BaseTestQuery.getFile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.Assert;
@@ -28,11 +34,20 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.BaseTestQuery;
+import com.dremio.QueryTestUtil;
+import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.support.SupportService;
+import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.testing.Controls;
+import com.dremio.exec.testing.ControlsInjectionUtil;
+import com.dremio.exec.work.foreman.AttemptManager;
+import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
+import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.ChronicleGrpc;
@@ -65,6 +80,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   public static final TemporaryFolder temp = new TemporaryFolder();
 
   private final DatasetPath ds1 = new DatasetPath("s.ds1");
+  private static String query1;
 
   @BeforeClass // same signature to shadow parent's #init
   public static void init() throws Exception {
@@ -78,6 +94,11 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     // now start server.
     BaseTestServer.init(true);
     populateInitialData();
+    query1 = getFile("tpch_quoted.sql");
+    LocalJobsService localJobsService = getMasterDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
+    localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
+    localJobsService = getCurrentDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
+    localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
   }
 
   private ManagedChannel getChannelToCoord(boolean master) {
@@ -99,6 +120,27 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     final ManagedChannel channel = conduitProvider.getOrCreateChannel(target);
     return channel;
+  }
+
+  private DremioClient getDremioClient(boolean master) throws Exception {
+    DremioClient dremioClient = new DremioClient(true);
+    if (master) {
+      final UserServer server = getMasterDremioDaemon().getBindingProvider().lookup(UserServer.class);
+      dremioClient.connect(new Properties(){{
+        put("direct", "localhost:" + server.getPort());
+        put("user", "dremio");
+        put("password", "dremio123");
+      }});
+    } else {
+      final UserServer server = getCurrentDremioDaemon().getBindingProvider().lookup(UserServer.class);
+      dremioClient.connect(new Properties(){{
+        put("direct", "localhost:" + server.getPort());
+        put("user", "dremio");
+        put("password", "dremio123");
+      }});
+    }
+
+    return dremioClient;
   }
 
   private JobsServiceGrpc.JobsServiceStub getSlaveJobsServiceStub() {
@@ -209,13 +251,13 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
   // submits job on slave & gets summary from master
   @Test
-  public void testJobSummaryOnMaster() throws InterruptedException {
+  public void testJobSummaryOnMaster() throws Exception {
     testJobSummaryOn(false);
   }
 
   // submits job on master & gets summary from slave
   @Test
-  public void testJobSummaryOnSlave() throws InterruptedException {
+  public void testJobSummaryOnSlave() throws Exception {
     testJobSummaryOn(true);
   }
 
@@ -327,7 +369,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   /**
    * @param submitJobToMaster: if true, submission is done on master & summary on slave or vice versa.
    */
-  private void testJobSummaryOn(boolean submitJobToMaster) throws InterruptedException {
+  private void testJobSummaryOn(boolean submitJobToMaster) throws Exception {
     JobsServiceGrpc.JobsServiceStub stubToSubmit = null;
     ChronicleGrpc.ChronicleBlockingStub jobSummaryStub = null;
     JobsServiceGrpc.JobsServiceStub jobMonitorStub = null;
@@ -363,6 +405,9 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
       .setJobId(JobsProtoUtil.toBuf(id))
       .setUserName(SYSTEM_USERNAME)
       .build();
+
+    // 3. wait for it to complete
+    listener.await();
 
     JobSummary summary = jobSummaryStub.getJobSummary(jobSummaryRequest);
     final int finalStateIdx = summary.getStateListCount()-1;
@@ -509,5 +554,180 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     public void onCompleted() {
       latch.countDown();
     }
+  }
+
+  private void injectTailProfileException(String controls, String expectedDesc, boolean master) throws Exception {
+    JobId jobId = null;
+    try {
+      DremioClient dremioClient = getDremioClient(master);
+      ControlsInjectionUtil.setControls(dremioClient, controls);
+      BaseTestQuery.QueryIdCapturingListener capturingListener = new BaseTestQuery.QueryIdCapturingListener();
+      final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+      QueryTestUtil.testWithListener(dremioClient, UserBitShared.QueryType.SQL, query1, listener);
+
+      // wait till we have a queryId
+      UserBitShared.QueryId queryId;
+      while ((queryId = capturingListener.getQueryId()) == null) {
+        Thread.sleep(10);
+      }
+      jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+      listener.await();
+    } catch (UserRemoteException e) {
+      assertTrue(e.getMessage().contains(expectedDesc));
+    }
+
+    Assert.assertNotNull(jobId);
+
+    JobState jobState = getMasterChronicleStub().getJobSummary(
+      JobSummaryRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setUserName(DEFAULT_USERNAME)
+        .build()).getJobState();
+
+    org.modelmapper.internal.util.Assert.isTrue(jobState == JobState.FAILED);
+
+  }
+
+  @Test
+  public void testTailProfileFailedStateMaster() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(AttemptManager.class, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR,
+        RuntimeException.class)
+      .build();
+
+    injectTailProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR, true);
+  }
+
+  private void injectAttemptCompletionException(String controls, boolean master) throws Exception {
+    JobId jobId = null;
+    DremioClient dremioClient = getDremioClient(master);
+    ControlsInjectionUtil.setControls(dremioClient, controls);
+    BaseTestQuery.QueryIdCapturingListener capturingListener = new BaseTestQuery.QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    QueryTestUtil.testWithListener(dremioClient, UserBitShared.QueryType.SQL, query1, listener);
+
+    // wait till we have a queryId
+    UserBitShared.QueryId queryId;
+    while ((queryId = capturingListener.getQueryId()) == null) {
+      Thread.sleep(10);
+    }
+    jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+    listener.await();
+
+    Assert.assertNotNull(jobId);
+
+    while (true) {
+      JobState jobState = getMasterChronicleStub().getJobSummary(
+        JobSummaryRequest.newBuilder()
+          .setJobId(JobsProtoUtil.toBuf(jobId))
+          .setUserName(DEFAULT_USERNAME)
+          .build()).getJobState();
+      if(jobState == JobState.FAILED) {
+        break;
+      }
+      Thread.sleep(50);
+    }
+  }
+
+  @Test
+  public void testAttemptCompletionFailedStateMaster() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+        IOException.class)
+      .build();
+
+    injectAttemptCompletionException(controls, true);
+  }
+
+  @Test
+  public void testAttemptCompletionFailedStateSlave() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+        IOException.class)
+      .build();
+
+    injectAttemptCompletionException(controls, false);
+  }
+
+  private void submitQuery(boolean master, String controls, CompletableFuture<JobId> future) throws Exception {
+    JobId jobId = null;
+    DremioClient dremioClient = getDremioClient(master);
+    ControlsInjectionUtil.setControls(dremioClient, controls);
+    BaseTestQuery.QueryIdCapturingListener capturingListener = new BaseTestQuery.QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    QueryTestUtil.testWithListener(dremioClient, UserBitShared.QueryType.SQL, query1, listener);
+
+    // wait till we have a queryId
+    UserBitShared.QueryId queryId;
+    while ((queryId = capturingListener.getQueryId()) == null) {
+      Thread.sleep(10);
+    }
+    jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+    listener.await();
+
+    Assert.assertNotNull(jobId);
+
+    future.complete(jobId);
+  }
+
+  private void injectAttemptCompletionException(String controls) throws Exception {
+    // submit job on master
+    CompletableFuture<JobId> masterJobFuture = new CompletableFuture<>();
+    CompletableFuture<JobId> slaveJobFuture = new CompletableFuture<>();
+    CompletableFuture.runAsync(()-> {
+        try {
+          submitQuery(true, controls, masterJobFuture);
+        } catch (Exception e) {
+        }
+      }
+    );
+
+    CompletableFuture.runAsync(()-> {
+        try {
+          submitQuery(false, controls, slaveJobFuture);
+        } catch (Exception e) {
+        }
+      }
+    );
+
+    JobId masterJobId = masterJobFuture.get();
+    JobId slaveJobId = slaveJobFuture.get();
+
+    while (true) {
+      JobState jobState = getMasterChronicleStub().getJobSummary(
+        JobSummaryRequest.newBuilder()
+          .setJobId(JobsProtoUtil.toBuf(masterJobId))
+          .setUserName(DEFAULT_USERNAME)
+          .build()).getJobState();
+      if(jobState == JobState.FAILED) {
+        break;
+      }
+      Thread.sleep(50);
+    }
+
+    while (true) {
+      JobState jobState = getMasterChronicleStub().getJobSummary(
+        JobSummaryRequest.newBuilder()
+          .setJobId(JobsProtoUtil.toBuf(slaveJobId))
+          .setUserName(DEFAULT_USERNAME)
+          .build()).getJobState();
+      if(jobState == JobState.FAILED) {
+        break;
+      }
+      Thread.sleep(50);
+    }
+  }
+
+  @Test
+  public void testAttemptCompletionFailedStateBoth() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(LocalJobsService.class, LocalJobsService.INJECTOR_ATTEMPT_COMPLETION_ERROR,
+        IOException.class)
+      .build();
+
+    injectAttemptCompletionException(controls);
   }
 }

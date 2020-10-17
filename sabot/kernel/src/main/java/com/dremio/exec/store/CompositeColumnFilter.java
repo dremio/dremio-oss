@@ -20,6 +20,7 @@ import java.util.List;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.ValueListFilter;
 import com.google.common.base.Preconditions;
 
 /**
@@ -36,7 +37,7 @@ public class CompositeColumnFilter implements AutoCloseable {
   private RuntimeFilterType filterType;
   private List<String> columnsList;
   private BloomFilter bloomFilter;
-  private List<Object> valueList;
+  private ValueListFilter valueList;
 
   private CompositeColumnFilter() {}
 
@@ -48,7 +49,7 @@ public class CompositeColumnFilter implements AutoCloseable {
     return bloomFilter;
   }
 
-  public List<Object> getValueList() {
+  public ValueListFilter getValueList() {
     return valueList;
   }
 
@@ -58,7 +59,7 @@ public class CompositeColumnFilter implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(bloomFilter);
+    AutoCloseables.close(bloomFilter, valueList);
   }
 
   @Override
@@ -85,7 +86,7 @@ public class CompositeColumnFilter implements AutoCloseable {
       return this;
     }
 
-    public Builder setValueList(List<Object> valueList) {
+    public Builder setValueList(ValueListFilter valueList) {
       compositeColumnFilter.valueList = valueList;
       return this;
     }

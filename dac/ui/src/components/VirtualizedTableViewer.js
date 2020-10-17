@@ -24,6 +24,7 @@ import { humanSorter, getSortValue } from '@app/utils/sort';
 
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 30;
+const TABLE_BOTTOM_CUSHION = 10;
 
 export const SortDirection = {
   ASC: 'ASC',
@@ -129,7 +130,7 @@ export default class VirtualizedTableViewer extends Component {
       <div style={[styles.base, baseStyle, style]}>
         <AutoSizer>
           {({width, height}) => {
-            const tableHeight = height;
+            const tableHeight = height - TABLE_BOTTOM_CUSHION;
             return (
               <Table
                 scrollTop={resetScrollTop ? 0 : undefined} // it's needed for https://dremio.atlassian.net/browse/DX-7140

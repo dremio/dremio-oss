@@ -242,6 +242,9 @@ public interface ExecConstants {
 
   BooleanValidator ELASTIC_ENABLE_MAPPING_CHECKSUM = new BooleanValidator("store.elastic.enable_mapping_checksum", true);
 
+  String ELASTIC_ACTION_RETRIES = "store.elastic.action_retries";
+  LongValidator ELASTIC_ACTION_RETRIES_VALIDATOR = new LongValidator(ELASTIC_ACTION_RETRIES, 0);
+
   BooleanValidator ENABLE_UNION_TYPE = new BooleanValidator("exec.enable_union_type", true);
 
   BooleanValidator ACCELERATION_VERBOSE_LOGGING = new BooleanValidator("accelerator.system.verbose.logging", true);
@@ -356,7 +359,8 @@ public interface ExecConstants {
       new StringValidator(NEW_VIEW_DEFAULT_PERMS_KEY, "700");
 
   BooleanValidator DEBUG_QUERY_PROFILE = new BooleanValidator("dremio.profile.debug_columns", false);
-  BooleanValidator SCAN_COMPUTE_LOCALITY = new BooleanValidator("exec.operator.scan.compute_locality", true);
+
+  BooleanValidator SCAN_COMPUTE_LOCALITY = new BooleanValidator("exec.operator.scan.compute_locality", false);
 
   PositiveLongValidator LAYOUT_REFRESH_MAX_ATTEMPTS = new PositiveLongValidator("layout.refresh.max.attempts", Integer.MAX_VALUE, 3);
 
@@ -430,9 +434,6 @@ public interface ExecConstants {
   //this option sets the capacity of an ArrowBuf in SlicedBufferManager from which various buffers may be sliced.
   PowerOfTwoLongValidator BUF_MANAGER_CAPACITY = new PowerOfTwoLongValidator("exec.sliced_bufmgr.capacity", 1 << 24, 1 << 16);
 
-  TypeValidators.PositiveLongValidator TOKEN_RELEASE_LEADERSHIP_MS =
-    new TypeValidators.PositiveLongValidator("token.release.leadership.ms", Long.MAX_VALUE, TimeUnit.HOURS.toMillis
-      (40));
   TypeValidators.PositiveLongValidator VOTING_RELEASE_LEADERSHIP_MS =
     new TypeValidators.PositiveLongValidator("vote.release.leadership.ms", Long.MAX_VALUE, TimeUnit.HOURS.toMillis
       (35));
@@ -453,7 +454,7 @@ public interface ExecConstants {
   AdminBooleanValidator EXECUTOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("exec.heap.monitoring.enable", true);
   RangeLongValidator EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
 
-  AdminBooleanValidator COORDINATOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("coordinator.heap.monitoring.enable", false);
+  AdminBooleanValidator COORDINATOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("coordinator.heap.monitoring.enable", true);
   RangeLongValidator COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("coordinator.heap.monitoring.thresh.percentage", 50, 100, 85);
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);

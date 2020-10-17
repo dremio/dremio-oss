@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -42,20 +43,25 @@ public class SingleStreamProvider implements InputStreamProvider {
   private final long maxFooterLen;
   private final boolean readFullFile;
   private BulkInputStream stream;
-  private MutableParquetMetadata footer;
+  private OperatorContext context;
 
-  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, MutableParquetMetadata footer, OperatorContext context) {
+  private MutableParquetMetadata footer;
+  final boolean readColumnOffsetIndices;
+
+  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndices) {
     this.fs = fs;
     this.path = path;
     this.fileLength = fileLength;
     this.maxFooterLen = maxFooterLen;
     this.readFullFile = readFullFile;
     this.footer = footer;
+    this.context = context;
     if (context != null) {
       this.allocator = context.getAllocator();
     } else {
       this.allocator = null;
     }
+    this.readColumnOffsetIndices = readColumnOffsetIndices;
   }
 
   @Override
@@ -87,6 +93,46 @@ public class SingleStreamProvider implements InputStreamProvider {
         throw t;
       }
     }
+  }
+
+  @Override
+  public OffsetIndexProvider getOffsetIndexProvider(List<ColumnChunkMetaData> columns) {
+    if (readColumnOffsetIndices) {
+      if ((columns.size() == 0) || (columns.get(0).getOffsetIndexReference() == null)) {
+        return null;
+      }
+      try (BulkInputStream inputStream = BulkInputStream.wrap(Streams.wrap(fs.open(path)))) {
+        OffsetIndexProvider offsetIndexProvider;
+        offsetIndexProvider = new OffsetIndexProvider(inputStream, allocator, columns);
+        if ((context != null) && (context.getStats() != null)) {
+          context.getStats().addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.OFFSET_INDEX_READ, 1);
+        }
+        return offsetIndexProvider;
+      } catch (IOException ex) {
+        //Ignore error and return null;
+      }
+    }
+    return null;
+  }
+
+  @Override
+  public ColumnIndexProvider getColumnIndexProvider(List<ColumnChunkMetaData> columns) {
+    if (readColumnOffsetIndices) {
+      if ((columns.size() == 0) || (columns.get(0).getColumnIndexReference() == null)) {
+        return null;
+      }
+      try (BulkInputStream inputStream = BulkInputStream.wrap(Streams.wrap(fs.open(path)))) {
+        ColumnIndexProvider columnIndexProvider;
+        columnIndexProvider = new ColumnIndexProvider(inputStream, allocator, columns);
+        if ((context != null) && (context.getStats() != null)) {
+          context.getStats().addLongStat(com.dremio.sabot.op.scan.ScanOperator.Metric.COLUMN_INDEX_READ, 1);
+        }
+        return columnIndexProvider;
+      } catch (IOException ex) {
+        //Ignore error and return null;
+      }
+    }
+    return null;
   }
 
   @Override

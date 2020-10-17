@@ -123,6 +123,7 @@ public class ElasticConnectionPool implements AutoCloseable {
   private final ElasticsearchAuthentication elasticsearchAuthentication;
   private final int readTimeoutMillis;
   private final boolean useWhitelist;
+  private final long actionRetries;
 
   /**
    * Rather than maintain an exact matrix of what is supported in each version,
@@ -157,18 +158,28 @@ public class ElasticConnectionPool implements AutoCloseable {
 
 
   public ElasticConnectionPool(
+    List<Host> hosts,
+    TLSValidationMode tlsMode,
+    ElasticsearchAuthentication elasticsearchAuthentication,
+    int readTimeoutMillis,
+    boolean useWhitelist){
+    this(hosts, tlsMode, elasticsearchAuthentication, readTimeoutMillis, useWhitelist, 0);
+  }
+
+  public ElasticConnectionPool(
       List<Host> hosts,
       TLSValidationMode tlsMode,
       ElasticsearchAuthentication elasticsearchAuthentication,
       int readTimeoutMillis,
-      boolean useWhitelist){
+      boolean useWhitelist,
+      long actionRetries){
     this.sslMode = tlsMode;
     this.protocol = tlsMode != TLSValidationMode.OFF ? "https" : "http";
     this.hosts = ImmutableList.copyOf(hosts);
     this.elasticsearchAuthentication = elasticsearchAuthentication;
     this.readTimeoutMillis = readTimeoutMillis;
     this.useWhitelist = useWhitelist;
-
+    this.actionRetries = actionRetries;
   }
 
   public void connect() throws IOException {
@@ -633,15 +644,45 @@ public class ElasticConnectionPool implements AutoCloseable {
       return future;
     }
 
+    private <T> T executeWithRetries(Invocation invocation, Class<T> responseClazz) {
+      for (int i = 0; i <= actionRetries; i++) {
+        try {
+          return invocation.invoke(responseClazz);
+        } catch (Exception e) {
+          if (i == actionRetries) {
+            logger.error("Failed to execute action after {} retries.", actionRetries);
+            throw e;
+          }
+          logger.warn("Failed to execute action for #{} try.", i + 1, e);
+        }
+      }
+      throw new RuntimeException(String.format("Failed to execute action after %d retries.", actionRetries));
+    }
+
     public <T> T execute(ElasticAction2<T> action){
       final ContextListenerImpl listener = new ContextListenerImpl();
       final Invocation invocation = action.buildRequest(target, listener);
       try {
-        return invocation.invoke(action.getResponseClass());
+        return executeWithRetries(invocation, action.getResponseClass());
       } catch (Exception e){
         throw handleException(e, action, listener);
       }
 
+    }
+
+    private Result getResultWithRetries(ElasticAction action) {
+      for (int i = 0; i <= actionRetries; i++) {
+        try {
+          return action.getResult(target);
+        } catch (Exception e) {
+          if (i == actionRetries) {
+            logger.error("Failed to get result after {} retries.", actionRetries);
+            throw e;
+          }
+          logger.warn("Failed to get result for #{} try.", i + 1, e);
+        }
+      }
+      throw new RuntimeException(String.format("Failed to get result after %d retries.", actionRetries));
     }
 
     public Result executeAndHandleResponseCode(ElasticAction action, boolean handleResponseCode, String unauthorizedMsg, String... context) {
@@ -653,7 +694,7 @@ public class ElasticConnectionPool implements AutoCloseable {
       contextWithAlias.add("base url");
       contextWithAlias.add(target.getUri().toString());
       try {
-        result = action.getResult(target);
+        result = getResultWithRetries(action);
       } catch (Exception e) {
         addContextAndThrow(UserException.connectionError(e).message("Encountered a problem while executing %s. %s", action, unauthorizedMsg), contextWithAlias);
       }

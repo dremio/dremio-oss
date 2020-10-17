@@ -43,6 +43,8 @@ enum RpcType {
   GET_COLUMNS = 17; // user is requesting metadata of column(s)
   CREATE_PREPARED_STATEMENT = 22; // user is sending a request to create prepared statement
   GET_SERVER_META = 8; // user is sending a request to receive server metadata
+  // user is sending a request to create prepared statement with arrow formatted metadata
+  CREATE_PREPARED_STATEMENT_ARROW = 24;
 
   // bit to user
   QUERY_DATA = 6; // node is sending a query result data batch to the user
@@ -54,6 +56,8 @@ enum RpcType {
   COLUMNS = 21; // return column metadata in response to GET_COLUMNS
   PREPARED_STATEMENT = 23; // return preparated statement in response to CREATE_PREPARED_STATEMENT
   SERVER_META = 9; // return server infos in respose to GET_SERVER_META
+  // return prepared statement with arrow formatted metadata in response to CREATE_PREPARED_STATEMENT
+  PREPARED_STATEMENT_ARROW = 25;
 
   QUERY_RESULT = 10; // node is reporting a query status change, most likely a terminal message, to the user
 }
@@ -315,6 +319,15 @@ message CreatePreparedStatementReq {
 }
 
 /*
+ * Request message to create a prepared statement returning metadata
+ * in Arrow format. Currently prepared statement only accepts a SQL
+ * query. Query parameter support is not included in current implementation.
+ */
+message CreatePreparedStatementArrowReq {
+  optional string sql_query = 1;
+}
+
+/*
  * How a column can be used in WHERE clause
  */
 enum ColumnSearchability {
@@ -463,6 +476,21 @@ message PreparedStatement {
 }
 
 /*
+ * Prepared statement. It contains the query metadata in Arrow format and a handle to the prepared
+ * statement state on server.
+ */
+message PreparedStatementArrow {
+  // schema of the dataset as described in Schema.fbs::Schema.
+  optional bytes arrow_schema = 1;
+
+  /*
+   * In order to execute the prepared statement,
+   * clients need to submit this object in RunQuery message.
+   */
+  optional PreparedStatementHandle server_handle = 2;
+}
+
+/*
  * Response message for CreatePreparedStatementReq.
  */
 message CreatePreparedStatementResp {
@@ -470,6 +498,16 @@ message CreatePreparedStatementResp {
   optional PreparedStatement prepared_statement = 2;
   optional exec.shared.DremioPBError error = 3;
   optional exec.shared.QueryId query_id = 13;
+}
+
+/*
+ * Response message for CreatePreparedStatementArrowReq.
+ */
+message CreatePreparedStatementArrowResp {
+  optional RequestStatus status = 1;
+  optional PreparedStatementArrow prepared_statement = 2;
+  optional exec.shared.DremioPBError error = 3;
+  optional exec.shared.QueryId query_id = 4;
 }
 
 /*
@@ -691,7 +729,8 @@ enum SubmissionSource {
   LOCAL = 2;
   JDBC = 3;
   ODBC = 4;
-} 
+  FLIGHT = 5;
+}
 
 /*
  * Request message for running a query.

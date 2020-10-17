@@ -70,6 +70,7 @@ public class ProfileWrapper {
   private final List<OperatorWrapper> operatorProfiles;
   private final AccelerationWrapper accelerationDetails;
   private final Map<AttemptEvent.State, Long> stateDurations;
+  private Long totalDuration; // null if the query hasn't terminated
   private final Table<Integer, Integer, String> majorMinorHostTable = HashBasedTable.create();
 
   public ProfileWrapper(final QueryProfile profile, boolean debug) {
@@ -172,12 +173,15 @@ public class ProfileWrapper {
     final List<AttemptEvent> events = new ArrayList<>(profile.getStateListList());
     Collections.sort(events, Comparators.stateStartTime);
 
-    for (int i = 0; i < events.size() - 1; i++) {
+    for (int i = 0; i < events.size(); i++) {
       if (isTerminal(events.get(i).getState())) {
+        totalDuration = events.get(i).getStartTime() - events.get(0).getStartTime();
         break;
       }
-      long timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
-      stateDurations.compute(events.get(i).getState(), (k, v) -> (v == null) ? timeSpent : v + timeSpent);
+      if (i + 1 < events.size()) {
+        long timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
+        stateDurations.compute(events.get(i).getState(), (k, v) -> (v == null) ? timeSpent : v + timeSpent);
+      }
     }
     this.stateDurations = stateDurations;
   }
@@ -242,6 +246,11 @@ public class ProfileWrapper {
       return "in progress";
     }
 
+    if (totalDuration != null) {
+      return NUMBER_FORMAT.format(totalDuration) + "ms";
+    }
+
+    // for legacy queries
     long startTime = profile.getStart();
     long endTime = profile.getEnd();
     if (endTime >= startTime) {

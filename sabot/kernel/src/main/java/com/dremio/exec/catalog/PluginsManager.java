@@ -31,10 +31,10 @@ import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
+import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.concurrent.Runnables;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStore;
-import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;

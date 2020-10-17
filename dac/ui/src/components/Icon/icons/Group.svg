@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="24" height="18" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" fill-rule="evenodd">
+        <path d="M0-3h24v24H0z"/>
+        <path d="M7.5 9.75a7.5 7.5 0 017.5 7.5.75.75 0 11-1.5 0 6 6 0 10-12 0 .75.75 0 11-1.5 0 7.5 7.5 0 017.5-7.5zM17.727 3a4.125 4.125 0 011.156 8.086A6.276 6.276 0 0124 17.25a.75.75 0 01-1.5 0 4.776 4.776 0 00-6.428-4.478.75.75 0 11-.518-1.408 6.276 6.276 0 011.016-.28A4.124 4.124 0 0117.727 3zM7.5 0a4.875 4.875 0 110 9.75A4.875 4.875 0 017.5 0zm10.227 4.5a2.625 2.625 0 100 5.25 2.625 2.625 0 000-5.25zM7.5 1.5a3.375 3.375 0 100 6.75 3.375 3.375 0 000-6.75z" fill="#77818F"/>
+    </g>
+</svg>

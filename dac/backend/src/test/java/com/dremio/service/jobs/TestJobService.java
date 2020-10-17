@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import static com.dremio.dac.server.JobsServiceTestUtils.toSubmitJobRequest;
 import static com.dremio.exec.testing.ExecutionControls.DEFAULT_CONTROLS;
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
+import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_PLAN_PAUSE;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.util.Arrays.asList;
 import static java.util.UUID.randomUUID;
@@ -78,10 +79,13 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.testing.Injection;
+import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.sabot.exec.CancelQueryContext;
+import com.dremio.sabot.exec.CoordinatorHeapClawBackStrategy;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
@@ -104,7 +108,6 @@ import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 
 /**
  * Tests for job service.
@@ -214,7 +217,7 @@ public class TestJobService extends BaseTestServer {
                                 .addPause(DremioHepPlanner.class, INJECTOR_DURING_PLANNING_PAUSE)
                                 .build();
       injectPauses(controls);
-      AttemptEvent.State[] observedAttemptStates = executeQueryAndCancel();
+      AttemptEvent.State[] observedAttemptStates = executeQueryAndCancel(true);
       AttemptEvent.State[] expectedAttemptStates =
         new AttemptEvent.State[] { AttemptEvent.State.PENDING,
                                    AttemptEvent.State.METADATA_RETRIEVAL,
@@ -232,8 +235,33 @@ public class TestJobService extends BaseTestServer {
     }
   }
 
+  /**
+   * Test cancelling of query/job by heap monitor after planning phase.
+   * Query should NOT be canceled since heap monitor should only cancel queries
+   * in planning phase.
+   */
+  @Test
+  public void testQueryCancelByHeapMonitorAfterPlanning() throws Exception {
+    try {
+      String controls = Controls.newBuilder()
+                                .addPause(AttemptManager.class, INJECTOR_PLAN_PAUSE)
+                                .build();
+      injectPauses(controls);
+      AttemptEvent.State[] observedAttemptStates = executeQueryAndCancel(false);
+      assertEquals("Query should be completed successfully if heap monitor tried to cancel " +
+                   "query after planning phase.",
+                   AttemptEvent.State.COMPLETED,
+                   observedAttemptStates[observedAttemptStates.length-1]);
+    } catch(Exception e) {
+      throw e;
+    } finally {
+      // reset, irrespective any exception, so that other test cases are not affected.
+      ExecutionControls.setControlsOptionMapper(new ObjectMapper());
+    }
+  }
 
-  private AttemptEvent.State[] executeQueryAndCancel() throws Exception {
+
+  private AttemptEvent.State[] executeQueryAndCancel(boolean verifyFailed) throws Exception {
     final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
     final CompletionListener completionListener = new CompletionListener();
     final String testKey = TestingFunctionHelper.newKey(() -> {});
@@ -256,10 +284,12 @@ public class TestJobService extends BaseTestServer {
     // wait for the injected pause to be hit
     Thread.sleep(3000);
 
-    String cancelReason = "Cancelling query in planning phase.";
-    // cancel query in planning phase or about to go in planning phase
-    foremenWorkManager.cancel(Sets.newHashSet(UserBitShared.QueryResult.QueryState.ENQUEUED),
-                              cancelReason);
+    CancelQueryContext cancelQueryContext = CoordinatorHeapClawBackStrategy.getCancelQueryContext();
+    String cancelReason = cancelQueryContext.getCancelReason();
+    String cancelContext = cancelQueryContext.getCancelContext();
+    // cancel query in planning phase
+    foremenWorkManager.cancel(cancelQueryContext);
+
     // resume the pause
     foremenWorkManager.resume(externalId);
 
@@ -272,15 +302,19 @@ public class TestJobService extends BaseTestServer {
     } catch (Exception e) {
       observedEx = e;
     }
-    assertTrue(UserRemoteException.class.equals(observedEx.getClass()));
-    assertEquals(cancelReason,
-                 ((UserRemoteException) observedEx).getOrCreatePBError(false)
-                                                   .getOriginalMessage());
 
     Job job = localJobsService.getJob(getJobRequest);
-    assertEquals("Job is expected to be in FAILED state",
-                 JobState.FAILED,
-                 job.getJobAttempt().getState());
+    if (verifyFailed) {
+      assertTrue(UserRemoteException.class.equals(observedEx.getClass()));
+      UserBitShared.DremioPBError error = ((UserRemoteException) observedEx).getOrCreatePBError(false);
+      assertEquals(cancelReason, error.getOriginalMessage());
+      assertEquals(l(SabotContext.class).getEndpoint(), error.getEndpoint());
+      assertTrue("Cancel context should be in returned error context", error.getContextList().contains(cancelContext));
+
+      assertEquals("Job is expected to be in FAILED state",
+                   JobState.FAILED,
+                   job.getJobAttempt().getState());
+    }
 
     AttemptEvent.State[] observedAttemptStates = job.getJobAttempt()
                                                     .getStateListList()

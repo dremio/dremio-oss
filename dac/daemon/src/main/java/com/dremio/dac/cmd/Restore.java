@@ -17,6 +17,7 @@ package com.dremio.dac.cmd;
 
 import static com.dremio.dac.service.search.SearchIndexManager.CONFIG_KEY;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.hadoop.conf.Configuration;
@@ -27,7 +28,6 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
-import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
@@ -87,7 +87,8 @@ public class Restore {
       }
       Path backupDir = Path.of(options.backupDir);
       FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
-      BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
+      BackupRestoreUtil.RestorationResults restorationResults =
+          BackupRestoreUtil.restore(fs, backupDir, dacConfig);
       final Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
       // clear searchLastRefresh so that search index can be rebuilt after restore
       try (LocalKVStoreProvider provider = providerOptional.get()) {
@@ -97,7 +98,20 @@ public class Restore {
       } catch (Exception e) {
         AdminLogger.log("Failed to clear catalog search index.", e);
       }
-      AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
+
+      String backupPath = restorationResults.getStats().getBackupPath();
+      long numTables = restorationResults.getStats().getTables();
+      AdminLogger.log("Restored from backup at {}, {} dremio tables, {} uploaded files.",
+          backupPath, numTables, restorationResults.getStats().getFiles());
+      List<Exception> perFileExceptions = restorationResults.getExceptions();
+      if (!perFileExceptions.isEmpty()) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Per file exceptions:\n");
+        for (Exception e : perFileExceptions) {
+          builder.append(e.getMessage() + "\n");
+        }
+        AdminLogger.log(builder.toString());
+      }
     } catch (Exception e) {
       AdminLogger.log("Restore failed", e);
       System.exit(1);

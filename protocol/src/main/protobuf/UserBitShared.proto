@@ -92,6 +92,7 @@ enum WorkloadType {
   ACCELERATOR = 9;
   DDL = 10;
   UI_DOWNLOAD = 11;
+  FLIGHT = 12;
 }
 
 message DremioPBError{
