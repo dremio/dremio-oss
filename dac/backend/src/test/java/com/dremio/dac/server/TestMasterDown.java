@@ -40,6 +40,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.perf.Timer;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.daemon.ZkServer;
@@ -127,6 +128,7 @@ public class TestMasterDown extends BaseClientUtils {
           .jobServerEnabled(false)
           .inMemoryStorage(true)
           .writePath(folder1.getRoot().getAbsolutePath())
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
@@ -140,6 +142,7 @@ public class TestMasterDown extends BaseClientUtils {
           .serveUI(false)
           .inMemoryStorage(true)
           .writePath(folder2.getRoot().getAbsolutePath())
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
           .isRemote(true),
         DremioTest.CLASSPATH_SCAN_RESULT);

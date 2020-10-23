@@ -623,7 +623,7 @@
 |platform                                                    |1.3.4               |MIT                 |
 |Plugin Framework for Java                                   |3.0.1               |Apache 2.0          |
 |popper.js                                                   |1.14.7              |MIT                 |
-|PostgreSQL JDBC Driver                                      |42.2.17             |BSD 2-clause        |
+|PostgreSQL JDBC Driver                                      |42.2.18             |BSD 2-clause        |
 |process-nextick-args                                        |2.0.1               |MIT                 |
 |Prometheus Java Simpleclient                                |0.7.0               |Apache 2.0          |
 |Prometheus Java Simpleclient Common                         |0.7.0               |Apache 2.0          |

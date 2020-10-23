@@ -26,6 +26,8 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.dremio.exec.store.hive.metadata.HiveMetadataUtils;
 import com.dremio.hive.proto.HiveReaderProto;
@@ -72,7 +74,6 @@ public class TestHiveScanBatchCreator {
 
     OrcSplit orcSplit = new OrcSplit(new Path(scheme + "://test.bucket/file.orc"), null, 0, 0, new String[0],
       null, true, false, Collections.emptyList(), 0, 0);
-
 
     for (int i = 0; i < numPartitions; ++i) {
       String extendedProp = "partition_extended_" + String.valueOf(i);

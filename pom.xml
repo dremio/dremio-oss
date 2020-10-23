@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.9.0-202010170313000159-4a37757a</version>
+  <version>4.9.1-202010230218060541-2e764ed0</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -111,7 +111,7 @@
     <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
     <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
     <pf4j.version>3.0.1</pf4j.version>
-    <postgresql.version>42.2.17</postgresql.version>
+    <postgresql.version>42.2.18</postgresql.version>
     <protobuf.version>3.9.1</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
@@ -1370,6 +1370,11 @@ limitations under the License.
       <dependency>
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-accelerator</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-arrow-flight</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

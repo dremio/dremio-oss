@@ -176,6 +176,7 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
                 compositeReader.getInnerColumns(),
                 copyOfFilterConditions,
                 hiveParquetSplit.getFileSplit(),
+                hiveParquetSplit.getHiveSplitXAttr(),
                 jobConf,
                 config.getReferencedTables(),
                 vectorize,

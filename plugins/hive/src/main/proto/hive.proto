@@ -105,6 +105,8 @@ message HiveSplitXattr {
   optional SerializedInputSplit input_split = 4;
   optional string serialization_lib = 5 [deprecated=true];
   optional int32 partition_id = 6; // partition id this split belongs to
+  optional int64 fileLength = 7;
+  optional int64 lastModificationTime = 8;
 }
 
 message SerializedInputSplit {

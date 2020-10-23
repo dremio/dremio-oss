@@ -21,7 +21,7 @@ import org.apache.hadoop.mapred.FileSplit;
 
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.hive.proto.HiveReaderProto;
+import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 
 /**
  * Pojo to hold required fields of hive parquet splits. Extracts fields from given {@link SplitAndPartitionInfo}
@@ -30,15 +30,16 @@ public class HiveParquetSplit implements Comparable<HiveParquetSplit> {
     private final SplitAndPartitionInfo datasetSplit;
     private final FileSplit fileSplit;
     private final int partitionId;
+    private final HiveSplitXattr hiveSplitXattr;
 
     HiveParquetSplit(SplitAndPartitionInfo splitAndPartitionInfo) {
         this.datasetSplit = splitAndPartitionInfo;
         try {
-            final HiveReaderProto.HiveSplitXattr splitAttr = HiveReaderProto.HiveSplitXattr.parseFrom(datasetSplit.getDatasetSplitInfo().getExtendedProperty());
-            final FileSplit fullFileSplit = (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
+            hiveSplitXattr = HiveSplitXattr.parseFrom(datasetSplit.getDatasetSplitInfo().getExtendedProperty());
+            final FileSplit fullFileSplit = (FileSplit) HiveUtilities.deserializeInputSplit(hiveSplitXattr.getInputSplit());
             // make a copy of file split, we only need file path, start and length, throw away hosts
             this.fileSplit = new FileSplit(fullFileSplit.getPath(), fullFileSplit.getStart(), fullFileSplit.getLength(), (String[])null);
-            this.partitionId = splitAttr.getPartitionId();
+            this.partitionId = hiveSplitXattr.getPartitionId();
         } catch (IOException | ReflectiveOperationException e) {
             throw new RuntimeException("Failed to parse dataset split for " + datasetSplit.getPartitionInfo().getSplitKey(), e);
         }
@@ -55,6 +56,10 @@ public class HiveParquetSplit implements Comparable<HiveParquetSplit> {
     FileSplit getFileSplit() {
         return fileSplit;
     }
+
+    HiveSplitXattr getHiveSplitXAttr() {
+    return hiveSplitXattr;
+  }
 
     @Override
     public int compareTo(HiveParquetSplit other) {

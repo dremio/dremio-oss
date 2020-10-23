@@ -57,7 +57,7 @@ public class HiveSubScan extends HiveProxiedSubScan {
     List<SchemaPath> columns,
     List<String> partitionColumns,
     byte[] extendedProperty
-  ) {
+    ) {
     super(props, fullSchema, tablePath, columns);
     this.splits = splits;
     this.filter = filter;

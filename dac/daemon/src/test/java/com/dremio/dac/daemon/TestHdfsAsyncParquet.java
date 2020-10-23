@@ -37,6 +37,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -129,6 +130,7 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
           .autoPort(true)
           .allowTestApis(true)
           .writePath(folder.getRoot().getAbsolutePath())
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
           .clusterMode(ClusterMode.LOCAL)
           .serveUI(true),
         DremioTest.CLASSPATH_SCAN_RESULT,

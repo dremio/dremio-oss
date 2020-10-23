@@ -173,6 +173,7 @@ import com.dremio.service.execselector.ExecutorSelectorFactory;
 import com.dremio.service.execselector.ExecutorSelectorFactoryImpl;
 import com.dremio.service.execselector.ExecutorSelectorProvider;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
+import com.dremio.service.flight.DremioFlightService;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
 import com.dremio.service.grpc.MultiTenantGrpcServerBuilderFactory;
@@ -1050,6 +1051,17 @@ public class DACDaemonModule implements DACModule {
 
     if (isExecutor) {
       registry.bindSelf(new ExprCachePrewarmService(sabotContextProvider, optionsProvider, bootstrap.getAllocator()));
+    }
+
+    if (isCoordinator && config.getBoolean(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN)) {
+      registry.bindSelf(new DremioFlightService(
+        registry.provider(DremioConfig.class),
+        registry.provider(BufferAllocator.class),
+        registry.provider(UserService.class),
+        registry.provider(UserWorker.class),
+        registry.provider(SabotContext.class),
+        registry.provider(TokenManager.class),
+        registry.provider(OptionManager.class)));
     }
 
     registerHeapMonitorManager(registry, isCoordinator);

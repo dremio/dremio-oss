@@ -23,6 +23,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.perf.Timer;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.model.usergroup.UserForm;
 import com.dremio.dac.model.usergroup.UserLogin;
@@ -47,6 +48,7 @@ public class TestBootstrapResource extends BaseTestServer {
     .autoPort(true)
     .serveUI(false)
     .inMemoryStorage(false)
+    .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
     .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
   @BeforeClass

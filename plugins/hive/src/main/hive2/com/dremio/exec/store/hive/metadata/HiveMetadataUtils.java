@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -66,6 +67,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -95,6 +97,8 @@ import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
+import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
+import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
@@ -184,7 +188,7 @@ public class HiveMetadataUtils {
   }
 
   public static boolean isVarcharTruncateSupported(InputFormat<?, ?> format) {
-    return MapredParquetInputFormat.class.isAssignableFrom(format.getClass());
+    return isParquetFormat(format);
   }
 
   public static boolean hasVarcharColumnInTableSchema(
@@ -519,11 +523,18 @@ public class HiveMetadataUtils {
 
   public static HiveSplitXattr buildHiveSplitXAttr(int partitionId, InputSplit inputSplit) {
     final HiveSplitXattr.Builder splitAttr = HiveSplitXattr.newBuilder();
-
     splitAttr.setPartitionId(partitionId);
     splitAttr.setInputSplit(serialize(inputSplit));
+    setFileStats(inputSplit, splitAttr);
 
     return splitAttr.build();
+  }
+
+  private static void setFileStats(InputSplit inputSplit, HiveSplitXattr.Builder splitAttr) {
+    if (inputSplit instanceof ParquetInputFormat.ParquetSplit) {
+      splitAttr.setFileLength(((ParquetInputFormat.ParquetSplit) inputSplit).getFileSize());
+      splitAttr.setLastModificationTime(((ParquetInputFormat.ParquetSplit) inputSplit).getModificationTime());
+    }
   }
 
   public static List<DatasetSplit> getDatasetSplits(TableMetadata tableMetadata,
@@ -901,7 +912,11 @@ public class HiveMetadataUtils {
   private static List<InputSplit> getInputSplits(final InputFormat<?, ?> format, final JobConf job) {
     InputSplit[] inputSplits;
     try {
-      inputSplits = format.getSplits(job, 1);
+      if (isParquetFormat(format)) {
+        inputSplits = new ParquetInputFormat().getSplits(job, 1);
+      } else {
+        inputSplits = format.getSplits(job, 1);
+      }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -911,6 +926,11 @@ public class HiveMetadataUtils {
     } else {
       return Arrays.asList(inputSplits);
     }
+  }
+
+
+  private static boolean isParquetFormat(InputFormat<?, ?> format) {
+    return MapredParquetInputFormat.class.isAssignableFrom(format.getClass());
   }
 
   /**

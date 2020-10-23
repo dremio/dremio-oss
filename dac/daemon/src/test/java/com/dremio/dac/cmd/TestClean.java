@@ -21,6 +21,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.perf.Timer;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.DACConfig;
@@ -34,6 +35,7 @@ public class TestClean extends BaseTestServer {
   private static DACConfig dacConfig = DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG).autoPort(true).allowTestApis(true)
       .addDefaultUser(true).serveUI(false).inMemoryStorage(false) // Need this to be a on-disk
                                                                   // kvstore for tests.
+      .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
       .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
   protected static DACConfig getDACConfig() {

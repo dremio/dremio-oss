@@ -81,6 +81,7 @@ import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.exec.util.BatchSchemaField;
+import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -107,6 +108,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final List<SchemaPath> columnsToRead;
   private final List<ParquetFilterCondition> conditions;
   private final FileSplit fileSplit;
+  private final HiveSplitXattr hiveSplitXattr;
   private final JobConf jobConf;
   final Collection<List<String>> referencedTables;
   private final boolean vectorize;
@@ -121,11 +123,11 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private MutableParquetMetadata footer;
   private FileSystem fs;
   private long fileLength;
+  private long fileLastModificationTime;
   private boolean readFullFile;
   private org.apache.hadoop.fs.Path filePath;
   private final Function<MutableParquetMetadata, Integer> rowGroupIndexProvider;
   private final Consumer<MutableParquetMetadata> populateRowGroupNums;
-  private FileAttributes fileAttributes;
   private boolean isAsyncEnabled;
 
   private RecordReader currentReader;
@@ -145,6 +147,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     final List<SchemaPath> columnsToRead,
     final List<ParquetFilterCondition> conditions,
     final FileSplit fileSplit,
+    final HiveSplitXattr hiveSplitXattr,
     final JobConf jobConf,
     final Collection<List<String>> referencedTables,
     final boolean vectorize,
@@ -160,6 +163,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.columnsToRead = columnsToRead;
     this.conditions = conditions;
     this.fileSplit = fileSplit;
+    this.hiveSplitXattr = hiveSplitXattr;
     filePath = new org.apache.hadoop.fs.Path(fileSplit.getPath().toUri());
     this.jobConf = jobConf;
     this.referencedTables = referencedTables;
@@ -239,8 +243,14 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       fs = readerUgi.doAs(getFsAction);
 
-      fileAttributes = fs.getFileAttributes(currentPath);
-      fileLength = fileAttributes.size();
+      if (hiveSplitXattr.hasFileLength() && hiveSplitXattr.hasLastModificationTime()) {
+        fileLength = hiveSplitXattr.getFileLength();
+        fileLastModificationTime = hiveSplitXattr.getLastModificationTime();
+      } else {
+        final FileAttributes fileAttributes = fs.getFileAttributes(currentPath);
+        fileLength = fileAttributes.size();
+        fileLastModificationTime = fileAttributes.lastModifiedTime().toMillis();
+      }
       readFullFile = fileLength < oContext.getOptions()
         .getOption(ExecConstants.PARQUET_FULL_FILE_READ_THRESHOLD) &&
         ((float) columnsToRead.size()) / outputSchema.getFieldCount() > oContext.getOptions()
@@ -270,7 +280,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         (a, b) -> {},
         readFullFile,
         dataset,
-        fileAttributes.lastModifiedTime().toMillis(),
+        fileLastModificationTime,
         false,
         (((conditions != null) && (conditions.size() >=1)) && (readColumnIndices == true)));
     } catch (Exception e) {
@@ -359,8 +369,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
             .setPath(filePath.toString())
             .setStart(0L)
             .setLength(fileSplit.getLength()) // max row group size possible
-            .setLastModificationTime(fileAttributes.lastModifiedTime()
-              .toMillis())
+            .setFileLength(fileLength)
+            .setLastModificationTime(fileLastModificationTime)
             .build();
           innerReaderCreators.add(rowGroupReaderCreatorFactory.create(split, is));
           is = null; // inputStreamProvider is known only for first row group
@@ -392,8 +402,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
         }
       }
       throw new ExecutionSetupException("Failure during setup", e);
-    } finally {
-      fileAttributes = null;
     }
   }
 

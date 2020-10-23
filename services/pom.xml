@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>4.9.0-202010170313000159-4a37757a</version>
+    <version>4.9.1-202010230218060541-2e764ed0</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -32,6 +32,7 @@
 
   <modules>
     <module>accelerator</module>
+    <module>arrow-flight</module>
     <module>base-rpc</module>
     <module>catalog-api</module>
     <module>command-pool</module>

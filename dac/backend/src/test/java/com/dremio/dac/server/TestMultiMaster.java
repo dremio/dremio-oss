@@ -153,6 +153,7 @@ public class TestMultiMaster extends BaseClientUtils {
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
             .zk("localhost:" + zkServer.getPort())
+            .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -180,6 +181,7 @@ public class TestMultiMaster extends BaseClientUtils {
             .jobServerEnabled(false)
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
+            .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
             .zk("localhost:" + zkServer.getPort())
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
@@ -210,6 +212,7 @@ public class TestMultiMaster extends BaseClientUtils {
           .serveUI(false)
           .inMemoryStorage(true)
           .writePath(temporaryFolder.newFolder("remote").getAbsolutePath())
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
           .zk("localhost:" + zkServer.getPort()),
         DremioTest.CLASSPATH_SCAN_RESULT);

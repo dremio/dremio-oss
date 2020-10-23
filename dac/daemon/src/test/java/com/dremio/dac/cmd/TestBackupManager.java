@@ -104,6 +104,7 @@ public class TestBackupManager extends BaseTestServer {
     .allowTestApis(true)
     .serveUI(false)
     .inMemoryStorage(false)
+    .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
     .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
   private static FileSystem fs;

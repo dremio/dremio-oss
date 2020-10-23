@@ -62,6 +62,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Preconditions;
@@ -97,6 +98,7 @@ public class BaseHttpsTestServer extends BaseClientUtils {
         .inMemoryStorage(true)
         .addDefaultUser(true)
         .writePath(localWritePathString)
+        .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
         .clusterMode(DACDaemon.ClusterMode.LOCAL),
       DremioTest.CLASSPATH_SCAN_RESULT
     );

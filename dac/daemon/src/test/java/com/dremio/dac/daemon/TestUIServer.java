@@ -33,6 +33,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.JSONUtil;
@@ -62,6 +63,7 @@ public class TestUIServer {
           .autoPort(true)
           .allowTestApis(true)
           .writePath(folder.getRoot().getAbsolutePath())
+          .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
           .clusterMode(ClusterMode.LOCAL)
           .serveUI(true),
           DremioTest.CLASSPATH_SCAN_RESULT);

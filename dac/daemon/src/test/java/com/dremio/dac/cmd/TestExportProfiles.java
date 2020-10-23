@@ -36,6 +36,7 @@ import org.mockito.Mockito;
 import com.beust.jcommander.JCommander;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.utils.ProtobufUtils;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.cmd.ExportProfiles.ExportProfilesOptions;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.resource.ExportProfilesParams;
@@ -70,6 +71,7 @@ public class TestExportProfiles extends BaseTestServer {
     .allowTestApis(true)
     .serveUI(false)
     .inMemoryStorage(false)
+    .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
     .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
   private static FileSystem fs;

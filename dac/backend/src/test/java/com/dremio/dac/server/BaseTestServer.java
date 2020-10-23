@@ -466,6 +466,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
               .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, port)
+              .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .clusterMode(ClusterMode.DISTRIBUTED),
           DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
@@ -484,6 +485,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .jobServerEnabled(true)
               .writePath(folder2.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
+              .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .clusterMode(ClusterMode.DISTRIBUTED)
               .localPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort() + 1)
               .isRemote(true)
@@ -524,6 +526,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .addDefaultUser(addDefaultUser)
               .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
+              .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .clusterMode(DACDaemon.ClusterMode.LOCAL),
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule
