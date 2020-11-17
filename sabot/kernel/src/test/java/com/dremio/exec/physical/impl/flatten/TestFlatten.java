@@ -660,7 +660,8 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenWithProjIntoScan_0() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange from (select flatten(t.z) as zflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input2.json\" t) sub where sub.zflat.orange is not null";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`]"}, null);
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1")
+    String col = isComplexTypeSupport() ? "orange" : "EXPR$1";
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col)
             .baselineValues(2010L, "yellow")
             .baselineValues(6005L, "stucco")
             .go();
@@ -670,7 +671,9 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenWithProjIntoScan_1() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub where sub.zflat.orange is not null";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1", "EXPR$2", "lflat")
+    String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
+    String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col2, col3, "lflat")
             .baselineValues(2010L, "yellow", "red", 4L)
             .baselineValues(2010L, "yellow", "red", 2L)
             .baselineValues(6005L, "stucco", null, 4L)
@@ -698,7 +701,9 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenWithProjIntoScan_3() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1", "EXPR$2", "lflat")
+    String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
+    String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col2, col3, "lflat")
             .baselineValues(2010L, "yellow", "red", 4L)
             .baselineValues(2010L, "yellow", "red", 2L)
             .baselineValues(2010L, null, "purple", 4L)
@@ -786,7 +791,9 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenWithParquet_1() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from dfs_test.parquetTable t) sub";
     testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1", "EXPR$2", "lflat")
+    String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
+    String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
+    testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col2, col3, "lflat")
             .baselineValues(2010L, "yellow", "red", 4L)
             .baselineValues(2010L, "yellow", "red", 2L)
             .baselineValues(2010L, null, "purple", 4L)
@@ -811,7 +818,7 @@ public class TestFlatten extends PlanTestBase {
         ") nested_1";
 
     final String plan = getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
-    assertTrue(Pattern.compile(".*Flatten.*ITEM[^\\)]*tagId.*", Pattern.MULTILINE + Pattern.DOTALL).matcher(plan).matches());
+    assertTrue(Pattern.compile(".*Flatten.*(ITEM[^\\)]*tagId|\\$0\\.tagId).*", Pattern.MULTILINE + Pattern.DOTALL).matcher(plan).matches());
   }
 
   @Test

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.common;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -27,6 +28,9 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rex.RexInputRef;
 
 import com.dremio.exec.planner.cost.DremioCost;
@@ -61,6 +65,30 @@ public abstract class FlattenRelBase extends SingleRel {
 
   @Override
   protected RelDataType deriveRowType() {
+    if (PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()) {
+      RelDataType rowType = input.getRowType();
+      List<RelDataTypeField> inputFields = rowType.getFieldList();
+      List<RelDataTypeField> outputFields = new ArrayList<>();
+      Set<Integer> flattenedIndices = getFlattenedIndices();
+      for (int i = 0; i < inputFields.size(); i++) {
+        RelDataTypeField field = inputFields.get(i);
+        if (flattenedIndices.contains(i)) {
+          RelDataType newType = field.getType().getComponentType();
+          if (newType == null){
+            outputFields.add(field);
+          } else {
+            outputFields.add(new RelDataTypeFieldImpl(field.getName(), i, newType));
+          }
+        } else {
+          outputFields.add(field);
+        }
+      }
+      final RelDataTypeFactory.Builder builder = getCluster().getTypeFactory().builder();
+      for (RelDataTypeField field : outputFields) {
+        builder.add(field);
+      }
+      return builder.build();
+    }
     return super.deriveRowType();
   }
 

@@ -32,6 +32,7 @@ import org.apache.arrow.vector.complex.writer.FieldWriter;
 
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CastExpression;
+import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.ExpressionStringBuilder;
@@ -39,6 +40,7 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.IfExpression.IfCondition;
+import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.PathSegment;
@@ -409,8 +411,8 @@ public class EvaluationVisitor {
 
     }
 
-    @SuppressWarnings("unused")
-    private HoldingContainer visitInExpression(InExpression e, final ClassGenerator<?> generator) {
+    @Override
+    public HoldingContainer visitInExpression(InExpression e, final ClassGenerator<?> generator) {
       final JCodeModel model = generator.getModel();
       final JClass listType = e.getListType(model);
       final JVar valueSet = generator.declareClassField(generator.getNextVar("inMap"), listType);

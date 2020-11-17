@@ -25,7 +25,10 @@ import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.SchemaPath;
@@ -49,6 +52,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class CompositeReaderConfig {
+  private static final Logger logger = LoggerFactory.getLogger(CompositeReaderConfig.class);
 
   private final OperatorContext context;
   private final ImmutableList<SchemaPath> innerColumns;
@@ -69,17 +73,29 @@ public class CompositeReaderConfig {
     if(partitionFieldMap.isEmpty()){
       return innerReader;
     } else {
-      List<NameValuePair<?>> nameValuePairs = new ArrayList<>();
-      List<PartitionValue> values = split.getPartitionInfo().getValuesList();
-      int i = 0;
-      for(PartitionValue v : values) {
-        FieldValuePair p = partitionFieldMap.get(v.getColumn());
-        if(p != null) {
-          nameValuePairs.add(p.toNameValuePair(allocator, v));
-        }
-      }
+      final List<NameValuePair<?>> nameValuePairs = getPartitionNVPairs(allocator, split);
       return new AdditionalColumnsRecordReader(context, innerReader, nameValuePairs, allocator, split);
     }
+  }
+
+  public List<NameValuePair<?>> getPartitionNVPairs(final BufferAllocator allocator, final SplitAndPartitionInfo split) {
+    List<NameValuePair<?>> nameValuePairs = new ArrayList<>();
+    List<PartitionValue> values = split.getPartitionInfo().getValuesList();
+    try (RollbackCloseable rollbackCloseable = new RollbackCloseable()) {
+      for (PartitionValue v : values) {
+        FieldValuePair p = partitionFieldMap.get(v.getColumn());
+        if (p!=null) {
+          NameValuePair<?> nvp = p.toNameValuePair(allocator, v);
+          rollbackCloseable.add(nvp);
+          nameValuePairs.add(nvp);
+        }
+      }
+      rollbackCloseable.commit();
+    } catch (Exception e) {
+      logger.error("Error while fetching name value pairs from partition", e);
+      throw new RuntimeException(e);
+    }
+    return nameValuePairs;
   }
 
   private static class FieldValuePair {

@@ -51,6 +51,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 
+import io.grpc.Context;
+
 /**
  * Record reader for tables in information_schema source.
  */
@@ -61,7 +63,9 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
   private final String catalogName;
   private final String username;
   private final SearchQuery searchQuery;
+  private final boolean complexTypeSupport;
 
+  private Context.CancellableContext context;
   private TableWriter<?> tableWriter;
 
   public InformationSchemaRecordReader(
@@ -71,7 +75,8 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
     InformationSchemaTable table,
     String catalogName,
     String username,
-    SearchQuery searchQuery
+    SearchQuery searchQuery,
+    boolean complexTypeSupport
   ) {
     super(context, fields);
     this.catalogStub = catalogStub;
@@ -79,12 +84,16 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
     this.catalogName = catalogName;
     this.username = username;
     this.searchQuery = searchQuery;
+    this.complexTypeSupport = complexTypeSupport;
   }
 
   @Override
   public void setup(OutputMutator output) {
-    this.tableWriter = createTableWriter();
-    tableWriter.init(output);
+    context = Context.current().withCancellation();
+    context.run(() -> {
+      tableWriter = createTableWriter();
+      tableWriter.init(output);
+    });
   }
 
   @Override
@@ -95,6 +104,11 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
 
   @Override
   public void close() throws Exception {
+    if (context != null) {
+      context.close();
+    }
+
+    context = null;
     tableWriter = null;
   }
 
@@ -198,7 +212,7 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
               }
               final RelDataType rowType =
                 CalciteArrowHelper.wrap(bs)
-                  .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
+                  .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE, complexTypeSupport);
               //noinspection ConstantConditions
               currentIterator = Iterators.transform(rowType.getFieldList().iterator(),
                 field -> new Column(Strings.isNullOrEmpty(catalogName) ? currentSchema.getCatalogName() : catalogName,

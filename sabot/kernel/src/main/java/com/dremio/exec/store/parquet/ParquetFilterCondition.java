@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.util.Objects;
+import java.util.Set;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -29,11 +33,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableSet;
 
 public class ParquetFilterCondition {
 
   public static final Function<ParquetFilterCondition, String> EXTRACT_COLUMN_NAME =
       ((condition) -> condition.getPath().getRootSegment().getPath());
+
+  private static final Set<SqlKind> supportedKinds = ImmutableSet.of(SqlKind.INPUT_REF, SqlKind.FIELD_ACCESS);
 
   private final SchemaPath path;
   private final ParquetFilterIface filter;
@@ -129,73 +136,53 @@ public class ParquetFilterCondition {
 
     // left arg
     private final RexLiteral literal;
+    private final RexNode inputRef;
     private final String field;
+    private final SchemaPath schemaPath;
+
+    public FilterProperties(RexCall node,
+        RelDataType incomingRowType,
+        RexNode inputRef,
+        SqlKind kind,
+        RexLiteral literal) {
+      this.node = node;
+      this.kind = validSqlKind(kind);
+      this.literal = literal;
+      this.inputRef = inputRef;
+
+      schemaPath = rexToSchemaPath(inputRef, incomingRowType);
+      if (inputRef instanceof RexInputRef) {
+        field = rexToField(inputRef, incomingRowType);
+      } else {
+        field = null;
+      }
+      rangeType = toRangeType(kind);
+    }
 
     public FilterProperties(RexCall node, RelDataType incomingRowType) {
       this.node = node;
-      switch(node.getKind()){
-      case LESS_THAN:
-      case GREATER_THAN:
-      case LESS_THAN_OR_EQUAL:
-      case GREATER_THAN_OR_EQUAL:
-      case EQUALS:
-      case NOT_EQUALS:
-        break;
-      default:
-        throw new UnsupportedOperationException();
-      }
-
       final RexNode left = node.getOperands().get(0);
       final RexNode right = node.getOperands().get(1);
 
-      if(left.getKind() == SqlKind.LITERAL && right.getKind() == SqlKind.INPUT_REF){
+      if(left.getKind() == SqlKind.LITERAL && (supportedKinds.contains(right.getKind()))) {
+        inputRef = right;
         literal = (RexLiteral) left;
-        field = incomingRowType.getFieldNames().get(((RexInputRef) right).getIndex());
-        switch(node.getKind()){
-        case LESS_THAN:
-          kind = SqlKind.GREATER_THAN;
-          break;
-
-        case GREATER_THAN:
-          kind = SqlKind.LESS_THAN;
-          break;
-
-        case LESS_THAN_OR_EQUAL:
-          kind = SqlKind.GREATER_THAN_OR_EQUAL;
-          break;
-
-        case GREATER_THAN_OR_EQUAL:
-          kind = SqlKind.LESS_THAN_OR_EQUAL;
-          break;
-
-        case EQUALS:
-        case NOT_EQUALS:
-          kind = node.getKind();
-          break;
-        default:
-          throw new UnsupportedOperationException();
-        }
-      } else if(right.getKind() == SqlKind.LITERAL && left.getKind() == SqlKind.INPUT_REF) {
+        kind = mirrorOperation(node.getKind());
+      } else if(right.getKind() == SqlKind.LITERAL && (supportedKinds.contains(left.getKind()))) {
+        inputRef = left;
         literal = (RexLiteral) right;
-        field = incomingRowType.getFieldNames().get(((RexInputRef) left).getIndex());
-        kind = node.getKind();
+        kind = validSqlKind(node.getKind());
       } else {
         throw new IllegalStateException("Couldn't handle " + node + " " + incomingRowType);
       }
-
-      switch(this.kind){
-      case GREATER_THAN:
-      case GREATER_THAN_OR_EQUAL:
-        this.rangeType = RangeType.LOWER_RANGE;
-        break;
-      case LESS_THAN:
-      case LESS_THAN_OR_EQUAL:
-        this.rangeType = RangeType.UPPER_RANGE;
-        break;
-      default:
-        this.rangeType = RangeType.OTHER;
-
+      schemaPath = rexToSchemaPath(inputRef, incomingRowType);
+      if (inputRef instanceof RexInputRef) {
+        field = rexToField(inputRef, incomingRowType);
+      } else {
+        field = null;
       }
+      rangeType = toRangeType(kind);
+
     }
 
     public RangeType getRangeType(){
@@ -239,5 +226,119 @@ public class ParquetFilterCondition {
       return field;
     }
 
+    public SchemaPath getSchemaPath() {
+      return schemaPath;
+    }
+
+    public RexNode getInputRef(){
+      return inputRef;
+    }
+
+    /**
+     * FilterProperties.equals does not consider FilterProperties.node because RexNode use reference equality and
+     * all the fields of node are already unpacked.
+     */
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      FilterProperties that = (FilterProperties) o;
+      return kind == that.kind &&
+        rangeType == that.rangeType &&
+        literal.equals(that.literal) &&
+        inputRef.equals(that.inputRef) &&
+        field.equals(that.field) &&
+        schemaPath.equals(that.schemaPath);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(kind, rangeType, literal, inputRef, field, schemaPath);
+    }
+
+    @Override
+    public String toString() {
+      return "FilterProperties{" +
+        ", kind=" + kind +
+        ", rangeType=" + rangeType +
+        ", literal=" + literal +
+        ", inputRef=" + inputRef +
+        ", field='" + field + '\'' +
+        ", schemaPath=" + schemaPath +
+        '}';
+    }
+  }
+
+  /**
+   * Rewrite b > a to a < b
+   * @param sqlKind
+   * @return
+   */
+  public static SqlKind mirrorOperation(SqlKind sqlKind) {
+    switch(sqlKind){
+      case LESS_THAN:
+        return SqlKind.GREATER_THAN;
+      case GREATER_THAN:
+        return SqlKind.LESS_THAN;
+      case LESS_THAN_OR_EQUAL:
+        return SqlKind.GREATER_THAN_OR_EQUAL;
+      case GREATER_THAN_OR_EQUAL:
+        return SqlKind.LESS_THAN_OR_EQUAL;
+      case EQUALS:
+      case NOT_EQUALS:
+        return sqlKind;
+      default:
+        throw new UnsupportedOperationException();
+    }
+  }
+
+  private static String rexToField(RexNode input, RelDataType incomingRowType) throws UnsupportedOperationException {
+    if (input.getKind() == SqlKind.INPUT_REF) {
+      return incomingRowType.getFieldNames().get(((RexInputRef) input).getIndex());
+    }
+    throw new UnsupportedOperationException("Unsupported rex node " + input + " on rowtype " + incomingRowType);
+  }
+
+  private static SchemaPath rexToSchemaPath(RexNode input, RelDataType incomingRowType) throws UnsupportedOperationException {
+    if (input.getKind() == SqlKind.INPUT_REF) {
+      return new SchemaPath(incomingRowType.getFieldNames().get(((RexInputRef) input).getIndex()));
+    }
+    if (input.getKind() == SqlKind.FIELD_ACCESS) {
+      RexNode referenceExpr = ((RexFieldAccess) input).getReferenceExpr();
+      SchemaPath path = rexToSchemaPath(referenceExpr, incomingRowType);
+      return path.getChild(((RexFieldAccess) input).getField().getName());
+    }
+    throw new UnsupportedOperationException("Unsupported rex node " + input + " on rowtype " + incomingRowType);
+  }
+
+  private static RangeType toRangeType(SqlKind sqlKind) {
+    switch(sqlKind){
+      case GREATER_THAN:
+      case GREATER_THAN_OR_EQUAL:
+        return RangeType.LOWER_RANGE;
+      case LESS_THAN:
+      case LESS_THAN_OR_EQUAL:
+        return RangeType.UPPER_RANGE;
+      default:
+        return RangeType.OTHER;
+    }
+  }
+
+  private static SqlKind validSqlKind(SqlKind sqlKind){
+    switch(sqlKind){
+      case LESS_THAN:
+      case GREATER_THAN:
+      case LESS_THAN_OR_EQUAL:
+      case GREATER_THAN_OR_EQUAL:
+      case EQUALS:
+      case NOT_EQUALS:
+        return sqlKind;
+      default:
+        throw new UnsupportedOperationException();
+    }
   }
 }

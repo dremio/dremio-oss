@@ -49,12 +49,14 @@ public class BaseTestImpersonation extends BaseTestMiniDFS {
    * Start a MiniDFS cluster backed SabotNode cluster with impersonation enabled.
    * @param testClass
    * @throws Exception
+   * @return configuration
    */
-  protected static void startMiniDfsCluster(String testClass) throws Exception {
+  protected static Configuration startMiniDfsCluster(String testClass) throws Exception {
     Configuration configuration = new Configuration();
     // Set the proxyuser settings so that the user who is running the SabotNodes/MiniDfs can impersonate other users.
     configuration.set(String.format("hadoop.proxyuser.%s.hosts", processUser), "*");
     configuration.set(String.format("hadoop.proxyuser.%s.groups", processUser), "*");
     startMiniDfsCluster(testClass, configuration);
+    return configuration;
   }
 }

@@ -16,7 +16,6 @@
 package com.dremio.service.reflection.refresh;
 
 import java.util.List;
-import java.util.Set;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -28,6 +27,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.Rel;
@@ -43,9 +43,12 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.IcebergOperation;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
@@ -61,9 +64,12 @@ import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+
+import io.protostuff.ByteString;
 
 /**
  * Sql syntax handler for the $MATERIALIZE command, an internal command used to materialize reflections.
@@ -133,6 +139,7 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       // Disable default raw reflections during plan generation for a refresh
       config.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
+      RefreshMethod[] refreshMethods = new RefreshMethod[1];
       final RelNode initial = determineMaterializationPlan(
           config,
           goal,
@@ -143,20 +150,43 @@ public class RefreshHandler implements SqlToPlanHandler {
           new ExtendedToRelContext(config.getConverter()),
           config.getContext().getConfig(),
           reflectionSettings,
-          materializationStore);
+          materializationStore,
+          refreshMethods);
       config.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
 
       final Rel drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
-      final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());
 
       // Append the attempt number to the table path
       final UserBitShared.QueryId queryId = config.getContext().getQueryId();
       final AttemptId attemptId = AttemptId.of(queryId);
 
-      final List<String> tablePath = ImmutableList.of(
-        ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
-        reflectionId.getId(),
-        materialization.getId().getId() + "_" + attemptId.getAttemptNum());
+      IcebergTableProps icebergTableProps = materialization.getIsIcebergDataset() ?
+                                            getIcebergTableProps(materialization, refreshMethods, attemptId)
+                                            : null;
+
+      final boolean isIcebergIncrementalRefresh = isIcebergInsertRefresh(materialization, refreshMethods[0]);
+      final String materializationPath =  isIcebergIncrementalRefresh ?
+        materialization.getBasePath() : materialization.getId().getId() + "_" + attemptId.getAttemptNum();
+      final String materializationId = materializationPath.split("_")[0];
+      final List<String> tablePath =  ImmutableList.of(
+          ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+          reflectionId.getId(),
+          materializationPath);
+
+      boolean isCreate = !isIcebergInsertRefresh(materialization, refreshMethods[0]);
+
+      ByteString extendedByteString = null;
+      if(!isCreate && materialization.getIsIcebergDataset()) {
+        DremioTable table = config.getContext().getCatalog().getTable(
+          new NamespaceKey(
+            Lists.newArrayList(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+            reflectionId.getId(),
+            materializationId)));
+        Preconditions.checkState(table != null, "Base table doesn't exist");
+        extendedByteString = table.getDatasetConfig().getReadDefinition().getExtendedProperty();
+      }
+
+      final List<String> fields = drel.getRowType().getFieldNames();
 
       final Rel writerDrel = new WriterRel(
         drel.getCluster(),
@@ -164,8 +194,8 @@ public class RefreshHandler implements SqlToPlanHandler {
         drel,
         config.getContext().getCatalog().createNewTable(
           new NamespaceKey(tablePath),
-          null,
-          writerOptionManager.buildWriterOptionForReflectionGoal(0, goal, fields),
+          icebergTableProps,
+          writerOptionManager.buildWriterOptionForReflectionGoal(0, goal, fields, materialization.getIsIcebergDataset(), isCreate, extendedByteString),
           ImmutableMap.of()),
         initial.getRowType());
 
@@ -188,6 +218,28 @@ public class RefreshHandler implements SqlToPlanHandler {
     }
   }
 
+  private IcebergTableProps getIcebergTableProps(Materialization materialization, RefreshMethod[] refreshMethods, AttemptId attemptId) {
+    IcebergTableProps icebergTableProps;
+    if (isIcebergInsertRefresh(materialization, refreshMethods[0])) {
+      icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
+        null, null,
+        IcebergOperation.Type.INSERT, materialization.getBasePath());
+
+    } else {
+      icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
+        null, null,
+        IcebergOperation.Type.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum());
+    }
+    return icebergTableProps;
+  }
+
+  private boolean isIcebergInsertRefresh(Materialization materialization, RefreshMethod refreshMethod) {
+    return materialization.getIsIcebergDataset() &&
+      refreshMethod == RefreshMethod.INCREMENTAL &&
+      materialization.getBasePath() != null &&
+      !materialization.getBasePath().isEmpty();
+  }
+
   private RelNode determineMaterializationPlan(
       final SqlHandlerConfig sqlHandlerConfig,
       ReflectionGoal goal,
@@ -198,10 +250,12 @@ public class RefreshHandler implements SqlToPlanHandler {
       ExtendedToRelContext context,
       SabotConfig config,
       ReflectionSettings reflectionSettings,
-      MaterializationStore materializationStore) {
+      MaterializationStore materializationStore,
+      RefreshMethod[] refreshMethod) {
     final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig, namespace, context.getPlannerSettings().getOptions(), config, goal, entry, materialization, reflectionSettings, materializationStore);
 
     final RelNode normalizedPlan = planGenerator.generateNormalizedPlan();
+
 
     // avoid accelerating this CTAS with the materialization itself
     // we set exclusions before we get to the logical phase (since toRel() is triggered in SqlToRelConverter, prior to planning).
@@ -212,6 +266,7 @@ public class RefreshHandler implements SqlToPlanHandler {
     context.getSession().getSubstitutionSettings().setExclusions(exclusions);
 
     RefreshDecision decision = planGenerator.getRefreshDecision();
+    refreshMethod[0] = decision.getAccelerationSettings().getMethod();
 
     // save the decision for later.
     context.recordExtraInfo(DECISION_NAME, ABSTRACT_SERIALIZER.serialize(decision));

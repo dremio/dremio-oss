@@ -69,6 +69,7 @@ import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.EmptyRel;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.logical.SampleRel;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -251,8 +252,11 @@ public class TestIndexBasedPruning extends DremioTest {
   @Mock
   private RelOptPlanner planner;
   private TestScanRel indexPrunableScan;
-  private FilterRel filter;
-  private PruneScanRuleBase rule;
+  private FilterRel filterAboveScan;
+  private PruneScanRuleBase scanRule;
+  private FilterRel filterAboveSample;
+  private SampleRel sampleRel;
+  private PruneScanRuleBase sampleScanRule;
   private RexNode rexNode;
   private SearchTypes.SearchQuery expected;
   private boolean indexPruned;
@@ -307,6 +311,8 @@ public class TestIndexBasedPruning extends DremioTest {
             .thenReturn(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getOptionName())))
             .thenReturn(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
+    when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
+      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
     OptionList optionList = new OptionList();
     optionList.add(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
     optionList.add(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
@@ -327,19 +333,35 @@ public class TestIndexBasedPruning extends DremioTest {
     when(pluginId.getType()).thenReturn(newType);
 
     indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0, false);
-    filter = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
-    rule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
+    filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
+    scanRule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
+    sampleRel = new SampleRel(cluster, TRAITS, indexPrunableScan);
+    filterAboveSample = new FilterRel(cluster, TRAITS, sampleRel, rexNode);
+    sampleScanRule = new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
   }
 
 
   @Test
   public void testIndexPruning() {
     indexPruned = false;
-    RelOptRuleCall pruneCall = newCall(rule, filter, indexPrunableScan);
+    RelOptRuleCall pruneCall = newCall(scanRule, filterAboveScan, indexPrunableScan);
     when(planner.getContext()).thenReturn(plannerSettings);
-    rule.onMatch(pruneCall);
+    scanRule.onMatch(pruneCall);
     if (expected == null) {
       assertTrue("Index pruned for a wrong condition", !indexPruned);
+    }
+  }
+
+  @Test
+  public void testIndexPruningSampleScan() {
+    indexPruned = false;
+    RelOptRuleCall pruneCall = newCall(sampleScanRule, filterAboveScan, sampleRel, indexPrunableScan);
+    when(planner.getContext()).thenReturn(plannerSettings);
+    sampleScanRule.onMatch(pruneCall);
+    if (expected == null) {
+      assertTrue("Index pruned for a wrong condition", !indexPruned);
+    } else {
+      assertTrue("Index not pruned", indexPruned);
     }
   }
 

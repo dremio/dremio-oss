@@ -46,6 +46,10 @@ public interface OutputMutator {
    */
   public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException;
 
+  default void removeField(Field field) {
+    throw new UnsupportedOperationException();
+  }
+
   public ValueVector getVector(String name);
 
   public Iterable<ValueVector> getVectors();

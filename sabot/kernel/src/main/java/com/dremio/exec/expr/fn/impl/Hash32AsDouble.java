@@ -48,7 +48,7 @@ public class Hash32AsDouble {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash32(in.value, 0);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, 0);
       }
     }
   }
@@ -69,7 +69,7 @@ public class Hash32AsDouble {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash32(in.value, 0);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, 0);
       }
     }
   }
@@ -91,7 +91,7 @@ public class Hash32AsDouble {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash32((long) in.value, 0);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32((long) in.value, 0);
       }
     }
   }
@@ -111,7 +111,7 @@ public class Hash32AsDouble {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash32(in.value, 0);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, 0);
       }
     }
   }

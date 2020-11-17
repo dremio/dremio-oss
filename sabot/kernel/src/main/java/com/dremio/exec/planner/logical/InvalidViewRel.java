@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.SingleRel;
@@ -151,6 +152,11 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
       }
     }
     throw b;
+  }
+
+  @Override
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    return new InvalidViewRel(viewTable, inputs.get(0));
   }
 
   @Override

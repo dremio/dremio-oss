@@ -77,6 +77,7 @@ import com.dremio.exec.planner.logical.CompositeFilterJoinRule;
 import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.CorrelateRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
+import com.dremio.exec.planner.logical.DremioProjectJoinTransposeRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.EmptyRule;
 import com.dremio.exec.planner.logical.ExpansionDrule;
@@ -122,7 +123,6 @@ import com.dremio.exec.planner.physical.NestedLoopJoinPrule;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.ProjectNLJMergeRule;
 import com.dremio.exec.planner.physical.ProjectPrule;
-import com.dremio.exec.planner.physical.PushLimitToPruneableScan;
 import com.dremio.exec.planner.physical.PushLimitToTopN;
 import com.dremio.exec.planner.physical.SamplePrule;
 import com.dremio.exec.planner.physical.SampleToLimitPrule;
@@ -462,11 +462,7 @@ public enum PlannerPhase {
       ExprCondition.TRUE,
       DremioRelFactories.LOGICAL_BUILDER);
 
-  public static final RelOptRule PUSH_PROJECT_PAST_JOIN_CALCITE_RULE = new ProjectJoinTransposeRule(
-      LogicalProject.class,
-      LogicalJoin.class,
-      ExprCondition.TRUE,
-      DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  public static final RelOptRule PUSH_PROJECT_PAST_JOIN_CALCITE_RULE = DremioProjectJoinTransposeRule.INSTANCE;
 
   public static final RelOptRule LOGICAL_FILTER_CORRELATE_RULE = new FilterCorrelateRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
@@ -711,7 +707,6 @@ public enum PlannerPhase {
     ruleList.add(UnionAllPrule.INSTANCE);
     ruleList.add(ValuesPrule.INSTANCE);
     ruleList.add(EmptyPrule.INSTANCE);
-    ruleList.add(PushLimitToPruneableScan.INSTANCE);
     ruleList.add(ExternalQueryScanPrule.INSTANCE);
 
     if (ps.isHashAggEnabled()) {

@@ -65,6 +65,15 @@
     <vulnerabilityName>1548</vulnerabilityName>
   </suppress>
 
+  <suppress>
+    <notes><![CDATA[
+      file name: serialize-javascript:1.9.1
+      This package is used by the webpack internal build tool.  Attackers can not exploit this vulnerability.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:npm/serialize\-javascript@.*$</packageUrl>
+    <vulnerabilityName>CWE-502: Deserialization of Untrusted Data</vulnerabilityName>
+  </suppress>
+
   <!-- serialize-javascript 2.1.2 -->
   <suppress>
     <notes><![CDATA[
@@ -73,6 +82,15 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:npm/serialize\-javascript@.*$</packageUrl>
     <vulnerabilityName>1548</vulnerabilityName>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+      file name: serialize-javascript:2.1.2
+      This package is used by the webpack internal build tool.  Attackers can not exploit this vulnerability.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:npm/serialize\-javascript@.*$</packageUrl>
+    <vulnerabilityName>CWE-502: Deserialization of Untrusted Data</vulnerabilityName>
   </suppress>
 
   <!-- minimist -->
@@ -166,6 +184,17 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:npm/acorn@.*$</packageUrl>
     <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  </suppress>
+
+  <!-- bl -->
+  <suppress>
+    <notes><![CDATA[
+      file name: bl:1.1.2
+      The package is used by NPM during internal build.  An attacker can not exploit
+      this vunlerability.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:npm/bl@.*$</packageUrl>
+    <vulnerabilityName>1555</vulnerabilityName>
   </suppress>
 
   <!-- brace-expansion -->
@@ -429,6 +458,17 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:npm/npm@.*$</packageUrl>
     <vulnerabilityName>1437</vulnerabilityName>
+  </suppress>
+
+  <!-- node-fetch -->
+  <suppress>
+    <notes><![CDATA[
+      file name: node-fetch:1.7.3
+      This package is only used in isomorphic-search and sentry-webpack.  Both of them are
+      only used for internal build.  An attacker can not exploit this vulnerability.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:npm/node\-fetch@.*$</packageUrl>
+    <vulnerabilityName>1556</vulnerabilityName>
   </suppress>
 
   <!-- qs -->

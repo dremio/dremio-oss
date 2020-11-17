@@ -303,6 +303,23 @@ public class RexToExpr {
           }
         }
 
+        if (call.getOperator() == SqlStdOperatorTable.DOT) {
+          LogicalExpression logExpr = call.getOperands().get(0).accept(this);
+          if (logExpr instanceof SchemaPath) {
+            SchemaPath left = (SchemaPath) logExpr;
+            final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
+            switch(literal.getTypeName()) {
+              case CHAR:
+              case VARCHAR:
+                return left.getChild(literal.getValue2().toString());
+              case DECIMAL:
+              case INTEGER:
+              default:
+                // fall through
+            }
+          }
+        }
+
         if (call.getOperator() == SqlStdOperatorTable.DATETIME_PLUS) {
           final LogicalExpression dtPlus = doFunction(call, "+");
 
@@ -394,7 +411,8 @@ public class RexToExpr {
 
     @Override
     public LogicalExpression visitFieldAccess(RexFieldAccess fieldAccess) {
-      return super.visitFieldAccess(fieldAccess);
+      SchemaPath reference = (SchemaPath) fieldAccess.getReferenceExpr().accept(this);
+      return reference.getChild(fieldAccess.getField().getName());
     }
 
     private LogicalExpression getCastFunction(RexCall call){
@@ -514,6 +532,8 @@ public class RexToExpr {
         case TIMESTAMP:
           castType = Types.required(MinorType.TIMESTAMP);
           break;
+        case ARRAY:
+          castType = Types.required(MinorType.LIST);
         case ANY: return arg; // Type will be same as argument.
         default: castType = Types.required(MinorType.valueOf(call.getType().getSqlTypeName().getName()));
       }
@@ -854,6 +874,14 @@ public class RexToExpr {
         if (isLiteralNull(literal)) {
           return createNullExpr(MinorType.VARBINARY);
         }
+      case ROW:
+        if (isLiteralNull(literal)) {
+          return NullExpression.INSTANCE;
+        }
+      case ARRAY:
+        if (isLiteralNull(literal)) {
+          return NullExpression.INSTANCE;
+        }
       default:
         throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
       }
@@ -865,6 +893,6 @@ public class RexToExpr {
   }
 
   public static boolean isLiteralNull(RexLiteral literal) {
-    return literal.getTypeName().getName().equals("NULL");
+    return literal.isNull();
   }
 }

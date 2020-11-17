@@ -168,7 +168,6 @@ public class DatasetsUtil {
     virtualDataset.setFieldOriginsList(virtualDatasetUI.getFieldOriginsList());
     virtualDataset.setSqlFieldsList(virtualDatasetUI.getSqlFieldsList());
     virtualDataset.setCalciteFieldsList(virtualDatasetUI.getCalciteFieldsList());
-    virtualDataset.setSqlFieldsList(virtualDatasetUI.getSqlFieldsList());
 
     return virtualDataset;
   }

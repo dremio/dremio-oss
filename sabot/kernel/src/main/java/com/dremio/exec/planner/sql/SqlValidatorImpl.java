@@ -18,25 +18,31 @@ package com.dremio.exec.planner.sql;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
+import org.apache.calcite.rel.type.DynamicRecordType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWindow;
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction;
 import org.apache.calcite.sql.fun.SqlNtileAggFunction;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.calcite.sql.validate.SqlScopedShuttle;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.apache.calcite.util.Util;
 
 class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl {
 
@@ -142,5 +148,86 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
       throw ex;
     }
     super.validateAggregateParams(aggCall, filter, scope);
+  }
+
+  @Override
+  public SqlNode expand(SqlNode expr, SqlValidatorScope scope) {
+    Expander expander = new Expander(this, scope);
+    SqlNode newExpr = (SqlNode)expr.accept(expander);
+    if (expr != newExpr) {
+      this.setOriginal(newExpr, expr);
+    }
+
+    return newExpr;
+  }
+
+  /**
+   * Expander
+   */
+  private static class Expander extends SqlScopedShuttle {
+    protected final org.apache.calcite.sql.validate.SqlValidatorImpl validator;
+
+    Expander(org.apache.calcite.sql.validate.SqlValidatorImpl validator, SqlValidatorScope scope) {
+      super(scope);
+      this.validator = validator;
+    }
+
+    public SqlNode visit(SqlIdentifier id) {
+      SqlCall call = SqlUtil.makeCall(this.validator.getOperatorTable(), id);
+      if (call != null) {
+        return (SqlNode)call.accept(this);
+      } else {
+        SqlIdentifier fqId = null;
+        try {
+          fqId = this.getScope().fullyQualify(id).identifier;
+        } catch (CalciteContextException ex) {
+          if(id.names.size() > 1) {
+            SqlBasicCall itemCall = new SqlBasicCall(
+              SqlStdOperatorTable.ITEM,
+              new SqlNode[]{id.getComponent(0, id.names.size()-1), SqlLiteral.createCharString((String) Util.last(id.names), id.getParserPosition())}, id.getParserPosition());
+            try {
+              return itemCall.accept(this);
+            } catch (Exception ignored) {}
+          }
+          throw ex;
+        }
+        SqlNode expandedExpr = fqId;
+        if (DynamicRecordType.isDynamicStarColName((String) Util.last(fqId.names)) && !DynamicRecordType.isDynamicStarColName((String) Util.last(id.names))) {
+          SqlNode[] inputs = new SqlNode[]{fqId, SqlLiteral.createCharString((String) Util.last(id.names), id.getParserPosition())};
+          SqlBasicCall item_call = new SqlBasicCall(SqlStdOperatorTable.ITEM, inputs, id.getParserPosition());
+          expandedExpr = item_call;
+        }
+
+        this.validator.setOriginal((SqlNode) expandedExpr, id);
+        return (SqlNode) expandedExpr;
+      }
+    }
+
+    protected SqlNode visitScoped(SqlCall call) {
+      switch(call.getKind()) {
+        case WITH:
+        case SCALAR_QUERY:
+        case CURRENT_VALUE:
+        case NEXT_VALUE:
+          return call;
+        default:
+          SqlCall newCall = call;
+          if ("dot".equals(((SqlCall) call).getOperator().getName().toLowerCase())) {
+            try {
+              validator.deriveType(getScope(), call);
+            } catch (Exception ex) {
+              SqlNode left = call.getOperandList().get(0);
+              SqlNode right = call.getOperandList().get(1);
+              SqlNode[] inputs = new SqlNode[]{left, SqlLiteral.createCharString(right.toString(), call.getParserPosition())};
+              newCall = new SqlBasicCall(SqlStdOperatorTable.ITEM, inputs, call.getParserPosition());
+            }
+          }
+          ArgHandler<SqlNode> argHandler = new CallCopyingArgHandler(newCall, false);
+          newCall.getOperator().acceptCall(this, newCall, true, argHandler);
+          SqlNode result = (SqlNode)argHandler.result();
+          this.validator.setOriginal(result, newCall);
+          return result;
+      }
+    }
   }
 }

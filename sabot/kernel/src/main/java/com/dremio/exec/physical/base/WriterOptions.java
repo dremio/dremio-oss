@@ -55,9 +55,12 @@ public class WriterOptions {
   private final List<String> distributionColumns;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final boolean singleWriter;
-  private final long recordLimit;
+  private long recordLimit;
+  // output limit per query from the PlannerSettings.OUTPUT_LIMIT_SIZE
+  private final long outputLimitSize;
   private final IcebergWriterOperation icebergWriterOperation;
   private final ByteString extendedProperty;
+  private final boolean outputLimitEnabled;
 
   public WriterOptions(
     Integer ringCount,
@@ -71,6 +74,21 @@ public class WriterOptions {
       partitionDistributionStrategy, singleWriter, recordLimit, IcebergWriterOperation.NONE, null);
   }
 
+  public WriterOptions(
+    Integer ringCount,
+    List<String> partitionColumns,
+    List<String> sortColumns,
+    List<String> distributionColumns,
+    PartitionDistributionStrategy partitionDistributionStrategy,
+    boolean singleWriter,
+    long recordLimit,
+    IcebergWriterOperation icebergWriterOperation,
+    ByteString extendedProperty
+  ) {
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
+         singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE);
+  }
+
   @JsonCreator
   public WriterOptions(
     @JsonProperty("ringCount") Integer ringCount,
@@ -81,7 +99,9 @@ public class WriterOptions {
     @JsonProperty("singleWriter") boolean singleWriter,
     @JsonProperty("recordLimit") long recordLimit,
     @JsonProperty("icebergWriterOperation") IcebergWriterOperation icebergWriterOperation,
-    @JsonProperty("extendedProperty") ByteString extendedProperty
+    @JsonProperty("extendedProperty") ByteString extendedProperty,
+    @JsonProperty("outputLimitEnabled") boolean outputLimitEnabled,
+    @JsonProperty("outputLimitSize") long outputLimitSize
     ) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
@@ -92,6 +112,8 @@ public class WriterOptions {
     this.recordLimit = recordLimit;
     this.icebergWriterOperation = icebergWriterOperation;
     this.extendedProperty = extendedProperty;
+    this.outputLimitEnabled = outputLimitEnabled;
+    this.outputLimitSize = outputLimitSize;
   }
 
   public Integer getRingCount() {
@@ -114,7 +136,15 @@ public class WriterOptions {
     return singleWriter;
   }
 
+  public void setRecordLimit(long recordLimit) {
+    this.recordLimit = recordLimit;
+  }
+
   public long getRecordLimit() { return recordLimit; }
+
+  public boolean isOutputLimitEnabled() {
+    return outputLimitEnabled;
+  }
 
   public boolean hasDistributions() {
     return distributionColumns != null && !distributionColumns.isEmpty();
@@ -131,6 +161,22 @@ public class WriterOptions {
   public WriterOptions withRecordLimit(long recordLimit) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
       this.partitionDistributionStrategy, this.singleWriter, recordLimit, this.icebergWriterOperation, this.extendedProperty);
+  }
+
+  public long getOutputLimitSize() {
+    return outputLimitSize;
+  }
+
+  public WriterOptions withOutputLimitEnabled(boolean outputLimitEnabled) {
+    return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
+                             this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
+                             this.icebergWriterOperation, this.extendedProperty, outputLimitEnabled, this.outputLimitSize);
+  }
+
+  public WriterOptions withOutputLimitSize(long outputLimitSize) {
+    return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
+                             this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
+                             this.icebergWriterOperation, this.extendedProperty, this.outputLimitEnabled, outputLimitSize);
   }
 
   public WriterOptions withPartitionColumns(List<String> partitionColumns) {

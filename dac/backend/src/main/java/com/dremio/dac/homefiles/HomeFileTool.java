@@ -171,6 +171,10 @@ public class HomeFileTool {
     }
   }
 
+  public boolean fileExists(String fileLocation) throws IOException {
+    return fs.exists(Path.of(fileLocation));
+  }
+
   /**
    * Delete the contents in given user home.
    * @param userHome

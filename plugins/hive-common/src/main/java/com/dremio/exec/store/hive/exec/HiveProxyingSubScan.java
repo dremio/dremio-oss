@@ -40,20 +40,20 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 @JsonDeserialize(using = HiveProxyingSubScanDeserializer.class)
 public class HiveProxyingSubScan extends SubScanWithProjection {
   private final HiveProxiedSubScan proxiedSubScan;
-  private final String pluginName;
+  private final StoragePluginId pluginId;
 
   @JsonCreator
   public HiveProxyingSubScan(
-    @JsonProperty("pluginName") String pluginName,
+    @JsonProperty("pluginId") StoragePluginId pluginId,
     @JsonProperty("wrappedHiveScan") HiveProxiedSubScan scan) {
     super(scan.getProps(), scan.getFullSchema(), scan.getTableSchemaPath(), scan.getColumns());
-    this.pluginName = pluginName;
+    this.pluginId  = pluginId;
     proxiedSubScan = scan;
   }
 
-  @JsonProperty("pluginName")
-  public String getPluginName() {
-    return pluginName;
+  @JsonProperty("pluginId")
+  public StoragePluginId getPluginId() {
+    return pluginId;
   }
 
   @JsonProperty("wrappedHiveScan")
@@ -62,8 +62,8 @@ public class HiveProxyingSubScan extends SubScanWithProjection {
   }
 
   @JsonIgnore
-  public StoragePluginId getPluginId(){
-    return proxiedSubScan.getPluginId();
+  public String getPluginName() {
+    return pluginId.getName();
   }
 
   @JsonIgnore
@@ -111,6 +111,6 @@ public class HiveProxyingSubScan extends SubScanWithProjection {
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
     assert children == null || children.isEmpty();
     HiveProxiedSubScan proxiedSubScan = this.proxiedSubScan.clone();
-    return new HiveProxyingSubScan(pluginName, proxiedSubScan);
+    return new HiveProxyingSubScan(pluginId, proxiedSubScan);
   }
 }

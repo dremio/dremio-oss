@@ -187,7 +187,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
     final PlanningSet planningSet = executionPlanningResources.getPlanningSet();
 
     final ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, AbstractMaestroObserver.NOOP, plan,
-        foreman.getResources(), planningSet, executorSelectionService, null);
+        foreman.getResources(), planningSet, executorSelectionService, null, executionPlanningResources.getGroupResourceInformation());
     List<PlanFragmentFull> fragments  = exec.getFragments();
 
     logger.info("Fragments size: " + fragments.size());
@@ -212,7 +212,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
     // copyAllocations should have one NodeEndPoint per major fragment
     final ExecutionPlan execUpdated = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, AbstractMaestroObserver.NOOP, plan,
-        copyResourceSet, planningSet, executorSelectionService, null);
+        copyResourceSet, planningSet, executorSelectionService, null, executionPlanningResources.getGroupResourceInformation());
 
     fragments  = execUpdated.getFragments();
 
@@ -243,7 +243,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
     // copyAllocations should have one NodeEndPoint per major fragment
     final ExecutionPlan execUpdated2 = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, AbstractMaestroObserver.NOOP, plan,
-        copyResourceSet2, planningSet, executorSelectionService, null);
+        copyResourceSet2, planningSet, executorSelectionService, null, executionPlanningResources.getGroupResourceInformation());
 
     fragments  = execUpdated2.getFragments();
 

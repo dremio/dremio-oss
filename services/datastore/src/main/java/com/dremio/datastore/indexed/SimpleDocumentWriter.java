@@ -15,8 +15,9 @@
  */
 package com.dremio.datastore.indexed;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
 import org.apache.lucene.document.DoublePoint;
@@ -33,6 +34,7 @@ import org.apache.lucene.util.BytesRef;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.api.DocumentWriter;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Utf8;
 
 /**
  * A basic document writer
@@ -41,7 +43,8 @@ import com.google.common.base.Preconditions;
  *
  */
 public final class SimpleDocumentWriter implements DocumentWriter {
-  private static final int MAX_STRING_LENGTH = 30000;
+  @VisibleForTesting
+  public static final int MAX_STRING_LENGTH = 30000;
 
   private final Document doc;
 
@@ -96,12 +99,15 @@ public final class SimpleDocumentWriter implements DocumentWriter {
 
     final String indexFieldName = key.getIndexFieldName();
     final Store stored = key.isStored() ? Store.YES : Store.NO;
-    for (final String value : values) {
+    for (String value : values) {
       if (value == null) {
         continue;
       }
-      final String truncatedValue = StringUtils.abbreviate(value, MAX_STRING_LENGTH);
-      doc.add(new StringField(indexFieldName, truncatedValue, stored));
+      if (Utf8.encodedLength(value) > MAX_STRING_LENGTH) {
+        value =  new BytesRef(value.getBytes(UTF_8), 0, MAX_STRING_LENGTH)
+                    .utf8ToString();
+      }
+      doc.add(new StringField(indexFieldName, value, stored));
     }
 
     if (sorted && values.length == 1 && values[0] != null) {

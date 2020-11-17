@@ -150,7 +150,7 @@ public class IcebergParquetReader implements RecordReader {
       projectedColumns,
       this.globalDictionaryFieldInfoMap,
       this.filterConditions,
-      readerFactory.newFilterCreator(ParquetReaderFactory.ManagedSchemaType.ICEBERG, null),
+      readerFactory.newFilterCreator(ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
       ParquetDictionaryConvertor.DEFAULT,
       this.readEntry,
       fs,

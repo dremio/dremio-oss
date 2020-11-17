@@ -115,6 +115,11 @@ public class RuntimeFilter implements AutoCloseable {
     return new RuntimeFilter(partitionColFilter, nonPartitionColFilters, senderInfo);
   }
 
+  public static RuntimeFilter getInstanceWithNewNonPartitionColFiltersList(RuntimeFilter filter) {
+    return new RuntimeFilter(filter.getPartitionColumnFilter(), new ArrayList<>(filter.getNonPartitionColumnFilters()),
+      filter.getSenderInfo());
+  }
+
   /**
    * Used for identifying duplicate filters.
    *

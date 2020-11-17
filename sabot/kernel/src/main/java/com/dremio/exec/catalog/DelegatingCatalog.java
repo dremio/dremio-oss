@@ -79,11 +79,6 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void deleteDataset(NamespaceKey key, String version) throws NamespaceException {
-    delegate.deleteDataset(key, version);
-  }
-
-  @Override
   public DremioTable getTable(NamespaceKey key) {
     return delegate.getTable(key);
   }
@@ -192,6 +187,11 @@ public class DelegatingCatalog implements Catalog {
   @Override
   public void dropTable(NamespaceKey key) {
     delegate.dropTable(key);
+  }
+
+  @Override
+  public void forgetTable(NamespaceKey key) {
+    delegate.forgetTable(key);
   }
 
   @Override

@@ -39,6 +39,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexLocalRef;
@@ -335,8 +336,19 @@ public class PrelUtil {
     }
 
     @Override
+    public PathSegment visitFieldAccess(RexFieldAccess fieldAccess) {
+      PathSegment mapOrArray = fieldAccess.getReferenceExpr().accept(this);
+      if (mapOrArray != null) {
+        if (fieldAccess.getField() != null) {
+          return mapOrArray.cloneWithNewChild(new NameSegment(fieldAccess.getField().getName()));
+        }
+      }
+      return null;
+    }
+
+    @Override
     public PathSegment visitCall(RexCall call) {
-      if ("ITEM".equals(call.getOperator().getName())) {
+      if ("ITEM".equals(call.getOperator().getName()) || "DOT".equals(call.getOperator().getName())) {
         PathSegment mapOrArray = call.operands.get(0).accept(this);
         if (mapOrArray != null) {
           if (call.operands.get(1) instanceof RexLiteral) {

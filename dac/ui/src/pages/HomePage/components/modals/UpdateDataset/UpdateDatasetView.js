@@ -159,7 +159,7 @@ export class UpdateDatasetView extends Component {
     if (hidePath) return null;
 
     //setting the height of scrollable space selector (location) block
-    const style = (dependentDatasets && dependentDatasets.length) ? {maxHeight: 232, minHeight: 232} : {maxHeight: 250};
+    const style = (dependentDatasets && dependentDatasets.length) ? {maxHeight: 165, minHeight: 165} : {maxHeight: 250, minHeight: 250};
 
     return (
       <div className='property location'>

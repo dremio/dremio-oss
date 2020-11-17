@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
 
 /**
@@ -23,10 +24,12 @@ import com.dremio.service.execselector.ExecutorSelectionHandle;
 public class ExecutionPlanningResources implements AutoCloseable {
   private final PlanningSet planningSet;
   private final ExecutorSelectionHandle executorSelectionHandle;
+  private final GroupResourceInformation groupResourceInformation;
 
-  public ExecutionPlanningResources(PlanningSet planningSet, ExecutorSelectionHandle executorSelectionHandle) {
+  public ExecutionPlanningResources(PlanningSet planningSet, ExecutorSelectionHandle executorSelectionHandle, GroupResourceInformation groupResourceInformation) {
     this.planningSet = planningSet;
     this.executorSelectionHandle = executorSelectionHandle;
+    this.groupResourceInformation = groupResourceInformation;
   }
 
   public PlanningSet getPlanningSet() {
@@ -35,6 +38,10 @@ public class ExecutionPlanningResources implements AutoCloseable {
 
   public ExecutorSelectionHandle getExecutorSelectionHandle() {
     return executorSelectionHandle;
+  }
+
+  public com.dremio.resource.GroupResourceInformation getGroupResourceInformation() {
+    return groupResourceInformation;
   }
 
   public void close() throws Exception {

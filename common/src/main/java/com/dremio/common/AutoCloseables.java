@@ -86,6 +86,19 @@ public final class AutoCloseables {
    * @throws E
    */
   public static <E extends Throwable> void close(Class<E> exceptionClazz, AutoCloseable... autoCloseables) throws E {
+    close(exceptionClazz, Arrays.asList(autoCloseables));
+  }
+
+  /**
+   * Close with an expected exception class. This method wraps any checked exception to an expected type.
+   * The exception class should have a constructor that takes Exception object as a parameter.
+   *
+   * @param exceptionClazz
+   * @param autoCloseables
+   * @param <E>
+   * @throws E
+   */
+  public static <E extends Throwable> void close(Class<E> exceptionClazz, Iterable<? extends AutoCloseable> autoCloseables) throws E {
     try {
       close(autoCloseables);
     } catch (RuntimeException e) {

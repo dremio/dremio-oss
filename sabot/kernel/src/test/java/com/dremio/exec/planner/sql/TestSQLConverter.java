@@ -23,6 +23,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestSQLConverter {
 
@@ -53,13 +54,13 @@ public class TestSQLConverter {
 
   @Test(expected = UserException.class)
   public void testFailMultipleQueries() {
-    ParserConfig config = new ParserConfig(ParserConfig.QUOTING, 100);
+    ParserConfig config = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlConverter.parseSingleStatementImpl("select * from t1; select * from t2", config, false);
   }
 
   @Test
   public void testPassSemicolon() {
-    ParserConfig config = new ParserConfig(ParserConfig.QUOTING, 100);
+    ParserConfig config = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlNode node = SqlConverter.parseSingleStatementImpl("select * from t1;", config, false);
     assertEquals("SELECT *\n" +
       "FROM \"t1\"", node.toSqlString(CalciteSqlDialect.DEFAULT).getSql());

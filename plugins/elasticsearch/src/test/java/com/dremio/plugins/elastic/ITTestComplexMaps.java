@@ -839,10 +839,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  }\n" +
         "}]"
     });
+    String col1 = isComplexTypeSupport() ? "`street number`": "EXPR$0";
+    String col2 = isComplexTypeSupport() ? "`@street name`" : "EXPR$1";
     testBuilder()
       .sqlQuery(sqlQuery)
       .unOrdered()
-      .baselineColumns("EXPR$0", "EXPR$1")
+      .baselineColumns(col1, col2)
       .baselineValues(12345L, "A Street")
       .baselineValues(987L, "B Street")
       .go();

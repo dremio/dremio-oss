@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -63,17 +65,17 @@ public class CalciteArrowHelper {
      * @param inclusionPredicate the inclusion predicate that filters the BatchSchema. Can be {@code null} if no filtering is required.
      * @return a RelDataType containing all fields permitted by the inclusionPredicate.
      */
-    public RelDataType toCalciteRecordType(RelDataTypeFactory factory, Function<Field, Boolean> inclusionPredicate) {
+    public RelDataType toCalciteRecordType(RelDataTypeFactory factory, Function<Field, Boolean> inclusionPredicate, boolean withComplexTypeSupport) {
       FieldInfoBuilder builder = new FieldInfoBuilder(factory);
 
 
 
       if (inclusionPredicate == null) {
-        bs.forEach(f -> builder.add(f.getName(), toCalciteType(f, factory)));
+        bs.forEach(f -> builder.add(f.getName(), toCalciteType(f, factory, withComplexTypeSupport)));
       } else {
         bs.forEach(f -> {
           if (inclusionPredicate.apply(f)) {
-            builder.add(f.getName(), toCalciteType(f, factory));}});
+            builder.add(f.getName(), toCalciteType(f, factory, withComplexTypeSupport));}});
       }
 
       RelDataType rowType = builder.build();
@@ -85,8 +87,8 @@ public class CalciteArrowHelper {
       return rowType;
     }
 
-    public RelDataType toCalciteRecordType(RelDataTypeFactory factory){
-      return toCalciteRecordType(factory, null);
+    public RelDataType toCalciteRecordType(RelDataTypeFactory factory, boolean withComplexTypeSupport){
+      return toCalciteRecordType(factory, null, withComplexTypeSupport);
     }
   }
 
@@ -117,15 +119,44 @@ public class CalciteArrowHelper {
       if (minorType == TypeProtos.MinorType.DECIMAL) {
         majorType = Types.withScaleAndPrecision(
             minorType, TypeProtos.DataMode.OPTIONAL, relDataType.getScale(), relDataType.getPrecision());
+      } else if (minorType == MinorType.STRUCT) {
+        return Optional.of(getStructField(name, relDataType));
+      } else if (minorType == MinorType.LIST) {
+        return Optional.of(getListField(name, relDataType));
       } else {
         majorType = Types.optional(minorType);
       }
+
       return Optional.of(MajorTypeHelper.getFieldForNameAndMajorType(name, majorType));
     }
     return Optional.empty();
   }
 
-  public static BatchSchema fromCalciteRowType(final RelDataType relDataType){
+  private static Field getStructField(String name, RelDataType relDataType) {
+    final List<Field> children = new ArrayList<>();
+    for (Map.Entry<String, RelDataType> field : relDataType.getFieldList()) {
+      fieldFromCalciteRowType(field.getKey(), field.getValue()).ifPresent(children::add);
+    }
+    return new Field(
+      name,
+      true,
+      MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.STRUCT)),
+      children
+    );
+  }
+
+  private static Field getListField(String name, RelDataType relDataType) {
+    final List<Field> onlyChild = new ArrayList<>();
+    fieldFromCalciteRowType("component", relDataType.getComponentType()).ifPresent(onlyChild::add);
+    return new Field(
+      name,
+      true,
+      MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.LIST)),
+      onlyChild
+    );
+  }
+
+  public static BatchSchema fromCalciteRowType(final RelDataType relDataType) {
     Preconditions.checkArgument(relDataType.isStruct());
 
     SchemaBuilder builder = BatchSchema.newBuilder();
@@ -135,7 +166,7 @@ public class CalciteArrowHelper {
     return builder.build();
   }
 
-  public static BatchSchema fromCalciteRowTypeJson(final RelDataType relDataType){
+  public static BatchSchema fromCalciteRowTypeJson(final RelDataType relDataType) {
     Preconditions.checkArgument(relDataType.isStruct());
 
     SchemaBuilder builder = BatchSchema.newBuilder();
@@ -184,17 +215,24 @@ public class CalciteArrowHelper {
     }
 
 
-    public RelDataType toCalciteType(RelDataTypeFactory typeFactory) {
+    public RelDataType toCalciteType(RelDataTypeFactory typeFactory, boolean withComplexTypeSupport) {
       final MinorType type = completeType.toMinorType();
-      if (completeType.isList()) {
-//        RelDataType childType = convertFieldToRelDataType(field.getChildren().iterator().next(), typeFactory);
-//        return typeFactory.createArrayType(childType, -1);
-        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.ANY), true);
-      }
-      if (completeType.isStruct()) {
-//        return convertFieldsToStruct(field.getChildren(), typeFactory);
-        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.ANY), true);
-      }
+
+        if (completeType.isList()) {
+          if (withComplexTypeSupport) {
+            RelDataType childType = new CompleteTypeWrapper(completeType.getOnlyChildType()).toCalciteType(typeFactory, true);
+            return typeFactory.createTypeWithNullability(typeFactory.createArrayType(childType, -1), true);
+          } else {
+            return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.ANY), true);
+          }
+        }
+        if (completeType.isStruct()) {
+          if (withComplexTypeSupport) {
+            return convertFieldsToStruct(completeType.getChildren(), typeFactory, true);
+          } else {
+            return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.ANY), true);
+          }
+        }
 
       final SqlTypeName sqlTypeName = getCalciteTypeFromMinorType(type);
 
@@ -215,14 +253,23 @@ public class CalciteArrowHelper {
     }
 
 
+    public RelDataType convertFieldsToStruct(List<Field> fields, RelDataTypeFactory typeFactory, boolean withComplexTypeSupport) {
+      List<RelDataType> types = new ArrayList<>();
+      List<String> names = new ArrayList<>();
+      for (Field field : fields) {
+        types.add(toCalciteFieldType(field, typeFactory, withComplexTypeSupport));
+        names.add(field.getName());
+      }
+      return typeFactory.createTypeWithNullability(typeFactory.createStructType(types, names), true);
+    }
   }
 
-  public static RelDataType toCalciteType(Field field, RelDataTypeFactory typeFactory){
-    return wrap(CompleteType.fromField(field)).toCalciteType(typeFactory);
+  public static RelDataType toCalciteType(Field field, RelDataTypeFactory typeFactory, boolean withComplexTypeSupport) {
+    return wrap(CompleteType.fromField(field)).toCalciteType(typeFactory, withComplexTypeSupport);
   }
 
-  public static RelDataType toCalciteFieldType(Field field, RelDataTypeFactory typeFactory){
-    return wrap(CompleteType.fromField(field)).toCalciteType(typeFactory);
+  public static RelDataType toCalciteFieldType(Field field, RelDataTypeFactory typeFactory, boolean withComplexTypeSupport) {
+    return wrap(CompleteType.fromField(field)).toCalciteType(typeFactory, withComplexTypeSupport);
   }
 
   public static CompleteType fromRelAndMinorType(RelDataType type, MinorType minorType) {

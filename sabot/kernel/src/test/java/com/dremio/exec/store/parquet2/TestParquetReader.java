@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet2;
 
 import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA;
 import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA_2_1;
+import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_TEST_SCHEMA_FALLBACK_ONLY_VALIDATOR;
 import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -254,6 +255,20 @@ public class TestParquetReader extends BaseTestQuery {
         .go();
     } finally {
       delete(Paths.get(parquetFiles));
+    }
+  }
+
+  @Test
+  public void testZeroRowsParquetPromotion() throws Exception{
+    try (AutoCloseable ac = withSystemOption(PARQUET_TEST_SCHEMA_FALLBACK_ONLY_VALIDATOR, true)) {
+      final String parquetInputFile = WORKING_PATH + "/src/test/resources/parquet/zero_row.parquet";
+      String parquetFiles = Files.createTempDirectory("zero_row_test").toString();
+      Files.copy(Paths.get(parquetInputFile), Paths.get(parquetFiles), StandardCopyOption.REPLACE_EXISTING);
+      testBuilder()
+        .sqlQuery("select * from dfs.\"" + parquetFiles + "\"")
+        .unOrdered()
+        .expectsEmptyResultSet()
+        .go();
     }
   }
 

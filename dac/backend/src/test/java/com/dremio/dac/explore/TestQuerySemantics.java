@@ -276,13 +276,23 @@ public class TestQuerySemantics extends BaseTestServer {
   public void testNestedColRef() {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select t.a.Tuesday as tuesday from cp.\"json/extract_map.json\" as t"));
-    assertEquals(
+    if(!isComplexTypeSupport()) {
+      assertEquals(
         new VirtualDatasetState()
-            .setFrom(new FromTable("\"cp\".\"json/extract_map.json\"").setAlias("t").wrap())
-            .setColumnsList(asList(new Column("tuesday", new ExpCalculatedField("\"t\".\"a\"['Tuesday']").wrap())))
-            .setContextList(Collections.<String>emptyList())
-            .setReferredTablesList(Arrays.asList("json/extract_map.json")),
+          .setFrom(new FromTable("\"cp\".\"json/extract_map.json\"").setAlias("t").wrap())
+          .setColumnsList(asList(new Column("tuesday", new ExpCalculatedField("\"t\".\"a\"['Tuesday']").wrap())))
+          .setContextList(Collections.<String>emptyList())
+          .setReferredTablesList(Arrays.asList("json/extract_map.json")),
         ds);
+    } else {
+      assertEquals(
+        new VirtualDatasetState()
+          .setFrom(new FromSQL("select t.a.Tuesday as tuesday from cp.\"json/extract_map.json\" as t").setAlias("nested_0").wrap())
+          .setColumnsList(asList(new Column("tuesday", new ExpColumnReference("tuesday").wrap())))
+          .setContextList(Collections.<String>emptyList())
+          .setReferredTablesList(Arrays.asList("json/extract_map.json")),
+        ds);
+    }
   }
 
   private static List<Column> cols(String... columns){

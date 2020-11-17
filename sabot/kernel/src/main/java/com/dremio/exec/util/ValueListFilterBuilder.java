@@ -30,7 +30,7 @@ import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 
-import com.dremio.exec.expr.fn.impl.MurmurHash3;
+import com.dremio.common.expression.fn.impl.MurmurHash3;
 import com.dremio.sabot.op.common.ht2.Copier;
 
 /**
@@ -245,7 +245,7 @@ public class ValueListFilterBuilder implements AutoCloseable{
     }
 
     private boolean isNotFull() {
-        return nextEmptyIndex <= capacity;
+        return nextEmptyIndex < capacity;
     }
 
     @Override

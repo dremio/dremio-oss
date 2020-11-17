@@ -52,16 +52,23 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
 
   private final RexBuilder builder;
   private final boolean sameTypesOnly;
+  private final boolean fieldAccessSupport;
 
   public FindSimpleFilters(RexBuilder builder) {
-    this(builder, false);
+    this(builder, false, true);
   }
 
   public FindSimpleFilters(RexBuilder builder, boolean sameTypesOnly) {
+    this(builder, sameTypesOnly, true);
+  }
+
+  public FindSimpleFilters(RexBuilder builder, boolean sameTypesOnly, boolean fieldAccessSupport) {
     super(true);
     this.builder = builder;
     this.sameTypesOnly = sameTypesOnly;
+    this.fieldAccessSupport = fieldAccessSupport;
   }
+
 
   public static class StateHolder {
     private final Type type;
@@ -224,6 +231,9 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
 
   @Override
   public StateHolder visitFieldAccess(RexFieldAccess fieldAccess) {
+    if (fieldAccessSupport) {
+      return new StateHolder(Type.INPUT, fieldAccess);
+    }
     return new StateHolder(Type.OTHER, fieldAccess);
   }
 

@@ -70,4 +70,16 @@ public final class DremioArrowSchema {
     }
     return null;
   }
+
+  /**
+   *
+   * @param properties
+   * @return true if parquet file footer properties contain arrow schema
+   */
+  public static boolean isArrowSchemaPresent(Map<String, String> properties) {
+    Preconditions.checkNotNull(properties);
+    String jsonArrowSchema = properties.get(DREMIO_ARROW_SCHEMA);
+    String jsonArrowSchema2_1 = properties.get(DREMIO_ARROW_SCHEMA_2_1);
+    return jsonArrowSchema != null || jsonArrowSchema2_1 != null;
+  }
 }

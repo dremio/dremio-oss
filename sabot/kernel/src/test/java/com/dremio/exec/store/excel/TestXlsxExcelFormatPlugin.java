@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.excel;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertThat;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -65,6 +68,102 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
 
     // This will fail if the inline string column is ignored, as no columns will be detected.
     test(query);
+  }
+
+  @Test
+  public void testCountStarQuery() throws Exception {
+    String filePath = getExcelDir() + "simple.xlsx";
+    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+  }
+
+  @Test
+  public void testCountStarQueryOnEmptySheet() throws Exception {
+    String filePath = getExcelDir() + "empty.xlsx";
+    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns");
+  }
+
+  @Test
+  public void testCountOneQuery() throws Exception {
+    String filePath = getExcelDir() + "simple.xlsx";
+    String query = String.format("SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+  }
+
+  @Test
+  public void testCountStarAndAvgQuery() throws Exception {
+    String filePath = getExcelDir() + "simple.xlsx";
+    String query = String.format("SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+  }
+
+  @Test
+  public void testCountOneAndAvgQuery() throws Exception {
+    String filePath = getExcelDir() + "simple.xlsx";
+    String query = String.format("SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+  }
+
+  @Test
+  public void testCountColumnQuery() throws Exception {
+    String filePath = getExcelDir() + "simple.xlsx";
+    String query = String.format("SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+  }
+
+  @Test
+  public void testCountStarQueryXls() throws Exception {
+    String filePath = getExcelDir() + "simple.xls";
+    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+  }
+
+  @Test
+  public void testCountOneQueryXls() throws Exception {
+    String filePath = getExcelDir() + "simple.xls";
+    String query = String.format("SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+  }
+
+  @Test
+  public void testCountStarQueryOnEmptySheetXls() throws Exception {
+    String filePath = getExcelDir() + "empty.xls";
+    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+
+    testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns");
+  }
+
+  @Test
+  public void testCountStarAndAvgQueryXls() throws Exception {
+    String filePath = getExcelDir() + "simple.xls";
+    String query = String.format("SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+  }
+
+  @Test
+  public void testCountOneAndAvgQueryXls() throws Exception {
+    String filePath = getExcelDir() + "simple.xls";
+    String query = String.format("SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+  }
+
+  @Test
+  public void testCountColumnQueryXls() throws Exception {
+    String filePath = getExcelDir() + "simple.xls";
+    String query = String.format("SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
   }
 
   @Test

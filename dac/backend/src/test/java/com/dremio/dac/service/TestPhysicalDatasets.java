@@ -17,6 +17,7 @@ package com.dremio.dac.service;
 
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static java.lang.String.format;
+import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -55,6 +56,7 @@ import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.api.LegacyIndexedStore;
@@ -581,6 +583,15 @@ public class TestPhysicalDatasets extends BaseTestServer {
       }
     }
 
+    doc("delete with bad version");
+    long badVersion = 1234L;
+    String expectedErrorMessage = String.format("Cannot delete folder format \"%s\", version provided \"%s\" is different from version found \"%s\"",
+      "tmp/_dac/folder1", badVersion, fileFormat1.getVersion());
+    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT,
+      getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1").queryParam("version", badVersion)).buildDelete(),
+      GenericErrorMessage.class);
+    assertErrorMessage(errorDelete2, expectedErrorMessage);
+
     doc("delete physical dataset for source folder");
     expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1").queryParam("version", fileFormat1.getVersion())).buildDelete());
 
@@ -639,6 +650,15 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(fileConfig.getExtractHeader(), format1.getExtractHeader());
     assertEquals(fileConfig.asFileConfig().getType(), format1.asFileConfig().getType());
     assertEquals(fileConfig.asFileConfig().getOwner(), format1.asFileConfig().getOwner());
+
+    doc("delete with bad version");
+    long badVersion = 1234L;
+    String expectedErrorMessage = String.format("Cannot delete file format \"%s\", version provided \"%s\" is different from version found \"%s\"",
+      "file1", badVersion, format1.getVersion());
+    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT,
+      getBuilder(getAPIv2().path("/source/src/file_format/file1").queryParam("version", badVersion)).buildDelete(),
+      GenericErrorMessage.class);
+    assertErrorMessage(errorDelete2, expectedErrorMessage);
 
     doc("delete physical dataset for source file/delete format settings on a file in source");
     expectSuccess(getBuilder(getAPIv2().path("/source/src/file_format/file1").queryParam("version", format1.getVersion())).buildDelete());

@@ -17,35 +17,25 @@ package com.dremio.exec.store.dfs.implicit;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.store.CompositeColumnFilter;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.RuntimeFilterEvaluator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.KeyFairSliceCalculator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 
 public class AdditionalColumnsRecordReader implements RecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdditionalColumnsRecordReader.class);
@@ -116,45 +106,13 @@ public class AdditionalColumnsRecordReader implements RecordReader {
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
     inner.addRuntimeFilter(runtimeFilter);
-    if (skipPartition) {
+    if (skipPartition || runtimeFilter.getPartitionColumnFilter() == null) {
       return;
     }
-    CompositeColumnFilter partitionColumnFilter = runtimeFilter.getPartitionColumnFilter();
-    if (partitionColumnFilter != null && partitionColumnFilter.getFilterType() == CompositeColumnFilter.RuntimeFilterType.BLOOM_FILTER) {
-      List<String> partionColumnsInFilter = partitionColumnFilter.getColumnsList().stream().map(String::toLowerCase).collect(Collectors.toList());
-      Set<String> columnSet = Sets.newHashSet(partionColumnsInFilter);
-      List<NameValuePair<?>> partitionValuesToCheck = nameValuePairs.stream()
-        .filter(pair -> columnSet.contains(pair.getName().toLowerCase()))
-        .sorted(Comparator.comparingInt(pair -> partionColumnsInFilter.indexOf(pair.getName().toLowerCase())))
-        .collect(Collectors.toList());
-
-      if (partitionValuesToCheck.size() != partionColumnsInFilter.size()) {
-        logger.warn("PartitionColumnList received in runtime filter contains extra columns." +
-          "PartitionColumnList in runtime filter : {} and Actual partitionColumnList : {}. RuntimeFilter sender info : {}",
-          partitionColumnFilter.getColumnsList(), nameValuePairs.stream().map(NameValuePair::getName).collect(Collectors.toList()),
-          runtimeFilter.getSenderInfo());
-        return;
-      }
-
-      try (BloomFilterKeyBuilder keyBuilder = new BloomFilterKeyBuilder(partitionValuesToCheck, allocator)) {
-        BloomFilter bloomFilter = partitionColumnFilter.getBloomFilter();
-        if (!bloomFilter.mightContain(keyBuilder.getKey(), keyBuilder.getTotalSize())) {
-          skipPartition = true;
-          context.getStats().addLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED, 1);
-          logger.debug("Skipping current partition. PartitionInfo: {}. PartitionColumnsList: {}",
-            Optional.ofNullable(splitAndPartitionInfo).map(p -> p.getPartitionInfo().toString()).orElse("<Not available>"),
-            nameValuePairs.stream().map(NameValuePair::getName).collect(Collectors.toList()));
-          return;
-        }
-      } catch (Exception ex) {
-        logger.warn("Failed to add runtime filter. RuntimeFilter sender info: {}. ", runtimeFilter.getSenderInfo(), ex);
-      }
+    final RuntimeFilterEvaluator evaluator = new RuntimeFilterEvaluator(allocator, context.getStats(), runtimeFilter);
+    if (evaluator.canBeSkipped(splitAndPartitionInfo, nameValuePairs)) {
+      skipPartition = true;
     }
-  }
-
-  @VisibleForTesting
-  boolean skipPartition() {
-    return skipPartition;
   }
 
   @Override
@@ -174,68 +132,5 @@ public class AdditionalColumnsRecordReader implements RecordReader {
     void setup(OutputMutator output);
     void populate(final int count);
     void allocate();
-  }
-
-  /**
-   * BloomFilterKeyBuilder create a key for bloom filter from partition values
-   * The key should be created with the same logic as in the join side.
-   */
-  private static class BloomFilterKeyBuilder implements AutoCloseable {
-    private static final int MAX_KEY_SIZE = 32;
-
-    private ArrowBuf keyBuf;
-    private int totalSize;
-
-    public BloomFilterKeyBuilder(List<NameValuePair<?>> nameValuePairs, BufferAllocator allocator) {
-      Map<String, Integer> keySizes = nameValuePairs.stream().collect(Collectors.toMap(NameValuePair::getName, NameValuePair::getValueTypeSize));
-      final KeyFairSliceCalculator keyFairSliceCalculator = new KeyFairSliceCalculator(keySizes, MAX_KEY_SIZE);
-      keySizes = nameValuePairs.stream().collect(Collectors.toMap(NameValuePair::getName, pair -> keyFairSliceCalculator.getKeySlice(pair.getName())));
-      this.totalSize = keyFairSliceCalculator.getTotalSize();
-
-      try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
-        ArrowBuf keyBuf = rollbackCloseable.add(allocator.buffer(totalSize));
-        keyBuf.setBytes(0, new byte[totalSize]);
-
-        int offset = keyFairSliceCalculator.numValidityBytes();
-        int validityBitOffset = 0;
-        int validityByteOffset = 0;
-        for (NameValuePair<?> pair : nameValuePairs) {
-          int len = keySizes.get(pair.getName());
-          if (pair.getValue() != null) {
-            keyBuf.setByte(validityByteOffset, (byte) (keyBuf.getByte(validityByteOffset) | (1 << validityBitOffset)));
-            if (pair instanceof ConstantColumnPopulators.BitNameValuePair) {
-              validityByteOffset += (validityBitOffset + 1) / Byte.SIZE;
-              validityBitOffset = (validityBitOffset + 1) % Byte.SIZE;
-              keyBuf.setByte(validityByteOffset, (byte) (keyBuf.getByte(validityByteOffset) | (((ConstantColumnPopulators.BitNameValuePair) pair).getValue() ? 1 : 0) << validityBitOffset));
-            } else {
-              byte[] valueBytes = pair.getValueBytes();
-              int copySize = Math.min(len, valueBytes.length);
-              keyBuf.setBytes(offset + len - copySize, valueBytes, 0, copySize);
-            }
-          }
-          offset += len;
-          int advanceBit = (pair.getValue() == null && pair instanceof ConstantColumnPopulators.BitNameValuePair) ? 2 : 1;
-          validityByteOffset += (validityBitOffset + advanceBit) / Byte.SIZE;
-          validityBitOffset = (validityBitOffset + advanceBit) % Byte.SIZE;
-        }
-        this.keyBuf = keyBuf;
-        rollbackCloseable.commit();
-      } catch (Exception ex) {
-        throw new RuntimeException("Failed to create key for BloomFilter", ex);
-      }
-    }
-
-    public ArrowBuf getKey() {
-      return keyBuf;
-    }
-
-    public int getTotalSize() {
-      return totalSize;
-    }
-
-    @Override
-    public void close() throws Exception {
-      keyBuf.close();
-    }
   }
 }

@@ -48,3 +48,10 @@ export const CLIENT_TOOL_ID = {
   qlik: 'client.tools.qlik',
   qlikEnabled: 'support.dac.qlik'
 };
+
+export const EDITION_TYPE = {
+  aws: 'aws',
+  daas: 'dcs',
+  ee: 'enterprise',
+  oss: 'openSource'
+};

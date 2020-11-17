@@ -46,6 +46,7 @@ import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.EmptyRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.partition.PruneScanRuleBase;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnScan;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -352,6 +353,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
         if (plannerSettings.isPartitionPruningEnabled()) {
           builder.add(new PruneScanRuleFilterOnProject<>(pluginId, HiveScanDrel.class, optimizerContext));
           builder.add(new PruneScanRuleFilterOnScan<>(pluginId, HiveScanDrel.class, optimizerContext));
+          builder.add(new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(pluginId, HiveScanDrel.class, optimizerContext));
         }
 
         final HiveSettings hiveSettings = new HiveSettings(plannerSettings.getOptions());

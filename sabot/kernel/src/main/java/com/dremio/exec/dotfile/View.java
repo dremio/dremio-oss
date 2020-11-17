@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -29,6 +31,8 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -50,6 +54,9 @@ public class View {
   // Declared field names in view definition
   private final List<String> fieldNames;
 
+  // flag to support inline update with nested schema support
+  private boolean fieldUpdated;
+
   /* Current schema when view is created (not the schema to which view belongs to) */
   private final List<String> workspaceSchemaPath;
 
@@ -62,6 +69,7 @@ public class View {
     private final Integer scale;
     private SqlIntervalQualifier intervalQualifier;
     private final Boolean isNullable;
+    private final Field field;
 
     @JsonCreator
     public FieldType(
@@ -72,7 +80,8 @@ public class View {
         @JsonProperty("startUnit")                  TimeUnit startUnit,
         @JsonProperty("endUnit")                    TimeUnit endUnit,
         @JsonProperty("fractionalSecondPrecision")  Integer fractionalSecondPrecision,
-        @JsonProperty("isNullable")                 Boolean isNullable) {
+        @JsonProperty("isNullable")                 Boolean isNullable,
+        @JsonProperty("field")                      Field field) {
       this.name = name;
       this.type = type;
       this.precision = precision;
@@ -87,11 +96,14 @@ public class View {
       // was added in DRILL-2342.  If the default value is null, consider it as
       // "true".  It is safe to default to "nullable" than "required" type.
       this.isNullable = isNullable == null ? true : isNullable;
+      this.field = field;
     }
 
     public FieldType(String name, RelDataType dataType) {
       this.name = name;
       this.type = dataType.getSqlTypeName();
+      BatchSchema schema = dataType.isStruct() ? CalciteArrowHelper.fromCalciteRowType(dataType) : null;
+      this.field = schema != null? new Field(name, true, new ArrowType.Struct(), schema.getFields()) : null;
 
       Integer p = null;
       Integer s = null;
@@ -192,6 +204,13 @@ public class View {
     }
 
     /**
+     * Get Field.
+     */
+    public Field getField() {
+      return field;
+    }
+
+    /**
      * Gets the fractional second precision of the type qualifier of the interval
      * data type descriptor of this field (<i>iff</i> interval type).
      * Gets the interval type descriptor's fractional second precision
@@ -211,8 +230,13 @@ public class View {
   }
 
   public View(String name, String sql, RelDataType validatedRowType, List<String> fieldNames, List<String> workspaceSchemaPath) {
+    this(name, sql, validatedRowType, fieldNames, workspaceSchemaPath, false);
+  }
+
+  public View(String name, String sql, RelDataType validatedRowType, List<String> fieldNames, List<String> workspaceSchemaPath, boolean fieldUpdated) {
     this.name = name;
     this.sql = sql;
+    this.fieldUpdated = fieldUpdated;
     fields = Lists.newArrayList();
     List<String> validatedFieldNames = new ArrayList<>();
     for (RelDataTypeField f : validatedRowType.getFieldList()) {
@@ -229,13 +253,19 @@ public class View {
               @JsonProperty("sql") String sql,
               @JsonProperty("fields") List<FieldType> fields,
               @JsonProperty("fieldNames") List<String> fieldNames,
-              @JsonProperty("workspaceSchemaPath") List<String> workspaceSchemaPath){
+              @JsonProperty("workspaceSchemaPath") List<String> workspaceSchemaPath,
+              @JsonProperty("fieldUpdated") boolean fieldUpdated){
     this.name = name;
     this.sql = sql;
     this.fieldNames = fieldNames;
     this.fields = fields;
     this.workspaceSchemaPath =
         workspaceSchemaPath == null ? ImmutableList.<String>of() : ImmutableList.copyOf(workspaceSchemaPath);
+    this.fieldUpdated = fieldUpdated;
+  }
+
+  public boolean isFieldUpdated() {
+    return fieldUpdated;
   }
 
   public RelDataType getRowType(RelDataTypeFactory factory) {
@@ -249,8 +279,14 @@ public class View {
       if (   SqlTypeFamily.INTERVAL_YEAR_MONTH == field.getType().getFamily()
           || SqlTypeFamily.INTERVAL_DAY_TIME   == field.getType().getFamily() ) {
        type = factory.createSqlIntervalType( field.getIntervalQualifier() );
-      } else if (field.getType().equals(SqlTypeName.ARRAY) || field.getType().equals(SqlTypeName.MAP)) {
-        type = factory.createSqlType(SqlTypeName.ANY);
+      } else if (field.getType().equals(SqlTypeName.ARRAY) || field.getType().equals(SqlTypeName.ROW) || field.getType().equals(SqlTypeName.MAP)) {
+        Field complexFieldType = field.getField();
+        if (complexFieldType != null) {
+          type = CalciteArrowHelper.toCalciteFieldType(complexFieldType, factory, true);
+        } else {
+          // Actual field information for complex type can be absent for the objects from previous version. In this case, use ANY type.
+          type = factory.createSqlType(SqlTypeName.ANY);
+        }
       } else if (field.getPrecision() == null && field.getScale() == null) {
         type = factory.createSqlType(field.getType());
       } else if (field.getPrecision() != null && field.getScale() == null) {

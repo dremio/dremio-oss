@@ -29,12 +29,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.io.file.Path;
 
 public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
-  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
+  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Rule
   public ExpectedException expectedEx = ExpectedException.none();

@@ -260,7 +260,7 @@ public abstract class ScanRelBase extends TableScan {
       final Map<String, RelDataType> fields = new HashMap<>();
       for(Field field : getBatchSchema()){
         if(firstLevelPaths.contains(field.getName())){
-          fields.put(field.getName(), CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory));
+          fields.put(field.getName(), CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()));
         }
       }
 

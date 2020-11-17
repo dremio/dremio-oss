@@ -20,6 +20,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.mock;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -33,6 +34,7 @@ import com.dremio.exec.serialization.JacksonSerializer;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProto;
 import com.dremio.options.OptionValueProtoList;
+import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -56,7 +58,13 @@ public class TestSystemOptionManagerMigration extends DremioTest {
     sabotConfig = SabotConfig.create();
     lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);
     optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    som = new SystemOptionManager(optionValidatorListing, lpp, () -> kvStoreProvider, false);
+    som = new SystemOptionManager(
+      optionValidatorListing,
+      lpp,
+      () -> kvStoreProvider,
+      () -> mock(SchedulerService.class),
+      mock(OptionChangeBroadcaster.class),
+      false);
   }
 
   @Test

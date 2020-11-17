@@ -20,12 +20,13 @@
     flex-shrink: 0;
     display: flex;
 
-    background: #43b8c9;
-    background: linear-gradient(90deg, #2a394a 18%,  #3a8f9f 80%);
+    background: #1e2836;
+    background: linear-gradient(270deg, #1e2836 0%, #2a394a 100%);
     height: @mainheaderheight*1px;
 
     .search-item {
-      margin: -8px 10px 0 0;
+      margin: 4px;
+      width: 326px;
 
       input::placeholder {
         font-style: italic;
@@ -39,11 +40,24 @@
 
       .left-part {
         display: flex;
+
+        icon-type {
+          margin-right: 5px;
+        }
       }
 
-      .right-part {
+    .left-part {
+      .icon-type {
+        margin-right: 5px;
+      }
+
+      .projectList {
         display: flex;
       }
+    }
+
+    .right-part {
+      display: flex;
     }
 
     .dremio {
@@ -60,6 +74,113 @@
       color: #fff;
       cursor: pointer;
       font-size: 20px;
+    }
+
+    .headerLinkContent {
+      display: flex;
+      position: relative;
+      margin-top: 3px;
+      color: #77818f;
+
+
+      .text {
+        display: inline-block;
+        font-size: 13px;
+        margin-top: 1px;
+      }
+
+      &:hover {
+        .icon-type {
+          color: #41b4c4;
+          ;
+        }
+      }
+    }
+
+    }
+
+    .right-part {
+      .headerLinkContent {
+        .font-icon {
+          .icon-type {
+            width: 16px;
+            height: 16px;
+            margin-right: 0;
+          }
+        }
+      }
+
+      .linkIcon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 10px;
+      }
+
+      .headerSeparator {
+        width: 1px;
+        height: 24px;
+        background-color: #4c5b6c;
+        margin: 10px 15px;
+      }
+    }
+
+    .icon-type {
+      &.active {
+        color: #41b4c4 !important;
+      }
+
+      &:hover {
+        color: #41b4c4;
+      }
+
+      font-size: 17px;
+      color: #77818f;
+    }
+
+    .datasetsIcon {
+      font-size: 15px;
+      margin-top: 1px;
+    }
+
+    .tutorialsIcon {
+      margin-top: 1px;
+    }
+
+    .helpIcon {
+      margin-top: 4px;
+    }
+
+    .adminSettingsIcon {
+      margin-top: -1px;
+      margin-right: 5px;
+      font-size: 18px;
+
+      &:hover {
+        color: #41b4c4 !important;
+      }
+
+
+    }
+
+    .adminSettingsDropdownIcon {
+      margin-right: 5px;
+
+      &:hover {
+        color: #41b4c4 !important;
+      }
+    }
+
+    .adminSettingDropdown {
+      color: #77818f;
+
+      &:hover {
+        color: #41b4c4 !important;
+      }
+
+      &.active {
+        color: #41b4c4;
+      }
     }
   }
 }

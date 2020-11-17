@@ -41,6 +41,7 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.easy.arrow.ArrowFlatBufRecordWriter;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.file.BoostedFileSystem;
 import com.dremio.io.file.FileSystem;
@@ -93,7 +94,7 @@ public class BoostOperator extends ScanOperator {
                        Iterator<RecordReader> readers,
                        GlobalDictionaries globalDictionaries,
                        FileSystem fileSystem) {
-    super(boostConfig.asParquetSubScan(), context, readers, globalDictionaries, null, null);
+    super(boostConfig.asParquetSubScan(), context, RecordReaderIterator.from(readers), globalDictionaries, null, null);
     splits = boostConfig.getSplits().iterator();
 
     columnsToBoost = new ArrayList<>();

@@ -15,8 +15,12 @@
  */
 package com.dremio.exec.store;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -24,6 +28,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.FunctionCallFactory;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
@@ -34,19 +40,17 @@ import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
 /**
  * FilteringCoercionReader for Hive-Parquet tables
- * TODO: Remove duplicate code with FilteringCoercionReader
+ * TODO(DX-26038): Remove duplicate code with FilteringCoercionReader
  */
 public class HiveParquetCoercionReader extends AbstractRecordReader {
 
   private CopyingFilteringReader filteringReader;
-  private final ParquetFilterCondition filterCondition;
-  private final boolean filterConditionPresent; // true if filter condition is specified
-
+  private final List<ParquetFilterCondition> filterConditions;
+  private boolean needsFilteringAfterCoercion; // true if a pushdown filter is modified
   private ScanOperator.ScanMutator filteringReaderInputMutator;
   protected Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
   protected Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
@@ -80,8 +84,8 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
   }
 
   private HiveParquetCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
-                                   BatchSchema originalSchema, TypeCoercion hiveTypeCoercion,
-                                   List<ParquetFilterCondition> filterConditions) {
+                                    BatchSchema originalSchema, TypeCoercion hiveTypeCoercion,
+                                    List<ParquetFilterCondition> parqfilterConditions) {
     super(context, columns);
     mutator = new SampleMutator(context.getAllocator());
     this.incoming = mutator.getContainer();
@@ -95,17 +99,7 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
 
     hiveParquetReader = new HiveParquetReader(mutator,
       context, columns, hiveTypeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, originalSchema);
-    if (filterConditions != null && !filterConditions.isEmpty()) {
-      Preconditions.checkArgument(filterConditions.size() == 1,
-          "we only support a single filterCondition per rowGroupScan for now");
-      filterCondition = filterConditions.get(0);
-      this.filteringReader = new CopyingFilteringReader(this, context, filterCondition.getExpr());
-      filterConditionPresent = true;
-    } else {
-      filterCondition = null;
-      this.filteringReader = null;
-      filterConditionPresent = false;
-    }
+    filterConditions = Optional.ofNullable(parqfilterConditions).orElse(Collections.emptyList());
 
     initialProjectorSetUpDone = false;
     resetReaderState();
@@ -125,7 +119,7 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
       this.filteringReaderInputMutator = (ScanOperator.ScanMutator) output;
     } else {
       this.outputMutator = output;
-      inner.setup(mutator);
+      inner.setup(mutator); // this will modify filters in schema mismatch case
       incoming.buildSchema();
       // reset the schema change callback
       mutator.getAndResetSchemaChanged();
@@ -139,10 +133,23 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
       }
       outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
 
-      if (filterConditionPresent) {
-        setupCalledByFilteringReader = true;
-        filteringReader.setup(output);
-        setupCalledByFilteringReader = false;
+      if (!filterConditions.isEmpty()) {
+
+        // filter expressions on columns with schema mismatch
+        final List<LogicalExpression> logicalExpressions = filterConditions.stream()
+          .filter(fc -> fc.getFilter().exact() && fc.isModifiedForPushdown())
+          .map(ParquetFilterCondition::getExpr)
+          .filter(Objects::nonNull)
+          .collect(Collectors.toList());
+        if (!logicalExpressions.isEmpty()) {
+          this.needsFilteringAfterCoercion = true;
+          this.filteringReader = new CopyingFilteringReader(this, context,
+            logicalExpressions.size() == 1 ? logicalExpressions.get(0) :
+              FunctionCallFactory.createBooleanOperator("and", logicalExpressions));
+          setupCalledByFilteringReader = true;
+          this.filteringReader.setup(output);
+          setupCalledByFilteringReader = false;
+        }
       }
     }
   }
@@ -169,7 +176,7 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
         if (recordCount == 0) {
           return 0;
         }
-        if (filterConditionPresent && filterCondition.isModifiedForPushdown()) {
+        if (needsFilteringAfterCoercion) {
           projectorOutput = filteringReaderInputMutator.getContainer();
           this.outgoingMutator = filteringReaderInputMutator;
         }
@@ -192,7 +199,7 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
         runProjector(recordCount);
         projectorOutput.setAllCount(recordCount);
 
-        if (filterConditionPresent && filterCondition.isModifiedForPushdown()) {
+        if (needsFilteringAfterCoercion) {
           nextMethodState = HiveParquetCoercionReader.NextMethodState.FIRST_CALL_BY_FILTERING_READER;
           recordCount = filteringReader.next();
           outgoing.setAllCount(recordCount);
@@ -223,14 +230,8 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
   @Override
   public void close() throws Exception {
     if (!closeCalledByFilteringReader) {
-      try {
-        AutoCloseables.close(hiveParquetReader, outgoing, inner);
-      } finally {
-        if (filterConditionPresent) {
-          closeCalledByFilteringReader = true;
-          AutoCloseables.close(filteringReader);
-        }
-      }
+      closeCalledByFilteringReader = true;
+      AutoCloseables.close(hiveParquetReader, outgoing, inner, filteringReader);
     }
     closeCalledByFilteringReader = false;
   }

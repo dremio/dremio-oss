@@ -100,7 +100,10 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     if (inputTable == null) {
       return false;
     }
-    return MoreRelOptUtil.containIdentity(getProjects(), getRowType(), inputTable.getRowType());
+    return MoreRelOptUtil.containIdentity(getProjects(),
+      getRowType(),
+      inputTable.getRowType(),
+      String::compareTo);
   }
 
   public boolean getNeedsScript() {

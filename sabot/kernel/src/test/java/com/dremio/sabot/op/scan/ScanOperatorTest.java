@@ -47,6 +47,7 @@ import com.dremio.exec.proto.ExecProtos.RuntimeFilter;
 import com.dremio.exec.proto.ExecProtos.RuntimeFilterType;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.util.RuntimeFilterTestUtils;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -98,7 +99,7 @@ public class ScanOperatorTest {
             OutOfBandMessage msg1 = utils.newOOB(buildMinorFragment1, m1PtCols, bloomFilterBuf, m1Vlf1, m1Vlf2);
 
             RecordReader mockReader = mock(RecordReader.class);
-            ScanOperator scanOp = new ScanOperator(mock(SubScan.class), getMockContext(), Lists.newArrayList(mockReader).iterator(), null, null, null);
+            ScanOperator scanOp = new ScanOperator(mock(SubScan.class), getMockContext(), RecordReaderIterator.from(mockReader), null, null, null);
 
             scanOp.workOnOOB(msg1);
             Arrays.stream(msg1.getBuffers()).forEach(ArrowBuf::release);
@@ -167,7 +168,7 @@ public class ScanOperatorTest {
             RuntimeFilter filter1 = newRuntimeFilter(512, "col1", "col2"); // mismatched size
             OutOfBandMessage msg1 = newOOBMessage(filter1, oobMessageBuf, buildMajorFragment1, buildMinorFragment1);
             RecordReader mockReader = mock(RecordReader.class);
-            ScanOperator scanOp = new ScanOperator(mock(SubScan.class), getMockContext(), Lists.newArrayList(mockReader).iterator(), null, null, null);
+            ScanOperator scanOp = new ScanOperator(mock(SubScan.class), getMockContext(), RecordReaderIterator.from(mockReader), null, null, null);
             scanOp.workOnOOB(msg1);
             Arrays.stream(msg1.getBuffers()).forEach(ArrowBuf::release);
             verify(mockReader, never()).addRuntimeFilter(any(com.dremio.exec.store.RuntimeFilter.class));

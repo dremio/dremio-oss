@@ -211,7 +211,21 @@ andExpr returns [LogicalExpression e]
 	    $e = FunctionCallFactory.createBooleanOperator("and", exprs);
 	  }
 	}
-  :  e1=equExpr { exprs.add($e1.e); } ( And e2=equExpr { exprs.add($e2.e);  })*
+  :  e1=inExpr { exprs.add($e1.e); } ( And e2=inExpr { exprs.add($e2.e);  })*
+  ;
+
+inExpr returns [LogicalExpression e]
+	@init{
+	  List<LogicalExpression> exprs = null;
+	}
+	@after{
+	  if(exprs == null){
+	    $e = $a1.e;
+	  }else{
+	    $e = new InExpression($a1.e, exprs);
+	  }
+	}
+  :  a1=equExpr (In OParen exprList CParen { exprs = $exprList.listE; } )?
   ;
 
 equExpr returns [LogicalExpression e]

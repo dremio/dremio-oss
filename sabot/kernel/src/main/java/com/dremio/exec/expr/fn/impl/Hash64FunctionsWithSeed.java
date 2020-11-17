@@ -55,7 +55,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -76,7 +76,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -97,7 +97,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, seed.value);
       }
     }
   }
@@ -118,7 +118,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.end, in.buffer, seed.value);
       }
     }
   }
@@ -140,7 +140,7 @@ public class Hash64FunctionsWithSeed {
         out.value = seed.value;
       }
       else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -161,7 +161,7 @@ public class Hash64FunctionsWithSeed {
         out.value = seed.value;
       }
       else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -181,7 +181,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -201,7 +201,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -221,7 +221,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -241,7 +241,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.start, in.start + 16, in
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.start, in.start + 16, in
             .buffer, seed.value);
       }
     }
@@ -263,7 +263,7 @@ public class Hash64FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }

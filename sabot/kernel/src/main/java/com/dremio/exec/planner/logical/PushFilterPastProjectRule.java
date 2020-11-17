@@ -28,6 +28,7 @@ import org.apache.calcite.rel.core.Values;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
@@ -95,6 +96,12 @@ public class PushFilterPastProjectRule extends RelOptRule {
               projExpr.accept(new UnsupportedProjectExprFinder());
 
               return super.visitInputRef(inputRef);
+            }
+
+            @Override
+            public Void visitFieldAccess(RexFieldAccess fieldAccess) {
+              fieldAccess.getReferenceExpr().accept(this);
+              return super.visitFieldAccess(fieldAccess);
             }
           };
 
@@ -216,6 +223,11 @@ public class PushFilterPastProjectRule extends RelOptRule {
         throw new Util.FoundOne(call);
       }
       return super.visitCall(call);
+    }
+
+    @Override
+    public Void visitFieldAccess(RexFieldAccess fieldAccess) {
+      throw new Util.FoundOne(fieldAccess);
     }
 
     @Override

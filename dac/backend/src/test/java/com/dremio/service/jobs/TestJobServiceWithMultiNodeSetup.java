@@ -556,7 +556,13 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     }
   }
 
-  private void injectTailProfileException(String controls, String expectedDesc, boolean master) throws Exception {
+  private void validateFailedJob(JobSummary jobSummary) throws Exception {
+    Assert.assertSame(jobSummary.getJobState(), JobState.FAILED);
+    Assert.assertNotNull(jobSummary.getFailureInfo());
+    Assert.assertTrue(jobSummary.getFailureInfo().contains("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
+  }
+
+  private void injectProfileException(String controls, String expectedDesc, boolean master) throws Exception {
     JobId jobId = null;
     try {
       DremioClient dremioClient = getDremioClient(master);
@@ -579,14 +585,13 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     Assert.assertNotNull(jobId);
 
-    JobState jobState = getMasterChronicleStub().getJobSummary(
+    JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
       JobSummaryRequest.newBuilder()
         .setJobId(JobsProtoUtil.toBuf(jobId))
         .setUserName(DEFAULT_USERNAME)
-        .build()).getJobState();
+        .build());
 
-    org.modelmapper.internal.util.Assert.isTrue(jobState == JobState.FAILED);
-
+    validateFailedJob(jobSummary);
   }
 
   @Test
@@ -596,7 +601,17 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
         RuntimeException.class)
       .build();
 
-    injectTailProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR, true);
+    injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR, true);
+  }
+
+  @Test
+  public void testGetFullProfileFailedStateSlave() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(AttemptManager.class, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR,
+        RuntimeException.class)
+      .build();
+
+    injectProfileException(controls, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR, false);
   }
 
   private void injectAttemptCompletionException(String controls, boolean master) throws Exception {
@@ -619,12 +634,13 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     Assert.assertNotNull(jobId);
 
     while (true) {
-      JobState jobState = getMasterChronicleStub().getJobSummary(
+      JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
         JobSummaryRequest.newBuilder()
           .setJobId(JobsProtoUtil.toBuf(jobId))
           .setUserName(DEFAULT_USERNAME)
-          .build()).getJobState();
-      if(jobState == JobState.FAILED) {
+          .build());
+      if(jobSummary.getJobState() == JobState.FAILED) {
+        validateFailedJob(jobSummary);
         break;
       }
       Thread.sleep(50);
@@ -697,24 +713,26 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     JobId slaveJobId = slaveJobFuture.get();
 
     while (true) {
-      JobState jobState = getMasterChronicleStub().getJobSummary(
+      JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
         JobSummaryRequest.newBuilder()
           .setJobId(JobsProtoUtil.toBuf(masterJobId))
           .setUserName(DEFAULT_USERNAME)
-          .build()).getJobState();
-      if(jobState == JobState.FAILED) {
+          .build());
+      if(jobSummary.getJobState() == JobState.FAILED) {
+        validateFailedJob(jobSummary);
         break;
       }
       Thread.sleep(50);
     }
 
     while (true) {
-      JobState jobState = getMasterChronicleStub().getJobSummary(
+      JobSummary jobSummary = getMasterChronicleStub().getJobSummary(
         JobSummaryRequest.newBuilder()
           .setJobId(JobsProtoUtil.toBuf(slaveJobId))
           .setUserName(DEFAULT_USERNAME)
-          .build()).getJobState();
-      if(jobState == JobState.FAILED) {
+          .build());
+      if(jobSummary.getJobState() == JobState.FAILED) {
+        validateFailedJob(jobSummary);
         break;
       }
       Thread.sleep(50);

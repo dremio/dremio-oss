@@ -29,6 +29,7 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -41,7 +42,7 @@ import com.google.common.collect.Lists;
  */
 class ScanWithDremioReader {
 
-  static Iterator<RecordReader> createReaders(
+  static RecordReaderIterator createReaders(
       final HiveConf hiveConf,
       final BaseHiveStoragePlugin hiveStoragePlugin,
       final FragmentExecutionContext fragmentExecContext,
@@ -55,7 +56,7 @@ class ScanWithDremioReader {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
       if(splits.isEmpty()) {
-        return Collections.emptyIterator();
+        return RecordReaderIterator.from(Collections.emptyIterator());
       }
 
       final JobConf jobConf = new JobConf(hiveConf);

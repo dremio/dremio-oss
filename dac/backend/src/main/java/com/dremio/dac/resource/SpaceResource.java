@@ -17,6 +17,7 @@ package com.dremio.dac.resource;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
@@ -52,6 +53,7 @@ import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FileNotFoundException;
 import com.dremio.dac.service.errors.SpaceNotFoundException;
+import com.dremio.dac.util.ResourceUtil;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -120,6 +122,8 @@ public class SpaceResource {
       namespaceService.deleteSpace(spacePath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nfe) {
       throw new SpaceNotFoundException(spacePath.getSpaceName().getName(), nfe);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "space", spaceName.getName());
     }
   }
 

@@ -23,6 +23,7 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
+import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.util.AssertionUtil;

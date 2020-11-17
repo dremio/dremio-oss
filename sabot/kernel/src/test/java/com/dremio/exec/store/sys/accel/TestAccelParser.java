@@ -21,12 +21,13 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.Test;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 
 public class TestAccelParser {
 
   private SqlNode parse(String toParse) throws SqlParseException{
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255);
+    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
     SqlParser parser = SqlParser.create(toParse, config);
     return parser.parseStmt();
   }

@@ -33,6 +33,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.MaterializedDatasetTable;
 import com.dremio.exec.store.SchemaConfig;
@@ -164,7 +165,7 @@ public final class WithOptionsTableMacro implements TableMacro {
             return toReturn;
           });
 
-      return new MaterializedDatasetTable(plugin, schemaConfig.getUserName(), datasetConfig, partitionChunks);
+      return new MaterializedDatasetTable(plugin, schemaConfig.getUserName(), datasetConfig, partitionChunks, schemaConfig.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT));
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);

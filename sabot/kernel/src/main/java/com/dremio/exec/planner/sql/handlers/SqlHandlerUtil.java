@@ -294,10 +294,12 @@ public class SqlHandlerUtil {
     // Query results are stored in arrow format. If need arises, we can change this to a configuration option.
     final Map<String, Object> storageOptions = ImmutableMap.<String, Object>of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
 
-    WriterOptions writerOptions =
-      options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS)
-      ? WriterOptions.DEFAULT.withRecordLimit(options.getOption(PlannerSettings.OUTPUT_LIMIT_SIZE))
-      : WriterOptions.DEFAULT;
+    WriterOptions writerOptions = WriterOptions.DEFAULT;
+    if (options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS)) {
+      writerOptions = WriterOptions.DEFAULT
+                                   .withOutputLimitEnabled(options.getOption(PlannerSettings.ENABLE_OUTPUT_LIMITS))
+                                   .withOutputLimitSize(options.getOption(PlannerSettings.OUTPUT_LIMIT_SIZE));
+    }
 
     // store table as system user.
     final CreateTableEntry createTableEntry = context.getCatalog()

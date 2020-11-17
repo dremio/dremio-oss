@@ -32,6 +32,7 @@ import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.google.common.base.Objects;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -47,7 +48,7 @@ public final class RelOptNamespaceTable implements RelOptTable {
 
   private final Supplier<RelDataType> rowType;
   public RelOptNamespaceTable(TableMetadata dataset, RelOptCluster cluster) {
-    this(new NamespaceTable(dataset), cluster);
+    this(new NamespaceTable(dataset, PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()), cluster);
   }
 
   public RelOptNamespaceTable(final NamespaceTable table, final RelOptCluster cluster) {

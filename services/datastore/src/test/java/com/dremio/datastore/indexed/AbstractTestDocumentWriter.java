@@ -235,7 +235,7 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     }
   }
 
-  private static IndexKey newIndexKey(Class<?> type, boolean multiValue) {
+  protected static IndexKey newIndexKey(Class<?> type, boolean multiValue) {
     return IndexKey.newBuilder("value", "value", type)
       .setCanContainMultipleValues(multiValue)
       .build();

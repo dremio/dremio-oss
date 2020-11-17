@@ -16,7 +16,6 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
-import static com.dremio.service.reflection.ReflectionUtils.computeDatasetHash;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 
 import java.util.Collection;
@@ -247,9 +246,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     // now check if the query and target datasets didn't change
     try {
-      if (!reflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService.get(), false))) {
+      if (!ReflectionUtils.hashEquals(reflection.getQueryDatasetHash(), queryDataset, namespaceService.get())) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
-      } else if (!reflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService.get(), false))) {
+      } else if (!ReflectionUtils.hashEquals(reflection.getTargetDatasetHash(), targetDataset, namespaceService.get())) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
       }
     } catch (NamespaceException e) {

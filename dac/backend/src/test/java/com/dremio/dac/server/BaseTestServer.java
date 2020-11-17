@@ -89,6 +89,7 @@ import com.dremio.dac.explore.model.InitialDataPreviewResponse;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.TransformBase;
+import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.spaces.HomeName;
@@ -109,6 +110,7 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
@@ -128,6 +130,7 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.ReflectionAdministrationService;
@@ -188,6 +191,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected void doc(String message) {
     docLog.println("[doc] " + message);
+  }
+
+  protected static boolean isComplexTypeSupport() {
+    return PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal();
   }
 
   @Rule public TestWatcher watcher = new TestWatcher() {
@@ -361,7 +368,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
                   }
                 }
             )
-    );
+    ).addMixIn(ViewFieldType.class, ViewFieldTypeMixin.class);
     objectMapper.setFilterProvider(new SimpleFilterProvider().addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
     return objectMapper;
   }

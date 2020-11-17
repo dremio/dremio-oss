@@ -17,6 +17,7 @@ package com.dremio.exec.planner.physical.visitor;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +86,8 @@ public class TestSplitCountChecker {
     optionList.add(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
     final OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+    when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
+      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
     when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);

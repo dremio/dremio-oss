@@ -26,6 +26,7 @@ import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParser;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 
 /**
@@ -48,7 +49,7 @@ public class SqlReservedKeywordGenerator {
           SqlReservedKeywordGenerator.class.getName());
       outFile.println();
 
-      final SqlAbstractParserImpl.Metadata metadata = SqlParser.create("", new ParserConfig(Quoting.DOUBLE_QUOTE, 256)).getMetadata();
+      final SqlAbstractParserImpl.Metadata metadata = SqlParser.create("", new ParserConfig(Quoting.DOUBLE_QUOTE, 256, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal())).getMetadata();
       for (String s : metadata.getTokens()) {
         if (metadata.isKeyword(s) && metadata.isReservedWord(s)) {
           outFile.println(s);

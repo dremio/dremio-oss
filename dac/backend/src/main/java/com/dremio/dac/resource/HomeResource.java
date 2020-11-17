@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
 
@@ -90,6 +91,7 @@ import com.dremio.dac.service.errors.HomeNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.util.JobRequestUtil;
+import com.dremio.dac.util.ResourceUtil;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.file.File;
@@ -403,9 +405,11 @@ public class HomeResource extends BaseResourceWithAllocator {
       throw new ClientErrorException("missing version parameter");
     }
     try {
-      catalogServiceHelper.deleteHomeDataset(namespaceService.getDataset(filePath.toNamespaceKey()), version);
+      catalogServiceHelper.deleteHomeDataset(namespaceService.getDataset(filePath.toNamespaceKey()), version, filePath.toNamespaceKey().getPathComponents());
     } catch (IOException ioe) {
-      throw new DACException("Error deleting to file at " + filePath, ioe);
+      throw new DACException("Error deleting the file at " + filePath, ioe);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "file", path);
     }
   }
 
@@ -487,6 +491,8 @@ public class HomeResource extends BaseResourceWithAllocator {
       namespaceService.deleteFolder(folderPath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nfe) {
       throw new FolderNotFoundException(folderPath, nfe);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "folder", path);
     }
   }
 

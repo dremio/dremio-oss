@@ -204,7 +204,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         next = cur;
       }
 
-      PrefetchingIterator<ParquetSplitReaderCreator> iterator = new PrefetchingIterator<>(splits);
+      PrefetchingIterator<ParquetSplitReaderCreator> iterator = new PrefetchingIterator<>(context, readerConfig, splits);
       try {
         return new ScanOperator(config, context, iterator, globalDictionaries, fragmentExecutionContext.getForemanEndpoint(), fragmentExecutionContext.getQueryContextInformation());
       } catch (Exception ex) {
@@ -224,7 +224,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         next = cur;
       }
 
-      return new PrefetchingIterator<>(splits);
+      return new PrefetchingIterator<>(context, readerConfig, splits);
     }
 
     /**
@@ -266,6 +266,11 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       @Override
       public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {
         rowGroupsToRead.add(splitXAttr.getRowGroupIndex());
+      }
+
+      @Override
+      public SplitAndPartitionInfo getSplit() {
+        return this.datasetSplit;
       }
 
       @Override
@@ -329,11 +334,10 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
 
       @Override
-      public RecordReader createRecordReader() {
+      public RecordReader createRecordReader(MutableParquetMetadata footer) {
         Preconditions.checkNotNull(inputStreamProvider);
         return handleEx(() -> {
           try {
-            final MutableParquetMetadata footer = inputStreamProvider.getFooter();
             if (trimFooter) {
               // footer needs to be trimmed
               Set<Integer> rowGroupsToRetain = Sets.newHashSet();
@@ -386,7 +390,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
                 projectedColumns,
                 globalDictionaryEncodedColumns,
                 config.getConditions(),
-                ParquetFilterCreator.DEFAULT,
+                readerFactory.newFilterCreator(null, null, context.getAllocator()),
                 ParquetDictionaryConvertor.DEFAULT,
                 splitXAttr,
                 fs,

@@ -130,6 +130,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
@@ -903,7 +904,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   @Test
   public void testUpdateSql() throws Exception {
     final String sql = "select foo, bar as b from tbl";
-    SqlParser parser = SqlParser.create(sql, new ParserConfig(Quoting.DOUBLE_QUOTE, 128));
+    SqlParser parser = SqlParser.create(sql, new ParserConfig(Quoting.DOUBLE_QUOTE, 128, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
     final SqlNode sqlNode = parser.parseStmt();
 
 

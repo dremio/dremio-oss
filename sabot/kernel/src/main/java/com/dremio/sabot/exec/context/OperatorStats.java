@@ -40,6 +40,7 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile.Builder;
 import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.io.file.Path;
 
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
@@ -81,10 +82,32 @@ public class OperatorStats {
   // misc operator details that are saved in the profile.
   private OperatorProfileDetails profileDetails;
 
+
   // Need this wrapper so that the caller don't have to handle exception from close().
   public interface WaitRecorder extends AutoCloseable {
     @Override
     void close();
+  }
+
+  public class MetadataWaitRecorder implements WaitRecorder {
+
+    private String path;
+    private WaitRecorder wr;
+
+    public MetadataWaitRecorder(String filePath, WaitRecorder recorder) {
+      path = filePath;
+      wr = recorder;
+    }
+
+    @Override
+    public void close() {
+      updateReadIOStatsMetadata(System.nanoTime() - stateMark[currentState.ordinal()], path);
+      wr.close();
+    }
+  }
+
+  private MetadataWaitRecorder createMetadataWaitRecorder(String path, WaitRecorder wr) {
+    return new MetadataWaitRecorder(path, wr);
   }
 
   // No-op implementation of WaitRecorder.
@@ -100,10 +123,13 @@ public class OperatorStats {
     public final AtomicLong totalIOTime = new AtomicLong(0);
     public final AtomicInteger numIO = new AtomicInteger(0);
     public final List<SlowIOInfo> slowIOInfoList = new ArrayList<>();
+    private long lastSlowIOLoggingTime = 0;
   }
 
   private IOStats readIOStats;
   private IOStats writeIOStats;
+
+  private IOStats metadataReadIOStats;
 
   public void createReadIOStats() {
     if (this.readIOStats != null) {
@@ -119,8 +145,19 @@ public class OperatorStats {
     this.writeIOStats = new IOStats();
   }
 
+  public void createMetadataReadIOStats() {
+    if (this.metadataReadIOStats != null) {
+      return;
+    }
+    this.metadataReadIOStats = new IOStats();
+  }
+
   public IOStats getReadIOStats() {
     return readIOStats;
+  }
+
+  public IOStats getMetadataReadIOStats() {
+    return metadataReadIOStats;
   }
 
   public IOStats getWriteIOStats() {
@@ -420,6 +457,10 @@ public class OperatorStats {
     this.profileDetails = details;
   }
 
+  public OperatorProfileDetails getProfileDetails() {
+    return this.profileDetails;
+  }
+
   @Override
   public String toString(){
     String[] names = OperatorMetricRegistry.getMetricNames(operatorType);
@@ -480,6 +521,15 @@ public class OperatorStats {
     }
   }
 
+  public static WaitRecorder getMetadataWaitRecorder(OperatorStats operatorStats, Path path) {
+      if(operatorStats == null || path == null) {
+        return NO_OP_RECORDER;
+      }
+      else {
+        return operatorStats.createMetadataWaitRecorder(path.toString(), OperatorStats.getWaitRecorder(operatorStats));
+      }
+  }
+
   private void updateIOStats(IOStats ioStats, long elapsed, String filePath, long n, long offset){
     if (ioStats == null) {
       return;
@@ -508,6 +558,10 @@ public class OperatorStats {
 
   public void updateWriteIOStats(long elapsed, String filePath, long n, long offset) {
     updateIOStats(writeIOStats, elapsed, filePath, n, offset);
+  }
+
+  public void updateReadIOStatsMetadata(long elapsed, String path) {
+    updateIOStats(metadataReadIOStats, elapsed, path, 0, 0 );
   }
 
 }

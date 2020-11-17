@@ -70,7 +70,6 @@ public class ConvertletTable extends ReflectiveConvertletTable {
     }
   };
 
-
   public ConvertletTable(ContextInformation contextInformation) {
     super();
 

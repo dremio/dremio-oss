@@ -106,7 +106,7 @@ export class ProvisioningPage extends Component {
         la('Existing jobs will be halted.'),
         la('Are you sure you want to stop the engine?')
       ],
-      cancelText: la('Don\'t Stop Engine'),
+      cancelText: la('Cancel'),
       confirmText: la('Stop Engine'),
       confirm: confirmCallback
     });

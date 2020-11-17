@@ -18,10 +18,12 @@ package com.dremio.exec.store.parquet;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -48,9 +50,11 @@ public interface ParquetReaderFactory {
                          SchemaDerivationHelper schemaHelper,
                          InputStreamProvider inputStreamProvider,
                          List<RuntimeFilter> runtimeFilters,
-                         ArrowBuf validityBuf);
+                         ArrowBuf validityBuf,
+                         BatchSchema tableSchema,
+                         boolean ignoreSchemaLearning);
 
-  ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema schema);
+  ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema schema, BufferAllocator allocator);
 
   ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema);
 
@@ -76,13 +80,15 @@ public interface ParquetReaderFactory {
                                   SchemaDerivationHelper schemaHelper,
                                   InputStreamProvider inputStreamProvider,
                                   List<RuntimeFilter> runtimeFilters,
-                                  ArrowBuf validityBuf) {
+                                  ArrowBuf validityBuf,
+                                  BatchSchema tableSchema,
+                                  boolean ignoreSchemaLearning) {
 
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema managedSchema) {
+    public ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema managedSchema, BufferAllocator allocator) {
       return ParquetFilterCreator.DEFAULT;
     }
 

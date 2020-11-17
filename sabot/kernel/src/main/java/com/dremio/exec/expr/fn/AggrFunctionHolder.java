@@ -20,12 +20,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
-import com.dremio.exec.expr.CodeModelArrowHelper;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.FunctionContext;

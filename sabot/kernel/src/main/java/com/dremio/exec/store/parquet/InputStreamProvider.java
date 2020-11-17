@@ -64,4 +64,12 @@ public interface InputStreamProvider extends AutoCloseable {
    */
 
   ColumnIndexProvider getColumnIndexProvider(List<ColumnChunkMetaData> columns);
+
+  /**
+   * Enable reading with column index
+   * @param selectedColumns
+   * @throws IOException
+   */
+  void enableColumnIndices(List<ColumnChunkMetaData> selectedColumns) throws IOException;
+
 }

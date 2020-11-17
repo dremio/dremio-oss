@@ -17,10 +17,13 @@ package com.dremio.service.reflection.refresh;
 
 import java.util.UUID;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.ReflectionManager.WakeUpCallback;
+import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.WakeUpManagerWhenJobDone;
 import com.dremio.service.reflection.proto.Materialization;
@@ -28,8 +31,10 @@ import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 
 /**
  * called when a materialization job is started
@@ -50,11 +55,12 @@ public class RefreshStartHandler {
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
   }
 
-  public JobId startJob(ReflectionEntry entry, long jobSubmissionTime) {
+  public JobId startJob(ReflectionEntry entry, long jobSubmissionTime, OptionManager optionManager) {
     ReflectionId reflectionId = entry.getId();
 
     final MaterializationId id = new MaterializationId(UUID.randomUUID().toString());
     logger.debug("starting refresh for materialization {}/{}", reflectionId.getId(), id.getId());
+    final boolean icebergDataset = isIcebergDataset(optionManager);
     final Materialization materialization = new Materialization()
         .setId(id)
         .setInitRefreshSubmit(jobSubmissionTime)
@@ -63,10 +69,15 @@ public class RefreshStartHandler {
         .setReflectionGoalVersion(entry.getGoalVersion())
         .setReflectionGoalHash(entry.getReflectionGoalHash())
         .setReflectionId(reflectionId)
-        .setArrowCachingEnabled(entry.getArrowCachingEnabled());
+        .setArrowCachingEnabled(entry.getArrowCachingEnabled())
+        .setIsIcebergDataset(icebergDataset);
     // this is getting convoluted, but we need to make sure we save the materialization before we run the CTAS
     // as the MaterializedView will need it to extract the logicalPlan
     materializationStore.save(materialization);
+
+    if (icebergDataset) {
+      setMaterializationBasePath(reflectionId, materialization);
+    }
 
     final String sql = String.format("REFRESH REFLECTION '%s' AS '%s'", reflectionId.getId(), materialization.getId().getId());
 
@@ -80,6 +91,22 @@ public class RefreshStartHandler {
     materializationStore.save(materialization);
 
     return jobId;
+  }
+
+  private boolean isIcebergDataset(OptionManager optionManager) {
+    return optionManager.getOption(ReflectionOptions.REFLECTION_USE_ICEBERG_DATASET) &&
+      optionManager.getOption(ExecConstants.ENABLE_ICEBERG);
+  }
+
+  private void setMaterializationBasePath(ReflectionId reflectionId, Materialization materialization) {
+    FluentIterable<Refresh> refreshes = materializationStore.getRefreshesByReflectionId(reflectionId);
+    if (!refreshes.isEmpty()) {
+      Refresh refresh = refreshes.get(0);
+      String path = refresh.getPath();
+      String[] splits = path.split("/");
+      Preconditions.checkState(splits.length >= 2, "Unexpected number of path components");
+      materialization.setBasePath(splits[splits.length - 1]);
+    }
   }
 
 }

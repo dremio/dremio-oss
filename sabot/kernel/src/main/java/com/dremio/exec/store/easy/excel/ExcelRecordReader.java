@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.store.easy.excel;
 
+import static java.util.stream.Collectors.toCollection;
+
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -29,6 +30,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
+import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.easy.excel.ExcelParser.State;
 import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
 import com.dremio.exec.store.easy.excel.xls.XlsRecordProcessor;
@@ -38,52 +40,34 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
- * {@link RecordReader} implementation for reading a single sheet in an Excel file. Current support is
- * only for XLSX types (XML based format). Support for XLS (binary format) is not yet available.
+ * {@link RecordReader} implementation for reading a single sheet in an Excel file.
  */
 public class ExcelRecordReader extends AbstractRecordReader implements XlsInputStream.BufferManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExcelRecordReader.class);
 
+  private final ExcelFormatPluginConfig pluginConfig;
   private final OperatorContext executionContext;
   private final FileSystem dfs;
   private final Path path;
-  private final ExcelFormatPluginConfig pluginConfig;
-
-  private VectorContainerWriter writer;
-
-  private ExcelParser parser;
-  private InputStream inputStream;
-
-  private long runningRecordCount = 0;
 
   private HashSet<String> columnsToProject;
+  private VectorContainerWriter writer;
+  private InputStream inputStream;
+  private long runningRecordCount;
+  private ExcelParser parser;
 
   public ExcelRecordReader(final OperatorContext executionContext, final FileSystem dfs, final Path path,
-      final ExcelFormatPluginConfig pluginConfig, final List<SchemaPath> columns) {
+                           final ExcelFormatPluginConfig pluginConfig, final List<SchemaPath> columns) {
     super(executionContext, columns);
     this.executionContext = executionContext;
     this.dfs = dfs;
     this.path = path;
     this.pluginConfig = pluginConfig;
 
-    /* Get the list of columns to project, build a lookup table and pass it
-     * to respective parsers for filtering the columns from excel sheets.
-     */
-    ArrayList<SchemaPath> columnInfo;
-    if(!isStarQuery() && !isSkipQuery()) {
-      columnInfo = new ArrayList<>(getColumns());
-      this.columnsToProject = new HashSet<>();
-
-      for (int i = 0; i < columnInfo.size(); i++) {
-        String columnName = (columnInfo.get(i)).getAsNamePart().getName();
-        this.columnsToProject.add(columnName);
-      }
-
-      logger.debug("number of projected columns: ", columnsToProject.size());
-    }
-    else {
-      logger.debug("projected columns is null");
-      this.columnsToProject = null;
+    // Get the list of columns to project, build a lookup table and pass it to respective parsers for filtering the columns
+    if (!isStarQuery() && !isSkipQuery()) {
+      this.columnsToProject = getColumns().stream().map(sp -> sp.getAsNamePart().getName()).collect(toCollection(HashSet::new));
+      logger.debug("Number of projected columns: {}", columnsToProject.size());
     }
   }
 
@@ -101,9 +85,9 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
       if (pluginConfig.xls) {
         // we don't need to close this stream, it will be closed by the parser
         final XlsInputStream xlsStream = new XlsInputStream(this, inputStream);
-        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf, columnsToProject, maxCellSize);
+        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf, columnsToProject, isSkipQuery(), maxCellSize);
       } else {
-        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf, columnsToProject, maxCellSize);
+        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf, columnsToProject, isSkipQuery(), maxCellSize);
       }
     } catch (final SheetNotFoundException e) {
       // This check will move to schema validation in planning after DX-2271

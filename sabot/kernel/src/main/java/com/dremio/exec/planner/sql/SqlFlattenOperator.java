@@ -15,11 +15,15 @@
  */
 package com.dremio.exec.planner.sql;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.calcite.sql.type.OperandTypes;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
 import com.google.common.base.Objects;
 
@@ -29,7 +33,18 @@ public class SqlFlattenOperator extends SqlFunction {
   private int index;
 
   public SqlFlattenOperator(int index) {
-    super(new SqlIdentifier("FLATTEN", SqlParserPos.ZERO), DynamicReturnType.INSTANCE, null, OperandTypes.ANY, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+    super(new SqlIdentifier("FLATTEN", SqlParserPos.ZERO),
+      new SqlReturnTypeInference() {
+        @Override
+        public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+          final RelDataType operandType = opBinding.getOperandType(0);
+          if (operandType instanceof ArraySqlType) {
+            return ((ArraySqlType) operandType).getComponentType();
+          } else {
+            return DynamicReturnType.INSTANCE.inferReturnType(opBinding);
+          }
+        }
+      }, null, OperandTypes.ANY, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.index = index;
   }
 

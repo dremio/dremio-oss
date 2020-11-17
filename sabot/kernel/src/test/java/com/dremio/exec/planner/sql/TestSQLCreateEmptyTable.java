@@ -21,12 +21,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.google.common.collect.Sets;
 
 
 public class TestSQLCreateEmptyTable {
-  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
+  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Test
   public void testCreateTableNoColumns() {

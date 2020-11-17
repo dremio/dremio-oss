@@ -43,6 +43,7 @@ import com.dremio.exec.util.MemoryAllocationUtilities;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.basic.BasicResourceConstants;
@@ -67,16 +68,15 @@ public class ExecutionPlanCreator {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService,
-      resourceSchedulingDecisionInfo);
 
     observer.planParallelStart();
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    final ExecutionPlanningResources resources = parallelizer.getFragmentsHelper(rootFragment);
-    observer.planParallelized(resources.getPlanningSet());
+    final ExecutionPlanningResources executionPlanningResources = SimpleParallelizer.getExecutionPlanningResources(queryContext, observer, executorSelectionService,
+      resourceSchedulingDecisionInfo, rootFragment);
+    observer.planParallelized(executionPlanningResources.getPlanningSet());
     stopwatch.stop();
     observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    return resources;
+    return executionPlanningResources;
   }
 
   public static ExecutionPlan getExecutionPlan(
@@ -87,14 +87,15 @@ public class ExecutionPlanCreator {
     ResourceSet allocationSet,
     PlanningSet planningSet,
     ExecutorSelectionService executorSelectionService,
-    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo
+    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+    GroupResourceInformation groupResourceInformation
   ) throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
 
     final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext,
-      observer, executorSelectionService, resourceSchedulingDecisionInfo);
+      observer, executorSelectionService, resourceSchedulingDecisionInfo, groupResourceInformation);
     final long queryPerNodeFromResourceAllocation =  allocationSet.getPerNodeQueryMemoryLimit();
     planningSet.setMemoryAllocationPerNode(queryPerNodeFromResourceAllocation);
 
@@ -102,7 +103,7 @@ public class ExecutionPlanCreator {
     MemoryAllocationUtilities.setupBoundedMemoryAllocations(
         plan,
         queryContext.getOptions(),
-        queryContext.getGroupResourceInformation(),
+        groupResourceInformation,
         planningSet,
         queryPerNodeFromResourceAllocation);
 

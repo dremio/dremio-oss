@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.exec;
 
 import java.io.IOException;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,15 +29,19 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.RuntimeFilterEvaluator;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.TypeCoercion;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.metadata.ManagedHiveSchema;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
-import com.dremio.exec.util.CloseableIterator;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Throwables;
@@ -47,11 +52,12 @@ import com.google.common.base.Throwables;
  * (and holding) all fileSplitParquetRecordReaders and setting next in each, this holds just the
  * current and next fileSplitParquetRecordReaders
  */
-public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordReader> {
+public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveParquetSplitReaderIterator.class);
 
     int location;
+    int nextLocation;
     FileSplitParquetRecordReader next;
 
     private final JobConf jobConf;
@@ -68,6 +74,7 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
     private final List<HiveParquetSplit> hiveParquetSplits;
     private final HiveReaderProto.HiveTableXattr tableXattr;
     private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
+    private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators;
 
     HiveParquetSplitReaderIterator(
             final JobConf jobConf,
@@ -79,6 +86,7 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
             final BaseHiveStoragePlugin hiveStoragePlugin,
             final HiveReaderProto.HiveTableXattr tableXattr) {
         this.location = -1;
+        this.nextLocation = 0;
         this.next = null;
 
         this.jobConf = jobConf;
@@ -109,11 +117,12 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
         enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
 
         pathRowGroupsMap = new HiveSplitsPathRowGroupsMap(sortedSplits);
+        this.runtimeFilterEvaluators = new ArrayList<>();
     }
 
     @Override
     public boolean hasNext() {
-        return location < hiveParquetSplits.size() - 1;
+        return nextLocation < hiveParquetSplits.size();
     }
 
     @Override
@@ -122,15 +131,16 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
 
         if (location == -1) {
             next = currentUGI.doAs((PrivilegedAction<FileSplitParquetRecordReader>) () ->
-                    createFileSplitReaderFromSplit(hiveParquetSplits.get(location + 1)));
+                    createFileSplitReaderFromSplit(hiveParquetSplits.get(this.nextLocation)));
         }
-        location++;
+        location = nextLocation;
         FileSplitParquetRecordReader curr = next;
+        setNextLocation(location + 1);
 
         next = null;
         if (hasNext()) {
             next = currentUGI.doAs((PrivilegedAction<FileSplitParquetRecordReader>) () ->
-                    createFileSplitReaderFromSplit(hiveParquetSplits.get(location + 1)));
+                    createFileSplitReaderFromSplit(hiveParquetSplits.get(this.nextLocation)));
         }
 
         curr.setNextFileSplitReader(next);
@@ -143,6 +153,30 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
             return HiveParquetCoercionReader.newInstance(context, compositeReader.getInnerColumns(),
                     wrappedRecordReader, config.getFullSchema(), hiveTypeCoercion, curr.getFilterConditions());
         });
+    }
+
+    private void setNextLocation(int baseNext) {
+        this.nextLocation = baseNext;
+        if (runtimeFilterEvaluators.isEmpty() || !hasNext()) {
+            return;
+        }
+        boolean skipPartition;
+        do {
+            skipPartition = false;
+            final SplitAndPartitionInfo split = this.hiveParquetSplits.get(this.nextLocation).getDatasetSplit();
+            final List<NameValuePair<?>> nameValuePairs = this.compositeReader.getPartitionNVPairs(this.context.getAllocator(), split);
+            try {
+                for (RuntimeFilterEvaluator runtimeFilterEvaluator : runtimeFilterEvaluators) {
+                    if (runtimeFilterEvaluator.canBeSkipped(split, nameValuePairs)) {
+                        skipPartition = true;
+                        this.nextLocation++;
+                        break;
+                    }
+                }
+            } finally {
+                AutoCloseables.close(RuntimeException.class, nameValuePairs);
+            }
+        } while (skipPartition && hasNext());
     }
 
     private FileSplitParquetRecordReader createFileSplitReaderFromSplit(final HiveParquetSplit hiveParquetSplit) {
@@ -184,7 +218,18 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
                 enableDetailedTracing,
                 readerUGI,
                 hiveSchema,
-                pathRowGroupsMap);
+                pathRowGroupsMap,
+                compositeReader);
+    }
+
+    @Override
+    public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+        if (runtimeFilter.getPartitionColumnFilter() != null) {
+            final RuntimeFilterEvaluator filterEvaluator =
+                    new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), runtimeFilter);
+            this.runtimeFilterEvaluators.add(filterEvaluator);
+            logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
+        }
     }
 
     @Override

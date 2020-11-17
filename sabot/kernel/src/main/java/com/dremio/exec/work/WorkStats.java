@@ -19,6 +19,7 @@ import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Iterator;
 
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.task.TaskPool;
 
@@ -34,6 +35,7 @@ public interface WorkStats {
    * @return number of running fragments / max width per node
    */
   float getClusterLoad();
+  float getClusterLoad(GroupResourceInformation groupResourceInformation);
 
 
   Integer getCpuTrailingAverage(long id, int seconds);
@@ -49,6 +51,7 @@ public interface WorkStats {
    * @return load reduction in the range [0, 1]
    */
   double getMaxWidthFactor();
+  double getMaxWidthFactor(GroupResourceInformation groupResourceInformation);
 
   /**
    * sys.slicing_threads entry
@@ -126,6 +129,16 @@ public interface WorkStats {
     @Override
     public Iterator<FragmentInfo> getRunningFragments() {
       return Collections.emptyIterator();
+    }
+
+    @Override
+    public float getClusterLoad(com.dremio.resource.GroupResourceInformation groupResourceInformation) {
+      return getClusterLoad();
+    }
+
+    @Override
+    public double getMaxWidthFactor(com.dremio.resource.GroupResourceInformation groupResourceInformation) {
+      return getMaxWidthFactor();
     }
 
     @Override

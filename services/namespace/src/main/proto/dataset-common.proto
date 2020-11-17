@@ -65,4 +65,5 @@ message ViewFieldType {
   optional int32 fractionalSecondPrecision = 7;
   optional bool isNullable = 8;
   optional string typeFamily = 9;
+  optional bytes serializedField = 10;
 }

@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -124,6 +126,36 @@ public class ValueListFilterTest {
         try (ValueListFilterBuilder builder = new ValueListFilterBuilder(testAllocator, 100, (byte) 4, false);
              ArrowBuf keyBuf = testAllocator.buffer(4)) {
             builder.setup();
+            Set<Integer> insertedVals = randomIntegers(110);
+            insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testCapacityOverflow2() throws Exception {
+        // Simulate reused buffers by allocating pre-filled buffers.
+        final BufferAllocator proxyAllocator = (BufferAllocator) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                new Class<?>[]{BufferAllocator.class},
+                (object, method, args) -> {
+                    try {
+                        if (method.getName().equals("buffer")) {
+                            ArrowBuf buf = (ArrowBuf) method.invoke(testAllocator, args);
+                            for (int i = 0; i < buf.capacity(); i += 4) {
+                                buf.setInt(i, Integer.MAX_VALUE);
+                            }
+                            return buf;
+                        } else {
+                            return method.invoke(testAllocator, args);
+                        }
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+
+        try (ValueListFilterBuilder builder = new ValueListFilterBuilder(proxyAllocator, 100, (byte) 4, false);
+             ArrowBuf keyBuf = testAllocator.buffer(4)) {
+            builder.setup();
+            builder.overrideMaxBuckets(1);
             Set<Integer> insertedVals = randomIntegers(110);
             insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
         }

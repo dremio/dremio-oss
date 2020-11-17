@@ -50,6 +50,9 @@ import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergFormatDatasetAccessor;
+import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
@@ -68,6 +71,7 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -83,6 +87,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   private static final FileUpdateKey EMPTY = FileUpdateKey.getDefaultInstance();
   private MaterializationStore materializationStore;
   private ParquetFormatPlugin formatPlugin;
+  private IcebergFormatPlugin icebergFormatPlugin;
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -100,6 +105,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     super.start();
     materializationStore = new MaterializationStore(DirectProvider.<LegacyKVStoreProvider>wrap(getContext().getKVStoreProvider()));
     formatPlugin = (ParquetFormatPlugin) formatCreator.getFormatPluginByConfig(new ParquetFormatConfig());
+    icebergFormatPlugin = (IcebergFormatPlugin)formatCreator.getFormatPluginByConfig(new IcebergFormatConfig());
   }
 
   @Override
@@ -112,6 +118,14 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     return null;
   }
 
+  /**
+   *
+   * @param components
+   *    The path components. First item is expected to be the Accelerator storage plugin, then
+   *    we expect either two more parts: ReflectionId and MaterializationId or a single two
+   *    part slashed value of ReflectionId/MaterializationId.
+   * @return List with three entries or null
+   */
   private List<String> normalizeComponents(final List<String> components) {
     if (components.size() != 2 && components.size() != 3) {
       return null;
@@ -134,75 +148,119 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
    * Find the set of refreshes/slices associated with a particular materialization. Could be one to
    * many. If no refreshes are found, the materialization cannot be served.
    *
-   * @param components
-   *          The path components. First item is expected to be the Accelerator storage plugin, then
-   *          we expect either two more parts: ReflectionId and MaterializationId or a single two
-   *          part slashed value of ReflectionId/MaterializationId.
    * @return List of refreshes or null if there are no matching refreshes.
    */
-  private FluentIterable<Refresh> getSlices(List<String> components) {
-    components = normalizeComponents(components);
-    if (components == null) {
-      return null;
-    }
-
-    ReflectionId reflectionId = new ReflectionId(components.get(1));
-    MaterializationId id = new MaterializationId(components.get(2));
-    Materialization materialization = materializationStore.get(id);
-
-    if(materialization == null) {
-      logger.info("Unable to find materialization id: {}", id.getId());
-      return null;
-    }
-
+  private FluentIterable<Refresh> getSlices(Materialization materialization, ReflectionId reflectionId) {
     // verify that the materialization has the provided reflection.
     if(!materialization.getReflectionId().equals(reflectionId)) {
-      logger.info("Mismatched reflection id for materialization. Expected: {}, Actual: {}, for MaterializationId: {}", reflectionId.getId(), materialization.getReflectionId().getId(), id.getId());
+      logger.info("Mismatched reflection id for materialization. Expected: {}, Actual: {}, for MaterializationId: {}",
+        reflectionId.getId(), materialization.getReflectionId().getId(), materialization.getId().getId());
       return null;
     }
 
     FluentIterable<Refresh> refreshes = materializationStore.getRefreshes(materialization);
 
     if(refreshes.isEmpty()) {
-      logger.info("No slices for materialization MaterializationId: {}", id.getId());
+      logger.info("No slices for materialization MaterializationId: {}", materialization.getId().getId());
       return null;
     }
 
     return refreshes;
   }
 
+  private Materialization getMaterialization(MaterializationId id) {
+    Materialization materialization = materializationStore.get(id);
+
+    if (materialization == null) {
+      logger.info("Unable to find materialization id: {}", id.getId());
+    }
+
+    return materialization;
+  }
+
   @Override
   public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
-    FluentIterable<Refresh> refreshes = getSlices(datasetPath.getComponents());
+    List<String> components = normalizeComponents(datasetPath.getComponents());
+    if (components == null) {
+      return Optional.empty();
+    }
+    Preconditions.checkState(components.size() == 3, "Unexpected number of components in path");
+
+    ReflectionId reflectionId = new ReflectionId(components.get(1));
+    MaterializationId materializationId = new MaterializationId(components.get(2));
+    Materialization materialization = getMaterialization(materializationId);
+    if (materialization == null) {
+      return Optional.empty();
+    }
+
+    FluentIterable<Refresh> refreshes = getSlices(materialization, reflectionId);
     if(refreshes == null) {
       return Optional.empty();
     }
 
     final String selectionRoot = getConfig().getPath().resolve(refreshes.first().get().getReflectionId().getId()).toString();
 
+    BatchSchema currentSchema = CurrentSchemaOption.getSchema(options);
+    FileConfig fileConfig = FileConfigOption.getFileConfig(options);
+    List<String> sortColumns = SortColumnsOption.getSortColumns(options);
+    Integer fieldCount = MaxLeafFieldCount.getCount(options);
+
+    boolean icebergDataset = isUsingIcebergDataset(materialization);
+    final FileSelection selection = getFileSelection(refreshes, selectionRoot, icebergDataset);
+
+    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
+    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
+    return getDatasetHandle(datasetPath, fieldCount, icebergDataset, selection, pdi);
+  }
+
+  private Boolean isUsingIcebergDataset(Materialization materialization) {
+    Boolean isIcebergDataset = materialization.getIsIcebergDataset();
+    return  isIcebergDataset == null ? false : isIcebergDataset;
+  }
+
+  private Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, Integer fieldCount, boolean icebergDataset, FileSelection selection, PreviousDatasetInfo pdi) {
+    if (icebergDataset) {
+      return Optional.of(new IcebergFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
+        new NamespaceKey(datasetPath.getComponents()), icebergFormatPlugin, this, pdi, fieldCount));
+    } else {
+      return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
+        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));
+    }
+  }
+
+  private FileSelection getFileSelection(FluentIterable<Refresh> refreshes, String selectionRoot, boolean icebergDataset) {
+    return icebergDataset ? getIcebergFileSelection(refreshes) : getParquetFileSelection(refreshes, selectionRoot);
+  }
+
+  private FileSelection getParquetFileSelection(FluentIterable<Refresh> refreshes, String selectionRoot) {
+    FileSelection selection;
     ImmutableList<FileAttributes> allStatus = refreshes.transformAndConcat((Function<Refresh, Iterable<FileAttributes>>) input -> {
       try {
-        FileSelection selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
-        if(selection != null) {
-          return selection.minusDirectories().getFileAttributesList();
+        FileSelection currentRefreshSelection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
+        if(currentRefreshSelection != null) {
+          return currentRefreshSelection.minusDirectories().getFileAttributesList();
         }
         throw new IllegalStateException("Unable to retrieve selection for path." + input.getPath());
       } catch (IOException e) {
         throw Throwables.propagate(e);
       }
     }).toList();
+    selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
+    return selection;
+  }
 
-    BatchSchema currentSchema = CurrentSchemaOption.getSchema(options);
-    FileConfig fileConfig = FileConfigOption.getFileConfig(options);
-    List<String> sortColumns = SortColumnsOption.getSortColumns(options);
-    Integer fieldCount = MaxLeafFieldCount.getCount(options);
-
-    final FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
-
-    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
-    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
-    return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
-        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));
+  private FileSelection getIcebergFileSelection(FluentIterable<Refresh> refreshes) {
+    FileSelection selection;
+    try {
+      for (Refresh refresh: refreshes) {
+        Preconditions.checkState(refreshes.get(0).getPath().equalsIgnoreCase(refresh.getPath()),
+          "unexpected refresh path was found");
+      }
+      selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(refreshes.get(0).getPath()));
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+    return selection;
   }
 
   @Override
@@ -235,6 +293,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     if (components == null) {
       throw UserException.validationError().message("Unable to find any materialization or associated refreshes.").build(logger);
     }
+    Preconditions.checkState(components.size() == 3, "Unexpected number of components in path");
 
     final ReflectionId reflectionId = new ReflectionId(components.get(1));
     final MaterializationId materializationId = new MaterializationId(components.get(2));

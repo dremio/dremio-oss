@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.common;
 
+import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURED_WRAPPER;
+
 import java.util.List;
 
 import org.apache.calcite.plan.Convention;
@@ -132,8 +134,10 @@ public abstract class ProjectRelBase extends Project {
     // a[1].b.c, a.b[1], a.b.c[1] are not simple fields, since they all contain array segment.
     //  a + b, a * 10 + b, etc are not simple fields, since they are expressions.
     for (RexNode expr : this.getProjects()) {
-      if (expr instanceof RexInputRef) {
+      if ((expr instanceof RexInputRef)) {
         // Simple Field reference.
+        cnt ++;
+      } else if ((expr instanceof RexFieldAccess) && (((RexFieldAccess) expr).getReferenceExpr() instanceof RexInputRef)) {
         cnt ++;
       } else if (expr instanceof RexCall && expr.accept(complexFieldIdentifer)) {
         // Complex field with named segments only.
@@ -186,6 +190,8 @@ public abstract class ProjectRelBase extends Project {
             op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
           return op0.accept(this);
         }
+      } else if (call.getOperator().getName().equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
+        return call.getOperands().get(0).accept(this);
       }
 
       return false;
@@ -203,7 +209,7 @@ public abstract class ProjectRelBase extends Project {
 
     @Override
     public Boolean visitFieldAccess(RexFieldAccess fieldAccess) {
-      return doUnknown(fieldAccess);
+      return fieldAccess.getReferenceExpr().accept(this);
     }
 
     private boolean doUnknown(Object o) {

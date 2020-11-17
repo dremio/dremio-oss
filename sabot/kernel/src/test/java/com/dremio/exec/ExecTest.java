@@ -74,6 +74,10 @@ public class ExecTest extends DremioTest {
     return FUNCTION_REGISTRY;
   }
 
+  protected static boolean isComplexTypeSupport() {
+    return PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal();
+  }
+
   protected static FunctionImplementationRegistry DECIMAL_FUNCTIONS( ){
     if(FUNCTION_REGISTRY_DECIMAL == null){
       FUNCTION_REGISTRY_DECIMAL = new DecimalFunctionImplementationRegistry(DEFAULT_SABOT_CONFIG,

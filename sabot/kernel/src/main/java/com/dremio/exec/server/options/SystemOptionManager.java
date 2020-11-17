@@ -117,16 +117,15 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     kvStoreCalls = 0;
   }
 
-    /**
+  /**
    * Initializes this option manager.
-   *
-   * @return this option manager
-   * @throws Exception
    */
   @Override
   public void start() throws Exception {
     options = inMemory ? new InMemoryLocalStore<>() : storeProvider.get().getStore(OptionStoreCreator.class);
     migrateLegacyOptions();
+
+    populateCache(); // Start tasks need to access options
     updateBasedOnSystemProperties();
     filterInvalidOptions();
     populateCache();
@@ -138,8 +137,8 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
 
   private void filterInvalidOptions() {
     boolean shouldUpdate = false;
-    List<OptionValueProto> filteredList = new ArrayList<>();
-    for (OptionValueProto optionValueProto : getOptionProtoList()) {
+    final List<OptionValueProto> filteredList = new ArrayList<>();
+    for (final OptionValueProto optionValueProto : getOptionProtoList()) {
       if(isValid(optionValueProto.getName())) {
         filteredList.add(optionValueProto);
       } else {
@@ -152,6 +151,10 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     }
   }
 
+  /**
+   * Checks legacy stores and migrates if necessary. Formats should never
+   * be mixed, so at most one migration will be performed.
+   */
   private void migrateLegacyOptions() {
     if (inMemory) {
       return; // In-memory store does not start with any options

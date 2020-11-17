@@ -18,7 +18,11 @@ package com.dremio.dac.cmd;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Test admin command runner.
@@ -32,12 +36,17 @@ public class AdminCommandRunnerTest {
 
     private static boolean invokedCorrectly = false;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception{
       if (args.length == 2 && args[0].equals("arg0") && args[1].equals("arg1")) {
         invokedCorrectly = true;
+      } else if (args.length == 3) {
+        throw new IOException(args[2]);
       }
     }
   }
+
+  @Rule
+  public final ExpectedException thrownException = ExpectedException.none();
 
   @Test
   public void runCommand() throws Exception {
@@ -45,4 +54,14 @@ public class AdminCommandRunnerTest {
     AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[]{"arg0", "arg1"});
     assertTrue(TestCommand.invokedCorrectly);
   }
+
+  @Test
+  public void runCommandExceptionMessage() throws Exception {
+    String errorMessage = "cannot run command";
+    thrownException.expect(IOException.class);
+    thrownException.expectMessage(errorMessage);
+
+    AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[]{"arg0", "arg1", errorMessage});
+  }
+
 }

@@ -20,6 +20,7 @@ import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -108,6 +109,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import io.protostuff.LinkedBuffer;
+import io.protostuff.ProtostuffIOUtil;
+
 /**
  * Helper functions for Reflection management
  */
@@ -143,7 +147,17 @@ public class ReflectionUtils {
       } else {
         int schemaHash = 0;
         if (isFirst) {
-          schemaHash = dataset.getVirtualDataset().getSqlFieldsList().hashCode();
+          final List<ViewFieldType> types = new ArrayList<>();
+          dataset.getVirtualDataset().getSqlFieldsList().forEach(type -> {
+            if (type.getSerializedField() != null) {
+              ViewFieldType newType = new ViewFieldType();
+              ProtostuffIOUtil.mergeFrom(ProtostuffIOUtil.toByteArray(type, ViewFieldType.getSchema(), LinkedBuffer.allocate()), newType, ViewFieldType.getSchema());
+              types.add(newType.setSerializedField(null));
+            } else {
+              types.add(type);
+            }
+          });
+          schemaHash = types.hashCode();
         }
         hash = 31 * hash + dataset.getVirtualDataset().getSql().hashCode() + schemaHash;
           for (ParentDataset parent : dataset.getVirtualDataset().getParentsList()) {
@@ -275,6 +289,16 @@ public class ReflectionUtils {
     return !hosts.containsAll(partitionNames);
   }
 
+  /**
+   * check with ignorePds true and then also false, for backward compatibility
+   */
+  static boolean hashEquals(int hash, DatasetConfig dataset, NamespaceService ns) throws NamespaceException {
+    return
+      hash == computeDatasetHash(dataset, ns, true)
+        ||
+      hash == computeDatasetHash(dataset, ns, false);
+  }
+
   public static MaterializationDescriptor getMaterializationDescriptor(final ExternalReflection externalReflection,
                                                                        final NamespaceService namespaceService) throws NamespaceException {
     DatasetConfig queryDataset = namespaceService.findDatasetByUUID(externalReflection.getQueryDatasetId());
@@ -290,7 +314,7 @@ public class ReflectionUtils {
       return null;
     }
 
-    if (!externalReflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService, false))) {
+    if (!hashEquals(externalReflection.getQueryDatasetHash(), queryDataset, namespaceService)) {
       logger.debug("Reflection {} excluded because query dataset {} is out of sync",
         externalReflection.getName(),
         PathUtils.constructFullPath(queryDataset.getFullPathList())
@@ -298,7 +322,7 @@ public class ReflectionUtils {
       return null;
     }
 
-    if (!externalReflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService, false))) {
+    if (!hashEquals(externalReflection.getTargetDatasetHash(), targetDataset, namespaceService)) {
       logger.debug("Reflection {} excluded because target dataset {} is out of sync",
         externalReflection.getName(),
         PathUtils.constructFullPath(targetDataset.getFullPathList())

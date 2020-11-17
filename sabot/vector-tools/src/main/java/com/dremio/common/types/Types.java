@@ -595,6 +595,10 @@ public class Types {
     case "simplejson":
     case "extendedjson":
       return MinorType.LATE;
+    case "array":
+      return MinorType.LIST;
+    case "row":
+      return MinorType.STRUCT;
     case "null":
     case "any":
       return MinorType.NULL;

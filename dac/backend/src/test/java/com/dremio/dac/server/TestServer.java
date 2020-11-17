@@ -46,6 +46,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.http.HttpHeaders;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -133,8 +134,11 @@ public class TestServer extends BaseTestServer {
     assertErrorMessage(errorDelete, "missing version param");
 
     doc("delete with bad version");
+    long badVersion = 1234L;
+    String expectedErrorMessage = String.format("Cannot delete source \"%s\", version provided \"%s\" is different from version found \"%s\"",
+      source.getName(), badVersion, putSource2.getTag());
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "Unable to delete source, expected version ");
+    assertErrorMessage(errorDelete2, expectedErrorMessage);
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getTag())).buildDelete());
@@ -338,8 +342,11 @@ public class TestServer extends BaseTestServer {
     assertErrorMessage(errorDelete, "missing version param");
 
     doc("delete with bad version");
-    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(spaceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "Unable to delete source");
+    long badVersion = 1234L;
+    String expectedErrorMessage = String.format("Cannot delete folder \"%s\", version provided \"%s\" is different from version found \"%s\"",
+      postFolder1.getName(), badVersion, postFolder1.getVersion());
+    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(spaceResource).queryParam("version", badVersion)).buildDelete(), GenericErrorMessage.class);
+    assertErrorMessage(errorDelete2, expectedErrorMessage);
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(spaceResource).queryParam("version", postFolder1.getVersion())).buildDelete());
@@ -679,5 +686,19 @@ public class TestServer extends BaseTestServer {
 
     // no CSP header by default
     assertFalse(headers.containsKey("content-security-policy"));
+  }
+
+  @Test
+  public void testGenericResponseHeaders() throws Exception {
+    final Response invoke = getBuilder(getPublicAPI(3).path("catalog")).buildGet().invoke();
+    final MultivaluedMap<String, Object> headersV3 = invoke.getHeaders();
+    assertTrue(headersV3.containsKey(HttpHeaders.CACHE_CONTROL));
+    assertEquals(headersV3.getFirst(HttpHeaders.CACHE_CONTROL), "no-cache, no-store");
+
+    final Response invoke2 = getBuilder(getAPIv2().path("source/nas_sub")).buildGet().invoke();
+    final MultivaluedMap<String, Object> headersV2 = invoke2.getHeaders();
+    assertTrue(headersV2.containsKey(HttpHeaders.CACHE_CONTROL));
+    assertEquals(headersV2.getFirst(HttpHeaders.CACHE_CONTROL), "no-cache, no-store");
+
   }
 }

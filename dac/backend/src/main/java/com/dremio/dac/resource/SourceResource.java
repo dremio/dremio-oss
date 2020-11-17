@@ -59,6 +59,7 @@ import com.dremio.dac.service.errors.SourceFileNotFoundException;
 import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.dac.util.ResourceUtil;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.ops.ReflectionContext;
@@ -179,11 +180,14 @@ public class SourceResource extends BaseResourceWithAllocator {
     try {
       SourceConfig config = namespaceService.getSource(new SourcePath(sourceName).toNamespaceKey());
       if(!Objects.equals(config.getTag(), version)) {
-        throw new ConcurrentModificationException(String.format("Unable to delete source, expected version %s, received version %s.", config.getTag(), version));
+        throw new ConcurrentModificationException(String.format("Cannot delete source \"%s\", version provided \"%s\" is different from version found \"%s\"",
+          sourceName, version, config.getTag()));
       }
       sourceCatalog.deleteSource(config);
     } catch (NamespaceNotFoundException nfe) {
       throw new SourceNotFoundException(sourcePath.getSourceName().getName(), nfe);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "source", sourceName.getName());
     }
   }
 
@@ -326,7 +330,11 @@ public class SourceResource extends BaseResourceWithAllocator {
       throw new ClientErrorException("missing version parameter");
     }
 
-    sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version);
+    try {
+      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "file format", path);
+    }
   }
 
   // format settings for folders.
@@ -384,8 +392,12 @@ public class SourceResource extends BaseResourceWithAllocator {
       throw new ClientErrorException("missing version parameter");
     }
 
-    SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(folderPath), version);
+    try {
+      SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
+      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(folderPath), version);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "folder format", path);
+    }
   }
 
   @POST

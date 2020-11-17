@@ -245,7 +245,7 @@ public class ValueListFilter implements AutoCloseable {
         long mergeIdxCap = mergedValList.valOnlyBuf().capacity() / mergedValList.getBlockSize();
         int idx1 = 0, idx2 = 0, mergedIdx = 0;
         while (idx1 < valList1.getValueCount() || idx2 < valList2.getValueCount()) {
-            checkState(mergedIdx <= mergeIdxCap, "Merged buffer overflown.");
+            checkState(mergedIdx < mergeIdxCap, "Merged buffer overflown.");
             if (idx1 < valList1.getValueCount() &&
                     // If idx2 is saturated or idx2 value loses in comparison.
                     (idx2 == valList2.getValueCount() ||
@@ -289,8 +289,16 @@ public class ValueListFilter implements AutoCloseable {
         return precision;
     }
 
+    public void resetPrecision(byte newPrecision) {
+        this.precision = newPrecision;
+    }
+
     public byte getScale() {
         return scale;
+    }
+
+    public void resetScale(byte newScale) {
+        this.scale = newScale;
     }
 
     private static void copyValue(ValueListFilter src, int srcIdx, ValueListFilter dst, int dstIdx) {
@@ -317,5 +325,12 @@ public class ValueListFilter implements AutoCloseable {
 
     public long getSizeInBytes() {
         return META_SIZE + (valueCount * blockSize);
+    }
+
+    /**
+     * Increases the ref count of the underlying buffer
+     */
+    public void retainRef() {
+        this.buf().retain();
     }
 }

@@ -72,7 +72,7 @@ public class CompoundIdentifier extends SqlIdentifier{
     }
   }
 
-  public SqlNode getAsSqlNode(){
+  public SqlNode getAsSqlNode(boolean withCalciteComplexTypeSupport){
     if(ids.size() == 1){
       return new SqlIdentifier(Collections.singletonList(ids.get(0).value), ids.get(0).parserPos);
     }
@@ -80,33 +80,50 @@ public class CompoundIdentifier extends SqlIdentifier{
     int startIndex;
     SqlNode node;
 
-    if(ids.get(1).isArray()){
+    if (ids.get(1).isArray()) {
       // handle everything post zero index as item operator.
       startIndex = 1;
       node = new SqlIdentifier( //
-          ImmutableList.of(ids.get(0).value), //
-          null, //
-          ids.get(0).parserPos, //
-          ImmutableList.of(ids.get(0).parserPos));
-    }else{
+        ImmutableList.of(ids.get(0).value), //
+        null, //
+        ids.get(0).parserPos, //
+        ImmutableList.of(ids.get(0).parserPos));
+    } else {
       // handle everything post two index as item operator.
       startIndex = 2;
       node = new SqlIdentifier( //
-          ImmutableList.of(ids.get(0).value, ids.get(1).value), //
-          null, //
-          ids.get(0).parserPos, //
-          ImmutableList.of(ids.get(0).parserPos, ids.get(1).parserPos));
-
+        ImmutableList.of(ids.get(0).value, ids.get(1).value), //
+        null, //
+        ids.get(0).parserPos, //
+        ImmutableList.of(ids.get(0).parserPos, ids.get(1).parserPos));
     }
-    for(int i = startIndex ; i < ids.size(); i++){
-      node = ids.get(i).getNode(node);
+    if (!withCalciteComplexTypeSupport) {
+      for (int i = startIndex; i < ids.size(); i++) {
+        node = ids.get(i).getNode(node);
+      }
+    } else {
+      for (int i = startIndex; i < ids.size(); i++) {
+        IdentifierHolder holder = ids.get(i);
+        if (holder.isArray()) {
+          SqlLiteral literal = SqlLiteral.createExactNumeric(holder.value, holder.parserPos);
+          node = new SqlBasicCall(SqlStdOperatorTable.ITEM, new SqlNode[]{node, literal}, holder.parserPos);
+        } else {
+          if (node instanceof SqlIdentifier) {
+            int pos = ((SqlIdentifier) node).names.size();
+            node = ((SqlIdentifier) node).add(pos, holder.value, holder.parserPos);
+          } else {
+            SqlIdentifier identifier = new SqlIdentifier(holder.value, holder.parserPos);
+            node = new SqlBasicCall(SqlStdOperatorTable.DOT, new SqlNode[]{node, identifier}, holder.parserPos);
+          }
+        }
+      }
     }
 
     return node;
   }
 
 
-  public SqlNode getAsCompoundIdentifier(){
+  public SqlNode getAsCompoundIdentifier() {
     List<String> names = Lists.newArrayListWithCapacity(ids.size());
     List<SqlParserPos> pos = Lists.newArrayListWithCapacity(ids.size());
     for(int i =0; i < ids.size(); i++){
@@ -134,13 +151,13 @@ public class CompoundIdentifier extends SqlIdentifier{
     }
 
     public SqlNode getNode(SqlNode node){
-      SqlLiteral literal;
+      SqlLiteral literal = null;
       if(isArray){
         literal = SqlLiteral.createExactNumeric(value, parserPos);
-      }else{
+      } else {
         literal = SqlLiteral.createCharString(value, parserPos);
       }
-      return new SqlBasicCall(SqlStdOperatorTable.ITEM, new SqlNode[]{ node, literal }, parserPos);
+      return new SqlBasicCall(SqlStdOperatorTable.ITEM, new SqlNode[]{node, literal}, parserPos);
     }
 
   }

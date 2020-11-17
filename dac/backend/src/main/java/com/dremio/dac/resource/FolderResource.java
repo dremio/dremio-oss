@@ -19,6 +19,7 @@ import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.Arrays;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
@@ -48,6 +49,7 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FolderNotFoundException;
+import com.dremio.dac.util.ResourceUtil;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
@@ -109,6 +111,8 @@ public class FolderResource {
       namespaceService.deleteFolder(folderPath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nfe) {
       throw new FolderNotFoundException(folderPath, nfe);
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "folder", path);
     }
   }
 

@@ -43,9 +43,9 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.InExpression;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -772,6 +772,10 @@ public class TestNativeFunctions extends BaseTestFunction {
   public void testRound() throws Exception {
     // round for integers / longs
     testFunctions(new Object[][] {
+      {"round(c0)", 21134, 21134},
+      {"round(c0)", -132422, -132422},
+      {"round(c0)", 3453562312L, 3453562312L},
+      {"round(c0)", -23453462343L, -23453462343L},
       {"round(c0, c1)", 7589, -1, 7590},
       {"round(c0, c1)", 8532, -2, 8500},
       {"round(c0, c1)", -8579, -1, -8580},
@@ -784,6 +788,30 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"round(c0, c1)", -23453462343L, -4, -23453460000L},
       {"round(c0, c1)", -23453462343L, -5, -23453500000L},
       {"round(c0, c1)", 345353425343L, -12, 0L}
+    });
+
+    // round for floats / doubles
+    testFunctions(new Object[][] {
+      {"round(c0)", 1234.245f, 1234f},
+      {"round(c0)", -11.7892f, -12f},
+      {"round(c0)", 1.4999999f, 1f},
+      {"round(c0)", 1234.245d, 1234d},
+      {"round(c0)", -11.7892d, -12d},
+      {"round(c0)", 1.4999999d, 1d},
+      {"round(c0, c1)", 1234.789f, 2, 1234.79f},
+      {"round(c0, c1)", 1234.12345f, -3, 1000f},
+      {"round(c0, c1)", -1234.4567f, 3, -1234.457f},
+      {"round(c0, c1)", -1234.4567f, -3, -1000f},
+      {"round(c0, c1)", 1234.4567f, 0, 1234f},
+      {"round(c0, c1)", 1.5499999523162842f, 1, 1.5f},
+      {"round(c0, c1)", (float)(1.55), 1, 1.5f},
+      {"round(c0, c1)", (float)(9.134123), 2, 9.13f},
+      {"round(c0, c1)", (float)(-1.923), 1, -1.9f},
+      {"round(c0, c1)", 1234.789d, 2, 1234.79d},
+      {"round(c0, c1)", 1234.12345d, -3, 1000d},
+      {"round(c0, c1)", -1234.4567d, 3, -1234.457d},
+      {"round(c0, c1)", -1234.4567d, -3, -1000d},
+      {"round(c0, c1)", 1234.4567d, 0, 1234d},
     });
   }
 
@@ -822,6 +850,44 @@ public class TestNativeFunctions extends BaseTestFunction {
         "ABCN", "sdfgs", "", "qwert|n", "a", "abcdpqardABCNsdfgsqwert|na"},
       { "concat(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9)", NULL_VARCHAR, "abcd", "npq",
         "sdfgs", "", "uwu", "wfw", "ABC", NULL_VARCHAR, "1234", "abcdnpqsdfgsuwuwfwABC1234"},
+    });
+  }
+
+  @Test
+  public void testSplitPart() throws Exception {
+    testFunctions(new Object[][]{
+      { "split_part(c0, c1, c2)", "abc~@~def~@~ghi", "~@~", 1, "abc"},
+      { "split_part(c0, c1, c2)", "abc~@~def~@~ghi", "~@~", 2, "def"},
+      { "split_part(c0, c1, c2)", "A,B,C", ",", 3, "C"},
+      { "split_part(c0, c1, c2)", "A,B,C", ",", 4, ""},
+      { "split_part(c0, c1, c2)", "123|456|789", "|", 1, "123"},
+      { "split_part(c0, c1, c2)", "abc\\u1111dremio\\u1111ghi", "\\u1111", 2, "dremio"},
+      { "split_part(c0, c1, c2)", "a,b,c", " ", 1, "a,b,c"},
+      { "split_part(c0, c1, c2)", "a,b,c", " ", 2, ""},
+    });
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testSplitPartZeroIndexError() throws Exception {
+    try {
+      testFunctions(new Object[][] {
+        { "split_part(c0, c1, c2)", "A,B,C", ",", 0, ""},
+      });
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getCause().getCause().getMessage().contains("Index in split_part must be positive, value provided was 0"));
+      throw re;
+    }
+  }
+
+  @Test
+  public void testBinaryString() throws Exception {
+    testFunctions(new Object[][]{
+      {"convert_from(binary_string(c0), 'UTF8')", "\\x41\\x42\\x43", "ABC"},
+      {"convert_from(binary_string(c0), 'UTF8')", "\\x41\\x20\\x42\\x20\\x43", "A B C"},
+      {"convert_from(binary_string(c0), 'UTF8')", "\\x41", "A"},
+      {"convert_from(binary_string(c0), 'UTF8')", "TestString", "TestString"},
+      {"convert_from(binary_string(c0), 'UTF8')", "T", "T"},
+      {"convert_from(binary_string(c0), 'UTF8')", "\\x4f\\x4D", "OM"},
     });
   }
 

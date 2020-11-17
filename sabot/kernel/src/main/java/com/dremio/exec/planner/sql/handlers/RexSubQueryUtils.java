@@ -152,7 +152,7 @@ public final class RexSubQueryUtils {
     @Override
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       final RelNode transformed = converter.flattenTypes(subQuery.rel, true);
-      final RelNode transformed2 = transformed.accept(new RelsWithRexSubQueryFlattener(converter));
+      final RelNode transformed2 = transformed.accept(new RelsWithRexSubQueryFlattener(converter)); //todo
       return subQuery.clone(transformed2);
     }
   }
@@ -237,6 +237,8 @@ public final class RexSubQueryUtils {
       return super.visitSubQuery(subQuery);
     }
   }
+
+
 
   /**
    * Checks for RexSubQuery rexnodes in the tree, and if there are any, ensures that the underlying

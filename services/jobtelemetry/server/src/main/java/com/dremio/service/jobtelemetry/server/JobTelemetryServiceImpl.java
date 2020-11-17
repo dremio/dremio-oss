@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.util.Retryer;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.datastore.DatastoreException;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
@@ -167,7 +168,9 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   private void putProgressMetrics(ExecutorQueryProfile profile) {
-    logger.debug("Updating progress metrics for query {}", profile.getQueryId());
+    if(logger.isDebugEnabled()) {
+      logger.debug("Updating progress metrics for query {}", QueryIdHelper.getQueryId(profile.getQueryId()));
+    }
     metricsStore.put(profile.getQueryId(), EndpointHelper.getMinimalString(profile.getEndpoint()), profile.getProgress());
   }
 

@@ -66,6 +66,7 @@ public class ResolverTypePrecedence {
     precMap.put(MinorType.UNION, i += 2);
     precMap.put(MinorType.FIXEDSIZEBINARY, i += 2);
     precMap.put(MinorType.LIST, i += 2);
+    precMap.put(MinorType.STRUCT, i += 2);
     PRECEDENCE_MAP = ImmutableMap.copyOf(precMap);
     MAX_IMPLICIT_CAST_COST = i;
 

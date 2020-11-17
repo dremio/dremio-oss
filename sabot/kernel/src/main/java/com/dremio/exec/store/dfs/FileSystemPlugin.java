@@ -51,6 +51,7 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.parquet.Preconditions;
 
 import com.dremio.common.config.LogicalPlanPersistence;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
@@ -694,6 +695,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
               return false;
             }
           }
+        } catch (FileNotFoundException fnfe) {
+          throw UserException.invalidMetadataError(fnfe)
+            .addContext(fnfe.getMessage())
+            .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.of(key.getPathComponents())))
+            .buildSilently();
         } catch (IOException ioe) {
           throw new RuntimeException("Failed to check access permission", ioe);
         }

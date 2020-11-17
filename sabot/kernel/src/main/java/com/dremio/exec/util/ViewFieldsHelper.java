@@ -19,6 +19,7 @@ import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
 import java.util.List;
 
+import org.apache.arrow.flatbuf.Field;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.common.expression.CompleteType;
@@ -30,6 +31,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.collect.Lists;
+import com.google.flatbuffers.FlatBufferBuilder;
 
 import io.protostuff.ByteString;
 
@@ -89,6 +91,7 @@ public final class ViewFieldsHelper {
       viewField.setScale(completeType.getScale());
       viewField.setIsNullable(true);
       viewField.setTypeFamily(sqlTypeName.getFamily().toString());
+      viewField.setSerializedField(ByteString.copyFrom(serializeField(field)));
 
       // TODO (AH)
       //viewField.setStartUnit();
@@ -97,5 +100,17 @@ public final class ViewFieldsHelper {
       fields.add(viewField);
     }
     return fields;
+  }
+
+  public static byte[] serializeField(org.apache.arrow.vector.types.pojo.Field field) {
+    FlatBufferBuilder builder = new FlatBufferBuilder();
+    builder.finish(field.getField(builder));
+    return builder.sizedByteArray();
+  }
+
+  public static org.apache.arrow.vector.types.pojo.Field deserializeField(ByteString bytes) {
+    Field field = Field.getRootAsField(bytes.asReadOnlyByteBuffer());
+    org.apache.arrow.vector.types.pojo.Field f = org.apache.arrow.vector.types.pojo.Field.convertField(field);
+    return f;
   }
 }

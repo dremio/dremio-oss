@@ -677,6 +677,20 @@ public class BaseTestQuery extends ExecTest {
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
   }
 
+  protected static AutoCloseable enableINPushDown() {
+    setSystemOption(PlannerSettings.ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN, "true");
+    return () ->
+      setSystemOption(PlannerSettings.ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN,
+        PlannerSettings.ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableMultipleConditionPushDown() {
+    setSystemOption(PlannerSettings.ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN, "true");
+    return () ->
+      setSystemOption(PlannerSettings.ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN,
+        PlannerSettings.ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN.getDefault().getBoolVal().toString());
+  }
+
   protected static AutoCloseable treatScanAsBoost() {
     setSystemOption(ExecConstants.ENABLE_BOOSTING, "true");
     return () ->

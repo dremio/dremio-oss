@@ -26,6 +26,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -33,7 +34,6 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
-import com.dremio.exec.expr.CodeModelArrowHelper;
 import com.dremio.exec.expr.HiveFuncHolderExpr;
 import com.dremio.exec.expr.fn.impl.hive.DeferredObject;
 import com.dremio.exec.expr.fn.impl.hive.ObjectInspectorHelper;

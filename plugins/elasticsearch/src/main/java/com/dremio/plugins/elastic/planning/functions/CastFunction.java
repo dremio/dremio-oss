@@ -54,6 +54,9 @@ class CastFunction extends ElasticFunction {
           case BOOLEAN:
             return "(" + inputScript + ").toLowerCase().equals('true') ? true : false";
           case ANY:
+          case ROW:
+          case STRUCTURED:
+          case ARRAY:
             return inputScript;
           default:
             throw new RuntimeException("Cannot push down anything but trivial casts");
@@ -84,6 +87,9 @@ class CastFunction extends ElasticFunction {
               return String.format("Double.toString(%s)", inputScript);
             }
           case ANY:
+          case ROW:
+          case STRUCTURED:
+          case ARRAY:
             return inputScript;
           default:
             throw new RuntimeException("Cannot push down anything but trivial casts");
@@ -114,6 +120,9 @@ class CastFunction extends ElasticFunction {
               return String.format("Long.toString(%s)", inputScript);
             }
           case ANY:
+          case ROW:
+          case STRUCTURED:
+          case ARRAY:
             return inputScript;
           default:
         }

@@ -62,6 +62,7 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
@@ -160,7 +161,7 @@ class ScanWithHiveReader {
                                 ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
-  static Iterator<RecordReader> createReaders(
+  static RecordReaderIterator createReaders(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
@@ -171,7 +172,7 @@ class ScanWithHiveReader {
       List<SplitAndPartitionInfo> splits){
 
     if(splits.isEmpty()) {
-      return Collections.emptyIterator();
+      return RecordReaderIterator.from(Collections.emptyIterator());
     }
 
     Iterable<RecordReader> readers = null;
@@ -195,7 +196,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return readers.iterator();
+      return RecordReaderIterator.from(readers.iterator());
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

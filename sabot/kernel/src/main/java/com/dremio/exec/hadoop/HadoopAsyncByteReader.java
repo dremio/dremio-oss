@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.hadoop;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -24,6 +26,7 @@ import java.util.concurrent.Executors;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.Path;
 
 import io.netty.buffer.ByteBuf;
@@ -38,10 +41,13 @@ public class HadoopAsyncByteReader implements AsyncByteReader {
   private final Path path;
   private final FSInputStream inputStream;
   private final String threadName;
+  private final HadoopFileSystem hadoopFileSystem;
+  private volatile CompletableFuture<Void> versionFuture = null;
 
-  public HadoopAsyncByteReader(final Path path, final FSInputStream inputStream) {
+  public HadoopAsyncByteReader(HadoopFileSystem hadoopFileSystem, final Path path, final FSInputStream inputStream) {
     this.path = path;
     this.inputStream = inputStream;
+    this.hadoopFileSystem = hadoopFileSystem;
     this.threadName = Thread.currentThread().getName();
   }
 
@@ -57,6 +63,35 @@ public class HadoopAsyncByteReader implements AsyncByteReader {
         throw new CompletionException(e);
       }
     }, threadPool);
+  }
+
+  @Override
+  public CompletableFuture<Void> checkVersion(String version) {
+    if (versionFuture != null) {
+      return versionFuture;
+    }
+
+    synchronized (this) {
+      if (versionFuture == null) {
+        versionFuture = CompletableFuture.runAsync(() -> {
+          FileAttributes fileAttributes;
+          try {
+            fileAttributes = hadoopFileSystem.getFileAttributes(path);
+          } catch (IOException ioe) {
+            throw new CompletionException(ioe);
+          }
+
+          long lastModified = fileAttributes.lastModifiedTime().toMillis();
+          long expected = Long.parseLong(version);
+          if (lastModified != expected) {
+            throw new CompletionException(new FileNotFoundException(String.format(
+                "File: %s has changed. Expected mtime to be %s, but found %s",
+                path, expected, lastModified)));
+          }
+        }, threadPool);
+      }
+    }
+    return versionFuture;
   }
 
   private void readFully(FSInputStream in, long offset, ByteBuffer buf) throws Exception {

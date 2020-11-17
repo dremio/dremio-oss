@@ -20,6 +20,7 @@ import java.io.IOException;
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.expression.ExpressionStringBuilder;
@@ -87,6 +88,11 @@ public class TreeTest extends DremioTest {
   @Test // DRILL-2606
   public void testCastToBooleanExpr() throws Exception{
     testExpressionParsing("cast( (cast( (`bool_col` ) as VARCHAR(100) ) ) as BIT )");
+  }
+
+  @Test
+  public void testInExpr() throws Exception {
+    testExpressionParsing("$x in ( 1 , 2, 3, 4, 5)");
   }
 
   private LogicalExpression parseExpression(String expr) throws RecognitionException, IOException{

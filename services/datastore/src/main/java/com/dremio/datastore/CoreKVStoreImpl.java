@@ -102,7 +102,7 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
       if (!rawStore.validateAndDelete(key.getSerializedBytes(), tagInfo, options)) {
         Document<byte[], byte[]> current = rawStore.get(key.getSerializedBytes());
         throw new ConcurrentModificationException(
-          String.format("Unable to delete source, expected tag %s but found tag %s", tagInfo.getTag(), current.getTag()));
+          String.format("Cannot delete, expected tag %s but found tag %s",  tagInfo.getTag(), current.getTag()));
       }
     } else {
       rawStore.delete(key.getSerializedBytes(), options);

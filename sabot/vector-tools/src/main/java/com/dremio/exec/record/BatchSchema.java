@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -353,6 +354,61 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     BatchSchema thisUpperCaseFields = new BatchSchema(this.getSelectionVectorMode(), this.getFields().stream().map(UPPERCASE_NAME).collect(Collectors.toList()));
 
     return thisUpperCaseFields.equals(thatUpperCaseFields);
+  }
+
+  private boolean compareFields(List<Field> srcFields, List<Field> tgtFields) {
+    if (srcFields == null && tgtFields == null) {
+      return true;
+    }
+    if (srcFields == null || tgtFields == null) {
+      return false;
+    }
+    if (srcFields.size() != tgtFields.size()) {
+      return false;
+    }
+    Map<String, Field> srcChildrenFields = new HashMap<>();
+    for(Field srcField: srcFields) {
+      srcChildrenFields.put(srcField.getName().toLowerCase(), srcField);
+    }
+
+    for(Field tgtChildField: tgtFields) {
+      Field srcChildField = srcChildrenFields.get(tgtChildField.getName().toLowerCase());
+      if (srcChildField == null) {
+        return false;
+      }
+      if (!compareField(srcChildField, tgtChildField)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private boolean compareField(Field src, Field tgt) {
+    Preconditions.checkArgument(src !=null && tgt != null, "Unexpected state");
+    if(!src.getName().toLowerCase().equalsIgnoreCase(tgt.getName().toLowerCase())) {
+      return false;
+    }
+
+    boolean typesEqual;
+    CompleteType srcCompleteType = CompleteType.fromField(src);
+    CompleteType tgtCompleteType = CompleteType.fromField(tgt);
+    if(srcCompleteType.isUnion() && tgtCompleteType.isUnion()) {
+      return compareFields(srcCompleteType.getChildren(), tgtCompleteType.getChildren());
+    } else {
+      typesEqual = Objects.equals(src.getType(), tgt.getType());
+    }
+    if(!Objects.equals(src.isNullable(), tgt.isNullable()) ||
+      !typesEqual ||
+      !Objects.equals(src.getDictionary(), tgt.getDictionary()) ||
+      !Objects.equals(src.getMetadata(), tgt.getMetadata())) {
+      return false;
+    }
+    return compareFields(src.getChildren(), tgt.getChildren());
+  }
+
+  public boolean equalsTypesWithoutPositions(BatchSchema that) {
+    return compareFields(this.getFields(), that.getFields()) && Objects.equals(this.selectionVectorMode, that.selectionVectorMode);
   }
 
   public boolean equalsTypesAndPositions(BatchSchema schema){

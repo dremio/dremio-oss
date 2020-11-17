@@ -23,11 +23,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.schema.DecimalMetadata;
 import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
@@ -40,6 +47,9 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.store.parquet2.LogicalListL1Converter;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 public class ParquetTypeHelper {
   private static Map<MinorType, PrimitiveTypeName> typeMap;
@@ -186,6 +196,10 @@ public class ParquetTypeHelper {
   }
 
   public static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper) {
+    return toField(parquetField, schemaHelper, false);
+  }
+
+  private static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper, boolean convertToStruct) {
     if (parquetField.isPrimitive()) {
       SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
       return Optional.of(createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper));
@@ -207,7 +221,23 @@ public class ParquetTypeHelper {
       return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
     }
 
-    final boolean isStructType = complexField.getOriginalType() == null;
+    if (OriginalType.MAP == complexField.getOriginalType() && !convertToStruct) {
+      GroupType repeatedField = (GroupType) complexField.getFields().get(0);
+
+      // should have only one child field type
+      if (repeatedField.isPrimitive() || !repeatedField.isRepetition(REPEATED) || repeatedField.asGroupType().getFields().size() != 2) {
+        throw UserException.unsupportedError()
+          .message("Parquet Map Type is expected to contain key and value fields. Column '%s' contains %d", parquetField.getName(), repeatedField.getFieldCount())
+          .build();
+      }
+
+      Optional<Field> subField = toField(repeatedField, schemaHelper,true);
+      subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
+      subField = subField.map(sf -> new Field(repeatedField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+      return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+    }
+
+    final boolean isStructType = complexField.getOriginalType() == null || convertToStruct;
     if (isStructType) { // it is struct
       return toComplexField(complexField, new ArrowType.Struct(), schemaHelper);
     }
@@ -228,5 +258,88 @@ public class ParquetTypeHelper {
     }
 
     return Optional.of(new Field(complexField.getName(), true, arrowType, subFields));
+  }
+
+  private static boolean includeChunk(String name, SortedSet<String> allProjectedPaths, boolean allowPartialMatch) {
+    boolean included =  allProjectedPaths == null ||
+      allProjectedPaths.contains(name);
+    if (!included && allowPartialMatch) {
+      included = !allProjectedPaths.subSet(name + ".", name + "." + Character.MAX_VALUE).isEmpty();
+    }
+    return included;
+  }
+
+  public static SortedMap<String, ColumnChunkMetaData> unWrapParquetSchema(BlockMetaData block, MessageType schema,
+                                                                           SortedSet<String> allProjectedPaths) {
+    SortedMap<String, ColumnChunkMetaData> unwrappedColumns = new TreeMap<>(String::compareToIgnoreCase);
+    for(ColumnChunkMetaData c : block.getColumns()) {
+      ColumnDescriptor columnDesc = schema.getColumnDescription(c.getPath().toArray());
+      Type type = schema;
+      List<String> columnPath = Lists.newArrayList(columnDesc.getPath());
+      int index = 0;
+      boolean chunkIncluded = includeChunk(columnPath.get(0), allProjectedPaths, true);
+      if (!chunkIncluded) {
+        continue;
+      }
+      chunkIncluded = false;
+      StringBuilder stringBuilder = new StringBuilder();
+      while (!type.isPrimitive()) {
+        type = type.asGroupType().getType(columnPath.get(index));
+        if (index > 0) {
+          stringBuilder.append(".");
+        }
+        stringBuilder.append(columnPath.get(index));
+        chunkIncluded = chunkIncluded || includeChunk(stringBuilder.toString(), allProjectedPaths, false);
+        if (type.getOriginalType() == OriginalType.LIST)  {
+          if (!LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
+            throw UserException.dataReadError()
+              .message("Unsupported LOGICAL LIST parquet schema")
+              .addContext("schema", schema)
+              .buildSilently();
+          }
+          type = type.asGroupType().getType(columnPath.get(index+1));
+          stringBuilder.append(".list");
+          columnPath.remove(index+1);
+
+          type = type.asGroupType().getType(columnPath.get(index+1));
+
+          while(type.getOriginalType() == OriginalType.LIST)  {
+            if (!LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
+              throw UserException.dataReadError()
+                .message("Unsupported LOGICAL LIST parquet schema")
+                .addContext("schema", schema)
+                .buildSilently();
+            }
+            stringBuilder.append(".element");
+            chunkIncluded = chunkIncluded || includeChunk(stringBuilder.toString(), allProjectedPaths, false);
+            columnPath.remove(index+1);
+
+            type = type.asGroupType().getType(columnPath.get(index+1));
+            stringBuilder.append(".list");
+            columnPath.remove(index+1);
+
+            type = type.asGroupType().getType(columnPath.get(index+1));
+          }
+
+          stringBuilder.append(".element");
+          chunkIncluded = chunkIncluded || includeChunk(stringBuilder.toString(), allProjectedPaths, false);
+          columnPath.remove(index+1);
+        }
+        if (type.getOriginalType() == OriginalType.MAP) {
+          index++;
+          Preconditions.checkState(type.asGroupType().getFieldCount() == 1, "Map column has more than one field");
+          type = type.asGroupType().getFields().get(0);
+          stringBuilder.append("." + type.getName());
+          chunkIncluded = chunkIncluded || includeChunk(stringBuilder.toString(), allProjectedPaths, false);
+          stringBuilder.append(".list.element");
+          chunkIncluded = chunkIncluded || includeChunk(stringBuilder.toString(), allProjectedPaths, false);
+        }
+        index++;
+      }
+      if (chunkIncluded) {
+        unwrappedColumns.put(stringBuilder.toString().toLowerCase(), c);
+      }
+    }
+    return unwrappedColumns;
   }
 }

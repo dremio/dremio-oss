@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.9.1-202010230218060541-2e764ed0</version>
+    <version>11.0.0-202011171636110752-16ab953d</version>
   </parent>
 
   <artifactId>dremio-hdfs-plugin</artifactId>

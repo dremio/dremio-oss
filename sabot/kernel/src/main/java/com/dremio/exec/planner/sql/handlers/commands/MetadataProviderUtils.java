@@ -126,10 +126,10 @@ final class MetadataProviderUtils {
    * @param defaultCatalog default catalog override
    * @return column metadata
    */
-  public static Stream<ColumnMetadata> toColumnMetadata(TableSchema tableSchema, String defaultCatalog) {
+  public static Stream<ColumnMetadata> toColumnMetadata(TableSchema tableSchema, String defaultCatalog, boolean complexTypeSupport) {
     final RelDataType rowType =
       CalciteArrowHelper.wrap(BatchSchema.deserialize(tableSchema.getBatchSchema().toByteArray()))
-        .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
+        .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE, complexTypeSupport);
     return rowType.getFieldList().stream()
       .map(field -> new Column(Strings.isNullOrEmpty(defaultCatalog) ? tableSchema.getCatalogName() : defaultCatalog,
         tableSchema.getSchemaName(),

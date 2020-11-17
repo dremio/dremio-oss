@@ -98,7 +98,7 @@ public class OperatorWrapper {
   public static final String[] HOST_METRICS_COLUMNS = { "Hostname", "Num Threads", "Total Max Records",
     "Total Process Time", "Record Processing Rate" };
 
-  public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset"};
+  public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset", "Operation Type"};
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -227,6 +227,18 @@ public class OperatorWrapper {
       builder.endEntry();
     }
     builder.end();
+  }
+
+  private void addSlowIO(JsonBuilder builder, List<SlowIOInfo> info, String type) throws IOException {
+    for (SlowIOInfo ioInfo : info) {
+      builder.startEntry();
+      builder.appendString(ioInfo.getFilePath());
+      builder.appendString(Long.toString(ioInfo.getIoTime()));
+      builder.appendString(Long.toString(ioInfo.getIoSize()));
+      builder.appendString(Long.toString(ioInfo.getIoOffset()));
+      builder.appendString(type);
+      builder.endEntry();
+    }
   }
 
   public void addMetrics(JsonGenerator generator) throws IOException {
@@ -360,14 +372,8 @@ public class OperatorWrapper {
       builder.end();
     } else {
       JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
-      for (SlowIOInfo splitInfo : foundOp.getDetails().getSlowIoInfosList()) {
-        builder.startEntry();
-        builder.appendString(splitInfo.getFilePath());
-        builder.appendString(Long.toString(splitInfo.getIoTime()));
-        builder.appendString(Long.toString(splitInfo.getIoSize()));
-        builder.appendString(Long.toString(splitInfo.getIoOffset()));
-        builder.endEntry();
-      }
+      addSlowIO(builder, foundOp.getDetails().getSlowIoInfosList(), "Data IO");
+      addSlowIO(builder, foundOp.getDetails().getSlowMetadataIoInfosList(), "Metadata IO");
       builder.end();
     }
   }

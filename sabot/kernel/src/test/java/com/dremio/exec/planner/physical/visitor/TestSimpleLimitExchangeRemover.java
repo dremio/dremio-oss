@@ -92,6 +92,8 @@ public class TestSimpleLimitExchangeRemover {
     when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
     when(optionManager.getOption(eq(ExecConstants.SLICE_TARGET)))
       .thenReturn(ExecConstants.SLICE_TARGET_OPTION.getDefault());
+    when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
+      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
       .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))

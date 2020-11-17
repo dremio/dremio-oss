@@ -64,6 +64,10 @@ public class TestExampleQueries extends PlanTestBase {
     testNoResult("ALTER SESSION RESET ALL");
   }
 
+  @Test
+  public void testNullInInClause() throws Exception {
+    test("select * from cp.\"tpch/lineitem.parquet\" where l_orderkey in (-1, null)");
+  }
 
   @Test
   public void nullBinaryLiteral() throws Exception {

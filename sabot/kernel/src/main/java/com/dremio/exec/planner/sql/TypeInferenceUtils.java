@@ -27,6 +27,7 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
@@ -113,8 +114,9 @@ public class TypeInferenceUtils {
 
       // (3) Calcite types currently not supported by Dremio, nor defined in the Dremio type list:
       //      - SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
-      // .put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
-      // .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
+      // .put(SqlTypeName.MAP, TypeProtos.MinorType.STRUCT)
+       .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
+       .put(SqlTypeName.ROW, TypeProtos.MinorType.STRUCT)
       .build();
 
   private static final ImmutableMap<String, SqlReturnTypeInference> funcNameToInference = ImmutableMap.<String, SqlReturnTypeInference> builder()
@@ -128,7 +130,7 @@ public class TypeInferenceUtils {
       .put("BTRIM", PadTrimSqlReturnTypeInference.INSTANCE)
       .put("TRIM", PadTrimSqlReturnTypeInference.INSTANCE)
       .put("CONVERT_TO", ConvertToSqlReturnTypeInference.INSTANCE)
-      .put("FLATTEN", DeferToExecSqlReturnTypeInference.INSTANCE)
+      .put("FLATTEN", FlattenReturnTypeInference.INSTANCE)
       .put("KVGEN", DeferToExecSqlReturnTypeInference.INSTANCE)
       .put("CONVERT_FROM", ConvertFromReturnTypeInference.INSTANCE)
       .put("IS DISTINCT FROM", IsDistinctFromSqlReturnTypeInference.INSTANCE)
@@ -443,7 +445,19 @@ public class TypeInferenceUtils {
       return createCalciteTypeWithNullability(factory, type, opBinding.getOperandType(0).isNullable(), null);
     }
   }
+  private static class FlattenReturnTypeInference implements SqlReturnTypeInference {
+    private static final FlattenReturnTypeInference INSTANCE = new FlattenReturnTypeInference();
 
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+      final RelDataType operandType = opBinding.getOperandType(0);
+      if (operandType instanceof ArraySqlType) {
+        return ((ArraySqlType) operandType).getComponentType();
+      } else {
+        return DynamicReturnType.INSTANCE.inferReturnType(opBinding);
+      }
+    }
+  }
   private static class IsDistinctFromSqlReturnTypeInference implements SqlReturnTypeInference {
     private static final IsDistinctFromSqlReturnTypeInference INSTANCE = new IsDistinctFromSqlReturnTypeInference();
 

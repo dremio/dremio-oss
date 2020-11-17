@@ -18,9 +18,11 @@ package com.dremio.exec.expr.fn.impl;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
 
+import com.dremio.common.expression.fn.impl.HashBase;
+
 import io.netty.util.internal.PlatformDependent;
 
-public final class XXHash extends HashBase{
+public final class XXHash extends HashBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(XXHash.class);
 
   //UnsignedLongs.decode won't give right output(keep the value in 8 bytes unchanged).

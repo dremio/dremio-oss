@@ -15,10 +15,12 @@
  */
 package com.dremio.io;
 
+import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
@@ -30,6 +32,8 @@ import io.netty.buffer.Unpooled;
  * A simplified asynchronous data reading interface.
  */
 public interface AsyncByteReader extends AutoCloseable {
+  CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
+
   /**
    * Read data into the provided dst buffer. Attempts to do so offheap.
    * @param offset The offset in the underlying data.
@@ -39,6 +43,38 @@ public interface AsyncByteReader extends AutoCloseable {
    * @return A CompletableFuture that will be informed when the read is completed.
    */
   CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len);
+
+  /**
+   * Checks if the version of the file being read has changed. Note that
+   * this should create a singleton instance of the Future to checkVersion. This API
+   * is called repeatedly as part of {@link #versionedReadFully} and would cause a
+   * performance degradation if the version check is done multiple times.
+   *
+   * @param version The expected version of the file
+   *
+   * @return A CompletableFuture that will be informed when the check is complete
+   */
+  default CompletableFuture<Void> checkVersion(String version) {
+    return completedFuture;
+  }
+
+  /**
+   * Verifies that the object's version has not changed and reads the object
+   * @return
+   */
+  default CompletableFuture<Void> versionedReadFully(String version, long offset, ByteBuf dst, int dstOffset, int len) {
+    return CompletableFuture
+        .allOf(checkVersion(version), readFully(offset, dst, dstOffset, len))
+        .whenComplete((v, e) -> {
+          if (e != null) {
+            Throwable cause = e.getCause();
+            if (cause instanceof FileNotFoundException) {
+              throw new CompletionException(cause);
+            }
+            throw new CompletionException(e);
+          }
+        });
+  }
 
   /**
    * Read data and return as a byte array.

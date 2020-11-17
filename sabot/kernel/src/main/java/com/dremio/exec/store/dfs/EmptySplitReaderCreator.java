@@ -51,7 +51,7 @@ public class EmptySplitReaderCreator extends SplitReaderCreator {
   }
 
   @Override
-  public RecordReader createRecordReader() {
+  public RecordReader createRecordReader(MutableParquetMetadata footer) {
     return new EmptyRecordReader();
   }
 

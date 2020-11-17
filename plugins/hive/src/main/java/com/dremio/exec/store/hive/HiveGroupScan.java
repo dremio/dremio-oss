@@ -94,7 +94,7 @@ public class HiveGroupScan extends AbstractGroupScan {
     final HiveProxiedSubScan proxiedSubScan = new HiveSubScan(props, splits, schema, dataset.getName().getPathComponents(),
       filter, pluginId, columns, readDefinition.getPartitionColumnsList(), ByteStringUtil.unwrap(readDefinition.getExtendedProperty()));
 
-    return new HiveProxyingSubScan(pluginId.getName(), proxiedSubScan);
+    return new HiveProxyingSubScan(pluginId, proxiedSubScan);
   }
 
   @Override

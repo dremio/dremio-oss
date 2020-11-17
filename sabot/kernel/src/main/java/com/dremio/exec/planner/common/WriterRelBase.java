@@ -22,6 +22,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.RecordWriter;
 
@@ -36,7 +37,7 @@ public abstract class WriterRelBase extends SingleRel {
     assert input.getConvention() == convention;
     this.createTableEntry = createTableEntry;
 
-    rowType = CalciteArrowHelper.wrap(RecordWriter.SCHEMA).toCalciteRecordType(getCluster().getTypeFactory());
+    rowType = CalciteArrowHelper.wrap(RecordWriter.SCHEMA).toCalciteRecordType(getCluster().getTypeFactory(), PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport());
   }
 
   public CreateTableEntry getCreateTableEntry() {

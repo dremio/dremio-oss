@@ -15,11 +15,11 @@
  */
 package com.dremio.exec.store.ischema;
 
-import java.util.Collections;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -37,9 +37,9 @@ public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchem
             : InfoSchemaConstants.IS_CATALOG_NAME;
     final RecordReader reader = new InformationSchemaRecordReader(context, config.getColumns(),
         plugin.getSabotContext().getInformationSchemaServiceBlockingStub(), table,
-        catalogName, config.getProps().getUserName(), config.getQuery());
+        catalogName, config.getProps().getUserName(), config.getQuery(), context.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT));
 
-    return new ScanOperator(config, context, Collections.singleton(reader).iterator());
+    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
   }
 
 }

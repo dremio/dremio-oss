@@ -115,6 +115,7 @@ public class TestYarnController {
     assertTrue(jvmOptions.contains(" -Dpaths.dist=pdfs:///data/mydata/pdfs"));
     assertTrue(jvmOptions.contains(" -Xmx4096"));
     assertTrue(jvmOptions.contains(" -XX:MaxDirectMemorySize=5120m"));
+    assertTrue(jvmOptions.contains(" -XX:+PrintClassHistogramAfterFullGC"));
     assertTrue(jvmOptions.contains(" -Xms4096m"));
     assertTrue(jvmOptions.contains(" -XX:ThreadStackSize=512"));
     assertTrue(jvmOptions.contains(" -Dzookeeper.saslprovider=com.mapr.security.maprsasl.MaprSaslProvider"));

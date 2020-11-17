@@ -350,23 +350,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
           "  },\n" +
           "  \"_source\" : {\n" +
           "    \"includes\" : [\n" +
-          "      \"_index\",\n" +
-          "      \"_type\",\n" +
-          "      \"_uid\",\n" +
-          "      \"business_id\",\n" +
-          "      \"city\",\n" +
-          "      \"city_analyzed\",\n" +
-          "      \"datefield\",\n" +
-          "      \"datefield2\",\n" +
-          "      \"full_address\",\n" +
-          "      \"location_field\",\n" +
-          "      \"name\",\n" +
-          "      \"open\",\n" +
-          "      \"review_count\",\n" +
-          "      \"stars\",\n" +
-          "      \"state\",\n" +
-          "      \"state_analyzed\",\n" +
-          "      \"test_map\"\n" +
+          "      \"location_field\"\n" +
           "    ],\n" +
           "    \"excludes\" : [ ]\n" +
           "  }\n" +
@@ -406,23 +390,10 @@ public class ITTestLimit extends ElasticBaseTestQuery {
           "  },\n" +
           "  \"_source\" : {\n" +
           "    \"includes\" : [\n" +
-          "      \"_index\",\n" +
-          "      \"_type\",\n" +
-          "      \"_uid\",\n" +
-          "      \"business_id\",\n" +
-          "      \"city\",\n" +
           "      \"city_analyzed\",\n" +
-          "      \"datefield\",\n" +
-          "      \"datefield2\",\n" +
-          "      \"full_address\",\n" +
-          "      \"location_field\",\n" +
-          "      \"name\",\n" +
-          "      \"open\",\n" +
           "      \"review_count\",\n" +
           "      \"stars\",\n" +
-          "      \"state\",\n" +
-          "      \"state_analyzed\",\n" +
-          "      \"test_map\"\n" +
+          "      \"state\"\n" +
           "    ],\n" +
           "    \"excludes\" : [ ]\n" +
           "  }\n" +
@@ -459,23 +430,10 @@ public class ITTestLimit extends ElasticBaseTestQuery {
           "  },\n" +
           "  \"_source\" : {\n" +
           "    \"includes\" : [\n" +
-          "      \"_index\",\n" +
-          "      \"_type\",\n" +
-          "      \"_uid\",\n" +
-          "      \"business_id\",\n" +
-          "      \"city\",\n" +
           "      \"city_analyzed\",\n" +
-          "      \"datefield\",\n" +
-          "      \"datefield2\",\n" +
-          "      \"full_address\",\n" +
-          "      \"location_field\",\n" +
-          "      \"name\",\n" +
-          "      \"open\",\n" +
           "      \"review_count\",\n" +
           "      \"stars\",\n" +
-          "      \"state\",\n" +
-          "      \"state_analyzed\",\n" +
-          "      \"test_map\"\n" +
+          "      \"state\"\n" +
           "    ],\n" +
           "    \"excludes\" : [ ]\n" +
           "  }\n" +

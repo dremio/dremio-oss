@@ -21,6 +21,7 @@ import java.util.Set;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
+import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;

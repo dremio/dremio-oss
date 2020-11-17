@@ -38,7 +38,9 @@ import org.apache.calcite.schema.Function;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
+import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
@@ -94,6 +96,7 @@ import io.protostuff.ByteString;
 public class CatalogImpl implements Catalog {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogImpl.class);
+  private static final int MAX_RETRIES = 5;
 
   private final MetadataRequestOptions options;
   private final PluginRetriever pluginRetriever;
@@ -149,11 +152,6 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public void deleteDataset(NamespaceKey datasetPath, String version) throws NamespaceException {
-    userNamespaceService.deleteDataset(datasetPath, version);
-  }
-
-  @Override
   public DremioTable getTableNoResolve(NamespaceKey key)
   {
     final DremioTable t = datasets.getTable(key, options, false);
@@ -179,12 +177,32 @@ public class CatalogImpl implements Catalog {
       final DremioTable t = datasets.getTable(resolved, options, false);
       if (t != null) {
         addUniqueSource(t);
+        if (t instanceof ViewTable) {
+          View view = ((ViewTable) t).getView();
+          try {
+            if (view.isFieldUpdated()) {
+              updateView(resolved, ((ViewTable) t).getView());
+            }
+          } catch (Exception ex) {
+            logger.warn("Failed to update view with updated nested schema: ", ex);
+          }
+        }
         return t;
       }
     }
     final DremioTable t = datasets.getTable(key, options, false);
     if (t != null) {
       addUniqueSource(t);
+      if (t instanceof ViewTable) {
+        View view = ((ViewTable) t).getView();
+        try {
+          if (view.isFieldUpdated()) {
+            updateView(resolved, ((ViewTable) t).getView());
+          }
+        } catch (Exception ex) {
+          logger.warn("Failed to update view with updated nested schema: ", ex);
+        }
+      }
     }
     return t;
   }
@@ -630,6 +648,89 @@ public class CatalogImpl implements Catalog {
     } catch (NamespaceException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  private boolean isSystemTable(DatasetConfig config) {
+    // check if system tables and information schema.
+    final String root = config.getFullPathList().get(0);
+    if( ("sys").equals(root) || ("INFORMATION_SCHEMA").equals(root) ) {
+      return true;
+    }
+    return false;
+  }
+
+  private DatasetConfig getConfigFromNamespace(NamespaceKey key) {
+    try {
+      return userNamespaceService.getDataset(key);
+    } catch(NamespaceNotFoundException ex) {
+      return null;
+    } catch(NamespaceException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  private DatasetConfig getConfigByCanonicalKey(NamespaceKey key) {
+
+    final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), false);
+
+    if (plugin == null) {
+      return null;
+    }
+
+    final Optional<DatasetHandle> handle;
+    try {
+        handle = plugin.getDatasetHandle(key, null, plugin.getDefaultRetrievalOptions());
+    } catch (ConnectorException e) {
+        throw UserException.validationError(e)
+          .message("Failure while retrieving dataset [%s].", key)
+          .build(logger);
+    }
+
+    if (handle.isPresent()) {
+      final NamespaceKey canonicalKey = MetadataObjectsUtils.toNamespaceKey(handle.get().getDatasetPath());
+      if (!canonicalKey.equals(key)) {
+        // before we do anything with this accessor, we should reprobe namespace as it is possible that the request the
+        // user made was not the canonical key and therefore we missed when trying to retrieve data from the namespace.
+        return getConfigFromNamespace(canonicalKey);
+      }
+    }  // handle is present
+
+    return null;
+  }
+
+  @Override
+  public void forgetTable(NamespaceKey key) {
+
+    int count = 0;
+
+    while (true) {
+      DatasetConfig dataset;
+      dataset = getConfigFromNamespace(key);
+
+      if (dataset == null) {
+        // try to check if canonical key finds
+        dataset = getConfigByCanonicalKey(key);
+      } // passed-in key not found in kv
+
+      if(dataset == null || isSystemTable(dataset)) {
+        throw UserException.parseError().message("Unable to find table %s.", key).build(logger);
+      }
+
+      try {
+        userNamespaceService.deleteDataset(new NamespaceKey(dataset.getFullPathList()), dataset.getTag());
+        break;
+      } catch (NamespaceNotFoundException ex) {
+        logger.debug("Table to delete not found", ex);
+      } catch (ConcurrentModificationException ex) {
+        if (count++ < MAX_RETRIES) {
+          logger.debug("Concurrent failure.", ex);
+        } else {
+          throw ex;
+        }
+      } catch(NamespaceException ex) {
+        throw new RuntimeException(ex);
+      }
+    } // while loop
   }
 
   @Override

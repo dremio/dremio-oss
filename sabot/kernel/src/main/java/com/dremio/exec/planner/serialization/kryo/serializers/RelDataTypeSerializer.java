@@ -17,6 +17,7 @@ package com.dremio.exec.planner.serialization.kryo.serializers;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelRecordType;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -32,6 +33,10 @@ public class RelDataTypeSerializer<T extends RelDataType> extends Serializer<T> 
   protected RelDataTypeSerializer(final Kryo kryo, final Class type, final RelDataTypeFactory typeFactory) {
     this.typeFactory = Preconditions.checkNotNull(typeFactory, "factory is required");
     this.delegate = new FieldSerializer<>(kryo, type);
+    if (type.isAssignableFrom(RelRecordType.class)) {
+      // Exclude "nullable" field in serializer. Including this field in serializer causes compatibility issue.
+      delegate.removeField("nullable");
+    }
   }
 
   @Override
@@ -49,7 +54,10 @@ public class RelDataTypeSerializer<T extends RelDataType> extends Serializer<T> 
     }
 
     // be gentle to calcite and normalize the returned data type. normalization here means to use same type instances.
-    final T result = (T) typeFactory.copyType(dataType);
+    T result = (T) typeFactory.copyType(dataType);
+    if (type.isAssignableFrom(RelRecordType.class) && result.getFieldList().stream().allMatch(field -> field.getType().isNullable())) {
+      result = (T) typeFactory.createTypeWithNullability(result, true);
+    }
     kryo.reference(result);
     return result;
   }

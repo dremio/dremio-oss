@@ -22,6 +22,8 @@ import java.util.Map;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelColumnOrigin;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
@@ -103,6 +105,7 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
     final RelNode currentRight;
     final List<Integer> leftKeys;
     final List<Integer> rightKeys;
+    final RelMetadataQuery relMetadataQuery = hashJoinPrel.getCluster().getMetadataQuery();
 
     //identify probe sie and build side prel tree
     if (hashJoinPrel.isSwapped()) {
@@ -134,6 +137,13 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
       Integer rightKey = rightKeys.get(keyIndex++);
       String rightFieldName = rightFields.get(rightKey);
 
+      //avoid runtime filter if the join column is not original column
+      final RelColumnOrigin leftColumnOrigin = relMetadataQuery.getColumnOrigin(currentLeft, leftKey);
+      if (null == leftColumnOrigin) {
+        //this includes column is derived
+        continue;
+      }
+
       //This also avoids the left field of the join condition with a function call.
       ScanPrelBase scanPrel = findLeftScanPrel(leftFieldName, currentLeft);
       if (scanPrel != null) {
@@ -154,12 +164,16 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
         return null;
       }
     }
+    if(!partitionColumns.isEmpty() || !nonPartitionColumns.isEmpty()) {
+      return new RuntimeFilterInfo.Builder()
+        .nonPartitionJoinColumns(nonPartitionColumns)
+        .partitionJoinColumns(partitionColumns)
+        .isBroadcastJoin((rightExchangePrel instanceof BroadcastExchangePrel))
+        .build();
+    } else {
+      return null;
+    }
 
-    return new RuntimeFilterInfo.Builder()
-          .nonPartitionJoinColumns(nonPartitionColumns)
-          .partitionJoinColumns(partitionColumns)
-          .isBroadcastJoin((rightExchangePrel instanceof BroadcastExchangePrel))
-          .build();
   }
 
   /**

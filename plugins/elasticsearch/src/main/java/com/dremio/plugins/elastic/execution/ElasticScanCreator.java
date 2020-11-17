@@ -24,6 +24,7 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.vector.complex.fn.WorkingBuffer;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
@@ -83,7 +84,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
             ));
       }
 
-      return new ScanOperator(subScan, context, readers.iterator());
+      return new ScanOperator(subScan, context, RecordReaderIterator.from(readers.iterator()));
     } catch (InvalidProtocolBufferException e) {
       throw new ExecutionSetupException(e);
     }

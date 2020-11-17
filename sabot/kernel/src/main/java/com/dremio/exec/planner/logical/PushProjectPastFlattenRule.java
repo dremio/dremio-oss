@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURED_WRAPPER;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 
@@ -69,7 +72,7 @@ public class PushProjectPastFlattenRule extends RelOptRule {
     return true;
   }
 
-  private static int findItemInputRefIndex(RexNode rexNode) {
+  private static int findStructuredColumnInputRefIndex(RexNode rexNode) {
     if (rexNode == null) {
       return -1;
     }
@@ -78,17 +81,23 @@ public class PushProjectPastFlattenRule extends RelOptRule {
       return ((RexInputRef) rexNode).getIndex();
     }
 
+    if ((rexNode instanceof RexFieldAccess)) {
+      return findStructuredColumnInputRefIndex(((RexFieldAccess) rexNode).getReferenceExpr());
+    }
+
     if (rexNode instanceof RexCall) {
       String functionName = ((RexCall) rexNode).getOperator().getName();
       if (functionName.equalsIgnoreCase("item")) {
-        return findItemInputRefIndex(((RexCall) rexNode).getOperands().get(0));
+        return findStructuredColumnInputRefIndex(((RexCall) rexNode).getOperands().get(0));
+      } else if (functionName.equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
+        return findStructuredColumnInputRefIndex(((RexCall) rexNode).getOperands().get(0));
       }
     }
 
     return -1;
   }
 
-  private static RexNode replaceItemInputRefIndex(RexBuilder rexBuilder, RexNode rexNode, int orig, int replace) {
+  private static RexNode replaceStructuredColumnInputRefIndex(RexBuilder rexBuilder, RexNode rexNode, int orig, int replace) {
     if (rexNode == null) {
       return null;
     }
@@ -98,13 +107,22 @@ public class PushProjectPastFlattenRule extends RelOptRule {
       return rexBuilder.makeInputRef(rexNode.getType(), replace);
     }
 
+    if (rexNode instanceof RexFieldAccess) {
+      RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
+      RexNode newExpr = replaceStructuredColumnInputRefIndex(rexBuilder, fieldAccess.getReferenceExpr(), orig, replace);
+      return rexBuilder.makeFieldAccess(newExpr, fieldAccess.getField().getName(), true);
+    }
+
     if (rexNode instanceof RexCall) {
       String functionName = ((RexCall) rexNode).getOperator().getName();
       if (functionName.equalsIgnoreCase("item")) {
         assert ((RexCall) rexNode).getOperands().size() == 2;
-        RexNode newInput0 = replaceItemInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
-        RexNode newInput1 = replaceItemInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(1), orig, replace);
+        RexNode newInput0 = replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
+        RexNode newInput1 = replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(1), orig, replace);
         return rexBuilder.makeCall(((RexCall) rexNode).getOperator(), newInput0, newInput1);
+      } else if (functionName.equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
+        assert ((RexCall) rexNode).getOperands().size() == 1;
+        return replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
       }
     }
 
@@ -132,8 +150,8 @@ public class PushProjectPastFlattenRule extends RelOptRule {
       int flattenIndex = ((RexInputRef) flattenRexNode).getIndex();
       for (RexNode projExpr : project.getProjects()) {
         int projectIndex;
-        if (projExpr instanceof RexCall) {
-          projectIndex = findItemInputRefIndex(projExpr);
+        if (projExpr instanceof RexCall || projExpr instanceof RexFieldAccess) {
+          projectIndex = findStructuredColumnInputRefIndex(projExpr);
         } else if (projExpr instanceof RexInputRef) {
           projectIndex = ((RexInputRef) projExpr).getIndex();
         } else {
@@ -208,9 +226,9 @@ public class PushProjectPastFlattenRule extends RelOptRule {
         newProjectRelExprs.add(
             rexBuilder.makeInputRef(project.getRowType().getFieldList().get(index).getType(),
                 oldProjIndexToNewIndex.get(oldIndex)));
-      } else if (expr instanceof RexCall){
-        int oldIndex = findItemInputRefIndex(expr);
-        RexNode replaced = replaceItemInputRefIndex(rexBuilder, expr, oldIndex, oldProjIndexToNewIndex.get(oldIndex));
+      } else if (expr instanceof RexCall || expr instanceof RexFieldAccess){
+        int oldIndex = findStructuredColumnInputRefIndex(expr);
+        RexNode replaced = replaceStructuredColumnInputRefIndex(rexBuilder, expr, oldIndex, oldProjIndexToNewIndex.get(oldIndex));
         assert replaced != null;
         newProjectRelExprs.add(replaced);
       }

@@ -46,21 +46,14 @@ public interface DatasetCatalog {
    */
   void addOrUpdateDataset(NamespaceKey namespaceKey, DatasetConfig dataset) throws NamespaceException;
 
-  /**
-   * Delete a dataset.
-   *
-   * @param namespaceKey
-   * @param version
-   * @throws NamespaceException
-   */
-  void deleteDataset(NamespaceKey namespaceKey, String version) throws NamespaceException;
-
   CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
                                   WriterOptions writerOptions, Map<String, Object> storageOptions);
 
   void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions);
 
   void dropTable(NamespaceKey key);
+
+  void forgetTable(NamespaceKey key);
 
   /**
    * Create a new dataset at this location and mutate the dataset before saving.

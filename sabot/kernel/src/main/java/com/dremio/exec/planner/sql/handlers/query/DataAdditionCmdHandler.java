@@ -52,6 +52,7 @@ import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
@@ -257,7 +258,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     if (!isCreate()) {
       BatchSchema partSchemaWithSelectedFields = tableSchemaFromKVStore.subset(fieldNames).orElse(tableSchemaFromKVStore);
       queryRowType = CalciteArrowHelper.wrap(partSchemaWithSelectedFields)
-          .toCalciteRecordType(convertedRelNode.getCluster().getTypeFactory());
+          .toCalciteRecordType(convertedRelNode.getCluster().getTypeFactory(), PrelUtil.getPlannerSettings(convertedRelNode.getCluster()).isFullNestedSchemaSupport());
     }
 
     convertedRelNode = new WriterRel(convertedRelNode.getCluster(),

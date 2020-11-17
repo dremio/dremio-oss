@@ -235,4 +235,18 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
     return 0;
   }
 
+  public String toDotString() {
+    StringBuilder pathValue = new StringBuilder();
+    pathValue.append(rootSegment.getNameSegment().getPath());
+    PathSegment seg = rootSegment.getChild();
+    while (seg != null) {
+      if (seg.isArray()) {
+        pathValue.append(".list.element");
+      } else {
+        pathValue.append(".").append(seg.getNameSegment().getPath());
+      }
+      seg = seg.getChild();
+    }
+    return pathValue.toString();
+  }
 }

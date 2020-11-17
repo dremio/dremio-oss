@@ -295,15 +295,19 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         ColumnIOFactory factory = new ColumnIOFactory(false);
         MessageColumnIO columnIO = factory.getColumnIO(projection, schema);
 
-        if (deltas != null) {
-          recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer, new UnboundRecordFilter() {
-            @Override
-            public RecordFilter bind(Iterable<ColumnReader> readers) {
-              return vectorizedBasedFilter = new VectorizedBasedFilter(readers, deltas);
-            }
-          });
+        if (footer.getBlocks().get(rowGroupIndex).getRowCount() > 0) {
+          if (deltas != null) {
+            recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer, new UnboundRecordFilter() {
+              @Override
+              public RecordFilter bind(Iterable<ColumnReader> readers) {
+                return vectorizedBasedFilter = new VectorizedBasedFilter(readers, deltas);
+              }
+            });
+          } else {
+            recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer);
+          }
         } else {
-          recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer);
+          recordReader = null;
         }
       }
     } catch (Exception e) {
@@ -472,6 +476,11 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     int count = 0;
     long maxRecordCount = 0;
     try {
+      // in case of no row groups or zero rows in the row group, return 0
+      if (footer.getBlocks() == null || footer.getBlocks().size() == 0 ||
+          footer.getBlocks().get(rowGroupIndex).getRowCount() == 0) {
+        return 0;
+      }
       // No columns found in the file were selected, simply return a full batch of null records for each column requested
       if (noColumnsFound) {
         if (mockRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount()) {

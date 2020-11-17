@@ -205,7 +205,7 @@ public class ScanBuilder {
     } else {
       includesOrderedByOriginalTable =
           CalciteArrowHelper.wrap(scan.getBatchSchema().mask(scan.getProjectedColumns(), false))
-            .toCalciteRecordType(scan.getCluster().getTypeFactory()).getFieldNames().toArray(new String[0]);
+            .toCalciteRecordType(scan.getCluster().getTypeFactory(), PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport()).getFieldNames().toArray(new String[0]);
     }
 
     // canonicalize includes order so we don't get test variability.

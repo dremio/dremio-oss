@@ -719,7 +719,7 @@ public class CatalogServiceHelper {
 
       List<String> path = dataset.getPath();
 
-      View view = new View(path.get(path.size() - 1), dataset.getSql(), Collections.emptyList(), null, virtualDataset.getContextList());
+      View view = new View(path.get(path.size() - 1), dataset.getSql(), Collections.emptyList(), null, virtualDataset.getContextList(), false);
       catalog.updateView(namespaceKey, view, attributes);
     }
   }
@@ -746,7 +746,7 @@ public class CatalogServiceHelper {
 
       case PHYSICAL_DATASET_HOME_FILE:
       case PHYSICAL_DATASET_HOME_FOLDER: {
-        deleteHomeDataset(config, version);
+        deleteHomeDataset(config, version, config.getFullPathList());
         break;
       }
 
@@ -761,10 +761,13 @@ public class CatalogServiceHelper {
     }
   }
 
-  public void deleteHomeDataset(DatasetConfig config, String version) throws IOException, NamespaceException {
+  public void deleteHomeDataset(DatasetConfig config, String version, List<String> pathComponents) throws IOException, NamespaceException {
     FileConfig formatSettings = config.getPhysicalDataset().getFormatSettings();
-    homeFileTool.deleteFile(formatSettings.getLocation());
-    namespaceService.deleteDataset(new NamespaceKey(config.getFullPathList()), version);
+    Preconditions.checkArgument(pathComponents != null && !pathComponents.isEmpty(), "Cannot find path to dataset");
+    if (homeFileTool.fileExists(formatSettings.getLocation())) {
+      homeFileTool.deleteFile(formatSettings.getLocation());
+    }
+    namespaceService.deleteDataset(new NamespaceKey(pathComponents), version);
   }
 
   public void removeFormatFromDataset(DatasetConfig config, String version) {

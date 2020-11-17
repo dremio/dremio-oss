@@ -44,6 +44,7 @@ import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -55,6 +56,7 @@ import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
@@ -86,6 +88,8 @@ public class TestJobResultsStore extends BaseTestServer {
   public final TemporaryFolder tmpDir = new TemporaryFolder();
 
   private BufferAllocator allocator;
+
+  private int sqlLimit = 2_000_000;
 
   @Before
   public void setup() throws Exception {
@@ -144,7 +148,7 @@ public class TestJobResultsStore extends BaseTestServer {
     SqlQuery sqlQuery = getQueryFromSQL("SELECT * " +
                                         "FROM      cp.\"datasets/parquet_offset/offset1.parquet\" a " +
                                         "FULL JOIN cp.\"datasets/parquet_offset/offset2.parquet\" b " +
-                                        "ON a.column1 = b.column1 ");
+                                        "ON a.column1 = b.column1 LIMIT " + 3_000_000);
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
@@ -153,7 +157,7 @@ public class TestJobResultsStore extends BaseTestServer {
       final JobId jobId = submitJobAndWaitUntilCompletion(
         JobRequest.newBuilder()
           .setSqlQuery(sqlQuery)
-          .setQueryType(QueryType.UI_RUN)
+          .setQueryType(QueryType.REST)
           .build()
       );
 
@@ -164,6 +168,82 @@ public class TestJobResultsStore extends BaseTestServer {
       for (int i = 0; i < offsets.length; i++) {
         fetchValidateResultsAtOffset(jobId, offsets[i], limits[i], expectedRows[i]);
       }
+    } finally {
+      resetSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY);
+    }
+  }
+
+  /**
+   * Test truncation of results for UI query having no limit clause
+   * with PlannerSettings.OUTPUT_LIMIT_SIZE option value changed to depict
+   * the scenario where user changed the value.
+   * @throws Exception
+   */
+  @Test
+  public void testTruncateResultsUIQueryWithOutputLimitChanged() throws Exception {
+    try {
+      // Changing value of PlannerSettings.OUTPUT_LIMIT_SIZE to depict user changed the value.
+      // This is reset at end of this method.
+      setSystemOption(PlannerSettings.OUTPUT_LIMIT_SIZE.getOptionName(), "" + 200_000L);
+      testTruncateResults(QueryType.UI_RUN, "", 130_944);
+    } finally {
+      resetSystemOption(PlannerSettings.OUTPUT_LIMIT_SIZE.getOptionName());
+    }
+  }
+
+  /**
+   * Test truncation of results for UI query having no limit clause
+   * @throws Exception
+   */
+  @Test
+  public void testTruncateResultsUIQueryWithNoLimitClause() throws Exception {
+    testTruncateResults(QueryType.UI_RUN, "" , 607_104);
+  }
+
+  /**
+   * Test truncation of results for UI query having limit clause
+   * @throws Exception
+   */
+  @Test
+  public void testTruncateResultsUIQueryWithLimitClause() throws Exception {
+    testTruncateResults(QueryType.UI_RUN, "LIMIT " + sqlLimit, 1_003_904);
+  }
+
+  /**
+   * Feature for truncation of results for UI query should not truncate results for REST query.
+   * @throws Exception
+   */
+  @Test
+  public void testTruncateResultsRESTQuery() throws Exception {
+    testTruncateResults(QueryType.REST, "LIMIT " + sqlLimit, sqlLimit);
+  }
+
+  private void testTruncateResults(QueryType queryType, String limitClause, int expectedNumRecords) throws Exception {
+    SqlQuery sqlQuery = getQueryFromSQL("SELECT * " +
+                                        "FROM      cp.\"datasets/parquet_offset/offset1.parquet\" a " +
+                                        "FULL JOIN cp.\"datasets/parquet_offset/offset2.parquet\" b " +
+                                        "ON a.column1 = b.column1 " + limitClause);
+
+    // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
+    // This is reset at end of this method.
+    setSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, "5");
+    try {
+      final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
+                                                                    .setSqlQuery(sqlQuery)
+                                                                    .setQueryType(queryType)
+                                                                    .build());
+
+      JobDetailsRequest jobDetailsRequest =  JobDetailsRequest.newBuilder()
+                                                              .setJobId(JobsProtoUtil.toBuf(jobId))
+                                                              .setUserName(SystemUser.SYSTEM_USERNAME)
+                                                              .build();
+
+      JobDetails jobDetails = l(JobsService.class).getJobDetails(jobDetailsRequest);
+      JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttempts(jobDetails.getAttemptsCount()-1);
+      assertEquals("Expected num of records does not match.", expectedNumRecords, jobAttempt.getStats().getOutputRecords());
+
+      // Fetch last 500 records to verify that there is no truncation of results while fetching stored results.
+      fetchValidateResultsAtOffset(jobId, expectedNumRecords-500, 500, 500);
     } finally {
       resetSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY);
     }

@@ -57,6 +57,7 @@ import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.acceleration.MaterializationList;
 import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.DremioRelDecorrelator;
@@ -65,7 +66,7 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.planner.sql.SqlValidatorImpl.FlattenOpCounter;
-import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryFlattener;
+import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.options.OptionManager;
@@ -304,25 +305,39 @@ public class SqlConverter {
    * Used for serialization.
    */
   public RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand, boolean flatten) {
+    return toConvertibleRelRoot(validatedNode, expand, flatten, true);
+  }
+
+  public RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand, boolean flatten, boolean withConvertTableAccess) {
 
     final OptionManager o = settings.getOptions();
     final long inSubQueryThreshold =  o.getOption(ExecConstants.FAST_OR_ENABLE) ? o.getOption(ExecConstants.FAST_OR_MAX_THRESHOLD) : settings.getOptions().getOption(ExecConstants.PLANNER_IN_SUBQUERY_THRESHOLD);
     final SqlToRelConverter.Config config = SqlToRelConverter.configBuilder()
       .withInSubQueryThreshold((int) inSubQueryThreshold)
       .withTrimUnusedFields(true)
-      .withConvertTableAccess(false)
+      .withConvertTableAccess(withConvertTableAccess && o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT))
       .withExpand(expand)
       .build();
     final ReflectionAllowedMonitoringConvertletTable convertletTable = new ReflectionAllowedMonitoringConvertletTable(new ConvertletTable(functionContext.getContextInformation()));
     final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, convertletTable, config);
+    final boolean isComplexTypeSupport = o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.
     final RelRoot rel = sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, false /* top */);
     if (!flatten) {
       return RelRootPlus.of(rel.rel, rel.validatedRowType, rel.kind, convertletTable.isReflectionDisallowed());
     }
-    final RelNode rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);
+    RelNode rel2 = rel.rel;
+    if (!isComplexTypeSupport) {
+      rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);
+    } else {
+      rel2 = MoreRelOptUtil.StructuredConditionRewriter.rewrite(rel.rel);
+    }
+
     RelNode converted;
-    final RelNode rel3 = expand ? rel2 : rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));
+    RelNode rel3 = rel2;
+    if (expand && !isComplexTypeSupport) {
+      rel3 = rel2.accept(new RexSubQueryUtils.RelsWithRexSubQueryFlattener(sqlToRelConverter));
+    }
     if (settings.isRelPlanningEnabled()) {
       converted = rel3;
     } else {

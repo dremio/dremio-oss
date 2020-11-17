@@ -18,9 +18,11 @@ package com.dremio.exec.planner.physical.visitor;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.fragment.DistributionAffinity;
+import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.Prel;
@@ -51,7 +53,10 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
         // if both of them have soft distribution, we can remove the exchange
         (!newFrag.isDistributionStrict() && !parent.isDistributionStrict())) {
       parent.merge(newFrag);
-      return newChild;
+      //after merge, change to single stream
+      RelTraitSet relTraits = newChild.getTraitSet().replace(DistributionTrait.SINGLETON);
+      RelNode newSingletonChild = newChild.copy(relTraits, newChild.getInputs());
+      return (Prel) newSingletonChild;
     } else {
       return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList((RelNode) newChild));
     }

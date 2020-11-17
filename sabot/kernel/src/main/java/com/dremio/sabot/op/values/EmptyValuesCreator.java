@@ -21,19 +21,18 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.config.EmptyValues;
 import com.dremio.exec.store.AbstractRecordReader;
-import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.google.common.collect.Iterators;
 
 public class EmptyValuesCreator implements ProducerOperator.Creator<EmptyValues> {
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, EmptyValues config) throws ExecutionSetupException {
-    return new ScanOperator(config, context, Iterators.<RecordReader>singletonIterator(new EmptyRecordReader(context)));
+    return new ScanOperator(config, context, RecordReaderIterator.from(new EmptyRecordReader(context)));
   }
 
   public static class EmptyRecordReader extends AbstractRecordReader {

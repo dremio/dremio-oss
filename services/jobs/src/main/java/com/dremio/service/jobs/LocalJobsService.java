@@ -1319,7 +1319,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         injector.injectChecked(executionControls, INJECTOR_ATTEMPT_COMPLETION_ERROR, IOException.class);
         injector.injectChecked(executionControls, INJECTOR_ATTEMPT_COMPLETION_KV_ERROR, DatastoreException.class);
         // includes a call to storeJob()
-        addAttemptToJob(job, state, profile);
+        addAttemptToJob(job, state, profile, ex);
 
       } catch (Exception e) {
         exception.addException(e);
@@ -1807,7 +1807,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             }
           }
         }
-        addAttemptToJob(job, queryState, result.getProfile());
+        addAttemptToJob(job, queryState, result.getProfile(), result.getException());
       } catch (IOException e) {
         exception.addException(e);
       }
@@ -1876,7 +1876,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       state == AttemptEvent.State.FAILED);
   }
 
-  private void addAttemptToJob(Job job, QueryState state, QueryProfile profile) throws IOException {
+  private void addAttemptToJob(Job job, QueryState state, QueryProfile profile, UserException ex) throws IOException {
 
       final JobAttempt jobAttempt = job.getJobAttempt();
       final JobInfo jobInfo = jobAttempt.getInfo();
@@ -1894,6 +1894,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       case FAILED:
         if (profile.hasError()) {
           jobInfo.setFailureInfo(profile.getError());
+        } else if (ex != null) {
+          jobInfo.setFailureInfo(ex.getVerboseMessage(false));
         }
         if (profile.hasVerboseError()) {
           jobInfo.setDetailedFailureInfo(JobsServiceUtil.toFailureInfo(profile.getVerboseError()));

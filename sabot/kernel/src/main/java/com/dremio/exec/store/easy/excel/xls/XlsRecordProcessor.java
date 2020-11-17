@@ -79,6 +79,7 @@ public class XlsRecordProcessor implements ExcelParser {
   private final RecordFactoryInputStream recordStream;
   private final FormatManager formatManager;
   private ArrowBuf managedBuf;
+  private boolean skipQuery;
   private final int maxCellSize;
 
   private SSTRecord sstRecord;
@@ -100,7 +101,7 @@ public class XlsRecordProcessor implements ExcelParser {
   private Map<Integer, MergedCell> mergeCells;
 
   /* lookup table to find if a particular column is to be projected or not */
-  private HashSet<String> columnsToProject;
+  private final HashSet<String> columnsToProject;
 
   /**
    * Extracts the workbook stream for the byte array and instantiates a {@link RecordFactoryInputStream} that will
@@ -109,6 +110,7 @@ public class XlsRecordProcessor implements ExcelParser {
    * @param is XLS InputStream
    * @param writer will be used to write the retrieved record into the outgoing vector container
    * @param managedBuf managed buffer used to allocate VarChar values
+   * @param skipQuery if a query should skip columns
    * @param maxCellSize maximum allowable size of variable length cells
    *
    * @throws IOException if data doesn't start with a proper XLS header
@@ -116,10 +118,12 @@ public class XlsRecordProcessor implements ExcelParser {
    */
   public XlsRecordProcessor(final XlsInputStream is, final ExcelFormatPluginConfig pluginConfig,
                             final VectorContainerWriter writer, final ArrowBuf managedBuf,
-                            final HashSet<String> columnsToProject, final int maxCellSize)
-          throws IOException, SheetNotFoundException {
+                            final HashSet<String> columnsToProject, final boolean skipQuery,
+                            final int maxCellSize) throws IOException, SheetNotFoundException {
     this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
+    this.columnsToProject = columnsToProject;
+    this.skipQuery = skipQuery;
     this.maxCellSize = maxCellSize;
 
     // following code reads and orders all of the workbook's sectors into a new byte array
@@ -137,8 +141,6 @@ public class XlsRecordProcessor implements ExcelParser {
     formatManager = new FormatManager();
 
     init(pluginConfig.sheet, pluginConfig.extractHeader, pluginConfig.hasMergedCells);
-
-    this.columnsToProject = columnsToProject;
   }
 
   /**
@@ -522,7 +524,7 @@ public class XlsRecordProcessor implements ExcelParser {
     /* Project push-down. Nothing to do if this column is not
      * in the set of columns to be projected.
      */
-    if(columnsToProject != null && !columnsToProject.contains((columnName))) {
+    if (skipQuery || (columnsToProject != null && !columnsToProject.contains((columnName)))) {
       return;
     }
 
@@ -587,7 +589,7 @@ public class XlsRecordProcessor implements ExcelParser {
     void writeValues() {
       for (int col = range.getFirstColumn(); col <= range.getLastColumn(); col++) {
         final String columnName = columnNameHandler.getColumnName(col);
-        if(columnsToProject == null || columnsToProject.contains((columnName))) {
+        if (!skipQuery && (columnsToProject == null || columnsToProject.contains((columnName)))) {
           XlsRecordProcessor.this.writeValue(col, value);
         }
       }

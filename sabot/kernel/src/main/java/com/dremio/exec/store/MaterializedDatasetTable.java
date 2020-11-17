@@ -52,17 +52,20 @@ public class MaterializedDatasetTable implements TranslatableTable {
   private final Supplier<List<PartitionChunk>> partitionChunks;
   private final FileSystemPlugin plugin;
   private final String user;
+  private final boolean complexTypeSupport;
 
   public MaterializedDatasetTable(
       FileSystemPlugin plugin,
       String user,
       Supplier<DatasetConfig> datasetConfig,
-      Supplier<List<PartitionChunk>> partitionChunks
+      Supplier<List<PartitionChunk>> partitionChunks,
+      boolean complexTypeSupport
   ) {
     this.datasetConfig = datasetConfig;
     this.partitionChunks = partitionChunks;
     this.plugin = plugin;
     this.user = user;
+    this.complexTypeSupport = complexTypeSupport;
   }
 
   @Override
@@ -80,7 +83,7 @@ public class MaterializedDatasetTable implements TranslatableTable {
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(datasetConfig.get()))
-        .toCalciteRecordType(typeFactory, (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()));
+        .toCalciteRecordType(typeFactory, (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()), complexTypeSupport);
   }
 
   @Override

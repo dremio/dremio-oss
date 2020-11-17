@@ -45,13 +45,14 @@ import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Sets;
 
 public class TestInsertIntoTable extends BaseTestQuery {
 
-  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100);
+  private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   @Rule
   public ExpectedException expectedEx = ExpectedException.none();
@@ -529,7 +530,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       final String insertQuery = String.format("insert into %s.%s_1 select listcol2 from %s.%s_2",
         TEMP_SCHEMA, newTable, TEMP_SCHEMA, newTable);
       expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Table schema(listcol1::list<int64>) doesn't match with query schema(listcol1::list<int32>)"));
+      String expected = isComplexTypeSupport() ? "Table schema(listcol1::list<int64>) doesn't match with query schema(listcol2::list<int32>)" : "Table schema(listcol1::list<int64>) doesn't match with query schema(listcol1::list<int32>)";
+      expectedEx.expectMessage(String.format(expected));
       test(insertQuery);
     }
     finally {
@@ -602,7 +604,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       final String insertQuery = String.format("insert into %s.%s_1 select structcol2 from %s.%s_2",
         TEMP_SCHEMA, newTable, TEMP_SCHEMA, newTable);
       expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::struct<name::varchar, age::int32>)"));
+      String expected = isComplexTypeSupport() ? "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol2::struct<name::varchar, age::int32>)" : "schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::struct<name::varchar, age::int32>)";
+      expectedEx.expectMessage(String.format(expected));
       test(insertQuery);
     }
     finally {
@@ -636,7 +639,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       final String insertQuery = String.format("insert into %s.%s_1 select %s_2.structcol2.name from %s.%s_2",
         TEMP_SCHEMA, newTable, newTable, TEMP_SCHEMA, newTable);
       expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::varchar)"));
+      String expected = isComplexTypeSupport() ? "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(name::varchar)" : "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::varchar)";
+      expectedEx.expectMessage(String.format(expected));
       test(insertQuery);
     }
     finally {

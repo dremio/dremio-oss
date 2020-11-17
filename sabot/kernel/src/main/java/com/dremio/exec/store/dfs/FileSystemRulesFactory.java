@@ -28,6 +28,7 @@ import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
+import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnSampleScan;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnScan;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.Prel;
@@ -113,6 +114,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
         if(optimizerContext.getPlannerSettings().isPartitionPruningEnabled()){
           builder.add(new PruneScanRuleFilterOnProject<>(pluginType, FilesystemScanDrel.class, optimizerContext));
           builder.add(new PruneScanRuleFilterOnScan<>(pluginType, FilesystemScanDrel.class, optimizerContext));
+          builder.add(new PruneScanRuleFilterOnSampleScan<>(pluginType, FilesystemScanDrel.class, optimizerContext));
         }
 
         return builder.build();

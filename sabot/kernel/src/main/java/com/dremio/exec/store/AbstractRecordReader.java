@@ -30,6 +30,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
@@ -167,4 +168,9 @@ public abstract class AbstractRecordReader implements RecordReader {
     }
   }
 
+  @Override
+  public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    logger.debug("Dropping runtime filter from {} because the reader does not support runtime filtering", runtimeFilter.getSenderInfo());
+    context.getStats().addLongStat(ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT, runtimeFilter.getNonPartitionColumnFilters().size());
+  }
 }

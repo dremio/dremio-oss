@@ -424,7 +424,7 @@ public class MetadataProvider {
       final List<ColumnMetadata> columnMetadata =
         StreamSupport.stream(Spliterators.spliteratorUnknownSize(schemata, Spliterator.ORDERED), false)
           .flatMap((Function<TableSchema, Stream<ColumnMetadata>>) tableSchema ->
-            MetadataProviderUtils.toColumnMetadata(tableSchema, parameters.getCatalogName()))
+            MetadataProviderUtils.toColumnMetadata(tableSchema, parameters.getCatalogName(), false))
           .filter(column ->
             catalogNamePred.test(column.getCatalogName()) &&
               columnNamePred.test(column.getColumnName()))

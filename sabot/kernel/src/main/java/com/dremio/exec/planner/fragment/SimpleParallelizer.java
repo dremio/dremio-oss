@@ -58,7 +58,9 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.resource.SelectedExecutorsResourceInformation;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -88,7 +90,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SimpleParallelizer.class);
 
   private final long parallelizationThreshold;
-  private final int maxWidthPerNode;
+  private int maxWidthPerNode;
   private final int maxGlobalWidth;
   private final double affinityFactor;
   private final boolean useNewAssignmentCreator;
@@ -103,34 +105,19 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private final boolean shouldIgnoreLeafAffinity;
 
   public SimpleParallelizer(QueryContext context, MaestroObserver observer, ExecutorSelectionService executorSelectionService) {
-    this(context, observer, executorSelectionService, null);
+    this(context, observer, executorSelectionService, null, context.getGroupResourceInformation());
   }
 
   public SimpleParallelizer(QueryContext context,
                             MaestroObserver observer,
                             ExecutorSelectionService executorSelectionService,
-                            ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
+                            ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+                            GroupResourceInformation groupResourceInformation) {
     this.queryContext = context;
     this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
     OptionManager optionManager = context.getOptions();
     long sliceTarget = context.getPlannerSettings().getSliceTarget();
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
-
-    final long configuredMaxWidthPerNode = context.getGroupResourceInformation().getAverageExecutorCores(optionManager);
-    if (configuredMaxWidthPerNode == 0) {
-      ExecutorSelectionUtils.throwEngineOffline(resourceSchedulingDecisionInfo.getQueueTag());
-    }
-    final double maxWidthFactor = context.getWorkStatsProvider().get().getMaxWidthFactor();
-    this.maxWidthPerNode = (int) Math.max(1, configuredMaxWidthPerNode * maxWidthFactor);
-
-    if (logger.isDebugEnabled() && maxWidthFactor < 1) {
-      final float clusterLoad = context.getWorkStatsProvider().get().getClusterLoad();
-      logger.debug("Cluster load {} exceeded cutoff, max_width_factor = {}. current max_width = {}",
-        clusterLoad, maxWidthFactor, this.maxWidthPerNode);
-    }
-    final ExecutorSelectionHandle handle =
-      executorSelectionService.getAllActiveExecutors(new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
-    this.executionMap = new ExecutionNodeMap(handle.getExecutors());
     this.maxGlobalWidth = (int) optionManager.getOption(ExecConstants.MAX_WIDTH_GLOBAL);
     this.affinityFactor = optionManager.getOption(ExecConstants.AFFINITY_FACTOR);
     this.useNewAssignmentCreator = !optionManager.getOption(ExecConstants.OLD_ASSIGNMENT_CREATOR);
@@ -140,6 +127,24 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.executorSelectionService = executorSelectionService;
     this.targetNumFragsPerNode = Ints.saturatedCast(optionManager.getOption(ExecutorSelectionService.TARGET_NUM_FRAGS_PER_NODE));
     this.shouldIgnoreLeafAffinity = optionManager.getOption(ExecConstants.SHOULD_IGNORE_LEAF_AFFINITY);
+    final ExecutorSelectionHandle handle = executorSelectionService.getAllActiveExecutors(new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
+    this.executionMap = new ExecutionNodeMap(handle.getExecutors());
+    computeMaxWidthPerNode(groupResourceInformation);
+  }
+
+  private void computeMaxWidthPerNode(GroupResourceInformation groupResourceInformation) {
+    OptionManager optionManager = queryContext.getOptions();
+      final long configuredMaxWidthPerNode = groupResourceInformation.getAverageExecutorCores(optionManager);
+      if (configuredMaxWidthPerNode == 0) {
+        ExecutorSelectionUtils.throwEngineOffline(resourceSchedulingDecisionInfo.getQueueTag());
+      }
+      final double maxWidthFactor = queryContext.getWorkStatsProvider().get().getMaxWidthFactor(groupResourceInformation);
+      maxWidthPerNode = (int) Math.max(1, configuredMaxWidthPerNode * maxWidthFactor);
+    if (logger.isDebugEnabled() && maxWidthFactor < 1) {
+      final float clusterLoad = queryContext.getWorkStatsProvider().get().getClusterLoad();
+      logger.debug("Cluster load {} exceeded cutoff, max_width_factor = {}. current max_width = {}",
+        clusterLoad, maxWidthFactor, maxWidthPerNode);
+    }
   }
 
   @VisibleForTesting
@@ -229,7 +234,8 @@ public class SimpleParallelizer implements ParallelizationParameters {
     observer.planParallelStart();
     final Stopwatch stopwatch = Stopwatch.createStarted();
     // NB: OK to close resources in unit tests only
-    try (final ExecutionPlanningResources resources = getFragmentsHelper(rootFragment)) {
+    try (final ExecutionPlanningResources resources = getExecutionPlanningResources(queryContext, observer, executorSelectionService,
+      resourceSchedulingDecisionInfo, rootFragment)) {
       observer.planParallelized(resources.getPlanningSet());
       stopwatch.stop();
       observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -277,52 +283,62 @@ public class SimpleParallelizer implements ParallelizationParameters {
   }
 
   /**
-   * Helper method to reuse the code for QueryWorkUnit(s) generation
+   * Select executors, parallelize fragments and get the planning resources.
+   *
+   * @
    * @param rootFragment
    * @return
-   * @throws ExecutionSetupException
    */
-  public ExecutionPlanningResources getFragmentsHelper(Fragment rootFragment) throws ExecutionSetupException {
+
+
+  public static ExecutionPlanningResources getExecutionPlanningResources(QueryContext context,
+                                                                         MaestroObserver observer,
+                                                                         ExecutorSelectionService executorSelectionService,
+                                                                         ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
+                                                                         Fragment rootFragment) throws ExecutionSetupException {
+    SimpleParallelizer parallelizer = new SimpleParallelizer(context, observer, executorSelectionService, resourceSchedulingDecisionInfo, context.getGroupResourceInformation());
     PlanningSet planningSet = new PlanningSet();
-
-    initFragmentWrappers(rootFragment, planningSet);
-
+    parallelizer.initFragmentWrappers(rootFragment, planningSet);
     final Set<Wrapper> leafFragments = constructFragmentDependencyGraph(planningSet);
     // NB: for queries with hard affinity, we need to use all endpoints, so the parallelizer, below, is given an
     //     opportunity to find the nodes that match said affinity
+    // Start parallelizing from leaf fragments
     Pointer<Boolean> hasHardAffinity = new Pointer<>(false);
 
-    // Start parallelizing from leaf fragments
+    // Start parallelizing from the leaf fragments.
+
     int idealNumFragments = 0;
     for (Wrapper wrapper : leafFragments) {
-      idealNumFragments += computePhaseStats(wrapper, planningSet, hasHardAffinity);
+      idealNumFragments += parallelizer.computePhaseStats(wrapper, planningSet, hasHardAffinity);
     }
-    int idealNumNodes = IntMath.divide(idealNumFragments, targetNumFragsPerNode, RoundingMode.CEILING);
-    final Stopwatch stopwatch = Stopwatch.createStarted();
-    final ExecutorSelectionContext context =
-      new ExecutorSelectionContext(resourceSchedulingDecisionInfo);
-    final ExecutorSelectionHandle handle = hasHardAffinity.value
-        ? executorSelectionService.getAllActiveExecutors(context)
-        : executorSelectionService.getExecutors(idealNumNodes, context);
-    final ExecutionPlanningResources executionPlanningResources = new ExecutionPlanningResources(planningSet, handle);
-    final Collection<NodeEndpoint> selectedEndpoints = handle.getExecutors();
-    stopwatch.stop();
-    observer.executorsSelected(stopwatch.elapsed(TimeUnit.MILLISECONDS),
-        idealNumFragments, idealNumNodes, selectedEndpoints.size(),
-        handle.getPlanDetails() +
-          " selectedEndpoints: " + EndpointHelper.getMinimalString(selectedEndpoints) +
-          " hardAffinity: " + hasHardAffinity.value);
+    int idealNumNodes = IntMath.divide(idealNumFragments, parallelizer.targetNumFragsPerNode, RoundingMode.CEILING);
+    final Stopwatch stopWatch = Stopwatch.createStarted();
+    ExecutorSelectionContext executorContext = new ExecutorSelectionContext(resourceSchedulingDecisionInfo);
+    ExecutorSelectionHandle executorSelectionHandle = hasHardAffinity.value
+      ? executorSelectionService.getAllActiveExecutors(executorContext)
+      : executorSelectionService.getExecutors(idealNumNodes, executorContext);
+
+    GroupResourceInformation groupResourceInformation = new SelectedExecutorsResourceInformation(executorSelectionHandle.getExecutors());
+    parallelizer.computeMaxWidthPerNode(groupResourceInformation);
+
+    final ExecutionPlanningResources executionPlanningResources = new ExecutionPlanningResources(planningSet, executorSelectionHandle, groupResourceInformation);
+    final Collection<NodeEndpoint> selectedEndpoints = executorSelectionHandle.getExecutors();
+    stopWatch.stop();
+    observer.executorsSelected(stopWatch.elapsed(TimeUnit.MILLISECONDS),
+      idealNumFragments, idealNumNodes, selectedEndpoints.size(),
+      executorSelectionHandle.getPlanDetails() +
+        " selectedEndpoints: " + EndpointHelper.getMinimalString(selectedEndpoints) +
+        " hardAffinity: " + hasHardAffinity.value);
     if (selectedEndpoints.isEmpty()) {
       ExecutorSelectionUtils.throwEngineOffline(resourceSchedulingDecisionInfo.getQueueTag());
     }
 
     for (Wrapper wrapper : leafFragments) {
-      parallelizePhase(wrapper, planningSet, selectedEndpoints);
+      parallelizer.parallelizePhase(wrapper, planningSet, selectedEndpoints);
     }
 
     return executionPlanningResources;
   }
-
 
   // For every fragment, create a Wrapper in PlanningSet.
   @VisibleForTesting

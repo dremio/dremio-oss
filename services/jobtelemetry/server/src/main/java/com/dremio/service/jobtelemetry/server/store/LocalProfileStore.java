@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -113,7 +114,10 @@ public class LocalProfileStore implements ProfileStore {
   public synchronized void putExecutorProfile(UserBitShared.QueryId queryId,
                                               CoordinationProtos.NodeEndpoint endpoint,
                                               CoordExecRPC.ExecutorQueryProfile profile) {
-    LOGGER.debug("Updating profile store for query id {}", queryId);
+    if(LOGGER.isDebugEnabled()) {
+      LOGGER.debug("Updating profile store for query id {}", QueryIdHelper.getQueryId(queryId));
+    }
+
     if (deletedQueryIds.asMap().containsKey(queryId)) {
       return;
     }

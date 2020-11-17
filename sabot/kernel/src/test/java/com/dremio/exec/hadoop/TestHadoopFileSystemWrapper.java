@@ -234,6 +234,12 @@ public class TestHadoopFileSystemWrapper {
     long avgIOReadTime = ioStats.totalIOTime.longValue() / ioStats.numIO.get();
     long numIORead = ioStats.totalIOTime.get();
 
+    OperatorStats.IOStats ioMetadataStats = stats.getMetadataReadIOStats();
+    long minMetadataIOReadTime = ioMetadataStats.minIOTime.longValue();
+    long maxMetadataIOReadTime = ioMetadataStats.maxIOTime.longValue();
+    long avgMetadataIOReadTime = ioMetadataStats.totalIOTime.longValue() / ioMetadataStats.numIO.get();
+    long numMetadataIORead = ioMetadataStats.totalIOTime.get();
+
     assertTrue(minIOReadTime > 0);
     assertTrue(maxIOReadTime > 0);
     assertTrue(avgIOReadTime > 0);
@@ -245,6 +251,17 @@ public class TestHadoopFileSystemWrapper {
     assertTrue(slowIOInfo.getFilePath().equals(tempFilePath));
     assertTrue(slowIOInfo.getIoTime() >= minIOReadTime && slowIOInfo.getIoTime() <= maxIOReadTime);
     assertTrue(slowIOInfo.getIoSize() > 0);
+
+    assertTrue(minMetadataIOReadTime > 0);
+    assertTrue(maxMetadataIOReadTime > 0);
+    assertTrue(avgMetadataIOReadTime > 0);
+    assertTrue(numMetadataIORead > 0);
+    assertTrue(avgMetadataIOReadTime >= minMetadataIOReadTime &&  avgMetadataIOReadTime <= maxMetadataIOReadTime);
+
+    assertTrue(ioMetadataStats.slowIOInfoList.size() > 0);
+    UserBitShared.SlowIOInfo slowMetadataIOInfo = ioMetadataStats.slowIOInfoList.get(0);
+    assertTrue(slowMetadataIOInfo.getFilePath().equals(tempFilePath));
+    assertTrue(slowMetadataIOInfo.getIoTime() >=  minMetadataIOReadTime && slowMetadataIOInfo.getIoTime() <= maxMetadataIOReadTime);
   }
 
   @Test

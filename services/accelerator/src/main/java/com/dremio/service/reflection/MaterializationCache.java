@@ -20,13 +20,20 @@ import static com.dremio.service.reflection.ExternalReflectionStatus.STATUS.OUT_
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.core.TableScan;
+
+import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
@@ -45,9 +52,9 @@ import io.protostuff.ByteString;
 class MaterializationCache {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationCache.class);
 
-  private static final Map<String, MaterializationDescriptor> EMPTY_MAP = ImmutableMap.of();
+  private static final Map<String, CachedMaterializationDescriptor> EMPTY_MAP = ImmutableMap.of();
 
-  private final AtomicReference<Map<String, MaterializationDescriptor>> cached = new AtomicReference<>(EMPTY_MAP);
+  private final AtomicReference<Map<String, CachedMaterializationDescriptor>> cached = new AtomicReference<>(EMPTY_MAP);
 
   interface CacheHelper {
     Iterable<Materialization> getValidMaterializations();
@@ -95,9 +102,17 @@ class MaterializationCache {
   private void compareAndSetCache() {
     boolean exchanged;
     do {
-      Map<String, MaterializationDescriptor> old = cached.get();
-      Map<String, MaterializationDescriptor> updated = updateCache(old);
+      Map<String, CachedMaterializationDescriptor> old = cached.get();
+      Map<String, CachedMaterializationDescriptor> updated = updateCache(old);
       exchanged = cached.compareAndSet(old, updated);
+    } while(!exchanged);
+  }
+
+  void resetCache() {
+    boolean exchanged;
+    do {
+      Map<String, CachedMaterializationDescriptor> old = cached.get();
+      exchanged = cached.compareAndSet(old, EMPTY_MAP);
     } while(!exchanged);
   }
 
@@ -109,18 +124,18 @@ class MaterializationCache {
    * @param old existing cache
    * @return updated cache
    */
-  private Map<String, MaterializationDescriptor> updateCache(Map<String, MaterializationDescriptor> old) {
+  private Map<String, CachedMaterializationDescriptor> updateCache(Map<String, CachedMaterializationDescriptor> old) {
     // new list of descriptors
     final Iterable<Materialization> provided = provider.getValidMaterializations();
     // this will hold the updated cache
-    final Map<String, MaterializationDescriptor> updated = Maps.newHashMap();
+    final Map<String, CachedMaterializationDescriptor> updated = Maps.newHashMap();
 
     // cache is enabled so we want to reuse as much of the existing cache as possible. Make sure to:
     // remove all cached descriptors that no longer exist
     // reuse all descriptors that are already in the cache
     // add any descriptor that are not already cached
     for (Materialization materialization : provided) {
-      final MaterializationDescriptor cachedDescriptor = old.get(materialization.getId().getId());
+      final CachedMaterializationDescriptor cachedDescriptor = old.get(materialization.getId().getId());
       if (cachedDescriptor == null ||
           !materialization.getTag().equals(cachedDescriptor.getVersion()) ||
           schemaChanged(cachedDescriptor, materialization)) {
@@ -132,8 +147,10 @@ class MaterializationCache {
     }
 
     for (ExternalReflection externalReflection : provider.getExternalReflections()) {
-      final MaterializationDescriptor cachedDescriptor = old.get(externalReflection.getId());
-      if (cachedDescriptor == null || isExternalReflectionOutOfSync(externalReflection.getId())) {
+      final CachedMaterializationDescriptor cachedDescriptor = old.get(externalReflection.getId());
+      if (cachedDescriptor == null
+          || isExternalReflectionOutOfSync(externalReflection.getId())
+          || isExternalReflectionMetadataUpdated(cachedDescriptor)) {
         updateEntry(updated, externalReflection);
       } else {
         // descriptor already in the cache, we can just reuse it
@@ -143,11 +160,37 @@ class MaterializationCache {
     return updated;
   }
 
+  private boolean isExternalReflectionMetadataUpdated(CachedMaterializationDescriptor descriptor) {
+    DremioMaterialization materialization = descriptor.getMaterialization();
+    Pointer<Boolean> updated = new Pointer<>(false);
+    materialization.getTableRel().accept(new RelShuttleImpl() {
+      @Override
+      public RelNode visit(TableScan tableScan) {
+        if (tableScan instanceof ScanCrel) {
+          String version = ((ScanCrel) tableScan).getTableMetadata().getVersion();
+          try {
+            DatasetConfig dataset = namespaceService.getDataset(new NamespaceKey(tableScan.getTable().getQualifiedName()));
+            if (!dataset.getTag().equals(version)) {
+              logger.debug("Dataset {} has new data. Invalidating cache for external reflection", tableScan.getTable().getQualifiedName());
+              updated.value = true;
+            }
+          } catch (NamespaceException e) {
+            updated.value = true;
+          }
+        } else {
+          updated.value = true;
+        }
+        return tableScan;
+      }
+    });
+    return updated.value;
+  }
+
   private boolean isExternalReflectionOutOfSync(String id) {
     return reflectionStatusService.getExternalReflectionStatus(new ReflectionId(id)).getConfigStatus() == OUT_OF_SYNC;
   }
 
-  private void updateEntry(Map<String, MaterializationDescriptor> cache, ExternalReflection entry) {
+  private void updateEntry(Map<String, CachedMaterializationDescriptor> cache, ExternalReflection entry) {
     try {
       final MaterializationDescriptor descriptor = provider.getDescriptor(entry);
       if (descriptor != null) {
@@ -161,7 +204,7 @@ class MaterializationCache {
     }
   }
 
-  private void safeUpdateEntry(Map<String, MaterializationDescriptor> cache, Materialization entry) {
+  private void safeUpdateEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) {
     try {
       updateEntry(cache, entry);
     } catch (Exception | AssertionError e) {
@@ -170,7 +213,7 @@ class MaterializationCache {
     }
   }
 
-  private void updateEntry(Map<String, MaterializationDescriptor> cache, Materialization entry) throws CacheException {
+  private void updateEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) throws CacheException {
     final CachedMaterializationDescriptor descriptor = provider.expand(entry);
     if (descriptor != null) {
       cache.put(entry.getId().getId(), descriptor);
@@ -200,12 +243,12 @@ class MaterializationCache {
   void invalidate(MaterializationId mId) {
     boolean exchanged;
     do {
-      Map<String, MaterializationDescriptor> old = cached.get();
+      Map<String, CachedMaterializationDescriptor> old = cached.get();
       if (!old.containsKey(mId.getId())) {
         break; // entry not present in the cache, nothing more to do
       }
       //copy over everything
-      Map<String, MaterializationDescriptor> updated =  Maps.newHashMap(old);
+      Map<String, CachedMaterializationDescriptor> updated =  Maps.newHashMap(old);
       //remove the specific materialization.
       updated.remove(mId.getId());
       //update the cache.
@@ -216,8 +259,8 @@ class MaterializationCache {
   void update(Materialization m) throws CacheException {
     boolean exchanged;
     do {
-      Map<String, MaterializationDescriptor> old = cached.get();
-      Map<String, MaterializationDescriptor> updated =  Maps.newHashMap(old); //copy over everything
+      Map<String, CachedMaterializationDescriptor> old = cached.get();
+      Map<String, CachedMaterializationDescriptor> updated =  Maps.newHashMap(old); //copy over everything
       updateEntry(updated, m);
       exchanged = cached.compareAndSet(old, updated); //update the cache.
     } while(!exchanged);

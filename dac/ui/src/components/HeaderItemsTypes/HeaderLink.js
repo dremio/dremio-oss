@@ -38,40 +38,18 @@ export default class HeaderLink extends Component {
     router: PropTypes.object
   }
 
-  shouldLinkBeActive() { // NOTE: RadiumLink can still override this with `false`
-    // small hack to prevent case when we have several active items in header for a root link
-    const { tableId } = this.context.routeParams;
-    if (this.props.to !== '/') return true;
-    if (this.context.location.pathname === '/') return true;
-
-    return this.context.location.pathname.match(/^\/(home|spaces?|sources?)(\/.*)?$/) && !tableId;
-  }
-
-  handleClick = (evt) => {
-    if (isModifiedEvent(evt) || !isLeftClickEvent(evt)) return;
-
-    const { router } = this.context;
-    if (this.shouldLinkBeActive() && router.isActive(this.props.to)) {
-      evt.preventDefault();
-      router.replace({pathname: '/reload', state: {to: router.location}});
-    }
-  }
-
   render() {
     const {children, ...props} = this.props;
-
     const RadiumLink = Radium(Link);
+
     return (
       <div className='HeaderLink' style={styles.item}>
         <RadiumLink
           {...props}
           onClick={this.handleClick}
           style={styles.link}
-          activeClassName={this.shouldLinkBeActive() ? 'active-link' : ''}
-          activeStyle={this.shouldLinkBeActive() ? styles.activeLink : {}}
         >
           {children}
-          <div className='header-link-underline'></div>
         </RadiumLink>
       </div>
     );
@@ -90,19 +68,11 @@ const styles = {
     textDecoration: 'none',
     marginTop: 3,
     paddingBottom: 4,
-    height: 17,
-    display: 'block'
+    height: 24,
+    display: 'block',
+    fonSize: 13
   },
   activeLink: {
-    borderBottom: '2px solid rgba(255, 255, 255, 0.4)'
+    borderBottom: '2px solid #3acbac'
   }
 };
-
-
-function isLeftClickEvent(event) {
-  return event.button === 0;
-}
-
-function isModifiedEvent(event) {
-  return !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
-}

@@ -17,11 +17,11 @@ package com.dremio.exec.expr.fn;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
-import com.dremio.exec.expr.CodeModelArrowHelper;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.sun.codemodel.JBlock;

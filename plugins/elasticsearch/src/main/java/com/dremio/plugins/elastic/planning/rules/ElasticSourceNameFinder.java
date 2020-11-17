@@ -77,8 +77,23 @@ public class ElasticSourceNameFinder extends RexVisitorImpl<List<List<String>>> 
   }
 
   @Override
+  public List<List<String>> visitFieldAccess(RexFieldAccess fieldAccess) {
+    RexNode leftRex = fieldAccess.getReferenceExpr();
+    RelDataTypeField field = fieldAccess.getField();
+    List<List<String>> left = leftRex.accept(this);
+
+    if (left.isEmpty()) {
+      // left was rex literal
+      left.add(Lists.newArrayList(leftRex.toString()));
+    }
+
+    left.get(0).addAll(Lists.newArrayList(field.getName()));
+    return left;
+  }
+
+  @Override
   public List<List<String>> visitCall(RexCall call) {
-    if (call.getOperator().getName().equalsIgnoreCase("item")) {
+    if (call.getOperator().getName().equalsIgnoreCase("item") || call.getOperator().getName().equalsIgnoreCase("dot")) {
       if (call.getOperands().size() != 2) {
         throw UserException.planError().message("Item operator should only have two operands, but got " + call.getOperands().size()).build(logger);
       }
@@ -118,11 +133,6 @@ public class ElasticSourceNameFinder extends RexVisitorImpl<List<List<String>>> 
   @Override
   public List<List<String>> visitRangeRef(RexRangeRef rangeRef) {
     return visitUnknown(rangeRef);
-  }
-
-  @Override
-  public List<List<String>> visitFieldAccess(RexFieldAccess fieldAccess) {
-    return visitUnknown(fieldAccess);
   }
 
   @Override

@@ -30,6 +30,7 @@ import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
@@ -101,6 +102,7 @@ import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -256,7 +258,8 @@ public class CommandCreator {
     return ReflectionContext.SYSTEM_USER_CONTEXT;
   }
 
-  private CommandRunner<?> getSqlCommand(String sql, PrepareMetadataType prepareMetadataType) {
+  @VisibleForTesting
+  CommandRunner<?> getSqlCommand(String sql, PrepareMetadataType prepareMetadataType) {
     try{
       final SqlConverter parser = new SqlConverter(
           context.getPlannerSettings(),
@@ -340,7 +343,7 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlUseSchema) {
           return direct.create(new UseSchemaHandler(context.getSession(), catalog));
         } else if (sqlNode instanceof SqlCreateReflection) {
-          return direct.create(new AccelCreateReflectionHandler(catalog, context.getAccelerationManager(), getReflectionContext()));
+          return direct.create(new AccelCreateReflectionHandler(catalog, context.getAccelerationManager(), getReflectionContext(), context.getOptions().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT)));
         } else if (sqlNode instanceof SqlAddExternalReflection) {
           return direct.create(new AccelAddExternalReflectionHandler(catalog, context.getAccelerationManager(), getReflectionContext()));
         } else if (sqlNode instanceof SqlAccelToggle) {
@@ -442,7 +445,8 @@ public class CommandCreator {
    * Helper values to distinguish between handlers needing to provide no plans, plans with
    * USER_RPC metadata, or Arrow metadata.
    */
-  private enum PrepareMetadataType {
+  @VisibleForTesting
+  enum PrepareMetadataType {
     NONE,
     USER_RPC,
     ARROW

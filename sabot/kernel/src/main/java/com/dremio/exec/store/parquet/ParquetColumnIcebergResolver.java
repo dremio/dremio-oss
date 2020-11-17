@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
 
@@ -156,5 +157,9 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
 
   public List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDescriptor) {
     return Lists.newArrayList(columnDescriptor.getPath());
+  }
+
+  public String toDotString(SchemaPath schemaPath, ValueVector vector) {
+    return schemaPath.toDotString().toLowerCase();
   }
 }

@@ -22,12 +22,12 @@ package com.dremio.exec.expr.fn.impl.hive;
 
 import com.sun.codemodel.*;
 
+import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.DirectExpression;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.expr.CodeModelArrowHelper;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;

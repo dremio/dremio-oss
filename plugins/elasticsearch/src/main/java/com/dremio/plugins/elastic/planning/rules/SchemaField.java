@@ -24,6 +24,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -42,6 +43,7 @@ import com.dremio.common.expression.PathSegment.ArraySegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.plugins.elastic.ElasticsearchConf;
@@ -57,6 +59,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 
+//import org.apache.commons.lang.StringEscapeUtils;
+
 /**
  * A specialized version of RexInputRef that holds an entire schema path along
  * with important information to support planning.
@@ -68,7 +72,8 @@ public class SchemaField extends RexInputRef {
       ElasticSpecialType.GEO_SHAPE,
 
       // nested documents require a special nested_aggregation concept, not currently supported in Dremio.
-      ElasticSpecialType.NESTED);
+      ElasticSpecialType.NESTED
+  );
 
   private final static String OPEN_BQ = "[\"";
   private final static String CLOSE_BQ = "\"]";
@@ -80,8 +85,8 @@ public class SchemaField extends RexInputRef {
   private final boolean isV5;
   private final boolean isPainless;
 
-  private SchemaField(int index, SchemaPath path, CompleteType type, FieldAnnotation annotation, RelDataTypeFactory factory, ElasticSpecialType specialType, boolean isV5, boolean isPainless) {
-    super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory));
+  private SchemaField(int index, SchemaPath path, CompleteType type, FieldAnnotation annotation, RelDataTypeFactory factory, ElasticSpecialType specialType, boolean isV5, boolean isPainless, boolean complexTypeSupport) {
+    super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory, complexTypeSupport));
     this.path = path;
     this.type = type;
     this.annotation = annotation;
@@ -388,9 +393,11 @@ public class SchemaField extends RexInputRef {
     private final ElasticIntermediateScanPrel scan;
     private final boolean isV5;
     private final boolean isPainless;
+    private final boolean complexTypeSupport;
 
     public SchemaingShuttle(ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
       this.scan = scan;
+      this.complexTypeSupport = PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport();
       this.isV5 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
       this.disallowedSpecialTypes = disallowedSpecialTypes;
       ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
@@ -399,7 +406,8 @@ public class SchemaField extends RexInputRef {
 
     @Override
     public RexNode visitCall(RexCall call) {
-      final boolean isItem = call.getOperator().getSyntax() == SqlSyntax.SPECIAL && call.getOperator() == SqlStdOperatorTable.ITEM;
+      final boolean isItem = call.getOperator().getSyntax() == SqlSyntax.SPECIAL
+        && (call.getOperator() == SqlStdOperatorTable.ITEM || call.getOperator() == SqlStdOperatorTable.DOT);
       if(isItem){
         return visitCandidate(call);
       }
@@ -418,7 +426,7 @@ public class SchemaField extends RexInputRef {
       Preconditions.checkArgument(fieldId != null, "Unable to resolve item path %s.", node);
       CompleteType type = fieldId.getFinalType();
 
-      return new SchemaField(fieldId.getFieldIds()[0], path, type, annotation, scan.getCluster().getTypeFactory(), specialType, isV5, isPainless);
+      return new SchemaField(fieldId.getFieldIds()[0], path, type, annotation, scan.getCluster().getTypeFactory(), specialType, isV5, isPainless, complexTypeSupport);
     }
 
     @Override
@@ -426,6 +434,10 @@ public class SchemaField extends RexInputRef {
       return visitCandidate(inputRef);
     }
 
+    @Override
+    public SchemaField visitFieldAccess(RexFieldAccess fieldAccess) {
+      return visitCandidate(fieldAccess);
+    }
   }
 
 
@@ -452,8 +464,19 @@ public class SchemaField extends RexInputRef {
     }
 
     @Override
+    public SchemaPath visitFieldAccess(RexFieldAccess fieldAccess) {
+      LogicalExpression logExpr = fieldAccess.getReferenceExpr().accept(this);
+      if (!(logExpr instanceof SchemaPath)) {
+        return (SchemaPath) logExpr;
+      }
+
+      SchemaPath left = (SchemaPath) logExpr;
+      return left.getChild(fieldAccess.getField().getName());
+    }
+
+    @Override
     public SchemaPath visitCall(RexCall call) {
-      if(call.getOperator().getSyntax() != SqlSyntax.SPECIAL || call.getOperator() != SqlStdOperatorTable.ITEM){
+      if(call.getOperator().getSyntax() != SqlSyntax.SPECIAL || (call.getOperator() != SqlStdOperatorTable.ITEM && call.getOperator() != SqlStdOperatorTable.DOT)) {
         return null;
       }
       LogicalExpression logExpr = call.getOperands().get(0).accept(this);

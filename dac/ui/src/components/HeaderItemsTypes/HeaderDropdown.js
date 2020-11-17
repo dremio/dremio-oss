@@ -20,9 +20,15 @@ import DropdownMenu from '@app/components/Menus/DropdownMenu';
 export default class HeaderDropdown extends Component {
   static propTypes = {
     dataQa: PropTypes.string,
-    name: PropTypes.string.isRequired,
+    name: PropTypes.string,
+    nameStyle: PropTypes.object,
     menu: PropTypes.node.isRequired,
-    style: PropTypes.object
+    style: PropTypes.object,
+    icon: PropTypes.string,
+    tooltip: PropTypes.string,
+    hideArrow: PropTypes.bool,
+    arrowStyle: PropTypes.object,
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -30,16 +36,22 @@ export default class HeaderDropdown extends Component {
   };
 
   render() {
-    const { dataQa, name, menu, style } = this.props;
+    const { dataQa, name, nameStyle, menu, style, icon, tooltip, hideArrow, arrowStyle, className } = this.props;
 
     return (
       <DropdownMenu
-        className='header-dropdown'
+        className={className}
         hideDivider
         dataQa={dataQa}
         style={{...styles.base, ...style}}
+        menu={menu}
+        hideArrow={hideArrow}
+        arrowStyle={arrowStyle}
+        textStyle={nameStyle}
+        fontIcon={icon}
         text={name}
-        menu={menu}/>
+        iconToolTip={tooltip}
+      />
     );
   }
 }

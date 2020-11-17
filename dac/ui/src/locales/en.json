@@ -16,6 +16,8 @@
   "HeaderMenu.InternalBuild": "Internal Build",
   "HeaderMenu.FileABug": "File a Bug",
   "HeaderMenu.AccountSettings": "Account Settings",
+  "HeaderMenu.AdminSystem": "System Admin",
+  "HeaderMenu.AdminProject": "Project Admin",
   "HeaderMenu.LogOut": "Log Out",
   "Common.Name": "Name",
   "Common.Action": "Action",

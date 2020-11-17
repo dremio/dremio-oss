@@ -16,6 +16,7 @@
 package com.dremio.dac.resource;
 
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
+import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static org.junit.Assert.assertEquals;
 
 import javax.ws.rs.client.Entity;
@@ -45,6 +46,15 @@ public class TestSpaceResource extends BaseTestServer {
 
     assertEquals("s1", s1.getName());
     assertEquals("I am s1", s1.getDescription());
+
+    doc("delete with bad version");
+    long badVersion = 1234L;
+    String expectedErrorMessage = String.format("Cannot delete space \"%s\", version provided \"%s\" is different from version found \"%s\"",
+      s1.getName(), badVersion, s1.getVersion());
+    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT,
+      getBuilder(getAPIv2().path("space/s1").queryParam("version", badVersion)).buildDelete(),
+      GenericErrorMessage.class);
+    assertErrorMessage(errorDelete2, expectedErrorMessage);
 
     doc("delete space");
     expectSuccess(getBuilder(getAPIv2().path("space/s1").queryParam("version", s1.getVersion())).buildDelete(), Space.class);

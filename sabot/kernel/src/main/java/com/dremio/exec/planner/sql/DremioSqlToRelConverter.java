@@ -90,7 +90,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     final SqlNode parsedNode = newConverter.parse(queryString);
     final SqlNode validatedNode = newConverter.validate(parsedNode);
     if (path != null && sqlConverter.getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
-      final RelRootPlus unflattenedRoot = newConverter.toConvertibleRelRoot(validatedNode, true, false);
+      final RelRootPlus unflattenedRoot = newConverter.toConvertibleRelRoot(validatedNode, true, false, false);
       ExpansionNode expansionNode = (ExpansionNode) wrapExpansionNode(
         sqlConverter,
         batchSchema,

@@ -85,7 +85,7 @@ import com.google.common.collect.Lists;
 public class ITHiveStorage extends HiveTestBase {
 
   @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
+  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void setupOptions() throws Exception {

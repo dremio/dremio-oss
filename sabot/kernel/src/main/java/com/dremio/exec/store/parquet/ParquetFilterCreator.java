@@ -27,6 +27,10 @@ public class ParquetFilterCreator {
     return filterCondition.getFilter();
   }
 
+  public ParquetFilterIface rewriteIfNecessary(ParquetFilterIface filter, SchemaDerivationHelper schemaHelper, String filteredColumn, SchemaElement filterColumnfileSchemaType) {
+    return filter;
+  }
+
   public boolean filterMayChange() {
     return false;
   }

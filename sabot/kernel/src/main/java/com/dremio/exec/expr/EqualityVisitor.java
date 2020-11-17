@@ -23,6 +23,7 @@ import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.SchemaPath;

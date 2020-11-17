@@ -107,10 +107,6 @@ public interface ExecConstants {
   PositiveLongValidator CODE_GEN_NESTED_METHOD_THRESHOLD = new PositiveLongValidator("exec.operator.codegen.nested_method.threshold", Integer.MAX_VALUE, 100);
 
 
-  String JDBC_ROW_COUNT_QUERY_TIMEOUT = "store.jdbc.row_count_query_timeout_seconds";
-  LongValidator JDBC_ROW_COUNT_QUERY_TIMEOUT_VALIDATOR = new PositiveLongValidator(JDBC_ROW_COUNT_QUERY_TIMEOUT, Integer.MAX_VALUE, 5);
-
-
   /**
    * Currently if a query is cancelled, but one of the fragments reports the status as FAILED instead of CANCELLED or
    * FINISHED we report the query result as CANCELLED by swallowing the failures occurred in fragments. This BOOT
@@ -490,4 +486,7 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET =  new BooleanValidator("exec.non_partitioned_parquet.enable_runtime_filter", false); // in beta right now
   RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE =  new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
+
+  String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
+  BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, false);
 }

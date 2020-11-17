@@ -38,6 +38,7 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -164,7 +165,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
                   }
                 });
 
-    return new ScanOperator(config, context, readers.iterator());
+    return new ScanOperator(config, context, RecordReaderIterator.from(readers.iterator()));
   }
 
   /**

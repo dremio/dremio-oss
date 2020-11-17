@@ -15,10 +15,13 @@
  */
 package com.dremio.datastore.indexed;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.util.BytesRef;
+import org.junit.Test;
 
 /**
  * Tests for SimpleDocumentWriter.
@@ -45,6 +48,43 @@ public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleD
       final Object value = getValueFromField(expectedValues[i], field);
       verifyHelper(expectedValues[i], value);
     }
+  }
+
+  @Test
+  public void testLongASCIIString() {
+    final IndexKey indexKey = newIndexKey(String.class, false);
+    StringBuilder sb = new StringBuilder();
+    for(int i=0;i<3500;i++) {
+      sb.append("0123456789");
+    }
+    SimpleDocumentWriter writer = createDocumentWriter();
+    writer.write(indexKey, sb.toString());
+
+    verifySingleIndexValue(writer, indexKey,  sb.substring(0, SimpleDocumentWriter.MAX_STRING_LENGTH));
+  }
+
+  /**
+   * Prepare a large sql, such that truncation happens at middle of two-byte char,
+   * resulting in incorrect last char.
+   * Test writing and reading from SimpleDocumentWriter does have no issues.
+   */
+  @Test
+  public void testLongStringWithNonAscii() {
+    final IndexKey indexKey = newIndexKey(String.class, false);
+    StringBuilder sb = new StringBuilder();
+    for (int i=0;i<27000/26;i++) {
+      sb.append("abcdefghijklmnopqrstuvwxyz");
+    }
+    sb.append("123");
+    for(int i=0;i<400;i++) {
+      sb.append("\u00E4\u00FC\u00F6\u00E4\u00FC\u00F6\u00E4\u00FC\u00F6\u00E4");
+    }
+    SimpleDocumentWriter writer = createDocumentWriter();
+    writer.write(indexKey, sb.toString());
+
+    final byte[] strBytes = sb.toString().getBytes(UTF_8);
+    final BytesRef truncatedValue = new BytesRef(strBytes, 0, Math.min(strBytes.length, SimpleDocumentWriter.MAX_STRING_LENGTH));
+    verifySingleIndexValue(writer, indexKey,  truncatedValue.utf8ToString());
   }
 
   @Override

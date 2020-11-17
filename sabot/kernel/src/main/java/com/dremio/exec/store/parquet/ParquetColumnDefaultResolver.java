@@ -17,10 +17,16 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
 
+import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
+import com.google.common.base.Preconditions;
 
 /**
  * This class acts as no-op. This is used in parquet dataset path
@@ -28,7 +34,7 @@ import com.dremio.common.expression.SchemaPath;
 public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
   private List<SchemaPath> projectedColumns;
 
-  ParquetColumnDefaultResolver(List<SchemaPath> projectedColumns) {
+  public ParquetColumnDefaultResolver(List<SchemaPath> projectedColumns) {
     this.projectedColumns = projectedColumns;
   }
 
@@ -66,5 +72,35 @@ public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
 
   public List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDesc) {
     return ParquetReaderUtility.convertColumnDescriptor(schema, columnDesc);
+  }
+
+  public String toDotString(SchemaPath schemaPath, ValueVector vector) {
+    StringBuilder pathBuilder = new StringBuilder();
+    boolean isListChild = (vector instanceof ListVector);
+    pathBuilder.append(schemaPath.getRootSegment().getPath());
+    PathSegment seg = schemaPath.getRootSegment().getChild();
+    while (seg != null) {
+      pathBuilder.append(".");
+      if (seg.isArray() || isListChild) {
+        vector = ((ListVector)vector).getDataVector();
+        pathBuilder.append("list.element");
+        if (!seg.isArray()) {
+          // planner doesn't always send index with list path segment
+          isListChild = (vector instanceof ListVector);
+          continue;
+        }
+      } else {
+        if (vector instanceof StructVector) {
+          vector = ((StructVector)vector).getChild(seg.getNameSegment().getPath());
+        } else if (vector instanceof UnionVector) {
+          // child is a primitive type, and path won't have any child
+          Preconditions.checkState(seg.getChild() == null, "Unexpected state");
+        }
+        pathBuilder.append(seg.getNameSegment().getPath());
+      }
+      isListChild = (vector instanceof ListVector);
+      seg = seg.getChild();
+    }
+    return pathBuilder.toString().toLowerCase();
   }
 }

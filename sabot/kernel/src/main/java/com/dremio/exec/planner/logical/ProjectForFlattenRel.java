@@ -32,7 +32,7 @@ import com.google.common.base.Preconditions;
 
 public class ProjectForFlattenRel extends SingleRel implements Rel {
 
-  private final List<RexNode> itemExprs;
+  private final List<RexNode> structuredColumnExprs;
   private final List<RexNode> projExprs;
 
   protected ProjectForFlattenRel(RelOptCluster cluster,
@@ -40,20 +40,20 @@ public class ProjectForFlattenRel extends SingleRel implements Rel {
                                       RelNode child,
                                       RelDataType rowType,
                                       List<RexNode> projExprs,
-                                      List<RexNode> itemExprs) {
+                                      List<RexNode> structuredColumnExprs) {
     super(cluster, traits, child);
     this.projExprs = projExprs;
-    this.itemExprs = itemExprs;
+    this.structuredColumnExprs = structuredColumnExprs;
     this.rowType = rowType;
-    Preconditions.checkArgument(itemExprs != null && !itemExprs.isEmpty());
+    Preconditions.checkArgument(structuredColumnExprs != null && !structuredColumnExprs.isEmpty());
   }
 
   public List<RexNode> getProjExprs() {
     return projExprs;
   }
 
-  public List<RexNode> getItemExprs() {
-    return itemExprs;
+  public List<RexNode> getStructuredColumnExprs() {
+    return structuredColumnExprs;
   }
 
   @Override
@@ -63,11 +63,11 @@ public class ProjectForFlattenRel extends SingleRel implements Rel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return super.explainTerms(pw).item("projExprs", projExprs).item("itemExprs", this.itemExprs);
+    return super.explainTerms(pw).item("projExprs", projExprs).item("structuredColumnExprs", this.structuredColumnExprs);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ProjectForFlattenRel(getCluster(), traitSet, sole(inputs), this.getRowType(), this.projExprs, this.itemExprs);
+    return new ProjectForFlattenRel(getCluster(), traitSet, sole(inputs), this.getRowType(), this.projExprs, this.structuredColumnExprs);
   }
 }

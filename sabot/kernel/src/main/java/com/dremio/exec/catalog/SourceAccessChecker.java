@@ -112,11 +112,6 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public void deleteDataset(NamespaceKey key, String version) throws NamespaceException {
-    delegate.deleteDataset(key, version);
-  }
-
-  @Override
   public DremioTable getTable(String datasetId) {
     return getIfVisible(null, () -> delegate.getTable(datasetId));
   }
@@ -196,6 +191,12 @@ class SourceAccessChecker implements Catalog {
     throwIfInvisible(key);
 
     delegate.dropTable(key);
+  }
+
+  @Override
+  public void forgetTable(NamespaceKey key) {
+    throwIfInvisible(key);
+    delegate.forgetTable(key);
   }
 
   @Override

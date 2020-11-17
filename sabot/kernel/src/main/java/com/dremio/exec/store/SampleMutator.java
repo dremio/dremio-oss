@@ -55,6 +55,16 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     this.bufferManager = new BufferManagerImpl(allocator);
   }
 
+  public void removeField(Field field) throws SchemaChangeException {
+    ValueVector vector = fieldVectorMap.remove(field.getName().toLowerCase());
+    if (vector == null) {
+      throw new SchemaChangeException("Failure attempting to remove an unknown field.");
+    }
+    try(ValueVector v = vector) {
+      container.remove(vector);
+    }
+  }
+
   public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
     ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
     if (v == null || v.getClass() != clazz) {

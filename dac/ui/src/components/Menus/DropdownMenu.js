@@ -35,9 +35,12 @@ export default class DropdownMenu extends PureComponent {
     iconStyle: PropTypes.object,
     textStyle: PropTypes.object,
     hideArrow: PropTypes.bool,
+    arrowStyle: PropTypes.object,
     hideDivider: PropTypes.bool,
     disabled: PropTypes.bool,
-    isButton: PropTypes.bool
+    isButton: PropTypes.bool,
+    iconTooltip: PropTypes.string,
+    fontIcon: PropTypes.string
   };
 
   static defaultProps = {
@@ -46,7 +49,8 @@ export default class DropdownMenu extends PureComponent {
   };
 
   render() {
-    const { dataQa, className, text, iconType, menu, style, iconStyle, textStyle, hideArrow, hideDivider, disabled, isButton } = this.props;
+    const { dataQa, className, text, iconType, menu, style, iconStyle, textStyle, fontIcon,
+      hideArrow, hideDivider, disabled, isButton, iconTooltip, arrowStyle } = this.props;
 
     const isTogglerHovered = !disabled ? Radium.getState(this.state, 'toggler', ':hover') : false;
     const hoverStyle = {backgroundColor: '#F9F9F9'};
@@ -60,6 +64,7 @@ export default class DropdownMenu extends PureComponent {
       opacity: '.75'
     } : {};
 
+    const stdArrowStyle = isButton ? styles.downButtonArrow : styles.downArrow;
 
     return (
       <div style={isButton ? [styles.base, styles.button, style, isTogglerHovered && hoverStyle] : [styles.base, style]}>
@@ -71,11 +76,21 @@ export default class DropdownMenu extends PureComponent {
               <div style={styles.iconWrap}>
                 <FontIcon
                   type={iconType}
-                  theme={{...styles.icon, ...iconStyle}}/>
+                  tooltip={iconTooltip}
+                  theme={{...styles.icon, ...iconStyle}}
+                />
+              </div>
+              }
+              {fontIcon &&
+              <div >
+                <div
+                  className={fontIcon}
+                  tooltip={iconTooltip}
+                />
               </div>
               }
               {!hideDivider && <div style={[styles.divider, dividerStyle]} />}
-              {!hideArrow && <i className='fa fa-angle-down' style={isButton ? styles.downButtonArrow : styles.downArrow}/>}
+              {!hideArrow && <i className='fa fa-angle-down' style={{...stdArrowStyle, ...arrowStyle}}/>}
             </div>
           }
           hideExpandIcon

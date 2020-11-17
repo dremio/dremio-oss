@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.9.1-202010230218060541-2e764ed0</version>
+    <version>11.0.0-202011171636110752-16ab953d</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -200,12 +200,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-jdbc-plugin</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-winutils</artifactId>
       <version>3.2.0</version>
@@ -298,7 +292,7 @@
                     Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                   </message>
-                  <maxsize>650000000</maxsize>
+                  <maxsize>651000000</maxsize>
                   <minsize>500000000</minsize>
                   <files>
                     <file>${project.build.directory}/${dremio.distribution.name}-${project.version}.tar.gz</file>

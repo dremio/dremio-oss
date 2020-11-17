@@ -74,6 +74,7 @@ import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
@@ -276,6 +277,17 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
               });
     }
     return result(newCorrelate, mapping);
+  }
+
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link SampleCrel}.
+   */
+  public TrimResult trimFields(
+    SampleCrel sampleCrel,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields) {
+    TrimResult result = dispatchTrimFields(sampleCrel.getInput(), fieldsUsed, extraFields);
+    return result(SampleCrel.create(result.left), result.right);
   }
 
   /**

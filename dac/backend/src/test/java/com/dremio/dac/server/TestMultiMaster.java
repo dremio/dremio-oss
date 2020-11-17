@@ -53,6 +53,7 @@ import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.daemon.ZkServer;
 import com.dremio.dac.explore.model.DataPOJO;
+import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobsUI;
@@ -87,6 +88,7 @@ import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
@@ -253,7 +255,7 @@ public class TestMultiMaster extends BaseClientUtils {
             }
           }
         )
-    );
+    ).addMixIn(ViewFieldType.class, ViewFieldTypeMixin.class);
     provider.setMapper(objectMapper);
     return ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
   }

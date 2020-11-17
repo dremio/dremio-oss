@@ -92,6 +92,7 @@ public class PlannerSettings implements Context{
   public static final LongValidator BROADCAST_CELL_COUNT_THRESHOLD = new PositiveLongValidator("planner.broadcast_cellcount_threshold", MAX_BROADCAST_THRESHOLD, DEFAULT_CELL_COUNT_THRESHOLD);
   public static final DoubleValidator BROADCAST_FACTOR = new RangeDoubleValidator("planner.broadcast_factor", 0, Double.MAX_VALUE, 2.0d);
   public static final DoubleValidator NESTEDLOOPJOIN_FACTOR = new RangeDoubleValidator("planner.nestedloopjoin_factor", 0, Double.MAX_VALUE, 100.0d);
+  public static final LongValidator NESTEDLOOPJOIN_MAX_CONDITION_NODES = new PositiveLongValidator("planner.nestedloopjoin_max_condition_nodes", Long.MAX_VALUE, 120);
   public static final BooleanValidator NLJOIN_FOR_SCALAR = new BooleanValidator("planner.enable_nljoin_for_scalar_only", false);
   public static final DoubleValidator JOIN_ROW_COUNT_ESTIMATE_FACTOR = new RangeDoubleValidator("planner.join.row_count_estimate_factor", 0, Double.MAX_VALUE, 1.0d);
   public static final BooleanValidator MUX_EXCHANGE = new BooleanValidator("planner.enable_mux_exchange", true);
@@ -120,6 +121,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator UNIONALL_DISTRIBUTE = new BooleanValidator(UNIONALL_DISTRIBUTE_KEY, true);
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
   public static final BooleanValidator RELATIONAL_PLANNING = new BooleanValidator("planner.enable_relational_planning", true);
+  public static final BooleanValidator FULL_NESTED_SCHEMA_SUPPORT = new BooleanValidator("planner.enable_full_nested_schema", true);
+  public static final BooleanValidator COMPLEX_TYPE_FILTER_PUSHDOWN = new BooleanValidator("planner.complex_type_filter_pushdown", false);
 
   public static final BooleanValidator ENABLE_LEAF_LIMITS = new BooleanValidator("planner.leaf_limit_enable", false);
   public static final RangeLongValidator LEAF_LIMIT_SIZE  = new RangeLongValidator("planner.leaf_limit_size", 1, Long.MAX_VALUE, 10000);
@@ -127,6 +130,10 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
+
+  // number of records (per minor fragment) is truncated to at-least MIN_RECORDS_PER_FRAGMENT
+  // if num of records for the fragment is greater than this.
+  public static final Long MIN_RECORDS_PER_FRAGMENT  = 500L;
 
   public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
 
@@ -144,6 +151,11 @@ public class PlannerSettings implements Context{
     (ENABLE_DECIMAL_V2_KEY, true);
   public static final BooleanValidator ENABLE_VECTORIZED_PARQUET_DECIMAL = new BooleanValidator
     (ENABLE_VECTORIZED_PARQUET_DECIMAL_KEY, true);
+
+  public static final BooleanValidator ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN =
+          new BooleanValidator("planner.parquet.in_expression_push_down", false);
+  public static final BooleanValidator ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN =
+          new BooleanValidator("planner.parquet.multi_column_filter_push_down", false);
 
   public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
   /**
@@ -311,6 +323,10 @@ public class PlannerSettings implements Context{
     return options.getOption(MAX_NODES_PER_PLAN);
   }
 
+  public final long getMaxNLJConditionNodesPerPlan() {
+    return options.getOption(NESTEDLOOPJOIN_MAX_CONDITION_NODES);
+  }
+
   public long getLeafLimit(){
     return options.getOption(LEAF_LIMIT_SIZE);
   }
@@ -345,6 +361,10 @@ public class PlannerSettings implements Context{
 
   public boolean isTransitiveFilterPushdownEnabled() {
     return options.getOption(TRANSITIVE_FILTER_JOIN_PUSHDOWN);
+  }
+
+  public boolean isComplexTypeFilterPushdownEnabled() {
+    return options.getOption(COMPLEX_TYPE_FILTER_PUSHDOWN);
   }
 
   public boolean isRuntimeFilterEnabled() {
@@ -568,6 +588,10 @@ public class PlannerSettings implements Context{
 
   public int getDatasetMaxSplitLimit() {
     return (int) options.getOption(DATASET_MAX_SPLIT_LIMIT);
+  }
+
+  public boolean isFullNestedSchemaSupport() {
+    return options.getOption(FULL_NESTED_SCHEMA_SUPPORT);
   }
 
   public void pullDistributionTrait(boolean pullDistributionTrait) {

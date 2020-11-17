@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -68,6 +69,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -79,6 +81,7 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableList;
@@ -657,6 +660,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     final DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, fileName));
     final DatasetConfig dataset = new DatasetConfig()
+      .setId(new EntityId().setId(UUID.randomUUID().toString()))
       .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
       .setFullPathList(path.toPathList())
       .setName(path.getLeaf().getName())
@@ -752,6 +756,159 @@ public class TestCatalogResource extends BaseTestServer {
     thrown.expect(NamespaceException.class);
     p(NamespaceService.class).get().getDataset(datasetKey);
 
+  }
+
+  private boolean isComplete(DatasetConfig config) {
+    return config != null
+      && DatasetHelper.getSchemaBytes(config) != null
+      && config.getReadDefinition() != null;
+  }
+
+  @Test
+  public void testForgetTableDefault() throws Exception {
+
+    final String sourceName = "src_" + System.currentTimeMillis();
+    final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
+
+    // Do an inline refresh to build complete DatasetConfig before forget metadata
+    final String queryForInlineRefresh = String.format("select * from %s.\"myFile.json\"", sourceName);
+    JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(queryForInlineRefresh, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+    JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    assertEquals("myFile.json", dataset1.getName());
+    assertTrue(isComplete(dataset1));
+
+    // Forget metadata
+    final String query = String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
+    jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+    // Expect to delete the metadata record in kv store successfully
+    job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
+    thrown.expect(NamespaceException.class);
+    p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+
+  }
+
+  @Test
+  public void testForgetTableMultiple() throws Exception {
+
+    final String sourceName = "src_" + System.currentTimeMillis();
+    final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
+
+    // Do a full refresh to build complete DatasetConfig before forget metadata
+    ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService()).refreshSource(new NamespaceKey(sourceName), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    assertEquals("myFile.json", dataset1.getName());
+    assertTrue(isComplete(dataset1));
+
+    // Forget metadata
+    final String query = String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
+    JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+    // Expect to delete the metadata record in kv store successfully
+    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    // Expect to receive an UserException if try to forget metadata on the deleted metadata in kv store
+    final String msg = String.format("PARSE ERROR: Unable to find table %s.\"myFile.json\"", sourceName);
+    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.PARSE, msg));
+
+    // Forget metadata again
+    jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+  }
+
+  @Test
+  public void testForgetTableWithNameRefresh() throws Exception {
+
+    final String sourceName = "src_" + System.currentTimeMillis();
+    final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_EXTERNAL, null);
+
+    // Do an inline refresh to build complete DatasetConfig before forget metadata
+    final String queryForInlineRefresh = String.format("select * from %s.\"myFile.json\"", sourceName);
+    JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(queryForInlineRefresh, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+    JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    DatasetConfig dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    assertEquals("myFile.json", dataset1.getName());
+    assertTrue(isComplete(dataset1));
+
+    // Forget metadata
+    String query = String.format("alter table %s.\"myFile.json\" forget metadata", sourceName);
+    jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+    // Expect to delete the metadata record in kv store successfully
+    job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    // Emulate NameRefresh to put a shallow metadata into kv store
+    DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, "myFile.json"));
+    DatasetConfig dataset = new DatasetConfig()
+      .setId(new EntityId().setId(UUID.randomUUID().toString()))
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path.toPathList())
+      .setName(path.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setTag(null);
+    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+
+    // Expect to find the metadata record when query the kv store
+    dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    assertEquals("myFile.json", dataset1.getName());
+    // Assert shallow dataset config is incomplete
+    assertFalse(isComplete(dataset1));
+
+    // Forget metadata again
+    jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+    // Expect to delete the metadata record in kv store successfully
+    job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
+    thrown.expect(NamespaceException.class);
+    p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
   }
 
   @Test

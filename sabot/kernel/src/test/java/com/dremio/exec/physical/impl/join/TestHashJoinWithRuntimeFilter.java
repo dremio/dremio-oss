@@ -53,12 +53,26 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
   public void testHashJoinWithFuncJoinCondition() throws Exception {
     String sql = "SELECT nations.N_NAME, count(*) FROM\n"
       + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\" nations \n"
-      + "LEFT JOIN\n"
+      + "JOIN\n"
       + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\" regions \n"
       + "  on (nations.N_REGIONKEY +1) = regions.R_REGIONKEY \n"
       + "group by nations.N_NAME";
     String excludedColNames1 =  "runtimeFilterInfo";
-    String excludedColNames2 =  "runtime-filter";
+    String excludedColNames2 =  "runtimeFilter";
+    setup();
+    testPlanWithAttributesMatchingPatterns(sql, null, new String[]{excludedColNames1, excludedColNames2});
+  }
+
+  @Test
+  public void testHashJoinWithCast() throws Exception {
+    String sql = "SELECT nations.N_NAME, count(*) FROM\n"
+      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\" nations \n"
+      + "JOIN\n"
+      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\" regions \n"
+      + "  on CAST (nations.N_REGIONKEY as INT) = regions.R_REGIONKEY\n"
+      + "group by nations.N_NAME";
+    String excludedColNames1 =  "runtimeFilterInfo";
+    String excludedColNames2 =  "runtimeFilter";
     setup();
     testPlanWithAttributesMatchingPatterns(sql, null, new String[]{excludedColNames1, excludedColNames2});
   }

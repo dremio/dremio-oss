@@ -246,7 +246,7 @@ public class ExpressionConverter {
 
     @Override
     public SearchQuery visitFieldAccess(RexFieldAccess fieldAccess) {
-      return null;
+      return fieldAccess.getReferenceExpr().accept(this);
     }
 
     @Override

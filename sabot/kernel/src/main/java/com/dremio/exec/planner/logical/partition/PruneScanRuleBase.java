@@ -89,6 +89,7 @@ import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.exec.planner.logical.SampleRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.record.VectorContainer;
@@ -250,6 +251,46 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     }
   }
 
+  // new prune scan rule for filter on SampleRel, fires when filter above a sample rel with pruneable scan.
+  public static class PruneScanRuleFilterOnSampleScan<T extends ScanRelBase & PruneableScan> extends PruneScanRuleBase<T> {
+    public PruneScanRuleFilterOnSampleScan(StoragePluginId pluginId, Class<T> clazz, OptimizerRulesContext optimizerContext) {
+      super(pluginId.getType(), RelOptHelper.some(FilterRel.class, RelOptHelper.some(SampleRel.class, RelOptHelper.any(clazz))),
+        pluginId.getType().value() + "NewPruneScanRule:Filter_On_SampleRel_Scan."
+          + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString(), optimizerContext);
+    }
+
+    public PruneScanRuleFilterOnSampleScan(SourceType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
+      super(pluginType, RelOptHelper.some(FilterRel.class, RelOptHelper.some(SampleRel.class, RelOptHelper.any(clazz))),
+        pluginType.value() + "NewPruneScanRule:Filter_On_SampleRel_Scan", optimizerContext);
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      final ScanRelBase scan = call.rel(2);
+      double splitRatio;
+      if (scan.getPluginId().getType().equals(pluginType)) {
+        try {
+          splitRatio = scan.getTableMetadata().getSplitRatio();
+        } catch (NamespaceException e) {
+          logger.warn("Unable to calculate split.", e);
+          return false;
+        }
+        if(splitRatio == 1.0d){
+          final List<String> partitionColumns = scan.getTableMetadata().getReadDefinition().getPartitionColumnsList();
+          return partitionColumns != null && !partitionColumns.isEmpty();
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+      final Filter filterRel = call.rel(0);
+      final T scanRel = call.rel(2);
+      doOnMatch(call, filterRel, null, scanRel);
+    }
+  }
+
   private boolean doSargPruning(
       Filter filterRel,
       RexNode pruneCondition,
@@ -259,7 +300,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       Pointer<RexNode> outputCondition){
     final RexBuilder builder = filterRel.getCluster().getRexBuilder();
 
-    final FindSimpleFilters.StateHolder holder = pruneCondition.accept(new FindSimpleFilters(builder, true));
+    final FindSimpleFilters.StateHolder holder = pruneCondition.accept(new FindSimpleFilters(builder, true, false));
     TableMetadata datasetPointer = scanRel.getTableMetadata();
 
     // index based matching does not support decimals, the values(literal/index) are not scaled

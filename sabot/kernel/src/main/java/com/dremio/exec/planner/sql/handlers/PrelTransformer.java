@@ -27,8 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -47,7 +45,6 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
@@ -138,8 +135,9 @@ import com.dremio.sabot.op.join.JoinUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -281,8 +279,10 @@ public class PrelTransformer {
       FlattenRelFinder flattenFinder = new FlattenRelFinder();
       final RelNode flattendPushed;
       if (flattenFinder.run(convertedRelNode)) {
-        flattendPushed = transform(config, PlannerType.VOLCANO, PlannerPhase.FLATTEN_PUSHDOWN,
-          convertedRelNode, convertedRelNode.getTraitSet(), true);
+        final RelNode wrapped = RexFieldAccessUtils.wrap(convertedRelNode);
+        RelNode transformed = transform(config, PlannerType.VOLCANO, PlannerPhase.FLATTEN_PUSHDOWN,
+          wrapped, convertedRelNode.getTraitSet(), true);
+        flattendPushed = RexFieldAccessUtils.unwrap(transformed);
       } else {
         flattendPushed = convertedRelNode;
       }
@@ -323,7 +323,7 @@ public class PrelTransformer {
     RelNode relNode
   ) throws SqlUnsupportedException, RelConversionException {
     Rel drel = convertToDrel(config, relNode);
-    return addRenamedProject(config, drel, relNode.getRowType());
+    return addRenamedProjectForMaterialization(config, drel, relNode.getRowType());
   }
 
   /**
@@ -459,7 +459,7 @@ public class PrelTransformer {
       final List<RelMetadataProvider> list = Lists.newArrayList();
       list.add(DefaultRelMetadataProvider.INSTANCE);
       hepPlanner.registerMetadataProviders(list);
-      final RelMetadataProvider cachingMetaDataProvider = new CachingRelMetadataProvider(
+      final RelMetadataProvider cachingMetaDataProvider = buildCachingRelMetadataProvider(
           ChainedRelMetadataProvider.of(list), hepPlanner);
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
@@ -490,7 +490,7 @@ public class PrelTransformer {
       list.add(DefaultRelMetadataProvider.INSTANCE);
       volcanoPlanner.registerMetadataProviders(list);
 
-      final RelMetadataProvider cachingMetaDataProvider = new CachingRelMetadataProvider(
+      final RelMetadataProvider cachingMetaDataProvider = buildCachingRelMetadataProvider(
           ChainedRelMetadataProvider.of(list), volcanoPlanner);
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
@@ -529,6 +529,17 @@ public class PrelTransformer {
       pl.setRoot(relNode);
       return pl.findBestExp().accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
     };
+  }
+
+  private static RelMetadataProvider buildCachingRelMetadataProvider(
+    RelMetadataProvider relMetadataProvider,
+    RelOptPlanner hepPlanner
+  ) {
+    Cache<List<Object>, CachingRelMetadataProvider.CacheEntry> cache =
+      CacheBuilder.newBuilder()
+        .softValues()
+        .build();
+    return new CachingRelMetadataProvider(relMetadataProvider, hepPlanner, cache.asMap());
   }
 
   private static RelNode doTransform(SqlHandlerConfig config, final PlannerType plannerType, final PlannerPhase phase, final RelOptPlanner planner, final RelNode input, boolean log, Supplier<RelNode> toPlan) {
@@ -1026,7 +1037,35 @@ public class PrelTransformer {
     return rel;
   }
 
-  public static Rel addRenamedProject(SqlHandlerConfig config, Rel rel, RelDataType validatedRowType) {
+  private static Rel addRenamedProject(SqlHandlerConfig config, Rel rel, RelDataType validatedRowType) {
+    ProjectRel topProj = createRenameProjectRel(rel, validatedRowType);
+
+    final boolean noneHaveAnyType = validatedRowType.getFieldList().stream()
+      .noneMatch(input -> input.getType().getSqlTypeName() == SqlTypeName.ANY);
+
+    // Add a final non-trivial Project to get the validatedRowType, if child is not project or the input row type
+    // contains at least one field of type ANY
+    if (rel instanceof Project && MoreRelOptUtil.isTrivialProject(topProj) && noneHaveAnyType) {
+      return rel;
+    }
+
+    return topProj;
+  }
+
+  private static Rel addRenamedProjectForMaterialization(SqlHandlerConfig config, Rel rel, RelDataType validatedRowType) {
+    RelDataType relRowType = rel.getRowType();
+
+    ProjectRel topProj = createRenameProjectRel(rel, validatedRowType);
+
+    // Add a final non-trivial Project to get the validatedRowType
+    if (MoreRelOptUtil.isTrivialProjectIgnoreNameCasing(topProj)) {
+      return rel;
+    }
+
+    return topProj;
+  }
+
+  private static ProjectRel createRenameProjectRel(Rel rel, RelDataType validatedRowType) {
     RelDataType t = rel.getRowType();
 
     RexBuilder b = rel.getCluster().getRexBuilder();
@@ -1045,26 +1084,6 @@ public class PrelTransformer {
     RelDataType newRowType = RexUtil.createStructType(rel.getCluster().getTypeFactory(), projections, fieldNames2);
 
     ProjectRel topProj = ProjectRel.create(rel.getCluster(), rel.getTraitSet(), rel, projections, newRowType);
-
-    final boolean hasAnyType = Iterables.find(
-        validatedRowType.getFieldList(),
-        new Predicate<RelDataTypeField>() {
-          @Override
-          public boolean apply(@Nullable RelDataTypeField input) {
-            return input.getType().getSqlTypeName() == SqlTypeName.ANY;
-          }
-        },
-        null
-    ) != null;
-
-    // Add a final non-trivial Project to get the validatedRowType, if child is not project or the input row type
-    // contains at least one field of type ANY
-    if (rel instanceof Project && MoreRelOptUtil.isTrivialProject(topProj, true) && !hasAnyType) {
-      return rel;
-    }
-
     return topProj;
   }
-
-
 }

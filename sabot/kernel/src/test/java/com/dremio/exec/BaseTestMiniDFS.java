@@ -50,20 +50,16 @@ public class BaseTestMiniDFS extends PlanTestBase {
   protected static String miniDfsStoragePath;
 
   /**
-   * Start a MiniDFS cluster backed SabotNode cluster with impersonation enabled.
-   * @param testClass
-   * @throws Exception
-   */
-  protected static void startMiniDfsCluster(String testClass) throws Exception {
-    startMiniDfsCluster(testClass, new Configuration());
-  }
-
-  /**
    * Start a MiniDFS cluster backed SabotNode cluster
    * @param testClass
-   * @param isImpersonationEnabled Enable impersonation in the cluster?
    * @throws Exception
    */
+  protected static Configuration startMiniDfsCluster(String testClass) throws Exception {
+    Configuration configuration = new Configuration();
+    startMiniDfsCluster(testClass, configuration);
+    return configuration;
+  }
+
   protected static void startMiniDfsCluster(final String testClass, Configuration configuration) throws Exception {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(testClass), "Expected a non-null and non-empty test class name");
     dfsConf = Preconditions.checkNotNull(configuration);

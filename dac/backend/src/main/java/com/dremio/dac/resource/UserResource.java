@@ -18,6 +18,7 @@ package com.dremio.dac.resource;
 import static java.lang.String.format;
 
 import java.io.IOException;
+import java.util.ConcurrentModificationException;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -47,6 +48,7 @@ import com.dremio.dac.model.usergroup.UserUI;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.users.UserServiceHelper;
+import com.dremio.dac.util.ResourceUtil;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.users.SimpleUser;
@@ -145,8 +147,12 @@ public class UserResource {
           new GenericErrorMessage("Deletion of the user account of currently logged in user is not allowed.")).build();
     }
 
-    if (!userServiceHelper.deleteUser(userName.getName(), version)) {
-      return Response.serverError().build();
+    try {
+      if (!userServiceHelper.deleteUser(userName.getName(), version)) {
+        return Response.serverError().build();
+      }
+    } catch (ConcurrentModificationException e) {
+      throw ResourceUtil.correctBadVersionErrorMessage(e, "user", userName.getName());
     }
 
     return Response.ok().build();

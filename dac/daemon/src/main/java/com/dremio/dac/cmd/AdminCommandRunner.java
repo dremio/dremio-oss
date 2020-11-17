@@ -65,7 +65,12 @@ public final class AdminCommandRunner {
       System.exit(2);
     }
 
-    runCommand(commandName, command, Arrays.copyOfRange(args, 1, args.length));
+    try {
+      runCommand(commandName, command, Arrays.copyOfRange(args, 1, args.length));
+    } catch (Exception e) {
+      AdminLogger.log(String.format("Failed to run '%s' command: %s", commandName, e.getMessage()));
+      throw e;
+    }
   }
 
   static void runCommand(String commandName, Class<?> command, String[] commandArgs) throws Exception {
@@ -81,7 +86,7 @@ public final class AdminCommandRunner {
     } catch (final ReflectiveOperationException e) {
       final Throwable cause = e.getCause() != null ? e.getCause() : e;
       Throwables.throwIfUnchecked(cause);
-      throw new RuntimeException(String.format("Failed to run '%s' command", commandName), e);
+      throw (Exception)cause;
     }
   }
 

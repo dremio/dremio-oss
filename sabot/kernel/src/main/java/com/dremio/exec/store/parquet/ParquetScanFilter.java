@@ -42,8 +42,7 @@ public class ParquetScanFilter implements ScanFilter {
    */
   @JsonCreator
   public ParquetScanFilter(@JsonProperty("conditions") List<ParquetFilterCondition> conditions) {
-    Preconditions.checkArgument(conditions != null && conditions.size() == 1 && conditions.get(0) != null,
-        "need exactly one non-null condition");
+    Preconditions.checkArgument(conditions != null && !conditions.isEmpty(), "need a non-null, non-empty condition");
     this.conditions = ImmutableList.copyOf(conditions);
   }
 

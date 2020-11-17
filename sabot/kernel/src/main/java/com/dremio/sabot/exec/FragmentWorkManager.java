@@ -44,6 +44,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
@@ -163,25 +164,44 @@ public class FragmentWorkManager implements Service, SafeExit {
     /**
      * @return number of running fragments / max width per node
      */
-    @Override
-    public float getClusterLoad() {
-      final long maxWidthPerNode = bitContext.getClusterResourceInformation().getAverageExecutorCores(bitContext.getOptionManager());
+
+    private float getClusterLoadImpl(GroupResourceInformation groupResourceInformation) {
+      final long maxWidthPerNode = groupResourceInformation.getAverageExecutorCores(bitContext.getOptionManager());
       Preconditions.checkState(maxWidthPerNode > 0, "No executors are available. Unable to determine cluster load");
       return fragmentExecutors.size() / (maxWidthPerNode * 1.0f);
     }
 
     @Override
-    public double getMaxWidthFactor() {
+    public float getClusterLoad() {
+      return getClusterLoadImpl(bitContext.getClusterResourceInformation());
+    }
+
+    @Override
+    public float getClusterLoad(GroupResourceInformation groupResourceInformation) {
+      return getClusterLoadImpl(groupResourceInformation);
+    }
+
+    private double getMaxWidthFactorImpl(GroupResourceInformation groupResourceInformation) {
       final OptionManager options = bitContext.getOptionManager();
       final double loadCutoff = options.getOption(ExecConstants.LOAD_CUT_OFF);
       final double loadReduction = options.getOption(ExecConstants.LOAD_REDUCTION);
 
-      float clusterLoad = getClusterLoad();
+      float clusterLoad = getClusterLoad(groupResourceInformation);
       if (clusterLoad < loadCutoff) {
         return 1.0; // no reduction when load is below load.cut_off
       }
 
       return Math.max(0, 1.0 - clusterLoad * loadReduction);
+    }
+
+    @Override
+    public double getMaxWidthFactor() {
+      return getMaxWidthFactorImpl(bitContext.getClusterResourceInformation());
+    }
+
+    @Override
+    public double getMaxWidthFactor(GroupResourceInformation groupResourceInformation) {
+      return getMaxWidthFactorImpl(groupResourceInformation);
     }
 
     private class FragmentInfoTransformer implements Function<FragmentExecutor, FragmentInfo>{

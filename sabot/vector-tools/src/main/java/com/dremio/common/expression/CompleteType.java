@@ -151,6 +151,8 @@ public class CompleteType {
   public static final CompleteType TIME = new CompleteType(new ArrowType.Time(TimeUnit.MILLISECOND, 32));
   public static final CompleteType TIMESTAMP = new CompleteType(new ArrowType.Timestamp(TimeUnit.MILLISECOND, null));
   public static final CompleteType VARCHAR = new CompleteType(ArrowType.Utf8.INSTANCE);
+  public static final CompleteType LIST = new CompleteType(ArrowType.List.INSTANCE);
+  public static final CompleteType STRUCT = new CompleteType(ArrowType.Struct.INSTANCE);
   public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
   public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(38,
     38));
@@ -288,9 +290,11 @@ public class CompleteType {
     case DECIMAL:
       return DECIMAL;
     // types that need additional information
-    case UNION:
     case LIST:
+      return LIST;
     case STRUCT:
+      return STRUCT;
+    case UNION:
       throw new UnsupportedOperationException("You can't create a complete type from a minor type when working with type of " + type.name());
 
 

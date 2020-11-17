@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.9.1-202010230218060541-2e764ed0</version>
+    <version>11.0.0-202011171636110752-16ab953d</version>
   </parent>
   <artifactId>dremio-services-fabric-rpc</artifactId>
   <name>Services - Fabric RPC</name>

@@ -118,6 +118,9 @@ public class DremioHadoopFileSystemWrapper
     this.isNAS = isNAS(underlyingFs);
     this.isHDFS = isHDFS(underlyingFs);
     this.enableAsync = enableAsync;
+    if(operatorStats != null) {
+      operatorStats.createMetadataReadIOStats();
+    }
   }
 
   private static boolean isMapRfs(FileSystem fs) {
@@ -195,7 +198,7 @@ public class DremioHadoopFileSystemWrapper
    */
   @Override
   public FSInputStream open(Path f) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return newFSDataInputStreamWrapper(f, openFile(f));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -229,7 +232,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public FileAttributes getFileAttributes(Path f) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       final FileStatus result = underlyingFs.getFileStatus(toHadoopPath(f));
       // safe-guarding against misbehaving filesystems
       if (result == null) {
@@ -243,7 +246,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public void setPermission(Path p, Set<PosixFilePermission> permissions) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       underlyingFs.setPermission(toHadoopPath(p), toFsPermission(permissions));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -262,7 +265,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public boolean mkdirs(Path f, Set<PosixFilePermission> permissions) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return underlyingFs.mkdirs(toHadoopPath(f), toFsPermission(permissions));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -291,7 +294,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public boolean mkdirs(Path folderPath) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, folderPath)) {
       org.apache.hadoop.fs.Path path = toHadoopPath(folderPath);
       if (!underlyingFs.exists(path)) {
         return underlyingFs.mkdirs(path);
@@ -306,7 +309,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public DirectoryStream<FileAttributes> list(Path f) throws FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f)));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -315,7 +318,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter) throws FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -325,7 +328,7 @@ public class DremioHadoopFileSystemWrapper
   @Override
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
       throws FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
       return new ArrayDirectoryStream(underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter)));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -334,7 +337,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, dst)) {
       return underlyingFs.rename(toHadoopPath(src), toHadoopPath(dst));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -354,7 +357,7 @@ public class DremioHadoopFileSystemWrapper
   public boolean exists(Path f) throws IOException {
     final org.apache.hadoop.fs.Path p = toHadoopPath(f);
     boolean exists = false;
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       exists = underlyingFs.exists(p);
       if (!exists && isNAS) {
         forceRefresh(f);
@@ -370,7 +373,7 @@ public class DremioHadoopFileSystemWrapper
   public boolean isDirectory(Path f) throws IOException {
     final org.apache.hadoop.fs.Path p = toHadoopPath(f);
     boolean exists = false;
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       exists = underlyingFs.isDirectory(p);
       if (!exists && isNAS) {
         forceRefresh(f);
@@ -386,7 +389,7 @@ public class DremioHadoopFileSystemWrapper
   public boolean isFile(Path f) throws IOException {
     final org.apache.hadoop.fs.Path p = toHadoopPath(f);
     boolean exists = false;
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       exists = underlyingFs.isFile(p);
       if (!exists && isNAS) {
         forceRefresh(f);
@@ -414,7 +417,8 @@ public class DremioHadoopFileSystemWrapper
       throw new ProviderMismatchException();
     }
     final FileStatus status = ((HadoopFileStatusWrapper) file).getFileStatus();
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    Path p = status == null ? null : file.getPath();
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(status, start, len));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -423,7 +427,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -432,7 +436,7 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public void access(final Path path, final Set<AccessMode> mode) throws AccessControlException, FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, path)) {
       checkAccessAllowed(toHadoopPath(path), toFsAction(mode));
     } catch(FSError e) {
       throw propagateFSError(e);

@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -28,6 +29,7 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBiShuttle;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexDynamicParam;
@@ -47,12 +49,10 @@ import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.calcite.logical.FlattenCrel;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 
@@ -95,7 +95,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
       List<String> fieldNames = new ArrayList<>();
       List<RexNode> projectExpressions = new ArrayList<>();
-      for(int i = 0; i < projHolders.size(); i++){
+      for(int i = 0; i < projHolders.size(); i++) {
         ProjectSlotHolder e = projHolders.get(i);
         // write the final slot location of this data.
         e.outputReference.index = i;
@@ -113,7 +113,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       if(flattenHolders != null && flattenHolders.size() > 0){
 
         List<RexInputRef> flattenExpressions = new ArrayList<>();
-        for(FlattenExpression e : flattenHolders){
+        for(FlattenExpression e : flattenHolders) {
           flattenExpressions.add((RexInputRef) e.inputReference.accept(new RemoveMutableRexInputRef()));
         }
 
@@ -129,11 +129,8 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
     // add top level project.
     RelBuilder relBuilder = relBuilderFactory.create(project.getCluster(), null);
     relBuilder.push(input);
-    List<RexNode> finalizedExpressions = FluentIterable.from(expressionBuilder.topProjectExpressions).transform(new Function<RexNode, RexNode>(){
-      @Override
-      public RexNode apply(RexNode input) {
-        return input.accept(new RemoveMutableRexInputRef());
-      }}).toList();
+    List<RexNode> finalizedExpressions = expressionBuilder.topProjectExpressions.stream()
+      .map(input1 -> input1.accept(new RemoveMutableRexInputRef())).collect(Collectors.toList());
 
     relBuilder.project(finalizedExpressions, project.getRowType().getFieldNames());
     input = relBuilder.build();
@@ -159,11 +156,11 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
   }
 
-  private class FlattenExpression {
+  private static class FlattenExpression {
     private final int level;
     private final MutableRexInputRef inputReference;
 
-    public FlattenExpression(int level, MutableRexInputRef inputReference) {
+    FlattenExpression(int level, MutableRexInputRef inputReference) {
       super();
       this.level = level;
       this.inputReference = inputReference;
@@ -249,30 +246,27 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
   /**
    * Replaces input refs with MutableRexInptuRefs so that we can propagate references down tree.
    */
-  private class InputRefReplacerAnalyzer extends RexShuttle{
+  private class InputRefReplacerAnalyzer extends RexShuttle {
 
     private List<ProjectSlotHolder> holders = new ArrayList<>();
     private Map<Integer, MutableRexInputRef> refMap = new HashMap<>();
     private Set<MutableRexInputRef> refs;
+    private RexBuilder rexBuilder;
 
-    private InputRefReplacerAnalyzer(List<ProjectSlotHolder> children){
-      this.refs = FluentIterable.from(children).transform(new Function<ProjectSlotHolder, MutableRexInputRef>(){
-
-        @Override
-        public MutableRexInputRef apply(ProjectSlotHolder input) {
-          return input.outputReference;
-        }}).toSet();
+    private InputRefReplacerAnalyzer(List<ProjectSlotHolder> children, RexBuilder rexBuilder) {
+      this.refs = children.stream().map(input -> input.outputReference).collect(Collectors.toSet());
+      this.rexBuilder = rexBuilder;
     }
 
     @Override
     public RexNode visitInputRef(RexInputRef inputRef) {
 
       // see if we have a reference to our child.
-      if(inputRef instanceof MutableRexInputRef && refs.contains(inputRef)){
+      if(inputRef instanceof MutableRexInputRef && refs.contains(inputRef)) {
         return inputRef;
       }
 
-      if( !(inputRef instanceof MutableRexInputRef) ){
+      if(!(inputRef instanceof MutableRexInputRef)) {
         MutableRexInputRef previousPointer = refMap.get(inputRef.getIndex());
         if(previousPointer != null){
           return previousPointer;
@@ -280,7 +274,8 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       }
 
       // create a new holder to add to the child of this.
-      final MutableRexInputRef inputPointer = new MutableRexInputRef(inputRef.getType());
+      RelDataType type = inputRef.getType().getComponentType() == null ? inputRef.getType() : inputRef.getType().getComponentType();
+      final MutableRexInputRef inputPointer = new MutableRexInputRef(type);
       holders.add(new ProjectSlotHolder(inputRef, inputPointer));
 
       if( !(inputRef instanceof MutableRexInputRef) ){
@@ -288,7 +283,6 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       }
       return inputPointer;
     }
-
   }
 
   /**
@@ -303,19 +297,16 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     private int maxLevel = 0;
 
-    public void analyze(Project project){
+    public void analyze(Project project) {
       final LevelHolder highestLevelHolder = new LevelHolder();
       final ExpressionAnalyzer analyzer = this;
 
-      final List<RexNode> finalExpressions = FluentIterable.from(project.getChildExps()).transform(new Function<RexNode, RexNode>(){
-
-        @Override
-        public RexNode apply(RexNode input) {
-          LevelHolder level = new LevelHolder();
-          RexNode output = input.accept(analyzer, level);
-          highestLevelHolder.index = Math.max(level.index, highestLevelHolder.index);
-          return output;
-        }}).toList();
+      final List<RexNode> finalExpressions = project.getChildExps().stream().map(input -> {
+        LevelHolder level = new LevelHolder();
+        RexNode output = input.accept(analyzer, level);
+        highestLevelHolder.index = Math.max(level.index, highestLevelHolder.index);
+        return output;
+      }).collect(Collectors.toList());
 
 
       // the maxLevel is one less than reported because we report the level we need to start.
@@ -329,13 +320,9 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         List<ProjectSlotHolder> children = new ArrayList<>();
         children.addAll(projectLevels.get(child));
 
-        FindNonDependent dep = new FindNonDependent(FluentIterable.from(children).transform(new Function<ProjectSlotHolder, RexNode>(){
-          @Override
-          public RexNode apply(ProjectSlotHolder input) {
-            return input.outputReference;
-          }}).toSet());
-        InputRefReplacerAnalyzer downProp = new InputRefReplacerAnalyzer(children);
-        for(RexNode e : finalExpressions){
+        FindNonDependent dep = new FindNonDependent(children.stream().map(input -> input.outputReference).collect(Collectors.toSet()));
+        InputRefReplacerAnalyzer downProp = new InputRefReplacerAnalyzer(children, project.getCluster().getRexBuilder());
+        for(RexNode e : finalExpressions) {
           if(e.accept(dep)){
             // this doesn't need the top flatten, push it down.
             final MutableRexInputRef inputPointer = new MutableRexInputRef(e.getType());
@@ -364,13 +351,9 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         List<ProjectSlotHolder> updatedHolders = new ArrayList<>();
         List<ProjectSlotHolder> children = new ArrayList<>();
         children.addAll(projectLevels.get(child));
-        FindNonDependent dep = new FindNonDependent(FluentIterable.from(children).transform(new Function<ProjectSlotHolder, RexNode>(){
-          @Override
-          public RexNode apply(ProjectSlotHolder input) {
-            return input.outputReference;
-          }}).toSet());
+        FindNonDependent dep = new FindNonDependent(children.stream().map(input -> input.outputReference).collect(Collectors.toSet()));
 
-        InputRefReplacerAnalyzer downProp = new InputRefReplacerAnalyzer(children);
+        InputRefReplacerAnalyzer downProp = new InputRefReplacerAnalyzer(children, project.getCluster().getRexBuilder());
         for(ProjectSlotHolder e : holders){
           if(e.expression.accept(dep)){
             // this doesn't need the top flatten, push it down.
@@ -434,8 +417,8 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
         LevelHolder inputLevel = new LevelHolder();
         RexNode newRexInput = function.getOperands().get(0).accept(this, inputLevel);
 
-
-        final MutableRexInputRef inputPointer = new MutableRexInputRef(newRexInput.getType());
+        RelDataType type = newRexInput.getType().getComponentType() == null ? newRexInput.getType() : newRexInput.getType().getComponentType();
+        final MutableRexInputRef inputPointer = new MutableRexInputRef(type);
         projectLevels.put(inputLevel.index, new ProjectSlotHolder(newRexInput, inputPointer));
 
 
@@ -521,7 +504,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     @Override
     public Boolean visitFieldAccess(RexFieldAccess fieldAccess) {
-      return true;
+      return fieldAccess.getReferenceExpr().accept(this);
     }
 
     @Override

@@ -46,7 +46,7 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
     final ScanRelBase scan = call.rel(1);
 
     try {
-      final ProjectPushInfo columnInfoItemsExprs = PrelUtil.getColumns(scan.getRowType(), proj.getItemExprs());
+      final ProjectPushInfo columnInfoItemsExprs = PrelUtil.getColumns(scan.getRowType(), proj.getStructuredColumnExprs());
       if (columnInfoItemsExprs == null || columnInfoItemsExprs.isStarQuery()) {
         return;
       }

@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
+import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
 
@@ -86,4 +87,12 @@ public interface ParquetColumnResolver {
    * @return
    */
   List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDesc);
+
+  /**
+   *
+   * @param schemaPath
+   * @param vector
+   * @return Dotted string representation of given schemaPath
+   */
+  String toDotString(SchemaPath schemaPath, ValueVector vector);
 }

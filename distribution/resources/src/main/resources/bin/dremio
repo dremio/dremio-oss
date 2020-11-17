@@ -112,6 +112,7 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.plugins.path=${DREMIO_PLUGINS_DIR}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramAfterFullGC"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
     # netty options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0 -Dio.netty.tryReflectionSetAccessible=true"

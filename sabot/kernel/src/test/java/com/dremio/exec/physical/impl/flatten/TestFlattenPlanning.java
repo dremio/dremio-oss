@@ -43,10 +43,10 @@ public class TestFlattenPlanning extends PlanTestBase {
         " select comp, rownum " +
         " from (select flatten(complex) comp, rownum " +
         "      from cp.\"/store/json/test_flatten_mappify2.json\") " +
-        " where comp > 1 " +   // should not be pushed down
+        " where comp IS NOT NULL " +   // should not be pushed down
         "   and rownum = 100"; // should be pushed down.
 
-    final String[] expectedPlans = {"(?s)Filter.*>.*Flatten.*Filter.*=.*"};
+    final String[] expectedPlans = {"(?s)Filter.*IS NOT NULL.*Flatten.*Filter.*=.*"};
     final String[] excludedPlans = {"Filter.*AND.*"};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlans, excludedPlans);
   }
@@ -56,8 +56,8 @@ public class TestFlattenPlanning extends PlanTestBase {
     final String query =
         " select comp, rownum " +
             " from (select flatten(complex) comp, rownum " +
-            "      from cp.\"/store/json/test_flatten_mappify2.json\") " +
-            " where comp > 1 " +   // should NOT be pushed down
+            "      from cp.\"/store/json/test_flatten_mappify2.json\") t" +
+            " where comp IS NOT NULL " +   // should NOT be pushed down
             "   OR rownum = 100";  // should NOT be pushed down.
 
     final String[] expectedPlans = {"(?s)Filter.*OR.*Flatten"};

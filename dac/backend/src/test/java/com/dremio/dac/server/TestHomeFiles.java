@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
@@ -53,6 +54,7 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.dac.api.Dataset;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.homefiles.HomeFileConf;
@@ -539,5 +541,35 @@ public class TestHomeFiles extends BaseTestServer {
 
     // one level above the valid root, won't include the username and therefore invalid
     assertFalse(tool.validStagingLocation(Path.of(validRootPathForUser.getParent().resolve("foo").toString())));
+  }
+
+  @Test
+  public void testPUTRequestOnHomefile() throws Exception {
+    final Home home = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+    assertNotNull(home.getId());
+
+    final java.io.File inputFile = temporaryFolder.newFile("input.json");
+    try(FileWriter fileWriter = new FileWriter(inputFile)) {
+      fileWriter.write("{\"person_id\": 1, \"salary\": 10}");
+    }
+    final String fileName = "file3";
+    final FormDataMultiPart form = new FormDataMultiPart();
+    final FormDataBodyPart fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
+    form.bodyPart(fileBody);
+    final FormDataBodyPart fileNameBody = new FormDataBodyPart("fileName", fileName);
+    form.bodyPart(fileNameBody);
+    doc("upload file to staging");
+    final File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
+      Entity.entity(form, form.getMediaType())), File.class);
+    final FileFormat file1StagedFormat = file1Staged.getFileFormat().getFileFormat();
+    assertEquals(fileName, file1StagedFormat.getName());
+    assertEquals(asList(HOME_NAME, fileName), file1StagedFormat.getFullPath());
+    assertEquals(FileType.JSON, file1StagedFormat.getFileType());
+    // finish upload
+    expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + fileName)).buildPost(Entity.json(file1StagedFormat)), File.class);
+    fileBody.cleanup();
+    final Dataset dataset = expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path("by-path").path("/%40dremio/" + fileName)).buildGet(), new GenericType<Dataset>() {
+    });
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/").path(dataset.getId())).buildPut(Entity.json(dataset)));
   }
 }

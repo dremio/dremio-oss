@@ -18,7 +18,6 @@ package com.dremio.plugins.azure;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.nio.file.AccessMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +49,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 
 /**
  * Storage plugin for Microsoft Azure Storage
@@ -69,8 +67,6 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
     try {
       ensureDefaultName();
       AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);
-      //This next call is just to validate that the path specified is valid
-      getSystemUserFS().access(getConfig().getPath(), ImmutableSet.of(AccessMode.READ));
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
       if(failures.isEmpty()) {

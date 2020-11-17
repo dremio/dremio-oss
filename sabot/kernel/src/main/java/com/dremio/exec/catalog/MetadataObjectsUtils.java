@@ -42,6 +42,7 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 
 import io.protostuff.ByteString;
@@ -120,7 +121,11 @@ public final class MetadataObjectsUtils {
       if (pds == null) {
         pds = new PhysicalDataset();
       }
-      pds.setFormatSettings(((FileConfigMetadata) newExtended).getFileConfig());
+      FileConfig fileConfig = ((FileConfigMetadata) newExtended).getFileConfig();
+      if (pds.getFormatSettings() != null) {
+        fileConfig.setFullPathList(pds.getFormatSettings().getFullPathList());
+      }
+      pds.setFormatSettings(fileConfig);
       datasetConfig.setPhysicalDataset(pds);
     }
 

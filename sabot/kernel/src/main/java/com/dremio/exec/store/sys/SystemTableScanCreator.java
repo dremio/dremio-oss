@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.store.sys;
 
-import java.util.Collections;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.pojo.PojoRecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -38,6 +37,6 @@ public class SystemTableScanCreator implements ProducerOperator.Creator<SystemSu
     final RecordReader reader = new PojoRecordReader(table.getPojoClass(), table.getIterator
             (plugin2.getSabotContext(), context), config.getColumns(), context.getTargetBatchSize());
 
-    return new ScanOperator(config, context, Collections.singleton(reader).iterator());
+    return new ScanOperator(config, context, RecordReaderIterator.from(reader));
   }
 }

@@ -20,9 +20,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.util.Collections;
 import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
@@ -171,13 +173,15 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
     final SslContext sslContext = newClientContextBuilder().build();
 
     final SSLEngine engine = sslContext.newEngine(allocator, peerHost, peerPort);
+    final SSLParameters sslParameters = engine.getSSLParameters();
+    sslParameters.setServerNames(Collections.singletonList(new SNIHostName(peerHost)));
 
     if (!sslConfig.disableHostVerification()) {
-      final SSLParameters sslParameters = engine.getSSLParameters();
       // only available since Java 7
       sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
-      engine.setSSLParameters(sslParameters);
     }
+
+    engine.setSSLParameters(sslParameters);
 
     try {
       engine.setEnableSessionCreation(true);

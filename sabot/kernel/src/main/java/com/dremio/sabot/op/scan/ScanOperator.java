@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -69,6 +68,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.ParquetSubScan;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.util.VectorUtil;
@@ -156,7 +156,12 @@ public class ScanOperator implements ProducerOperator {
     PAGE_DECOMPRESSION_TIME_NS, // Total time taken for page decompression in nanos
     NUM_RUNTIME_FILTERS, // Number of runtime filter received at scan
     RUNTIME_COL_FILTER_DROP_COUNT, // Number of non partition column filters dropped due to schema incompatibility
-    ROW_GROUPS_SCANNED_WITH_RUNTIME_FILTER // Number of rowgroups scanned with runtime filter
+    ROW_GROUPS_SCANNED_WITH_RUNTIME_FILTER, // Number of rowgroups scanned with runtime filter
+    PAGE_DECODING_TIME_NS, // Total Time take for decoding the pages during vectorized column reading
+    MIN_METADATA_IO_READ_TIME_NS,  // Minimum IO read time for metadata operations
+    MAX_METADATA_IO_READ_TIME_NS,   // Maximum IO read time for metadata operations
+    AVG_METADATA_IO_READ_TIME_NS,  // Average IO read time for metadata operations
+    NUM_METADATA_IO_READ
     ;
 
     @Override
@@ -169,7 +174,7 @@ public class ScanOperator implements ProducerOperator {
   protected final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
   protected State state = State.NEEDS_SETUP;
   protected final OperatorContext context;
-  protected Iterator<RecordReader> readers;
+  protected RecordReaderIterator readers;
   protected RecordReader currentReader;
   private final ScanMutator mutator;
   private MutatorSchemaChangeCallBack callBack = new MutatorSchemaChangeCallBack();
@@ -191,15 +196,15 @@ public class ScanOperator implements ProducerOperator {
 
   private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
-  public ScanOperator(SubScan config, OperatorContext context, Iterator<RecordReader> readers) {
+  public ScanOperator(SubScan config, OperatorContext context, RecordReaderIterator readers) {
     this(config, context, readers, null, null, null);
   }
 
   public ScanOperator(SubScan config, OperatorContext context,
-                      Iterator<RecordReader> readers, GlobalDictionaries globalDictionaries, CoordinationProtos.NodeEndpoint foremanEndpoint,
+                      RecordReaderIterator readers, GlobalDictionaries globalDictionaries, CoordinationProtos.NodeEndpoint foremanEndpoint,
                       CoordExecRPC.QueryContextInformation queryContextInformation) {
     if (!readers.hasNext()) {
-      this.readers = ImmutableList.<RecordReader>of(new EmptyRecordReader(context)).iterator();
+      this.readers = RecordReaderIterator.from(new EmptyRecordReader(context));
     } else {
       this.readers = readers;
     }
@@ -367,6 +372,7 @@ public class ScanOperator implements ProducerOperator {
         logger.debug("Adding filter to the record readers {}, current reader {}.", filter, this.currentReader.getClass().getName());
         this.runtimeFilters.add(filter);
         this.currentReader.addRuntimeFilter(filter);
+        this.readers.addRuntimeFilter(filter);
         context.getStats().addLongStat(Metric.NUM_RUNTIME_FILTERS, 1);
       }
     } catch (Exception e) {
@@ -416,6 +422,16 @@ public class ScanOperator implements ProducerOperator {
       this.fieldVectorMap = fieldVectorMap;
       this.context = context;
       this.callBack = callBack;
+    }
+
+    public void removeField(Field field) throws SchemaChangeException {
+      ValueVector vector = fieldVectorMap.remove(field.getName().toLowerCase());
+      if (vector == null) {
+        throw new SchemaChangeException("Failure attempting to remove an unknown field.");
+      }
+      try (ValueVector v = vector) {
+        outgoing.remove(vector);
+      }
     }
 
     @Override
@@ -509,6 +525,10 @@ public class ScanOperator implements ProducerOperator {
     AutoCloseables.close(closeables);
     OperatorStats operatorStats = context.getStats();
     OperatorStats.IOStats ioStats = operatorStats.getReadIOStats();
+    OperatorStats.IOStats ioStatsMetadata = operatorStats.getMetadataReadIOStats();
+
+    UserBitShared.OperatorProfileDetails.Builder profileDetailsBuilder = UserBitShared.OperatorProfileDetails.newBuilder();
+
 
     if (ioStats != null) {
       long minIOReadTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
@@ -516,12 +536,19 @@ public class ScanOperator implements ProducerOperator {
       operatorStats.setLongStat(Metric.MAX_IO_READ_TIME_NS, ioStats.maxIOTime.longValue());
       operatorStats.setLongStat(Metric.AVG_IO_READ_TIME_NS, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
       operatorStats.addLongStat(Metric.NUM_IO_READ, ioStats.numIO.longValue());
-
-      operatorStats.setProfileDetails(UserBitShared.OperatorProfileDetails
-        .newBuilder()
-        .addAllSlowIoInfos(ioStats.slowIOInfoList)
-        .build());
+      profileDetailsBuilder.addAllSlowIoInfos(ioStats.slowIOInfoList);
     }
+
+    if(ioStatsMetadata != null) {
+      long minMetadataIOReadTime = ioStatsMetadata.minIOTime.longValue() <= ioStatsMetadata.maxIOTime.longValue() ? ioStatsMetadata.minIOTime.longValue() : 0;
+      operatorStats.addLongStat(Metric.MIN_METADATA_IO_READ_TIME_NS, minMetadataIOReadTime);
+      operatorStats.addLongStat(Metric.MAX_METADATA_IO_READ_TIME_NS, ioStatsMetadata.maxIOTime.longValue());
+      operatorStats.addLongStat(Metric.AVG_METADATA_IO_READ_TIME_NS, ioStatsMetadata.numIO.get() == 0 ? 0 : ioStatsMetadata.totalIOTime.longValue() / ioStatsMetadata.numIO.get());
+      operatorStats.addLongStat(Metric.NUM_METADATA_IO_READ, ioStatsMetadata.numIO.longValue());
+      profileDetailsBuilder.addAllSlowMetadataIoInfos(ioStatsMetadata.slowIOInfoList);
+    }
+
+    operatorStats.setProfileDetails(profileDetailsBuilder.build());
 
     onScanDone();
   }

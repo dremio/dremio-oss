@@ -155,6 +155,9 @@ public class HadoopFileSystem
     this.isNAS = isNAS(underlyingFs);
     this.isHDFS = isHDFS(underlyingFs);
     this.enableAsync = enableAsync;
+    if(operatorStats != null) {
+      this.operatorStats.createMetadataReadIOStats();
+    }
   }
 
   private static boolean isMapRfs(org.apache.hadoop.fs.FileSystem fs) {
@@ -191,7 +194,7 @@ public class HadoopFileSystem
    */
   @Override
   public FSInputStream open(Path f) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats, true);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -225,7 +228,7 @@ public class HadoopFileSystem
 
   @Override
   public FileAttributes getFileAttributes(Path f) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       final FileStatus result = underlyingFs.getFileStatus(toHadoopPath(f));
       // safe-guarding against misbehaving filesystems
       if (result == null) {
@@ -239,7 +242,7 @@ public class HadoopFileSystem
 
   @Override
   public void setPermission(Path p, Set<PosixFilePermission> permissions) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       underlyingFs.setPermission(toHadoopPath(p), toFsPermission(permissions));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -258,7 +261,7 @@ public class HadoopFileSystem
 
   @Override
   public boolean mkdirs(Path f, Set<PosixFilePermission> permissions) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return underlyingFs.mkdirs(toHadoopPath(f), toFsPermission(permissions));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -287,7 +290,7 @@ public class HadoopFileSystem
 
   @Override
   public boolean mkdirs(Path folderPath) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaDataRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, folderPath)) {
       org.apache.hadoop.fs.Path path = toHadoopPath(folderPath);
       if (!underlyingFs.exists(path)) {
         return underlyingFs.mkdirs(path);
@@ -302,7 +305,7 @@ public class HadoopFileSystem
 
   @Override
   public DirectoryStream<FileAttributes> list(Path f) throws FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaDataRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f)));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -311,7 +314,7 @@ public class HadoopFileSystem
 
   @Override
   public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter) throws FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return new ArrayDirectoryStream(underlyingFs.listStatus(toHadoopPath(f), toPathFilter(filter)));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -321,7 +324,7 @@ public class HadoopFileSystem
   @Override
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
     throws FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
       return new ArrayDirectoryStream(underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter)));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -330,7 +333,7 @@ public class HadoopFileSystem
 
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, dst)) {
       return underlyingFs.rename(toHadoopPath(src), toHadoopPath(dst));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -350,7 +353,7 @@ public class HadoopFileSystem
   public boolean exists(Path f) throws IOException {
     final org.apache.hadoop.fs.Path p = toHadoopPath(f);
     boolean exists = false;
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       exists = underlyingFs.exists(p);
       if (!exists && isNAS) {
         forceRefresh(f);
@@ -366,7 +369,7 @@ public class HadoopFileSystem
   public boolean isDirectory(Path f) throws IOException {
     final org.apache.hadoop.fs.Path p = toHadoopPath(f);
     boolean exists = false;
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       exists = underlyingFs.isDirectory(p);
       if (!exists && isNAS) {
         forceRefresh(f);
@@ -382,7 +385,7 @@ public class HadoopFileSystem
   public boolean isFile(Path f) throws IOException {
     final org.apache.hadoop.fs.Path p = toHadoopPath(f);
     boolean exists = false;
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       exists = underlyingFs.isFile(p);
       if (!exists && isNAS) {
         forceRefresh(f);
@@ -410,7 +413,8 @@ public class HadoopFileSystem
       throw new ProviderMismatchException();
     }
     final FileStatus status = ((FileStatusWrapper) file).getFileStatus();
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    Path p = status == null ? null : file.getPath();
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(status, start, len));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -419,7 +423,7 @@ public class HadoopFileSystem
 
   @Override
   public Iterable<FileBlockLocation> getFileBlockLocations(Path p, long start, long len) throws IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, p)) {
       return toFileBlockLocations(() -> underlyingFs.getFileBlockLocations(toHadoopPath(p), start, len));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -428,7 +432,7 @@ public class HadoopFileSystem
 
   @Override
   public void access(final Path path, final Set<AccessMode> mode) throws AccessControlException, FileNotFoundException, IOException {
-    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, path)) {
       underlyingFs.access(toHadoopPath(path), toFsAction(mode));
     } catch (FSError e) {
       throw propagateFSError(e);
@@ -571,21 +575,12 @@ public class HadoopFileSystem
     if (underlyingFs instanceof MayProvideAsyncStream) {
       return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
     } else {
-      long modificationTime = Long.parseLong(fileKey.getVersion());
-      long actualModificationTime;
-      try (WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
-        actualModificationTime = underlyingFs.getFileStatus(path).getModificationTime();
-      }
-      if (actualModificationTime > modificationTime) {
-        throw new FileNotFoundException("mtime of file has changed " + path);
-      }
-
       FSDataInputStream is;
-      try (WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, fileKey.getPath())) {
         is = underlyingFs.open(path);
       }
       FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), is, operatorStats, false);
-      return new HadoopAsyncByteReader(fileKey.getPath(), inputStream);
+      return new HadoopAsyncByteReader(this, fileKey.getPath(), inputStream);
     }
   }
 

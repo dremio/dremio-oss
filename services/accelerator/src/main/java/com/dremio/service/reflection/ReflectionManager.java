@@ -915,7 +915,7 @@ public class ReflectionManager implements Runnable {
     }
 
     try {
-      final JobId refreshJobId = refreshStartHandler.startJob(entry, jobSubmissionTime);
+      final JobId refreshJobId = refreshStartHandler.startJob(entry, jobSubmissionTime, optionManager);
 
       entry.setState(REFRESHING)
         .setRefreshJobId(refreshJobId);

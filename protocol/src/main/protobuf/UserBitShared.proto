@@ -523,6 +523,7 @@ message SlowIOInfo {
 message OperatorProfileDetails {
   repeated ExpressionSplitInfo split_infos = 1;
   repeated SlowIOInfo slow_io_infos = 2;
+  repeated SlowIOInfo slow_metadata_io_infos = 3;
 }
 
 message OperatorProfile {

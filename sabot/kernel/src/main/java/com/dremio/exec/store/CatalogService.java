@@ -165,4 +165,9 @@ public interface CatalogService extends AutoCloseable, Service {
    * @return boolean
    */
   boolean isSourceConfigMetadataImpacting(SourceConfig sourceConfig);
+
+  /**
+   * @return boolean
+   */
+  boolean isComplexTypeSupport();
 }

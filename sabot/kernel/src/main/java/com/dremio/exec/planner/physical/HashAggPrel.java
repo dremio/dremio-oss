@@ -136,6 +136,25 @@ public class HashAggPrel extends AggPrelBase implements Prel{
   }
 
 
+  @Override public double estimateRowCount(RelMetadataQuery mq) {
+    // Assume that each sort column has 90% of the value count.
+    // Therefore one sort column has .10 * rowCount,
+    // 2 sort columns give .19 * rowCount.
+    // Zero sort columns yields 1 row (or 0 if the input is empty).
+    final int groupCount = groupSet.cardinality();
+    if (groupCount == 0) {
+      return 1;
+    } else {
+      // don't use super.estimateRowCount(mq) to not apply on top of calcite
+      // estimation for Aggregate. Directly get input rowcount
+      double rowCount = mq.getRowCount(getInput());
+      if(this.operPhase != OperatorPhase.PHASE_2of2) {
+        rowCount *= 1.0 - Math.pow(.9, groupCount);
+      }
+      return rowCount;
+    }
+  }
+
   private boolean canVectorize(PhysicalPlanCreator creator, PhysicalOperator child){
     if(canVectorize == null){
       canVectorize = initialCanVectorize(creator, child);

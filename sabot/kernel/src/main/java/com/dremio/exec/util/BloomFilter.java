@@ -29,8 +29,8 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.expr.fn.impl.HashValPair;
-import com.dremio.exec.expr.fn.impl.MurmurHash3;
+import com.dremio.common.expression.fn.impl.HashValPair;
+import com.dremio.common.expression.fn.impl.MurmurHash3;
 
 import io.netty.util.internal.PlatformDependent;
 

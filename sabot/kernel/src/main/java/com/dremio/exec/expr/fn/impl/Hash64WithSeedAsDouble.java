@@ -54,7 +54,7 @@ public class Hash64WithSeedAsDouble {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64((double) in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64((double) in.value, seed.value);
       }
     }
   }
@@ -77,7 +77,7 @@ public class Hash64WithSeedAsDouble {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
   }
@@ -101,7 +101,7 @@ public class Hash64WithSeedAsDouble {
         out.value = seed.value;
       }
       else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64((double) in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64((double) in.value, seed.value);
       }
     }
   }
@@ -124,7 +124,7 @@ public class Hash64WithSeedAsDouble {
         out.value = seed.value;
       }
       else {
-        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64((double) in.value, seed.value);
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64((double) in.value, seed.value);
       }
     }
   }

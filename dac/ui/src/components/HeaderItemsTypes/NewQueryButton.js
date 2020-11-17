@@ -31,8 +31,6 @@ import FontIcon from 'components/Icon/FontIcon';
 
 import { parseResourceId } from 'utils/pathUtils';
 
-import './NewQueryButton.less';
-
 @injectIntl
 @Radium
 export class NewQueryButton extends Component {
@@ -94,7 +92,7 @@ export class NewQueryButton extends Component {
     return (
       <div className='new-query-button' style={styles.base}>
         <a href={this.getNewQueryHref()} data-qa='new-query-button' onClick={this.handleClick} style={styles.link}>
-          <FontIcon theme={styles.icon} type='QueryPlain' />
+          <FontIcon theme={styles.icon} type='PlusSign' />
           <FormattedMessage id='NewQuery.NewQuery'/>
         </a>
       </div>
@@ -126,25 +124,29 @@ const styles = {
     lineHeight: '28px',
     textDecoration: 'none',
     color: '#fff',
-    borderRadius: 2,
-    border: '1px solid rgba(255, 255, 255, .25)',
-    height: 28,
+    height: 32,
     transition: 'all 0.5s',
-    fontSize: '11px',
-    padding: '0 10px 0 9px', // chris thinks this looks better
+    fontSize: '13px',
+    padding: '1px 15px 0px 15px', // chris thinks this looks better
     marginLeft: 10,
     textAlign: 'left',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    border: '1px solid #333333',
+
+    ':hover': {
+      borderRadius: 5,
+      border: '1px solid rgba(255, 255, 255, .25)'
+    }
   },
   icon: {
     'Icon': {
-      width: '1.5em',
-      height: '1.5em'
+      width: '1.05em',
+      height: '1.05em'
     },
     'Container': {
-      height: '1.5em',
+      height: '1.05em',
       display: 'inline-block',
-      verticalAlign: '-0.45em',
+      verticalAlign: '-0.4em',
       marginRight: 9,
       fontSize: 'inherit'
     }

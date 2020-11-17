@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.logical;
 
+import static com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils.STRUCTURED_WRAPPER;
+
 import java.util.Set;
 
 import org.apache.calcite.rel.rules.PushProjector;
@@ -52,7 +54,9 @@ public final class Conditions {
       if (expr instanceof RexCall) {
         RexCall call = (RexCall)expr;
         return ("item".equals(call.getOperator().getName().toLowerCase())
-            || "case".equals(call.getOperator().getName().toLowerCase()));
+            || "case".equals(call.getOperator().getName().toLowerCase())
+            || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
+        );
       }
       return false;
     }

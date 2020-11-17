@@ -4338,6 +4338,7 @@
 ```
 {
   cpu: 1.0,
+  details: "abc",
   host: "abc",
   ip: "abc",
   isCompatible: true | false,

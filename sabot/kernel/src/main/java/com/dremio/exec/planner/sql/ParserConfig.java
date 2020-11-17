@@ -40,20 +40,22 @@ public class ParserConfig implements SqlParser.Config {
   private final Quoting quoting;
   private final long identifierMaxLength;
   private final boolean supportFullyQualifiedProjections;
+  private final boolean withCalciteComplexTypeSupport;
 
-  public ParserConfig(Quoting quoting, final long identifierMaxLength) {
-    this(quoting, identifierMaxLength, false);
+  public ParserConfig(Quoting quoting, final long identifierMaxLength, boolean withCalciteComplexTypeSupport) {
+    this(quoting, identifierMaxLength, false, withCalciteComplexTypeSupport);
   }
 
-  public ParserConfig(Quoting quoting, final long identifierMaxLength, final boolean supportFullyQualifiedProjections) {
+  public ParserConfig(Quoting quoting, final long identifierMaxLength, final boolean supportFullyQualifiedProjections, boolean withCalciteComplexTypeSupport) {
     this.identifierMaxLength = identifierMaxLength;
     this.quoting = quoting;
     this.supportFullyQualifiedProjections = supportFullyQualifiedProjections;
+    this.withCalciteComplexTypeSupport = withCalciteComplexTypeSupport;
   }
 
   public static ParserConfig newInstance(UserSession session, PlannerSettings settings) {
     Quoting quote = session.getInitialQuoting() != null ? session.getInitialQuoting() : ParserConfig.QUOTING;
-    return new ParserConfig(quote, settings.getIdentifierMaxLength(), session.supportFullyQualifiedProjections());
+    return new ParserConfig(quote, settings.getIdentifierMaxLength(), session.supportFullyQualifiedProjections(), settings.isFullNestedSchemaSupport());
   }
 
   @Override
@@ -75,7 +77,7 @@ public class ParserConfig implements SqlParser.Config {
     if(quoting == QUOTING && !supportFullyQualifiedProjections){
       return this;
     }
-    return new ParserConfig(QUOTING, identifierMaxLength);
+    return new ParserConfig(QUOTING, identifierMaxLength, withCalciteComplexTypeSupport);
   }
 
   @Override
@@ -103,6 +105,6 @@ public class ParserConfig implements SqlParser.Config {
     if (supportFullyQualifiedProjections) {
       return ParserImpl.FACTORY;
     }
-    return ParserWithCompoundIdConverter.FACTORY;
+    return ParserWithCompoundIdConverter.getParserImplFactory(withCalciteComplexTypeSupport);
   }
 }

@@ -105,7 +105,7 @@ public abstract class JoinPruleBase extends Prule {
       final long maxWidthPerQuery = plannerSettings.getOptions().getOption(ExecConstants.MAX_WIDTH_GLOBAL);
       final long sliceTarget = plannerSettings.getSliceTarget();
       final double minFactor = Doubles.min(otherRowCount * 1.0 / sliceTarget, numEndPoints * maxWidthPerNode, maxWidthPerQuery);
-      final boolean enableBroadCast = (minFactor * broadcastFactor < otherRowCount);
+      final boolean enableBroadCast = (minFactor * broadcastFactor * targetRowCount < otherRowCount);
       logger.debug("Enable broadcast plan? {} minFactor {} (numEndPoints {}, maxWidthPerNode {}, rightRowCount {}, broadcastFactor {}, leftRowCount {}, sliceTarget {}, maxWidthPerQuery {})",
           enableBroadCast, minFactor, numEndPoints, maxWidthPerNode, targetRowCount, broadcastFactor, otherRowCount, sliceTarget, maxWidthPerQuery);
       return enableBroadCast;

@@ -18,7 +18,6 @@ package com.dremio.service.reflection.compact;
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
 
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,7 +67,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
 /**
@@ -161,7 +159,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       final RelNode initial = getPlan(config, tableSchemaPath, planNormalizer);
 
       final Rel drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
-      final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());
+      final List<String> fields = drel.getRowType().getFieldNames();
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
       final Rel writerDrel = new WriterRel(
         drel.getCluster(),

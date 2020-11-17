@@ -149,7 +149,7 @@ class AttemptProfileTracker {
 
     if (planningProfile == null) {
       addPlanningDetails(builder);
-      if (endPlanningTime > 0) {
+      if (builder.getPlanningEnd() > 0) {
         // if planning has completed, this part will remain unchanged. save it to
         // optimise future requests.
         planningProfile = builder.build();

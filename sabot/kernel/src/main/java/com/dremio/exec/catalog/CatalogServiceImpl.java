@@ -43,6 +43,7 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CatalogRPC.RpcType;
 import com.dremio.exec.proto.CatalogRPC.SourceWrapper;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -599,6 +600,11 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   public boolean isSourceConfigMetadataImpacting(SourceConfig config) {
     return getPlugins().get(config.getName()).isSourceConfigMetadataImpacting(config);
+  }
+
+  @Override
+  public boolean isComplexTypeSupport() {
+    return optionManager.get().getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
   }
 
   private class Retriever implements PluginRetriever {

@@ -404,7 +404,7 @@ public class TestReflectionManager {
     when(subject.reflectionGoalChecker.checkHash(reflectionGoal,reflectionEntry)).thenReturn(false);//but only fields not used to update the reflection
     when(subject.reflectionGoalChecker.calculateReflectionGoalVersion(reflectionGoal)).thenReturn(reflectionGoalHash);
 
-    when(subject.refreshStartHandler.startJob(any(), anyLong())).thenReturn(materializationJobId);
+    when(subject.refreshStartHandler.startJob(any(), anyLong(), any())).thenReturn(materializationJobId);
 
     when(subject.sabotContext.getExecutors()).thenReturn(singletonList(null));
 
@@ -422,7 +422,7 @@ public class TestReflectionManager {
     verify(subject.reflectionGoalChecker).checkHash(reflectionGoal, reflectionEntry);
     verify(subject.descriptorCache).invalidate(materializationId);
 
-    verify(subject.refreshStartHandler).startJob(any(), anyLong()); //Mockito does not support using a mix of any matchers....
+    verify(subject.refreshStartHandler).startJob(any(), anyLong(), any()); //Mockito does not support using a mix of any matchers....
 
     verifyNoMoreInteractions(subject.reflectionStore);
     verifyNoMoreInteractions(subject.refreshStartHandler);

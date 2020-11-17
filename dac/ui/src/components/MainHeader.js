@@ -23,17 +23,19 @@ import { FormattedMessage, injectIntl } from 'react-intl';
 
 import Art from 'components/Art';
 
-import ChatItem from '@inject/components/HeaderItemsTypes/ChatItem';
-
+import config from '../utils/config';
 import MainHeaderItem from './MainHeaderItem';
 import HeaderLink from './HeaderItemsTypes/HeaderLink';
 import SearchItem from './HeaderItemsTypes/SearchItem';
 import NewQueryButton from './HeaderItemsTypes/NewQueryButton';
 import HeaderDropdown from './HeaderItemsTypes/HeaderDropdown';
+import HeaderProjectsList from './HeaderItemsTypes/HeaderProjectsList';
+import AdminMenu from './AdminMenu';
 import AccountMenu from './AccountMenu';
 import HelpMenu from './HelpMenu';
 
 import './MainHeader.less';
+import './IconFont/css/DremioIcons.css';
 
 @injectIntl
 @Radium
@@ -49,8 +51,63 @@ export class MainHeader extends PureComponent {
     user: Immutable.Map()
   };
 
+  static contextTypes = {
+    location: PropTypes.object,
+    routeParams: PropTypes.object,
+    router: PropTypes.object
+  }
+
+  renderAdmin = () => {
+    const {user} = this.props;
+    let adminActiveStyle = 'adminSettingsIcon dremioIcon-HeaderSettings';
+    let className = 'adminSettingDropdown';
+    const {router} = this.context;
+    if (router.isActive('/admin')) {
+      adminActiveStyle = 'adminSettingsIcon dremioIcon-HeaderSettings active';
+      className += ' active';
+    }
+
+    if (user.get('admin')) {
+      if (config.isDcsMode) {
+        return (
+          <MainHeaderItem>
+            <HeaderDropdown
+              icon={adminActiveStyle}
+              tooltip='Help'
+              style={styles.dropdownSettingsStyle}
+              menu={<AdminMenu />}
+              arrowStyle={styles.settingArrowStyle}
+              className={className}
+            />
+          </MainHeaderItem>
+        );
+      }
+
+      return (
+        <MainHeaderItem>
+          <HeaderLink to='/admin'>
+            <div className='headerLinkContent'>
+              <div className={adminActiveStyle} title={'Admin Settings'}></div>
+            </div>
+          </HeaderLink>
+        </MainHeaderItem>
+      );
+    }
+
+    return null;
+  }
+
   render() {
+    let datasetsActiveStyle = 'datasetsIcon dremioIcon-HeaderDataset icon-type';
+    let jobsActiveStyle = 'jobsIcon dremioIcon-HeaderJobs icon-type';
+    const {router} = this.context;
+    if (router.isActive('/jobs')) {
+      jobsActiveStyle = 'jobsIcon dremioIcon-HeaderJobs icon-type active';
+    } else if (!router.isActive('/admin')) {
+      datasetsActiveStyle = 'datasetsIcon dremioIcon-HeaderDataset icon-type active';
+    }
     const { user, socketIsOpen } = this.props;
+
     return (
       <div className='explore-header'>
         <Link
@@ -67,11 +124,33 @@ export class MainHeader extends PureComponent {
         </Link>
         <div className='header-wrap'>
           <div className='left-part'>
+            {config.isDcsMode &&
             <MainHeaderItem>
-              <HeaderLink to='/'><FormattedMessage id='Dataset.Datasets'/></HeaderLink>
+              <HeaderProjectsList
+                dataQa='headerProjectList'
+                className='projectList'
+              />
+            </MainHeaderItem>
+            }
+            <MainHeaderItem>
+              <HeaderLink to='/'>
+                <div className='headerLinkContent'>
+                  <div className={datasetsActiveStyle}></div>
+                  <div className='text'>
+                    <FormattedMessage id='Dataset.Datasets'/>
+                  </div>
+                </div>
+              </HeaderLink>
             </MainHeaderItem>
             <MainHeaderItem>
-              <HeaderLink to='/jobs'><FormattedMessage id='Job.Jobs'/></HeaderLink>
+              <HeaderLink to='/jobs'>
+                <div className='headerLinkContent'>
+                  <div className={jobsActiveStyle}></div>
+                  <div className='text'>
+                    <FormattedMessage id='Job.Jobs'/>
+                  </div>
+                </div>
+              </HeaderLink>
             </MainHeaderItem>
             <MainHeaderItem>
               <SearchItem/>
@@ -81,23 +160,37 @@ export class MainHeader extends PureComponent {
             </MainHeaderItem>
           </div>
           <div className='right-part' style={styles.rightPart}>
-            {ChatItem && <ChatItem />}
+            {config.displayTutorialsLink &&
+              <MainHeaderItem>
+                <div className='linkIcon'>
+                  <a href='https://www.dremio.com/tutorials/' target='_blank'>
+                    <div className='headerLinkContent'>
+                      <div className='tutorialsIcon dremioIcon-HeaderTutorials icon-type' title={'Dremio Tutorials'}></div>
+                    </div>
+                  </a>
+                </div>
+              </MainHeaderItem>
+            }
             <MainHeaderItem>
               <HeaderDropdown
-                name={this.props.intl.formatMessage({id: 'App.Help'})}
+                icon='helpIcon dremioIcon-HeaderHelp icon-type'
+                tooltip='Help'
+                hideArrow
                 menu={<HelpMenu />}/>
             </MainHeaderItem>
-            {
-              user.get('admin') &&
-                <MainHeaderItem>
-                  <HeaderLink to='/admin'><FormattedMessage id='App.Admin'/></HeaderLink>
-                </MainHeaderItem>
-            }
+
+            {this.renderAdmin()}
+
+            <div className='headerSeparator'></div>
+
             <MainHeaderItem>
               <HeaderDropdown
                 dataQa='logout-menu'
                 name={user.get('userName')}
-                menu={<AccountMenu />}/>
+                menu={<AccountMenu />}
+                arrowStyle={styles.arrowStyle}
+                nameStyle={styles.nameStyle}
+              />
             </MainHeaderItem>
           </div>
         </div>
@@ -126,5 +219,17 @@ const styles = {
   },
   rightPart: {
     margin: '0 4px 0 0'
+  },
+  arrowStyle: {
+    color: '#77818f'
+  },
+  settingArrowStyle: {
+    marginTop: -3
+  },
+  nameStyle: {
+    fontSize: 13
+  },
+  dropdownSettingsStyle: {
+    marginTop: 6
   }
 };

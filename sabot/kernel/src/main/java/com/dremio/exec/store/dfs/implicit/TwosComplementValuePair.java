@@ -74,6 +74,15 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     return new BigDecimalPopulator();
   }
 
+  @Override
+  public void close() throws Exception {
+    try{
+      AutoCloseables.close(buf);
+    }finally{
+      buf = null;
+    }
+  }
+
   private final class BigDecimalPopulator implements Populator, AutoCloseable {
     private DecimalVector vector;
 

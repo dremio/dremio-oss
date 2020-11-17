@@ -18,7 +18,7 @@ package com.dremio.service.reflection;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,7 +26,7 @@ import org.junit.Test;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.refresh.RefreshHandler;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * tests for {@link RefreshHandler}
@@ -38,7 +38,7 @@ public class TestWriterOptionManager {
       new ReflectionField()
         .setName("my_name")
     );
-    Set<String> knownFields = Sets.newHashSet("my_name");
+    Map<String, String> knownFields = ImmutableMap.of("my_name", "my_name");
 
     WriterOptionManager subject = WriterOptionManager.Instance;
 
@@ -57,7 +57,7 @@ public class TestWriterOptionManager {
       new ReflectionField()
         .setName("Unknown Field")
     );
-    Set<String> knownFields = Sets.newHashSet("my field");
+    Map<String, String> knownFields = ImmutableMap.of("my field", "my field");
 
     WriterOptionManager subject = WriterOptionManager.Instance;
 

@@ -251,8 +251,48 @@ public class TestBackupManager extends BaseTestServer {
     }
   }
 
+  /**
+   * Test backup and restore with large sql (exceeding SimpleDocumentWriter.MAX_STRING_LENGTH)
+   * containing only ascii characters.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testLargeSqlQueryWithOnlyAscii() throws Exception {
+    StringBuilder sb = new StringBuilder();
+    for(int i=0;i<3500;i++) {
+      sb.append("0123456789");
+    }
+    backupRestoreTestHelper("dsg16", "dsg17", "select *,'" + sb.toString() + "' as text");
+  }
+
+  /**
+   * Test backup and restore with large sql (exceeding SimpleDocumentWriter.MAX_STRING_LENGTH)
+   * containing mix of ascii and non-ascii (2-byte) characters.
+   * @throws Exception
+   */
+  @Test
+  public void testLargeSqlQueryWithNonAscii() throws Exception {
+    // Prepare a large sql, such that truncation happens at middle of two-byte char,
+    // resulting in incorrect last char. With this, test backup and restore should have no issues.
+    StringBuilder sb = new StringBuilder();
+    for (int i=0;i<27000/26;i++) {
+      sb.append("abcdefghijklmnopqrstuvwxyz");
+    }
+    sb.append("123");
+    for(int i=0;i<400;i++) {
+      sb.append("\u00E4\u00FC\u00F6\u00E4\u00FC\u00F6\u00E4\u00FC\u00F6\u00E4");
+    }
+    backupRestoreTestHelper("dsg14", "dsg15", "select *,'" + sb.toString() + "' as text");
+  }
+
   @Test
   public void testLocalAttach() throws Exception {
+    backupRestoreTestHelper("dsg12", "dsg13", "select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age");
+  }
+
+
+  private void backupRestoreTestHelper(String dsName1, String dsName2, String sql) throws Exception {
     boolean binary = "binary".equals(mode);
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
     LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
@@ -264,7 +304,7 @@ public class TestBackupManager extends BaseTestServer {
       fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
 
     // Do some things
-    getPopulator().putDS("DG", "dsg12", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
+    getPopulator().putDS("DG", dsName1, new FromSQL(sql).wrap());
     CheckPoint cp = checkPoint();
 
     // Backup
@@ -317,7 +357,7 @@ public class TestBackupManager extends BaseTestServer {
     cp.checkEquals(checkPoint());
 
     // try adding something else, should not match checkpoint
-    getPopulator().putDS("DG", "dsg13", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
+    getPopulator().putDS("DG", dsName2, new FromSQL(sql).wrap());
     try {
       cp.checkEquals(checkPoint());
       throw new AssertionError();

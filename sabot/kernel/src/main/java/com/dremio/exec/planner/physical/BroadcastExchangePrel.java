@@ -54,20 +54,28 @@ public class BroadcastExchangePrel extends ExchangePrel{
    */
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
+    PlannerSettings plannerSettings = PrelUtil.getSettings(getCluster());
+    if(plannerSettings.useDefaultCosting()) {
       return super.computeSelfCost(planner).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();
-
-    final int numEndPoints = PrelUtil.getSettings(getCluster()).numEndPoints();
-    final double inputRows = mq.getRowCount(child);
+    final double inputRows = mq.getRowCount(this);
 
     final int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     final double cpuCost = DremioCost.SVR_CPU_COST * inputRows;
-    final double networkCost = DremioCost.BYTE_NETWORK_COST * inputRows * rowWidth * numEndPoints;
+    final double networkCost = DremioCost.BYTE_NETWORK_COST * inputRows * rowWidth;
 
     return new DremioCost(inputRows, cpuCost, 0, networkCost);
+  }
+
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    PlannerSettings plannerSettings = PrelUtil.getSettings(getCluster());
+    final int numEndPoints = PrelUtil.getSettings(getCluster()).numEndPoints();
+    final long maxWidthPerNode = plannerSettings.getMaxWidthPerNode();
+    double rowCount = mq.getRowCount(this.getInput());
+    return rowCount * maxWidthPerNode * numEndPoints;
   }
 
   @Override

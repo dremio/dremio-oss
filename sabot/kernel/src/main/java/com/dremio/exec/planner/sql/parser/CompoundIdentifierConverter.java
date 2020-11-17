@@ -18,7 +18,9 @@ package com.dremio.exec.planner.sql.parser;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDescribeTable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
@@ -26,6 +28,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSetOption;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
 
@@ -42,18 +45,22 @@ import com.google.common.collect.Maps;
 public class CompoundIdentifierConverter extends SqlShuttle {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompoundIdentifierConverter.class);
 
-  private boolean enableComplex = true;
+  private boolean enableComplex = false;
+  private final boolean withCalciteComplexTypeSupport;
+
+  public CompoundIdentifierConverter(boolean withCalciteComplexTypeSupport) {
+    super();
+    this.withCalciteComplexTypeSupport = withCalciteComplexTypeSupport;
+  }
 
   @Override
   public SqlNode visit(SqlIdentifier id) {
-    if(id instanceof CompoundIdentifier){
-      if(enableComplex){
-        return ((CompoundIdentifier) id).getAsSqlNode();
-      }else{
-        return ((CompoundIdentifier) id).getAsCompoundIdentifier();
+    if(id instanceof CompoundIdentifier) {
+      if(enableComplex) {
+        return ((CompoundIdentifier) id).getAsSqlNode(withCalciteComplexTypeSupport);
       }
-
-    }else{
+        return ((CompoundIdentifier) id).getAsCompoundIdentifier();
+    } else {
       return id;
     }
   }
@@ -64,7 +71,21 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     // change.
     ArgHandler<SqlNode> argHandler = new ComplexExpressionAware(call);
     call.getOperator().acceptCall(this, call, false, argHandler);
-    return argHandler.result();
+    SqlNode node = argHandler.result();
+    if (withCalciteComplexTypeSupport) {
+      if (node instanceof SqlCall) {
+        SqlCall sqlCall = ((SqlCall) node);
+        if ("item".equals(sqlCall.getOperator().getName().toLowerCase())) {
+          SqlNode left = sqlCall.getOperandList().get(0);
+          SqlNode right = sqlCall.getOperandList().get(1);
+          if (right instanceof SqlCharStringLiteral) {
+              SqlIdentifier identifier = new SqlIdentifier(((SqlCharStringLiteral) right).getNlsString().getValue(), call.getParserPosition());
+              node = new SqlBasicCall(SqlStdOperatorTable.DOT, new SqlNode[]{left, identifier}, call.getParserPosition());
+          }
+        }
+      }
+    }
+    return node;
   }
 
 

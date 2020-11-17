@@ -120,7 +120,8 @@ public class QueryTrackerImpl implements QueryTracker {
     executionPlan = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, physicalPlan,
       resourceTracker.getResources(),
       executionPlanningResources.getPlanningSet(), executorSelectionService,
-      resourceTracker.getResourceSchedulingDecisionInfo());
+      resourceTracker.getResourceSchedulingDecisionInfo(),
+      executionPlanningResources.getGroupResourceInformation());
     observer.planCompleted(executionPlan);
     physicalPlan = null; // no longer needed
   }

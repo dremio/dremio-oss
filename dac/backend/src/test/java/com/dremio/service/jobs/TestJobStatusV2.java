@@ -29,9 +29,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.modelmapper.internal.util.Assert;
 
 import com.dremio.BaseTestQuery.QueryIdCapturingListener;
 import com.dremio.QueryTestUtil;
@@ -61,7 +61,6 @@ import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Preconditions;
 
-import ch.qos.logback.classic.Level;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -72,7 +71,6 @@ import io.grpc.inprocess.InProcessServerBuilder;
  * Tests for JobStatusV2
  */
 public class TestJobStatusV2 extends BaseTestServer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJobStatusV2.class);
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   private static String query;
 
@@ -80,9 +78,6 @@ public class TestJobStatusV2 extends BaseTestServer {
   private static ManagedChannel channel;
   private static JobsServiceStub asyncStub;
   private static ChronicleBlockingStub chronicleStub;
-
-  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
-  private static Level originalLogLevel;
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -101,15 +96,12 @@ public class TestJobStatusV2 extends BaseTestServer {
     chronicleStub = ChronicleGrpc.newBlockingStub(channel);
 
     query = getFile("tpch_quoted.sql");
-    originalLogLevel = rootLogger.getLevel();
-    rootLogger.setLevel(Level.DEBUG);
     LocalJobsService localJobsService = l(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
   }
 
   @AfterClass
   public static void cleanUp() {
-    rootLogger.setLevel(originalLogLevel);
     if (server != null) {
       server.shutdown();
     }
@@ -143,6 +135,9 @@ public class TestJobStatusV2 extends BaseTestServer {
 
     @Override
     public void queryProgressed(JobSummary jobSummary) {
+      if (jobSummary.getStateListCount() == 0) {
+        return;
+      }
       AttemptEvent.State newState = jobSummary.getStateList(jobSummary.getStateListCount()-1).getState();
       AttemptEvent.State prevState;
       if (stateList.size() > 0) {
@@ -239,7 +234,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     asyncStub.subscribeToJobEvents(JobsProtoUtil.toBuf(jobId), adapter);
   }
 
-  private void pauseAndResume(Class clazz, String descriptor) throws Exception {
+  private void pauseAndResume(Class clazz, String descriptor, State state) throws Exception {
     final String controls = Controls.newBuilder()
       .addPause(clazz, descriptor)
       .build();
@@ -258,7 +253,10 @@ public class TestJobStatusV2 extends BaseTestServer {
     StateProgressListener stateListener = new StateProgressListener();
     registerJobStatusListener(jobId, stateListener);
 
-    // wait for the pause to be hit
+    // wait to reach the state to pause
+    while (stateListener.getLatestState() != state) {
+      Thread.sleep(10);
+    }
     Thread.sleep(1000);
     // resume now.
     getRpcClient().resumeQuery(queryId);
@@ -276,7 +274,7 @@ public class TestJobStatusV2 extends BaseTestServer {
 
   @Test
   public void testCompletedState() throws Exception {
-    pauseAndResume(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE);
+    pauseAndResume(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE, State.PLANNING);
   }
 
   private void pauseResumeAndCheckDuration(Class clazz, String descriptor, State state) throws Exception {
@@ -348,7 +346,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     pauseResumeAndCheckDuration(QueryTrackerImpl.class, QueryTrackerImpl.INJECTOR_STARTING_PAUSE, State.STARTING);
   }
 
-  private void pauseCancelAndResume(Class clazz, String descriptor) throws Exception {
+  private void pauseCancelAndResume(Class clazz, String descriptor, State state) throws Exception {
     final String controls = Controls.newBuilder()
       .addPause(clazz, descriptor)
       .build();
@@ -367,8 +365,10 @@ public class TestJobStatusV2 extends BaseTestServer {
     StateProgressListener stateListener = new StateProgressListener();
     registerJobStatusListener(jobId, stateListener);
 
-    // wait for the pause to be hit
-    Thread.sleep(3000);
+    // wait to reach the state to pause
+    while (stateListener.getLatestState() != state) {
+      Thread.sleep(10);
+    }
 
     // cancel query
     getRpcClient().cancelQuery(queryId);
@@ -389,7 +389,7 @@ public class TestJobStatusV2 extends BaseTestServer {
 
   @Test
   public void testCancelledState() throws Exception {
-    pauseCancelAndResume(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE);
+    pauseCancelAndResume(AttemptManager.class, AttemptManager.INJECTOR_PLAN_PAUSE, State.PLANNING);
   }
 
   private void injectException(String controls, String expectedDesc) throws Exception {
@@ -431,7 +431,13 @@ public class TestJobStatusV2 extends BaseTestServer {
     injectException(controls, AttemptManager.INJECTOR_PLAN_ERROR);
   }
 
-  private void injectTailProfileException(String controls, String expectedDesc) throws Exception {
+  private void validateFailedJob(JobSummary jobSummary) throws Exception {
+    Assert.assertSame(jobSummary.getJobState(), JobState.FAILED);
+    Assert.assertNotNull(jobSummary.getFailureInfo());
+    Assert.assertTrue(jobSummary.getFailureInfo().contains("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
+  }
+
+  private void injectProfileException(String controls, String expectedDesc) throws Exception {
     JobId jobId = null;
     try {
       ControlsInjectionUtil.setControls(getRpcClient(), controls);
@@ -451,16 +457,15 @@ public class TestJobStatusV2 extends BaseTestServer {
       assertTrue(e.getMessage().contains(expectedDesc));
     }
 
-    Assert.notNull(jobId);
+    Assert.assertNotNull(jobId);
 
-    JobState jobState = chronicleStub.getJobSummary(
+    JobSummary jobSummary = chronicleStub.getJobSummary(
       JobSummaryRequest.newBuilder()
         .setJobId(JobsProtoUtil.toBuf(jobId))
         .setUserName(DEFAULT_USERNAME)
-        .build()).getJobState();
+        .build());
 
-    Assert.isTrue(jobState == JobState.FAILED);
-
+    validateFailedJob(jobSummary);
   }
 
   @Test
@@ -470,7 +475,17 @@ public class TestJobStatusV2 extends BaseTestServer {
         RuntimeException.class)
       .build();
 
-    injectTailProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR);
+    injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR);
+  }
+
+  @Test
+  public void testGetFullProfileFailedState() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(AttemptManager.class, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR,
+        RuntimeException.class)
+      .build();
+
+    injectProfileException(controls, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR);
   }
 
   private void injectAttemptCompletionException(String controls) throws Exception {
@@ -489,15 +504,16 @@ public class TestJobStatusV2 extends BaseTestServer {
 
     listener.await();
 
-    Assert.notNull(jobId);
+    Assert.assertNotNull(jobId);
 
     while (true) {
-      JobState jobState = chronicleStub.getJobSummary(
+      JobSummary jobSummary = chronicleStub.getJobSummary(
         JobSummaryRequest.newBuilder()
           .setJobId(JobsProtoUtil.toBuf(jobId))
           .setUserName(DEFAULT_USERNAME)
-          .build()).getJobState();
-      if(jobState == JobState.FAILED) {
+          .build());
+      if(jobSummary.getJobState() == JobState.FAILED) {
+        validateFailedJob(jobSummary);
         break;
       }
       Thread.sleep(50);
@@ -576,7 +592,7 @@ public class TestJobStatusV2 extends BaseTestServer {
         .setJobId(JobsProtoUtil.toBuf(jobId1))
         .setUserName(DEFAULT_USERNAME)
         .build()).getJobState();
-    Assert.isTrue(jobState == JobState.COMPLETED);
+    Assert.assertTrue(jobState == JobState.COMPLETED);
   }
 
   @Test

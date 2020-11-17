@@ -20,4 +20,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
 public interface ParquetFilterIface {
 
+  /**
+   * @return When the filter is applied, will only exact matches be returned
+   */
+  default boolean exact() {
+    return true;
+  }
+
 }

@@ -15,20 +15,22 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.ScheduledContextMigratingExecutorService;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobtelemetry.server.store.MetricsStore;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
+import com.google.common.annotations.VisibleForTesting;
+
+import io.opentracing.noop.NoopTracerFactory;
 
 /**
  * Publishes metrics to registered subscribers periodically.
@@ -37,63 +39,61 @@ public class ProgressMetricsPublisher implements AutoCloseable {
   private static final org.slf4j.Logger logger =
     org.slf4j.LoggerFactory.getLogger(ProgressMetricsPublisher.class);
 
-  private final Multimap<UserBitShared.QueryId,
-      Consumer<CoordExecRPC.QueryProgressMetrics>> subscribers =
-    Multimaps.synchronizedSetMultimap(HashMultimap.create());
+  private final ConcurrentMap<Consumer<CoordExecRPC.QueryProgressMetrics>, ScheduledFuture> publishTaskMap = new ConcurrentHashMap<>();
   private final MetricsStore metricsStore;
   private final CloseableSchedulerThreadPool scheduler;
+  private final ScheduledContextMigratingExecutorService scheduledContextMigratingExecutorService;
+  private final int publishFrequencyMillis;
 
-  ProgressMetricsPublisher(MetricsStore metricsStore, int publishFrequencyMillis) {
+  public ProgressMetricsPublisher(MetricsStore metricsStore, int publishFrequencyMillis) {
     this.metricsStore = metricsStore;
+    this.publishFrequencyMillis = publishFrequencyMillis;
     this.scheduler = new CloseableSchedulerThreadPool("metrics-publisher", 1);
-
-    scheduler.scheduleWithFixedDelay(publishAll(), publishFrequencyMillis,
-      publishFrequencyMillis, TimeUnit.MILLISECONDS);
+    this.scheduler.setRemoveOnCancelPolicy(true);
+    scheduledContextMigratingExecutorService = new ScheduledContextMigratingExecutorService(scheduler, NoopTracerFactory.create());
   }
 
-  void addSubscriber(UserBitShared.QueryId queryId,
+  @VisibleForTesting
+  public void addSubscriber(UserBitShared.QueryId queryId,
                      Consumer<CoordExecRPC.QueryProgressMetrics> querySubscriber) {
     // subscribe for periodic updates.
-    subscribers.put(queryId, querySubscriber);
+    ScheduledFuture scheduledFuture = scheduledContextMigratingExecutorService.scheduleWithFixedDelay(publishToSubcriber(queryId, querySubscriber),
+      publishFrequencyMillis, publishFrequencyMillis, TimeUnit.MILLISECONDS);
+    publishTaskMap.put(querySubscriber, scheduledFuture);
   }
 
-  void removeSubscriber(UserBitShared.QueryId queryId,
+  @VisibleForTesting
+  public void removeSubscriber(UserBitShared.QueryId queryId,
                         Consumer<CoordExecRPC.QueryProgressMetrics> querySubscriber,
                         boolean publishFinalMetrics) {
     // unsubscribe from periodic updates.
-    subscribers.remove(queryId, querySubscriber);
-
-    // publish final metrics.
-    if (publishFinalMetrics) {
-      CoordExecRPC.QueryProgressMetrics metrics = fetchMetricsAndCombine(queryId);
-      querySubscriber.accept(metrics);
+    if (publishTaskMap.containsKey(querySubscriber)) {
+      publishTaskMap.get(querySubscriber).cancel(true);
+      publishTaskMap.remove(querySubscriber);
     }
-  }
 
-  private Runnable publishAll() {
-    return () -> {
-      // extract list of registered queryIds.
-      Set<UserBitShared.QueryId> queryList;
-      synchronized (subscribers) {
-        queryList = new HashSet<>(subscribers.keySet());
-      }
-
-      // publish metrics for each registered query.
-      queryList.forEach(this::publishForQuery);
-    };
-  }
-
-  private void publishForQuery(UserBitShared.QueryId queryId) {
     try {
-      CoordExecRPC.QueryProgressMetrics metrics = fetchMetricsAndCombine(queryId);
-      synchronized (subscribers) {
-        for (Consumer<CoordExecRPC.QueryProgressMetrics> observer : subscribers.get(queryId)) {
-          observer.accept(metrics);
-        }
+      // publish final metrics.
+      if (publishFinalMetrics) {
+        final CoordExecRPC.QueryProgressMetrics metrics = fetchMetricsAndCombine(queryId);
+        querySubscriber.accept(metrics);
       }
     } catch (Throwable e) {
-      logger.warn("publish failed for queryId " + QueryIdHelper.getQueryId(queryId), e);
+      logger.warn("publishing final metrics failed for queryId " + QueryIdHelper.getQueryId(queryId), e);
     }
+  }
+
+  private Runnable publishToSubcriber(UserBitShared.QueryId queryId,
+    Consumer<CoordExecRPC.QueryProgressMetrics> querySubscriber) {
+    return () -> {
+      try {
+        final CoordExecRPC.QueryProgressMetrics metrics = fetchMetricsAndCombine(queryId);
+        querySubscriber.accept(metrics);
+      } catch (Throwable t) {
+        logger.warn("publishing metrics failed for queryId " + QueryIdHelper.getQueryId(queryId), t);
+        publishTaskMap.remove(querySubscriber);
+      }
+    };
   }
 
   private CoordExecRPC.QueryProgressMetrics fetchMetricsAndCombine(UserBitShared.QueryId queryId) {
