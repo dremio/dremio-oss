@@ -56,6 +56,16 @@ public class PatternMatchUtils {
     return new Match(matcher.start(), matcher.end());
   }
 
+  public static Match match(Matcher matcher, String matchee) {
+    int bytesStart = toBytesIndex(matcher.start(), matchee);
+    int bytesEnd = toBytesIndex(matcher.end(), matchee);
+    return new Match(matcher.start(), matcher.end(), bytesStart, bytesEnd);
+  }
+
+  public static int toBytesIndex(int index, String matchee) {
+    return matchee.substring(0, index).getBytes().length;
+  }
+
   /**
    *
    * @param matcher
@@ -99,23 +109,42 @@ public class PatternMatchUtils {
   public static class Match {
     private final int start;
     private final int end;
+    private final int bytesStart;
+    private final int bytesEnd;
+
     public Match(int start, int end) {
       super();
       this.start = start;
       this.end = end;
+      this.bytesStart = start;
+      this.bytesEnd = end;
     }
+
+    public Match(int start, int end, int bytesStart, int bytesEnd) {
+      super();
+      this.start = start;
+      this.end = end;
+      this.bytesStart = bytesStart;
+      this.bytesEnd = bytesEnd;
+    }
+
     public int start() {
       return start;
     }
     public int end() {
       return end;
     }
+    public int bytesStart() { return bytesStart;}
+    public int bytesEnd() { return bytesEnd;}
     public int length() {
       return end - start;
     }
+    public int bytesLength() {
+      return bytesEnd - bytesStart;
+    }
     @Override
     public String toString() {
-      return format("Match(%s, %s)", start, end);
+      return format("Match(%s, %s, %s, %s)", start, end, bytesStart, bytesEnd);
     }
   }
 }
