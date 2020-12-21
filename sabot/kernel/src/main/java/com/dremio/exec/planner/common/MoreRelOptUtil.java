@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.common;
 
+import java.math.BigDecimal;
 import java.util.AbstractList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -1016,6 +1017,67 @@ public final class MoreRelOptUtil {
         rexNode.accept(this);
       }
       return setBuilder.build();
+    }
+  }
+
+  /**
+   * RexShuttle which canonicalizes numeric literals in the RexNode to its expanded form.
+   */
+  public static class RexLiteralCanonicalizer extends RexShuttle {
+    private final RexBuilder rexBuilder;
+
+    public RexLiteralCanonicalizer(RexBuilder rexBuilder) {
+      this.rexBuilder = rexBuilder;
+    }
+
+    @Override
+    public RexNode visitLiteral(RexLiteral literal) {
+      RexNode newLiteral = literal(literal.getValue(), literal.getType());
+      if (newLiteral != null) {
+        return newLiteral;
+      }
+      // Should we try with value2/value3?
+      return literal;
+    }
+
+    /**
+     * Creates a literal (constant expression).
+     */
+    private RexNode literal(Object value, RelDataType type) {
+      if (value instanceof BigDecimal) {
+        return rexBuilder.makeExactLiteral(stripTrailingZeros((BigDecimal) value), type);
+      } else if (value instanceof Float || value instanceof Double) {
+        return rexBuilder.makeApproxLiteral(
+          stripTrailingZeros(BigDecimal.valueOf(((Number) value).doubleValue())), type);
+      } else if (value instanceof Number) {
+        return rexBuilder.makeExactLiteral(
+          stripTrailingZeros(BigDecimal.valueOf(((Number) value).longValue())), type);
+      } else {
+        return null;
+      }
+    }
+
+    private BigDecimal stripTrailingZeros(BigDecimal value) {
+      if (value.scale() <= 0) {
+        // Its already an integer value. No need to strip any zeroes.
+        return value;
+      }
+      try {
+        BigDecimal newValue = value.stripTrailingZeros();
+        int scale = newValue.scale();
+        if (scale >= 0 && scale <= rexBuilder.getTypeFactory().getTypeSystem().getMaxNumericScale()) {
+          return newValue;
+        } else if (scale < 0) {
+          // In case we have something like 600.00, where the scale is greater than 0,
+          // stripping trailing zeros will end up in scientific notation 6E+2. Set
+          // the scale to 0 to get the expanded notation.
+          return newValue.setScale(0, BigDecimal.ROUND_UNNECESSARY);
+        }
+      } catch (Exception ex) {
+        // In case any exception happens, log and continue without stripping.
+        logger.info(String.format("Caught exception while stripping trailing zeroes from %s", value.toPlainString()), ex);
+      }
+      return value;
     }
   }
 

@@ -240,7 +240,7 @@ public class Hash32FunctionsWithSeed {
       if (in.isSet == 0) {
         out.value = seed.value;
       } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.start, in.start + 16, in
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start + 16), in
           .buffer, seed.value);
       }
     }

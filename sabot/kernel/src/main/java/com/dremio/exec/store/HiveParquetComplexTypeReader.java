@@ -23,7 +23,6 @@ import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -35,19 +34,18 @@ import com.google.common.base.Stopwatch;
  * of a Hive table
  */
 public class HiveParquetComplexTypeReader implements AutoCloseable {
-  private HiveParquetCopier.ParquetCopier[] copiers;
-  private final BatchSchema originalSchema;
-  private OutputMutator outputMutator;
   private final SampleMutator mutator;
   private final OperatorContext context;
-  private final TypeCoercion hiveTypeCoercion;
   private final Stopwatch javaCodeGenWatch;
+  private final TypeCoercion hiveTypeCoercion;
   private final Stopwatch gandivaCodeGenWatch;
-  public HiveParquetComplexTypeReader(OperatorContext context, SampleMutator mutator, BatchSchema originalSchema,
-                                      TypeCoercion hiveTypeCoercion,
+
+  private OutputMutator outputMutator;
+  private HiveParquetCopier.ParquetCopier[] copiers;
+
+  public HiveParquetComplexTypeReader(OperatorContext context, SampleMutator mutator, TypeCoercion hiveTypeCoercion,
                                       Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) {
     Preconditions.checkArgument(mutator != null, "Invalid argument");
-    this.originalSchema = originalSchema;
     this.mutator = mutator;
     this.context = context;
     this.hiveTypeCoercion = hiveTypeCoercion;
@@ -88,7 +86,7 @@ public class HiveParquetComplexTypeReader implements AutoCloseable {
     }
   }
 
-  public void runProjector(int recordCount, VectorContainer incoming) {
+  public void runProjector(int recordCount) {
     for (HiveParquetCopier.ParquetCopier copier: copiers) {
       copier.copy(recordCount);
     }

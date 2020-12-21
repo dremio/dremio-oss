@@ -26,6 +26,7 @@ import com.dremio.common.types.Types;
 import com.dremio.common.util.DremioStringUtils;
 
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.NettyArrowBuf;
 
 public class VarBinaryAccessor extends AbstractSqlAccessor {
 
@@ -67,7 +68,7 @@ public class VarBinaryAccessor extends AbstractSqlAccessor {
     }
     NullableVarBinaryHolder h = new NullableVarBinaryHolder();
     ac.get(index, h);
-    return new ByteBufInputStream(h.buffer.slice(h.start, h.end).asNettyBuffer());
+    return new ByteBufInputStream(NettyArrowBuf.unwrapBuffer(h.buffer.slice(h.start, h.end)));
   }
 
   @Override

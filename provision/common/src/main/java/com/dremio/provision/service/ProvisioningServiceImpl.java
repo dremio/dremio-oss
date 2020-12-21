@@ -81,6 +81,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   public static final int LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB = 8192;
   public static final int MIN_MEMORY_REQUIRED_MB = 8192;
   public static final int LARGE_SYSTEMS_MIN_MEMORY_MB = 32768; // DX-10446
+  private static ClusterType clusterType = null;
 
   private Map<ClusterType, ProvisioningServiceDelegate> concreteServices;
 
@@ -105,6 +106,10 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       editionProvider,
       this
     );
+  }
+
+  public static ClusterType getType() {
+    return clusterType;
   }
 
   @VisibleForTesting
@@ -174,6 +179,9 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
         } else {
           provisioningServiceDelegate.syncCluster(cluster);
           store.put(entry.getKey(), cluster);
+        }
+        if (clusterType != null) {
+          ProvisioningServiceImpl.clusterType = clusterType;
         }
       } catch (Exception e) {
         logger.error("Unable to sync cluster, {}", entry.getKey(), e);
@@ -377,6 +385,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     if (service == null) {
       throw new ProvisioningHandlingException("Can not find service implementation for: " + cluster.getClusterConfig().getClusterType());
     }
+    clusterType = cluster.getClusterConfig().getClusterType();
 
     final ClusterEnriched updatedCluster;
     cluster.setDesiredState(ClusterState.RUNNING);

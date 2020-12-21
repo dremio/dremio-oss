@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.vector.util.DecimalUtility;
 
 import io.netty.buffer.ByteBuf;
 
@@ -54,7 +53,7 @@ public class DecimalHelper {
    * @return decimal value as BigDecimal
    */
   public static BigDecimal getBigDecimalFromBEArrowBuf(ArrowBuf buffer, int index, int scale) {
-    final int length = DecimalUtility.DECIMAL_BYTE_LENGTH;
+    final int length = DecimalVector.TYPE_WIDTH;
     final int startIndex = index * length;
     byte[] value = new byte[length];
     buffer.getBytes(startIndex, value, 0, length);

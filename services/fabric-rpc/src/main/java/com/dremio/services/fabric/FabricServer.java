@@ -15,6 +15,7 @@
  */
 package com.dremio.services.fabric;
 
+import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.rpc.BasicServer;
@@ -57,7 +58,7 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
       ) {
     super(
         config,
-        allocator.getAsByteBufAllocator(),
+        new ArrowByteBufAllocator(allocator),
         eventLoopGroup
         );
     this.connectionRegistry = connectionRegistry;

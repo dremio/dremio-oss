@@ -15,37 +15,35 @@
  */
 package com.dremio.service.flight.impl;
 
-import static org.hamcrest.CoreMatchers.isA;
+import static org.apache.arrow.flight.BackpressureStrategy.WaitResult.CANCELLED;
+import static org.apache.arrow.flight.BackpressureStrategy.WaitResult.READY;
+import static org.apache.arrow.flight.BackpressureStrategy.WaitResult.TIMEOUT;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BackpressureHandlingResponseHandler;
 
 /**
  * Unit test class for BackpressureHandlingResponseHandler.
  */
 public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryResponseHandler {
-  private static final class TestException extends Exception {
-    TestException(String message) {
-      super(message);
-    }
-  }
 
   protected BackpressureHandlingResponseHandler createHandler() {
-    return new BackpressureHandlingResponseHandler(getExternalId(), getUserSession(), getWorkerProvider(),
+    return new BackpressureHandlingResponseHandler(
+      getExternalId(), getUserSession(), getWorkerProvider(),
       getListener(), getAllocator());
   }
 
@@ -58,86 +56,50 @@ public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryRes
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testClientIsReady() throws Exception {
+  public void testClientIsReady() {
     // Arrange
     when(getListener().isCancelled()).thenReturn(false);
     when(getListener().isReady()).thenReturn(true);
 
     // Act
-    try {
-      assertEquals(createHandler().clientIsReadyForData(),
-        RunQueryResponseHandler.FlightClientDataRetrievalStatus.READY);
-    } catch (RpcException ex) {
-      testFailed("Unexpected RpcException thrown.");
-    }
+    assertEquals(createHandler().clientIsReadyForData(), READY);
   }
 
   @Test
-  public void testCancelWhenPollingClientReadiness() throws Exception {
+  public void testClientIsReadyTimedOut() {
+    // Arrange
+    when(getListener().isCancelled()).thenReturn(false);
+    when(getListener().isReady()).thenReturn(false);
+
+    // Act
+    assertEquals(createHandler().clientIsReadyForData(), TIMEOUT);
+  }
+
+  @Test
+  public void testCancelWhenWaitingForClientReadiness() {
     // Arrange
     when(getListener().isCancelled()).thenReturn(true);
     when(getListener().isReady()).thenReturn(false);
 
     // Act
-    try {
-      assertEquals(createHandler().clientIsReadyForData(),
-        RunQueryResponseHandler.FlightClientDataRetrievalStatus.CANCELLED);
-    } catch (RpcException ex) {
-      testFailed("Unexpected RpcException thrown.");
-    }
+    assertEquals(createHandler().clientIsReadyForData(), CANCELLED);
   }
 
   @Test
-  public void testTimeoutExceptionHandling() throws RpcException {
+  public void testTimeoutExceptionHandling() {
     // Arrange
-    final ExecutorService executor =
-      Executors.newSingleThreadExecutor(new NamedThreadFactory(Thread.currentThread().getName()
-        + ":test-flight-client-exception"));
-    final CountDownLatch latch = new CountDownLatch(1);
-
-    final Future<RunQueryResponseHandler.FlightClientDataRetrievalStatus> future = executor.submit(() ->
-    {
-      latch.await();
-      return null;
-    });
-
-    thrown.expect(RpcException.class);
-    thrown.expectCause(isA(TimeoutException.class));
-    thrown.expectMessage("Timeout while polling for readiness of the Flight client.");
+    when(getListener().isReady()).thenReturn(false);
+    when(getListener().isCancelled()).thenReturn(false);
+    RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener = mock(RpcOutcomeListener.class);
 
     // Act
-    try {
-      createHandler().handleFuture(future, executor, 500);
-    } finally {
-      latch.countDown();
-      future.cancel(true);
-      executor.shutdownNow();
-    }
-  }
+    createHandler().putNextWhenClientReady(outcomeListener);
 
-  @Test
-  public void testExecutionExceptionHandling() throws RpcException {
-    // Arrange
-    final ExecutorService executor =
-      Executors.newSingleThreadExecutor(new NamedThreadFactory(Thread.currentThread().getName()
-        + ":test-flight-client-exception"));
-
-    final Future<RunQueryResponseHandler.FlightClientDataRetrievalStatus> future =
-      executor.submit(() -> {
-        throw new TestException("Testing ExecutionException wrapping.");
-      });
-
-    thrown.expect(RpcException.class);
-    thrown.expectCause(isA(TestException.class));
-    thrown.expectMessage("Encountered error while polling for readiness of the Flight client.");
-
-    // Act
-    try {
-      createHandler().handleFuture(future, executor, 500);
-    } finally {
-      future.cancel(true);
-      executor.shutdownNow();
-    }
+    // Assert
+    ArgumentCaptor<RpcException> argument = ArgumentCaptor.forClass(RpcException.class);
+    verify(outcomeListener, times(1)).failed(argument.capture());
+    assertEquals("Timeout while waiting for client to be in ready state.", argument.getValue().getMessage());
+    verifyNoMoreInteractions(outcomeListener);
   }
 
   @Test
@@ -148,6 +110,11 @@ public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryRes
   @Test
   public void testIsCancelledFalse() {
     super.testIsCancelledFalse();
+  }
+
+  @Test
+  public void testIsCancelledDuringWaitTrue() throws Exception {
+    super.testIsCancelledDuringWaitTrue();
   }
 
   @Test

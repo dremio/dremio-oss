@@ -180,7 +180,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
       /**
        * Create a new buffer, loop all the bit value in oldBuf, and then convert to byte value in new buffer
        */
-      newBuf = allocator.buffer(valueCount).asNettyBuffer();
+      newBuf = NettyArrowBuf.unwrapBuffer(allocator.buffer(valueCount));
       for (int i = 0; i < valueCount; i++) {
         int byteIndex = i >> 3;
         byte b = oldBuf.getByte(byteIndex);
@@ -210,7 +210,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     }
     int valueCount = oldBuf.readableBytes() / originalTypeByteWidth;
     int newBufferLength = targetTypeByteWidth * valueCount;
-    NettyArrowBuf newBuf = allocator.buffer(newBufferLength).asNettyBuffer();
+    NettyArrowBuf newBuf = NettyArrowBuf.unwrapBuffer(allocator.buffer(newBufferLength));
     for (int byteIndex = 0; byteIndex < originalTypeByteWidth; byteIndex++) {
       for (int i = 0; i < valueCount; i++) {
         int oldIndex = i * originalTypeByteWidth + byteIndex;
@@ -234,11 +234,11 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     final int decimalLength = DecimalVector.TYPE_WIDTH;
     final int startPoint = dataBuffer.readerIndex();
     final int valueCount = dataBuffer.readableBytes()/decimalLength;
-    final ByteBuf drillBuffer = allocator.buffer(dataBuffer.readableBytes() + 8*valueCount).asNettyBuffer();
+    final ByteBuf drillBuffer = NettyArrowBuf.unwrapBuffer(allocator.buffer(dataBuffer.readableBytes() + 8*valueCount));
     int length = 0;
     for (int i = startPoint; i < startPoint + dataBuffer.readableBytes() - 1; i+=decimalLength) {
       final BigDecimal arrowDecimal = DecimalUtility.getBigDecimalFromArrowBuf(dataBuffer.arrowBuf(), i/16,
-        decimalField.getMajorType().getScale());
+        decimalField.getMajorType().getScale(), DecimalVector.TYPE_WIDTH);
       final int startIndex = (i == startPoint) ? i : i + length;
       DecimalHelper.getSparseFromBigDecimal(arrowDecimal, drillBuffer, startIndex, decimalField.getMajorType().getScale(), NUMBER_DECIMAL_DIGITS);
       length += 8;

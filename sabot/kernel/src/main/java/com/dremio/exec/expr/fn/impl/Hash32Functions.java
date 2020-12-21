@@ -217,7 +217,7 @@ public class Hash32Functions {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.start, in.start + 16, in
+        out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start), org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start + 16), in
           .buffer, 0);
       }
     }

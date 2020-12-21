@@ -15,6 +15,8 @@
  */
 package com.dremio.common.collections;
 
+import java.util.Objects;
+
 /**
  * An immutable ordered sequence of two elements
  *
@@ -32,5 +34,27 @@ public class Tuple<F, S> {
 
   public static <F, S> Tuple<F, S> of(final F first, final S second) {
     return new Tuple<>(first, second);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Tuple<?, ?> tuple = (Tuple<?, ?>) o;
+    return Objects.equals(first, tuple.first) && Objects.equals(second, tuple.second);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(first, second);
+  }
+
+  @Override
+  public String toString() {
+    return "Tuple{first=" + first + ", second=" + second + "}";
   }
 }

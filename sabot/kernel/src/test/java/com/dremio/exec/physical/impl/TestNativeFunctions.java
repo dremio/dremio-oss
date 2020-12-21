@@ -40,7 +40,6 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.InExpression;
@@ -1041,7 +1040,6 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
   }
 
-  @Ignore("DX-24609")
   @Test
   public void testCastIntFromString() throws Exception {
     testFunctions(new Object[][]{
@@ -1049,6 +1047,16 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"cast(c0 as INT)", "-2", -2},
       {"castBIGINT(c0)", "56", 56l},
       {"cast(c0 as BIGINT)", "-2", -2l},
+    });
+  }
+
+  @Test
+  public void testCastFloatFromString() throws Exception {
+    testFunctions(new Object[][]{
+      {"castFLOAT4(c0)", "3.4", 3.4f},
+      {"castFLOAT4(c0)", "-2.1", -2.1f},
+      {"castFLOAT8(c0)", "3.4", 3.4},
+      {"castFLOAT8(c0)", "-2.1", -2.1},
     });
   }
 }

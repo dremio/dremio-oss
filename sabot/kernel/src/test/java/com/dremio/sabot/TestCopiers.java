@@ -40,8 +40,6 @@ import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
 
-import io.netty.buffer.ByteBufAllocator;
-
 public class TestCopiers extends BaseTestOperator {
   static final int targetBatchSize = 1023;
 
@@ -148,11 +146,6 @@ public class TestCopiers extends BaseTestOperator {
     }
 
     @Override
-    public ByteBufAllocator getAsByteBufAllocator() {
-      return actual.getAsByteBufAllocator();
-    }
-
-    @Override
     public BufferAllocator newChildAllocator(String s, long l, long l1) {
       return actual.newChildAllocator(s, l, l1);
     }
@@ -234,5 +227,25 @@ public class TestCopiers extends BaseTestOperator {
 
     @Override
     public void assertOpen() { actual.assertOpen(); }
+
+    @Override
+    public AllocationListener getListener() {
+      return actual.getListener();
+    }
+
+    @Override
+    public void releaseBytes(long size) {
+      actual.releaseBytes(size);
+    }
+
+    @Override
+    public boolean forceAllocate(long size) {
+      return actual.forceAllocate(size);
+    }
+
+    @Override
+    public BufferAllocator getRoot() {
+      return actual.getRoot();
+    }
   }
 }

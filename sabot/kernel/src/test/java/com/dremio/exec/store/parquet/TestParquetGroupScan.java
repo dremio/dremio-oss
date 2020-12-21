@@ -24,7 +24,6 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.common.util.TestTools;
 
 public class TestParquetGroupScan extends BaseTestQuery {
 
@@ -121,31 +120,6 @@ public class TestParquetGroupScan extends BaseTestQuery {
       assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
         uex.getMessage()), uex.getMessage().contains(expectedMsg));
     }
-  }
-
-  @Test
-  public void testParquetUnionColumnReading() throws Exception {
-    final String query = String.format("SELECT * FROM dfs.\"%s/src/test/resources/parquet/unionCol\"", TestTools.getWorkingPath());
-    for(int i = 0; i < 2; i++) {
-      try {
-        test(query); // run the query multiple times to learn the schema
-      } catch (Exception e) {
-        // ignore
-      }
-    }
-    testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("unionCol", "simpleCol")
-        .baselineValues("TRUCK", 0.03d)
-        .baselineValues("REG AIR", 0.01d)
-        .baselineValues("REG AIR", 0.02d)
-        .baselineValues("TRUCK", 0.07d)
-        .baselineValues(1552, 0.02d)
-        .baselineValues(674, 0.06d)
-        .baselineValues(637, 0.02d)
-        .baselineValues(22, 0.06d)
-        .go();
   }
 
   @Test

@@ -23,7 +23,6 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocatorL;
 import io.netty.buffer.UnsafeDirectLittleEndian;
 
@@ -60,11 +59,6 @@ public class FakeAllocator implements BufferAllocator {
 
   @Override
   public long getAllocatedMemory() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ByteBufAllocator getAsByteBufAllocator() {
     throw new UnsupportedOperationException();
   }
 
@@ -136,5 +130,26 @@ public class FakeAllocator implements BufferAllocator {
   @Override
   public String toVerboseString() {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public AllocationListener getListener() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void releaseBytes(long size) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean forceAllocate(long size) {
+    throw new UnsupportedOperationException();
+
+  }
+
+  @Override
+  public BufferAllocator getRoot() {
+    return this;
   }
 }

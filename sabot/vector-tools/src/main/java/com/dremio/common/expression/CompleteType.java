@@ -109,6 +109,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.UpPromotionRules;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.common.util.ObjectType;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -590,6 +591,11 @@ public class CompleteType {
       }
 
       @Override
+      public Class<? extends ValueHolder> visit(ArrowType.LargeList type) {
+        throw new UnsupportedOperationException("Dremio does not support LargeUtf8 yet.");
+      }
+
+      @Override
       public Class<? extends ValueHolder> visit(ArrowType.LargeUtf8 type) {
         throw new UnsupportedOperationException("Dremio does not support LargeUtf8 yet.");
       }
@@ -693,6 +699,25 @@ public class CompleteType {
     return mergedList;
   }
 
+  public static List<Field> mergeWithUpPromotion(List<Field> tableFields, List<Field> fileFields) {
+    Map<String,Field> secondFieldMap = new LinkedHashMap<>();
+    List<Field> mergedList = new ArrayList<>();
+    for (Field field : fileFields) {
+      secondFieldMap.put(field.getName().toLowerCase(), field);
+    }
+
+    for (Field tableSchemaField : tableFields) {
+      Field matchingField = secondFieldMap.remove(tableSchemaField.getName().toLowerCase());
+      if (matchingField != null) {
+        mergedList.add(fromField(tableSchemaField).mergeWithUpPromotion(fromField(matchingField)).toField(tableSchemaField.getName()));
+      } else {
+        mergedList.add(tableSchemaField);
+      }
+    }
+    mergedList.addAll(secondFieldMap.values());
+    return mergedList;
+  }
+
   public CompleteType merge(CompleteType type2) {
     return merge(type2, REJECT_MIXED_DECIMALS);
   }
@@ -752,7 +777,28 @@ public class CompleteType {
     List<Field> mergedFields = mergeFieldLists(fields1, fields2);
     int[] typeIds = getTypeIds(mergedFields);
     return new CompleteType(new Union(UnionMode.Sparse, typeIds), mergedFields);
+  }
 
+  /**
+   * Merges a file {@code CompleteType} with the current table {@code CompleteType} by following a set of
+   * up-promotion rules defined under {@link UpPromotionRules}. This method should be used instead of
+   * {@link #merge(CompleteType)} when Union types are not desirable.
+   *
+   * @param fileType the {@code CompleteType} of the file
+   * @return the merged {@code CompleteType} after up promotion
+   * @throws UnsupportedOperationException if the merge could not be done due to incompatible types
+   */
+  public CompleteType mergeWithUpPromotion(CompleteType fileType) throws UnsupportedOperationException {
+    CompleteType tableType = this;
+    if (tableType.getType().equals(fileType.getType())) {
+      // Fall back to the normal merge if schemas are of the same type
+      return merge(fileType, false);
+    }
+
+    return UpPromotionRules
+        .getResultantType(fileType, tableType)
+        .orElseThrow(() -> new UnsupportedOperationException("Up promotion not supported from file type: "
+            + fileType.getType() + " to table type: " + tableType.getType()));
   }
 
   // TODO : Move following to Output Derivation as part of DX-16966

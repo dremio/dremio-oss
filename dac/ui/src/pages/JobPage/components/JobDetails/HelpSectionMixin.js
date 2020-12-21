@@ -29,9 +29,14 @@ export default function(input) {
           buttonStyle='secondary'
           children={la('Download Profile')}
           submitting={this.props.downloadViewState.get('isInProgress')}
-          onClick={this.handleDownload}/>]
+          onClick={this.handleDownload}/>],
+        this.props.isSupport && this.props.clusterType === 'YARN' && ['bundleDownload', <SimpleButton
+          buttonStyle='secondary'
+          style={{width: '205px'}}
+          children={la('Download Query Support Bundle')}
+          onClick={this.handleQueryDownload}
+        />]
       ];
-
       return new Immutable.OrderedMap(map);
     }
   });

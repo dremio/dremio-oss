@@ -29,6 +29,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -88,11 +89,6 @@ public abstract class JoinRelBase extends Join {
    * Dremio join category
    */
   protected final JoinUtils.JoinCategory joinCategory;
-
-  protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType) {
-    this(cluster, traits, left, right, condition, joinType, null);
-  }
 
   protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
                         JoinRelType joinType, ImmutableBitSet projectedFields) {
@@ -318,6 +314,14 @@ public abstract class JoinRelBase extends Join {
         cost.getNetwork(),
         cost.getMemory() );
 
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    boolean projectAll = projectedFields == null
+      || projectedFields.cardinality() == left.getRowType().getFieldCount() + right.getRowType().getFieldCount();
+    return super.explainTerms(pw)
+      .itemIf("projectedFields", projectedFields, !projectAll);
   }
 
   protected RelOptCost computeLogicalJoinCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {

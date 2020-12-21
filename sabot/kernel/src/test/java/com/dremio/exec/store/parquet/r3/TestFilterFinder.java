@@ -24,7 +24,10 @@ import java.math.BigDecimal;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -250,5 +253,31 @@ public class TestFilterFinder {
     StateHolder holder = node.accept(finder);
     assertEquals(holder.getConditions().size(), 2);
     assertTrue(holder.hasRemainingExpression());
+  }
+
+  @Test
+  public void castIsNotDistinctLiteral() {
+    RexInputRef inputRef = builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0);
+    RexLiteral literal = builder.makeBigintLiteral(new BigDecimal("1"));
+
+    final RexNode isNotDistinctNode =
+      builder.makeCall(
+        SqlStdOperatorTable.IS_NOT_DISTINCT_FROM,
+        inputRef,
+        builder.makeAbstractCast(factory.createSqlType(SqlTypeName.BIGINT), literal)
+      );
+
+    final RexNode equalsNode =
+      builder.makeCall(
+        SqlStdOperatorTable.EQUALS,
+        inputRef,
+        literal);
+
+    FindSimpleFilters finder = new FindSimpleFilters(builder);
+    StateHolder holder = isNotDistinctNode.accept(finder);
+    ImmutableList<RexCall> conditions = holder.getConditions();
+
+    assertEquals(1, conditions.size());
+    assertTrue(RexUtil.eq(conditions.get(0), equalsNode));
   }
 }

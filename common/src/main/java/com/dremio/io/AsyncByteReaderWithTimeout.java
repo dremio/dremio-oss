@@ -15,13 +15,13 @@
  */
 package com.dremio.io;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-import java.util.List;
 
 import com.dremio.common.exceptions.ErrorHelper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -31,7 +31,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Decorator over AsyncByteReader with timeout.
  */
-public class AsyncByteReaderWithTimeout implements AsyncByteReader {
+public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
   static private ScheduledThreadPoolExecutor delayer;
   private AsyncByteReader inner;
   private long timeoutInMillis;
@@ -90,7 +90,7 @@ public class AsyncByteReaderWithTimeout implements AsyncByteReader {
   }
 
   @Override
-  public void close() throws Exception {
+  protected void onClose() throws Exception {
     inner.close();
   }
 

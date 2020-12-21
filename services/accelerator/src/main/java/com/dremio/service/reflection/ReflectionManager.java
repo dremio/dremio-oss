@@ -830,8 +830,10 @@ public class ReflectionManager implements Runnable {
     final List<DataPartition> dataPartitions = computeDataPartitions(jobInfo);
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, JobsProtoUtil.toStuff(job.getJobId()));
     final List<String> refreshPath = ReflectionUtils.getRefreshPath(JobsProtoUtil.toStuff(job.getJobId()), accelerationBasePath, jobsService, allocator);
+    final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
+    final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(materialization, refreshPath, isIcebergRefresh);
     final Refresh refresh = ReflectionUtils.createRefresh(materialization.getReflectionId(), refreshPath, seriesId,
-      0, new UpdateId(), jobDetails, metrics, dataPartitions);
+      0, new UpdateId(), jobDetails, metrics, dataPartitions, isIcebergRefresh, icebergBasePath);
     refresh.setCompacted(true);
 
     // no need to update entry lastSuccessfulRefresh, as it may only cause unnecessary refreshes on dependant reflections

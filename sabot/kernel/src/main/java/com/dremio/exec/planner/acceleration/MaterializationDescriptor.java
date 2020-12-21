@@ -18,6 +18,7 @@ package com.dremio.exec.planner.acceleration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -39,6 +40,7 @@ public class MaterializationDescriptor {
   private final long expirationTimestamp;
   private final byte[] planBytes;
   private final Long strippedPlanHash;
+  private final int stripVersion;
   private final double originalCost;
   private final long jobStart;
   private final List<String> partition;
@@ -57,7 +59,8 @@ public class MaterializationDescriptor {
       final List<String> partition,
       final IncrementalUpdateSettings incrementalUpdateSettings,
       final JoinDependencyProperties joinDependencyProperties,
-      Long strippedPlanHash) {
+      Long strippedPlanHash,
+      Integer stripVersion) {
     this.reflection = Preconditions.checkNotNull(reflection, "reflection info required");
     this.materializationId = Preconditions.checkNotNull(materializationId, "materialization id is required");
     this.version = version;
@@ -70,6 +73,7 @@ public class MaterializationDescriptor {
     this.incrementalUpdateSettings = incrementalUpdateSettings;
     this.joinDependencyProperties = joinDependencyProperties;
     this.strippedPlanHash = strippedPlanHash;
+    this.stripVersion = Optional.ofNullable(stripVersion).orElse(strippedPlanHash == null ? 0 : 1);
   }
 
   public ReflectionType getReflectionType() {
@@ -78,6 +82,10 @@ public class MaterializationDescriptor {
 
   public Long getStrippedPlanHash() {
     return strippedPlanHash;
+  }
+
+  public int getStripVersion() {
+    return stripVersion;
   }
 
   public String getVersion() {

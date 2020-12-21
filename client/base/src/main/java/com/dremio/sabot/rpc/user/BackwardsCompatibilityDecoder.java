@@ -26,6 +26,7 @@ import com.dremio.exec.rpc.InboundRpcMessage;
 import com.dremio.sabot.rpc.user.BaseBackwardsCompatibilityHandler.QueryBatch;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 
@@ -72,7 +73,7 @@ class BackwardsCompatibilityDecoder extends MessageToMessageDecoder<InboundRpcMe
 
   private ByteBuf consolidateBuffers(ByteBuf... buffers) {
     if (buffers.length == 0) {
-      return allocator.buffer(0).asNettyBuffer();
+      return NettyArrowBuf.unwrapBuffer(allocator.buffer(0));
     }
 
     if (buffers.length == 1){
@@ -85,7 +86,7 @@ class BackwardsCompatibilityDecoder extends MessageToMessageDecoder<InboundRpcMe
     }
 
     try {
-      ByteBuf newBuffer = allocator.buffer(readableBytes).asNettyBuffer();
+      ByteBuf newBuffer = NettyArrowBuf.unwrapBuffer(allocator.buffer(readableBytes));
       for(ByteBuf buffer: buffers) {
         newBuffer.writeBytes(buffer);
       }

@@ -30,6 +30,7 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
@@ -42,6 +43,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.flatbuffers.FlatBufferBuilder;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /*
@@ -155,7 +157,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
   private void read(ArrowBuf outputBuffer, long numBytesToRead, InputStream input) throws IOException {
     if (input instanceof FSInputStream) {
       FSInputStream fsInputStream = (FSInputStream)input;
-      ByteBuf readByteBuf = outputBuffer.asNettyBuffer();
+      ByteBuf readByteBuf = NettyArrowBuf.unwrapBuffer(outputBuffer);
       ByteBuffer readBuffer = readByteBuf.nioBuffer(0, (int) numBytesToRead);
       int totalRead = 0;
       readBuffer.clear();
@@ -241,7 +243,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
     for (FieldVector vector : vectors) {
       appendNodes(vector, nodes, buffers);
     }
-    return new ArrowRecordBatch(va.getRecordCount(), nodes, buffers, false);
+    return new ArrowRecordBatch(va.getRecordCount(), nodes, buffers, NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false);
   }
 
   private void appendNodes(FieldVector vector, List<ArrowFieldNode> nodes, List<ArrowBuf> buffers) {

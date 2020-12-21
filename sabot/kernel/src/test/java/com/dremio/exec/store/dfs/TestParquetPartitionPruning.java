@@ -16,16 +16,12 @@
 package com.dremio.exec.store.dfs;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 import org.joda.time.LocalDateTime;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 import com.dremio.common.util.JodaDateUtility;
-import com.dremio.common.util.TestTools;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParquetPartitionPruning extends PlanTestBase {
@@ -191,47 +187,5 @@ public class TestParquetPartitionPruning extends PlanTestBase {
             .baselineValues(new LocalDateTime(1996, 1, 29, 0, 0))
             .baselineValues(new LocalDateTime(1996, 2, 28, 0, 0))
             .go();
-  }
-
-  @Test
-  public void testUnionColumnPartition() throws Exception {
-    final String folderName = "test_union_column_partition";
-    final String testName = "test_union_column_partition_temp";
-    final String WORKING_PATH = TestTools.getWorkingPath();
-    final String parquetRefFolder = WORKING_PATH + "/src/test/resources/parquet/" + folderName;
-    String parquetFiles = Files.createTempDirectory(testName).toString();
-
-    try {
-      // copy two files that have same string value for col1
-      Files.copy(Paths.get(parquetRefFolder, "string1.parquet"), Paths.get(parquetFiles, "string1.parquet"), StandardCopyOption.REPLACE_EXISTING);
-      Files.copy(Paths.get(parquetRefFolder, "string2.parquet"), Paths.get(parquetFiles, "string2.parquet"), StandardCopyOption.REPLACE_EXISTING);
-
-      // detect schema and auto promote. this creates two partitions col1='abc' and col1='xyz'
-      runSQL("SELECT * FROM dfs.\"" + parquetFiles + "\"");
-
-      // filtering on partitioned column should result in partition pruning and there should not be Filter operator
-      String q1 = "SELECT * FROM dfs.\"" + parquetFiles + "\" where col1 = 'abc'";
-      testPlanMatchingPatterns(q1, new String[]{"splits=\\[1"}, "Filter");
-
-      // replace string columns with int columns
-      Files.deleteIfExists(Paths.get(parquetFiles, "string1.parquet"));
-      Files.deleteIfExists(Paths.get(parquetFiles, "string2.parquet"));
-      Files.copy(Paths.get(parquetRefFolder, "int1.parquet"), Paths.get(parquetFiles, "int1.parquet"), StandardCopyOption.REPLACE_EXISTING);
-      Files.copy(Paths.get(parquetRefFolder, "int2.parquet"), Paths.get(parquetFiles, "int2.parquet"), StandardCopyOption.REPLACE_EXISTING);
-
-      // refresh metadata
-      runSQL("alter table dfs.\"" + parquetFiles + "\" refresh metadata force update");  // so it detects second parquet
-
-      // query should pass
-      runSQL("SELECT * FROM dfs.\"" + parquetFiles + "\"");  // to detect schema and auto promote
-
-      // no split pruning since col1 is no longer partitioned
-      q1 = "SELECT * FROM dfs.\"" + parquetFiles + "\" where col1 = 1";
-      testPlanMatchingPatterns(q1, new String[]{"splits=\\[2"});
-    }
-    finally {
-      Files.list(Paths.get(parquetFiles)).forEach(f -> {try { Files.delete(f); } catch (Exception ex) {}});
-      Files.delete(Paths.get(parquetFiles));
-    }
   }
 }

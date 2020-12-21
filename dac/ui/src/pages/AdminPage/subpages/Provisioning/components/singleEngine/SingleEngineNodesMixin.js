@@ -16,6 +16,7 @@
 import Immutable from 'immutable';
 import { NODE_COLUMNS_CONFIG } from '@app/constants/provisioningPage/provisioningConstants';
 import { makeContainerPropertyRow } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
+import { EngineStatusBar } from './EngineStatusBar';
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
@@ -25,7 +26,6 @@ export default function(input) {
 
     getTableData(engine) {
       if (!engine) return new Immutable.List();
-
       const getRows = (listKey, status) => {
         const list = engine.getIn(['containers', listKey]);
         if (!list || !list.size) return new Immutable.List();
@@ -40,6 +40,10 @@ export default function(input) {
       const runningRows = getRows('runningList', 'Running');
       const disconnectedRows = getRows('disconnectedList', 'Provisioning or Disconnected');
       return disconnectedRows.concat(runningRows);
+    },
+
+    renderEngineStatusBar(engine) {
+      return <EngineStatusBar engine={engine}/>;
     }
   });
 }

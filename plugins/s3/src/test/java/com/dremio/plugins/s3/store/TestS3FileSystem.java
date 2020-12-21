@@ -43,6 +43,7 @@ import com.amazonaws.services.s3.model.Grant;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.Permission;
+import com.dremio.plugins.util.CloseableResource;
 import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerNotFoundException;
 
@@ -205,8 +206,15 @@ public class TestS3FileSystem {
   }
 
   private class TestExtendedS3FileSystem extends S3FileSystem {
+    private AmazonS3 s3;
+
     void setCustomClient(AmazonS3 s3) {
-      super.s3 = s3;
+      this.s3 = s3;
+    }
+
+    @Override
+    protected CloseableResource<AmazonS3> getS3V1Client() throws Exception {
+      return new CloseableResource(s3, s3 -> {});
     }
 
     @Override

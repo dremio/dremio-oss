@@ -20,14 +20,16 @@ import PropTypes from 'prop-types';
 
 export default class ContainerSelectionWrapper extends Component {
   static propTypes = {
+    disabled: PropTypes.bool,
     elementConfig: PropTypes.object,
     fields: PropTypes.object
   };
 
   render() {
-    const {elementConfig, fields} = this.props;
+    const {disabled, elementConfig, fields} = this.props;
     return (
       <ContainerSelection
+        disabled={disabled}
         fields={fields}
         elementConfig={elementConfig}/>
     );

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-unused-vars */
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -36,6 +38,9 @@ import './uiTheme/css/typography.css';
 import 'font-awesome/css/font-awesome.css';
 import Root from './containers/Root';
 import configureStore from './store/configureStore';
+
+// enable using mock data
+//import MirageServer from './MirageServer';
 
 // useful debugging leaks...
 window.React = React;

@@ -39,8 +39,6 @@ import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 
-import io.netty.buffer.ByteBufAllocator;
-
 /**
  * Base class for TestQueriesClerk
  *
@@ -151,9 +149,6 @@ public class TestQueriesClerkBase {
     public ArrowBuf buffer(long var1, BufferManager var2) {
       throw new UnsupportedOperationException();
     }
-    public ByteBufAllocator getAsByteBufAllocator() {
-      throw new UnsupportedOperationException();
-    }
     public long getAllocatedMemory() {
       throw new UnsupportedOperationException();
     }
@@ -200,6 +195,26 @@ public class TestQueriesClerkBase {
     }
     public void assertOpen() {
       throw new UnsupportedOperationException();
+    }
+    @Override
+    public AllocationListener getListener() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void releaseBytes(long size) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean forceAllocate(long size) {
+      throw new UnsupportedOperationException();
+
+    }
+
+    @Override
+    public BufferAllocator getRoot() {
+      return this;
     }
   }
 

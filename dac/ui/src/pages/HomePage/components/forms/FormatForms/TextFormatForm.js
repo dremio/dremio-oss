@@ -132,6 +132,7 @@ export default class TextFormatForm extends Component {
       {option: '`', label: intl.formatMessage({ id: 'File.BackQuote' })},
       {option: '\\', label: intl.formatMessage({ id: 'File.Backslash' })}
     ];
+
     return (
       <div>
         <div style={styles.row}>
@@ -190,6 +191,13 @@ const styles = {
   row: {
     display: 'flex',
     marginTop: 10
+  },
+  inlineMessage:{
+    ...label,
+    height: 'auto',
+    marginRight: '10px',
+    marginTop: '3px'
+
   },
   field: {
     flex: 1,

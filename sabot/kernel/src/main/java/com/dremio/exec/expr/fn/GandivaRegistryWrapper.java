@@ -78,11 +78,6 @@ public class GandivaRegistryWrapper {
       return true;
     }
 
-    // blacklisting castINT variants on string param till DX-24609 is fixed.
-    if ((signature.getName().equals("castINT") || signature.getName().equals("castBIGINT"))
-      && signature.getParamTypes().size() == 1 && signature.getParamTypes().get(0).equals(new ArrowType.Utf8())) {
-      return true;
-    }
     return false;
   }
 

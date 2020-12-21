@@ -453,6 +453,7 @@ public class ForemenWorkManager implements Service, SafeExit {
           .withDefaultSchema(config.getSqlContext())
           .withSubstitutionSettings(config.getSubstitutionSettings())
           .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
+          .withEngineName(config.getEngineName())
           .build();
 
         final ReAttemptHandler attemptHandler = newInternalAttemptHandler(options, config.isFailIfNonEmptySent());

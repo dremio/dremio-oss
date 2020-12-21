@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.impersonation;
 
-
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -39,7 +39,6 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
 import com.dremio.test.TemporarySystemProperties;
@@ -59,8 +58,26 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
 
     properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
     startMiniDfsCluster(TestImpersonationQueries.class.getSimpleName());
-    addMiniDfsBasedStorage(createTestWorkspaces(), /*impersonationEnabled=*/true);
+    createTestWorkspaces();
+    addMiniDfsBasedStorage(/*impersonationEnabled=*/true);
     createTestData();
+  }
+
+  @AfterClass
+  public static void removeMiniDfsBasedStorage() throws Exception {
+    /*
+     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+     */
+    if (isMaprProfile()) {
+      return;
+    }
+
+    SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    stopMiniDfsCluster();
   }
 
   private static void createTestData() throws Exception {
@@ -258,16 +275,5 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
     updateClient(org1Users[4]);
     test(String.format("SELECT * from %s l JOIN %s o ON l.l_orderkey = o.o_orderkey LIMIT 1;",
         fullPath(org1Users[4], "u4_lineitem"), fullPath(org2Users[4], "u4_orders")));
-  }
-
-  @AfterClass
-  public static void removeMiniDfsBasedStorage() throws Exception {
-    try {
-      SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-      ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
-    } catch (NamespaceNotFoundException e) {
-      // ignore if source is not found
-    }
-    stopMiniDfsCluster();
   }
 }

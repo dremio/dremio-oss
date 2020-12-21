@@ -21,15 +21,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.flight.BackpressureStrategy.WaitResult;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
 import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.grpc.CredentialCallOption;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.junit.BeforeClass;
@@ -45,14 +47,15 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.BaseFlightQueryTest;
+import com.dremio.service.flight.FlightClientUtils;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BackpressureHandlingResponseHandler;
 
 /**
  * This test measures to determine that signals from a Flight Client which is not consuming data fast
  * enough will be recognized by the server, causing the server stop adding data to the stream.
- * {@link DelegatingSleepCountingResponseHandlerFactory} creates a
- * {@link DelegatingSleepCountingResponseHandlerFactory.DelegatingSleepCountingResponseHandler}
+ * {@link DelegatingWaitCountingResponseHandlerFactory} creates a
+ * {@link DelegatingWaitCountingResponseHandlerFactory.DelegatingWaitCountingResponseHandler}
  * which extends {@link RunQueryResponseHandler} to add instrumentation.
  * The test executes the query with {@link FlightClient#getInfo} and {@link FlightClient#getStream}
  * then waits on a latch. When the server calls {@link UserResponseHandler#sendData}, the overridden
@@ -71,8 +74,8 @@ public class ITBackPressure extends BaseFlightQueryTest {
     "limit 250000")
     .getBytes(StandardCharsets.UTF_8);
 
-  private static final DelegatingSleepCountingResponseHandlerFactory sleepCountingResponseHandlerFactory
-    = new DelegatingSleepCountingResponseHandlerFactory();
+  private static final DelegatingWaitCountingResponseHandlerFactory waitCountingResponseHandlerFactory
+    = new DelegatingWaitCountingResponseHandlerFactory();
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -80,37 +83,40 @@ public class ITBackPressure extends BaseFlightQueryTest {
       false,
       true,
       "backpressure.flight.endpoint.port",
-      sleepCountingResponseHandlerFactory);
+      waitCountingResponseHandlerFactory);
   }
 
   @Test
   public void ensureWaitUntilProceed() throws Exception {
-    final FlightClient client = this.getFlightClient();
-    final FlightInfo flightInfo = client.getInfo(FlightDescriptor.command(QUERY));
+    final FlightClientUtils.FlightClientWrapper wrapper = this.getFlightClientWrapper();
+    final CredentialCallOption callOption = wrapper.getTokenCallOption();
+    final FlightClient client = wrapper.getClient();
 
-    final long waitMS = 3000;
+    final FlightInfo flightInfo = client.getInfo(FlightDescriptor.command(QUERY), callOption);
 
-    try (FlightStream flightStream = client.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+    final long waitMS = 3000L;
+
+    try (FlightStream flightStream = client.getStream(flightInfo.getEndpoints().get(0).getTicket(), callOption)) {
 
       final VectorSchemaRoot root = flightStream.getRoot();
       root.clear();
 
-      sleepCountingResponseHandlerFactory.waitOnLatch();
+      waitCountingResponseHandlerFactory.waitOnLatch();
       Thread.sleep(waitMS);
 
       while (flightStream.next()) {
         root.clear();
       }
 
-      final long waitThresholdMS = 1000;
+      final long waitThresholdMS = 1000L;
       final long expectedMS = waitMS - waitThresholdMS;
       assertTrue("The query above may have two few results so that the client never " +
           "reports as not-ready. Or this test is now flaky for some other reason.",
-        sleepCountingResponseHandlerFactory.wasClientNotReady());
+        waitCountingResponseHandlerFactory.wasClientNotReady());
 
-      final int actualSleepMS = sleepCountingResponseHandlerFactory.getSleepMS();
+      final long actualSleepMS = waitCountingResponseHandlerFactory.getWaitMS();
       assertTrue(
-        String.format("Expected a sleep of at least %dms but only slept for %d", expectedMS, actualSleepMS),
+        String.format("Expected a wait of at least %dms but only waited for %d", expectedMS, actualSleepMS),
         actualSleepMS > expectedMS);
     }
   }
@@ -119,14 +125,14 @@ public class ITBackPressure extends BaseFlightQueryTest {
    * The instance created by this factory extends {@link RunQueryResponseHandler} in order to add
    * test instrumentation to ensure the test is working.
    */
-  private static final class DelegatingSleepCountingResponseHandlerFactory implements RunQueryResponseHandlerFactory {
+  private static final class DelegatingWaitCountingResponseHandlerFactory implements RunQueryResponseHandlerFactory {
 
-    private final AtomicInteger sleepMSCounter = new AtomicInteger(0);
+    private final AtomicLong waitMSCounter = new AtomicLong(0);
     private final CountDownLatch releasesWhenClientNotReadyOrQueryComplete = new CountDownLatch(1);
     private final AtomicBoolean wasClientNotReady = new AtomicBoolean(false);
     private boolean hasOneHandlerBeenCreated = false;
 
-    private DelegatingSleepCountingResponseHandlerFactory() {
+    private DelegatingWaitCountingResponseHandlerFactory() {
     }
 
     @Override
@@ -137,15 +143,15 @@ public class ITBackPressure extends BaseFlightQueryTest {
                                           BufferAllocator allocator) {
       if (!hasOneHandlerBeenCreated) {
         hasOneHandlerBeenCreated = true;
-        return new DelegatingSleepCountingResponseHandler(runExternalId, userSession, workerProvider,
-          clientListener, allocator, sleepMSCounter, releasesWhenClientNotReadyOrQueryComplete, wasClientNotReady);
+        return new DelegatingWaitCountingResponseHandler(runExternalId, userSession, workerProvider,
+          clientListener, allocator, waitMSCounter, releasesWhenClientNotReadyOrQueryComplete, wasClientNotReady);
       } else {
         throw new RuntimeException("Test case is only valid for 1 sleep counter");
       }
     }
 
-    int getSleepMS() {
-      return sleepMSCounter.get();
+    long getWaitMS() {
+      return waitMSCounter.get();
     }
 
     void waitOnLatch() throws InterruptedException {
@@ -156,23 +162,23 @@ public class ITBackPressure extends BaseFlightQueryTest {
       return wasClientNotReady.get();
     }
 
-    private static final class DelegatingSleepCountingResponseHandler extends BackpressureHandlingResponseHandler {
+    private static final class DelegatingWaitCountingResponseHandler extends BackpressureHandlingResponseHandler {
       private final ServerStreamListener clientListener;
-      private final AtomicInteger sleepMSCounter;
+      private final AtomicLong waitMSCounter;
       private final AtomicBoolean wasClientNotReady;
       private final CountDownLatch releasesWhenClientNotReadyOrQueryComplete;
 
-      DelegatingSleepCountingResponseHandler(UserBitShared.ExternalId runExternalId,
-                                             UserSession userSession,
-                                             Provider<UserWorker> workerProvider,
-                                             ServerStreamListener clientListener,
-                                             BufferAllocator allocator,
-                                             AtomicInteger sleepMSCounter,
-                                             CountDownLatch releasesWhenClientNotReadyOrQueryComplete,
-                                             AtomicBoolean wasClientNotReady) {
+      DelegatingWaitCountingResponseHandler(UserBitShared.ExternalId runExternalId,
+                                            UserSession userSession,
+                                            Provider<UserWorker> workerProvider,
+                                            ServerStreamListener clientListener,
+                                            BufferAllocator allocator,
+                                            AtomicLong waitMSCounter,
+                                            CountDownLatch releasesWhenClientNotReadyOrQueryComplete,
+                                            AtomicBoolean wasClientNotReady) {
         super(runExternalId, userSession, workerProvider, clientListener, allocator);
         this.clientListener = clientListener;
-        this.sleepMSCounter = sleepMSCounter;
+        this.waitMSCounter = waitMSCounter;
         this.releasesWhenClientNotReadyOrQueryComplete = releasesWhenClientNotReadyOrQueryComplete;
         this.wasClientNotReady = wasClientNotReady;
       }
@@ -193,9 +199,14 @@ public class ITBackPressure extends BaseFlightQueryTest {
       }
 
       @Override
-      protected void sleepWhileWaitingForClientReadiness() throws InterruptedException {
-        sleepMSCounter.addAndGet(CLIENT_READINESS_WAIT_MILLIS);
-        super.sleepWhileWaitingForClientReadiness();
+      WaitResult clientIsReadyForData() {
+        final long startTime = System.currentTimeMillis();
+        final WaitResult result = super.clientIsReadyForData();
+        final long elapsedTime = System.currentTimeMillis() - startTime;
+
+        waitMSCounter.addAndGet(elapsedTime);
+
+        return result;
       }
     }
   }

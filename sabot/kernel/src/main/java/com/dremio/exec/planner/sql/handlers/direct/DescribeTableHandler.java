@@ -82,7 +82,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       return columns;
     } catch (Exception ex) {
       throw UserException.planError(ex)
-          .message("Error while rewriting DESCRIBE query: %d", ex.getMessage())
+          .message("Error while rewriting DESCRIBE query: %s", ex.getMessage())
           .build(logger);
     }
   }

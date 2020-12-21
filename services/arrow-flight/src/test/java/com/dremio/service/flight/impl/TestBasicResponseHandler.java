@@ -15,6 +15,7 @@
  */
 package com.dremio.service.flight.impl;
 
+import static org.apache.arrow.flight.BackpressureStrategy.WaitResult.READY;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
@@ -51,8 +52,7 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
     // Act
     try {
-      assertEquals(createHandler().clientIsReadyForData(),
-        RunQueryResponseHandler.FlightClientDataRetrievalStatus.READY);
+      assertEquals(createHandler().clientIsReadyForData(), READY);
     } catch (RpcException ex) {
       testFailed("Unexpected RpcException thrown.");
     }
@@ -66,8 +66,7 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
     // Act
     try {
-      assertEquals(createHandler().clientIsReadyForData(),
-        RunQueryResponseHandler.FlightClientDataRetrievalStatus.READY);
+      assertEquals(createHandler().clientIsReadyForData(), READY);
     } catch (RpcException ex) {
       testFailed("Unexpected RpcException thrown.");
     }
@@ -81,6 +80,11 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
   @Test
   public void testIsCancelledFalse() {
     super.testIsCancelledFalse();
+  }
+
+  @Test
+  public void testIsCancelledDuringWaitTrue() throws Exception {
+    super.testIsCancelledDuringWaitTrue();
   }
 
   @Test

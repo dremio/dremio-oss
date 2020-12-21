@@ -356,3 +356,10 @@ export function showReflectionJobProfile(profileUrl, reflectionId) {
     );
   };
 }
+
+export const SET_CLUSTER_TYPE = 'SET_CLUSTER_TYPE';
+
+export const setClusterType = value => ({
+  type: SET_CLUSTER_TYPE,
+  payload: value
+});

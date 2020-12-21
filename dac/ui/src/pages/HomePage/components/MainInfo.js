@@ -140,7 +140,8 @@ export class MainInfoView extends Component {
               isHomePage: true
             }
           }
-        })
+        }),
+        this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder)
       ]);
     }
     return this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder);

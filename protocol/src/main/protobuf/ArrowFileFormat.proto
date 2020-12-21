@@ -51,4 +51,5 @@ message ArrowFileMetadata {
   // NodeEndpoint of executor which ran screen operator and persisted
   // query results in arrow file format.
   optional exec.NodeEndpoint screen_node_endpoint = 4;
+  optional int32 arrow_metadata_version = 5;
 }

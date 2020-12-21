@@ -25,6 +25,7 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.model.info.CommitInfo;
 import com.dremio.dac.model.info.VersionInfo;
 import com.dremio.dac.service.errors.ServerErrorException;
+import com.dremio.provision.ClusterType;
 import com.google.common.io.Resources;
 
 /**
@@ -33,7 +34,7 @@ import com.google.common.io.Resources;
 public class InformationUtil {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InformationUtil.class);
 
-  public static VersionInfo getVersionInfo() {
+  public static VersionInfo getVersionInfo(ClusterType clusterType) {
     String version = DremioVersionInfo.getVersion(); // get dremio version (x.y.z)
     long buildTime = 0;
     CommitInfo commitInfo = null;
@@ -55,6 +56,6 @@ public class InformationUtil {
     } catch (Exception e) {
       throw(new ServerErrorException("Could not gather commit information. Check your node setup.", e));
     }
-    return new VersionInfo(version, buildTime, commitInfo);
+    return new VersionInfo(version, buildTime, commitInfo, String.format("%s", clusterType));
   }
 }

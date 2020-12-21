@@ -102,12 +102,13 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |1.0.0-20201030153925-50604414cc-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |1.0.0-20201030153925-50604414cc-dremio|Apache 2.0          |
-|Arrow Format                                                |1.0.0-20201030153925-50604414cc-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |1.0.0-20201030153925-50604414cc-dremio|Apache 2.0          |
-|Arrow Memory                                                |1.0.0-20201030153925-50604414cc-dremio|Apache 2.0          |
-|Arrow Vectors                                               |1.0.0-20201030153925-50604414cc-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Format                                                |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Memory Core                                           |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Memory Netty                                          |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Vectors                                               |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -154,8 +155,8 @@
 |brcast                                                      |3.0.1               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202011060015220283-f4a500e|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202011060015220283-f4a500e|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202012022204530538-af1f354|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202012022204530538-af1f354|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
@@ -186,6 +187,7 @@
 |Commons Net                                                 |3.6                 |Apache 2.0          |
 |Commons Pool                                                |1.6                 |Apache 2.0          |
 |config                                                      |1.2.1               |Apache 2.0          |
+|Conscrypt OpenJDK Uber                                      |2.2.1               |Apache 2.0          |
 |copy-to-clipboard                                           |3.0.8               |MIT                 |
 |core-js                                                     |1.2.7               |MIT                 |
 |core-js                                                     |2.6.9               |MIT                 |
@@ -222,12 +224,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |11.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |11.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |11.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |11.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |11.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |11.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |12.0.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |12.0.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |12.0.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |12.0.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |12.0.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |12.0.0              |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -275,18 +277,18 @@
 |Google HTTP Client Library for Java                         |1.31.0              |Apache 2.0          |
 |Google Testing and Mocking Framework                        |1.10.x              |BSD 3-clause        |
 |graceful-fs                                                 |4.1.11              |ISC                 |
-|GRPC ALTs                                                   |1.23.0              |Apache 2.0          |
-|GRPC API                                                    |1.23.0              |Apache 2.0          |
-|GRPC Auth                                                   |1.23.0              |Apache 2.0          |
-|GRPC Context                                                |1.23.0              |Apache 2.0          |
-|GRPC Core                                                   |1.23.0              |Apache 2.0          |
+|GRPC ALTs                                                   |1.30.2              |Apache 2.0          |
+|GRPC API                                                    |1.30.2              |Apache 2.0          |
+|GRPC Auth                                                   |1.30.2              |Apache 2.0          |
+|GRPC Context                                                |1.30.2              |Apache 2.0          |
+|GRPC Core                                                   |1.30.2              |Apache 2.0          |
 |GRPC Google Cloud Monitoring V3                             |1.64.0              |Apache 2.0          |
-|GRPC GRPCLB                                                 |1.23.0              |Apache 2.0          |
-|GRPC Netty                                                  |1.23.0              |Apache 2.0          |
+|GRPC GRPCLB                                                 |1.30.2              |Apache 2.0          |
+|GRPC Netty                                                  |1.30.2              |Apache 2.0          |
 |GRPC OpenTracing                                            |0.2.0               |BSD 3-clause        |
-|GRPC Protobuf                                               |1.23.0              |Apache 2.0          |
-|GRPC Protobuf Lite                                          |1.23.0              |Apache 2.0          |
-|GRPC Stub                                                   |1.23.0              |Apache 2.0          |
+|GRPC Protobuf                                               |1.30.2              |Apache 2.0          |
+|GRPC Protobuf Lite                                          |1.30.2              |Apache 2.0          |
+|GRPC Stub                                                   |1.30.2              |Apache 2.0          |
 |Gson                                                        |2.2.4               |Apache 2.0          |
 |Gson                                                        |2.8.5               |Apache 2.0          |
 |Guava InternalFutureFailureAccess and InternalFutures       |1.0.1               |Apache 2.0          |
@@ -595,7 +597,6 @@
 |OpenCensus API                                              |0.24.0              |Apache 2.0          |
 |OpenCensus DropWizard Util for Java                         |0.24.0              |Apache 2.0          |
 |OpenCensus Exemplar Util                                    |0.24.0              |Apache 2.0          |
-|OpenCensus gRPC Metrics                                     |0.21.0              |Apache 2.0          |
 |OpenCensus HTTP Util                                        |0.21.0              |Apache 2.0          |
 |OpenCensus implementation                                   |0.24.0              |Apache 2.0          |
 |OpenCensus Java implementation                              |0.24.0              |Apache 2.0          |
@@ -617,7 +618,7 @@
 |ParaNamer Core                                              |2.5.6               |BSD 3-clause        |
 |parse-key                                                   |0.2.1               |MIT                 |
 |parse5                                                      |3.0.3               |MIT                 |
-|Perfmark:perfmark API                                       |0.17.0              |Apache 2.0          |
+|Perfmark:perfmark API                                       |0.19.0              |Apache 2.0          |
 |performance-now                                             |0.2.0               |MIT                 |
 |performance-now                                             |2.1.0               |MIT                 |
 |platform                                                    |1.3.4               |MIT                 |
@@ -638,7 +639,7 @@
 |prop-types-extra                                            |1.1.0               |MIT                 |
 |Proto Google Cloud Trace V1                                 |0.65.0              |Apache 2.0          |
 |Proto Google Cloud Trace V2                                 |0.65.0              |Apache 2.0          |
-|Proto Google Common Protos                                  |1.12.0              |Apache 2.0          |
+|Proto Google Common Protos                                  |1.17.0              |Apache 2.0          |
 |Proto Google IAM V1                                         |0.12.0              |Apache 2.0          |
 |Protocol Buffer [Util]                                      |3.9.1               |BSD 3-clause        |
 |Protocol Buffer Java API                                    |3.9.1               |BSD 3-clause        |

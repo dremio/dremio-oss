@@ -71,26 +71,41 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
   protected static final String DUMMY_USER = "dummy_user";
   protected static final String DUMMY_PASSWORD = "dummy_password123";
+  protected static final String DUMMY_TOKEN = "dummy_token";
 
   private static LegacyKVStoreProvider kvStore;
 
   private static DremioFlightService flightService;
-  private static FlightClientUtils.FlightClientPair flightClientPair;
+  private static FlightClientUtils.FlightClientWrapper flightClientWrapper;
   private static int flightServicePort;
   private static SSLConfig sslConfig;
   private static DremioConfig dremioConfig;
+  private static String authMode;
 
-  public static void setupBaseFlightQueryTest(boolean tls, boolean backpressureHandling, String portPomFileSystemProperty,
+  public static void setupBaseFlightQueryTest(boolean tls, boolean backpressureHandling,
+                                              String portPomFileSystemProperty,
                                               RunQueryResponseHandlerFactory runQueryResponseHandlerFactory)
     throws Exception {
-    flightServicePort = Integer.getInteger(portPomFileSystemProperty);
+    setupBaseFlightQueryTest(
+      tls,
+      backpressureHandling,
+      portPomFileSystemProperty,
+      runQueryResponseHandlerFactory,
+      DremioFlightService.FLIGHT_AUTH2_AUTH_MODE);
+  }
+
+  public static void setupBaseFlightQueryTest(boolean tls, boolean backpressureHandling,
+                                              String portPomFileSystemProperty,
+                                              RunQueryResponseHandlerFactory runQueryResponseHandlerFactory,
+                                              String serverAuthMode) throws Exception {
+    flightServicePort = Integer.getInteger(portPomFileSystemProperty, 32010);
+    authMode = serverAuthMode;
     setupDefaultTestCluster(backpressureHandling);
     if (tls) {
       createEncryptedFlightService(runQueryResponseHandlerFactory);
       // Encryption tests explicitly start/stop clients.
     } else {
       createFlightService(runQueryResponseHandlerFactory);
-      openFlightClient(DUMMY_USER, DUMMY_PASSWORD);
     }
   }
 
@@ -100,7 +115,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
     // Create a mock TokenManager that returns a fixed token and user session
     final TokenManager tokenManager = mock(TokenManager.class);
-    final TokenDetails fixedTokenDetails = TokenDetails.of(DUMMY_USER, DUMMY_USER,
+    final TokenDetails fixedTokenDetails = TokenDetails.of(DUMMY_TOKEN, DUMMY_USER,
       System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(200, TimeUnit.HOURS));
     when(tokenManager.createToken(any(), any())).thenReturn(fixedTokenDetails);
     when(tokenManager.validateToken(any())).thenReturn(fixedTokenDetails);
@@ -135,7 +150,8 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   public static void createFlightService(RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
     dremioConfig = DremioConfig.create(null, config)
       .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
-      .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort);
+      .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
+      .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode);
 
     flightService = new DremioFlightService(
       Providers.of(dremioConfig),
@@ -148,8 +164,9 @@ public class BaseFlightQueryTest extends BaseTestQuery {
       runQueryResponseHandlerFactory);
 
     flightService.start();
-    flightClientPair =
-      FlightClientUtils.openFlightClient(flightServicePort, DUMMY_USER, DUMMY_PASSWORD, getSabotContext());
+    flightClientWrapper =
+      FlightClientUtils.openFlightClient(flightServicePort, DUMMY_USER, DUMMY_PASSWORD,
+        getSabotContext(), authMode);
   }
 
   protected void assertThatServerStartedOnPort() {
@@ -158,8 +175,8 @@ public class BaseFlightQueryTest extends BaseTestQuery {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    AutoCloseables.close(flightClientPair, flightService, kvStore);
-    flightClientPair = null;
+    AutoCloseables.close(flightClientWrapper, flightService, kvStore);
+    flightClientWrapper = null;
     flightService = null;
     kvStore = null;
     closeClient();
@@ -167,34 +184,36 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   }
 
   protected FlightTestBuilder flightTestBuilder() {
-    return new FlightTestBuilder(getFlightClient());
+    return new FlightTestBuilder(getFlightClientWrapper());
   }
 
-  protected FlightClient getFlightClient() {
-    if (null == flightClientPair) {
+  protected FlightClientUtils.FlightClientWrapper getFlightClientWrapper() {
+    if (null == flightClientWrapper) {
       fail("FlightClient is not open, is this an encryption test? Call #openEncryptedFlightClient");
     }
-    return flightClientPair.getClient();
+    return flightClientWrapper;
   }
 
   /**
    * Opens a client which the test is responsible for closing.
    */
-  protected static FlightClient openFlightClient(String user, String password) throws Exception {
-    return FlightClientUtils.openFlightClient(flightServicePort, user, password, getSabotContext()).getClient();
+  protected static FlightClient openFlightClient(String user, String password, String authMode) throws Exception {
+    return FlightClientUtils.openFlightClient(flightServicePort, user, password, getSabotContext(),
+      authMode).getClient();
   }
 
-  protected static FlightClient openEncryptedFlightClient(String user, String password, InputStream trustedCerts)
-    throws Exception {
+  protected static FlightClient openEncryptedFlightClient(String user, String password,
+                                                          InputStream trustedCerts, String authMode) throws Exception {
     return FlightClientUtils.openEncryptedFlightClient(dremioConfig.getThisNode(), flightServicePort, user, password,
-      trustedCerts, BaseTestQuery.getSabotContext()).getClient();
+      trustedCerts, BaseTestQuery.getSabotContext(), authMode).getClient();
   }
 
   private static void createEncryptedFlightService(RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) throws Exception {
     dremioConfig = DremioConfig.create(null, BaseTestQuery.config)
       .withValue(DremioFlightService.FLIGHT_SSL_ENABLED, true)
       .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
-      .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort);
+      .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
+      .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode);
 
     flightService = new DremioFlightService(
       Providers.of(dremioConfig),

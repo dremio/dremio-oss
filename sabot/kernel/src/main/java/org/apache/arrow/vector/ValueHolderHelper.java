@@ -230,7 +230,7 @@ public class ValueHolderHelper {
   public static NullableDecimalHolder getNullableDecimalHolder(ArrowBuf buf, BigDecimal decimal, int precision, int scale) {
     NullableDecimalHolder holder = new NullableDecimalHolder();
     buf.reallocIfNeeded(16);
-    DecimalUtility.writeBigDecimalToArrowBuf(decimal, buf, 0);
+    DecimalUtility.writeBigDecimalToArrowBuf(decimal, buf, 0, DecimalVector.TYPE_WIDTH);
     holder.buffer = buf;
     holder.start = 0;
     holder.scale = scale;

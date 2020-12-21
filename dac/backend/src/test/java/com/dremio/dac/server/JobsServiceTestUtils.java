@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -46,7 +47,6 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobSubmittedListener;
 import com.dremio.service.jobs.JobsProtoUtil;
-import com.dremio.service.jobs.JobsRpcUtils;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.MultiJobStatusListener;
@@ -162,7 +162,7 @@ public final class JobsServiceTestUtils {
     @Override
     public void onError(Throwable t) {
       if (t instanceof StatusRuntimeException) {
-        final Optional<UserException> ue = JobsRpcUtils.fromStatusRuntimeException((StatusRuntimeException) t);
+        final Optional<UserException> ue = GrpcExceptionUtil.fromStatusRuntimeException((StatusRuntimeException) t);
         if (ue.isPresent()) {
           ex = ue.get();
         } else {

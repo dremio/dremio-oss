@@ -17,69 +17,40 @@ package com.dremio.service.flight.auth;
 
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
-
-import javax.inject.Provider;
 
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.AdditionalMatchers;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.service.flight.DremioFlightSessionsManager;
-import com.dremio.service.tokens.TokenDetails;
-import com.dremio.service.tokens.TokenManager;
+import com.dremio.service.flight.BasicFlightAuthenticationTest;
 import com.dremio.service.users.UserLoginException;
-import com.dremio.service.users.UserService;
 import com.google.common.base.Charsets;
 
 /**
  * Unit tests for DremioFlightServerAuthValidator
  */
-public class TestDremioFlightServerAuthValidator {
-  private static final String USERNAME = "MY_USER";
-  private static final String PASSWORD = "MY_PASS";
-  private static final String TOKEN = "VALID_TOKEN";
-  private static final long MAX_NUMBER_OF_SESSIONS = 2L;
-  private static final TokenDetails TOKEN_DETAILS = TokenDetails.of(
-    TOKEN, USERNAME, System.currentTimeMillis() + 1000);
-
-  private DremioFlightServerAuthValidator dremioFlightServerAuthValidator;
-  private final TokenManager mockTokenManager = mock(TokenManager.class);
-  private final UserService mockUserService = mock(UserService.class);
-  private final DremioFlightSessionsManager mockDremioFlightSessionsManager = mock(DremioFlightSessionsManager.class);
+public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticationTest {
+  private DremioFlightServerBasicAuthValidator dremioFlightServerAuthValidator;
 
   @Before
+  @Override
   public void setup() {
-    final Provider<UserService> mockUserServiceProvider = mock(Provider.class);
-    final Provider<TokenManager> mockTokenManagerProvider = mock(Provider.class);
-
-    when(mockUserServiceProvider.get()).thenReturn(mockUserService);
-    when(mockTokenManagerProvider.get()).thenReturn((mockTokenManager));
-    when(mockTokenManager.createToken(eq(USERNAME), eq(null))).thenReturn(TOKEN_DETAILS);
-    dremioFlightServerAuthValidator = new DremioFlightServerAuthValidator(
-      mockUserServiceProvider, mockTokenManagerProvider, mockDremioFlightSessionsManager);
-    doReturn(MAX_NUMBER_OF_SESSIONS).when(mockDremioFlightSessionsManager).getMaxSessions();
+    super.setup();
+    dremioFlightServerAuthValidator = new DremioFlightServerBasicAuthValidator(
+      getMockUserServiceProvider(), getMockTokenManagerProvider(), getMockDremioFlightSessionsManager());
   }
 
   @After
   public void tearDown() throws Exception {
-    AutoCloseables.close(mockDremioFlightSessionsManager);
     dremioFlightServerAuthValidator = null;
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void getTokenWithValidCredentials() throws Exception {
@@ -99,7 +70,7 @@ public class TestDremioFlightServerAuthValidator {
     thrown.expect(FlightRuntimeException.class);
     thrown.expectMessage("Unable to authenticate user " + USERNAME +
       ", exception: Invalid User credentials, user " + USERNAME);
-    doThrow(new UserLoginException(USERNAME, "Invalid User credentials")).when(mockUserService)
+    doThrow(new UserLoginException(USERNAME, "Invalid User credentials")).when(getMockUserService())
       .authenticate(eq(USERNAME), AdditionalMatchers.not(eq(PASSWORD)));
 
     // Act
@@ -111,7 +82,7 @@ public class TestDremioFlightServerAuthValidator {
     // Arrange
     thrown.expect(FlightRuntimeException.class);
     thrown.expectMessage("Reached the maximum number of allowed sessions: " + MAX_NUMBER_OF_SESSIONS);
-    when(mockDremioFlightSessionsManager.reachedMaxNumberOfSessions()).thenReturn(Boolean.TRUE);
+    when(getMockDremioFlightSessionsManager().reachedMaxNumberOfSessions()).thenReturn(Boolean.TRUE);
 
     // Act
     dremioFlightServerAuthValidator.getToken(USERNAME, PASSWORD);
@@ -121,7 +92,7 @@ public class TestDremioFlightServerAuthValidator {
   public void isValidWithValidTokenReturnsUserName() {
     // Arrange
     final byte[] token = TOKEN.getBytes(Charsets.UTF_8);
-    when(mockTokenManager.validateToken(eq(TOKEN))).thenReturn(TOKEN_DETAILS);
+    when(getMockTokenManager().validateToken(eq(TOKEN))).thenReturn(TOKEN_DETAILS);
 
     // Act
     final Optional<String> tokenAsString = dremioFlightServerAuthValidator.isValid(token);
@@ -135,7 +106,7 @@ public class TestDremioFlightServerAuthValidator {
     // Arrange
     final byte[] token = "INVALID_TOKEN".getBytes(Charsets.UTF_8);
     final Optional<String> expectedResult = Optional.empty();
-    doThrow(IllegalArgumentException.class).when(mockTokenManager).validateToken(anyString());
+    doThrow(IllegalArgumentException.class).when(getMockTokenManager()).validateToken(anyString());
 
     // Act
     final Optional<String> actualResult = dremioFlightServerAuthValidator.isValid(token);

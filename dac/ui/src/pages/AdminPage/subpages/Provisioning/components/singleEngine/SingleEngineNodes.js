@@ -19,22 +19,23 @@ import Immutable from 'immutable';
 
 import StatefulTableViewer from '@app/components/StatefulTableViewer';
 import SingleEngineNodesMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineNodesMixin';
-import { EngineStatusBar } from './EngineStatusBar';
 
 @SingleEngineNodesMixin
 export class SingleEngineNodes extends PureComponent {
   static propTypes = {
-    engine: PropTypes.instanceOf(Immutable.Map)
+    engine: PropTypes.instanceOf(Immutable.Map),
+    filterList: PropTypes.array
   };
 
   render() {
-    const { engine } = this.props;
+    const { engine} = this.props;
     const columns = this.getColumns(engine);
     const tableData = this.getTableData(engine);
+    const renderEngineStatusBar = this.renderEngineStatusBar(engine);
 
     return (
       <>
-        <EngineStatusBar engine={engine}/>
+        {renderEngineStatusBar}
         <div style={styles.base}>
           <StatefulTableViewer
             virtualized

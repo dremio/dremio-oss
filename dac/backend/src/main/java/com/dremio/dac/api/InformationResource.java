@@ -27,6 +27,7 @@ import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.info.VersionInfo;
 import com.dremio.dac.util.InformationUtil;
+import com.dremio.provision.service.ProvisioningServiceImpl;
 
 /**
  * Information API resource.
@@ -41,6 +42,6 @@ public class InformationResource {
 
   @GET
   public VersionInfo getNodeInfo() {
-    return InformationUtil.getVersionInfo();
+    return InformationUtil.getVersionInfo(ProvisioningServiceImpl.getType());
   }
 }

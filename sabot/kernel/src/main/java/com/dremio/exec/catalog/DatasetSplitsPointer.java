@@ -47,7 +47,8 @@ public final class DatasetSplitsPointer extends LazySplitsPointer {
     final EntityId datasetId = Preconditions.checkNotNull(datasetConfig.getId());
     final ReadDefinition readDefinition = Preconditions.checkNotNull(datasetConfig.getReadDefinition(),
         "extended metadata (read definition) is not available");
-    final long splitVersion = readDefinition.getSplitVersion();
+    final long splitVersion = Preconditions.<Long>checkNotNull(readDefinition.getSplitVersion(),
+      "split version is null");
 
     final int splitsCount;
     if (datasetConfig.getTotalNumSplits() != null) {

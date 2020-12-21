@@ -25,6 +25,8 @@ export const CLUSTER_STATE = {
   pending: 'PENDING',
   provisioning: 'PROVISIONING',
   failed: 'FAILED',
+  online: 'ONLINE',
+  offline: 'OFFLINE',
   unknown: 'UNKNOWN'
 };
 
@@ -85,9 +87,9 @@ export const ENGINE_SIZE = [
   {id: 'SMALL', label: 'Small - 2', value: 2},
   {id: 'MEDIUM', label: 'Medium - 4', value: 4},
   {id: 'LARGE', label: 'Large - 8', value: 8},
-  {id: 'X_LARGE', label: 'XLarge - 16', value: 16},
-  {id: 'XX_LARGE', label: '2XLarge - 32', value: 32},
-  {id: 'XXX_LARGE', label: '3XLarge - 64', value: 64},
+  {id: 'XLARGE', label: 'X Large - 16', value: 16},
+  {id: '2XLARGE', label: '2X Large - 32', value: 32},
+  {id: '3XLARGE', label: '3X Large - 64', value: 64},
   {id: 'CUSTOM', label: 'Custom', value: -1}
 ];
 
@@ -111,6 +113,8 @@ export const ENGINE_FILTER_ITEMS = {
   [ENGINE_FILTER_NAME.status]: stateOptions.slice(0, stateOptions.length - 1),
   [ENGINE_FILTER_NAME.size]: ENGINE_SIZE
 };
+
+
 export const DEFAULT_ENGINE_FILTER_SELECTIONS = {
   [ENGINE_FILTER_NAME.status]: [],
   [ENGINE_FILTER_NAME.size]: []
@@ -119,6 +123,7 @@ export const ENGINE_FILTER_LABEL = {
   [ENGINE_FILTER_NAME.status]: 'Status',
   [ENGINE_FILTER_NAME.size]: 'Size'
 };
+
 
 export const ENGINE_COLUMNS_CONFIG = [
   {key: 'status', label: '', width: 25, flexGrow: 0, style: {marginRight: 3}},

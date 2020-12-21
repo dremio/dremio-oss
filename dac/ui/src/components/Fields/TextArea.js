@@ -39,7 +39,8 @@ export default class TextArea extends Component {
     active: PropTypes.any,
     touched: PropTypes.any,
     visited: PropTypes.any,
-    autofilled: PropTypes.any
+    autofilled: PropTypes.any,
+    placeholder: PropTypes.any
   };
 
   constructor(props) {

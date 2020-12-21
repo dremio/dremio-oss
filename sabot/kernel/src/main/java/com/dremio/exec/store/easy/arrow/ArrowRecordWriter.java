@@ -178,7 +178,8 @@ public class ArrowRecordWriter implements RecordWriter {
           ArrowFileMetadata.newBuilder()
               .setFooter(footer)
               .setRecordCount(recordCount)
-              .setPath(relativePath);
+              .setPath(relativePath)
+              .setArrowMetadataVersion(org.apache.arrow.vector.types.MetadataVersion.DEFAULT.toFlatbufID());
 
       if(context.getNodeEndpointProvider() != null) {
         builder.setScreenNodeEndpoint(context.getNodeEndpointProvider().get());

@@ -23,14 +23,13 @@ import { FormattedMessage, injectIntl } from 'react-intl';
 
 import Art from 'components/Art';
 
+import MainHeaderMixin from 'dyn-load/components/MainHeaderMixin';
 import config from '../utils/config';
 import MainHeaderItem from './MainHeaderItem';
 import HeaderLink from './HeaderItemsTypes/HeaderLink';
 import SearchItem from './HeaderItemsTypes/SearchItem';
 import NewQueryButton from './HeaderItemsTypes/NewQueryButton';
 import HeaderDropdown from './HeaderItemsTypes/HeaderDropdown';
-import HeaderProjectsList from './HeaderItemsTypes/HeaderProjectsList';
-import AdminMenu from './AdminMenu';
 import AccountMenu from './AccountMenu';
 import HelpMenu from './HelpMenu';
 
@@ -39,6 +38,7 @@ import './IconFont/css/DremioIcons.css';
 
 @injectIntl
 @Radium
+@MainHeaderMixin
 export class MainHeader extends PureComponent {
 
   static propTypes = {
@@ -55,46 +55,6 @@ export class MainHeader extends PureComponent {
     location: PropTypes.object,
     routeParams: PropTypes.object,
     router: PropTypes.object
-  }
-
-  renderAdmin = () => {
-    const {user} = this.props;
-    let adminActiveStyle = 'adminSettingsIcon dremioIcon-HeaderSettings';
-    let className = 'adminSettingDropdown';
-    const {router} = this.context;
-    if (router.isActive('/admin')) {
-      adminActiveStyle = 'adminSettingsIcon dremioIcon-HeaderSettings active';
-      className += ' active';
-    }
-
-    if (user.get('admin')) {
-      if (config.isDcsMode) {
-        return (
-          <MainHeaderItem>
-            <HeaderDropdown
-              icon={adminActiveStyle}
-              tooltip='Help'
-              style={styles.dropdownSettingsStyle}
-              menu={<AdminMenu />}
-              arrowStyle={styles.settingArrowStyle}
-              className={className}
-            />
-          </MainHeaderItem>
-        );
-      }
-
-      return (
-        <MainHeaderItem>
-          <HeaderLink to='/admin'>
-            <div className='headerLinkContent'>
-              <div className={adminActiveStyle} title={'Admin Settings'}></div>
-            </div>
-          </HeaderLink>
-        </MainHeaderItem>
-      );
-    }
-
-    return null;
   }
 
   render() {
@@ -124,14 +84,7 @@ export class MainHeader extends PureComponent {
         </Link>
         <div className='header-wrap'>
           <div className='left-part'>
-            {config.isDcsMode &&
-            <MainHeaderItem>
-              <HeaderProjectsList
-                dataQa='headerProjectList'
-                className='projectList'
-              />
-            </MainHeaderItem>
-            }
+            {this.renderHeaderExtra()}
             <MainHeaderItem>
               <HeaderLink to='/'>
                 <div className='headerLinkContent'>
@@ -179,7 +132,7 @@ export class MainHeader extends PureComponent {
                 menu={<HelpMenu />}/>
             </MainHeaderItem>
 
-            {this.renderAdmin()}
+            {this.renderAdmin(styles)}
 
             <div className='headerSeparator'></div>
 

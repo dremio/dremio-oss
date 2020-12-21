@@ -369,7 +369,11 @@ public class TestIndexBasedPruning extends DremioTest {
     return new RelOptRuleCall(null, rule.getOperand(), operands, Collections.emptyMap()) {
       @Override
       public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv) {
-        assertTrue("EmptyRel is expected after pruning", rel instanceof EmptyRel);
+        if (rule instanceof PruneScanRuleBase.PruneScanRuleFilterOnSampleScan) {
+          assertTrue("SampleRel is expected after pruning", rel instanceof SampleRel && ((SampleRel) rel).getInput() instanceof EmptyRel);
+        } else {
+          assertTrue("EmptyRel is expected after pruning", rel instanceof EmptyRel);
+        }
       }
       @Override
       public RelOptPlanner getPlanner() {

@@ -106,6 +106,7 @@ public class SabotContext implements AutoCloseable {
   private final List<RulesFactory> rules;
   private final OptionValidatorListing optionValidatorListing;
   private final ExecutorService executorService;
+  private final JdbcSchemaFetcherFactoryContext jdbcSchemaFetcherFactoryContext;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -186,6 +187,7 @@ public class SabotContext implements AutoCloseable {
     this.rules = getRulesFactories(scan);
     this.optionValidatorListing = optionValidatorListing;
     this.executorService = executorService;
+    this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
   }
 
   private static List<RulesFactory> getRulesFactories(ScanResult scan) {
@@ -278,6 +280,7 @@ public class SabotContext implements AutoCloseable {
     this.rules = getRulesFactories(scan);
     this.optionValidatorListing = optionValidatorListing;
     this.executorService = executorService;
+    this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
   }
 
   private void checkIfCoordinator() {
@@ -515,5 +518,10 @@ public class SabotContext implements AutoCloseable {
 
   public ExecutorService getExecutorService() {
     return executorService;
+  }
+
+  //TODO(DX-26296): Return JdbcSchemaFetcherFactory
+  public JdbcSchemaFetcherFactoryContext getJdbcSchemaFetcherFactoryContext() {
+    return jdbcSchemaFetcherFactoryContext;
   }
 }

@@ -96,8 +96,18 @@ public abstract class BaseTestRunQueryResponseHandler {
   public void testIsCancelledTrue() throws Exception {
     // Arrange
     when(listener.isCancelled()).thenReturn(true);
+
     final RunQueryResponseHandler handler = createHandler();
-    Thread.sleep(RunQueryResponseHandler.BackpressureHandlingResponseHandler.CANCEL_REQUEST_TIMER_RATE_MILLIS * 3);
+
+    // Act
+    assertTrue(handler.isCancelled());
+  }
+
+  public void testIsCancelledDuringWaitTrue() throws Exception {
+    // Arrange
+    when(listener.isCancelled()).thenReturn(true);
+    final RunQueryResponseHandler handler = createHandler();
+    Thread.sleep(1000L);
 
     // Act
     assertTrue(handler.isCancelled());

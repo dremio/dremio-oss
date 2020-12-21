@@ -21,5 +21,5 @@ const getResourceTreeData = (state) => {
 
 export const getResourceTree = createSelector(
   [ getResourceTreeData ],
-  tree => tree
+  tree => tree.sortBy( t => t.get('type') !== 'HOME' && t.get('name'))
 );

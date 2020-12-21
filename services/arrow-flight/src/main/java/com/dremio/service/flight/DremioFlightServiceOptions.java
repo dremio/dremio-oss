@@ -19,11 +19,16 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
 /**
- * System Options for Dremio Flight Service
+ * System Options for Dremio Flight Service.
  */
 @Options
 public interface DremioFlightServiceOptions {
 
-  // allows users enable/disable backpressure handling
-  TypeValidators.BooleanValidator ENABLE_BACKPRESSURE_HANDLING = new TypeValidators.BooleanValidator("flight.backpressure.handling.enable", false);
+  // Allows users enable/disable backpressure handling.
+  TypeValidators.BooleanValidator ENABLE_BACKPRESSURE_HANDLING =
+    new TypeValidators.BooleanValidator("flight.backpressure.handling.enable", true);
+
+  // Allows users to configure UserSession lifetime. Default to 120 minutes.
+  TypeValidators.PositiveLongValidator SESSION_EXPIRATION_TIME_MINUTES =
+    new TypeValidators.PositiveLongValidator("flight.session.expiration.minutes", Integer.MAX_VALUE, 120);
 }

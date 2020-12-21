@@ -211,7 +211,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     return conditions;
   }
 
-  public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
+  public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
     if(inputStreamProviderOfFirstRowGroup != null) {
       return;
     }
@@ -230,7 +230,12 @@ public class FileSplitParquetRecordReader implements RecordReader {
         throw new RuntimeException(e);
       }
     }
-    MutableParquetMetadata knownFooter =  currentPath.equals(lastPath) ? lastFooter : null;
+    Path lastPath = (lastInputStreamProvider != null) ? lastInputStreamProvider.getStreamPath() : null;
+    MutableParquetMetadata knownFooter =  lastFooter;
+    if (!currentPath.equals(lastPath)) {
+      knownFooter = null;
+      lastInputStreamProvider = null;
+    }
 
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       org.apache.hadoop.fs.Path finalPath  = new org.apache.hadoop.fs.Path(uri);
@@ -275,6 +280,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         fileSplit.getLength(), // max row group size possible
         ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead),
         knownFooter,
+        lastInputStreamProvider,
         rowGroupIndexProvider,
         (a, b) -> {},
         readFullFile,
@@ -549,15 +555,15 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       private UnifiedParquetReader innerReader; // member variable so it can be closed
 
-      private final BiConsumer<Path, MutableParquetMetadata> depletionListener = (path, footer) -> {
+      private final BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener = (inputStreamProvider, footer) -> {
         if (!prefetchReader) {
           return;
         }
         if (next != null) {
-          next.createInputStreamProvider(path, footer);
+          next.createInputStreamProvider(inputStreamProvider, footer);
         } else { // last rowgroup initiates next filesplit reads
           if (nextFileSplitReader != null) {
-            nextFileSplitReader.createInputStreamProvider(path, footer);
+            nextFileSplitReader.createInputStreamProvider(inputStreamProvider, footer);
           }
         }
       };
@@ -590,7 +596,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       @Override
       public RecordReader createRecordReader(MutableParquetMetadata unused) {
         Preconditions.checkNotNull(inputStreamProvider); // make sure inputStreamProvider is created first
-        depletionListener.accept(path, footer);
+        depletionListener.accept(inputStreamProvider, footer);
         try {
           innerReader = new UnifiedParquetReader(
             oContext,
@@ -631,7 +637,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       }
 
       @Override
-      public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
+      public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
         if (inputStreamProvider != null) {
           return;
         }
@@ -639,7 +645,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
           final List<String> dataset = tablePath == null || tablePath.isEmpty() ? null : tablePath.iterator().next();
           boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
           inputStreamProvider = inputStreamProviderFactory.create(fs, oContext, path, fileLength, splitXAttr.getLength(),
-            ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, (f) -> splitXAttr.getRowGroupIndex(),
+            ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, lastInputStreamProvider, (f) -> splitXAttr.getRowGroupIndex(),
             (a, b) -> {}, // prefetching happens in this.createRecordReader()
             readFullFile, dataset, splitXAttr.getLastModificationTime(), false,
             ((conditions != null) && (conditions.size() >=1) && readColumnIndices));

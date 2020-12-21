@@ -860,7 +860,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     DecimalVector vec = (DecimalVector)vector;
     DecimalHolder holder = new DecimalHolder();
     holder.buffer = vec.getDataBuffer();
-    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(value), holder.buffer, 0);
+    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(value), holder.buffer, 0, DecimalVector.TYPE_WIDTH);
     holder.start = 0;
     holder.scale = 0;
     holder.precision = 38;

@@ -306,8 +306,8 @@ describe('SourceFormJsonPolicy', () => {
 
     it('should add always present items', () => {
       uiConfig = {sourceType: 'S3', metadataRefresh:{a: 'a'}, form: {tabs: [
-          {},
-          {sections: []}
+        {},
+        {sections: []}
       ]}};
 
       const config = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(functionalConfig, uiConfig);

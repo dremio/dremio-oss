@@ -57,7 +57,7 @@ public class VarLengthColumnReaders {
         return false;
       }
       /* this will swap bytes as we are writing to the buffer of DecimalVector */
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getDataBuffer(), index);
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getDataBuffer(), index, DecimalVector.TYPE_WIDTH);
       decimalVector.setIndexDefined(index);
       return true;
     }
@@ -91,7 +91,7 @@ public class VarLengthColumnReaders {
         return false;
       }
       /* this will swap bytes as we are writing to the buffer of DecimalVector */
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getDataBuffer(), index);
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, decimalVector.getDataBuffer(), index, DecimalVector.TYPE_WIDTH);
       decimalVector.setIndexDefined(index);
       return true;
     }

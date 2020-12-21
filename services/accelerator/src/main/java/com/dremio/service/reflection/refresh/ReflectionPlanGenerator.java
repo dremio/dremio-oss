@@ -61,6 +61,7 @@ class ReflectionPlanGenerator {
   private final Materialization materialization;
   private final ReflectionSettings reflectionSettings;
   private final MaterializationStore materializationStore;
+  private final boolean forceFullUpdate;
 
   private RefreshDecision refreshDecision;
 
@@ -73,7 +74,8 @@ class ReflectionPlanGenerator {
       ReflectionEntry entry,
       Materialization materialization,
       ReflectionSettings reflectionSettings,
-      MaterializationStore materializationStore
+      MaterializationStore materializationStore,
+      boolean forceFullUpdate
       ) {
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "option manager required");
@@ -84,6 +86,7 @@ class ReflectionPlanGenerator {
     this.materialization = materialization;
     this.reflectionSettings = reflectionSettings;
     this.materializationStore = materializationStore;
+    this.forceFullUpdate = forceFullUpdate;
   }
 
   public RefreshDecision getRefreshDecision() {
@@ -100,7 +103,8 @@ class ReflectionPlanGenerator {
       namespaceService,
       config,
       reflectionSettings,
-      materializationStore
+      materializationStore,
+      forceFullUpdate
     );
 
     // retrieve reflection's dataset

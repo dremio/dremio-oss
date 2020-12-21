@@ -47,8 +47,9 @@ public class RefreshStartHandler {
   private final MaterializationStore materializationStore;
   private final WakeUpCallback wakeUpCallback;
 
-  public RefreshStartHandler(NamespaceService namespaceService, JobsService jobsService,
-      MaterializationStore materializationStore, WakeUpCallback wakeUpCallback) {
+  public RefreshStartHandler(NamespaceService namespaceService,
+                             JobsService jobsService,
+                             MaterializationStore materializationStore, WakeUpCallback wakeUpCallback) {
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
@@ -60,7 +61,7 @@ public class RefreshStartHandler {
 
     final MaterializationId id = new MaterializationId(UUID.randomUUID().toString());
     logger.debug("starting refresh for materialization {}/{}", reflectionId.getId(), id.getId());
-    final boolean icebergDataset = isIcebergDataset(optionManager);
+    boolean icebergDataset = isIcebergDataset(optionManager);
     final Materialization materialization = new Materialization()
         .setId(id)
         .setInitRefreshSubmit(jobSubmissionTime)
@@ -71,13 +72,10 @@ public class RefreshStartHandler {
         .setReflectionId(reflectionId)
         .setArrowCachingEnabled(entry.getArrowCachingEnabled())
         .setIsIcebergDataset(icebergDataset);
+    setIcebergReflectionAttributes(reflectionId, materialization, icebergDataset);
     // this is getting convoluted, but we need to make sure we save the materialization before we run the CTAS
     // as the MaterializedView will need it to extract the logicalPlan
     materializationStore.save(materialization);
-
-    if (icebergDataset) {
-      setMaterializationBasePath(reflectionId, materialization);
-    }
 
     final String sql = String.format("REFRESH REFLECTION '%s' AS '%s'", reflectionId.getId(), materialization.getId().getId());
 
@@ -98,15 +96,29 @@ public class RefreshStartHandler {
       optionManager.getOption(ExecConstants.ENABLE_ICEBERG);
   }
 
-  private void setMaterializationBasePath(ReflectionId reflectionId, Materialization materialization) {
+  private void setIcebergReflectionAttributes(ReflectionId reflectionId, Materialization materialization, boolean icebergDataset) {
     FluentIterable<Refresh> refreshes = materializationStore.getRefreshesByReflectionId(reflectionId);
-    if (!refreshes.isEmpty()) {
-      Refresh refresh = refreshes.get(0);
-      String path = refresh.getPath();
-      String[] splits = path.split("/");
-      Preconditions.checkState(splits.length >= 2, "Unexpected number of path components");
-      materialization.setBasePath(splits[splits.length - 1]);
+    if (refreshes.isEmpty()) {
+      // no previous refresh exists. nothing to set.
+      return;
+    }
+
+    Refresh latestRefresh = refreshes.get(refreshes.size() - 1);
+    if (icebergDataset) {
+      // current refresh is using iceberg.
+      if (latestRefresh.getIsIcebergRefresh() == null || !latestRefresh.getIsIcebergRefresh()) {
+        // last refresh did not use Iceberg, hence forcing full refresh
+        materialization.setForceFullRefresh(true);
+      }
+      if (latestRefresh.getIsIcebergRefresh() != null && latestRefresh.getIsIcebergRefresh()) {
+        // current refresh is iceberg, and last refresh was also iceberg
+        // set base path so that incremental refresh can insert into Iceberg table at base path
+        materialization.setBasePath(latestRefresh.getBasePath());
+      }
+    } else if ((latestRefresh.getIsIcebergRefresh() != null && latestRefresh.getIsIcebergRefresh())) {
+      // current refresh is not using iceberg
+      // last refresh used Iceberg, hence forcing full refresh.
+      materialization.setForceFullRefresh(true);
     }
   }
-
 }

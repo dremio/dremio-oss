@@ -63,7 +63,10 @@ import com.dremio.dac.service.search.SearchServiceImpl;
 import com.dremio.dac.service.search.SearchServiceInvoker;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.service.users.UserServiceHelper;
+import com.dremio.dac.support.BasicQueryLogBundleService;
 import com.dremio.dac.support.BasicSupportService;
+import com.dremio.dac.support.CoordinatorLogService;
+import com.dremio.dac.support.QueryLogBundleService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.KVStoreProvider;
@@ -929,6 +932,10 @@ public class DACDaemonModule implements DACModule {
 
     if(isCoordinator) {
       registry.bindSelf(new ServerHealthMonitor(registry.provider(MasterStatusListener.class)));
+      conduitServiceRegistry.registerService(new CoordinatorLogService(
+        sabotContextProvider,
+        registry.provider(SupportService.class)
+      ));
     }
 
     registry.bind(SupportService.class, new BasicSupportService(
@@ -942,6 +949,21 @@ public class DACDaemonModule implements DACModule {
       registry.provider(CatalogService.class),
       registry.provider(FabricService.class),
       bootstrap.getAllocator()));
+
+    registry.bind(QueryLogBundleService.class, new BasicQueryLogBundleService(
+      bootstrap.getClasspathScan(),
+      sabotContextProvider,
+      registry.provider(ClusterCoordinator.class),
+      registry.provider(ProjectOptionManager.class),
+      registry.provider(SupportService.class),
+      registry.provider(JobsService.class),
+      registry.provider(ProvisioningService.class),
+      registry.provider(ConduitProvider.class),
+      () -> registry.provider(ClusterCoordinator.class)
+        .get()
+        .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+        .getAvailableEndpoints()
+    ));
 
     registry.bindSelf(new NodeRegistration(
         registry.provider(NodeEndpoint.class),

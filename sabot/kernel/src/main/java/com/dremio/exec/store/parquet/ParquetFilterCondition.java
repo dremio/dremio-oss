@@ -303,7 +303,7 @@ public class ParquetFilterCondition {
     throw new UnsupportedOperationException("Unsupported rex node " + input + " on rowtype " + incomingRowType);
   }
 
-  private static SchemaPath rexToSchemaPath(RexNode input, RelDataType incomingRowType) throws UnsupportedOperationException {
+  public static SchemaPath rexToSchemaPath(RexNode input, RelDataType incomingRowType) throws UnsupportedOperationException {
     if (input.getKind() == SqlKind.INPUT_REF) {
       return new SchemaPath(incomingRowType.getFieldNames().get(((RexInputRef) input).getIndex()));
     }

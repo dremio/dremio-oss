@@ -30,15 +30,17 @@ export class AddButton extends Component {
     addItem: PropTypes.func,
     style: PropTypes.object,
     children: PropTypes.node,
+    addIcon: PropTypes.bool,
     intl: PropTypes.object.isRequired
   };
 
   render() {
-    const {addItem, style, children} = this.props;
+    const {addIcon, addItem, style, children} = this.props;
     const combinedStyle = {':hover': {}, ...styles.addButton, ...style}; // need Radium fakeout
+    const icon = addIcon ? 'Add.svg' : 'AddHover.svg';
     return <a key='addItem' className='add-item' onClick={addItem} style={combinedStyle}>
       <Art
-        src={'AddHover.svg'}
+        src={icon}
         alt={this.props.intl.formatMessage({id: 'Common.Add'})}
         style={styles.addIcon} />
       {children}

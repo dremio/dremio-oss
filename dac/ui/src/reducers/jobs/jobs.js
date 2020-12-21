@@ -27,7 +27,9 @@ const initialState = Immutable.fromJS({
   filters: {},
   orderedColumn: {'columnName': null, 'order': 'desc'},
   isInProgress: false,
-  isFailed: false
+  isFailed: false,
+  clusterType: 'NA',
+  isSupport: false
 });
 
 export default function jobs(state = initialState, action) {
@@ -92,6 +94,8 @@ export default function jobs(state = initialState, action) {
   case ActionTypes.ITEMS_FOR_FILTER_JOBS_SUCCESS :
     return state.setIn(['dataForFilter', action.meta.tag], action.payload.items);
 
+  case ActionTypes.SET_CLUSTER_TYPE:
+    return state.set('clusterType', action.payload.clusterType).set('isSupport', action.payload.isSupport);
   default:
     return state;
   }

@@ -674,8 +674,8 @@ public class StatisticsAggrFunctions {
     @Override
     public void add() {
       if(in.isSet == 1) {
-        ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).addBytes(in.buffer, in.start, in.start
-          + org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
+        ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).addBytes(in.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start),
+          org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(in.start) + org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       }
     }
 

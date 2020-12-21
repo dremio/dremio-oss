@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>11.0.0-202011171636110752-16ab953d</version>
+    <version>12.0.0-202012212145230282-d8947fd3</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -512,7 +512,7 @@
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <configuration>
-          <protoSourceRoot>${basedir}/src/main/rpc</protoSourceRoot>
+          <clearOutputDirectory>false</clearOutputDirectory>
         </configuration>
         <executions>
           <execution>
@@ -520,7 +520,25 @@
               <goal>compile</goal>
             </goals>
             <configuration>
+              <protoSourceRoot>${basedir}/src/main/rpc</protoSourceRoot>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>generate-protobuf</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+            </goals>
+            <configuration>
+              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
+              <pluginId>grpc-java</pluginId>
+              <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+              <excludes>
+                <exclude>**/updateid.proto</exclude>
+              </excludes>
             </configuration>
           </execution>
         </executions>

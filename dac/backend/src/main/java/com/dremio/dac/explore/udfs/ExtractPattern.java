@@ -134,9 +134,9 @@ public class ExtractPattern {
         out.isSet = 0;
       } else {
         out.buffer = in.buffer;
-        out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer
-          .asNettyBuffer(), in.start, in.end, result.start(), errCtx);
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer.asNettyBuffer(),
+        out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
+          in.start, in.end, result.start(), errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
           in.start, in.end, result.end(), errCtx);
         out.isSet = 1;
       }

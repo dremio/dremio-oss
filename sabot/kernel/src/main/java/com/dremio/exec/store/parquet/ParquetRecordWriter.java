@@ -314,6 +314,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
         continue;
       }
+      if (field.getName().equalsIgnoreCase(IncrementalUpdateUtils.UPDATE_COLUMN)) {
+        continue;
+      }
       Type childType = getTypeWithId(field, field.getName());
       if (childType != null) {
         types.add(childType);
@@ -922,7 +925,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       consumer.startGroup();
       int type = unionReader.data.getTypeValue(unionReader.getPosition());
       Types.MinorType minorType = Types.MinorType.values()[type];
-      converterMap.get(minorType.name().toLowerCase()).writeField();
+      EventBasedRecordWriter.FieldConverter converter = converterMap.get(minorType.name().toLowerCase());
+      if(converter != null) {
+        converter.writeField();
+      }
       consumer.endGroup();
     }
 

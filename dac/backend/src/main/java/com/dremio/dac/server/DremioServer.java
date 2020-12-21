@@ -207,7 +207,7 @@ public class DremioServer {
     // gzip handler.
     final GzipHandler gzipHandler = new GzipHandler();
     // gzip handler interferes with ChunkedOutput, so exclude the job download path
-    gzipHandler.addExcludedPaths("/apiv2/job/*");
+    gzipHandler.addExcludedPaths("/apiv2/job/*", "/api/v3/support-bundle/*");
     rootHandler.setHandler(gzipHandler);
 
     // servlet handler for everything (to manage path mapping)

@@ -35,16 +35,16 @@ public interface InputStreamProviderFactory {
 
   InputStreamProvider create(FileSystem fs, OperatorContext context,
                              Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
-                             MutableParquetMetadata footerIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                             BiConsumer<Path, MutableParquetMetadata> depletionListener, boolean readFullFile,
+                             MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
+                             BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener, boolean readFullFile,
                              List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystem fs, OperatorContext context,
                                       Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
-                                      MutableParquetMetadata footerIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                                      BiConsumer<Path, MutableParquetMetadata> depletionListener, boolean readFullFile,
+                                      MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
+                                      BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener, boolean readFullFile,
                                       List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices) throws IOException {
       OptionManager options = context.getOptions();
       boolean useSingleStream =

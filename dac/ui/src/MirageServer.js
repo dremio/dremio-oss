@@ -1,3 +1,4 @@
+/* eslint-disable comma-dangle */
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -52,6 +53,5 @@ export const MirageServer = new Server({
     this.post('TODO', () => {
       return new Response(409, {some: 'header'}, {error: 'Invalid ...'});
     });
-
   }
 });

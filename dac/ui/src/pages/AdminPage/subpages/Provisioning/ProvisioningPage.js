@@ -106,7 +106,7 @@ export class ProvisioningPage extends Component {
         la('Existing jobs will be halted.'),
         la('Are you sure you want to stop the engine?')
       ],
-      cancelText: la('Cancel'),
+      cancelText: la('Don\'t Stop Engine'),
       confirmText: la('Stop Engine'),
       confirm: confirmCallback
     });
@@ -161,6 +161,7 @@ export class ProvisioningPage extends Component {
     if (PROVISION_MANAGERS.length === 1) {
       clusterType = PROVISION_MANAGERS[0].clusterType;
     }
+
     this.props.openAddProvisionModal(clusterType);
   };
 
@@ -179,6 +180,7 @@ export class ProvisioningPage extends Component {
         this.pollId = setTimeout(this.startPollingProvisionData, PROVISION_POLL_INTERVAL);
       }
     };
+
     this.props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
   };
 
@@ -193,7 +195,7 @@ export class ProvisioningPage extends Component {
       style={{ width: 100, marginTop: 5}}
       onClick={this.openAddProvisionModal}
       type={ButtonTypes.NEXT}
-      text={la('New Engine')}
+      text={this.getBtnLabel()}
     />;
     return (selectedEngineId) ?
       <SingleEngineHeader

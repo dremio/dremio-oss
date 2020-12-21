@@ -49,6 +49,8 @@ public class DremioMaterialization {
   private boolean hasJoin;
   private boolean hasAgg;
 
+  private int stripVersion;
+
   public DremioMaterialization(
       RelNode tableRel,
       RelNode queryRel,
@@ -59,9 +61,10 @@ public class DremioMaterialization {
       BatchSchema schema,
       long expirationTimestamp,
       boolean alreadyStripped,
+      int stripVersion,
       RelTransformer postStripTransformer) {
     this(tableRel, queryRel, incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema,
-        expirationTimestamp, false, null, alreadyStripped, postStripTransformer);
+        expirationTimestamp, false, null, alreadyStripped, stripVersion, postStripTransformer);
   }
 
   private DremioMaterialization(
@@ -76,6 +79,7 @@ public class DremioMaterialization {
       boolean snowflake,
       DremioMaterialization original,
       boolean alreadyStripped,
+      int stripVersion,
       RelTransformer postStripTransformer) {
     this.tableRel = tableRel;
     this.queryRel = queryRel;
@@ -88,6 +92,7 @@ public class DremioMaterialization {
     this.snowflake = snowflake;
     this.original = original == null ? this : original;
     this.alreadyStripped = alreadyStripped;
+    this.stripVersion = stripVersion;
     this.postStripTransformer = postStripTransformer == null ? RelTransformer.NO_OP_TRANSFORMER : postStripTransformer;
 
     hasJoin = false;
@@ -123,11 +128,11 @@ public class DremioMaterialization {
   }
 
   public DremioMaterialization transformQuery(RelTransformer transformer) {
-    return new DremioMaterialization(tableRel, transformer.transform(queryRel), incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, snowflake, original, alreadyStripped, postStripTransformer);
+    return new DremioMaterialization(tableRel, transformer.transform(queryRel), incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, snowflake, original, alreadyStripped, stripVersion, postStripTransformer);
   }
 
   public DremioMaterialization transformMaterialization(RelTransformer transformer) {
-    return new DremioMaterialization(transformer.transform(tableRel), queryRel, incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, snowflake, original, alreadyStripped, postStripTransformer);
+    return new DremioMaterialization(transformer.transform(tableRel), queryRel, incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, snowflake, original, alreadyStripped, stripVersion, postStripTransformer);
   }
 
   public RelNode getQueryRel() {
@@ -166,6 +171,7 @@ public class DremioMaterialization {
         snowflake,
         original,
         alreadyStripped,
+        stripVersion,
         postStripTransformer);
   }
 
@@ -202,6 +208,7 @@ public class DremioMaterialization {
         snowflake,
         original,
         alreadyStripped,
+        stripVersion,
         postStripTransformer);
   }
 
@@ -218,6 +225,7 @@ public class DremioMaterialization {
         snowflake,
         original,
         alreadyStripped,
+        stripVersion,
         postStripTransformer);
   }
 
@@ -234,6 +242,7 @@ public class DremioMaterialization {
         snowflake,
         original,
         alreadyStripped,
+        stripVersion,
         postStripTransformer);
   }
 
@@ -250,6 +259,7 @@ public class DremioMaterialization {
         true,
         null, // consider the new materialization as original for reporting purposes
         alreadyStripped,
+        stripVersion,
         postStripTransformer);
   }
 
@@ -278,7 +288,12 @@ public class DremioMaterialization {
         snowflake,
         original,
         alreadyStripped,
+        stripVersion,
         postStripTransformer);
+  }
+
+  public int getStripVersion() {
+    return stripVersion;
   }
 
   public RelTransformer getPostStripTransformer() {

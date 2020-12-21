@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -25,7 +24,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
@@ -35,7 +33,6 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
@@ -47,18 +44,15 @@ import com.google.common.base.Throwables;
  * HiveNonVarcharCoercionReader for remaining columns
  */
 public class HiveParquetPrimitiveTypeReader implements AutoCloseable {
-  private Map<String, HiveVarcharTruncationReader> fixedLenVarCharMap = CaseInsensitiveMap.newHashMap();
-  private final HiveNonVarcharCoercionReader hiveNonVarcharCoercionReader;
-
   private final OperatorContext context;
   private final Stopwatch javaCodeGenWatch;
   private final Stopwatch gandivaCodeGenWatch;
-  public HiveParquetPrimitiveTypeReader(SampleMutator mutator,
-                                        OperatorContext context, List<SchemaPath> columns,
-                                        TypeCoercion hiveTypeCoercion,
+  private final Map<String, HiveVarcharTruncationReader> fixedLenVarCharMap = CaseInsensitiveMap.newHashMap();
+  private final HiveNonVarcharCoercionReader hiveNonVarcharCoercionReader;
+
+  public HiveParquetPrimitiveTypeReader(SampleMutator mutator, OperatorContext context, TypeCoercion hiveTypeCoercion,
                                         Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch,
                                         BatchSchema originalSchema) {
-
     this.context = context;
     this.javaCodeGenWatch = javaCodeGenWatch;
     this.gandivaCodeGenWatch = gandivaCodeGenWatch;
@@ -74,7 +68,7 @@ public class HiveParquetPrimitiveTypeReader implements AutoCloseable {
     }
 
     BatchSchema nonVarcharSchema = schemaBuilder.build();
-    hiveNonVarcharCoercionReader = new HiveNonVarcharCoercionReader(mutator, context, columns,
+    hiveNonVarcharCoercionReader = new HiveNonVarcharCoercionReader(mutator, context,
       nonVarcharSchema, hiveTypeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
   }
 
@@ -83,11 +77,10 @@ public class HiveParquetPrimitiveTypeReader implements AutoCloseable {
       majorType.getWidth() < CompleteType.DEFAULT_VARCHAR_PRECISION;
   }
 
-  public void setupProjector(OutputMutator output, VectorContainer incoming,
-                            ExpressionEvaluationOptions projectorOptions,
-                            VectorContainer projectorOutput) {
+  public void setupProjector(VectorContainer incoming, ExpressionEvaluationOptions projectorOptions,
+                             VectorContainer projectorOutput) {
     context.getStats().addLongStat(ScanOperator.Metric.NUM_HIVE_PARQUET_TRUNCATE_VARCHAR, fixedLenVarCharMap.size());
-    hiveNonVarcharCoercionReader.setupProjector(output, projectorOutput, projectorOptions);
+    hiveNonVarcharCoercionReader.setupProjector(projectorOutput, projectorOptions);
     // Setting up the projector for columns that need varchar truncation
     for (Map.Entry<String, HiveVarcharTruncationReader> entry : fixedLenVarCharMap.entrySet()) {
       entry.getValue().setupProjector(this.context,

@@ -16,6 +16,7 @@
 package com.dremio.exec.dotfile;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -30,8 +31,11 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.common.types.Types;
+import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.planner.StarColumnHelper;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -102,8 +106,7 @@ public class View {
     public FieldType(String name, RelDataType dataType) {
       this.name = name;
       this.type = dataType.getSqlTypeName();
-      BatchSchema schema = dataType.isStruct() ? CalciteArrowHelper.fromCalciteRowType(dataType) : null;
-      this.field = schema != null? new Field(name, true, new ArrowType.Struct(), schema.getFields()) : null;
+      this.field = getField(name, dataType);
 
       Integer p = null;
       Integer s = null;
@@ -145,6 +148,22 @@ public class View {
       this.scale = s;
       this.intervalQualifier = dataType.getIntervalQualifier();
       this.isNullable = dataType.isNullable();
+    }
+
+    private Field getField(String name, RelDataType dataType) {
+      if (dataType.isStruct()) {
+        BatchSchema schema = CalciteArrowHelper.fromCalciteRowType(dataType);
+        return new Field(name, true, new ArrowType.Struct(), schema.getFields());
+      } else if(dataType.getSqlTypeName().equals(SqlTypeName.ARRAY)) {
+        RelDataType componentType = dataType.getComponentType();
+        if (componentType.isStruct() || componentType.getSqlTypeName() == SqlTypeName.ARRAY) {
+          return new Field(name, true, new ArrowType.List(), Collections.singletonList(getField("$data$", componentType)));
+        } else {
+          ArrowType type = MajorTypeHelper.getArrowTypeForMajorType(Types.optional(TypeInferenceUtils.getMinorTypeFromCalciteType(componentType)));
+          return new Field(name, true, new ArrowType.List(), Collections.singletonList(new Field("$data$", componentType.isNullable(), type, null)));
+        }
+      }
+      return null;
     }
 
     /**

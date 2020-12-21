@@ -613,6 +613,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             .setAllowPartitionPruning(queryType != QueryType.ACCELERATOR_EXPLAIN)
             .setExposeInternalSources(QueryTypeUtils.isInternal(queryType))
             .setSubstitutionSettings(JobsProtoUtil.toPojo(jobRequest.getMaterializationSettings().getSubstitutionSettings()))
+            .setEngineName(jobRequest.getSqlQuery().getEngineName())
             .build();
 
     // (3) register listener

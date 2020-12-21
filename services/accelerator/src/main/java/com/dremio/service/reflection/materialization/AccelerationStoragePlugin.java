@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
@@ -70,12 +71,10 @@ import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * A custom FileSystemPlugin that only works with Parquet files and generates file selections based on Refreshes as opposed to path.
@@ -215,7 +214,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   private Boolean isUsingIcebergDataset(Materialization materialization) {
     Boolean isIcebergDataset = materialization.getIsIcebergDataset();
-    return  isIcebergDataset == null ? false : isIcebergDataset;
+    return isIcebergDataset != null && isIcebergDataset;
   }
 
   private Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, Integer fieldCount, boolean icebergDataset, FileSelection selection, PreviousDatasetInfo pdi) {
@@ -234,33 +233,41 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   private FileSelection getParquetFileSelection(FluentIterable<Refresh> refreshes, String selectionRoot) {
     FileSelection selection;
-    ImmutableList<FileAttributes> allStatus = refreshes.transformAndConcat((Function<Refresh, Iterable<FileAttributes>>) input -> {
-      try {
-        FileSelection currentRefreshSelection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
-        if(currentRefreshSelection != null) {
-          return currentRefreshSelection.minusDirectories().getFileAttributesList();
+    List<Refresh> refreshList = refreshes.toList();
+    List<FileSelection> fileSelections = refreshList.stream()
+      .map(refresh -> {
+        try {
+          FileSelection currentRefreshSelection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(refresh.getPath()));
+          if (currentRefreshSelection != null) {
+            return currentRefreshSelection;
+          }
+          throw new IllegalStateException("Unable to retrieve selection for path." + refresh.getPath());
+        } catch (IOException e) {
+          throw Throwables.propagate(e);
         }
-        throw new IllegalStateException("Unable to retrieve selection for path." + input.getPath());
-      } catch (IOException e) {
-        throw Throwables.propagate(e);
-      }
-    }).toList();
+      })
+      .collect(Collectors.toList());
+
+    ImmutableList<FileAttributes> allStatus = fileSelections.stream()
+      .flatMap(fileSelection -> {
+        try {
+          return fileSelection.minusDirectories().getFileAttributesList().stream();
+        } catch (IOException e) {
+          throw Throwables.propagate(e);
+        }
+      })
+      .collect(ImmutableList.toImmutableList());
     selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
     return selection;
   }
 
   private FileSelection getIcebergFileSelection(FluentIterable<Refresh> refreshes) {
-    FileSelection selection;
+    Preconditions.checkState(refreshes.size() > 0, "Unexpected state");
     try {
-      for (Refresh refresh: refreshes) {
-        Preconditions.checkState(refreshes.get(0).getPath().equalsIgnoreCase(refresh.getPath()),
-          "unexpected refresh path was found");
-      }
-      selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(refreshes.get(0).getPath()));
+      return FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(refreshes.get(refreshes.size() - 1).getPath()));
     } catch (IOException e) {
       throw Throwables.propagate(e);
     }
-    return selection;
   }
 
   @Override
@@ -321,9 +328,9 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   }
 
   private void deleteOwnedRefreshes(Materialization materialization, SchemaConfig schemaConfig) {
-    Iterable<Refresh> refreshes = materializationStore.getRefreshesExclusivelyOwnedBy(materialization);
-    if (Iterables.isEmpty(refreshes)) {
-      logger.debug("deleted materialization {} has no associated refresh");
+    List<Refresh> refreshes = ImmutableList.copyOf(materializationStore.getRefreshesExclusivelyOwnedBy(materialization));
+    if (refreshes.isEmpty()) {
+      logger.debug("deleted materialization {} has no associated refresh", materialization);
       return;
     }
 

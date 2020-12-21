@@ -33,7 +33,8 @@ import { checkboxMargin, indentedContainer, tooltipIcon } from './CheckEnabledCo
  * Props:
  *   elementConfig: CheckEnabledConfig with getConfig() returning:
  *     - propName - for the checkbox
- *     - inverted - hides/disables container according to inverted visible state of checkbox
+ *     - inverted - inverts visible state of checkbox
+ *     - invertContainer - hides/disables container according to inverted state of checkbox
  *     - container - section type configuration object with elements and optional title, tooltip, etc.
  *     - whenNotChecked - optional "hide" value, otherwise defaults to "disable"
  */
@@ -59,10 +60,15 @@ export default class CheckEnabledContainer extends Component {
     const tooltipStyle = { width: 180 }; // since this component appears in narrow forms, need to limit tooltip width
     const enableContainer = checkField.checked;
     const isInverted = (elementConfigJson.inverted) ? {inverted: true} : null;
+    const isInvertedContainer = elementConfigJson.invertContainer;
     const container = elementConfig.getContainer();
     const containerIsIndented = !elementConfigJson.noIndent;
     const containerIsElement = container instanceof FormElementConfig;
     const containerIsSection = container instanceof FormSectionConfig;
+
+    const containerDisabled = (enableContainer && isInvertedContainer) ||
+      (!enableContainer && !isInvertedContainer) ||
+      mainCheckboxIsDisabled;
 
     return (
       <div className={flexColumnContainer}>
@@ -79,12 +85,12 @@ export default class CheckEnabledContainer extends Component {
         <div className={classNames([flexElementAuto, containerIsIndented && indentedContainer])}>
           {containerIsElement &&
           <FormElement fields={fields}
-            disabled={!enableContainer || mainCheckboxIsDisabled}
+            disabled={containerDisabled}
             elementConfig={container}/>
           }
           {containerIsSection &&
           <FormSection fields={fields}
-            disabled={!enableContainer || mainCheckboxIsDisabled}
+            disabled={containerDisabled}
             style={{marginBottom: 0}}
             sectionConfig={container}/>
           }

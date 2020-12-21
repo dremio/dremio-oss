@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.CloseableIterator;
 import com.google.common.collect.Iterators;
 
 /**

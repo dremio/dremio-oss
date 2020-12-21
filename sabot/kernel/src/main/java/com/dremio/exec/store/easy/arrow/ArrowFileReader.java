@@ -304,6 +304,9 @@ public class ArrowFileReader implements AutoCloseable {
     beanMetadata.setRecordCount(metadata.getRecordCount());
     beanMetadata.setScreenNodeEndpoint(toBean(metadata.getScreenNodeEndpoint()));
     beanMetadata.setFooter(toBean(metadata.getFooter()));
+    if (metadata.hasArrowMetadataVersion()) {
+      beanMetadata.setArrowMetadataVersion(metadata.getArrowMetadataVersion());
+    }
 
     return beanMetadata;
   }
@@ -395,7 +398,7 @@ public class ArrowFileReader implements AutoCloseable {
     return namePartBuillder.build();
   }
 
-  private static MajorType toBean(TypeProtos.MajorType majorType) {
+  static MajorType toBean(TypeProtos.MajorType majorType) {
     MajorType majorTypeBean = new MajorType();
     majorTypeBean.setPrecision(majorType.getPrecision());
     majorTypeBean.setWidth(majorType.getWidth());
@@ -442,16 +445,19 @@ public class ArrowFileReader implements AutoCloseable {
   public static ArrowFileFormat.ArrowFileMetadata fromBean(ArrowFileMetadata beanMetadata) {
     ArrowFileFormat.ArrowFileFooter footer = fromBean(beanMetadata.getFooter());
 
-    final ArrowFileFormat.ArrowFileMetadata metadata =
+    ArrowFileFormat.ArrowFileMetadata.Builder metadataBuilder =
       ArrowFileFormat.ArrowFileMetadata
         .newBuilder()
         .setPath(beanMetadata.getPath())
         .setRecordCount(beanMetadata.getRecordCount())
         .setFooter(footer)
-        .setScreenNodeEndpoint(fromBean(beanMetadata.getScreenNodeEndpoint()))
-        .build();
+        .setScreenNodeEndpoint(fromBean(beanMetadata.getScreenNodeEndpoint()));
 
-    return metadata;
+    if (beanMetadata.getArrowMetadataVersion() != 0) {
+      metadataBuilder.setArrowMetadataVersion(beanMetadata.getArrowMetadataVersion());
+    }
+
+    return metadataBuilder.build();
   }
 
   public static ArrowFileFormat.ArrowFileFooter fromBean(ArrowFileFooter footer) {
@@ -487,9 +493,16 @@ public class ArrowFileReader implements AutoCloseable {
     if (nodeEndpoint.getEngineId() != null && nodeEndpoint.getEngineId().getId() != null) {
       engineIdBuilder.setId(nodeEndpoint.getEngineId().getId());
     }
+
+    EngineManagementProtos.SubEngineId.Builder subEngineIdBuilder = EngineManagementProtos.SubEngineId.newBuilder();
+    if (nodeEndpoint.getSubEngineId() != null && nodeEndpoint.getSubEngineId().getId() != null) {
+      subEngineIdBuilder.setId(nodeEndpoint.getSubEngineId().getId());
+    }
+
     CoordinationProtos.NodeEndpoint ret = CoordinationProtos.NodeEndpoint.newBuilder()
                                                                          .setAddress(nodeEndpoint.getAddress())
                                                                          .setEngineId(engineIdBuilder.build())
+                                                                         .setSubEngineId(subEngineIdBuilder.build())
                                                                          .build();
     return ret;
   }

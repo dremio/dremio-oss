@@ -36,6 +36,7 @@ import com.dremio.exec.record.WritableBatch;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 public class TestLoad extends ExecTest {
 
@@ -65,7 +66,7 @@ public class TestLoad extends ExecTest {
     final ArrowBuf byteBuf = allocator.buffer(bytes);
     int index = 0;
     for (int i = 0; i < byteBufs.length; i++) {
-      byteBufs[i].readBytes(byteBuf.asNettyBuffer(), index, byteBufs[i].writerIndex());
+      byteBufs[i].readBytes(NettyArrowBuf.unwrapBuffer(byteBuf), index, byteBufs[i].writerIndex());
       index += byteBufs[i].writerIndex();
     }
     byteBuf.writerIndex(bytes);

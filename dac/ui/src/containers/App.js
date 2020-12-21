@@ -37,7 +37,7 @@ import config from 'dyn-load/utils/config';
 import enableFatalPropTypes from '@app/enableFatalPropTypes';
 
 import ModalsContainer from '@app/components/Modals/ModalsContainer';
-import AboutModal from '@app/pages/HomePage/components/modals/AboutModal';
+import AboutModal from '@app/pages/HomePage/components/modals/AboutModal/AboutModal';
 import NotificationContainer from '@app/containers/Notification';
 import ConfirmationContainer from '@app/containers/Confirmation';
 import ProdErrorContainer from '@app/containers/ProdError';

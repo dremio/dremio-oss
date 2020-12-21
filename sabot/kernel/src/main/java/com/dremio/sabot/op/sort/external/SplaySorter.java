@@ -120,7 +120,7 @@ public class SplaySorter implements Sorter {
       final SelectionVector2 incomingSv2 = data.getSv2();
       if (incomingSv2 != null) {
         // just copy the sv2.
-        NettyArrowBuf buffer = localSortVector.getBuffer(false).asNettyBuffer();
+        NettyArrowBuf buffer = NettyArrowBuf.unwrapBuffer(localSortVector.getBuffer(false));
         buffer.arrowBuf().setBytes(buffer.writerIndex(), incomingSv2.getBuffer(false), 0,
           recordCount * 2);
       } else {

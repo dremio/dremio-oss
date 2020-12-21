@@ -80,7 +80,7 @@ public class ColumnIndexProvider implements Closeable {
             }
         }
         if (startColumnIndex != -1) {
-            NettyArrowBuf byteBuffer = allocator.buffer(endColumnIndex - startColumnIndex).asNettyBuffer();
+            NettyArrowBuf byteBuffer = NettyArrowBuf.unwrapBuffer(allocator.buffer(endColumnIndex - startColumnIndex));
             try {
                 bulkInputStream.seek(startColumnIndex);
                 bulkInputStream.readFully(byteBuffer,(int)(endColumnIndex - startColumnIndex));

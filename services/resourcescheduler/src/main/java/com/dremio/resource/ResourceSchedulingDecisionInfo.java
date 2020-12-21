@@ -35,6 +35,7 @@ public class ResourceSchedulingDecisionInfo {
   private long schedulingStartTimeMs;  // Time when resource allocation started, in ms
   private long schedulingEndTimeMs;    // Time when resources were fully allocated, in ms
   private String queueTag;
+  private String engineName;
   private EngineId engineId;
   private SubEngineId subEngineId;
 
@@ -141,6 +142,14 @@ public class ResourceSchedulingDecisionInfo {
 
   public void setQueueTag(String queueTag) {
     this.queueTag = queueTag;
+  }
+
+  public String getEngineName() {
+    return engineName;
+  }
+
+  public void setEngineName(String engineName) {
+    this.engineName = engineName;
   }
 
   public EngineId getEngineId() {

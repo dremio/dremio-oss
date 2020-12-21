@@ -220,7 +220,7 @@ public class BloomFilterTest {
             Set<String> keySet1 = randomStrings(100);
             putAllStringKeys(bloomFilter, keyBuf, keySet1);
 
-            ByteBuf deser = bloomFilter.getDataBuffer().asNettyBuffer();
+            ByteBuf deser = NettyArrowBuf.unwrapBuffer(bloomFilter.getDataBuffer());
             assertEquals("Reader index not set to zero", 0, deser.readerIndex());
             assertEquals("Writer index not set to capacity", deser.capacity(), deser.writerIndex());
 

@@ -36,6 +36,7 @@ public class DACAuthFilterFeature implements Feature {
     }
 
     context.register(DACAuthFilter.class);
+    context.register(DACAuthorizationObfuscationFilter.class);
     if (!configuration.isRegistered(RolesAllowedDynamicFeature.class)) {
       context.register(RolesAllowedDynamicFeature.class);
     }

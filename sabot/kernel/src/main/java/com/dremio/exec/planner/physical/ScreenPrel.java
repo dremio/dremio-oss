@@ -19,15 +19,19 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.planner.common.ScreenRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
@@ -38,6 +42,7 @@ public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAf
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.screen.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.screen.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final String MIXED_TYPES_ERROR = "Mixed types are no longer supported as returned values over JDBC, ODBC and Flight connections.";
 
   public ScreenPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(Prel.PHYSICAL, cluster, traits, child);
@@ -53,9 +58,11 @@ public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAf
     Prel child = (Prel) this.getInput();
 
     PhysicalOperator childPop = child.getPhysicalOperator(creator);
+    BatchSchema schema = childPop.getProps().getSchema();
+    checkForUnion(schema.getFields());
 
     return new Screen(
-        creator.props(this, null, childPop.getProps().getSchema(), RESERVE, LIMIT),
+        creator.props(this, null, schema, RESERVE, LIMIT),
         childPop);
   }
 
@@ -87,5 +94,17 @@ public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAf
   @Override
   public DistributionAffinity getDistributionAffinity() {
     return DistributionAffinity.NONE;
+  }
+
+  private static void checkForUnion(List<Field> fields) {
+    for(Field f : fields) {
+      if(f.getFieldType().getType().getTypeID() == ArrowType.ArrowTypeID.Union) {
+        throw UserException.unsupportedError().message(MIXED_TYPES_ERROR
+          + " Cast column \"%s\" to a primitive data type either in the "
+          + "select statement or the VDS definition.", f.getName()).buildSilently();
+      } else {
+        checkForUnion(f.getChildren());
+      }
+    }
   }
 }

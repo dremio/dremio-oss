@@ -23,8 +23,10 @@
 
 package com.dremio.exec.expr.fn.impl.hive;
 
-import org.apache.arrow.vector.util.DecimalUtility;
 import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
+
+import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.arrow.vector.holders.*;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
@@ -183,8 +185,8 @@ public class ${entry.type}${entry.hiveOI} {
     <#else>
       final DecimalHolder h = (DecimalHolder) o;
     </#if>
-      h.start = (h.start / org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
-      return HiveDecimal.create(DecimalUtility.getBigDecimalFromArrowBuf(h.buffer, h.start, h.scale));
+      h.start = (h.start / org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
+      return HiveDecimal.create(DecimalUtility.getBigDecimalFromArrowBuf(h.buffer, LargeMemoryUtil.capAtMaxInt(h.start), h.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
     }
 
     @Override
@@ -197,9 +199,9 @@ public class ${entry.type}${entry.hiveOI} {
     <#else>
       final DecimalHolder h = (DecimalHolder) o;
     </#if>
-      h.start = (h.start / org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
+      h.start = (h.start / org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       return new HiveDecimalWritable(
-          HiveDecimal.create(DecimalUtility.getBigDecimalFromArrowBuf(h.buffer, h.start, h.scale)));
+          HiveDecimal.create(DecimalUtility.getBigDecimalFromArrowBuf(h.buffer, LargeMemoryUtil.capAtMaxInt(h.start), h.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH)));
     }
 
 <#elseif entry.type == "TimeStampMilli">

@@ -21,10 +21,10 @@ import static org.apache.arrow.util.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.IntStream;
+import java.util.function.Predicate;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,19 +127,17 @@ public class RuntimeFilter implements AutoCloseable {
    * @return
    */
   public boolean isOnSameColumns(final RuntimeFilter that) {
-    if (this.getPartitionColumnFilter() == null && that.getPartitionColumnFilter() == null) {
-      return true;
-    }
-    if ((this.getPartitionColumnFilter() == null) != (that.getPartitionColumnFilter() == null)) {
+    if (((this.getPartitionColumnFilter() == null) != (that.getPartitionColumnFilter() == null))
+            || (this.getNonPartitionColumnFilters().size() != that.getNonPartitionColumnFilters().size())){
       return false;
     }
 
-    final boolean sameNonPartitionColumns = (this.getNonPartitionColumnFilters().size() == that.getNonPartitionColumnFilters().size())
-            && !IntStream.range(0, this.nonPartitionColumnFilters.size())
-            .anyMatch(i -> !Objects.equals(this.nonPartitionColumnFilters.get(i).getColumnsList(),
-                    that.nonPartitionColumnFilters.get(i).getColumnsList()));
-    return sameNonPartitionColumns && Objects.equals(this.getPartitionColumnFilter().getColumnsList(),
-            that.getPartitionColumnFilter().getColumnsList());
+    final boolean samePartitionColumns = (this.getPartitionColumnFilter() == null) ||
+            CollectionUtils.isEqualCollection(this.getPartitionColumnFilter().getColumnsList(), that.getPartitionColumnFilter().getColumnsList());
+    final Predicate<CompositeColumnFilter> nonPartitionColFilterHasMatch = f -> that.nonPartitionColumnFilters.stream()
+            .anyMatch(t -> f.getColumnsList().equals(t.getColumnsList()));
+    final boolean sameNonPartitionColumns = this.getNonPartitionColumnFilters().stream().allMatch(nonPartitionColFilterHasMatch);
+    return samePartitionColumns && sameNonPartitionColumns;
   }
 
 

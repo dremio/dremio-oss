@@ -45,6 +45,7 @@ import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.io.file.Path;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 public class ColumnChunkIncReadStore implements PageReadStore {
 
@@ -264,11 +265,11 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     private ByteBuffer uncompressPage(PageHeader pageHeader, boolean isDataPage) throws IOException {
       final int compressedPageSize = pageHeader.compressed_page_size;
       final int uncompressedPageSize = pageHeader.uncompressed_page_size;
-      final ByteBuf src = allocator.buffer(compressedPageSize).asNettyBuffer();
+      final ByteBuf src = NettyArrowBuf.unwrapBuffer(allocator.buffer(compressedPageSize));
       ByteBuf dest = null;
       try {
         readFully(src, compressedPageSize);
-        dest = allocator.buffer(uncompressedPageSize).asNettyBuffer();
+        dest = NettyArrowBuf.unwrapBuffer(allocator.buffer(uncompressedPageSize));
         ByteBuffer destBuffer = dest.nioBuffer(0, uncompressedPageSize);
 
         switch (pageHeader.type) {

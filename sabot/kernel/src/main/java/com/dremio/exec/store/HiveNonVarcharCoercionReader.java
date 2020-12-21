@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.TransferPair;
 
@@ -31,7 +30,6 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
@@ -44,7 +42,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.project.Projector;
-import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
@@ -55,29 +52,22 @@ import com.google.common.collect.Lists;
  * of Hive tables except varchar columns
  */
 public class HiveNonVarcharCoercionReader implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoercionReader.class);
-
-  protected VectorContainer incoming;
-  protected final List<ValueVector> allocationVectors = Lists.newArrayList();
   protected final SampleMutator mutator;
-  protected Projector projector;
   protected final BatchSchema targetSchema;
   protected final List<NamedExpression> exprs;
-  protected ExpressionSplitter splitter;
+  protected final List<ValueVector> allocationVectors = Lists.newArrayList();
+
+  protected Projector projector;
+  protected VectorContainer incoming;
   protected Stopwatch javaCodeGenWatch;
-
-  public VectorContainer getIncoming() {
-    return incoming;
-  }
-
+  protected ExpressionSplitter splitter;
   protected Stopwatch gandivaCodeGenWatch;
-  private static final boolean DEBUG_PRINT = false;
-  private final OperatorContext context;
 
+  private final OperatorContext context;
   private final TypeCoercion typeCoercion;
+
   public HiveNonVarcharCoercionReader(SampleMutator mutator,
                                       OperatorContext context,
-                                      List<SchemaPath> columns,
                                       BatchSchema targetSchema,
                                       TypeCoercion typeCoercion,
                                       Stopwatch javaCodeGenWatch,
@@ -118,8 +108,11 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
     }
   }
 
-  public void setupProjector(OutputMutator output, VectorContainer projectorOutput,
-                             ExpressionEvaluationOptions projectorOptions) {
+  public VectorContainer getIncoming() {
+    return incoming;
+  }
+
+  public void setupProjector(VectorContainer projectorOutput, ExpressionEvaluationOptions projectorOptions) {
     createCoercions();
     if (incoming.getSchema() == null || incoming.getSchema().getFieldCount() == 0) {
       return;
@@ -130,7 +123,7 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
     final List<TransferPair> transfers = Lists.newArrayList();
 
     List<Integer> decimalFields = new ArrayList<>();
-    long numDecimalCoercions = 0;
+    long numDecimalCoercions;
     int i = 0;
     for (Field f : targetSchema.getFields()) {
       if (MajorTypeHelper.getMajorTypeForField(f).getMinorType().equals(TypeProtos.MinorType.DECIMAL)) {
@@ -152,18 +145,7 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
     }
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
-    this.projector.setup(
-      context.getFunctionContext(),
-      incoming,
-      projectorOutput,
-      transfers,
-      new Projector.ComplexWriterCreator() {
-        @Override
-        public BaseWriter.ComplexWriter addComplexWriter(String name) {
-          return null;
-        }
-      }
-    );
+    this.projector.setup(context.getFunctionContext(), incoming, projectorOutput, transfers, name -> null);
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
     stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
@@ -197,6 +179,7 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
     gandivaCodeGenWatch.reset();
   }
 
+  @Override
   public void close() throws Exception {
     AutoCloseables.close(incoming, mutator, splitter);
   }

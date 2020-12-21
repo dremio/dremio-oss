@@ -716,6 +716,7 @@
     "abc",
     ...
   ],
+  engineName: "abc",
   sql: "abc",
 }
 ```
@@ -734,6 +735,9 @@
         name: "abc",
         precision: 1,
         scale: 1,
+        serializedField: { /** ByteString **/
+          empty: true | false,
+        },
         startUnit: "abc",
         type: "abc",
         typeFamily: "abc",
@@ -799,7 +803,7 @@
       datasetPath: "abc",
       datasetVersion: "abc",
     },
-    recordSchema: {
+    recordSchema: { /** ByteString **/
       empty: true | false,
     },
     savedTag: "abc",
@@ -812,6 +816,9 @@
         name: "abc",
         precision: 1,
         scale: 1,
+        serializedField: { /** ByteString **/
+          empty: true | false,
+        },
         startUnit: "abc",
         type: "abc",
         typeFamily: "abc",
@@ -1608,6 +1615,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -1686,6 +1696,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -2455,6 +2468,7 @@
       },
       resultMetadataList: [
         {
+          arrowMetadataVersion: 1,
           footer: {
             batchList: [
               {
@@ -2702,6 +2716,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -2780,6 +2797,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -3051,6 +3071,9 @@
                   name: "abc",
                   precision: 1,
                   scale: 1,
+                  serializedField: { /** ByteString **/
+                    empty: true | false,
+                  },
                   startUnit: "abc",
                   type: "abc",
                   typeFamily: "abc",
@@ -3129,6 +3152,9 @@
                   name: "abc",
                   precision: 1,
                   scale: 1,
+                  serializedField: { /** ByteString **/
+                    empty: true | false,
+                  },
                   startUnit: "abc",
                   type: "abc",
                   typeFamily: "abc",
@@ -3394,6 +3420,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -3472,6 +3501,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -3720,6 +3752,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -3798,6 +3833,9 @@
               name: "abc",
               precision: 1,
               scale: 1,
+              serializedField: { /** ByteString **/
+                empty: true | false,
+              },
               startUnit: "abc",
               type: "abc",
               typeFamily: "abc",
@@ -4035,6 +4073,9 @@
                   name: "abc",
                   precision: 1,
                   scale: 1,
+                  serializedField: { /** ByteString **/
+                    empty: true | false,
+                  },
                   startUnit: "abc",
                   type: "abc",
                   typeFamily: "abc",
@@ -4113,6 +4154,9 @@
                   name: "abc",
                   precision: 1,
                   scale: 1,
+                  serializedField: { /** ByteString **/
+                    empty: true | false,
+                  },
                   startUnit: "abc",
                   type: "abc",
                   typeFamily: "abc",

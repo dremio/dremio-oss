@@ -46,18 +46,19 @@ import com.dremio.sabot.op.scan.ScanOperator;
  * and remove the duplicate logic
  */
 public class FilteringCoercionReader extends CoercionReader {
-
   private static final boolean DEBUG_PRINT = false;
-  private CopyingFilteringReader filteringReader;
-  private final List<ParquetFilterCondition> filterConditions;
-  private boolean needsFilteringAfterCoercion; // true if a pushdown filter is modified
-  private ScanOperator.ScanMutator filteringReaderInputMutator;
+
+  protected int recordCount;
   private NextMethodState nextMethodState;
+  private VectorContainer projectorOutput; // can be this.outgoing or this.filteringReaderInputMutator.container
   private boolean setupCalledByFilteringReader; // setUp() state
   private boolean closeCalledByFilteringReader; // close() state
-  private VectorContainer projectorOutput; // can be this.outgoing or this.filteringReaderInputMutator.container
-  private int recordCount;
+
+  private boolean needsFilteringAfterCoercion; // true if a pushdown filter is modified
+  private CopyingFilteringReader filteringReader;
+  private final List<ParquetFilterCondition> filterConditions;
   private boolean initialProjectorSetUpDone;
+  private ScanOperator.ScanMutator filteringReaderInputMutator;
 
   public FilteringCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
                                    BatchSchema targetSchema, List<ParquetFilterCondition> parqfilterConditions) {

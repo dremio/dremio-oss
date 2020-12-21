@@ -20,9 +20,9 @@ import java.util.Iterator;
 import java.util.function.Consumer;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.CloseableIterator;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
-import com.dremio.exec.util.CloseableIterator;
 import com.google.common.collect.Iterators;
 
 /**

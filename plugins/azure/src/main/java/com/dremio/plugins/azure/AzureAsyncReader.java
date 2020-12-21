@@ -28,8 +28,8 @@ import org.asynchttpclient.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.io.AsyncByteReader;
 import com.dremio.io.ExponentialBackoff;
+import com.dremio.io.ReusableAsyncByteReader;
 import com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils;
 import com.dremio.plugins.azure.utils.MetricsLogger;
 import com.dremio.plugins.util.ContainerFileSystem;
@@ -39,7 +39,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Direct HTTP client, for doing azure storage operations
  */
-public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseable, AsyncByteReader {
+public class AzureAsyncReader extends ReusableAsyncByteReader implements ExponentialBackoff, AutoCloseable {
   private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
   private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
   private static final int MAX_RETRIES = 10;
@@ -142,18 +142,17 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
       }).thenCompose(Function.identity());
   }
 
-
   @Override
-  public void close() {
+  protected void onClose() {
   }
 
   @Override
-  protected int getBaseMillis() {
+  public int getBaseMillis() {
     return BASE_MILLIS_TO_WAIT;
   }
 
   @Override
-  protected int getMaxMillis() {
+  public int getMaxMillis() {
     return MAX_MILLIS_TO_WAIT;
   }
 }

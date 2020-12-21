@@ -65,6 +65,11 @@ public class SingleStreamProvider implements InputStreamProvider {
   }
 
   @Override
+  public Path getStreamPath() {
+    return path;
+  }
+
+  @Override
   public BulkInputStream getStream(ColumnChunkMetaData column) throws IOException {
     if(stream == null) {
       stream = initStream();

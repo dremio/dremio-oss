@@ -31,6 +31,7 @@ import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.grpc.CredentialCallOption;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.junit.AfterClass;
@@ -47,6 +48,7 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.BaseFlightQueryTest;
+import com.dremio.service.flight.FlightClientUtils;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandler;
 
@@ -78,15 +80,18 @@ public class ITIndependentStreams extends BaseFlightQueryTest {
 
   @Test
   public void testIndependentStreams() throws Exception {
-    final FlightClient client = this.getFlightClient();
-    final FlightInfo flightInfo = client.getInfo(FlightDescriptor.command(QUERY));
+    final FlightClientUtils.FlightClientWrapper wrapper = this.getFlightClientWrapper();
+    final FlightClient client = wrapper.getClient();
+    final CredentialCallOption callOption = wrapper.getTokenCallOption();
+    final FlightInfo flightInfo = client.getInfo(FlightDescriptor.command(QUERY), callOption);
 
     int stream1rowcount = 0;
     int stream2rowcount = 0;
 
     // Assumption: flightInfo only has one endpoint and the location in the
     // flightInfo is the same as the original endpoint.
-    try (FlightStream flightStream1 = client.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+    try (FlightStream flightStream1 =
+           client.getStream(flightInfo.getEndpoints().get(0).getTicket(), callOption)) {
 
       stream1rowcount += consumeStream(flightStream1);
 
@@ -97,7 +102,8 @@ public class ITIndependentStreams extends BaseFlightQueryTest {
        */
       assertNotEquals(TOTAL_ROWS, stream1rowcount);
 
-      try (FlightStream flightStream2 = client.getStream(client.getInfo(FlightDescriptor.command(QUERY)).getEndpoints().get(0).getTicket())) {
+      try (FlightStream flightStream2 = client.getStream(client.getInfo(
+        FlightDescriptor.command(QUERY), callOption).getEndpoints().get(0).getTicket(), callOption)) {
         stream2rowcount += consumeStream(flightStream2);
         assertNotEquals(TOTAL_ROWS, stream2rowcount);
         stream2rowcount += consumeStream(flightStream2);

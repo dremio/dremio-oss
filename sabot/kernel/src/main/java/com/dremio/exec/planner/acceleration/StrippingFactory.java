@@ -35,6 +35,10 @@ public class StrippingFactory {
   private static final String NODE_STRIPPER = "dremio.reflection.planning.node-stripper.class";
   private static final PassThruNodeStripper NO_OP_STRIPPER = new PassThruNodeStripper();
 
+  public static final int NO_STRIP_VERSION = 0;
+  public static final int RETAIN_EXPANSION_NODE_STRIP_VERSION = 2;
+  public static final int LATEST_STRIP_VERSION = 2;
+
   private final OptionManager options;
   private final SabotConfig config;
 
@@ -44,9 +48,9 @@ public class StrippingFactory {
     this.config = config;
   }
 
-  public StripResult strip(RelNode query, ReflectionType type, boolean isIncremental) {
+  public StripResult strip(RelNode query, ReflectionType type, boolean isIncremental, int stripVersion) {
     NodeStripper stripper = type == ReflectionType.EXTERNAL ? new PassThruNodeStripper() : config.getInstance(NODE_STRIPPER, NodeStripper.class, NO_OP_STRIPPER);
-    return stripper.apply(options, type, query, isIncremental);
+    return stripper.apply(options, type, query, isIncremental, stripVersion);
   }
 
   /**
@@ -64,14 +68,14 @@ public class StrippingFactory {
   private static final class PassThruNodeStripper implements NodeStripper {
 
     @Override
-    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental) {
+    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion) {
       return noStrip(node);
     }
 
   }
 
   public interface NodeStripper {
-    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental);
+    StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion);
   }
 
   public static class StripResult {

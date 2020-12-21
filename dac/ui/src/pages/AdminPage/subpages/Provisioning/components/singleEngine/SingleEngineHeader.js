@@ -19,14 +19,13 @@ import Immutable from 'immutable';
 import Header from '@app/pages/AdminPage/components/Header';
 import { YARN_NODE_TAG_PROPERTY } from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
 import { isYarn, getEntityName, getIsInReadOnlyState } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
-import EngineStatus from '@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus';
 import { StartStopButton } from '@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell';
 import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
-import Button from '@app/components/Buttons/Button';
-import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
+import SingleEngineHeaderMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeaderMixin';
 
 export const VIEW_ID = 'EngineHeader';
 
+@SingleEngineHeaderMixin
 export class SingleEngineHeader extends PureComponent {
   static propTypes = {
     engine: PropTypes.instanceOf(Immutable.Map),
@@ -50,7 +49,7 @@ export class SingleEngineHeader extends PureComponent {
   render() {
     const { engine } = this.props;
     const doubleCaretIcon = <div style={styles.doubleCaret}>»</div>;
-    const statusIcon = <EngineStatus engine={engine} style={styles.statusIcon} />;
+    const statusIcon = this.getEngineStatus(engine, styles);
     const engineName = engine && getEntityName(engine, YARN_NODE_TAG_PROPERTY);
     const region = engine && !isYarn(engine) && engine.getIn(['awsProps', 'connectionProps', 'region']);
     const isReadOnly = getIsInReadOnlyState(engine);
@@ -62,23 +61,17 @@ export class SingleEngineHeader extends PureComponent {
       style={styles.startStop}
       textStyle={{width: 65}}
     />;
-    const editButton = <Button
-      style={styles.edit}
-      onClick={this.onEdit}
-      disable={isReadOnly}
-      type={ButtonTypes.NEXT}
-      text={la('Edit Settings')}
-    />;
 
     return (
       <Header endChildren={
-        <div style={{display: 'flex'}}>{startStopButton} {editButton}</div>
+        <div style={{display: 'flex'}}>{startStopButton} {this.renderButtons(this.onEdit, isReadOnly)}</div>
       }>
         <div  style={styles.lefChildren}>
           <div className='link' onClick={this.props.unselectEngine}>{la('Engines')}</div>
           {doubleCaretIcon} {statusIcon} {engineName}
           {region && <div style={styles.region}>({region})</div>}
         </div>
+        {this.renderDescription(engine)}
       </Header>
     );
   }

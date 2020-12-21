@@ -17,6 +17,7 @@ package com.dremio.exec.planner.logical.partition;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.rex.RexBuilder;
@@ -33,6 +34,8 @@ import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -130,7 +133,7 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
 
   @Override
   public StateHolder visitLiteral(RexLiteral literal) {
-    if(literal.getTypeName().getName().equals("NULL")){
+    if (literal.isNull()) {
       return new StateHolder(Type.OTHER, literal);
     }
     return new StateHolder(Type.LITERAL, literal);
@@ -154,6 +157,7 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
     case LESS_THAN_OR_EQUAL:
     case GREATER_THAN_OR_EQUAL:
     case EQUALS:
+    case IS_NOT_DISTINCT_FROM: // Add support to push (Input IS NOT DISTINCT FROM Constant)
     {
       List<RexNode> ops = call.getOperands();
       StateHolder a = ops.get(0).accept(this);
@@ -164,6 +168,40 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
           && (!sameTypesOnly || MoreRelOptUtil.areDataTypesEqual(a.node.getType(), b.node.getType(), true))
           ){
         // this is a simple condition. Let's return a replacement
+        if (call.getKind() == SqlKind.IS_NOT_DISTINCT_FROM) {
+          /*
+           * Filter conditions like "A IS NOT DISTINCT FROM B" can be rewritten as:
+           * (NOT (A <> B OR A IS NULL OR B IS NULL) OR (A IS NULL AND B IS NULL))
+           *
+           * But since this visitor makes sure that if one side is INPUT, the other
+           * side is a LITERAL, which is not a NULL but a constant, B can not be null.
+           * Hence this can be simplified to:
+           *
+           * (NOT (A <> B OR A IS NULL))
+           *
+           * or:
+           *
+           * A = B AND A IS NOT NULL
+           *
+           * So, e.g. (IS NOT DISTINCT FROM($0, CAST(3):INTEGER)) can be simplified to
+           * AND[=($0, 3), IS NOT NULL($0)]
+           */
+
+          RexNode input = a.type == Type.INPUT ? a.node : b.node;
+          RexNode literal = a.type == Type.INPUT ? b.node : a.node;
+          StateHolder holder = new StateHolder(Type.CONDITION, null)
+            .add((RexCall) builder.makeCall(
+              call.getType(),
+              SqlStdOperatorTable.EQUALS,
+              Arrays.asList(input, literal)));
+          if (input.getType().isNullable()) {
+            holder = holder.add((RexCall) builder.makeCall(
+              call.getType(),
+              SqlStdOperatorTable.IS_NOT_NULL,
+              Collections.singletonList(input)));
+          }
+          return holder;
+        }
         return new StateHolder(Type.CONDITION, null)
             .add((RexCall) builder.makeCall(call.getType(), call.getOperator(), Arrays.asList(a.node, b.node)));
       } else {
@@ -196,7 +234,8 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
 
     case CAST:
     {
-      if (SqlTypeName.ANY == call.getType().getSqlTypeName()) {
+      if (SqlTypeName.ANY == call.getType().getSqlTypeName() ||
+        (call.getOperands().size() == 1 && call.getOperands().get(0) instanceof RexLiteral)) { // If its a single literal cast
         return call.getOperands().get(0).accept(this);
       }
 

@@ -15,15 +15,10 @@
  */
 package com.dremio.service.flight.impl;
 
+import static org.apache.arrow.flight.BackpressureStrategy.CallbackBackpressureStrategy;
+import static org.apache.arrow.flight.BackpressureStrategy.WaitResult;
+
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -33,10 +28,10 @@ import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
@@ -71,22 +66,6 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
   private volatile boolean completed;
 
-  /**
-   * Enum to distinguish the status of the Flight client during data retrieval.
-   */
-  @VisibleForTesting
-  enum FlightClientDataRetrievalStatus {
-    /**
-     * Client is ready to receive the next data buffer.
-     */
-    READY,
-
-    /**
-     * Client cancelled the data retrieval operation.
-     */
-    CANCELLED
-  }
-
   RunQueryResponseHandler(UserBitShared.ExternalId runExternalId,
                           UserSession userSession,
                           Provider<UserWorker> workerProvider,
@@ -96,7 +75,6 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
     this.userSession = userSession;
     this.workerProvider = workerProvider;
     this.clientListener = clientListener;
-    this.clientListener.setOnCancelHandler(this::serverStreamListenerOnCancelledCallback);
     this.allocator = allocator;
     this.recordBatchLoader = new RecordBatchLoader(allocator);
     this.completed = false;
@@ -205,6 +183,10 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
         case CANCELLED:
           setOutcomeListenerStatusCancelled(outcomeListener);
           return;
+        case TIMEOUT:
+          outcomeListener.failed(new RpcException("Timeout while waiting for client to be in ready state."));
+          break;
+        case OTHER:
         default:
           outcomeListener.failed(new RpcException("Unknown client status encountered."));
       }
@@ -286,7 +268,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   /**
    * Callback for the listener to cancel the backend query request.
    */
-  private void serverStreamListenerOnCancelledCallback() {
+  protected void serverStreamListenerOnCancelledCallback() {
     if (!completed) {
       completed = true;
       workerProvider.get().cancelQuery(runExternalId, userSession.getTargetUserName());
@@ -303,20 +285,23 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   }
 
   /**
-   * Helper method to poll for readiness of the Flight client.
+   * Helper method to check for the readiness of the Flight client.
    * <p>
-   * Note: Polling for client isReady will not be required if the Flight client's
-   * OutboundStreamListener accepts a callback for when it is ready to receive more data buffers.
-   * A Jira ticket is created to track the enhancement request https://issues.apache.org/jira/browse/ARROW-10106.
+   * Note: Polling for client isReady is no longer required as the Flight client's
+   * OutboundStreamListener now accepts a callback for when it is ready to receive more data buffers.
+   * Jira ticket that added this enhancement: https://issues.apache.org/jira/browse/ARROW-10106.
    *
-   * @return {@code READY} if the Flight client is ready, {@code CANCELLED} if the request is cancelled by the client.
-   * @throws RpcException if either a TimeoutException, an InterruptedException or an ExecutionException is
+   * @return {@code READY} if the Flight client is ready, {@code CANCELLED} if the request is cancelled by the client,
+   * {@code TIMEOUT} if the time spent in waiting for the listener to change state exceeds the the specified timeout.
+   * @throws RpcException an InterruptedException or an ExecutionException is
    *                      encountered while polling for the client's status.
    */
   @VisibleForTesting
-  abstract FlightClientDataRetrievalStatus clientIsReadyForData() throws RpcException;
+  abstract WaitResult clientIsReadyForData() throws RpcException;
 
-  protected abstract boolean isCancelled();
+  protected boolean isCancelled() {
+    return clientListener.isCancelled();
+  }
 
   /**
    * Always responds that clients are ready for data.
@@ -329,16 +314,12 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
                          BufferAllocator allocator) {
       super(runExternalId, userSession, workerProvider, clientListener, allocator);
       this.clientListener = clientListener;
+      this.clientListener.setOnCancelHandler(this::serverStreamListenerOnCancelledCallback);
     }
 
     @Override
-    FlightClientDataRetrievalStatus clientIsReadyForData() {
-      return FlightClientDataRetrievalStatus.READY;
-    }
-
-    @Override
-    protected boolean isCancelled() {
-      return clientListener.isCancelled();
+    WaitResult clientIsReadyForData() {
+      return WaitResult.READY;
     }
   }
 
@@ -347,139 +328,41 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
    */
   public static class BackpressureHandlingResponseHandler extends RunQueryResponseHandler {
 
-    private static final long CANCEL_REQUEST_TIMER_DELAY_MILLIS = 0;
+    private static final long CLIENT_READINESS_TIMEOUT_MILLIS = 5000L;
 
-    @VisibleForTesting
-    static final long CANCEL_REQUEST_TIMER_RATE_MILLIS = 250;
-
-    @VisibleForTesting
-    static final int CLIENT_READINESS_WAIT_MILLIS = 10;
-    private static final long CLIENT_READINESS_TIMEOUT_MILLIS = 5000;
-
-    private volatile boolean cancelled;
-    private final Timer cancelRequestTimer;
-    private final FlightProducer.ServerStreamListener clientListener;
+    private final RunQueryBackpressureStrategy runQueryBackpressureStrategy;
 
     BackpressureHandlingResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
                                         Provider<UserWorker> workerProvider,
                                         FlightProducer.ServerStreamListener clientListener, BufferAllocator allocator) {
       super(runExternalId, userSession, workerProvider, clientListener, allocator);
-      this.cancelled = false;
-      this.cancelRequestTimer = startCancelRequestTimer();
-      this.clientListener = clientListener;
+      this.runQueryBackpressureStrategy = new RunQueryBackpressureStrategy(this::serverStreamListenerOnCancelledCallback);
+      runQueryBackpressureStrategy.register(clientListener);
     }
 
-    /**
-     * Helper method to poll for readiness of the Flight client.
-     * <p>
-     * Note: Polling for client isReady will not be required if the Flight client's
-     * OutboundStreamListener accepts a callback for when it is ready to receive more data buffers.
-     * A Jira ticket is created to track the enhancement request https://issues.apache.org/jira/browse/ARROW-10106.
-     *
-     * @return {@code READY} if the Flight client is ready, {@code CANCELLED} if the request is cancelled by the client.
-     * @throws RpcException if either a TimeoutException, an InterruptedException or an ExecutionException is
-     *                      encountered while polling for the client's status.
-     */
     @VisibleForTesting
-    FlightClientDataRetrievalStatus clientIsReadyForData() throws RpcException {
-      if (clientListener.isReady()) {
-        return FlightClientDataRetrievalStatus.READY;
-      }
+    WaitResult clientIsReadyForData() {
+      return runQueryBackpressureStrategy.waitForListener(CLIENT_READINESS_TIMEOUT_MILLIS);
+    }
+  }
 
-      final ExecutorService executor =
-        Executors.newSingleThreadExecutor(new NamedThreadFactory(Thread.currentThread().getName()
-          + ":flight-client-readiness"));
+  private static final class RunQueryBackpressureStrategy extends CallbackBackpressureStrategy {
+    private final Runnable onCancelHandler;
 
-      final Future<FlightClientDataRetrievalStatus> future = executor.submit(() ->
-      {
-        // Poll ServerStreamListener until the Flight client is ready to receive data.
-        while (true) {
-          sleepWhileWaitingForClientReadiness();
-          if (clientListener.isCancelled()) {
-            // serverStreamListenerOnCancelledCallback is responsible for cancelling the query in the backend.
-            // Since the callback is set on the listener in the constructor, the callback is used by
-            // the listener once a cancellation request is received. There is no need to cancel the backend
-            // query in this class.
-            onCancelled();
-            return FlightClientDataRetrievalStatus.CANCELLED;
-          } else if (clientListener.isReady()) {
-            return FlightClientDataRetrievalStatus.READY;
-          }
-        }
-      });
-
-      return handleFuture(future, executor, CLIENT_READINESS_TIMEOUT_MILLIS);
+    private RunQueryBackpressureStrategy(Runnable onCancelHandler) {
+      Preconditions.checkNotNull(onCancelHandler);
+      this.onCancelHandler = onCancelHandler;
     }
 
     @Override
-    protected boolean isCancelled() {
-      return cancelled;
-    }
-
-    /**
-     * Handles future that polls Flight client readiness.
-     *
-     * @param future   the future that polls Flight client readiness.
-     * @param executor the executor service the polling job runs on.
-     * @param timeout  the timeout in milliseconds.
-     * @return {@code READY} if the Flight client is ready, {@code CANCELLED} if the request is cancelled by the client.
-     * @throws RpcException if either a TimeoutException, an InterruptedException or an ExecutionException is
-     *                      encountered while polling for the client's status.
-     */
-    @VisibleForTesting
-    FlightClientDataRetrievalStatus handleFuture(Future<FlightClientDataRetrievalStatus> future,
-                                                 ExecutorService executor, long timeout) throws RpcException {
-      try {
-        return future.get(timeout, TimeUnit.MILLISECONDS);
-      } catch (TimeoutException ex) {
-        throw new RpcException("Timeout while polling for readiness of the Flight client.", ex);
-      } catch (InterruptedException ex) {
-        Thread.currentThread().interrupt();
-        throw new RpcException(ex);
-      } catch (ExecutionException ex) {
-        throw new RpcException("Encountered error while polling for readiness of the Flight client.", ex.getCause());
-      } finally {
-        future.cancel(true);
-        executor.shutdownNow();
-      }
-    }
-
-    @VisibleForTesting
-    protected void sleepWhileWaitingForClientReadiness() throws InterruptedException {
-      Thread.sleep(CLIENT_READINESS_WAIT_MILLIS);
+    protected void readyCallback() {
+      super.readyCallback();
     }
 
     @Override
-    public void completed(UserResult result) {
-      cancelRequestTimer.cancel();
-
-      super.completed(result);
-    }
-
-    /**
-     * Helper to start a background Timer task to check for a cancel request from the Flight client.
-     * The task then delegate cancel request handling once a cancellation request is received.
-     */
-    private Timer startCancelRequestTimer() {
-      final Timer timer = new Timer();
-      timer.scheduleAtFixedRate(new TimerTask() {
-        @Override
-        public void run() {
-          if (clientListener.isCancelled()) {
-            onCancelled();
-          }
-        }
-      }, CANCEL_REQUEST_TIMER_DELAY_MILLIS, CANCEL_REQUEST_TIMER_RATE_MILLIS);
-      return timer;
-    }
-
-    /**
-     * Helper to set the cancelled flag to true and to stop the cancel request polling timer task
-     * once a cancel request from the Flight client is received.
-     */
-    protected void onCancelled() {
-      cancelled = true;
-      cancelRequestTimer.cancel();
+    protected void cancelCallback() {
+      onCancelHandler.run();
+      super.cancelCallback();
     }
   }
 }

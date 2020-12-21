@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive.proxy;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,16 +26,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public abstract class HiveProxiedOrcScanFilter {
 
   private static final String JSON_PROP_KRYOBASE64ENCODEDFILTER = "kryoBase64EncodedFilter";
+  private static final String COLUMN = "column";
 
   private final String kryoBase64EncodedFilter;
+  private final SchemaPath column;
 
-  protected HiveProxiedOrcScanFilter(String kryoBase64EncodedFilter) {
+  protected HiveProxiedOrcScanFilter(String kryoBase64EncodedFilter, SchemaPath column) {
     this.kryoBase64EncodedFilter = kryoBase64EncodedFilter;
+    this.column = column;
   }
 
   @JsonProperty(JSON_PROP_KRYOBASE64ENCODEDFILTER)
   public String getKryoBase64EncodedFilter() {
     return kryoBase64EncodedFilter;
+  }
+
+  @JsonProperty(COLUMN)
+  public SchemaPath getColumn() {
+    return column;
   }
 
   public abstract StoragePluginId getPluginId();

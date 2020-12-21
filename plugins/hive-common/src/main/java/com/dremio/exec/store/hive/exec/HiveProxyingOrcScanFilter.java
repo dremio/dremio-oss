@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.util.Collections;
+import java.util.List;
+
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -32,6 +36,7 @@ public class HiveProxyingOrcScanFilter implements ScanFilter {
 
   static final String JSON_PROP_PLUGINNAME = "pluginName";
   static final String JSON_PROP_WRAPPEDHIVEORCSCANFILTER = "wrappedHiveOrcScanFilter";
+  static final String FILTER_COLUMNS = "filterColumns";
 
   private final HiveProxiedOrcScanFilter proxiedOrcScanFilter;
   private final String pluginName;
@@ -72,5 +77,11 @@ public class HiveProxyingOrcScanFilter implements ScanFilter {
   @Override
   public int hashCode() {
     return proxiedOrcScanFilter.hashCode();
+  }
+
+  @Override
+  @JsonProperty(FILTER_COLUMNS)
+  public List<SchemaPath> getPaths() {
+    return Collections.singletonList(proxiedOrcScanFilter.getColumn());
   }
 }

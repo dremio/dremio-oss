@@ -23,7 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.vector.util.Text;
 
 /**
@@ -31,13 +30,13 @@ import org.apache.arrow.vector.util.Text;
  * but simplified to only do in-memory tests.
  */
 public class FlightTestBuilder {
-  private final FlightClient client;
+  private final FlightClientUtils.FlightClientWrapper flightClientWrapper;
   private List<Map<String, Object>> baselineRecords;
   private String[] baselineColumns;
   private String query;
 
-  public FlightTestBuilder(FlightClient client) {
-    this.client = client;
+  public FlightTestBuilder(FlightClientUtils.FlightClientWrapper flightClientWrapper) {
+    this.flightClientWrapper = flightClientWrapper;
   }
 
   public FlightTestBuilder expectsEmptyResultSet() {
@@ -56,7 +55,7 @@ public class FlightTestBuilder {
   }
 
   public FlightQueryTestWrapper build() {
-    return new FlightQueryTestWrapper(client, baselineRecords, query);
+    return new FlightQueryTestWrapper(flightClientWrapper, baselineRecords, query);
   }
 
   public void go() throws Exception {

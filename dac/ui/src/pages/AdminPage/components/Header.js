@@ -62,7 +62,7 @@ const styles = {
     alignItems: 'center',
     borderBottom: '1px solid rgba(0,0,0,.1)',
     padding: '10px 0',
-    height: 48,
+    minheight: 48,
     flexShrink: 0
   }
 };

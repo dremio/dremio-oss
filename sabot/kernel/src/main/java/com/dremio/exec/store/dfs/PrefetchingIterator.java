@@ -29,9 +29,9 @@ import com.dremio.exec.store.RuntimeFilterEvaluator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
+import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
-import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
@@ -43,7 +43,7 @@ public class PrefetchingIterator<T extends SplitReaderCreator> implements Record
   private int location = -1;
   private int nextLocation = 0;
   private final List<T> creators;
-  private Path path;
+  private InputStreamProvider inputStreamProvider;
   private MutableParquetMetadata footer;
   private final OperatorContext context;
   private final CompositeReaderConfig readerConfig;
@@ -67,8 +67,8 @@ public class PrefetchingIterator<T extends SplitReaderCreator> implements Record
     location = nextLocation;
     setNextLocation(location + 1);
     final SplitReaderCreator current = creators.get(location);
-    current.createInputStreamProvider(path, footer);
-    this.path = current.getPath();
+    current.createInputStreamProvider(inputStreamProvider, footer);
+    this.inputStreamProvider = current.getInputStreamProvider();
     this.footer = current.getFooter();
     return current.createRecordReader(this.footer);
   }

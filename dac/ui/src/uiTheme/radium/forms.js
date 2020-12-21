@@ -50,7 +50,8 @@ export const sectionTitle = {
 
 export const subSectionTitle = {
   fontSize: 14,
-  marginBottom: 6
+  marginBottom: 6,
+  fontWeight: 'bold'
 };
 
 export const formRow = {

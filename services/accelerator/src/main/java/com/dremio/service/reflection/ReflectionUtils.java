@@ -267,7 +267,8 @@ public class ReflectionUtils {
       getPartitionNames(materialization.getPartitionList()),
       updateSettings,
       JoinDependencyProperties.NONE,
-      materialization.getLogicalPlanStrippedHash());
+      materialization.getLogicalPlanStrippedHash(),
+      materialization.getStripVersion());
   }
 
   public static List<String> getPartitionNames(List<DataPartition> partitions) {
@@ -574,7 +575,8 @@ public class ReflectionUtils {
   }
 
   public static Refresh createRefresh(ReflectionId reflectionId, List<String> refreshPath, final long seriesId, final int seriesOrdinal,
-                                      final UpdateId updateId, JobDetails details, MaterializationMetrics metrics, List<DataPartition> dataPartitions) {
+                                      final UpdateId updateId, JobDetails details, MaterializationMetrics metrics, List<DataPartition> dataPartitions,
+                                      final boolean isIcebergRefresh, final String icebergBasePath) {
     final String path = PathUtils.getPathJoiner().join(Iterables.skip(refreshPath, 1));
 
     return new Refresh()
@@ -587,7 +589,9 @@ public class ReflectionUtils {
       .setUpdateId(updateId)
       .setSeriesOrdinal(seriesOrdinal)
       .setPath(path)
-      .setJob(details);
+      .setJob(details)
+      .setIsIcebergRefresh(isIcebergRefresh)
+      .setBasePath(icebergBasePath);
   }
 
   public static List<String> getRefreshPath(final JobId jobId, final Path accelerationBasePath, JobsService jobsService, BufferAllocator allocator) {
@@ -665,5 +669,16 @@ public class ReflectionUtils {
       .setOriginalCost(JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getOriginalCost())
       .setMedianFileSize(medianFileSize)
       .setNumFiles(numFiles);
+  }
+
+  public static String getIcebergReflectionBasePath(Materialization materialization, List<String> refreshPath, boolean isIcebergRefresh) {
+    if (materialization.getBasePath() != null && !materialization.getBasePath().isEmpty()) {
+      return materialization.getBasePath();
+    }
+    if (isIcebergRefresh) {
+      Preconditions.checkState(refreshPath.size() >= 2, "Unexpected state");
+      return refreshPath.get(refreshPath.size() - 1);
+    }
+    return "";
   }
 }

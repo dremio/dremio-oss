@@ -30,6 +30,8 @@ import com.dremio.services.fabric.simple.ReceivedResponseMessage;
 import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 
+import io.netty.buffer.NettyArrowBuf;
+
 /**
  * Protocol builder test.
  */
@@ -109,7 +111,7 @@ public class TestProtocolBuilder extends BaseTestFabric {
               }
               assertEqualsRpc(r1B, dBody);
               random2.retain();
-              return new SentResponseMessage<>(expectedQ, random2.asNettyBuffer());
+              return new SentResponseMessage<>(expectedQ, NettyArrowBuf.unwrapBuffer(random2));
             }
           });
 

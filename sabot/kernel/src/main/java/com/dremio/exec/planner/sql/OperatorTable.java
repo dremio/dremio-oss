@@ -16,28 +16,38 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.OracleSqlOperatorTable;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.util.ListSqlOperatorTable;
 
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 
-public class OperatorTable extends SqlStdOperatorTable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorTable.class);
-
-  private static final SqlOperatorTable inner = SqlStdOperatorTable.instance();
+/**
+ * Dremio's hand rolled ChainedOperatorTable
+ */
+public class OperatorTable implements SqlOperatorTable {
+  private static final SqlOperatorTable stdOperatorTable = SqlStdOperatorTable.instance();
+  private static final SqlOperatorTable oracleOperatorTable =
+      new ListSqlOperatorTable(OracleSqlOperatorTable.instance().getOperatorList().stream()
+        .filter(op -> op != OracleSqlOperatorTable.SUBSTR) // calcite does not support oracles substring CALCITE-4408
+        .filter(op -> op != OracleSqlOperatorTable.DECODE) // Dremio currently uses hive decode
+        .collect(Collectors.toList()));
   private List<SqlOperator> operators;
   private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
 
   public OperatorTable(FunctionImplementationRegistry registry) {
     operators = Lists.newArrayList();
-    operators.addAll(inner.getOperatorList());
+    operators.addAll(stdOperatorTable.getOperatorList());
+    operators.addAll(oracleOperatorTable.getOperatorList());
 
     registry.register(this);
   }
@@ -54,7 +64,8 @@ public class OperatorTable extends SqlStdOperatorTable {
       return;
     }
 
-    inner.lookupOperatorOverloads(opName, category, syntax, operatorList);
+    stdOperatorTable.lookupOperatorOverloads(opName, category, syntax, operatorList);
+    oracleOperatorTable.lookupOperatorOverloads(opName, category, syntax, operatorList);
 
     if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
       List<SqlOperator> ops = opMap.get(opName.getSimple().toUpperCase());

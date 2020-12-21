@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -123,7 +124,8 @@ public class CheapestPlanWithReflectionVisitor {
 
       for (RelNode rel : subset.getRelList()) {
         // this check is to avoid infinite loops, since there are cycles in the graph
-        if (currentlyVisiting.contains(rel)) {
+        // if rel is an AbstractConverter, cost is inf anyway; plus, it'll throw ClassCastException
+        if (currentlyVisiting.contains(rel) || rel instanceof AbstractConverter) {
           continue;
         }
         currentlyVisiting.add(rel);

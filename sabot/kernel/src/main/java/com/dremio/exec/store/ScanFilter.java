@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store;
 
+import java.util.List;
+
+import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -39,4 +42,7 @@ public interface ScanFilter {
 
   @Override
   int hashCode();
+
+  @JsonIgnore
+  List<SchemaPath> getPaths();
 }

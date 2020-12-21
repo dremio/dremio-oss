@@ -53,6 +53,10 @@ h5, .h5 {
   font-size: 16px;
 }
 
+.normalFontSize {
+  font-size: 14px;
+}
+
 .boldWeight {
   font-weight: 500;
 }

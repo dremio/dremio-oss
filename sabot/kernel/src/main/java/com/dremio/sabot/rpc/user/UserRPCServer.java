@@ -25,6 +25,7 @@ import java.util.UUID;
 import javax.inject.Provider;
 import javax.net.ssl.SSLException;
 
+import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.avatica.util.Quoting;
 
@@ -133,7 +134,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       Tracer tracer,
       OptionValidatorListing optionValidatorListing
       ) {
-    super(rpcConfig, allocator.getAsByteBufAllocator(), eventLoopGroup);
+    super(rpcConfig, new ArrowByteBufAllocator(allocator), eventLoopGroup);
     this.userServiceProvider = userServiceProvider;
     this.nodeEndpointProvider = nodeEndpointProvider;
     this.workIngestor = workIngestor;

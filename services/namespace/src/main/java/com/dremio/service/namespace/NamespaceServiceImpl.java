@@ -658,6 +658,10 @@ public class NamespaceServiceImpl implements NamespaceService {
             // could end up delete the splits of the existing dataset (see DX-12232)
             existingDatasetConfig.getReadDefinition().getSplitVersion() > nextDatasetVersion) {
             deleteSplits(createdPartitionChunks);
+            // copy splitVersion and other details from existingConfig
+            datasetConfig.getReadDefinition().setSplitVersion(existingDatasetConfig.getReadDefinition().getSplitVersion());
+            datasetConfig.setTotalNumSplits(existingDatasetConfig.getTotalNumSplits());
+            datasetConfig.setTag(existingDatasetConfig.getTag());
             isClosed = true;
             break;
           }

@@ -22,7 +22,7 @@
   <parent>
     <artifactId>dremio-services-maestro</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>11.0.0-202011171636110752-16ab953d</version>
+    <version>12.0.0-202012212145230282-d8947fd3</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -30,7 +30,7 @@
   <artifactId>dremio-services-maestro-client</artifactId>
   <packaging>jar</packaging>
   <name>Services - Maestro Client</name>
-  <version>11.0.0-202011171636110752-16ab953d</version>
+  <version>12.0.0-202012212145230282-d8947fd3</version>
 
   <dependencies>
     <dependency>

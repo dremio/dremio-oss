@@ -66,6 +66,22 @@ public class TestFlattenPlanning extends PlanTestBase {
   }
 
   @Test
+  public void dx26675() throws Exception {
+    try {
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      final String vds = "create vds dfs_test.flatten26675 as SELECT * FROM cp.\"flatten/dx26675.json\"";
+      testNoResult(vds);
+
+      final String query = "SELECT t2.flattened.a, t2.flattened.b " +
+        "FROM (select flatten(t1.list_col) as flattened from dfs_test.flatten26675 as t1) t2";
+
+      test(query);
+    } finally {
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+    }
+  }
+
+  @Test
   public void dx8383_flatten_lost() throws Exception {
     try {
       properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");

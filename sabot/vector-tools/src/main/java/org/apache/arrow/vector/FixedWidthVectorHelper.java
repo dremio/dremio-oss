@@ -55,6 +55,7 @@ public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends Base
     vector.valueBuffer = buffer.slice(0, actualLength);
     vector.valueBuffer.getReferenceManager().retain();
     vector.valueBuffer.writerIndex(actualLength);
+    vector.refreshValueCapacity();
   }
 
   private SerializedField buildDataMetadata() {

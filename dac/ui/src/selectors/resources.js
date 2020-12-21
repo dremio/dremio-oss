@@ -77,3 +77,12 @@ export const getDatasetAcceleration = (state, fullPath) => {
   });
 };
 
+export const searchEntity = (state, entityType, findBy, value) => {
+  let entity;
+  state.resources.entities.get(entityType).forEach(element => {
+    if (element.get(findBy) === value) {
+      entity = element;
+    }
+  });
+  return entity;
+};

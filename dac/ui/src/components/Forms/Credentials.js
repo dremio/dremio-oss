@@ -29,29 +29,33 @@ import { flexContainer, flexElementAuto } from '@app/uiTheme/less/layout.less';
 const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;
 
 const SECRET_URL_FIELD_NAME = 'secretResourceUrl';
+const KERBEROS_FIELD_NAME = 'useKerberos';
 const DEFAULT_TEXT_FIELDS = [
   {propName: 'username', label: 'Username', errMsg: 'Username is required unless you choose no authentication.'},
   {propName: 'password', label: 'Password', errMsg: 'Password is required unless you choose no authentication.', secure: true},
   {propName: SECRET_URL_FIELD_NAME, label: 'Secret Resource Url', errMsg: 'Secret Resource Url is required unless you choose no authentication.'}
 ];
 
-const AUTH_TYPE = {anonymous: 'ANONYMOUS', master: 'MASTER', secret: 'SECRET'};
+const AUTH_TYPE = {anonymous: 'ANONYMOUS', master: 'MASTER', secret: 'SECRET', kerberos: 'KERBEROS'};
 const DEFAULT_RADIO_OPTIONS = [
   { label: 'No Authentication', option: AUTH_TYPE.anonymous },
   { label: 'Master Credentials', option: AUTH_TYPE.master }
 ];
 const SECRET_URL_OPTION = { label: 'Secret Resource Url', option: AUTH_TYPE.secret };
+const KERBEROS_OPTION = { label: 'Kerberos', option: AUTH_TYPE.kerberos };
 export const AUTHENTICATION_TYPE_FIELD = addFormPrefixToPropName('authenticationType');
 export const USER_NAME_FIELD = addFormPrefixToPropName('username');
 export const PASSWORD_FIELD = addFormPrefixToPropName('password');
 export const SECRET_RESOURCE_URL_FIELD = addFormPrefixToPropName(SECRET_URL_FIELD_NAME);
+export const KERBEROS_FIELD = addFormPrefixToPropName(KERBEROS_FIELD_NAME);
 
 function validate(values, elementConfig) {
   let errors = { [CONFIG_PROP_NAME]: {}};
   const textFields = (elementConfig && elementConfig.textFields) ? elementConfig.textFields : DEFAULT_TEXT_FIELDS;
   const authTypeValue = get(values, AUTHENTICATION_TYPE_FIELD);
 
-  if (authTypeValue === AUTH_TYPE.anonymous) {
+  if (authTypeValue === AUTH_TYPE.anonymous
+      || authTypeValue === AUTH_TYPE.kerberos) {
     return errors;
   }
 
@@ -71,7 +75,7 @@ function validate(values, elementConfig) {
 }
 
 // credentials is not configurable via container_selection
-const FIELDS = [AUTHENTICATION_TYPE_FIELD, USER_NAME_FIELD, PASSWORD_FIELD];
+const FIELDS = [AUTHENTICATION_TYPE_FIELD, USER_NAME_FIELD, PASSWORD_FIELD, KERBEROS_FIELD];
 
 export default class Credentials extends Component {
 
@@ -106,8 +110,9 @@ export default class Credentials extends Component {
     const textFields = this.getTextFields();
     const radioOptions = this.getRadioOptions();
     if (!this.typeRadioTouched) {
-      this.setSecretOptionIfSecretIsProvided(authenticationTypeField);
+      this.setPriorOptionIfProvided(authenticationTypeField);
     }
+    this.setUseKerberos(AUTH_TYPE.kerberos === authenticationTypeField.value);
 
     return (
       <div>
@@ -123,7 +128,7 @@ export default class Credentials extends Component {
           })}
         </div>
         }
-        {authenticationTypeField.value !== AUTH_TYPE.anonymous &&
+        {authenticationTypeField.value !== AUTH_TYPE.anonymous && authenticationTypeField.value !== AUTH_TYPE.kerberos &&
         <div className={classNames(rowOfInputsSpacing, flexContainer)}>
           {
             textFields.map((textField, index) => {
@@ -160,8 +165,9 @@ export default class Credentials extends Component {
 
   getRadioOptions() {
     const {elementConfig} = this.props;
-    const options = (elementConfig && elementConfig.radioOptions) ? elementConfig.radioOptions : DEFAULT_RADIO_OPTIONS;
-    return (this.getSecretField()) ? [...options, SECRET_URL_OPTION] : options;
+    let options = (elementConfig && elementConfig.radioOptions) ? elementConfig.radioOptions : DEFAULT_RADIO_OPTIONS;
+    options = (this.getSecretField()) ? [...options, SECRET_URL_OPTION] : options;
+    return (this.getKerberosField()) ? [...options, KERBEROS_OPTION] : options;
   }
 
   getSecretField = () => {
@@ -169,10 +175,26 @@ export default class Credentials extends Component {
     return get(fields, SECRET_RESOURCE_URL_FIELD);
   };
 
-  setSecretOptionIfSecretIsProvided = (authTypeField) => {
+  getKerberosField = () => {
+    const {fields} = this.props;
+    return get(fields, KERBEROS_FIELD);
+  };
+
+  setUseKerberos = (useKerberos) => {
+    const kerberosField = this.getKerberosField();
+    if (kerberosField) {
+      kerberosField.checked = useKerberos;
+    }
+  }
+
+  setPriorOptionIfProvided = (authTypeField) => {
     const secretField = this.getSecretField();
     if (secretField && secretField.value) {
       authTypeField.value = AUTH_TYPE.secret;
+    }
+    const kerberosField = this.getKerberosField();
+    if (kerberosField && kerberosField.checked) {
+      authTypeField.value = AUTH_TYPE.kerberos;
     }
   };
 

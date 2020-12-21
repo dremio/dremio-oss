@@ -601,15 +601,30 @@ public class BaseTestQuery extends ExecTest {
   }
 
   /**
-   * Create a temp directory to store the given <i>dirName</i>
+   * Create a temp parent directory to store the given directory with name {@code dirName}. Does <b>NOT</b> create
+   * the directory itself.
+   *
    * @param dirName
    * @return Full path including temp parent directory and given directory name.
    */
   public static String getTempDir(final String dirName) {
     final File dir = Files.createTempDir();
     dir.deleteOnExit();
-
     return dir.getAbsolutePath() + File.separator + dirName;
+  }
+
+  /**
+   * Create a temp directory with name {@code dirName}.
+   *
+   * @param dirName
+   * @return Full path including temp parent directory and given directory name.
+   */
+  public static File createTempDirWithName(String dirName) {
+    final File dir = Files.createTempDir();
+    File file = new File(dir, dirName);
+    file.mkdirs();
+    file.deleteOnExit();
+    return file;
   }
 
   protected static void resetSessionOption(final OptionValidator option) {
@@ -675,6 +690,13 @@ public class BaseTestQuery extends ExecTest {
     return () ->
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable disableExchanges() {
+    setSystemOption(PlannerSettings.EXCHANGE, "true");
+    return () ->
+      setSystemOption(PlannerSettings.EXCHANGE,
+        PlannerSettings.EXCHANGE.getDefault().getBoolVal().toString());
   }
 
   protected static AutoCloseable enableINPushDown() {

@@ -19,8 +19,10 @@ import javax.inject.Provider;
 
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
+import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.Criteria;
+import org.apache.arrow.flight.FlightConstants;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightProducer;
@@ -61,7 +63,8 @@ public class DremioFlightProducer implements FlightProducer {
   @Override
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener serverStreamListener) {
     try {
-      final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity());
+      final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
+      final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
       final TicketContent.PreparedStatementTicket preparedStatementTicket = TicketContent.PreparedStatementTicket.parseFrom(ticket.getBytes());
 
       flightWorkManager.runPreparedStatement(preparedStatementTicket, serverStreamListener, allocator, session);
@@ -79,7 +82,8 @@ public class DremioFlightProducer implements FlightProducer {
 
   @Override
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor flightDescriptor) {
-    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity());
+    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
+    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
     final FlightPreparedStatement flightPreparedStatement = flightWorkManager
       .createPreparedStatement(flightDescriptor, callContext::isCancelled, session);
     return flightPreparedStatement.getFlightInfo(location);
@@ -98,5 +102,15 @@ public class DremioFlightProducer implements FlightProducer {
   @Override
   public void listActions(CallContext callContext, StreamListener<ActionType> streamListener) {
     throw CallStatus.UNIMPLEMENTED.withDescription("listActions is unimplemented").toRuntimeException();
+  }
+
+  /**
+   * Helper method to retrieve CallHeaders from the CallContext.
+   *
+   * @param callContext the CallContext to retrieve headers from.
+   * @return CallHeaders retrieved from provided CallContext.
+   */
+  private CallHeaders retrieveHeadersFromCallContext(CallContext callContext) {
+    return callContext.getMiddleware(FlightConstants.HEADER_KEY).headers();
   }
 }

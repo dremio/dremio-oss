@@ -34,5 +34,7 @@
   "Duration":         { supported: false },
   "LargeVarChar":     { supported: false },
   "LargeVarBinary":   { supported: false },
+  "LargeVarList":     { supported: false },
+  "Decimal256":       { supported: false },
 }
 

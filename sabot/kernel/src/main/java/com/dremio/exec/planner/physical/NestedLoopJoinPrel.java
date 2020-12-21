@@ -131,11 +131,8 @@ public class NestedLoopJoinPrel  extends JoinPrel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    boolean projectAll = projectedFields == null
-      || projectedFields.cardinality() == left.getRowType().getFieldCount() + right.getRowType().getFieldCount();
     return super.explainTerms(pw)
-      .itemIf("vectorCondition", vectorExpression, vectorExpression != null)
-      .itemIf("projectedFields", projectedFields, !projectAll);
+      .itemIf("vectorCondition", vectorExpression, vectorExpression != null);
   }
 
   public RexNode getCombinedCondition() {

@@ -33,7 +33,6 @@ import {
   getYarnSubProperty,
   isYarn
 } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
-import { EngineActionCell } from '@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell';
 import { CLUSTER_STATE } from '@app/constants/provisioningPage/provisioningConstants';
 import { DEFAULT_ENGINE_FILTER_SELECTIONS } from 'dyn-load/constants/provisioningPage/provisioningConstants';
 
@@ -125,19 +124,6 @@ export class ClusterListView extends Component {
     this.props.adjustWorkers(entity);
   };
 
-  getAction = entity => {
-    const {editProvision, removeProvision} = this.props;
-    const usingWorkers = isYarn(entity);
-    return <EngineActionCell
-      engine={entity}
-      usingWorkers={usingWorkers}
-      editProvision={editProvision}
-      removeProvision={removeProvision}
-      handleAddRemove={this.handleAddRemove}
-      handleStartStop={this.handleStartStop}
-    />;
-  };
-
   getEngines = () => {
     const engines = this.props.provisions;
     const filters = get(this.state, 'filterState.filters');
@@ -157,11 +143,13 @@ export class ClusterListView extends Component {
 
     return (
       <div id='admin-engines' style={page}>
-        <EnginesFilter
-          filterState={this.state.filterState}
-          onUpdateFilterState={this.onUpdateFilterState}
-          style={{flexShrink: 0}}
-        />
+        <>
+          <EnginesFilter
+            filterState={this.state.filterState}
+            onUpdateFilterState={this.onUpdateFilterState}
+            style={{flexShrink: 0}}
+          />
+        </>
         <div style={pageContent}>
           <StatefulTableViewer
             virtualized

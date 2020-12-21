@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.hive;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
@@ -38,28 +39,25 @@ public class HiveTestBase extends PlanTestBase {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
 
-  protected static HiveTestDataGenerator hiveTest;
+  protected static HiveTestDataGenerator dataGenerator;
 
   @BeforeClass
   public static void generateHive() throws Exception{
-    hiveTest = HiveTestDataGenerator.getInstance();
-    if (hiveTest == null) {
-      throw new RuntimeException("hiveTest null!!!");
-    }
-    SabotContext sabotContext = getSabotContext();
-    if (sabotContext == null) {
-      throw new RuntimeException("context null!!!");
-    }
+    dataGenerator = HiveTestDataGenerator.getInstance();
+    Objects.requireNonNull(dataGenerator);
 
-    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
+    SabotContext sabotContext = getSabotContext();
+    Objects.requireNonNull(sabotContext);
+
+    dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+    dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
   }
 
   @AfterClass
   public static void cleanupHiveTestData() {
-    if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
-      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
+    if (dataGenerator != null) {
+      dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+      dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
     }
   }
 }

@@ -34,8 +34,8 @@ import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.util.HttpConstants;
 
-import com.dremio.io.AsyncByteReader;
 import com.dremio.io.ExponentialBackoff;
+import com.dremio.io.ReusableAsyncByteReader;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,7 +48,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Reads file content from ADLS Gen 1 asynchronously.
  */
-public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByteReader {
+public class AdlsAsyncFileReader extends ReusableAsyncByteReader implements ExponentialBackoff {
   static class RemoteException {
     private String exception;
     private String message;
@@ -167,17 +167,17 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
   }
 
   @Override
-  protected int getBaseMillis() {
+  public int getBaseMillis() {
     return BASE_MILLIS_TO_WAIT;
   }
 
   @Override
-  protected int getMaxMillis() {
+  public int getMaxMillis() {
     return MAX_MILLIS_TO_WAIT;
   }
 
   @Override
-  public void close() {
+  protected void onClose() {
     latestVersion = null;
   }
 

@@ -65,8 +65,8 @@ public class ExtractPosition {
         out.rootAsList(); // calling this sets the ComplexWriter as a list type.
         return;
       }
-      final int strLength = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in
-        .buffer.asNettyBuffer(), in.start, in.end, errCtx);
+      final int strLength = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
+        in.start, in.end, errCtx);
       final int s;
       if (start.value < 0) {
         s = strLength - (-start.value);

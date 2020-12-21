@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { API_URL_V2, API_URL_V3 } from '@app/constants/Api';
 
+import APICallMixin from 'dyn-load/core/APICallMixin';
 /**
  * APICall handles building urls for API calls.
  */
+@APICallMixin
 export default class APICall {
   _path = [];
   _fullPath = null;
@@ -127,7 +128,7 @@ export default class APICall {
    * Returns the full url as a string.
    */
   toString() {
-    let url = this._apiVersion === 3 ? API_URL_V3 : API_URL_V2;
+    let url = this.getUrl(this._apiVersion);
     url += this.toPath();
 
     return url;

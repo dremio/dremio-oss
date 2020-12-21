@@ -36,6 +36,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -98,7 +99,7 @@ public class JobsFlightProducer implements FlightProducer, AutoCloseable {
         serverStreamListener.completed();
       }
     } catch (UserException ue) {
-      serverStreamListener.error(JobsRpcUtils.toStatusRuntimeException(ue));
+      serverStreamListener.error(GrpcExceptionUtil.toStatusRuntimeException(ue));
     } catch (Exception e) {
       serverStreamListener.error(Status.UNKNOWN.withCause(e).withDescription(e.getMessage()).asException());
     }

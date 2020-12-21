@@ -28,6 +28,7 @@ import com.dremio.common.types.Types;
 import com.google.common.base.Charsets;
 
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.NettyArrowBuf;
 
 public class VarCharAccessor extends AbstractSqlAccessor {
 
@@ -56,7 +57,7 @@ public class VarCharAccessor extends AbstractSqlAccessor {
     }
     NullableVarCharHolder h = new NullableVarCharHolder();
     ac.get(index, h);
-    return new ByteBufInputStream(h.buffer.slice(h.start, h.end).asNettyBuffer());
+    return new ByteBufInputStream(NettyArrowBuf.unwrapBuffer(h.buffer.slice(h.start, h.end)));
   }
 
   @Override

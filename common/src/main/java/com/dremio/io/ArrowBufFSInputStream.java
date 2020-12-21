@@ -26,6 +26,7 @@ import org.apache.arrow.memory.ArrowBuf;
 import com.google.common.primitives.Ints;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * An implementation of {@code FSInputStream} using a {@code ArrowBuf}
@@ -48,7 +49,7 @@ public class ArrowBufFSInputStream extends FSInputStream {
    * @param buf
    */
   public ArrowBufFSInputStream(ArrowBuf buf) {
-    this.nettyBuf = buf.asNettyBuffer();
+    this.nettyBuf = NettyArrowBuf.unwrapBuffer(buf);
     this.startIndex = nettyBuf.readerIndex();
     this.endIndex = this.startIndex + nettyBuf.readableBytes();
   }

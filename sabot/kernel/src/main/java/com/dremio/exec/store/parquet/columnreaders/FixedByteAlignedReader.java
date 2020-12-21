@@ -218,7 +218,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
        */
       BigDecimal intermediate = DecimalHelper.getBigDecimalFromBEArrowBuf(bytebuf, index, schemaElement.getScale());
       /* this will swap bytes as we are writing to the buffer of DecimalVector */
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getDataBuffer(), index);
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getDataBuffer(), index, DecimalVector.TYPE_WIDTH);
       valueVec.setIndexDefined(index);
     }
   }

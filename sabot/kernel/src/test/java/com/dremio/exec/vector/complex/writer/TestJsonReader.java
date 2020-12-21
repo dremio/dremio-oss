@@ -245,11 +245,6 @@ public class TestJsonReader extends PlanTestBase {
   }
 
   @Test
-  public void testLeafArrayMixed() throws Exception {
-    testLeafLimit("/store/json/arrayMixedTypes.json");
-  }
-
-  @Test
   public void testTextLeafLimitInnerDoc() throws Exception {
     try (AutoCloseable op = withOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true)) {
       testLeafLimit("/store/json/nestedDoc.json");
@@ -260,13 +255,6 @@ public class TestJsonReader extends PlanTestBase {
   public void testTextLeafMixed() throws Exception {
     try (AutoCloseable op = withOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true)) {
       testLeafLimit("/store/json/mixedTypes.json");
-    }
-  }
-
-  @Test
-  public void testTextLeafArrayMixed() throws Exception {
-    try (AutoCloseable op = withOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true)) {
-      testLeafLimit("/store/json/arrayMixedTypes.json");
     }
   }
 
@@ -545,22 +533,6 @@ public class TestJsonReader extends PlanTestBase {
         .ordered()
         .baselineColumns("a")
         .baselineValues(mapOf("b", 1L, "c", mapOf("d", 2L)))
-        .build()
-        .run();
-  }
-
-  @Test
-  public void caseStruct2() throws Exception {
-    final String query = "SELECT MAPPIFY(CASE WHEN t.a.b = 1 THEN t.a ELSE null END) AS a" +
-        " FROM cp.\"jsoninput/input4.json\" t";
-
-    testBuilder()
-        .sqlQuery(query)
-        .ordered()
-        .baselineColumns("a")
-        .baselineValues(listOf(
-            mapOf("key", "b", "value", 1L),
-            mapOf("key", "c", "value", mapOf("d", 2L))))
         .build()
         .run();
   }

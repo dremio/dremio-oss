@@ -16,6 +16,7 @@
 package com.dremio.exec.impersonation;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 
@@ -57,6 +58,16 @@ public class TestImpersonationMetadataRefresh extends BaseTestImpersonation {
 
   @AfterClass
   public static void removeMiniDfsBasedStorage() throws Exception {
+    /*
+     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+     */
+    if (isMaprProfile()) {
+      return;
+    }
+
     SourceConfig config = getSabotContext().getNamespaceService(SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
     ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
     stopMiniDfsCluster();

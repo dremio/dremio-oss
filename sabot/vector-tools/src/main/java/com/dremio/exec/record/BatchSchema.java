@@ -628,10 +628,31 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return false;
   }
 
+  public BatchSchema merge(BatchSchema schemaToMergeIntoThis, boolean mixedTypesSupported) {
+    if (!mixedTypesSupported) {
+      return mergeWithUpPromotion(schemaToMergeIntoThis);
+    } else {
+      return merge(schemaToMergeIntoThis);
+    }
+  }
+
   public BatchSchema merge(BatchSchema schemaToMergeIntoThis){
     List<Field> original = ImmutableList.copyOf(this);
     List<Field> newlyObserved = ImmutableList.copyOf(schemaToMergeIntoThis);
     return new BatchSchema(SelectionVectorMode.NONE, mergeFieldLists(original, newlyObserved));
+  }
+
+  public BatchSchema mergeWithUpPromotion(BatchSchema fileSchema){
+    List<Field> fileFields = ImmutableList.copyOf(fileSchema);
+    return new BatchSchema(SelectionVectorMode.NONE, mergeWithUpPromotion(fileFields));
+  }
+
+  private List<Field> mergeWithUpPromotion(List<Field> fileFields) {
+    try {
+      return CompleteType.mergeWithUpPromotion(ImmutableList.copyOf(this), fileFields);
+    } catch (UnsupportedOperationException e) {
+      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+    }
   }
 
   private static List<Field> mergeFieldLists(List<Field> original, List<Field> newlyObserved) {

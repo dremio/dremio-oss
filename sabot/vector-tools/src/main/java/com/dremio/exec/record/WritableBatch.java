@@ -72,8 +72,8 @@ public class WritableBatch implements AutoCloseable {
 
   public NettyArrowBuf[] getBuffers() {
     NettyArrowBuf [] nettyBuffers = new NettyArrowBuf[buffers.length];
-    return Arrays.stream(buffers).map(buf -> buf
-      .asNettyBuffer()).collect(Collectors.toList()).toArray(nettyBuffers);
+    return Arrays.stream(buffers).map(buf -> NettyArrowBuf.unwrapBuffer(buf))
+      .collect(Collectors.toList()).toArray(nettyBuffers);
   }
 
   /**

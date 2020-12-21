@@ -33,6 +33,7 @@ import org.apache.arrow.vector.BufferLayout;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.TypeLayout;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -130,7 +131,7 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
       throw new IOException("Cannot currently deserialize record batches over 2GB");
     }
     ArrowRecordBatch arrowRecordBatch =
-      new ArrowRecordBatch((int)recordBatchFB.length(), nodes, buffers, false);
+      new ArrowRecordBatch((int)recordBatchFB.length(), nodes, buffers, NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false);
     for (ArrowBuf buf : buffers) {
       buf.release();
     }

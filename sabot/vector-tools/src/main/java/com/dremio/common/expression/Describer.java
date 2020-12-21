@@ -32,6 +32,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Interval;
 import org.apache.arrow.vector.types.pojo.ArrowType.LargeBinary;
+import org.apache.arrow.vector.types.pojo.ArrowType.LargeList;
 import org.apache.arrow.vector.types.pojo.ArrowType.LargeUtf8;
 import org.apache.arrow.vector.types.pojo.ArrowType.List;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
@@ -287,6 +288,11 @@ public class Describer {
     @Override
     public String visit(LargeBinary paramLargeBinary) {
       throw new UnsupportedOperationException("Dremio does not support LargeBinary yet");
+    }
+
+    @Override
+    public String visit(LargeList paramLargeList) {
+      throw new UnsupportedOperationException("Dremio does not support LargeList yet");
     }
 
     @Override

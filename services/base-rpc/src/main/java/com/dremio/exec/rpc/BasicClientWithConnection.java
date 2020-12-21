@@ -17,6 +17,7 @@ package com.dremio.exec.rpc;
 
 import java.util.Optional;
 
+import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
@@ -45,7 +46,7 @@ public abstract class BasicClientWithConnection<T extends EnumLite, HANDSHAKE_SE
       String connectionName,
       Optional<SSLEngineFactory> engineFactory
   ) throws RpcException {
-    super(rpcMapping, alloc.getAsByteBufAllocator(), eventLoopGroup, handshakeType, responseClass, handshakeParser, engineFactory);
+    super(rpcMapping, new ArrowByteBufAllocator(alloc), eventLoopGroup, handshakeType, responseClass, handshakeParser, engineFactory);
     this.alloc = alloc;
     this.connectionName = connectionName;
   }

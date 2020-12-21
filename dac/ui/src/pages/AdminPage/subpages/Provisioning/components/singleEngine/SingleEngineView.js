@@ -32,7 +32,8 @@ export class SingleEngineView extends Component {
   };
 
   state = {
-    activeTab: SINGLE_VIEW_TABS && SINGLE_VIEW_TABS.nodes
+    activeTab: SINGLE_VIEW_TABS && SINGLE_VIEW_TABS.nodes,
+    filterList: []
   };
 
   selectTab = (tab) => {

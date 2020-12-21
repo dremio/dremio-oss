@@ -33,4 +33,12 @@ public class TestDremioFlightService {
     assertTrue(config.hasPath(DremioConfig.FLIGHT_SERVICE_PORT_INT));
     assertEquals(32010, config.getInt(DremioConfig.FLIGHT_SERVICE_PORT_INT));
   }
+
+  @Test
+  public void testDefaultAuthenticationMode() {
+    final DremioConfig config = DremioConfig.create();
+    assertTrue(config.hasPath(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE));
+    assertEquals(DremioFlightService.FLIGHT_AUTH2_AUTH_MODE,
+      config.getString(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE));
+  }
 }

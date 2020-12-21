@@ -71,13 +71,13 @@ public class MaterializationExpander {
     final boolean preStripped = descriptor.getStrippedPlanHash() == null;
     final StrippingFactory factory = new StrippingFactory(parent.getSettings().getOptions(), parent.getConfig());
 
-    StripResult stripResult = preStripped ? StrippingFactory.noStrip(queryRel) : factory.strip(queryRel, descriptor.getReflectionType(), descriptor.getIncrementalUpdateSettings().isIncremental());
+    StripResult stripResult = preStripped ? StrippingFactory.noStrip(queryRel) : factory.strip(queryRel, descriptor.getReflectionType(), descriptor.getIncrementalUpdateSettings().isIncremental(), descriptor.getStripVersion());
 
     // we need to make sure that the persisted version of the plan after applying the stripping is
     // consistent with what we got when materializing. We'll do this again during substitution in
     // various forms and are doing it here for checking the validity of the expansion.
     if(!preStripped) {
-      final long strippedHash = PlanHasher.hash(stripResult.getNormalized());
+      long strippedHash = PlanHasher.hash(stripResult.getNormalized());
       if(strippedHash != descriptor.getStrippedPlanHash()) {
         throw new ExpansionException(String.format("Stripped hash doesn't match expect stripped hash. Stripped logic likely changed. Non-matching plan: %s.", RelOptUtil.toString(stripResult.getNormalized())));
       }
@@ -134,6 +134,7 @@ public class MaterializationExpander {
       schema,
       descriptor.getExpirationTimestamp(),
       preStripped,
+      StrippingFactory.LATEST_STRIP_VERSION,
       postStripNormalizer
     );
   }
@@ -249,7 +250,7 @@ public class MaterializationExpander {
   }
 
   public static class ExpansionException extends RuntimeException {
-    ExpansionException(String message) {
+    public ExpansionException(String message) {
       super(message);
     }
   }

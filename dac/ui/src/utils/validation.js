@@ -144,6 +144,29 @@ export const isIntegerWithLimits = (key, label = key, lowLimit = null, topLimit 
   };
 };
 
+export const isIntegerKey1LessThenKey2 = (key1, key2, label = key1 + ', ' + key2) => {
+  const isKey1Integer = isInteger(key1, `${key1} is not an integer`);
+  const isKey2Integer = isInteger(key1, `${key2} is not an integer`);
+
+  return values => {
+    const isKey1IntegerResult = isKey1Integer(values, `${key1} is not an integer`);
+    if (get(isKey1IntegerResult, key1)) {
+      return isKey1IntegerResult;
+    }
+
+    const isKey2IntegerResult = isKey2Integer(values, `${key2} is not an integer`);
+    if (get(isKey2IntegerResult, key2)) {
+      return isKey2IntegerResult;
+    }
+
+    const key1Val = result(values, key1);
+    const key2Val = result(values, key2);
+    if (key1Val < key2Val) {
+      return set({}, key1, label);
+    }
+  };
+};
+
 export function isPositiveInteger(key, label = key) {
   return function(values) {
     const value = result(values, key);

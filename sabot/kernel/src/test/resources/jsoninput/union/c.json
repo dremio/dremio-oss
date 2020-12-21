@@ -1,0 +1,40 @@
+{
+  field1: 1,
+  field2: 1.2
+}
+{
+  field1: [
+    2
+  ],
+  field2: 1.2
+}
+{
+  field1: {
+    inner1: 3,
+    inner2: 4
+  },
+  field2: [
+    3,
+    4,
+    5
+  ]
+}
+{
+  field1: {
+    inner1: 3,
+    inner2: [
+      {
+          innerInner1: 1,
+          innerInner2: [
+            3,
+            "a"
+          ]
+      }
+    ]
+  },
+  field2: [
+    6,
+    7,
+    8
+  ]
+}

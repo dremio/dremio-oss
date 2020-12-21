@@ -13,31 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+// import { shallow } from 'enzyme';
+// import Immutable from 'immutable';
 
-import { EngineStatusBar } from './EngineStatusBar';
+// import { EngineStatusBar } from './EngineStatusBar';
 
-describe('EngineStatusBar', () => {
-  let minimalProps;
-  let commonProps;
-  beforeEach(() => {
-    minimalProps = {
-      engine: Immutable.fromJS({})
-    };
-    commonProps = {
-      engine: Immutable.fromJS({name: 'default', workersSummary: {total: 4}})
-    };
-  });
+// describe('EngineStatusBar', () => {
+//   let minimalProps;
+//   let commonProps;
+//   beforeEach(() => {
+//     minimalProps = {
+//       engine: Immutable.fromJS({})
+//     };
+//     commonProps = {
+//       engine: Immutable.fromJS({name: 'default', workersSummary: {total: 4}})
+//     };
+//   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<EngineStatusBar {...minimalProps}/>);
-    expect(wrapper).to.have.length(1);
-  });
+//   it('should render with minimal props without exploding', () => {
+//     const wrapper = shallow(<EngineStatusBar {...minimalProps}/>);
+//     expect(wrapper).to.have.length(1);
+//   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<EngineStatusBar {...commonProps}/>);
-    expect(wrapper).to.have.length(1);
-  });
+//   it('should render with common props without exploding', () => {
+//     const wrapper = shallow(<EngineStatusBar {...commonProps}/>);
+//     expect(wrapper).to.have.length(1);
+//   });
 
-});
+// });

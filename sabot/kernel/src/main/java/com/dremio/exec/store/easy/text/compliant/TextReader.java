@@ -275,7 +275,7 @@ final class TextReader implements AutoCloseable {
     // For example, in tab-separated files (TSV files), '\t' is used as delimiter and should not be ignored
     // Content after whitespaces may be parsed if 'parseUnescapedQuotes' is enabled.
     if (ch != newLine && ch <= ' ' && ch != delimiter) {
-      final NettyArrowBuf workBuf = this.workBuf.asNettyBuffer();
+      final NettyArrowBuf workBuf = NettyArrowBuf.unwrapBuffer(this.workBuf);
       workBuf.resetWriterIndex();
       do {
         // saves whitespaces after value

@@ -248,7 +248,14 @@ const config = {
     // to documentation (see https://webpack.js.org/plugins/define-plugin/)
     new webpack.DefinePlugin({ // todo
       // copy some variables that are required by UI code
-      'process.env': ['DREMIO_RELEASE', 'DREMIO_VERSION', 'EDITION_TYPE', 'SKIP_SENTRY_STEP'].reduce((resultObj, variableToCopy) => {
+      'process.env': [
+        'DREMIO_RELEASE',
+        'DREMIO_VERSION',
+        'EDITION_TYPE',
+        'SKIP_SENTRY_STEP',
+        'DCS_V2_URL',
+        'DCS_V3_URL'
+      ].reduce((resultObj, variableToCopy) => {
         resultObj[variableToCopy] = JSON.stringify(process.env[variableToCopy]);
         return resultObj;
       }, {

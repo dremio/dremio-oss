@@ -16,15 +16,15 @@
 package com.dremio.io;
 
 /**
- * This class implements exponential backoff
+ * This interface implements exponential backoff
  */
-abstract public class ExponentialBackoff {
+public interface ExponentialBackoff {
   /**
    * Perform a sleep based on the attempt number, where the sleep period increases exponentially and adds jitter.
    *
    * @param attemptNumber The retry attempt number, which directly affects the sleep period.
    */
-  protected final void backoffWait(int attemptNumber) {
+  default void backoffWait(int attemptNumber) {
     try {
       // Algorithm taken from https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
       // sleep = min(cap, base * 2 ^ attemptNumber)
@@ -41,12 +41,12 @@ abstract public class ExponentialBackoff {
    *
    * @return base millis to wait in exponential backoff
    */
-  protected abstract int getBaseMillis();
+  int getBaseMillis();
 
   /**
    * Return the max millis to sleep as part of exponential backoff.
    *
    * @return max millis to wait in exponential backoff
    */
-  protected abstract int getMaxMillis();
+  int getMaxMillis();
 }

@@ -26,7 +26,7 @@ import javax.net.ssl.SSLException;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.Service;
-import com.dremio.service.grpc.DefaultServiceConfigProvider;
+import com.dremio.service.grpc.DefaultGrpcServiceConfigProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.base.Preconditions;
@@ -78,7 +78,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
               .maxInboundMessageSize(Integer.MAX_VALUE)
               .maxInboundMetadataSize(Integer.MAX_VALUE)
               .enableRetry()
-              .defaultServiceConfig(DefaultServiceConfigProvider.getDefaultGrpcServiceConfig(serviceNames))
+              .defaultServiceConfig(DefaultGrpcServiceConfigProvider.getDefaultGrpcServiceConfig(serviceNames))
               .maxRetryAttempts(GrpcChannelBuilderFactory.MAX_RETRY);
 
           if (sslEngineFactory.isPresent()) {

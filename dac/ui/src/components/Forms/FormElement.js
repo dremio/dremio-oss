@@ -37,6 +37,7 @@ export default class FormElement extends Component {
 
     const field = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
     const Renderer = elementConfig.getRenderer();
+
     return (
       <Renderer
         elementConfig={elementConfig}

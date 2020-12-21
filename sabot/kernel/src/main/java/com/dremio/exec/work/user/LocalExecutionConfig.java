@@ -43,6 +43,7 @@ public class LocalExecutionConfig implements OptionProvider {
   private final String queryResultsStorePath;
   private final SubstitutionSettings substitutionSettings;
   private final boolean exposeInternalSources;
+  private final String engineName;
 
   LocalExecutionConfig(final boolean enableLeafLimits,
                        final boolean enableOutputLimits,
@@ -53,7 +54,8 @@ public class LocalExecutionConfig implements OptionProvider {
                        final String queryResultsStorePath,
                        final boolean allowPartitionPruning,
                        final boolean exposeInternalSources,
-                       final SubstitutionSettings substitutionSettings) {
+                       final SubstitutionSettings substitutionSettings,
+                       final String engineName) {
     this.enableLeafLimits = enableLeafLimits;
     this.enableOutputLimits = enableOutputLimits;
     this.failIfNonEmptySent = failIfNonEmptySent;
@@ -64,6 +66,7 @@ public class LocalExecutionConfig implements OptionProvider {
     this.substitutionSettings = MoreObjects.firstNonNull(substitutionSettings, SubstitutionSettings.of());
     this.allowPartitionPruning = allowPartitionPruning;
     this.exposeInternalSources = exposeInternalSources;
+    this.engineName = engineName;
   }
 
   public String getUsername() {
@@ -84,6 +87,10 @@ public class LocalExecutionConfig implements OptionProvider {
 
   public boolean isFailIfNonEmptySent() {
     return failIfNonEmptySent;
+  }
+
+  public String getEngineName() {
+    return engineName;
   }
 
   @Override
@@ -126,6 +133,7 @@ public class LocalExecutionConfig implements OptionProvider {
     private boolean allowPartitionPruning;
     private boolean exposeInternalSources;
     private SubstitutionSettings substitutionSettings;
+    private String engineName;
 
     private Builder() {
     }
@@ -241,6 +249,16 @@ public class LocalExecutionConfig implements OptionProvider {
       return this;
     }
 
+    /**
+     * set engine name.
+     * @param engineName
+     * @return
+     */
+    public Builder setEngineName(String engineName) {
+      this.engineName = engineName;
+      return this;
+    }
+
     public LocalExecutionConfig build() {
       return new LocalExecutionConfig(
           enableLeafLimits,
@@ -252,7 +270,8 @@ public class LocalExecutionConfig implements OptionProvider {
           queryResultsStorePath,
           allowPartitionPruning,
           exposeInternalSources,
-          substitutionSettings);
+          substitutionSettings,
+          engineName);
     }
   }
 

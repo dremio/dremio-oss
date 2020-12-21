@@ -62,8 +62,8 @@ import io.grpc.stub.StreamObserver;
  */
 class FragmentStarter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStarter.class);
-  private static final long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000;
-  private static final long RPC_MIN_WAIT_IN_MSECS = 30000;
+  private static final long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000L;
+  private static final long RPC_MIN_WAIT_IN_MSECS = 30000L;
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(FragmentStarter.class);
 
@@ -166,6 +166,7 @@ class FragmentStarter {
     final int numFragments = fragmentMap.keySet().size();
     final ExtendedLatch endpointLatch = new ExtendedLatch(numFragments);
     final FragmentSubmitFailures fragmentSubmitFailures = new FragmentSubmitFailures();
+    final FragmentSubmitSuccess fragmentSubmitSuccess = new FragmentSubmitSuccess();
     final List<NodeEndpoint> endpointsIndex = plan.getIndexBuilder().getEndpointsIndexBuilder().getAllEndpoints();
 
     PlanFragmentStats stats = new PlanFragmentStats();
@@ -175,18 +176,33 @@ class FragmentStarter {
       final List<MinorAttr> sharedAttrs =
         plan.getIndexBuilder().getSharedAttrsIndexBuilder(ep).getAllAttrs();
       sendStartFragments(ep, fragmentMap.get(ep), endpointsIndex, sharedAttrs,
-        endpointLatch, fragmentSubmitFailures, stats);
+        endpointLatch, fragmentSubmitFailures, stats, fragmentSubmitSuccess);
     }
 
     final long timeout = Long.max(RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments, RPC_MIN_WAIT_IN_MSECS);
     if (numFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)){
       long numberRemaining = endpointLatch.getCount();
+      StringBuilder sb = new StringBuilder();
+      boolean first = true;
+      for (final NodeEndpoint ep: endpointsIndex) {
+        if (!fragmentSubmitSuccess.submissionSuccesses.contains(ep) &&
+            !fragmentSubmitFailures.listContains(ep)) {
+          // The fragment sent to this endPoint timed out.
+          if (first) {
+            first = false;
+          } else {
+            sb.append(", ");
+          }
+          sb.append(ep.getAddress());
+        }
+      }
       throw UserException.connectionError()
           .message(
               "Exceeded timeout (%d) while waiting after sending work fragments to remote nodes. " +
-                  "Sent %d and only heard response back from %d nodes.",
+                  "Sent %d and only heard response back from %d nodes",
               timeout, numFragments, numFragments - numberRemaining)
-          .build(logger);
+        .addContext("Node(s) that did not respond", sb.toString())
+        .build(logger);
     }
     stopwatch.stop();
     observer.fragmentsStarted(stopwatch.elapsed(TimeUnit.MILLISECONDS), stats.getSummary());
@@ -255,7 +271,7 @@ class FragmentStarter {
   private void sendStartFragments(final NodeEndpoint assignment, final Collection<PlanFragmentFull> fullFragments,
       List<NodeEndpoint> endpointsIndex, List<MinorAttr> sharedAttrs,
       final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures,
-      PlanFragmentStats planFragmentStats) {
+      PlanFragmentStats planFragmentStats, final FragmentSubmitSuccess fragmentSubmitSuccess) {
 
     final InitializeFragments.Builder fb = InitializeFragments.newBuilder();
     final PlanFragmentSet.Builder setb = fb.getFragmentSetBuilder();
@@ -293,7 +309,7 @@ class FragmentStarter {
 
     logger.debug("Sending remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, initFrags);
     final FragmentSubmitListener listener =
-        new FragmentSubmitListener(assignment, initFrags, latch, fragmentSubmitFailures);
+        new FragmentSubmitListener(assignment, initFrags, latch, fragmentSubmitFailures, fragmentSubmitSuccess);
 
     executorServiceClientFactory.getClientForEndpoint(assignment).startFragments(initFrags, listener);
   }
@@ -301,7 +317,7 @@ class FragmentStarter {
   private void sendActivateFragments(final NodeEndpoint assignment, ActivateFragments activateFragments) {
     logger.debug("Sending activate for remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, activateFragments);
     final FragmentSubmitListener listener =
-      new FragmentSubmitListener(assignment, activateFragments, null, null);
+      new FragmentSubmitListener(assignment, activateFragments, null, null, null);
 
     try {
       injector.injectChecked(executionControls, INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_ERROR,
@@ -334,11 +350,29 @@ class FragmentStarter {
     void addFailure(final NodeEndpoint nodeEndpoint, final RpcException rpcException) {
       submissionExceptions.add(new SubmissionException(nodeEndpoint, rpcException));
     }
+
+    boolean listContains(final NodeEndpoint nodeEndpoint) {
+      for (SubmissionException se: submissionExceptions) {
+        if (se.nodeEndpoint.equals(nodeEndpoint)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  private static class FragmentSubmitSuccess {
+    final List<NodeEndpoint> submissionSuccesses = Collections.synchronizedList(new LinkedList<>());
+
+    void addSuccess(final NodeEndpoint nodeEndpoint) {
+      submissionSuccesses.add(nodeEndpoint);
+    }
   }
 
   private class FragmentSubmitListener implements StreamObserver<Empty> {
     private final CountDownLatch latch;
     private final FragmentSubmitFailures fragmentSubmitFailures;
+    private final FragmentSubmitSuccess fragmentSubmitSuccesses;
     private final NodeEndpoint endpoint;
 
     /**
@@ -350,11 +384,13 @@ class FragmentStarter {
      * @param fragmentSubmitFailures the counter to use for failures; must be non-null iff latch is non-null
      */
     public FragmentSubmitListener(final NodeEndpoint endpoint, final MessageLite value,
-        final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures) {
+        final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures,
+        final FragmentSubmitSuccess fragmentSubmitSuccess) {
       Preconditions.checkState((latch == null) == (fragmentSubmitFailures == null));
       this.latch = latch;
       this.fragmentSubmitFailures = fragmentSubmitFailures;
       this.endpoint = endpoint;
+      this.fragmentSubmitSuccesses = fragmentSubmitSuccess;
     }
 
     @Override
@@ -377,12 +413,9 @@ class FragmentStarter {
     @Override
     public void onCompleted() {
       if (latch != null) {
+        fragmentSubmitSuccesses.addSuccess(endpoint);
         latch.countDown();
       }
     }
   }
-
-
-
-
 }

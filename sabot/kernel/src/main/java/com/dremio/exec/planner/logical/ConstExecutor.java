@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.DateMilliHolder;
@@ -345,13 +346,13 @@ public class ConstExecutor implements RexExecutor {
             if (output instanceof DecimalHolder) {
               DecimalHolder decimalOutput = (DecimalHolder) output;
               outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer,0 ,
-                decimalOutput.scale);
+                decimalOutput.scale, DecimalVector.TYPE_WIDTH);
               precision = decimalOutput.precision;
               scale = decimalOutput.scale;
             } else {
               NullableDecimalHolder decimalOutput = (NullableDecimalHolder) output;
               outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer,0 ,
-                decimalOutput.scale);
+                decimalOutput.scale, DecimalVector.TYPE_WIDTH);
               precision = decimalOutput.precision;
               scale = decimalOutput.scale;
             }

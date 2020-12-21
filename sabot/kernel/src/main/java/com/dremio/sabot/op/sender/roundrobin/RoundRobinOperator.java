@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -172,7 +173,7 @@ public class RoundRobinOperator extends BaseSender {
       handle.getMajorFragmentId(),
       handle.getMinorFragmentId(),
       config.getReceiverMajorFragmentId(),
-      new ArrowRecordBatch(arrowRecordBatch.getLength(), arrowRecordBatch.getNodes(), buffers, false),
+      new ArrowRecordBatch(arrowRecordBatch.getLength(), arrowRecordBatch.getNodes(), buffers, NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false),
       minorFragments.get(currentTunnelsIndex).get(currentMinorFragmentsIndex)
     );
     updateStats(batch);

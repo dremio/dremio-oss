@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.orc;
 
 import java.util.List;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
@@ -33,6 +34,7 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -42,14 +44,20 @@ import com.google.common.collect.Lists;
  */
 class ORCFindRelevantFilters extends RexVisitorImpl<RexNode> {
   private final RexBuilder rexBuilder;
+  private final RelDataType incomingRowType;
+  private SchemaPath column;
 
-  ORCFindRelevantFilters(final RexBuilder rexBuilder) {
+  ORCFindRelevantFilters(final RexBuilder rexBuilder, RelDataType incomingRowType) {
     super(true);
     this.rexBuilder = rexBuilder;
+    this.incomingRowType = incomingRowType;
   }
 
   @Override
   public RexNode visitInputRef(RexInputRef inputRef) {
+    if (incomingRowType != null) {
+      column = new SchemaPath(incomingRowType.getFieldNames().get(inputRef.getIndex()));
+    }
     return rexBuilder.copy(inputRef);
   }
 
@@ -205,5 +213,9 @@ class ORCFindRelevantFilters extends RexVisitorImpl<RexNode> {
     }
 
     return input;
+  }
+
+  public SchemaPath getColumn() {
+    return column;
   }
 }

@@ -579,6 +579,7 @@ public class HadoopFileSystem
       try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, fileKey.getPath())) {
         is = underlyingFs.open(path);
       }
+      logger.debug("Opening new inputstream for {} ", path);
       FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), is, operatorStats, false);
       return new HadoopAsyncByteReader(this, fileKey.getPath(), inputStream);
     }

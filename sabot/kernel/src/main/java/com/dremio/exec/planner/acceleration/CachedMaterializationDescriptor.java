@@ -39,7 +39,8 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
           descriptor.getPartition(),
           descriptor.getIncrementalUpdateSettings(),
           descriptor.getJoinDependencyProperties(),
-          descriptor.getStrippedPlanHash());
+          descriptor.getStrippedPlanHash(),
+          materialization.getStripVersion());
     this.materialization = Preconditions.checkNotNull(materialization, "materialization is required");
   }
 

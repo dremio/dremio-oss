@@ -48,8 +48,10 @@ export class SingleEngineInfoBar extends PureComponent {
     const nodeCount = engine.getIn(['dynamicConfig', 'containerCount']);
     if (VersionUtils.getEditionFromConfig() === EDITION.ME) {
       return getEngineSizeLabel(nodeCount);
-    } else {
+    } else if (isYarn(engine)) {
       return nodeCount;
+    } else {
+      return engine.get('size');
     }
   };
 
@@ -59,7 +61,13 @@ export class SingleEngineInfoBar extends PureComponent {
 
   getIp = engine => getYarnSubProperty(engine, YARN_HOST_PROPERTY) || '-';
 
-  getEngineType = engine => (engine.getIn(['awsProps', 'instanceType']) || '-');
+  getEngineType = engine => {
+    if (VersionUtils.getEditionFromConfig() === EDITION.ME || isYarn(engine)) {
+      return (engine.getIn(['awsProps', 'instanceType']) || '-');
+    } else {
+      return engine.get('instanceType');
+    }
+  }
 
   getLastChange = engine => {
     const status = engine.get('currentState');
@@ -103,6 +111,7 @@ const styles = {
   entry: {
     marginRight: 50,
     padding: 2
+    //flex: 'auto'
   },
   label: {
     fontSize: 12,

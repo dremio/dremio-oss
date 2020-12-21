@@ -24,8 +24,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.dremio.common.concurrent.NamedThreadFactory;
-import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
+import com.dremio.io.ReusableAsyncByteReader;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.Path;
 
@@ -34,7 +34,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Async wrapper over the hadoop sync APIs.
  */
-public class HadoopAsyncByteReader implements AsyncByteReader {
+public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopAsyncByteReader.class);
   private static final ExecutorService threadPool = Executors.newCachedThreadPool(new NamedThreadFactory("hadoop-read-"));
 
@@ -107,7 +107,7 @@ public class HadoopAsyncByteReader implements AsyncByteReader {
   }
 
   @Override
-  public void close() throws Exception {
+  protected void onClose() throws Exception {
     inputStream.close();
   }
 }

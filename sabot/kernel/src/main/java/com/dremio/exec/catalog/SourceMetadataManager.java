@@ -549,18 +549,32 @@ class SourceMetadataManager implements AutoCloseable {
       throws ConnectorException, NamespaceException {
     options.withFallback(bridge.getDefaultRetrievalOptions());
     final NamespaceService namespace = bridge.getNamespaceService();
-    final DatasetSaver saver = getSaver();
     DatasetConfig knownConfig = null;
+    Optional<DatasetHandle> handle = Optional.empty();
+    EntityPath entityPath;
     try {
       knownConfig = namespace.getDataset(datasetKey);
     } catch (NamespaceNotFoundException ignored) {
-    }
-    final DatasetConfig currentConfig = knownConfig;
+      // Try to get the fully resolved name (by referring to the source) of the provided dataset key and check again if there is an entry already
+      // in the namespace or if it's really a new one or a shortened version (hive default case)
+      final SourceMetadata sourceMetadata = bridge.getMetadata();
+      entityPath = MetadataObjectsUtils.toEntityPath(datasetKey);
+      handle = sourceMetadata.getDatasetHandle((entityPath), options.asGetDatasetOptions(null));
 
+      if (!handle.isPresent()) { // dataset is not in the source either
+        throw new DatasetNotFoundException(entityPath);
+      }
+      try {
+        //try to get the  config with the fully resolved name
+        knownConfig = namespace.getDataset(MetadataObjectsUtils.toNamespaceKey(handle.get().getDatasetPath()));
+      } catch (NamespaceNotFoundException ignored2) {
+      }
+    }
+
+    final DatasetConfig currentConfig = knownConfig;
     final boolean exists = currentConfig != null;
     final boolean isExtended = exists && currentConfig.getReadDefinition() != null;
 
-    final EntityPath entityPath;
     if (exists) {
       entityPath = new EntityPath(currentConfig.getFullPathList());
     } else {
@@ -569,14 +583,12 @@ class SourceMetadataManager implements AutoCloseable {
 
     logger.debug("Dataset '{}' is being synced (exists: {}, isExtended: {})", datasetKey, exists, isExtended);
     final SourceMetadata sourceMetadata = bridge.getMetadata();
-    final Optional<DatasetHandle> handle = sourceMetadata.getDatasetHandle(entityPath,
-        options.asGetDatasetOptions(currentConfig));
+
+    if (!handle.isPresent()) { // not already retrieved above
+      handle = sourceMetadata.getDatasetHandle(entityPath, options.asGetDatasetOptions(currentConfig));
+    }
 
     if (!handle.isPresent()) { // dataset is not in the source
-      if (!exists) {
-        throw new DatasetNotFoundException(entityPath);
-      }
-
       if (!options.deleteUnavailableDatasets()) {
         logger.debug("Dataset '{}' unavailable, but not deleted", datasetKey);
         return UpdateStatus.UNCHANGED;
@@ -591,32 +603,52 @@ class SourceMetadataManager implements AutoCloseable {
         return UpdateStatus.UNCHANGED;
       }
     }
-
-    final DatasetHandle datasetHandle = handle.get();
-    if (!options.forceUpdate() && exists && isExtended && sourceMetadata instanceof SupportsReadSignature) {
-      final SupportsReadSignature supportsReadSignature = (SupportsReadSignature) sourceMetadata;
-      final DatasetMetadata currentExtended = new DatasetMetadataAdapter(currentConfig);
-
-      final ByteString readSignature = currentConfig.getReadDefinition().getReadSignature();
-      final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
-          readSignature == null ? BytesOutput.NONE : os -> ByteString.writeTo(os, readSignature),
-          datasetHandle, currentExtended);
-
-      if (metadataValidity == MetadataValidity.VALID) {
-        logger.trace("Dataset '{}' metadata is valid, skipping", datasetKey);
-        return UpdateStatus.UNCHANGED;
-      }
-    }
-
     final DatasetConfig datasetConfig;
     if (exists) {
       datasetConfig = currentConfig;
     } else {
-      datasetConfig = MetadataObjectsUtils.newShallowConfig(datasetHandle);
+      datasetConfig = MetadataObjectsUtils.newShallowConfig(handle.get());
+    }
+    return  saveDatasetAndMetadataInNamespace(datasetConfig, handle.get(), options);
+
+  }
+
+  /**
+   * Invoked by refreshDataset above and directly by  ALTER TABLE SET OPTIONS via  ManagedStoragePlugin
+   *
+   * @param datasetConfig
+   * @param options
+   * @return
+   * @throws ConnectorException
+   * @throws NamespaceException
+   */
+  public UpdateStatus saveDatasetAndMetadataInNamespace(DatasetConfig datasetConfig,
+                                                        DatasetHandle datasetHandle,
+                                                        DatasetRetrievalOptions options)
+    throws ConnectorException {
+    options.withFallback(bridge.getDefaultRetrievalOptions());
+    final DatasetSaver saver = getSaver();
+    SourceMetadata sourceMetadata = bridge.getMetadata();
+    final boolean isExtended = datasetConfig.getReadDefinition() != null;
+
+    // Bypass the save if forceUpdate isn't true and read definitions have not been updated.
+    if (!options.forceUpdate() && isExtended && sourceMetadata instanceof SupportsReadSignature) {
+      final SupportsReadSignature supportsReadSignature = (SupportsReadSignature) sourceMetadata;
+      final DatasetMetadata currentExtended = new DatasetMetadataAdapter(datasetConfig);
+
+      final ByteString readSignature = datasetConfig.getReadDefinition().getReadSignature();
+      final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
+        readSignature == null ? BytesOutput.NONE : os -> ByteString.writeTo(os, readSignature),
+        datasetHandle, currentExtended);
+
+      if (metadataValidity == MetadataValidity.VALID) {
+        logger.trace("Dataset '{}' metadata is valid, skipping", datasetConfig.getName());
+        return UpdateStatus.UNCHANGED;
+      }
     }
 
     saver.save(datasetConfig, datasetHandle, sourceMetadata, false, options);
-    logger.trace("Dataset '{}' metadata saved to namespace", datasetKey);
+    logger.trace("Dataset '{}' metadata saved to namespace", datasetConfig.getName());
     return UpdateStatus.CHANGED;
   }
 

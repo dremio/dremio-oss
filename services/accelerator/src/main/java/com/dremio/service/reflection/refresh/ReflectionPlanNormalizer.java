@@ -15,7 +15,6 @@
  */
 package com.dremio.service.reflection.refresh;
 
-import static com.dremio.service.reflection.IncrementalUpdateUtils.extractRefreshSettings;
 import static com.dremio.service.reflection.ReflectionUtils.removeUpdateColumn;
 
 import java.util.Optional;
@@ -40,6 +39,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
@@ -63,6 +63,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private final ReflectionSettings reflectionSettings;
   private final MaterializationStore materializationStore;
   private final OptionManager optionManager;
+  private final boolean forceFullUpdate;
 
   private RefreshDecision refreshDecision;
 
@@ -74,7 +75,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       NamespaceService namespace,
       SabotConfig config,
       ReflectionSettings reflectionSettings,
-      MaterializationStore materializationStore) {
+      MaterializationStore materializationStore,
+      boolean forceFullUpdate) {
     this.sqlHandlerConfig = sqlHandlerConfig;
     this.goal = goal;
     this.entry = entry;
@@ -84,6 +86,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
     this.reflectionSettings = reflectionSettings;
     this.materializationStore = materializationStore;
     this.optionManager = sqlHandlerConfig.getContext().getOptions();
+    this.forceFullUpdate = forceFullUpdate;
   }
 
   public RefreshDecision getRefreshDecision() {
@@ -127,8 +130,13 @@ class ReflectionPlanNormalizer implements RelTransformer {
     final StrippingFactory factory = new StrippingFactory(optionManager, config);
 
     // normalize a tree without expansion nodes.
-    final boolean isIncrementalRefresh = extractRefreshSettings(plan, reflectionSettings).getMethod() == RefreshMethod.INCREMENTAL;
-    RelNode strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), isIncrementalRefresh).getNormalized();
+    RelNode strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), false, StrippingFactory.LATEST_STRIP_VERSION).getNormalized();
+
+    // if we detect that the plan is in fact incrementally updateable after stripping and normalizing, we want to strip again with isIncremental flag set to true
+    // to get the proper stripping
+    if (IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings).getMethod() == RefreshMethod.INCREMENTAL) {
+      strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), true, StrippingFactory.LATEST_STRIP_VERSION).getNormalized();
+    }
 
     Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
 
@@ -144,7 +152,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       strippedPlan,
       requestedTables,
       serializerFactory,
-      optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH));
+      optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH),
+      forceFullUpdate);
 
     if (isIncremental(refreshDecision)) {
       try {

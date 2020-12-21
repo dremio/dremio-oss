@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCluster;
@@ -31,6 +34,7 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -119,6 +123,24 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   public FilesystemScanDrel removeRowCountAdjustment() {
     return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, 1.0, arrowCachingEnabled);
+  }
+
+  @Override
+  public FilesystemScanDrel cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns) {
+    if (filter != null && preserveFilterColumns) {
+      final List<SchemaPath> newProjection = new ArrayList<>(projection);
+      final Set<SchemaPath> projectionSet = new HashSet<>(projection);
+      if (filter.getConditions() != null) {
+        for (ParquetFilterCondition f : filter.getConditions()) {
+          final SchemaPath col = f.getPath();
+          if (!projectionSet.contains(col)) {
+            newProjection.add(col);
+          }
+        }
+        return cloneWithProject(newProjection);
+      }
+    }
+    return cloneWithProject(projection);
   }
 
   @Override

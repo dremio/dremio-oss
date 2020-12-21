@@ -26,6 +26,9 @@ public enum AuthenticationType {
   USER,
 
   @Tag(2)
-  MASTER
+  MASTER,
+
+  @Tag(3)
+  KERBEROS
 
 }

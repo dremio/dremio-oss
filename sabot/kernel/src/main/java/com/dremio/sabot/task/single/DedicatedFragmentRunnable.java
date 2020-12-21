@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.task.single;
 
+import com.dremio.common.perf.StatsCollectionEligibilityRegistrar;
 import com.dremio.exec.rpc.ResettableBarrier;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.BlockRun;
@@ -37,6 +38,7 @@ public class DedicatedFragmentRunnable implements Runnable {
 
   @Override
   public void run() {
+    StatsCollectionEligibilityRegistrar.addSelf();
     currentThread = Thread.currentThread();
 
     while(true){

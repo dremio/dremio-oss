@@ -27,16 +27,19 @@ public class VersionInfo {
   @JsonISODateTime
   private final long buildTime;
   private final CommitInfo commit;
+  private final String clusterType;
 
   @JsonCreator
   public VersionInfo(
       @JsonProperty("version") String version,
       @JsonProperty("buildTime") long buildTime,
-      @JsonProperty("commit") CommitInfo commit) {
+      @JsonProperty("commit") CommitInfo commit,
+      @JsonProperty("clusterType") String clusterType) {
     super();
     this.version = version;
     this.buildTime = buildTime;
     this.commit = commit;
+    this.clusterType = clusterType;
   }
 
   public String getVersion() {
@@ -49,5 +52,9 @@ public class VersionInfo {
 
   public CommitInfo getCommit() {
     return commit;
+  }
+
+  public String getClusterType() {
+    return clusterType;
   }
 }

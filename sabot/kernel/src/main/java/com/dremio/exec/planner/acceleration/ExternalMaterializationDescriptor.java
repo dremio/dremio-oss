@@ -37,7 +37,7 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
                                            List<String> virtualDatasetPath,
                                            List<String> physicalDatasetPath) {
     super(reflection, materializationId, version, Long.MAX_VALUE, null, physicalDatasetPath, 0D, 0,
-        Collections.emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null, Long.MIN_VALUE);
+        Collections.emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null, Long.MIN_VALUE, StrippingFactory.NO_STRIP_VERSION);
     this.virtualDatasetPath = virtualDatasetPath;
   }
 
@@ -71,6 +71,7 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
       null,
       Long.MAX_VALUE,
       getStrippedPlanHash() == null,
+      StrippingFactory.LATEST_STRIP_VERSION,
       null
     );
   }

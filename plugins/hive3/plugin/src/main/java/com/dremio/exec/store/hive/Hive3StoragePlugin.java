@@ -825,6 +825,8 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
 
   @Override
   public void close() {
+    HivePf4jPlugin.unregisterMetricMBean();
+
     if (!isOpen.getAndSet(false)) {
       return;
     }

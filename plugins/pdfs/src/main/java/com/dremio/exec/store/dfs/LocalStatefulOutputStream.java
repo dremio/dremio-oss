@@ -36,6 +36,7 @@ import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.google.common.base.Preconditions;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * An OutputStream that buffers the stream locally, flushing to the remote node
@@ -58,7 +59,7 @@ class LocalStatefulOutputStream extends OutputStream {
   private long lastUpdate;
 
   public LocalStatefulOutputStream(String path, FabricCommandRunner runner, BufferAllocator alloc, int size) {
-    this.buf = alloc.buffer(size).asNettyBuffer();
+    this.buf = NettyArrowBuf.unwrapBuffer(alloc.buffer(size));
     this.runner = runner;
     this.path = path;
   }

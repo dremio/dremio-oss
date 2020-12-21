@@ -18,10 +18,12 @@ package com.dremio.exec.expr;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import com.dremio.exec.record.TypedFieldId;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -31,6 +33,8 @@ import com.google.common.collect.Lists;
  */
 public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenContext, Void,
   RuntimeException> {
+
+  private boolean expHasComplexField = false;
 
   @Override
   public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression expr, Void
@@ -96,8 +100,25 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
 
   @Override
   public CodeGenContext visitUnknown(LogicalExpression expression, Void value) {
+
+    if (expression instanceof ValueVectorReadExpression) {
+      expHasComplexField = expHasComplexField || isComplexField((ValueVectorReadExpression) expression);
+    }
     // assert that the tree does not already have context nodes in it.
     Preconditions.checkArgument(!(expression instanceof CodeGenContext));
     return new CodeGenContext(expression);
+  }
+
+  private boolean isComplexField(ValueVectorReadExpression e) {
+    TypedFieldId fieldId = e.getTypedFieldId();
+    CompleteType type = fieldId.getIntermediateType() != null ? fieldId.getIntermediateType()
+      : fieldId.getFinalType();
+
+    boolean isComplexRead = fieldId.getFieldIds().length > 1;
+    return isComplexRead || type.isComplex();
+  }
+
+  public boolean isExpHasComplexField() {
+    return expHasComplexField;
   }
 }

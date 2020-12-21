@@ -26,7 +26,7 @@ import {
 } from '@app/actions/explore/dataset/data';
 import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from '@inject/pages/AdminPage/subpages/Roles';
-import Votes from '@inject/pages/AdminPage/subpages/Votes';
+// import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
 import Queues from '@inject/pages/AdminPage/subpages/WLM/Queues';
 import QAssignments from '@inject/pages/AdminPage/subpages/WLM/QAssignments';
 import EulaPage from '@inject/pages/EulaPage/EulaPage';
@@ -154,7 +154,7 @@ export default dispatch => (
             <Route path='/admin/provisioning' component={Provisioning} />
             <Route path='/admin/activation' component={Activation}/>
             <Route path='/admin/support' component={Support} />
-            <Route path='/admin/votes' component={Votes} />
+            {/* <Route path='/admin/votes' component={Votes} /> // To Be Removed */}
             <Route path='/admin/queues' component={Queues} />
             <Route path='/admin/rules' component={QAssignments} />
           </Route>

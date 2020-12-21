@@ -912,10 +912,10 @@ public class HiveMetadataUtils {
     InputSplit[] inputSplits;
     try {
       // Parquet logic in hive-3.1.1 does not check recursively by default.
+      job.set(FileInputFormat.INPUT_DIR_RECURSIVE, "true");
       if (isParquetFormat(format)) {
         inputSplits = new ParquetInputFormat().getSplits(job, 1);
       } else {
-        job.set(FileInputFormat.INPUT_DIR_RECURSIVE, "true");
         inputSplits = format.getSplits(job, 1);
       }
     } catch (IOException e) {

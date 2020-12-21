@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>11.0.0-202011171636110752-16ab953d</version>
+  <version>12.0.0-202012212145230282-d8947fd3</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>1.0.0-20201030153925-50604414cc-dremio</arrow.version>
+    <arrow.version>3.0.0-20201208112059-2953033003-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202011060015220283-f4a500e</calcite.version>
+    <calcite.version>1.16.0-202012022204530538-af1f354</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -85,7 +85,7 @@
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
     <plugin.hive3.aws-sdk.version>1.11.761</plugin.hive3.aws-sdk.version>
-    <plugin.hive3.hive.version>3.1.1-dremio-202007281635210499-9dff598</plugin.hive3.hive.version>
+    <plugin.hive3.hive.version>3.1.1-dremio-202012071527090472-7e70c1a</plugin.hive3.hive.version>
     <plugin.hive3.hbase.version>2.2.0</plugin.hive3.hbase.version>
     <plugin.hive3.orc.version>1.5.1-dremio-202007271350010286-8131f30</plugin.hive3.orc.version>
     <plugin.hive3.datanucleus-api-jdo.version>4.2.4</plugin.hive3.datanucleus-api-jdo.version>
@@ -126,7 +126,7 @@
     <fbs.version>1.9.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
     <opencensus.version>0.24.0</opencensus.version>
-    <grpc.version>1.23.0</grpc.version>
+    <grpc.version>1.30.2</grpc.version>
     <guava.version>28.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
 
@@ -760,6 +760,8 @@ limitations under the License.
             <exclude>**/*.fbs</exclude>
             <exclude>**/*.idx</exclude>
             <exclude>**/*.tpl</exclude>
+            <exclude>**/*.spec.js.snap</exclude>
+            <exclude>**/*.yarnrc</exclude>
 
             <!-- by file name -->
             <exclude>**/Jenkinsfile</exclude>
@@ -783,6 +785,9 @@ limitations under the License.
             <exclude>**/*.no_license</exclude>
             <exclude>**/rpm/conf/dremio-env</exclude>
             <exclude>**/rpm/conf/dremio.conf</exclude>
+            <exclude>**/yarn.lock</exclude>
+            <exclude>**/.env</exclude>
+            <exclude>**/microsoft-logo.svg</exclude>
 
             <!-- by directory name -->
             <exclude>**/node_modules/**</exclude>
@@ -1850,7 +1855,12 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>org.apache.arrow</groupId>
-        <artifactId>arrow-memory</artifactId>
+        <artifactId>arrow-memory-core</artifactId>
+        <version>${arrow.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.arrow</groupId>
+        <artifactId>arrow-memory-netty</artifactId>
         <version>${arrow.version}</version>
       </dependency>
       <dependency>

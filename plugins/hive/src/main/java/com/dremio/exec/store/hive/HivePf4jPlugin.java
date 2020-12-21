@@ -16,6 +16,7 @@
 package com.dremio.exec.store.hive;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -80,5 +81,17 @@ public class HivePf4jPlugin extends Plugin {
    */
   public static Closeable swapClassLoader() {
     return ContextClassLoaderSwapper.swapClassLoader(HivePf4jPlugin.class);
+  }
+
+  public static void unregisterMetricMBean() {
+    // DX-25305 - Call AwsSdkMetrics::unregisterMetricAdminMBean to free classloader references for Glue sources
+    // Reflection is used to avoid addition of a dependency to AwsSdkMetrics
+    try (Closeable ccls = swapClassLoader()) {
+      Class<?> awsClass = HivePf4jPlugin.class.getClassLoader().loadClass("com.amazonaws.metrics.AwsSdkMetrics");
+      Method method = awsClass.getMethod("unregisterMetricAdminMBean");
+      method.invoke(null);
+    } catch (Exception ex) {
+      LOGGER.debug("Ignoring exception:", ex);
+    }
   }
 }

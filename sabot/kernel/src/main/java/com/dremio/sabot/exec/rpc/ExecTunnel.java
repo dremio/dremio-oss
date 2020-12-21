@@ -31,6 +31,7 @@ import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.google.common.base.Preconditions;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 public class ExecTunnel {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecTunnel.class);
@@ -124,7 +125,7 @@ public class ExecTunnel {
       final int buffCount = Optional.ofNullable(message).map(m -> m.getBuffers().length).orElse(0);
       final ByteBuf[] buffers = new ByteBuf[buffCount];
       for (int i=0; i < buffCount; i++) {
-        buffers[i] = message.getBuffers()[i].asNettyBuffer();
+        buffers[i] = NettyArrowBuf.unwrapBuffer(message.getBuffers()[i]);
       }
       connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message.toProtoMessage(), Ack.class, buffers);
     }

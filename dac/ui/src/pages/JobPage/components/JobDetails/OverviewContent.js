@@ -22,7 +22,7 @@ import jobsUtils from 'utils/jobsUtils';
 import timeUtils from 'utils/timeUtils';
 import { getIconByEntityType } from 'utils/iconUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
-import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
+// import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton'; // To Be Removed
 import SettingsBtn from 'components/Buttons/SettingsBtn';
 import RealTimeTimer from 'components/RealTimeTimer';
 import CopyButton from 'components/Buttons/CopyButton';
@@ -286,9 +286,9 @@ class OverviewContent extends PureComponent {
                     style={{ backgroundColor: 'rgba(0, 0, 0, 0.0392157)', height: 27 }}
                     hasDropdown={false}
                   />}
-                  {item.get('type') &&
+                  {/* {item.get('type') &&
                     <DatasetAccelerationButton fullPath={item.get('datasetPathList')} side='left'/>
-                  }
+                  } // To Be Removed */}
                 </div>
               </li>
             );

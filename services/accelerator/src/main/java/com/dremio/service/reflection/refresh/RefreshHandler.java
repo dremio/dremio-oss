@@ -48,7 +48,6 @@ import com.dremio.exec.store.iceberg.IcebergOperation;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
@@ -139,7 +138,7 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       // Disable default raw reflections during plan generation for a refresh
       config.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
-      RefreshMethod[] refreshMethods = new RefreshMethod[1];
+      RefreshDecision[] refreshDecisions = new RefreshDecision[1];
       final RelNode initial = determineMaterializationPlan(
           config,
           goal,
@@ -151,7 +150,7 @@ public class RefreshHandler implements SqlToPlanHandler {
           config.getContext().getConfig(),
           reflectionSettings,
           materializationStore,
-          refreshMethods);
+          refreshDecisions);
       config.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
 
       final Rel drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
@@ -161,10 +160,10 @@ public class RefreshHandler implements SqlToPlanHandler {
       final AttemptId attemptId = AttemptId.of(queryId);
 
       IcebergTableProps icebergTableProps = materialization.getIsIcebergDataset() ?
-                                            getIcebergTableProps(materialization, refreshMethods, attemptId)
+                                            getIcebergTableProps(materialization, refreshDecisions, attemptId)
                                             : null;
 
-      final boolean isIcebergIncrementalRefresh = isIcebergInsertRefresh(materialization, refreshMethods[0]);
+      final boolean isIcebergIncrementalRefresh = isIcebergInsertRefresh(materialization, refreshDecisions[0]);
       final String materializationPath =  isIcebergIncrementalRefresh ?
         materialization.getBasePath() : materialization.getId().getId() + "_" + attemptId.getAttemptNum();
       final String materializationId = materializationPath.split("_")[0];
@@ -173,7 +172,7 @@ public class RefreshHandler implements SqlToPlanHandler {
           reflectionId.getId(),
           materializationPath);
 
-      boolean isCreate = !isIcebergInsertRefresh(materialization, refreshMethods[0]);
+      boolean isCreate = !isIcebergInsertRefresh(materialization, refreshDecisions[0]);
 
       ByteString extendedByteString = null;
       if(!isCreate && materialization.getIsIcebergDataset()) {
@@ -218,9 +217,9 @@ public class RefreshHandler implements SqlToPlanHandler {
     }
   }
 
-  private IcebergTableProps getIcebergTableProps(Materialization materialization, RefreshMethod[] refreshMethods, AttemptId attemptId) {
+  private IcebergTableProps getIcebergTableProps(Materialization materialization, RefreshDecision[] refreshDecisions, AttemptId attemptId) {
     IcebergTableProps icebergTableProps;
-    if (isIcebergInsertRefresh(materialization, refreshMethods[0])) {
+    if (isIcebergInsertRefresh(materialization, refreshDecisions[0])) {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, null,
         IcebergOperation.Type.INSERT, materialization.getBasePath());
@@ -233,9 +232,9 @@ public class RefreshHandler implements SqlToPlanHandler {
     return icebergTableProps;
   }
 
-  private boolean isIcebergInsertRefresh(Materialization materialization, RefreshMethod refreshMethod) {
+  private boolean isIcebergInsertRefresh(Materialization materialization, RefreshDecision refreshDecision) {
     return materialization.getIsIcebergDataset() &&
-      refreshMethod == RefreshMethod.INCREMENTAL &&
+      !refreshDecision.getInitialRefresh() &&
       materialization.getBasePath() != null &&
       !materialization.getBasePath().isEmpty();
   }
@@ -251,8 +250,11 @@ public class RefreshHandler implements SqlToPlanHandler {
       SabotConfig config,
       ReflectionSettings reflectionSettings,
       MaterializationStore materializationStore,
-      RefreshMethod[] refreshMethod) {
-    final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig, namespace, context.getPlannerSettings().getOptions(), config, goal, entry, materialization, reflectionSettings, materializationStore);
+      RefreshDecision[] refreshDecisions) {
+
+    final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig, namespace,
+      context.getPlannerSettings().getOptions(), config, goal, entry, materialization,
+      reflectionSettings, materializationStore, getForceFullRefresh(materialization));
 
     final RelNode normalizedPlan = planGenerator.generateNormalizedPlan();
 
@@ -266,7 +268,7 @@ public class RefreshHandler implements SqlToPlanHandler {
     context.getSession().getSubstitutionSettings().setExclusions(exclusions);
 
     RefreshDecision decision = planGenerator.getRefreshDecision();
-    refreshMethod[0] = decision.getAccelerationSettings().getMethod();
+    refreshDecisions[0] = decision;
 
     // save the decision for later.
     context.recordExtraInfo(DECISION_NAME, ABSTRACT_SERIALIZER.serialize(decision));
@@ -277,6 +279,11 @@ public class RefreshHandler implements SqlToPlanHandler {
     }
 
     return normalizedPlan;
+  }
+
+  private Boolean getForceFullRefresh(Materialization materialization) {
+    Boolean forceRefresh = materialization.getForceFullRefresh();
+    return forceRefresh == null ? false : forceRefresh;
   }
 
   @Override

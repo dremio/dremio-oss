@@ -53,6 +53,7 @@ export default class Select extends PureComponent {
   state = { anchorEl: null };
 
   getButtonLabel(value) {
+
     const {
       items,
       selectedValueRenderer,
@@ -62,6 +63,7 @@ export default class Select extends PureComponent {
     const current = items.find(item => {
       return comparator(value, this.getValue(item));
     });
+
     if (!current) {
       return '';
     }

@@ -400,7 +400,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
         actualNulls[i] = (buf.getInt(((i * blockWidth) + def.getNullByteOffset())) >>> nullBitOffsetA) & 1;
         if (actualNulls[i] != 0) {
           buf.getBytes((i * blockWidth) + def.getOffset(), valueBuf, 0, 16);
-          actualValues[i] = DecimalUtility.getBigDecimalFromArrowBuf(valueBuf, 0, 0);
+          actualValues[i] = DecimalUtility.getBigDecimalFromArrowBuf(valueBuf, 0, 0, DecimalVector.TYPE_WIDTH);
         }
       }
     }

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.dremio.exec.store.hive;
 
 import static com.dremio.BaseTestQuery.getTempDir;
@@ -28,11 +27,9 @@ import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -53,59 +50,51 @@ import com.dremio.exec.impersonation.hive.BaseTestHiveImpersonation;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
 
 public class HiveTestDataGenerator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestDataGenerator.class);
-
   public static final String HIVE_TEST_PLUGIN_NAME = "hive";
   public static final String HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE = "hive plugin name with whitespace";
-
-  private static HiveTestDataGenerator instance;
+  private static volatile HiveTestDataGenerator instance;
 
   private final String dbDir;
   private final String whDir;
   private final Map<String, String> config;
-
-  // Metastore server port
-  private final int port;
-
+  private final int port;   // Metastore server port
 
   public static synchronized HiveTestDataGenerator getInstance() throws Exception {
-    return getInstance(new HashMap<>());
+    return getInstance(null);
   }
 
   public static synchronized HiveTestDataGenerator getInstance(Map<String, String> cfg) throws Exception {
     if (instance == null || (cfg != null && cfg.size() > 0)) {
-      final String dbDir = getTempDir("metastore_db");
-      final String whDir = getTempDir("warehouse");
-
-      HiveTestDataGenerator localInstance = new HiveTestDataGenerator(dbDir, whDir, cfg);
+      HiveTestDataGenerator localInstance = new HiveTestDataGenerator(cfg);
       localInstance.generateTestData();
       instance = localInstance;
     }
-
     return instance;
   }
 
-  private HiveTestDataGenerator(final String dbDir, final String whDir, Map<String, String> cfg) throws Exception {
-    this.dbDir = dbDir;
-    this.whDir = whDir;
+  public static synchronized HiveTestDataGenerator newInstanceWithoutTestData(Map<String, String> cfg) throws Exception {
+    return new HiveTestDataGenerator(cfg);
+  }
+
+  private HiveTestDataGenerator(Map<String, String> cfg) throws Exception {
+    this.dbDir = getTempDir("metastore_db");
+    this.whDir =  getTempDir("warehouse");
 
     final HiveConf conf = new HiveConf();
-
     HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
     HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_AUTO_CREATE_ALL, true);
     HiveConf.setVar(conf, HiveConf.ConfVars.METASTOREWAREHOUSE, whDir);
     HiveConf.setVar(conf, HiveConf.ConfVars.METASTORECONNECTURLKEY, String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
-    cfg.forEach((k, v) -> conf.set(k, v));
-    port = MetaStoreUtils.startMetaStore(conf);
-
-    config = Maps.newHashMap();
+    if (cfg != null) {
+      cfg.forEach(conf::set);
+    }
+    this.config = Maps.newHashMap();
     config.put(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
+    port = MetaStoreUtils.startMetaStore(conf);
   }
 
   public String getWhDir() {
@@ -139,8 +128,7 @@ public class HiveTestDataGenerator {
     throws Exception {
     StoragePlugin storagePlugin = pluginRegistry.getSource(HIVE_TEST_PLUGIN_NAME);
     if (storagePlugin == null) {
-      throw new Exception(
-        "Hive test storage plugin doesn't exist. Add a plugin using addHiveTestPlugin()");
+      throw new Exception("Hive test storage plugin doesn't exist. Add a plugin using addHiveTestPlugin()");
     }
 
     ManagedStoragePlugin msp = ((CatalogServiceImpl) pluginRegistry).getManagedSource(HIVE_TEST_PLUGIN_NAME);
@@ -186,13 +174,8 @@ public class HiveTestDataGenerator {
   }
 
   private void runDDL(String query, HiveConf conf) throws IOException {
-    final SessionState ss = new SessionState(conf);
-    try {
-      SessionState.start(ss);
-      final Driver hiveDriver = getHiveDriver(conf);
-      executeQuery(hiveDriver, query);
-    } finally {
-      ss.close();
+    try (DriverState driverState = new DriverState(conf)) {
+      executeQuery(driverState.driver, query);
     }
   }
 
@@ -211,8 +194,20 @@ public class HiveTestDataGenerator {
 
   }
 
-  private Driver getHiveDriver(HiveConf conf) {
-    return new Driver(conf);
+  private static class DriverState implements AutoCloseable {
+    private final Driver driver;
+    private final SessionState sessionState;
+
+    DriverState(HiveConf conf) {
+      this.driver = new Driver(conf);
+      this.sessionState = new SessionState(conf);
+      SessionState.start(sessionState);
+    }
+
+    @Override
+    public void close() throws IOException {
+      sessionState.close();
+    }
   }
 
   private void logVersion(Driver hiveDriver) throws Exception {
@@ -227,450 +222,347 @@ public class HiveTestDataGenerator {
     }
   }
 
-  private void generateTestData() throws Exception {
-    HiveConf conf = newHiveConf();
-    SessionState ss = new SessionState(conf);
-    SessionState.start(ss);
-    Driver hiveDriver = getHiveDriver(conf);
-//    logVersion(hiveDriver);
-    // generate (key, value) test data
-    String testDataFile = generateTestDataFile(5, "dremio-hive-test");
-
-    // Create a (key, value) schema table with Text SerDe which is available in hive-serdes.jar
-    executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS default.kv(key INT, value STRING) " +
-      "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
-    executeQuery(hiveDriver, "LOAD DATA LOCAL INPATH '" + testDataFile + "' OVERWRITE INTO TABLE default.kv");
-
-    // Create a (key, value) schema table in non-default database with RegexSerDe which is available in hive-contrib.jar
-    // Table with RegExSerde is expected to have columns of STRING type only.
-    executeQuery(hiveDriver, "CREATE DATABASE IF NOT EXISTS db1");
-    executeQuery(hiveDriver, "CREATE TABLE db1.kv_db1(key STRING, value STRING) " +
-      "ROW FORMAT SERDE 'org.apache.hadoop.hive.contrib.serde2.RegexSerDe' " +
-      "WITH SERDEPROPERTIES (" +
-      "  \"input.regex\" = \"([0-9]*), (.*_[0-9]*)\", " +
-      "  \"output.format.string\" = \"%1$s, %2$s\"" +
-      ") ");
-    executeQuery(hiveDriver, "INSERT INTO TABLE db1.kv_db1 SELECT * FROM default.kv");
-
-    // Create an Avro format based table backed by schema in a separate file
-    final String avroCreateQuery = String.format("CREATE TABLE db1.avro " +
-        "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe' " +
-        "STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' " +
-        "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat' " +
-        "TBLPROPERTIES ('avro.schema.url'='file:///%s')",
-      BaseTestQuery.getPhysicalFileFromResource("avro_test_schema.json").replace('\\', '/'));
-
-    executeQuery(hiveDriver, avroCreateQuery);
-    executeQuery(hiveDriver, "INSERT INTO TABLE db1.avro SELECT * FROM default.kv");
-
-    executeQuery(hiveDriver, "USE default");
-
-    // create a table with no data
-    executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS empty_table(a INT, b STRING)");
-
-    // create empty partitioned table
-    executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS partitioned_empty_table(a INT, b STRING) PARTITIONED BY (p INT)");
-    // delete the table location of empty table
-    File emptyTableLocation = new File(whDir, "empty_table");
-    if (emptyTableLocation.exists()) {
-      FileUtils.forceDelete(emptyTableLocation);
+  public void generateTestData(java.util.function.Function<Driver, Void> generatorFunction) throws Exception {
+    try (DriverState driverState = new DriverState(newHiveConf())) {
+      generatorFunction.apply(driverState.driver);
     }
+  }
 
-    // create Parquet format based table
-    final File regionDir = new File(BaseTestQuery.getTempDir("region"));
-    regionDir.mkdirs();
-    final URL url = Resources.getResource("region.parquet");
-    if (url == null) {
-      throw new IOException(String.format("Unable to find path %s.", "region.parquet"));
-    }
+  public void generateTestData() throws Exception {
+    try (DriverState driverState = new DriverState(newHiveConf())) {
+      Driver hiveDriver = driverState.driver;
+      logVersion(hiveDriver);
 
-    final File file = new File(regionDir, "region.parquet");
-    file.deleteOnExit();
-    regionDir.deleteOnExit();
-    Files.write(Paths.get(file.toURI()), Resources.toByteArray(url));
+      // generate (key, value) test data
+      String testDataFile = generateTestDataFile(5, "dremio-hive-test");
 
-    final String parquetUpperSchemaTable = "create external table parquet_region(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
-      "stored as parquet location '" + file.getParent() + "'";
-    executeQuery(hiveDriver, parquetUpperSchemaTable);
+      // Create a (key, value) schema table with Text SerDe which is available in hive-serdes.jar
+      executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS default.kv(key INT, value STRING) " +
+          "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
+      executeQuery(hiveDriver, "LOAD DATA LOCAL INPATH '" + testDataFile + "' OVERWRITE INTO TABLE default.kv");
 
-    final String parquetschemalearntest = "create external table parquetschemalearntest(R_REGIONKEY bigint) " +
-      "stored as parquet location '" + file.getParent() + "'";
-    executeQuery(hiveDriver, parquetschemalearntest);
+      // Create a (key, value) schema table in non-default database with RegexSerDe which is available in hive-contrib.jar
+      // Table with RegExSerde is expected to have columns of STRING type only.
+      executeQuery(hiveDriver, "CREATE DATABASE IF NOT EXISTS db1");
+      executeQuery(hiveDriver, "CREATE TABLE db1.kv_db1(key STRING, value STRING) " +
+          "ROW FORMAT SERDE 'org.apache.hadoop.hive.contrib.serde2.RegexSerDe' " +
+          "WITH SERDEPROPERTIES (" +
+          "  \"input.regex\" = \"([0-9]*), (.*_[0-9]*)\", " +
+          "  \"output.format.string\" = \"%1$s, %2$s\"" +
+          ") ");
+      executeQuery(hiveDriver, "INSERT INTO TABLE db1.kv_db1 SELECT * FROM default.kv");
 
-    // create Parquet format based table, with two files.
-    final File regionWithTwoDir = new File(getWhDir(), "parquet_with_two_files");
-    regionWithTwoDir.mkdirs();
-    final File file1Of2 = new File(regionWithTwoDir, "region1.parquet");
-    file1Of2.deleteOnExit();
-    Files.write(Paths.get(file1Of2.toURI()), Resources.toByteArray(url));
-    final File file2Of2 = new File(regionWithTwoDir, "region2.parquet");
-    file2Of2.deleteOnExit();
-    Files.write(Paths.get(file2Of2.toURI()), Resources.toByteArray(url));
-    regionWithTwoDir.deleteOnExit();
-    final String parquetWithTwoFilesTable = "create external table parquet_with_two_files(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
-      "stored as parquet location '" + file1Of2.getParent() + "'";
-    executeQuery(hiveDriver, parquetWithTwoFilesTable);
+      // Create an Avro format based table backed by schema in a separate file
+      final String avroCreateQuery = String.format("CREATE TABLE db1.avro " +
+              "ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe' " +
+              "STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' " +
+              "OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat' " +
+              "TBLPROPERTIES ('avro.schema.url'='file:///%s')",
+          BaseTestQuery.getPhysicalFileFromResource("avro_test_schema.json").replace('\\', '/'));
 
-    final String orcRegionTable = "create table orc_region stored as orc as SELECT * FROM parquet_region";
-    executeQuery(hiveDriver, orcRegionTable);
+      executeQuery(hiveDriver, avroCreateQuery);
+      executeQuery(hiveDriver, "INSERT INTO TABLE db1.avro SELECT * FROM default.kv");
 
-    byte[] fileData = Files.readAllBytes(new File(getWhDir(), "orc_region/000000_0").toPath());
+      executeQuery(hiveDriver, "USE default");
 
-    // create ORC format based table, with two files.
-    final File regionOrcWithTwoDir = new File(getWhDir(), "orc_with_two_files");
-    regionOrcWithTwoDir.mkdirs();
-    final File fileOrc1Of2 = new File(regionOrcWithTwoDir, "region1.orc");
-    fileOrc1Of2.deleteOnExit();
-    Files.write(Paths.get(fileOrc1Of2.toURI()), fileData);
-    final File fileOrc2Of2 = new File(regionOrcWithTwoDir, "region2.orc");
-    fileOrc2Of2.deleteOnExit();
-    Files.write(Paths.get(fileOrc2Of2.toURI()), fileData);
-    regionOrcWithTwoDir.deleteOnExit();
-    final String orcWithTwoFilesTable = "create external table orc_with_two_files(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
-      "stored as orc location '" + fileOrc1Of2.getParent() + "'";
-    executeQuery(hiveDriver, orcWithTwoFilesTable);
+      // create a table with no data
+      executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS empty_table(a INT, b STRING)");
 
-    final String orcStringsTable = "create table orc_strings (key int, country_char25 CHAR(25), " +
-      "country_string string, country_varchar VARCHAR(1000), continent_char25 CHAR(25)) stored as orc";
-    final String insert1 = "insert into orc_strings values (1, 'INDIA', 'CHINA', 'NEPAL', 'ASIA')";
-    final String insert2 = "insert into orc_strings values (2, 'INDONESIA', 'THAILAND', 'SINGAPORE', 'ASIA')";
-    final String insert3 = "insert into orc_strings values (3, 'FRANCE', 'ITALY', 'ROMANIA', 'EUROPE')";
-    executeQuery(hiveDriver, orcStringsTable);
-    executeQuery(hiveDriver, insert1);
-    executeQuery(hiveDriver, insert2);
-    executeQuery(hiveDriver, insert3);
+      // create empty partitioned table
+      executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS partitioned_empty_table(a INT, b STRING) PARTITIONED BY (p INT)");
+      // delete the table location of empty table
+      File emptyTableLocation = new File(whDir, "empty_table");
+      if (emptyTableLocation.exists()) {
+        FileUtils.forceDelete(emptyTableLocation);
+      }
 
-    // create a table that has all Hive types. This is to test how hive tables metadata is populated in
-    // Dremio's INFORMATION_SCHEMA.
-    executeQuery(hiveDriver,
-      "CREATE TABLE IF NOT EXISTS infoschematest(" +
-        "booleanType BOOLEAN, " +
-        "tinyintType TINYINT, " +
-        "smallintType SMALLINT, " +
-        "intType INT, " +
-        "bigintType BIGINT, " +
-        "floatType FLOAT, " +
-        "doubleType DOUBLE, " +
-        "dateType DATE, " +
-        "timestampType TIMESTAMP, " +
-        "binaryType BINARY, " +
-        "decimalType DECIMAL(38, 2), " +
-        "stringType STRING, " +
-        "varCharType VARCHAR(20), " +
-        "listType ARRAY<STRING>, " +
-        "mapType MAP<STRING,INT>, " +
-        "structType STRUCT<sint:INT,sboolean:BOOLEAN,sstring:STRING>, " +
-        "uniontypeType UNIONTYPE<int, double, array<string>>, " +
-        "charType CHAR(10))"
-    );
+      // create Parquet format based table
+      final File regionDir = new File(BaseTestQuery.getTempDir("region"));
+      regionDir.mkdirs();
+      final URL url = Resources.getResource("region.parquet");
+      if (url == null) {
+        throw new IOException(String.format("Unable to find path %s.", "region.parquet"));
+      }
 
-    String dummy = generateTestDataFile(5000, "dummy");
-    executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS default.dummy(key INT, value STRING) " +
-      "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
-    executeQuery(hiveDriver, "LOAD DATA LOCAL INPATH '" + dummy + "' OVERWRITE INTO TABLE default.dummy");
-    executeQuery(hiveDriver, "CREATE TABLE parquet_timestamp_nulls(a TIMESTAMP, b STRING) stored as parquet");
-    executeQuery(hiveDriver, "INSERT INTO TABLE parquet_timestamp_nulls SELECT null, 'a' FROM default.dummy");
+      final File file = new File(regionDir, "region.parquet");
+      file.deleteOnExit();
+      regionDir.deleteOnExit();
+      Files.write(Paths.get(file.toURI()), Resources.toByteArray(url));
 
-    // create a Hive view to test how its metadata is populated in Dremio's INFORMATION_SCHEMA
-    //See DX-8078
+      final String parquetUpperSchemaTable = "create external table parquet_region(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
+          "stored as parquet location '" + file.getParent() + "'";
+      executeQuery(hiveDriver, parquetUpperSchemaTable);
+
+      final String parquetschemalearntest = "create external table parquetschemalearntest(R_REGIONKEY bigint) " +
+          "stored as parquet location '" + file.getParent() + "'";
+      executeQuery(hiveDriver, parquetschemalearntest);
+
+      // create Parquet format based table, with two files.
+      final File regionWithTwoDir = new File(getWhDir(), "parquet_with_two_files");
+      regionWithTwoDir.mkdirs();
+      final File file1Of2 = new File(regionWithTwoDir, "region1.parquet");
+      file1Of2.deleteOnExit();
+      Files.write(Paths.get(file1Of2.toURI()), Resources.toByteArray(url));
+      final File file2Of2 = new File(regionWithTwoDir, "region2.parquet");
+      file2Of2.deleteOnExit();
+      Files.write(Paths.get(file2Of2.toURI()), Resources.toByteArray(url));
+      regionWithTwoDir.deleteOnExit();
+      final String parquetWithTwoFilesTable = "create external table parquet_with_two_files(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
+          "stored as parquet location '" + file1Of2.getParent() + "'";
+      executeQuery(hiveDriver, parquetWithTwoFilesTable);
+
+      final String orcRegionTable = "create table orc_region stored as orc as SELECT * FROM parquet_region";
+      executeQuery(hiveDriver, orcRegionTable);
+
+      byte[] fileData = Files.readAllBytes(new File(getWhDir(), "orc_region/000000_0").toPath());
+
+      // create ORC format based table, with two files.
+      final File regionOrcWithTwoDir = new File(getWhDir(), "orc_with_two_files");
+      regionOrcWithTwoDir.mkdirs();
+      final File fileOrc1Of2 = new File(regionOrcWithTwoDir, "region1.orc");
+      fileOrc1Of2.deleteOnExit();
+      Files.write(Paths.get(fileOrc1Of2.toURI()), fileData);
+      final File fileOrc2Of2 = new File(regionOrcWithTwoDir, "region2.orc");
+      fileOrc2Of2.deleteOnExit();
+      Files.write(Paths.get(fileOrc2Of2.toURI()), fileData);
+      regionOrcWithTwoDir.deleteOnExit();
+      final String orcWithTwoFilesTable = "create external table orc_with_two_files(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
+          "stored as orc location '" + fileOrc1Of2.getParent() + "'";
+      executeQuery(hiveDriver, orcWithTwoFilesTable);
+
+      final String orcStringsTable = "create table orc_strings (key int, country_char25 CHAR(25), " +
+          "country_string string, country_varchar VARCHAR(1000), continent_char25 CHAR(25)) stored as orc";
+      final String insert1 = "insert into orc_strings values (1, 'INDIA', 'CHINA', 'NEPAL', 'ASIA')";
+      final String insert2 = "insert into orc_strings values (2, 'INDONESIA', 'THAILAND', 'SINGAPORE', 'ASIA')";
+      final String insert3 = "insert into orc_strings values (3, 'FRANCE', 'ITALY', 'ROMANIA', 'EUROPE')";
+      executeQuery(hiveDriver, orcStringsTable);
+      executeQuery(hiveDriver, insert1);
+      executeQuery(hiveDriver, insert2);
+      executeQuery(hiveDriver, insert3);
+
+      // create a table that has all Hive types. This is to test how hive tables metadata is populated in
+      // Dremio's INFORMATION_SCHEMA.
+      executeQuery(hiveDriver,
+          "CREATE TABLE IF NOT EXISTS infoschematest(" +
+              "booleanType BOOLEAN, " +
+              "tinyintType TINYINT, " +
+              "smallintType SMALLINT, " +
+              "intType INT, " +
+              "bigintType BIGINT, " +
+              "floatType FLOAT, " +
+              "doubleType DOUBLE, " +
+              "dateType DATE, " +
+              "timestampType TIMESTAMP, " +
+              "binaryType BINARY, " +
+              "decimalType DECIMAL(38, 2), " +
+              "stringType STRING, " +
+              "varCharType VARCHAR(20), " +
+              "listType ARRAY<STRING>, " +
+              "mapType MAP<STRING,INT>, " +
+              "structType STRUCT<sint:INT,sboolean:BOOLEAN,sstring:STRING>, " +
+              "uniontypeType UNIONTYPE<int, double, array<string>>, " +
+              "charType CHAR(10))"
+      );
+
+      String dummy = generateTestDataFile(5000, "dummy");
+      executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS default.dummy(key INT, value STRING) " +
+          "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
+      executeQuery(hiveDriver, "LOAD DATA LOCAL INPATH '" + dummy + "' OVERWRITE INTO TABLE default.dummy");
+      executeQuery(hiveDriver, "CREATE TABLE parquet_timestamp_nulls(a TIMESTAMP, b STRING) stored as parquet");
+      executeQuery(hiveDriver, "INSERT INTO TABLE parquet_timestamp_nulls SELECT null, 'a' FROM default.dummy");
+
+      // create a Hive view to test how its metadata is populated in Dremio's INFORMATION_SCHEMA
+      //See DX-8078
 //    executeQuery(hiveDriver, "CREATE VIEW IF NOT EXISTS hiveview AS SELECT * FROM kv");
 
-    executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS " +
-      "partition_pruning_test_loadtable(a DATE, b TIMESTAMP, c INT, d INT, e INT) " +
-      "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
-    executeQuery(hiveDriver,
-      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE partition_pruning_test_loadtable",
-        generateTestDataFileForPartitionInput()));
+      executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS " +
+          "partition_pruning_test_loadtable(a DATE, b TIMESTAMP, c INT, d INT, e INT) " +
+          "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
+      executeQuery(hiveDriver,
+          String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE partition_pruning_test_loadtable",
+              generateTestDataFileForPartitionInput()));
 
-    // create partitioned hive table to test partition pruning
-    executeQuery(hiveDriver,
-      "CREATE TABLE IF NOT EXISTS partition_pruning_test(a DATE, b TIMESTAMP) " +
-        "partitioned by (c INT, d INT, e INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
-    executeQuery(hiveDriver, "INSERT OVERWRITE TABLE partition_pruning_test PARTITION(c, d, e) " +
-      "SELECT a, b, c, d, e FROM partition_pruning_test_loadtable");
+      // create partitioned hive table to test partition pruning
+      executeQuery(hiveDriver,
+          "CREATE TABLE IF NOT EXISTS partition_pruning_test(a DATE, b TIMESTAMP) " +
+              "partitioned by (c INT, d INT, e INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
+      executeQuery(hiveDriver, "INSERT OVERWRITE TABLE partition_pruning_test PARTITION(c, d, e) " +
+          "SELECT a, b, c, d, e FROM partition_pruning_test_loadtable");
 
-    executeQuery(hiveDriver,
-      "CREATE TABLE IF NOT EXISTS partition_with_few_schemas(a DATE, b TIMESTAMP) " +
-        "partitioned by (c INT, d INT, e INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
-    executeQuery(hiveDriver, "INSERT OVERWRITE TABLE partition_with_few_schemas PARTITION(c, d, e) " +
-      "SELECT a, b, c, d, e FROM partition_pruning_test_loadtable");
-    executeQuery(hiveDriver, "alter table partition_with_few_schemas partition(c=1, d=1, e=1) change a a1 INT");
-    executeQuery(hiveDriver, "alter table partition_with_few_schemas partition(c=1, d=1, e=2) change a a1 INT");
-    executeQuery(hiveDriver, "alter table partition_with_few_schemas partition(c=2, d=2, e=2) change a a1 INT");
+      executeQuery(hiveDriver,
+          "CREATE TABLE IF NOT EXISTS partition_with_few_schemas(a DATE, b TIMESTAMP) " +
+              "partitioned by (c INT, d INT, e INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
+      executeQuery(hiveDriver, "INSERT OVERWRITE TABLE partition_with_few_schemas PARTITION(c, d, e) " +
+          "SELECT a, b, c, d, e FROM partition_pruning_test_loadtable");
+      executeQuery(hiveDriver, "alter table partition_with_few_schemas partition(c=1, d=1, e=1) change a a1 INT");
+      executeQuery(hiveDriver, "alter table partition_with_few_schemas partition(c=1, d=1, e=2) change a a1 INT");
+      executeQuery(hiveDriver, "alter table partition_with_few_schemas partition(c=2, d=2, e=2) change a a1 INT");
 
-    // Add a partition with custom location
-    executeQuery(hiveDriver,
-      String.format("ALTER TABLE partition_pruning_test ADD PARTITION (c=99, d=98, e=97) LOCATION '%s'",
-        getTempDir("part1")));
-    executeQuery(hiveDriver,
-      String.format("INSERT INTO TABLE partition_pruning_test PARTITION(c=99, d=98, e=97) " +
-          "SELECT '%s', '%s' FROM kv LIMIT 1",
-        new Date(System.currentTimeMillis()).toString(), new Timestamp(System.currentTimeMillis()).toString()));
+      // Add a partition with custom location
+      executeQuery(hiveDriver,
+          String.format("ALTER TABLE partition_pruning_test ADD PARTITION (c=99, d=98, e=97) LOCATION '%s'",
+              getTempDir("part1")));
+      executeQuery(hiveDriver,
+          String.format("INSERT INTO TABLE partition_pruning_test PARTITION(c=99, d=98, e=97) " +
+                  "SELECT '%s', '%s' FROM kv LIMIT 1",
+              new Date(System.currentTimeMillis()).toString(), new Timestamp(System.currentTimeMillis()).toString()));
 
-    executeQuery(hiveDriver, "DROP TABLE partition_pruning_test_loadtable");
+      executeQuery(hiveDriver, "DROP TABLE partition_pruning_test_loadtable");
 
-    // Create a partitioned parquet table (DRILL-3938)
-    executeQuery(hiveDriver,
-      "CREATE TABLE kv_parquet(key INT, value STRING) PARTITIONED BY (part1 int) STORED AS PARQUET");
-    executeQuery(hiveDriver, "INSERT INTO TABLE kv_parquet PARTITION(part1) SELECT key, value, key FROM default.kv");
-    executeQuery(hiveDriver, "ALTER TABLE kv_parquet ADD COLUMNS (newcol string)");
+      // Create a partitioned parquet table (DRILL-3938)
+      executeQuery(hiveDriver,
+          "CREATE TABLE kv_parquet(key INT, value STRING) PARTITIONED BY (part1 int) STORED AS PARQUET");
+      executeQuery(hiveDriver, "INSERT INTO TABLE kv_parquet PARTITION(part1) SELECT key, value, key FROM default.kv");
+      executeQuery(hiveDriver, "ALTER TABLE kv_parquet ADD COLUMNS (newcol string)");
 
-    executeQuery(hiveDriver,
-      "CREATE TABLE kv_mixedschema(key INT, value STRING) PARTITIONED BY (part int) STORED AS ORC");
-    executeQuery(hiveDriver, "INSERT INTO TABLE kv_mixedschema PARTITION(part=1) SELECT key, value FROM default.kv LIMIT 2");
-    executeQuery(hiveDriver, "ALTER TABLE kv_mixedschema change column key key string");
-    executeQuery(hiveDriver, "INSERT INTO TABLE kv_mixedschema PARTITION(part=2) " +
-      "SELECT key, value FROM default.kv ORDER BY key DESC LIMIT 2");
+      executeQuery(hiveDriver,
+          "CREATE TABLE kv_mixedschema(key INT, value STRING) PARTITIONED BY (part int) STORED AS ORC");
+      executeQuery(hiveDriver, "INSERT INTO TABLE kv_mixedschema PARTITION(part=1) SELECT key, value FROM default.kv LIMIT 2");
+      executeQuery(hiveDriver, "ALTER TABLE kv_mixedschema change column key key string");
+      executeQuery(hiveDriver, "INSERT INTO TABLE kv_mixedschema PARTITION(part=2) " +
+          "SELECT key, value FROM default.kv ORDER BY key DESC LIMIT 2");
 
-    executeQuery(hiveDriver, "CREATE TABLE sorted_parquet(id int, key int) clustered by (id) sorted by (key) into 10 buckets stored as Parquet");
+      executeQuery(hiveDriver, "CREATE TABLE sorted_parquet(id int, key int) clustered by (id) sorted by (key) into 10 buckets stored as Parquet");
 
-    executeQuery(hiveDriver, "INSERT INTO TABLE sorted_parquet select key as id, key as key from kv_parquet distribute by id sort by key");
+      executeQuery(hiveDriver, "INSERT INTO TABLE sorted_parquet select key as id, key as key from kv_parquet distribute by id sort by key");
 
-    // Create a StorageHandler based table (DRILL-3739)
-    executeQuery(hiveDriver, "CREATE TABLE kv_sh(key INT, value STRING) STORED BY " +
-      "'org.apache.hadoop.hive.ql.metadata.DefaultStorageHandler'");
-    // Insert fails if the table directory already exists for tables with DefaultStorageHandlers. Its a known
-    // issue in Hive. So delete the table directory created as part of the CREATE TABLE
-    FileUtils.deleteQuietly(new File(whDir, "kv_sh"));
-    //executeQuery(hiveDriver, "INSERT OVERWRITE TABLE kv_sh SELECT * FROM kv");
+      // Create a StorageHandler based table (DRILL-3739)
+      executeQuery(hiveDriver, "CREATE TABLE kv_sh(key INT, value STRING) STORED BY " +
+          "'org.apache.hadoop.hive.ql.metadata.DefaultStorageHandler'");
+      // Insert fails if the table directory already exists for tables with DefaultStorageHandlers. Its a known
+      // issue in Hive. So delete the table directory created as part of the CREATE TABLE
+      FileUtils.deleteQuietly(new File(whDir, "kv_sh"));
+      //executeQuery(hiveDriver, "INSERT OVERWRITE TABLE kv_sh SELECT * FROM kv");
 
-    // Create text tables with skip header and footer table property
-    executeQuery(hiveDriver, "create database if not exists skipper");
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_text_small", "textfile", "1", "1"));
-    executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_text_small", 5, 1, 1));
+      // Create text tables with skip header and footer table property
+      executeQuery(hiveDriver, "create database if not exists skipper");
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_text_small", "textfile", "1", "1"));
+      executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_text_small", 5, 1, 1));
 
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_text_large", "textfile", "2", "2"));
-    executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_text_large", 5000, 2, 2));
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_text_large", "textfile", "2", "2"));
+      executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_text_large", 5000, 2, 2));
 
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_incorrect_skip_header", "textfile", "A", "1"));
-    executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_incorrect_skip_header", 5, 1, 1));
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_incorrect_skip_header", "textfile", "A", "1"));
+      executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_incorrect_skip_header", 5, 1, 1));
 
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_incorrect_skip_footer", "textfile", "1", "A"));
-    executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_incorrect_skip_footer", 5, 1, 1));
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_incorrect_skip_footer", "textfile", "1", "A"));
+      executeQuery(hiveDriver, generateTestDataWithHeadersAndFooters("skipper.kv_incorrect_skip_footer", 5, 1, 1));
 
-    // Create rcfile table with skip header and footer table property
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_rcfile_large", "rcfile", "1", "1"));
-    executeQuery(hiveDriver, "insert into table skipper.kv_rcfile_large select * from skipper.kv_text_large");
+      // Create rcfile table with skip header and footer table property
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_rcfile_large", "rcfile", "1", "1"));
+      executeQuery(hiveDriver, "insert into table skipper.kv_rcfile_large select * from skipper.kv_text_large");
 
-    // Create parquet table with skip header and footer table property
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_parquet_large", "parquet", "1", "1"));
-    executeQuery(hiveDriver, "insert into table skipper.kv_parquet_large select * from skipper.kv_text_large");
+      // Create parquet table with skip header and footer table property
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_parquet_large", "parquet", "1", "1"));
+      executeQuery(hiveDriver, "insert into table skipper.kv_parquet_large select * from skipper.kv_text_large");
 
-    // Create sequencefile table with skip header and footer table property
-    executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_sequencefile_large", "sequencefile", "1", "1"));
-    executeQuery(hiveDriver, "insert into table skipper.kv_sequencefile_large select * from skipper.kv_text_large");
+      // Create sequencefile table with skip header and footer table property
+      executeQuery(hiveDriver, createTableWithHeaderFooterProperties("skipper.kv_sequencefile_large", "sequencefile", "1", "1"));
+      executeQuery(hiveDriver, "insert into table skipper.kv_sequencefile_large select * from skipper.kv_text_large");
 
-    // Create a table based on json file
-    final URL simpleJson = Resources.getResource("simple.json");
-    executeQuery(hiveDriver, "create table default.simple_json(json string)");
-    executeQuery(hiveDriver, "load data local inpath '" + simpleJson + "' into table default.simple_json");
+      // Create a table based on json file
+      final URL simpleJson = Resources.getResource("simple.json");
+      executeQuery(hiveDriver, "create table default.simple_json(json string)");
+      executeQuery(hiveDriver, "load data local inpath '" + simpleJson + "' into table default.simple_json");
 
-    final URL multiRGParquet = Resources.getResource("multiple_rowgroups.parquet");
-    executeQuery(hiveDriver, "CREATE TABLE parquet_mult_rowgroups(c1 int) stored as parquet");
-    executeQuery(hiveDriver,
-      "LOAD DATA LOCAL INPATH '" + multiRGParquet + "' into table default.parquet_mult_rowgroups");
+      final URL multiRGParquet = Resources.getResource("multiple_rowgroups.parquet");
+      executeQuery(hiveDriver, "CREATE TABLE parquet_mult_rowgroups(c1 int) stored as parquet");
+      executeQuery(hiveDriver,
+          "LOAD DATA LOCAL INPATH '" + multiRGParquet + "' into table default.parquet_mult_rowgroups");
 
-    final URL impalaParquetFile = Resources.getResource("impala_alltypes.parquet");
-    executeQuery(hiveDriver, "CREATE TABLE db1.impala_parquet(" +
-      "id int, " +
-      "bool_col boolean, " +
-      "tinyint_col int, " +
-      "smallint_col int, " +
-      "int_col int, " +
-      "bigint_col bigint, " +
-      "float_col float, " +
-      "double_col double, " +
-      "date_string_col string, " +
-      "string_col string, " +
-      "timestamp_col timestamp) stored as parquet");
-    executeQuery(hiveDriver,
-      "LOAD DATA LOCAL INPATH '" + impalaParquetFile + "' into table db1.impala_parquet");
+      final URL impalaParquetFile = Resources.getResource("impala_alltypes.parquet");
+      executeQuery(hiveDriver, "CREATE TABLE db1.impala_parquet(" +
+          "id int, " +
+          "bool_col boolean, " +
+          "tinyint_col int, " +
+          "smallint_col int, " +
+          "int_col int, " +
+          "bigint_col bigint, " +
+          "float_col float, " +
+          "double_col double, " +
+          "date_string_col string, " +
+          "string_col string, " +
+          "timestamp_col timestamp) stored as parquet");
+      executeQuery(hiveDriver,
+          "LOAD DATA LOCAL INPATH '" + impalaParquetFile + "' into table db1.impala_parquet");
 
-    createOrcStringTableWithComplexTypes(hiveDriver);
+      createOrcStringTableWithComplexTypes(hiveDriver);
+      createDecimalConversionTable(hiveDriver, "decimal_conversion_test_orc", "orc");
+      createDecimalConversionTable(hiveDriver, "decimal_conversion_test_parquet", "parquet");
 
-    final String[][] typeconversinoTables = {
-      {"tinyint", "", "90"},
-      {"smallint", "", "90"},
-      {"int", "", "90"},
-      {"bigint", "", "90"},
-      {"float", "", "90.0"},
-      {"double", "", "90.0"},
-      {"decimal", "", "90"},
-      {"string", "", "90"},
-      {"varchar", "(1024)", "90"},
-      {"timestamp", "", "'2019-03-14 11:17:31.119021'"},
-      {"date", "", "'2019-03-14'"}
-    };
-    for (int i = 0; i < typeconversinoTables.length; ++i) {
-      createTypeConversionSourceTable(hiveDriver, typeconversinoTables[i][0],
-        typeconversinoTables[i][1], typeconversinoTables[i][2], "orc");
-      createTypeConversionSourceTable(hiveDriver, typeconversinoTables[i][0],
-        typeconversinoTables[i][1], typeconversinoTables[i][2], "parquet");
+      createExtTableWithMoreColumnsThanOriginal(hiveDriver, "orc_more_columns");
+
+      // create a Hive table that has columns with data types which are supported for reading in Dremio.
+      createAllTypesTextTable(hiveDriver, "readtest");
+      createAllTypesTable(hiveDriver, "parquet", "readtest");
+      createAllTypesTable(hiveDriver, "orc", "readtest");
+      createTimestampToStringTable(hiveDriver, "timestamptostring");
+      createDoubleToStringTable(hiveDriver, "doubletostring");
+
+      createFieldSizeLimitTables(hiveDriver, "field_size_limit_test");
+
+      createParquetSchemaChangeTestTable(hiveDriver, "parqschematest_table");
+      createParquetDecimalSchemaChangeTestTable(hiveDriver, "parqdecunion_table");
+      createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "parqdecimalschemachange_table");
+
+      createParquetVarcharTable(hiveDriver, "parq_varchar", url);
+      createParquetVarcharTableNoTruncationReqd(hiveDriver, "parq_varchar_no_trunc", url);
+      createParquetCharTable(hiveDriver, "parq_char", url);
+      createParquetVarcharWithMoreTypesTable(hiveDriver, "parq_varchar_more_types");
+      createParquetVarcharWithComplexTypeTable(hiveDriver, "parq_varchar_complex");
+      createPartitionTruncatedVarchar(hiveDriver, "parquet_fixed_length_varchar_partition");
+      createPartitionTruncatedChar(hiveDriver, "parquet_fixed_length_char_partition");
+
+      createVeryComplexHiveTableIntToLong(hiveDriver);
+      createVeryComplexHiveTableFloatToDouble(hiveDriver);
+      createSimpleListHiveTables(hiveDriver);
+      createSimpleListWithNullsHiveTables(hiveDriver);
+      createNestedListWithNullsHiveTables(hiveDriver);
+      createNestedStructWithNullsHiveTables(hiveDriver);
+      createSimpleStructHiveTables(hiveDriver);
+      createParuqetComplexFilterTestTable(hiveDriver);
+      createParquetComplexCaseInsensitivityTestTable(hiveDriver);
+      createParquetComplexNullTestTable(hiveDriver);
+      createComplexTypesTextTable(hiveDriver, "orccomplex");
+      createComplexTypesTable(hiveDriver, "orc", "orccomplex");
+      createComplexVarcharHiveTables(hiveDriver);
+
+      createListTypesTextTable(hiveDriver, "orclist");
+      createListTypesTable(hiveDriver, "orc", "orclist");
+
+      createStructTypesTextTable(hiveDriver, "orcstruct");
+      createStructTypesTable(hiveDriver, "orc", "orcstruct");
+
+      createUnionTypesTextTable(hiveDriver, "orcunion");
+      createUnionTypesTable(hiveDriver, "orc", "orcunion");
+
+      createMapTypesTextTable(hiveDriver, "orcmap");
+      createMapTypesTable(hiveDriver, "orc", "orcmap");
+
+      createORCDecimalCompareTestTable(hiveDriver, "orcdecimalcompare");
+      createMixedPartitionTypeTable(hiveDriver, "parquet_mixed_partition_type");
+      createPartitionDecimalOverflow(hiveDriver, "parquet_decimal_partition_overflow");
+      createTextTableWithDateColumn(hiveDriver, "text_date");
+      createOrcTableWithDateColumn(hiveDriver, "orc_date", "text_date");
+      createOrcTableWithAncientDates(hiveDriver, "orc_date_table");
+      createDecimalParquetTableWithDecimalColumnMismatch(hiveDriver, "parquet_varchar_to_decimal_with_filter");
+      createTableWithList(hiveDriver, "complex_types_direct_list");
+      createTableWithStruct(hiveDriver, "complex_types_direct_struct");
+      createTableNestedList(hiveDriver, "complex_types_nested_list");
+      createTableNestedStruct(hiveDriver, "complex_types_nested_struct");
+      createTableWithUnsupportedComplexTypes(hiveDriver, "complex_types_map");
+      createTableNestedWithUnsupportedComplexTypes(hiveDriver, "complex_types_nested_map");
+      createTableMixedCaseColumnsWithComplexTypes(hiveDriver, "complex_types_case_test");
+      createTableFlagTestColumns(hiveDriver, "complex_types_flag_test");
+      createTableForPartitionValueFormatException(hiveDriver, "partition_format_exception");
+      createParquetTableWithDeeplyNestedColumns(hiveDriver);
+      createParquetStructExtraField(hiveDriver);
+      createNullORCStructTable(hiveDriver);
+      createORCPartitionSchemaTestTable(hiveDriver);
+
+      // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
+      createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
     }
-    final String[][] typeconversinoDestTables = {
-      //tinyint
-      {"tinyint", "", "smallint", ""},
-      {"tinyint", "", "int", ""},
-      {"tinyint", "", "bigint", ""},
-      {"tinyint", "", "float", ""},
-      {"tinyint", "", "double", ""},
-      {"tinyint", "", "decimal", ""},
-      {"tinyint", "", "string", ""},
-      {"tinyint", "", "varchar", "(1024)"},
-      //smallint
-      {"smallint", "", "int", ""},
-      {"smallint", "", "bigint", ""},
-      {"smallint", "", "float", ""},
-      {"smallint", "", "double", ""},
-      {"smallint", "", "decimal", ""},
-      {"smallint", "", "string", ""},
-      {"smallint", "", "varchar", "(1024)"},
-      //int
-      {"int", "", "bigint", ""},
-      {"int", "", "float", ""},
-      {"int", "", "double", ""},
-      {"int", "", "decimal", ""},
-      {"int", "", "string", ""},
-      {"int", "", "varchar", "(1024)"},
-      //bigint
-      {"bigint", "", "float", ""},
-      {"bigint", "", "double", ""},
-      {"bigint", "", "decimal", ""},
-      {"bigint", "", "string", ""},
-      {"bigint", "", "varchar", "(1024)"},
-      //float
-      {"float", "", "double", ""},
-      {"float", "", "decimal", ""},
-      {"float", "", "string", ""},
-      {"float", "", "varchar", "(1024)"},
-      //double
-      {"double", "", "decimal", ""},
-      {"double", "", "string", ""},
-      {"double", "", "varchar", "(1024)"},
-      //decimal
-      {"decimal", "", "string", ""},
-      {"decimal", "", "varchar", "(1024)"},
-      //string
-      {"string", "", "double", ""},
-      {"string", "", "decimal", ""},
-      {"string", "", "varchar", "(1024)"},
-      //varchar
-      {"varchar", "", "double", ""},
-      {"varchar", "", "decimal", ""},
-      {"varchar", "", "string", ""},
-      //timestamp
-      {"timestamp", "", "string", ""},
-      {"timestamp", "", "varchar", "(1024)"},
-      //date
-      {"date", "", "string", ""},
-      {"date", "", "varchar", "(1024)"}
-    };
-    for (int i = 0; i < typeconversinoDestTables.length; ++i) {
-      createTypeConversionDestinationTable(hiveDriver,
-        typeconversinoDestTables[i][0],
-        typeconversinoDestTables[i][1],
-        typeconversinoDestTables[i][2],
-        typeconversinoDestTables[i][3],
-        "orc");
-
-      createTypeConversionDestinationTable(hiveDriver,
-        typeconversinoDestTables[i][0],
-        typeconversinoDestTables[i][1],
-        typeconversinoDestTables[i][2],
-        typeconversinoDestTables[i][3],
-        "parquet");
-    }
-
-    createDecimalConversionTable(hiveDriver, "decimal_conversion_test_orc", "orc");
-    createDecimalConversionTable(hiveDriver, "decimal_conversion_test_parquet", "parquet");
-
-    createExtTableWithMoreColumnsThanOriginal(hiveDriver, "orc_more_columns");
-
-    // create a Hive table that has columns with data types which are supported for reading in Dremio.
-    createAllTypesTextTable(hiveDriver, "readtest");
-    createAllTypesTable(hiveDriver, "parquet", "readtest");
-    createAllTypesTable(hiveDriver, "orc", "readtest");
-    createTimestampToStringTable(hiveDriver, "timestamptostring");
-    createDoubleToStringTable(hiveDriver, "doubletostring");
-
-    createFieldSizeLimitTables(hiveDriver, "field_size_limit_test");
-
-    createParquetSchemaChangeTestTable(hiveDriver, "parqschematest_table");
-    createParquetDecimalSchemaChangeTestTable(hiveDriver, "parqdecunion_table");
-    createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "parqdecimalschemachange_table");
-
-    createParquetVarcharTable(hiveDriver, "parq_varchar", url);
-    createParquetVarcharTableNoTruncationReqd(hiveDriver, "parq_varchar_no_trunc", url);
-    createParquetCharTable(hiveDriver, "parq_char", url);
-    createParquetVarcharWithMoreTypesTable(hiveDriver, "parq_varchar_more_types");
-    createParquetVarcharWithComplexTypeTable(hiveDriver, "parq_varchar_complex");
-    createPartitionTruncatedVarchar(hiveDriver, "parquet_fixed_length_varchar_partition");
-    createPartitionTruncatedChar(hiveDriver, "parquet_fixed_length_char_partition");
-
-    createVeryComplexHiveTableIntToLong(hiveDriver);
-    createVeryComplexHiveTableFloatToDouble(hiveDriver);
-    createSimpleListHiveTables(hiveDriver);
-    createSimpleListWithNullsHiveTables(hiveDriver);
-    createNestedListWithNullsHiveTables(hiveDriver);
-    createNestedStructWithNullsHiveTables(hiveDriver);
-    createSimpleStructHiveTables(hiveDriver);
-    createParuqetComplexFilterTestTable(hiveDriver);
-    createParquetComplexCaseInsensitivityTestTable(hiveDriver);
-    createParquetComplexNullTestTable(hiveDriver);
-    createComplexTypesTextTable(hiveDriver, "orccomplex");
-    createComplexTypesTable(hiveDriver, "orc", "orccomplex");
-    createComplexVarcharHiveTables(hiveDriver);
-
-    createListTypesTextTable(hiveDriver, "orclist");
-    createListTypesTable(hiveDriver, "orc", "orclist");
-
-    createStructTypesTextTable(hiveDriver, "orcstruct");
-    createStructTypesTable(hiveDriver, "orc", "orcstruct");
-
-    createUnionTypesTextTable(hiveDriver, "orcunion");
-    createUnionTypesTable(hiveDriver, "orc", "orcunion");
-
-    createMapTypesTextTable(hiveDriver, "orcmap");
-    createMapTypesTable(hiveDriver, "orc", "orcmap");
-
-    createORCDecimalCompareTestTable(hiveDriver, "orcdecimalcompare");
-    createMixedPartitionTypeTable(hiveDriver, "parquet_mixed_partition_type");
-    createPartitionDecimalOverflow(hiveDriver, "parquet_decimal_partition_overflow");
-
-    createVarcharParquetTable(hiveDriver, "parquet_varchar_t2");
-
-    createTextTableWithDateColumn(hiveDriver, "text_date");
-    createOrcTableWithDateColumn(hiveDriver, "orc_date", "text_date");
-    createOrcTableWithAncientDates(hiveDriver, "orc_date_table");
-
-    createBigIntParquetTable(hiveDriver, "parquet_bigint");
-
-    createDecimalParquetTableWithHighTableScale(hiveDriver, "parquet_mixed_decimal_t15_5_f10_2");
-    createDecimalParquetTableWithHighFileScale(hiveDriver, "parquet_mixed_decimal_t37_2_f37_4");
-    createDecimalParquetTableWithSameScaleHighFilePrecision(hiveDriver, "parquet_mixed_decimal_t4_2_f6_2");
-
-    createDecimalParquetTableWithDecimalColumnMismatch(hiveDriver, "parquet_varchar_to_decimal_with_filter");
-    createTableWithMoreColumnsThanParquet(hiveDriver, "parquet_less_columns");
-
-    createTableWithList(hiveDriver, "complex_types_direct_list");
-    createTableWithStruct(hiveDriver, "complex_types_direct_struct");
-    createTableNestedList(hiveDriver, "complex_types_nested_list");
-    createTableNestedStruct(hiveDriver, "complex_types_nested_struct");
-    createTableWithUnsupportedComplexTypes(hiveDriver, "complex_types_map");
-    createTableNestedWithUnsupportedComplexTypes(hiveDriver, "complex_types_nested_map");
-    createTableMixedCaseColumnsWithComplexTypes(hiveDriver, "complex_types_case_test");
-    createTableFlagTestColumns(hiveDriver, "complex_types_flag_test");
-    createTableForPartitionValueFormatException(hiveDriver, "partition_format_exception");
-
-    createParquetTableWithDoubleFloatType(hiveDriver, "parquet_double_to_float");
-    createParquetTableWithDeeplyNestedColumns(hiveDriver);
-    createParquetStructExtraField(hiveDriver);
-    createNullORCStructTable(hiveDriver);
-    createORCPartitionSchemaTestTable(hiveDriver);
-
-    // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
-    createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
-    ss.close();
   }
 
   private File getTempFile() throws Exception {
@@ -729,30 +621,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert1);
     executeQuery(hiveDriver, insert2);
     executeQuery(hiveDriver, insert3);
-  }
-
-  private void createTypeConversionSourceTable(final Driver hiveDriver,
-                                               final String source,
-                                               final String sourcetypeargs,
-                                               final String value,
-                                               final String tableFormat) throws Exception {
-    String table = source + "_" + tableFormat;
-    String datatable = "CREATE TABLE IF NOT EXISTS " + table + " (col1 " + source + sourcetypeargs + ") STORED AS " + tableFormat;
-    executeQuery(hiveDriver, datatable);
-    String intsert_datatable = "INSERT INTO " + table + " VALUES (" + value + ")";
-    executeQuery(hiveDriver, intsert_datatable);
-  }
-
-  private void createTypeConversionDestinationTable(final Driver hiveDriver, final String source,
-                                                    final String sourcetypeargs,
-                                                    final String destination,
-                                                    final String desttypeargs,
-                                                    final String tableFormat) throws Exception {
-    String table = source + "_to_" + destination + "_" + tableFormat + "_ext";
-    String sourcetable = source + "_" + tableFormat;
-    String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + table +
-      " (col1 " + destination + desttypeargs + ") STORED AS " + tableFormat + " LOCATION 'file://" + this.getWhDir() + "/" + sourcetable + "'";
-    executeQuery(hiveDriver, ext_table);
   }
 
   private void createFieldSizeLimitTables(final Driver hiveDriver, final String table) throws Exception {
@@ -1830,7 +1698,6 @@ public class HiveTestDataGenerator {
       " (col1 decimal(3,2), col2 decimal(5,2), col3 decimal(5,2))" + "STORED AS " + tableFormat + " LOCATION 'file://" + this.getWhDir() + "/" + tablerev + "'";
     executeQuery(hiveDriver, ext_table_rev);
 
-
     //decimal to decimal tests
     String decimaltodecimal = table + "_decimal";
     String decimaltodecimal_table = "CREATE TABLE IF NOT EXISTS " + decimaltodecimal +
@@ -2272,93 +2139,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insertParquetRow2);
   }
 
-  private void insertValuesIntoTable(Driver hiveDriver, String table, List<String> valuesToInsert) {
-    // can be combined to one query using select and union all - this will create one Parquet file as opposed to many Parquet files
-    /*
-    INSERT INTO TABLE table1
-    select 151, 'cash', 'lunch'
-    union all
-    select 152, 'credit', 'lunch'
-    union all
-    select 153, 'cash', 'dinner';
-     */
-    StringBuffer stringBuffer = new StringBuffer("INSERT INTO TABLE ");
-    stringBuffer.append(table);
-    stringBuffer.append("\n");
-    boolean firstCall = true;
-    for (String value : valuesToInsert) {
-      if (!firstCall) {
-        stringBuffer.append("union all\n");
-      }
-      firstCall = false;
-      stringBuffer.append("select ");
-      stringBuffer.append(value);
-      stringBuffer.append(", '");
-      stringBuffer.append(value);
-      stringBuffer.append("'\n");
-    }
-    executeQuery(hiveDriver, stringBuffer.toString());
-  }
-
-  // table schema: Decimal(15, 5), varchar(20)
-  // file schema: Decimal(10, 2), varchar
-  private void createDecimalParquetTableWithHighTableScale(Driver hiveDriver, String table) throws Exception {
-    String createTable = "CREATE TABLE " + table + " (decimal_col decimal(10, 2), name varchar(20)) stored as parquet";
-    String alterTable = "ALTER TABLE " + table + " change column decimal_col decimal_col decimal(10, 5)";
-
-    List<String> valuesToInsert = Lists.newArrayList(
-      "1.13", "1.12", "1.1",
-      "-1.1", "-1.12", "-1.13");
-
-    executeQuery(hiveDriver, createTable);
-    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
-    executeQuery(hiveDriver, alterTable);
-
-    valuesToInsert = Lists.newArrayList(
-      "1.12123", "-1.12123"
-    );
-    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
-  }
-
-  // table schema: Decimal(37, 2), varchar(20)
-  // file schema: Decimal(37, 4), varchar
-  private void createDecimalParquetTableWithHighFileScale(Driver hiveDriver, String table) throws Exception {
-    String createTable = "CREATE TABLE " + table + " (decimal_col decimal(37, 4), name varchar(20)) stored as parquet";
-    String alterTable = "ALTER TABLE " + table + " change column decimal_col decimal_col decimal(37, 2)";
-    List<String> valuesToInsert = Lists.newArrayList(
-      "100.1289", "100.1234", "99.1289", "99.1212", "10.1234", "1.1234", "0.1234",
-      "-100.1289", "-100.1234", "-99.1289", "-99.1212", "-10.1234", "-1.1234"
-    );
-
-    executeQuery(hiveDriver, createTable);
-    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
-    executeQuery(hiveDriver, alterTable);
-
-    valuesToInsert = Lists.newArrayList(
-      "50.12", "-50.12"
-    );
-    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
-  }
-
-  // table schema: Decimal(4, 2), varchar(20)
-  // file schema: Decimal(6, 2), varchar
-  private void createDecimalParquetTableWithSameScaleHighFilePrecision(Driver hiveDriver, String table) throws Exception {
-    String createTable = "CREATE TABLE " + table + " (decimal_col decimal(6,2), name varchar(20)) stored as parquet";
-    String alterTable = "ALTER TABLE " + table + " change column decimal_col decimal_col decimal(4,2)";
-    List<String> valuesToInsert = Lists.newArrayList(
-      "1234.56", "-1234.56", "12.34", "-12.34"
-    );
-
-    executeQuery(hiveDriver, createTable);
-    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
-    executeQuery(hiveDriver, alterTable);
-
-    valuesToInsert = Lists.newArrayList(
-      "50.12", "-50.12"
-    );
-    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
-  }
-
   private void createTextTableWithDateColumn(Driver driver, String table) {
     String createCmd = "CREATE TABLE " + table + " (int_col int, date_col date)";
     String insertCmd1 = "INSERT INTO " + table + " VALUES(1, '0001-01-01')";
@@ -2379,26 +2159,6 @@ public class HiveTestDataGenerator {
     String insertCmd = "INSERT INTO orc_date SELECT * FROM " + textTable;
     executeQuery(driver, createCmd);
     executeQuery(driver, insertCmd);
-  }
-
-  private void createBigIntParquetTable(Driver hiveDriver, String tableName) {
-    String createTable = "CREATE TABLE " + tableName + " (int_col int) stored as parquet";
-    String alterTable = "ALTER TABLE " + tableName + " change column int_col int_col bigint";
-
-    List<String> intValuesToInsert = Lists.newArrayList("10", "-5234", "-100", "462");
-    List<String> longValuesToInsert = Lists.newArrayList("343597383688", "-343697383790");
-
-    executeQuery(hiveDriver, createTable);
-    insertValuesIntoBigIntParquetTable(hiveDriver, tableName, intValuesToInsert);
-    executeQuery(hiveDriver, alterTable);
-    insertValuesIntoBigIntParquetTable(hiveDriver, tableName, longValuesToInsert);
-  }
-
-  private void insertValuesIntoBigIntParquetTable(Driver hiveDriver, String tableName, List<String> valuesToInsert) {
-    for (String valueToInsert : valuesToInsert) {
-      String query = String.format("INSERT INTO %s (int_col) values(%s)", tableName, valueToInsert);
-      executeQuery(hiveDriver, query);
-    }
   }
 
   private void createOrcTableWithAncientDates(Driver hiveDriver, String tableName) {
@@ -2427,35 +2187,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insertCmd8);
   }
 
-  private void insertValuesIntoTextTable(Driver hiveDriver, String table, List<String> valuesToInsert) {
-    // can be combined to one query using select and union all - this will create one Parquet file as opposed to many Parquet files
-    /*
-    INSERT INTO TABLE table1
-    select 151, 'cash', 'lunch'
-    union all
-    select 152, 'credit', 'lunch'
-    union all
-    select 153, 'cash', 'dinner';
-     */
-    final String insertTable = String.join("", "insert into ", table, "\n");
-    String query = valuesToInsert.stream()
-      .map(c -> String.join("", "select '", c, "', '", c, "'\n"))
-      .collect(Collectors.joining("union all\n", insertTable, "\n"));
-    executeQuery(hiveDriver, query);
-  }
-
-  // table schema: varchar(5), varchar(20)
-  private void createVarcharParquetTable(Driver hiveDriver, String table) {
-    String createTable = "CREATE TABLE " + table + " (varchar_col1 varchar(10), name varchar(10)) stored as parquet";
-    String alterTable = "ALTER TABLE " + table + " change column varchar_col1 varchar_col1 varchar(2)";
-
-    List<String> valuesToInsert = Lists.newArrayList("abcd", "a", "ab", "ad", "adef", "a0", "a000", "abde");
-
-    executeQuery(hiveDriver, createTable);
-    insertValuesIntoTextTable(hiveDriver, table, valuesToInsert);
-    executeQuery(hiveDriver, alterTable);
-  }
-
   private void createDecimalParquetTableWithDecimalColumnMismatch(Driver hiveDriver, String table) throws Exception {
     String createTable = "CREATE TABLE " + table + " (int_col int, name varchar(4)) stored as parquet";
     String insert1 = "INSERT INTO " + table + " VALUES(1, '0.12')";
@@ -2470,18 +2201,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert3);
     executeQuery(hiveDriver, insert4);
     executeQuery(hiveDriver, ext_table);
-  }
-
-  private void createTableWithMoreColumnsThanParquet(Driver hiveDriver, String table) throws Exception {
-    String createTable = "CREATE TABLE " + table + " (name varchar(20)) stored as parquet";
-    String insert1 = "INSERT INTO " + table + " VALUES('parquet1_val1'), ('parquet1_val2'), ('parquet1_val3')";
-    String alterTable = "ALTER TABLE " + table + " ADD COLUMNS(newintcol int, newvarcharcol varchar(20))";
-    String insert2 = "INSERT INTO " + table + " VALUES('parquet2_val1', 4, 'newvarcharcol'), ('parquet2_val2', 5, 'newvarcharcol'), ('parquet2_val3', 6, 'newvarcharcol')";
-
-    executeQuery(hiveDriver, createTable);
-    executeQuery(hiveDriver, insert1);
-    executeQuery(hiveDriver, alterTable);
-    executeQuery(hiveDriver, insert2);
   }
 
   private void createTableWithList(Driver hiveDriver, String table) {
@@ -2584,18 +2303,6 @@ public class HiveTestDataGenerator {
 
     executeQuery(hiveDriver, createOrcTable);
     executeQuery(hiveDriver, insertOrcTable);
-  }
-
-  private void createParquetTableWithDoubleFloatType(Driver hiveDriver, String table) throws IOException {
-    String createTable = "create table " + table + " (col float) stored as parquet";
-    String insertTable = "insert into " + table + " values (1.0625), (1.23), (3.45), (7.89)";
-    String createExternalTable = "CREATE EXTERNAL TABLE " + table + "_ext" +
-      " (col double)" +
-      " STORED AS PARQUET LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
-
-    executeQuery(hiveDriver, createTable);
-    executeQuery(hiveDriver, insertTable);
-    executeQuery(hiveDriver, createExternalTable);
   }
 
   private void createParquetStructExtraField(final Driver hiveDriver) throws Exception {

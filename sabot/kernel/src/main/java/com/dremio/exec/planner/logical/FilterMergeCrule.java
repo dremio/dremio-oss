@@ -25,6 +25,8 @@ import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+
 /**
  * TODO: add class constructor arguments for Calcite and move back there.
  */
@@ -48,6 +50,7 @@ public class FilterMergeCrule extends RelOptRule {
     RexProgram mergedProgram = RexProgramBuilder.mergePrograms(topProgram, bottomProgram, rexBuilder);
 
     RexNode newCondition = mergedProgram.expandLocalRef(mergedProgram.getCondition());
+    newCondition = newCondition.accept(new MoreRelOptUtil.RexLiteralCanonicalizer(rexBuilder));
 
     final RelBuilder relBuilder = call.builder();
     relBuilder.push(bottomFilter.getInput()).filter(newCondition);

@@ -28,13 +28,13 @@ export default function* download() {
 }
 
 export function* handleDownloadFile(action) {
-  const {url, viewId, method = 'GET'} = action.meta;
+  const {url, viewId, method = 'GET', apiType = APIV2Call} = action.meta;
 
   if (viewId) yield put(updateViewState(viewId, { isInProgress: true }));
 
   const headers = FileUtils.getHeaders();
 
-  const apiCall = new APIV2Call().paths(url);
+  const apiCall = new apiType().paths(url);
 
   const res = yield call(fetch, apiCall.toString(), {method, headers});
 

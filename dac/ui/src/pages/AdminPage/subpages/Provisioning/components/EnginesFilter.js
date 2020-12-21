@@ -16,14 +16,16 @@
 import {PureComponent, Fragment} from 'react';
 import PropTypes from 'prop-types';
 import FilterSelectMenuWrapper from '@app/components/Fields/FilterSelectMenuWrapper';
+import EnginesFilterMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/EnginesFilterMixin';
+
 import {
   ENGINE_FILTER_NAME,
-  ENGINE_FILTER_ITEMS,
   ENGINE_FILTER_LABEL,
   DEFAULT_ENGINE_FILTER_SELECTIONS
 } from 'dyn-load/constants/provisioningPage/provisioningConstants';
+//import { styles } from '@app/pages/HomePage/components/MainInfo';
 
-
+@EnginesFilterMixin
 export default class EnginesFilter extends PureComponent {
   static propTypes = {
     filterState: PropTypes.shape({
@@ -47,7 +49,7 @@ export default class EnginesFilter extends PureComponent {
       <FilterSelectMenuWrapper
         filterStateFilters={filterState.filters}
         menuType={menuType}
-        filterItems={ENGINE_FILTER_ITEMS}
+        filterItems={this.getFilterItems()}
         filterLabels={ENGINE_FILTER_LABEL}
         defaultFilterSelections={DEFAULT_ENGINE_FILTER_SELECTIONS}
         onUpdateFilterState={this.onUpdated.bind(this)}
@@ -57,24 +59,37 @@ export default class EnginesFilter extends PureComponent {
 
   render() {
     const shownFilters = this.getShownFilters();
+    const {filterState} = this.props;
+
     return (
-      <div style={{...styles.base, ...this.props.style}}>
-        {shownFilters.map((filterName, idx) => {
-          return <Fragment key={idx}>
-            {this.renderSelectMenu(filterName)}
-            {(idx < (shownFilters.length - 1)) && <div style={styles.divider}/>}
-          </Fragment>;
-        })}
+      <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
+        <div style={{...styles.base, ...this.props.style}}>
+          {shownFilters.map((filterName, idx) => {
+            return <Fragment key={idx}>
+              {this.renderSelectMenu(filterName)}
+              {(idx < (shownFilters.length - 1)) && <div style={styles.divider}/>}
+            </Fragment>;
+          })}
+        </div>
+        <div style={styles.searchBox}>
+          {this.renderSearch(filterState.filters, this.onUpdated.bind(this))}
+        </div>
       </div>
     );
   }
-
 }
 
 const styles = {
   base: {
     display: 'flex',
     justifyContent: 'flex-start',
+    alignItems: 'center',
+    height: 33,
+    paddingTop: 6
+  },
+  searchBox: {
+    display: 'flex',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     height: 33,
     paddingTop: 6

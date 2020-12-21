@@ -16,6 +16,7 @@
 package com.dremio.exec.impersonation.hive;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER;
@@ -43,7 +44,6 @@ import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
-import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -88,9 +88,24 @@ public class ITSqlStdBasedAuthorization extends BaseTestHiveImpersonation {
     setSqlStdBasedAuthorizationInHiveConf();
     startHiveMetaStore();
     generateHiveTestData();
-    addMiniDfsBasedStorage(Maps.<String, WorkspaceConfig>newHashMap(), /*impersonationEnabled=*/true);
+    addMiniDfsBasedStorage( /*impersonationEnabled=*/true);
     addHiveStoragePlugin(getHivePluginConfig());
     generateTestData();
+  }
+
+  @AfterClass
+  public static void shutdown() throws Exception {
+    /*
+     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+     */
+    if (isMaprProfile()) {
+      return;
+    }
+    stopMiniDfsCluster();
+    stopHiveMetaStore();
   }
 
   private static void setSqlStdBasedAuthorizationInHiveConf() {
@@ -297,11 +312,5 @@ public class ITSqlStdBasedAuthorization extends BaseTestHiveImpersonation {
   @Test
   public void selectUser2_v_student_u1g1_750() throws Exception {
     queryViewHelper(org1Users[2], query_v_student_u1g1_750);
-  }
-
-  @AfterClass
-  public static void shutdown() throws Exception {
-    stopMiniDfsCluster();
-    stopHiveMetaStore();
   }
 }

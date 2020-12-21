@@ -257,6 +257,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     partitionOI = null;
     finalOI = null;
     filter = null;
+    jobConf = null;
   }
 
   @Override

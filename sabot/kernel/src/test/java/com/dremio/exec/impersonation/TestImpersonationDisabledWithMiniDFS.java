@@ -16,18 +16,16 @@
 package com.dremio.exec.impersonation;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.common.TestProfileHelper.isMaprProfile;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
-import com.google.common.collect.Maps;
 
 /**
  * Note to future devs, please do not put random tests here. Make sure that they actually require
@@ -41,8 +39,25 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
   public static void setup() throws Exception {
     assumeNonMaprProfile();
     startMiniDfsCluster(TestImpersonationDisabledWithMiniDFS.class.getSimpleName());
-    addMiniDfsBasedStorage(Maps.<String, WorkspaceConfig>newHashMap(), /*impersonationEnabled=*/false);
+    addMiniDfsBasedStorage( /*impersonationEnabled=*/false);
     createTestData();
+  }
+
+  @AfterClass
+  public static void removeMiniDfsBasedStorage() throws Exception {
+    /*
+     JUnit assume() call results in AssumptionViolatedException, which is handled by JUnit with a goal to ignore
+     the test having the assume() call. Multiple assume() calls, or other exceptions coupled with a single assume()
+     call, result in multiple exceptions, which aren't handled by JUnit, leading to test deemed to be failed.
+     We thus use isMaprProfile() check instead of assumeNonMaprProfile() here.
+     */
+    if (isMaprProfile()) {
+      return;
+    }
+
+    SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    stopMiniDfsCluster();
   }
 
   private static void createTestData() throws Exception {
@@ -90,8 +105,7 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
 
   @Test // DRILL-3037
   public void testSimpleQuery() throws Exception {
-    final String query =
-        String.format("SELECT sales_city, sales_country FROM dfsRegion ORDER BY region_id DESC LIMIT 2");
+    final String query = "SELECT sales_city, sales_country FROM dfsRegion ORDER BY region_id DESC LIMIT 2";
 
     testBuilder()
         .optionSettingQueriesForTestQuery(String.format("USE %s", MINIDFS_STORAGE_PLUGIN_NAME))
@@ -107,16 +121,5 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
   public void testWithTableOptions() throws Exception {
     test(String.format("select * from TABLE(%s.dfsRegionCsv(type => 'TeXT', fieldDelimiter => ',')) ",
         MINIDFS_STORAGE_PLUGIN_NAME));
-  }
-
-  @AfterClass
-  public static void removeMiniDfsBasedStorage() throws Exception {
-    try {
-      SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-      ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
-    } catch (NamespaceNotFoundException e) {
-      // ignore if source is not found
-    }
-    stopMiniDfsCluster();
   }
 }

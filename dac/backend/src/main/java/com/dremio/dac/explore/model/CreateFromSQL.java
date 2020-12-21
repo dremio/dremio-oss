@@ -27,11 +27,20 @@ public class CreateFromSQL {
 
   private final String sql;
   private final List<String> context;
+  private final String engineName;
 
-  @JsonCreator
-  public CreateFromSQL(@JsonProperty("sql") String sql, @JsonProperty("context") List<String> context ) {
+  public CreateFromSQL(String sql, List<String> context) {
     this.sql = sql;
     this.context = context;
+    this.engineName = null;
+  }
+
+  @JsonCreator
+  public CreateFromSQL(@JsonProperty("sql") String sql, @JsonProperty("context") List<String> context,
+                       @JsonProperty("engineName") String engineName) {
+    this.sql = sql;
+    this.context = context;
+    this.engineName = engineName;
   }
 
   public String getSql() {
@@ -40,5 +49,9 @@ public class CreateFromSQL {
 
   public List<String> getContext() {
     return context;
+  }
+
+  public String getEngineName() {
+    return engineName;
   }
 }

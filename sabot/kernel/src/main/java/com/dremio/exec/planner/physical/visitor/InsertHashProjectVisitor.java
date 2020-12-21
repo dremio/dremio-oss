@@ -77,7 +77,7 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
 
     // Insert Project SqlOperatorImpl with new column that will be a hash for HashToRandomExchange fields
     final ProjectPrel addColumnprojectPrel = HashPrelUtil.addHashProject(fields, child, null);
-    final Prel newPrel = (Prel) hashPrel.copy(addColumnprojectPrel.getTraitSet(), Collections.<RelNode>singletonList(addColumnprojectPrel));
+    final Prel newPrel = (Prel) hashPrel.copy(hashPrel.getTraitSet(), Collections.<RelNode>singletonList(addColumnprojectPrel));
 
     int validRows = newPrel.getRowType().getFieldCount() - 1;
     final List<RelDataTypeField> all = newPrel.getRowType().getFieldList();

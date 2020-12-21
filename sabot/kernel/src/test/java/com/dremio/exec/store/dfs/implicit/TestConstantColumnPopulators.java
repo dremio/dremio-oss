@@ -258,7 +258,7 @@ public class TestConstantColumnPopulators {
   public void testDecimalColumn() throws Exception {
     BigDecimal bigDecimal = new BigDecimal("12.3");
     ArrowBuf arrowBuf = bufferAllocator.buffer(16);
-    DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, arrowBuf, 0);
+    DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, arrowBuf, 0, DecimalVector.TYPE_WIDTH);
     DecimalHolder holder = new DecimalHolder();
     holder.precision = 10;
     holder.scale = 2;

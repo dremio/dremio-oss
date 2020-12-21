@@ -70,6 +70,7 @@ export default function table(state, action) {
     const {jobUpdate} = action;
     // set jobProgress changes in state.tableData
     const jobProgress = state.getIn(['tableData', jobUpdate.datasetVersion, 'jobProgress']);
+    const initJobProgress = state.getIn(['tableData', 'jobProgress']);
     const haveChange = !jobProgress
       || jobProgress.jobId !== jobUpdate.id
       || jobProgress.status !== jobUpdate.state
@@ -80,7 +81,7 @@ export default function table(state, action) {
       jobId: jobUpdate.id,
       status: jobUpdate.state,
       // keep startTime as in INIT until job is done
-      startTime: (isWorking(jobUpdate.state)) ? jobProgress.startTime : jobUpdate.startTime,
+      startTime: (isWorking(jobUpdate.state)) ? initJobProgress.startTime : jobUpdate.startTime,
       endTime: jobUpdate.endTime,
       datasetVersion: jobUpdate.datasetVersion
     }) : state;

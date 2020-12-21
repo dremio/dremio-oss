@@ -34,24 +34,28 @@ import com.dremio.DremioTestWrapper;
  * and validate against baseline results. Only unordered comparisons of results are supported currently.
  */
 public class FlightQueryTestWrapper {
-
-  private final FlightClient client;
+  private final FlightClientUtils.FlightClientWrapper flightClientWrapper;
   private final List<Map<String, Object>> baselineRecords;
   private final String query;
 
-  public FlightQueryTestWrapper(FlightClient client, List<Map<String, Object>> baselineRecords, String query) {
-    this.client = client;
+  public FlightQueryTestWrapper(FlightClientUtils.FlightClientWrapper flightClientWrapper, List<Map<String, Object>> baselineRecords, String query) {
+    this.flightClientWrapper = flightClientWrapper;
     this.baselineRecords = baselineRecords;
     this.query = query;
   }
 
   public void run() throws Exception {
-    final FlightInfo flightInfo = client.getInfo(FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8)));
+    final FlightClient client = flightClientWrapper.getClient();
+    final FlightInfo flightInfo = (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(flightClientWrapper.getAuthMode()))?
+      client.getInfo(FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8))):
+      client.getInfo(FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8)), flightClientWrapper.getTokenCallOption());
     final List<Map<String, Object>> flightResults = new ArrayList<>();
 
     // Assumption: flightInfo only has one endpoint and the location in the
     // flightInfo is the same as the original endpoint.
-    try (FlightStream flightStream = client.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+    try (FlightStream flightStream = (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(flightClientWrapper.getAuthMode()))?
+      client.getStream(flightInfo.getEndpoints().get(0).getTicket()):
+      client.getStream(flightInfo.getEndpoints().get(0).getTicket(), flightClientWrapper.getTokenCallOption())) {
       while (flightStream.next()) {
         for (int i = 0; i < flightStream.getRoot().getRowCount(); i++) {
           final Map<String, Object> currentRowMap = new LinkedHashMap<>();

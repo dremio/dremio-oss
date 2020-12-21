@@ -24,6 +24,7 @@ import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.util.DecimalUtility;
@@ -492,7 +493,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
     int numberOfDecimals = (int) length >>>4;
     byte [] valueInLEBytes = value.unscaledValue().toByteArray();
     IntStream.range(0, numberOfDecimals).forEach( (index) -> {
-      DecimalUtility.writeByteArrayToArrowBuf(valueInLEBytes, buffer, index);
+      DecimalUtility.writeByteArrayToArrowBuf(valueInLEBytes, buffer, index, DecimalVector.TYPE_WIDTH);
     });
   }
 

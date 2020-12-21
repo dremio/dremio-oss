@@ -16,7 +16,9 @@
 package com.dremio.exec.store.parquet;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.store.ScanFilter;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -98,5 +100,10 @@ public class ParquetScanFilter implements ScanFilter {
   @Override
   public int hashCode() {
     return Objects.hashCode(conditions);
+  }
+
+  @Override
+  public List<SchemaPath> getPaths() {
+    return conditions.stream().map(ParquetFilterCondition::getPath).collect(Collectors.toList());
   }
 }

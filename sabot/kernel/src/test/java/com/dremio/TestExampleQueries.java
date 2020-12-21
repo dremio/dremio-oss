@@ -223,25 +223,6 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
-  public void dx_7794() throws Exception {
-    String query = String.format("select * from dfs.\"%s/json/dx_7794\"", TEST_RES_PATH);
-    try {
-      test(query);
-    } catch (Exception e) {
-
-    }
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("a")
-      .baselineValues(1L)
-      .baselineValues(listOf(1L, 2.0, 3L))
-      .baselineValues(1L)
-      .baselineValues(listOf("a", "b", 3L))
-      .go();
-  }
-
-  @Test
   public void useMulti() throws Exception {
     test("use \"cp.tpch\"");
   }

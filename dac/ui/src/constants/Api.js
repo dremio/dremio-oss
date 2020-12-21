@@ -20,7 +20,6 @@ export const API_URL = `//${host}/apiv1`;
 export const API_URL_V2 = `//${host}/apiv2`;
 export const API_URL_V3 = `//${host}/api/v3`;
 export const WEB_SOCKET_URL = `ws${isSecure ? 's' : ''}:${API_URL_V2}/socket`;
-
 class Api {
   toString() {
     console.warn('Default import deprecated, use { API_URL } from \'@app/constants/Api.js\'' +

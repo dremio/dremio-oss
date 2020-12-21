@@ -64,12 +64,8 @@ export default { // defaults, and defaults for unit tests
     qlik: { enabled: false }
   },
   crossSourceDisabled: false,
+  queryBundleAdminsEnabled: false,
+  queryBundleUsersEnabled: false,
   ...((window && window.dremioConfig) || {}),
-
-  isAwsMode: process.env.EDITION_TYPE === 'aws',
-  isDcsMode: process.env.EDITION_TYPE === 'daas',
-  isEnterpriseMode: process.env.EDITION_TYPE === 'ee',
-  isOpenSourceMode: process.env.EDITION_TYPE === 'oss',
-
   displayTutorialsLink: false
 };

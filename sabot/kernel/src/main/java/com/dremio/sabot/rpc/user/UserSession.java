@@ -261,6 +261,14 @@ public class UserSession {
       return this;
     }
 
+    public Builder withEngineName(String engineName) {
+      if (Strings.isNullOrEmpty(engineName)) {
+        return this;
+      }
+      userSession.routingEngine = engineName;
+      return this;
+    }
+
     public Builder setSupportComplexTypes(boolean supportComplexTypes) {
       userSession.supportComplexTypes = supportComplexTypes;
       return this;

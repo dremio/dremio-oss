@@ -75,6 +75,7 @@ export default class TextField extends Component {
       placeholder,
       ...props
     } = this.props;
+
     return (
       <input
         ref='input'

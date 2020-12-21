@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.junit.After;
 import org.junit.Assert;
@@ -184,7 +185,7 @@ public class DecimalUtilsTest extends DremioTest {
     getAdditionResult(val, val2, val.scale(), bufferValueResult);
     BigDecimal expected = val.add(val2);
     boolean overFlow = expected.precision() > 38;
-    BigDecimal actual = DecimalUtility.getBigDecimalFromArrowBuf(bufferValueResult, 0, expected.scale());
+    BigDecimal actual = DecimalUtility.getBigDecimalFromArrowBuf(bufferValueResult, 0, expected.scale(), DecimalVector.TYPE_WIDTH);
     Assert.assertTrue(overFlow || expected.compareTo(actual) == 0);
   }
 

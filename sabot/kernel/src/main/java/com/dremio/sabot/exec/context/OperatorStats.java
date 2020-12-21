@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.exec.context;
 
+import static com.dremio.common.perf.StatsCollectionEligibilityRegistrar.isEligible;
+
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -115,7 +117,7 @@ public class OperatorStats {
 
   // Recorder that does a stopWait() on close. This can be used in try-with-resources context.
   // Note that the close for this not idempotent.
-  private WaitRecorder recorder = () -> { stopWait(); };
+  final WaitRecorder recorder = this::stopWait;
 
   public class IOStats {
     public final AtomicLong minIOTime = new AtomicLong(Long.MAX_VALUE);
@@ -510,11 +512,14 @@ public class OperatorStats {
     return sb.toString();
   }
 
-
-
   public static WaitRecorder getWaitRecorder(OperatorStats operatorStats) {
-    if (operatorStats == null || !operatorStats.checkAndStartWait()) {
-      // If the operatorStats is missing, or if already in wait recording mode, return NO_OP.
+    if (operatorStats == null || !isEligible() || !operatorStats.checkAndStartWait()) {
+      /*
+        Return a NO_OP_RECORDER if any of the conditions are met:
+        1. If the operatorStats is missing
+        2. If the thread this method is invoked from is not eligible for stats collection
+        3. If operatorStats is already in WAIT state
+       */
       return NO_OP_RECORDER;
     } else {
       return operatorStats.recorder;

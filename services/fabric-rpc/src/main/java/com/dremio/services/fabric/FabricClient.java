@@ -17,6 +17,7 @@ package com.dremio.services.fabric;
 
 import java.util.Optional;
 
+import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.rpc.BasicClient;
@@ -62,7 +63,7 @@ class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshak
   ) throws RpcException {
     super(
         config,
-        allocator.getAsByteBufAllocator(),
+        new ArrowByteBufAllocator(allocator),
         eventLoop,
         RpcType.HANDSHAKE,
         FabricHandshake.class,

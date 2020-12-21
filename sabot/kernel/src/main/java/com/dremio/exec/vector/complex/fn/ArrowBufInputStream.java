@@ -21,6 +21,7 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.hadoop.fs.Seekable;
 
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * An InputStream that wraps a ArrowBuf and implements the seekable interface.
@@ -31,7 +32,7 @@ public class ArrowBufInputStream extends ByteBufInputStream implements Seekable 
   private final ArrowBuf buffer;
 
   private ArrowBufInputStream(ArrowBuf buffer, int len) {
-    super(buffer.asNettyBuffer(), len);
+    super(NettyArrowBuf.unwrapBuffer(buffer), len);
     this.buffer = buffer;
   }
 

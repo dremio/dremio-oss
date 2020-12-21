@@ -20,7 +20,6 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import javax.inject.Provider;
 
@@ -29,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
+import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.conduit.client.ConduitProvider;
@@ -165,7 +164,7 @@ public class HybridJobsService implements JobsService {
     try {
       return getChronicleBlockingStub().getJobCounts(request);
     } catch (StatusRuntimeException e) {
-      throwIfUserException(e);
+      GrpcExceptionUtil.throwIfUserException(e);
       throw e;
     }
   }
@@ -175,7 +174,7 @@ public class HybridJobsService implements JobsService {
     try {
       return getChronicleBlockingStub().getJobStats(request);
     } catch (StatusRuntimeException e) {
-      throwIfUserException(e);
+      GrpcExceptionUtil.throwIfUserException(e);
       throw e;
     }
   }
@@ -292,7 +291,7 @@ public class HybridJobsService implements JobsService {
 
   private static void throwSuitableException(StatusRuntimeException sre, JobId jobId, String username)
       throws JobNotFoundException {
-    throwIfUserException(sre);
+    GrpcExceptionUtil.throwIfUserException(sre);
 
     switch (sre.getStatus().getCode()) {
     case NOT_FOUND:
@@ -307,7 +306,7 @@ public class HybridJobsService implements JobsService {
 
   private static void throwSuitableExceptionForReflectionJob(StatusRuntimeException sre, JobId jobId, String username,
                                                              String reflectionId) throws JobNotFoundException, ReflectionJobValidationException {
-    throwIfUserException(sre);
+    GrpcExceptionUtil.throwIfUserException(sre);
 
     switch (sre.getStatus().getCode()) {
       case INVALID_ARGUMENT:
@@ -322,10 +321,4 @@ public class HybridJobsService implements JobsService {
     }
   }
 
-  private static void throwIfUserException(StatusRuntimeException e) {
-    final Optional<UserException> userException = JobsRpcUtils.fromStatusRuntimeException(e);
-    if (userException.isPresent()) {
-      throw userException.get();
-    }
-  }
 }

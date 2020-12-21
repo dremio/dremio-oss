@@ -15,10 +15,7 @@
  */
 package com.dremio.exec.store;
 
-import java.util.List;
-
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
@@ -32,35 +29,30 @@ import com.google.common.base.Stopwatch;
  * using respective coercion readers
  */
 public class HiveParquetReader implements AutoCloseable {
-  private HiveParquetPrimitiveTypeReader hiveParquetPrimitiveTypeReader;
-  private HiveParquetComplexTypeReader hiveParquetComplexTypeReader;
+  private final HiveParquetComplexTypeReader hiveParquetComplexTypeReader;
+  private final HiveParquetPrimitiveTypeReader hiveParquetPrimitiveTypeReader;
 
-  public HiveParquetReader(SampleMutator mutator,
-                           OperatorContext context, List<SchemaPath> columns,
-                           TypeCoercion hiveTypeCoercion,
-                           Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch,
-                           BatchSchema originalSchema) {
+  public HiveParquetReader(SampleMutator mutator, OperatorContext context, TypeCoercion hiveTypeCoercion,
+                           Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch, BatchSchema originalSchema) {
     this.hiveParquetPrimitiveTypeReader = new HiveParquetPrimitiveTypeReader(mutator,
-      context, columns, hiveTypeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, originalSchema);
-    this.hiveParquetComplexTypeReader = new HiveParquetComplexTypeReader(context, mutator, originalSchema,
+      context, hiveTypeCoercion, javaCodeGenWatch, gandivaCodeGenWatch, originalSchema);
+    this.hiveParquetComplexTypeReader = new HiveParquetComplexTypeReader(context, mutator,
       hiveTypeCoercion, javaCodeGenWatch, gandivaCodeGenWatch);
   }
 
   @Override
   public void close() throws Exception {
     AutoCloseables.close(hiveParquetComplexTypeReader, hiveParquetPrimitiveTypeReader);
-
   }
 
   public void setupProjector(OutputMutator output, VectorContainer incoming,
-                             ExpressionEvaluationOptions projectorOptions,
-                             VectorContainer projectorOutput) {
-    this.hiveParquetPrimitiveTypeReader.setupProjector(output, incoming, projectorOptions, projectorOutput);
+                             ExpressionEvaluationOptions projectorOptions, VectorContainer projectorOutput) {
+    this.hiveParquetPrimitiveTypeReader.setupProjector(incoming, projectorOptions, projectorOutput);
     this.hiveParquetComplexTypeReader.setupProjector(output, incoming, projectorOptions, projectorOutput);
   }
 
   public void runProjector(int recordCount, VectorContainer incoming) {
     this.hiveParquetPrimitiveTypeReader.runProjector(recordCount, incoming);
-    this.hiveParquetComplexTypeReader.runProjector(recordCount, incoming);
+    this.hiveParquetComplexTypeReader.runProjector(recordCount);
   }
 }

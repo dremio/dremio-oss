@@ -64,7 +64,7 @@ public class Views {
       if (sqlField.getSerializedField() != null) {
         field = ViewFieldsHelper.deserializeField(sqlField.getSerializedField());
       }
-      if (field == null && type.equals(SqlTypeName.ANY) && schema != null) {
+      if (field == null && (type.equals(SqlTypeName.ANY) || type.equals(SqlTypeName.ARRAY)) && schema != null) {
         field = schema.findField(fieldName);
         if (field != null) {
           requiresUpdate = true;

@@ -287,7 +287,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     public void onMatch(RelOptRuleCall call) {
       final Filter filterRel = call.rel(0);
       final T scanRel = call.rel(2);
-      doOnMatch(call, filterRel, null, scanRel);
+      doOnMatch(call, filterRel, null, scanRel, true);
     }
   }
 
@@ -497,6 +497,10 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   }
 
   public void doOnMatch(RelOptRuleCall call, Filter filterRel, Project projectRel, T scanRel) {
+    doOnMatch(call, filterRel, projectRel, scanRel, false);
+  }
+
+  public void doOnMatch(RelOptRuleCall call, Filter filterRel, Project projectRel, T scanRel, Boolean hasSampleRel) {
     Stopwatch totalPruningTime = Stopwatch.createStarted();
     boolean longRun = true;
     try {
@@ -635,6 +639,10 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       } else {
         // some splits but less than original.
         inputRel = scanRel.applyDatasetPointer(dataset.value.prune(finalNewSplits));
+      }
+
+      if (hasSampleRel) {
+        inputRel = new SampleRel(inputRel.getCluster(), inputRel.getTraitSet(), inputRel);
       }
 
       if (projectRel != null) {

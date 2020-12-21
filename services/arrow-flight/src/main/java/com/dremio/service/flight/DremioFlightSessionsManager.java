@@ -15,12 +15,15 @@
  */
 package com.dremio.service.flight;
 
-import static com.dremio.service.tokens.TokenManagerImpl.TOKEN_EXPIRATION_TIME_MINUTES;
+import static com.dremio.service.flight.DremioFlightServiceOptions.SESSION_EXPIRATION_TIME_MINUTES;
+import static com.dremio.service.flight.client.properties.DremioFlightClientProperties.applyClientPropertiesToUserSessionBuilder;
+import static com.dremio.service.flight.client.properties.DremioFlightClientProperties.applyMutableClientProperties;
 
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.CallStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +36,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.tokens.TokenManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -50,13 +54,16 @@ public class DremioFlightSessionsManager implements AutoCloseable {
 
   private final Cache<String, UserSession> userSessions;
   private final Provider<SabotContext> sabotContextProvider;
+  private final Provider<TokenManager> tokenManagerProvider;
   private final OptionManager optionManager;
 
-  public DremioFlightSessionsManager(Provider<SabotContext> sabotContextProvider) {
+  public DremioFlightSessionsManager(Provider<SabotContext> sabotContextProvider,
+                                     Provider<TokenManager> tokenManagerProvider) {
     this.sabotContextProvider = sabotContextProvider;
+    this.tokenManagerProvider = tokenManagerProvider;
     this.optionManager = sabotContextProvider.get().getOptionManager();
     this.userSessions = CacheBuilder.newBuilder()
-      .expireAfterWrite(optionManager.getOption(TOKEN_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES)
+      .expireAfterAccess(optionManager.getOption(SESSION_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES)
       .build();
   }
 
@@ -67,25 +74,37 @@ public class DremioFlightSessionsManager implements AutoCloseable {
   /**
    * Creates a UserSession object and store it in the local cache.
    *
-   * @param peerIdentity The Identity used to reference this user session instance.
+   * @param token The token used to reference this user session instance.
    * @param username The Username to build a UserSession object for.
+   * @param incomingHeaders The CallHeaders to parse client properties from.
    */
-  public void createUserSession(String peerIdentity, String username) {
-    userSessions.put(peerIdentity, buildUserSession(username));
+  public void createUserSession(String peerIdentity, String username, CallHeaders incomingHeaders) {
+    userSessions.put(peerIdentity, buildUserSession(username, incomingHeaders));
   }
 
   /**
-   * Resolves an existing UserSession for
+   * Resolves an existing UserSession for the given token. If the UserSession has expired and is no
+   * longer in the cache. The TokenManager invalidates the given token as well.
    *
-   * @param peerIdentity The identity of the user making a request.
+   * Note: Token invalidation is done because tokens in the TokenManager cache is valid for 30 hours
+   * while Flight UserSession expiration is configurable and can expire before the token does.
+   *
+   * @param token The token of the user making a request.
+   * @param incomingHeaders  The CallHeaders to parse client properties from.
    * @return The UserSession.
    */
-  public UserSession getUserSession(String peerIdentity) {
-    UserSession userSession = userSessions.getIfPresent(peerIdentity);
+  public UserSession getUserSession(String token, CallHeaders incomingHeaders) {
+    UserSession userSession = userSessions.getIfPresent(token);
     if (null == userSession) {
+      tokenManagerProvider.get().invalidateToken(token);
       logger.error("UserSession is not available in SessionManager.");
       throw CallStatus.UNAUTHENTICATED.withDescription("User is not authenticated").toRuntimeException();
     }
+
+    if (incomingHeaders != null) {
+      applyMutableClientProperties(userSession, incomingHeaders);
+    }
+
     return userSession;
   }
 
@@ -114,19 +133,25 @@ public class DremioFlightSessionsManager implements AutoCloseable {
    * Build the UserSession object using the UserSession Builder.
    *
    * @param username The username to build UserSession for.
+   * @param incomingHeaders The CallHeaders to parse client properties from.
    * @return An instance of UserSession.
    */
   @VisibleForTesting
-  UserSession buildUserSession(String username) {
-    return UserSession.Builder.newBuilder()
+  UserSession buildUserSession(String username, CallHeaders incomingHeaders) {
+    final UserSession.Builder builder = UserSession.Builder.newBuilder()
       .withSessionOptionManager(
         new SessionOptionManagerImpl(sabotContextProvider.get().getOptionValidatorListing()), optionManager)
       .withCredentials(UserBitShared.UserCredentials.newBuilder()
         .setUserName(username).build())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
       .setSupportComplexTypes(true)
-      .withClientInfos(UserBitShared.RpcEndpointInfos.newBuilder().setName("Arrow Flight").build())
-      .build();
+      .withClientInfos(UserBitShared.RpcEndpointInfos.newBuilder().setName("Arrow Flight").build());
+
+    if (incomingHeaders != null) {
+      applyClientPropertiesToUserSessionBuilder(builder, incomingHeaders);
+    }
+
+    return builder.build();
   }
 
   @Override

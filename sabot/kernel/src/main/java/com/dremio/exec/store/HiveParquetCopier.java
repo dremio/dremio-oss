@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.store;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
@@ -28,13 +29,11 @@ import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
 /**
@@ -42,8 +41,6 @@ import com.google.common.base.Stopwatch;
  * Also, copies data from appropriate invector to outvector
  */
 public class HiveParquetCopier {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveParquetCopier.class);
-
   /**
    * interface for hive parquet complex field copiers
    */
@@ -71,8 +68,7 @@ public class HiveParquetCopier {
                                               final ArrayList<ValueVector> input, final ArrayList<ValueVector> output,
                                               TypeCoercion hiveTypeCoercion,
                                               Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) {
-    Preconditions.checkArgument(input.size() == output.size(), "Invalid column size ("
-      + Integer.toString(input.size()) + ", " +  Integer.toString(output.size()) + ")");
+    checkArgument(input.size() == output.size(), "Invalid column size (" + input.size() + ", " + output.size() + ")");
     final int numColumns = output.size();
 
     // create one copier for each (input, output) pair
@@ -92,7 +88,7 @@ public class HiveParquetCopier {
                                             ValueVector outVector,
                                             TypeCoercion hiveTypeCoercion,
                                             Stopwatch javaCodeGenWatch, Stopwatch gandivaCodeGenWatch) {
-    Preconditions.checkArgument(outVector != null, "invalid argument");
+    checkArgument(outVector != null, "invalid argument");
     if (inVector == null) {
       // it is possible that table has extra fields and parquet file may not have those fields
       return new NoOpCopier();
@@ -153,11 +149,9 @@ public class HiveParquetCopier {
       BatchSchema targetSchema = outChildMutator.getContainer().getSchema();
 
       // recursively setup hive parquet reader for child vector
-      childFieldParquetReader = new HiveParquetReader(inChildMutator,
-        context, targetSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
+      childFieldParquetReader = new HiveParquetReader(inChildMutator, context,
         hiveTypeCoercion.getChildTypeCoercion(out.getName(), targetSchema),
-        javaCodeGenWatch, gandivaCodeGenWatch,
-        targetSchema);
+        javaCodeGenWatch, gandivaCodeGenWatch, targetSchema);
     }
 
     private SampleMutator createChildMutator(OperatorContext context, ValueVector childFieldVector) {
@@ -261,11 +255,9 @@ public class HiveParquetCopier {
       BatchSchema targetSchema = outChildMutator.getContainer().getSchema();
 
       // recursively setup hive parquet reader for child fields
-      childrenFieldParquetReader = new HiveParquetReader(inChildMutator,
-        context, targetSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
+      childrenFieldParquetReader = new HiveParquetReader(inChildMutator, context,
         hiveTypeCoercion.getChildTypeCoercion(out.getName(), targetSchema),
-        javaCodeGenWatch, gandivaCodeGenWatch,
-        targetSchema);
+        javaCodeGenWatch, gandivaCodeGenWatch, targetSchema);
     }
 
     @Override

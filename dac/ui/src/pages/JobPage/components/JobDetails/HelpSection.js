@@ -17,14 +17,18 @@ import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
+import { injectIntl } from 'react-intl';
 
 import FontIcon from 'components/Icon/FontIcon';
 import './HelpSection.less';
 
 import { askGnarly } from 'actions/jobs/jobs';
 import { callIfChatAllowedOrWarn } from 'actions/account';
+import { addNotification } from 'actions/notification';
 
 import { getViewState } from 'selectors/resources';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import APICall from '@app/core/APICall';
 
 import jobsUtils from 'utils/jobsUtils';
 import config from 'dyn-load/utils/config';
@@ -40,19 +44,25 @@ Click “Ask Dremio” to share the query profile with a Dremio engineer who wil
 Click “Email Help” to share job information with your system administrator.`,
   chatAndEmail: `Need help troubleshooting query performance or understanding the results?
 Click “Ask Dremio” to share the query profile with Dremio Support or “Email Help” to share it with your system administrator.`,
-  download: 'Click “Download Profile” to download the query profile.'
+  download: 'Click “Download Profile” to download the query profile.',
+  bundleDownload: 'Click “Download Query Support Bundle” to download the query support.'
 }; // download is never called out in the message unless it's the only thing
 
+@injectIntl
 @HelpSectionMixin
 export class HelpSection extends PureComponent {
   static propTypes = {
     jobId: PropTypes.string.isRequired,
     downloadFile: PropTypes.func,
+    intl: PropTypes.object.isRequired,
 
     // connected:
     callIfChatAllowedOrWarn: PropTypes.func.isRequired,
     askGnarly: PropTypes.func.isRequired,
-    downloadViewState: PropTypes.instanceOf(Immutable.Map).isRequired
+    downloadViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
+    clusterType: PropTypes.string,
+    addNotification: PropTypes.func,
+    isSupport: PropTypes.bool
   };
 
   static contextTypes = {
@@ -62,6 +72,32 @@ export class HelpSection extends PureComponent {
   handleDownload = () => {
     this.props.downloadFile(this.props.downloadViewState.get('viewId'));
   }
+
+  showNotification() {
+    const { intl } = this.props;
+    const type = 'Query Bundle';
+    const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, {type});
+    const message = <span>{notificationMessage}</span>;
+    this.props.addNotification(message, 'success', 3);
+  }
+
+  makeURL = () => {
+    const token = localStorageUtils.getAuthToken();
+    const apiCall = new APICall()
+      .path('support-bundle')
+      .path(this.props.jobId)
+      .path('download')
+      .params({
+        Authorization: token
+      });
+
+    return apiCall.toString();
+  }
+
+  handleQueryDownload = () => {
+    this.showNotification();
+    window.location.assign(this.makeURL());
+  };
 
   handleEmail = () => {
     const subject = config.supportEmailSubjectForJobs || la('Can I get some help on a Dremio job?');
@@ -95,7 +131,6 @@ export class HelpSection extends PureComponent {
   render()  {
     const buttons = this.getButtons();
     if (!buttons.size) return null;
-
     let message = MESSAGES.download;
     if (buttons.has('chat') && buttons.has('email')) {
       message = MESSAGES.chatAndEmail;
@@ -122,13 +157,16 @@ export class HelpSection extends PureComponent {
 
 function mapStateToProps(state, props) {
   return {
-    downloadViewState: getViewState(state, `DOWNLOAD_JOB_PROFILE-${props.jobId}`)
+    downloadViewState: getViewState(state, `DOWNLOAD_JOB_PROFILE-${props.jobId}`),
+    clusterType: state.jobs.jobs.get('clusterType'),
+    isSupport: state.jobs.jobs.get('isSupport')
   };
 }
 
 export default connect(mapStateToProps, {
   askGnarly,
-  callIfChatAllowedOrWarn
+  callIfChatAllowedOrWarn,
+  addNotification
 })(HelpSection);
 
 

@@ -45,7 +45,7 @@ import { pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import { startDownloadDataset } from 'actions/explore/download';
 import { performNextAction, NEXT_ACTIONS } from 'actions/explore/nextAction';
 
-import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
+// import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton'; // To Be Removed
 import ExploreInfoHeaderMixin from 'dyn-load/pages/ExplorePage/components/ExploreInfoHeaderMixin';
 import config from 'dyn-load/utils/config';
 import { getAnalyzeToolsConfig } from '@app/utils/config';
@@ -359,7 +359,7 @@ export class ExploreInfoHeader extends PureComponent {
   renderRightPartOfHeader() {
     return (
       <div className='right-part'>
-        { this.renderAccelerationButton() }
+        {/* { this.renderAccelerationButton() } // To Be Removed */}
         { this.renderAnalyzeButtons() }
         <Divider/>
         { this.renderEllipsisButton() }
@@ -371,21 +371,22 @@ export class ExploreInfoHeader extends PureComponent {
     );
   }
 
-  renderAccelerationButton = () => {
-    if (!this.showAccelerationButton()) {
-      return null;
-    }
-    const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);
-    return (
-      <Fragment>
-        <DatasetAccelerationButton
-          style={{ marginLeft: 20 }}
-          fullPath={fullPath}
-          isEditedDataset={this.isEditedDataset()}/>
-        <Divider/>
-      </Fragment>
-    );
-  };
+  // renderAccelerationButton = () => {
+  //   if (!this.showAccelerationButton()) {
+  //     return null;
+  //   }
+  //   const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);
+  //   return (
+  //     <Fragment>
+  //       <DatasetAccelerationButton
+  //         style={{ marginLeft: 20 }}
+  //         fullPath={fullPath}
+  //         isEditedDataset={this.isEditedDataset()}/>
+  //       <Divider/>
+  //     </Fragment>
+  //   );
+  // };
+  // To Be Removed
 
   openTableau = () => {
     this.handleShowBI(NEXT_ACTIONS.openTableau);

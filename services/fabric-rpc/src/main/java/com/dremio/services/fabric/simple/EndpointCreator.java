@@ -108,7 +108,7 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
       public Command(REQUEST req, ArrowBuf[] bufs) {
         super();
         this.req = req;
-        List<NettyArrowBuf> buffers = Arrays.stream(bufs).map(buf -> buf.asNettyBuffer()).collect(Collectors.toList());
+        List<NettyArrowBuf> buffers = Arrays.stream(bufs).map(buf -> NettyArrowBuf.unwrapBuffer(buf)).collect(Collectors.toList());
         this.bufs = new NettyArrowBuf[buffers.size()];
         int i = 0;
         for (NettyArrowBuf arrowBuf : buffers) {

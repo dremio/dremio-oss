@@ -87,18 +87,18 @@ public abstract class AbstractRecordReader implements RecordReader {
    *                  choose different policy of handling skipAll query. By default, it will use * column.
    *                  2) NULL : is NOT allowed. It requires the planner's rule, or GroupScan or ScanBatchCreator to handle NULL.
    */
-  private final void setColumns(Collection<SchemaPath> projected) {
+  private void setColumns(Collection<SchemaPath> projected) {
     Preconditions.checkNotNull(projected, COL_NULL_ERROR);
     isSkipQuery = projected.isEmpty();
     Collection<SchemaPath> columnsToRead = projected;
 
     // If no column is required (SkipQuery), by default it will use DEFAULT_COLS_TO_READ .
-    // Handling SkipQuery is storage-plugin specif : JSON, text reader, parquet will override, in order to
+    // Handling SkipQuery is storage-plugin specific : JSON, text reader, parquet will override, in order to
     // improve query performance.
     if (projected.isEmpty()) {
-      if(supportsSkipAllQuery()){
+      if (supportsSkipAllQuery()) {
         columnsToRead = Collections.emptyList();
-      }else{
+      } else {
         columnsToRead = GroupScan.ALL_COLUMNS;
       }
     }
@@ -142,7 +142,7 @@ public abstract class AbstractRecordReader implements RecordReader {
 
   /**
    * Returns a message to be shown to the user if an exception is thrown that can't be processed
-   * properly because its cause is not recognizable, typically because we can't hava dependency
+   * properly because its cause is not recognizable, typically because we can't have a dependency
    * on its type.
    * The message is a best-effort one.
    * @param t Throwable presented as the cause of the IOException.

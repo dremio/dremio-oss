@@ -116,7 +116,7 @@ export class AccelerationUpdatesController extends Component {
         // JSON parsing failed. So we are displaying a generic Error Message.
         isFailed: true,
         error: {
-          message: formatMessage('Message.ApiErr.Load.Dataset', {err: error.statusText})
+          message: formatMessage('Message.ApiErr.Load.Dataset', {err: jsonError.statusText})
         }
       }));
     });

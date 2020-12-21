@@ -16,6 +16,7 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.BaseTestQuery.getFile;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -121,6 +122,18 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
     asyncStub.subscribeToJobEvents(JobsProtoUtil.toBuf(jobId), adapter);
   }
 
+  private Job getJob(JobId jobId) throws Exception {
+    try {
+      GetJobRequest getJobRequest = GetJobRequest.newBuilder()
+        .setJobId(jobId)
+        .setUserName(SYSTEM_USERNAME)
+        .build();
+      return l(LocalJobsService.class).getJob(getJobRequest);
+    } catch (JobNotFoundException e) {
+      return null;
+    }
+  }
+
   private void pauseAndResume(Class clazz, String descriptor) throws Exception {
     final String controls = Controls.newBuilder()
       .addPause(clazz, descriptor)
@@ -137,6 +150,13 @@ public class TestExternalJobProgressUpdates extends BaseTestServer {
       Thread.sleep(10);
     }
     JobId jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+    // TODO(DX-26192): Job was not found
+    // wait till job available to avoid JobNotFoundException
+    while (getJob(jobId) == null) {
+      Thread.sleep(10);
+    }
+
     StateProgressListener stateListener = new StateProgressListener();
     registerJobStatusListener(jobId, stateListener);
 

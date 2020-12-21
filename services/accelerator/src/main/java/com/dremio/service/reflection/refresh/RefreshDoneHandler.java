@@ -27,6 +27,7 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.MaterializationExpander;
+import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.io.file.Path;
@@ -156,6 +157,7 @@ public class RefreshDoneHandler {
         .setLastRefreshFromPds(lastDone.getLastRefreshFromPds())
         .setLogicalPlan(lastDone.getLogicalPlan())
         .setLogicalPlanStrippedHash(decision.getLogicalPlanStrippedHash())
+        .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)
         .setSeriesId(decision.getSeriesId())
         .setSeriesOrdinal(lastDone.getSeriesOrdinal())
         .setJoinAnalysis(lastDone.getJoinAnalysis())
@@ -167,6 +169,7 @@ public class RefreshDoneHandler {
         .setLastRefreshFromPds(oldestDependentMaterialization.or(materialization.getInitRefreshSubmit()))
         .setLogicalPlan(planBytes)
         .setLogicalPlanStrippedHash(decision.getLogicalPlanStrippedHash())
+        .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)
         .setSeriesId(decision.getSeriesId())
         .setSeriesOrdinal(dataWritten ? decision.getSeriesOrdinal() : decision.getSeriesOrdinal() - 1)
         .setJoinAnalysis(computeJoinAnalysis())
@@ -239,8 +242,10 @@ public class RefreshDoneHandler {
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, jobId);
     final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(JobsProtoUtil.getLastAttempt(job).getInfo());
     final List<String> refreshPath = ReflectionUtils.getRefreshPath(jobId, accelerationBasePath, jobsService, allocator);
+    final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
+    final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(materialization, refreshPath, isIcebergRefresh);
     final Refresh refresh = ReflectionUtils.createRefresh(reflection.getId(), refreshPath, decision.getSeriesId(),
-      decision.getSeriesOrdinal(), updateId, details, metrics, dataPartitions);
+      decision.getSeriesOrdinal(), updateId, details, metrics, dataPartitions, isIcebergRefresh, icebergBasePath);
 
     logger.trace("Refresh created: {}", refresh);
     materializationStore.save(refresh);

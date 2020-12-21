@@ -41,6 +41,7 @@ import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * Test valid behavior of backward compatibility.
@@ -80,7 +81,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
   }
 
   private ByteBuf buf(int size) {
-    return allocator.buffer(size).writerIndex(size).asNettyBuffer();
+    return NettyArrowBuf.unwrapBuffer(allocator.buffer(size).writerIndex(size));
   }
 
   @Test
@@ -147,7 +148,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
       ArrowBuf oldBuf = bits.getDataBuffer();
       oldBuf.retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bits);
-      ArrowBuf newBuf = convertBitsToBytes(allocator, fieldBuilder, oldBuf.asNettyBuffer()).arrowBuf();
+      ArrowBuf newBuf = convertBitsToBytes(allocator, fieldBuilder, NettyArrowBuf.unwrapBuffer(oldBuf)).arrowBuf();
       bytes.setValueCount(count);
       SerializedField.Builder newfieldBuilder = TypeHelper.getMetadataBuilder(bytes);
       TypeHelper.loadData(bytes, newfieldBuilder.build(), newBuf);
@@ -167,8 +168,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
     BigDecimal decimal2 = new BigDecimal("11.123456789");
     BigDecimal decimal3 = new BigDecimal("1.000000000");
     BigDecimal decimal4 = new BigDecimal("0.111111111");
-    BigDecimal decimal5 = new BigDecimal("-987654321.123456789");
-    BigDecimal decimal6 = new BigDecimal("-222222222222.222222222");
+    BigDecimal decimal5 = new BigDecimal("-987654321.123456789"); BigDecimal decimal6 = new BigDecimal("-222222222222.222222222");
     BigDecimal decimal7 = new BigDecimal("-7777777777777.666666667");
     BigDecimal decimal8 = new BigDecimal("1212121212.343434343");
 
@@ -196,7 +196,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
     FixedWidthVectorHelper vectorHelper = new FixedWidthVectorHelper(decimalVector);
     SerializedField.Builder decimalField = vectorHelper.getMetadataBuilder();
     SerializedField.Builder childDecimalField = decimalField.getChildBuilderList().get(1);
-    ByteBuf newBuffer = patchDecimal(allocator, decimalVector.getDataBuffer().asNettyBuffer(), decimalField,
+    ByteBuf newBuffer = patchDecimal(allocator, NettyArrowBuf.unwrapBuffer(decimalVector.getDataBuffer()), decimalField,
       childDecimalField);
 
     int startIndex = 0;
@@ -253,7 +253,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
       ArrowBuf oldBuf = bytes.getDataBuffer();
       oldBuf.retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bytes);
-      ArrowBuf newBuf = padValues(allocator, fieldBuilder, oldBuf.asNettyBuffer(), originalTypeByteWidth,
+      ArrowBuf newBuf = padValues(allocator, fieldBuilder, NettyArrowBuf.unwrapBuffer(oldBuf), originalTypeByteWidth,
         targetTypeByteWidth).arrowBuf();
       bytes.setValueCount(count * 12);
       SerializedField.Builder newfieldBuilder = TypeHelper.getMetadataBuilder(bytes);

@@ -82,8 +82,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
     fs = dfsCluster.getFileSystem();
   }
 
-  protected static void addMiniDfsBasedStorage(final Map<String, WorkspaceConfig> workspaces,
-      boolean impersonationEnabled) throws Exception {
+  protected static void addMiniDfsBasedStorage(boolean impersonationEnabled) throws Exception {
     // Create a HDFS based storage plugin (connection string for mini dfs is varies for each run).
 
     final CatalogService catalogService = getSabotContext().getCatalogService();
@@ -113,7 +112,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
     workspaces.put(name, ws);
   }
 
-  protected static void stopMiniDfsCluster() throws Exception {
+  protected static void stopMiniDfsCluster() {
     if (dfsCluster != null) {
       dfsCluster.shutdown();
       dfsCluster = null;

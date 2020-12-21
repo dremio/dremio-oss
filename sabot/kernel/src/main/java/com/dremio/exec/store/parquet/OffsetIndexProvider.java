@@ -74,7 +74,7 @@ public class OffsetIndexProvider implements Closeable {
             }
         }
         if (startOffsetIndex != -1) {
-            NettyArrowBuf byteBuffer = allocator.buffer(endOffsetIndex - startOffsetIndex).asNettyBuffer();
+            NettyArrowBuf byteBuffer = NettyArrowBuf.unwrapBuffer(allocator.buffer(endOffsetIndex - startOffsetIndex));
             try {
                 bulkInputStream.seek(startOffsetIndex);
                 bulkInputStream.readFully(byteBuffer, (int)(endOffsetIndex - startOffsetIndex));

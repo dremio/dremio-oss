@@ -66,6 +66,7 @@ import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.cache.Cache;
@@ -434,18 +435,7 @@ public class Foreman {
           if (reason != AttemptReason.NONE) {
             super.attemptCompletion(result);
 
-            Predicate<DatasetConfig> datasetValidityChecker = Predicates.alwaysTrue();
-            if (reason == AttemptReason.INVALID_DATASET_METADATA) {
-              final InvalidMetadataErrorContext context = InvalidMetadataErrorContext.fromUserException(ex);
-              datasetValidityChecker = new Predicate<DatasetConfig>() {
-                final ImmutableSet<List<String>> keys = ImmutableSet.copyOf(context.getPathsToRefresh());
-
-                @Override
-                public boolean apply(DatasetConfig input) {
-                  return !keys.contains(input.getFullPathList());
-                }
-              };
-            }
+            Predicate<DatasetConfig> datasetValidityChecker = getDatasetValidityChecker(ex, reason);
 
             // run another attempt, after making the necessary changes to recover from the failure
             try {
@@ -473,6 +463,25 @@ public class Foreman {
       super.planParallelized(planningSet);
     }
 
+  }
+
+  @VisibleForTesting
+  static Predicate<DatasetConfig> getDatasetValidityChecker(UserException ex, AttemptReason reason) {
+    Predicate<DatasetConfig> datasetValidityChecker = Predicates.alwaysTrue();
+    if (reason == AttemptReason.INVALID_DATASET_METADATA) {
+      final InvalidMetadataErrorContext context = InvalidMetadataErrorContext.fromUserException(ex);
+      if (context != null) {
+        datasetValidityChecker = new Predicate<DatasetConfig>() {
+          private final ImmutableSet<List<String>> keys = ImmutableSet.copyOf(context.getPathsToRefresh());
+
+          @Override
+          public boolean apply(DatasetConfig input) {
+            return !keys.contains(input.getFullPathList());
+          }
+        };
+      }
+    }
+    return datasetValidityChecker;
   }
 
   private static class LowMemOptionProvider implements OptionProvider {

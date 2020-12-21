@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.util.List;
+
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
 
 public interface FilterableScan extends RelNode {
   FilterableScan applyFilter(ScanFilter scanFilter);
+  FilterableScan cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns);
 }

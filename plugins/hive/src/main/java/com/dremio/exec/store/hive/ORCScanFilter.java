@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.store.ScanFilter;
@@ -37,14 +38,15 @@ public class ORCScanFilter extends HiveProxiedOrcScanFilter {
 
   @JsonCreator
   public ORCScanFilter(@JsonProperty("kryoBase64EncodedFilter") final String kryoBase64EncodedFilter,
-                       @JsonProperty("pluginId") StoragePluginId pluginId) {
-    super(kryoBase64EncodedFilter);
+                       @JsonProperty("pluginId") StoragePluginId pluginId,
+                       @JsonProperty("column") SchemaPath column) {
+    super(kryoBase64EncodedFilter, column);
     this.sarg = HiveUtilities.decodeSearchArgumentFromBase64(kryoBase64EncodedFilter);
     this.pluginId = pluginId;
   }
 
-  public ORCScanFilter(final SearchArgument sarg, StoragePluginId pluginId) {
-    super(HiveUtilities.encodeSearchArgumentAsBas64(sarg));
+  public ORCScanFilter(final SearchArgument sarg, StoragePluginId pluginId, SchemaPath column) {
+    super(HiveUtilities.encodeSearchArgumentAsBas64(sarg), column);
     Preconditions.checkNotNull(sarg, "expected a non-null filter expression");
     this.sarg = sarg;
     this.pluginId = pluginId;

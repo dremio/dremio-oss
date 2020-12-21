@@ -49,6 +49,7 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
+import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.io.file.Path;
@@ -86,15 +87,15 @@ public class TestPrefetchingIterator {
         List<SplitReaderCreator> creators = getMockSplitReaderCreators(10);
         PrefetchingIterator<SplitReaderCreator> it = new PrefetchingIterator<>(getCtx(), readerConfig, creators);
 
-        Path prevPath = null;
         MutableParquetMetadata prevFooter = null;
+        InputStreamProvider inputStreamProvider = null;
         for (int i = 0; i < creators.size(); i++) {
             SplitReaderCreator insertedCreator = creators.get(i);
             assertTrue(it.hasNext());
             assertEquals(insertedCreator.createRecordReader(any(MutableParquetMetadata.class)), it.next());
-            verify(insertedCreator).createInputStreamProvider(eq(prevPath), eq(prevFooter));
-            prevPath = insertedCreator.getPath();
+            verify(insertedCreator).createInputStreamProvider(eq(inputStreamProvider), eq(prevFooter));
             prevFooter = insertedCreator.getFooter();
+            inputStreamProvider = insertedCreator.getInputStreamProvider();
         }
 
         assertFalse(it.hasNext());
@@ -110,16 +111,16 @@ public class TestPrefetchingIterator {
         OperatorContext ctx = getCtx();
         PrefetchingIterator<SplitReaderCreator> it = new PrefetchingIterator<>(ctx, readerConfig, creators);
 
-        Path prevPath = null;
+        InputStreamProvider inputStreamProvider = null;
         MutableParquetMetadata prevFooter = null;
         SplitReaderCreator lastCreator = null;
         for (int i = 0; i < 5; i++) {
             SplitReaderCreator insertedCreator = creators.get(i);
             assertTrue(it.hasNext());
             assertEquals(insertedCreator.createRecordReader(any(MutableParquetMetadata.class)), it.next());
-            verify(insertedCreator).createInputStreamProvider(eq(prevPath), eq(prevFooter));
-            prevPath = insertedCreator.getPath();
+            verify(insertedCreator).createInputStreamProvider(eq(inputStreamProvider), eq(prevFooter));
             prevFooter = insertedCreator.getFooter();
+            inputStreamProvider = insertedCreator.getInputStreamProvider();
             lastCreator = insertedCreator;
         }
         verify(lastCreator, never()).setNext(any(SplitReaderCreator.class));
@@ -157,15 +158,15 @@ public class TestPrefetchingIterator {
 
             it.addRuntimeFilter(filter);
 
-            Path prevPath = null;
+            InputStreamProvider inputStreamProvider = null;
             MutableParquetMetadata prevFooter = null;
             for (int i = 0; i < creators.size(); i++) {
                 SplitReaderCreator insertedCreator = creators.get(i);
                 assertTrue(it.hasNext());
                 assertEquals(insertedCreator.createRecordReader(any(MutableParquetMetadata.class)), it.next());
-                verify(insertedCreator).createInputStreamProvider(eq(prevPath), eq(prevFooter));
-                prevPath = insertedCreator.getPath();
+                verify(insertedCreator).createInputStreamProvider(eq(inputStreamProvider), eq(prevFooter));
                 prevFooter = insertedCreator.getFooter();
+                inputStreamProvider = insertedCreator.getInputStreamProvider();
             }
             assertEquals(0L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
         } catch (Exception e) {
@@ -228,15 +229,15 @@ public class TestPrefetchingIterator {
             it.addRuntimeFilter(filter);
             it.next();
 
-            Path prevPath = creators.get(0).getPath();
             MutableParquetMetadata prevFooter = creators.get(0).getFooter();
+            InputStreamProvider inputStreamProvider = creators.get(0).getInputStreamProvider();
             for (int i = 0; i < selectedCreators.size(); i++) {
                 SplitReaderCreator insertedCreator = selectedCreators.get(i);
                 assertTrue(it.hasNext());
                 assertEquals(insertedCreator.createRecordReader(any(MutableParquetMetadata.class)), it.next());
-                verify(insertedCreator).createInputStreamProvider(eq(prevPath), eq(prevFooter));
-                prevPath = insertedCreator.getPath();
+                verify(insertedCreator).createInputStreamProvider(eq(inputStreamProvider), eq(prevFooter));
                 prevFooter = insertedCreator.getFooter();
+                inputStreamProvider = insertedCreator.getInputStreamProvider();
                 if (i < selectedCreators.size() - 1) {
                     verify(insertedCreator).setNext(eq(selectedCreators.get(i + 1)));
                 } else {
@@ -297,15 +298,15 @@ public class TestPrefetchingIterator {
 
             it.next();
 
-            Path prevPath = creators.get(0).getPath();
+            InputStreamProvider inputStreamProvider = creators.get(0).getInputStreamProvider();
             MutableParquetMetadata prevFooter = creators.get(0).getFooter();
             for (int i = 0; i < selectedCreators.size(); i++) {
                 SplitReaderCreator insertedCreator = selectedCreators.get(i);
                 assertTrue(it.hasNext());
                 assertEquals(insertedCreator.createRecordReader(any(MutableParquetMetadata.class)), it.next());
-                verify(insertedCreator).createInputStreamProvider(eq(prevPath), eq(prevFooter));
-                prevPath = insertedCreator.getPath();
+                verify(insertedCreator).createInputStreamProvider(eq(inputStreamProvider), eq(prevFooter));
                 prevFooter = insertedCreator.getFooter();
+                inputStreamProvider = insertedCreator.getInputStreamProvider();
             }
             assertEquals(7L , ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
         } catch (Exception e) {
@@ -384,10 +385,12 @@ public class TestPrefetchingIterator {
         final List<SplitReaderCreator> readerCreators = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             SplitReaderCreator mockReaderCreator = mock(SplitReaderCreator.class);
-            doNothing().when(mockReaderCreator).createInputStreamProvider(any(Path.class), any(MutableParquetMetadata.class));
+            doNothing().when(mockReaderCreator).createInputStreamProvider(any(InputStreamProvider.class), any(MutableParquetMetadata.class));
             when(mockReaderCreator.getPath()).thenReturn(Path.of("path" + i));
             MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
             when(mockReaderCreator.getFooter()).thenReturn(footer);
+            InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
+            when(mockReaderCreator.getInputStreamProvider()).thenReturn(inputStreamProvider);
             SplitAndPartitionInfo split = mock(SplitAndPartitionInfo.class);
             PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf
                     .NormalizedPartitionInfo.newBuilder().build();

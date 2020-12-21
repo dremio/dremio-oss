@@ -178,14 +178,14 @@ public class NullableFixedByteAlignedReaders {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readInteger()));
           /* this will swap bytes as we are writing to the buffer of DecimalVector */
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
+          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
           valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.valueReader.readInteger()));
           /* this will swap bytes as we are writing to the buffer of DecimalVector */
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
+          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
           valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       }
@@ -275,14 +275,14 @@ public class NullableFixedByteAlignedReaders {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readLong()));
           /* this will swap bytes as we are writing to the buffer of DecimalVector */
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
+          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
           valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.valueReader.readLong()));
           /* this will swap bytes as we are writing to the buffer of DecimalVector */
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
+          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
           valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       }
@@ -451,7 +451,7 @@ public class NullableFixedByteAlignedReaders {
        */
       BigDecimal intermediate = DecimalHelper.getBigDecimalFromBEArrowBuf(bytebuf, index, schemaElement.getScale());
       /* this will swap bytes as we are writing to the buffer of DecimalVector */
-      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getDataBuffer(), index);
+      DecimalUtility.writeBigDecimalToArrowBuf(intermediate, valueVec.getDataBuffer(), index, DecimalVector.TYPE_WIDTH);
       valueVec.setIndexDefined(index);
     }
   }

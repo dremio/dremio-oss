@@ -31,7 +31,8 @@ import {
   getSortedSources,
   getCreatedSource,
   getEntity,
-  getViewState
+  getViewState,
+  searchEntity
 } from './resources';
 
 
@@ -81,6 +82,11 @@ describe('datasets selectors', () => {
         }
       };
       expect(getCreatedSource(createdSourceState).toJS()).to.eql({name: 1});
+    });
+  });
+  describe('searchEntity', () => {
+    it('should search and return entity', () => {
+      expect(searchEntity(state, 'folder', 'folderConfig', 'LocalFS2.Library')).to.eql(state.resources.entities.getIn(['folder', '/source/LocalFS2/folder/LocalFS2.Library']));
     });
   });
 });

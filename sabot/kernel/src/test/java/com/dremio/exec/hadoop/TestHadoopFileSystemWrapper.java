@@ -51,6 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import com.dremio.common.perf.StatsCollectionEligibilityRegistrar;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.io.file.FileAttributes;
@@ -194,6 +195,7 @@ public class TestHadoopFileSystemWrapper {
     printWriter.close();
 
     tempFilePath = tempFile.getPath();
+    StatsCollectionEligibilityRegistrar.addSelf();
   }
 
   @Test

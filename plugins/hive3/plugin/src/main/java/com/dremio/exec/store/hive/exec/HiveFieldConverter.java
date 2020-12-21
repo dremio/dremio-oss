@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
+
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -234,7 +236,8 @@ public abstract class HiveFieldConverter {
 
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
-      DecimalUtility.writeBigDecimalToArrowBuf(((HiveDecimalObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue).bigDecimalValue().setScale(holder.scale, RoundingMode.HALF_UP), holder.buffer, holder.start);
+      DecimalUtility.writeBigDecimalToArrowBuf(((HiveDecimalObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue).bigDecimalValue()
+        .setScale(holder.scale, RoundingMode.HALF_UP), holder.buffer, LargeMemoryUtil.capAtMaxInt(holder.start), DecimalVector.TYPE_WIDTH);
       ((DecimalVector) outputVV).setSafe(outputIndex, 1, 0, holder.buffer);
     }
   }

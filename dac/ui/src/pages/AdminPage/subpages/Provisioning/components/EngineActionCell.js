@@ -18,7 +18,8 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Art from '@app/components/Art';
 import SettingsBtn from '@app/components/Buttons/SettingsBtn';
-import {EngineActionMenu} from '@app/pages/AdminPage/subpages/Provisioning/components/EngineActionMenu';
+import EngineActionCellMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/EngineActionCellMixin';
+
 
 export function StartStopButton(props) {
   const {engine, handleStartStop, style = {}, textStyle = {}} = props;
@@ -60,7 +61,7 @@ StartStopButton.propTypes = {
   textStyle: PropTypes.object
 };
 
-
+@EngineActionCellMixin
 export class EngineActionCell extends PureComponent {
   static propTypes = {
     engine: PropTypes.instanceOf(Immutable.Map),
@@ -72,18 +73,15 @@ export class EngineActionCell extends PureComponent {
 
 
   render() {
-    const { engine, editProvision, removeProvision, handleAddRemove, handleStartStop } = this.props;
+    const { engine } = this.props;
 
     return <div className='actions-wrap' style={{display: 'flex'}}>
-      <StartStopButton engine={engine} handleStartStop={handleStartStop} style={{marginRight: 5}}/>
+      {this.renderButton()}
       <SettingsBtn className='settings-button' style={styles.settingsButton}
         handleSettingsClose={() => {}}
         handleSettingsOpen={() => {}}
         dataQa={engine.get('tag')}
-        menu={<EngineActionMenu engine={engine}
-          editHandler={editProvision}
-          deleteHandler={removeProvision}
-          addRemoveHandler={handleAddRemove}/>}
+        menu={this.renderMenu()}
         hideArrowIcon
       >
         <Art src='Ellipsis.svg' alt={la('more...')} title style={styles.buttonIcon}/>

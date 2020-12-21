@@ -46,7 +46,7 @@ import com.dremio.exec.planner.RexBuilderTestBase;
  * Unit tests for {@link ORCFindRelevantFilters}
  */
 public class TestORCFindRelevantFilters extends RexBuilderTestBase {
-  private final ORCFindRelevantFilters finder = new ORCFindRelevantFilters(builder);
+  private final ORCFindRelevantFilters finder = new ORCFindRelevantFilters(builder, null);
 
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);

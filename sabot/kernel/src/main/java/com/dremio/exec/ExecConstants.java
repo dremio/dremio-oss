@@ -52,7 +52,7 @@ public interface ExecConstants {
   String USER_SERVER_RPC_THREADS = "dremio.exec.rpc.user.server.threads";
   String REGISTRATION_ADDRESS = "dremio.exec.rpc.publishedhost";
 
-  /** incoming buffer size (number of batches) */
+  /* incoming buffer size (number of batches) */
   String INCOMING_BUFFER_SIZE = "dremio.exec.buffer.size";
   String SPOOLING_BUFFER_DELETE = "dremio.exec.buffer.spooling.delete";
   String SPOOLING_BUFFER_SIZE = "dremio.exec.buffer.spooling.size";
@@ -60,7 +60,7 @@ public interface ExecConstants {
   String SPILL_DIRS = "dremio.exec.sort.external.spill.directories";
   String HTTP_ENABLE = "dremio.exec.http.enabled";
 
-  /** Spill disk space configurations */
+  /* Spill disk space configurations */
   BooleanValidator SPILL_ENABLE_HEALTH_CHECK = new BooleanValidator("dremio.exec.spill.healthcheck.enable", DefaultSpillServiceOptions.ENABLE_HEALTH_CHECK);
   PositiveLongValidator SPILL_DISK_SPACE_CHECK_INTERVAL = new PositiveLongValidator("dremio.exec.spill.check.interval", Integer.MAX_VALUE, DefaultSpillServiceOptions.HEALTH_CHECK_INTERVAL);
   PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Long.MAX_VALUE, DefaultSpillServiceOptions.MIN_DISK_SPACE_BYTES);
@@ -78,8 +78,7 @@ public interface ExecConstants {
   // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
   BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
 
-  String MAX_SPLITS_PER_EXPR_KEY = "exec.expression" +
-    ".split.max_splits_per_expression";
+  String MAX_SPLITS_PER_EXPR_KEY = "exec.expression.split.max_splits_per_expression";
   PositiveLongValidator MAX_SPLITS_PER_EXPRESSION = new PositiveLongValidator(MAX_SPLITS_PER_EXPR_KEY, Long.MAX_VALUE, 10);
 
   // Configuration option for deciding how much work should be done in Gandiva when there are excessive splits
@@ -106,8 +105,7 @@ public interface ExecConstants {
 
   PositiveLongValidator CODE_GEN_NESTED_METHOD_THRESHOLD = new PositiveLongValidator("exec.operator.codegen.nested_method.threshold", Integer.MAX_VALUE, 100);
 
-
-  /**
+  /*
    * Currently if a query is cancelled, but one of the fragments reports the status as FAILED instead of CANCELLED or
    * FINISHED we report the query result as CANCELLED by swallowing the failures occurred in fragments. This BOOT
    * setting allows the user to see the query status as failure. Useful for developers/testers.
@@ -125,8 +123,6 @@ public interface ExecConstants {
 
   String OPERATOR_TARGET_BATCH_BYTES = "dremio.exec.operator_batch_bytes";
   OptionValidator OPERATOR_TARGET_BATCH_BYTES_VALIDATOR = new LongValidator(OPERATOR_TARGET_BATCH_BYTES, 10*1024*1024);
-
-
 
   BooleanValidator ENABLE_VECTORIZED_HASHAGG = new BooleanValidator("exec.operator.aggregate.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN = new BooleanValidator("exec.operator.join.vectorize", true);
@@ -160,8 +156,7 @@ public interface ExecConstants {
   String PARQUET_MEMORY_THRESHOLD = "store.parquet.memory_threshold";
   LongValidator PARQUET_MEMORY_THRESHOLD_VALIDATOR = new LongValidator(PARQUET_MEMORY_THRESHOLD, 512*1024*1024);
 
-  LongValidator PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR = new RangeLongValidator("store.parquet" +
-    ".partition_column_limit", 0, 500, 25);
+  LongValidator PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR = new RangeLongValidator("store.parquet.partition_column_limit", 0, 500, 25);
 
   BooleanValidator PARQUET_ELIMINATE_NULL_PARTITIONS = new BooleanValidator("store.parquet.exclude_null_implicit_partitions", true);
 
@@ -385,7 +380,8 @@ public interface ExecConstants {
   BooleanValidator PARQUET_COLUMN_ORDERING = new BooleanValidator("store.parquet.column_ordering", false);
 
   BooleanValidator HIVE_COMPLEXTYPES_ENABLED = new BooleanValidator("store.hive.parquet.support_complex_types", true);
-  LongValidator PARQUET_LIST_ITEMS_THRESHOLD = new LongValidator("store.parquet.list_items.threshold", 128);
+  String PARQUET_LIST_ITEMS_KEY = "store.parquet.list_items.threshold";
+  LongValidator PARQUET_LIST_ITEMS_THRESHOLD = new LongValidator(PARQUET_LIST_ITEMS_KEY, 128);
 
   LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 1);
   // At what hour of the day to do job results cleanup - 0-23
@@ -442,7 +438,7 @@ public interface ExecConstants {
     new TypeValidators.PositiveLongValidator("searchservice.release.leadership.ms", Long.MAX_VALUE, TimeUnit.HOURS
       .toMillis(12));
 
-  public static final BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
+  BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
 
   BooleanValidator TRIM_ROWGROUPS_FROM_FOOTER = new BooleanValidator("exec.parquet.memory.trim_rowgroups", true);
   BooleanValidator TRIM_COLUMNS_FROM_ROW_GROUP = new BooleanValidator("exec.parquet.memory.trim_columns", true);
@@ -488,5 +484,8 @@ public interface ExecConstants {
   RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE =  new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
 
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
-  BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, false);
+  BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
+
+  // Option to disable support for mixed data types for filesystem sources
+  BooleanValidator ENABLE_MIXED_TYPES_FS_SOURCES = new BooleanValidator("store.enable.mixed_types", true);
 }

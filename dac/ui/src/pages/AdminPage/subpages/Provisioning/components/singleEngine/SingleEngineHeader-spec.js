@@ -13,30 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+// import { shallow } from 'enzyme';
+// import Immutable from 'immutable';
 
-import { SingleEngineHeader } from './SingleEngineHeader';
+// import { SingleEngineHeader } from './SingleEngineHeader';
 
-describe('SingleEngineHeader', () => {
-  let minimalProps;
-  let commonProps;
-  beforeEach(() => {
-    minimalProps = {
-    };
-    commonProps = {
-      engine: Immutable.fromJS({name: 'default'})
-    };
-  });
+// describe('SingleEngineHeader', () => {
+//   let minimalProps;
+//   let commonProps;
+//   beforeEach(() => {
+//     minimalProps = {
+//     };
+//     commonProps = {
+//       engine: Immutable.fromJS({name: 'default'})
+//     };
+//   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SingleEngineHeader {...minimalProps}/>);
-    expect(wrapper).to.have.length(1);
-  });
+//   // it('should render with minimal props without exploding', () => {
+//   //   const wrapper = shallow(<SingleEngineHeader {...minimalProps}/>);
+//   //   expect(wrapper).to.have.length(1);
+//   // });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<SingleEngineHeader {...commonProps}/>);
-    expect(wrapper).to.have.length(1);
-  });
+//   // it('should render with common props without exploding', () => {
+//   //   const wrapper = shallow(<SingleEngineHeader {...commonProps}/>);
+//   //   expect(wrapper).to.have.length(1);
+//   // });
 
-});
+// });

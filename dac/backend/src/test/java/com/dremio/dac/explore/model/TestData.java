@@ -681,7 +681,7 @@ public class TestData extends DremioTest {
       if (values.get(i) == null) {
         valuesVector.setNull(i);
       } else {
-        DecimalUtility.writeBigDecimalToArrowBuf(values.get(i), tempBuf, 0);
+        DecimalUtility.writeBigDecimalToArrowBuf(values.get(i), tempBuf, 0, DecimalVector.TYPE_WIDTH);
         valuesVector.set(i, tempBuf);
       }
     }
@@ -853,13 +853,13 @@ public class TestData extends DremioTest {
         assertEquals("{colMap={nBigIntCol=223, nVarCharCol=long long value, nListCol=[1969-12-29]}}", output.extractValue("colMap", index).toString());
         assertEquals(cellUrl(uIndex++, "colMap"), output.extractUrl("colMap", index++));
 
-        assertEquals("{colMap={nBigIntCol=54645, nMapCol={a=1}}}", output.extractValue("colMap", index).toString());
+        assertEquals("{colMap={nBigIntCol=54645, nUnionCol=null, nMapCol={a=1}}}", output.extractValue("colMap", index).toString());
         assertNull(output.extractUrl("colMap", index++));
 
         assertEquals("{}", output.extractValue("colMap", index).toString());
         assertNull(output.extractUrl("colMap", index++));
 
-        assertEquals("{colMap={nBigIntCol=234543}}", output.extractValue("colMap", index).toString());
+        assertEquals("{colMap={nBigIntCol=234543, nUnionCol=null}}", output.extractValue("colMap", index).toString());
         assertNull(output.extractUrl("colMap", index++));
       }
     };

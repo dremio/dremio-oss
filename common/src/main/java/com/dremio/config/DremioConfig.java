@@ -92,6 +92,7 @@ public class DremioConfig extends NestedConfig {
   public static final String CONDUIT_PORT_INT = "services.conduit.port";
   public static final String FLIGHT_SERVICE_ENABLED_BOOLEAN = "services.flight.enabled";
   public static final String FLIGHT_SERVICE_PORT_INT = "services.flight.port";
+  public static final String FLIGHT_SERVICE_AUTHENTICATION_MODE = "services.flight.auth.mode";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
 
@@ -181,6 +182,7 @@ public class DremioConfig extends NestedConfig {
   public static final String MISSED_POLLS_BEFORE_KILL = "provisioning.yarn.watchdog.missed.polls.before.kill";
   public static final String MAX_KILL_ATTEMPTS = "provisioning.yarn.watchdog.max.kill.attempts";
   public static final String KILL_REATTEMPT_INTERVAL_MS = "provisioning.yarn.watchdog.kill.reattempt.interval";
+  public static final String YARN_CERTIFICATE_VALIDATION_ENABLED = "provisioning.yarn.nodemanager.certificate-validation.enabled";
 
   public static final String REMOTE_DATASTORE_RPC_TIMEOUT_SECS = "debug.remote.datastore.rpc_timeout_seconds";
 

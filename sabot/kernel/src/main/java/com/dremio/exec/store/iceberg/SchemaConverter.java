@@ -32,6 +32,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Interval;
 import org.apache.arrow.vector.types.pojo.ArrowType.LargeBinary;
+import org.apache.arrow.vector.types.pojo.ArrowType.LargeList;
 import org.apache.arrow.vector.types.pojo.ArrowType.LargeUtf8;
 import org.apache.arrow.vector.types.pojo.ArrowType.Map;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
@@ -297,6 +298,11 @@ public class SchemaConverter {
 
       @Override
       public Type visit(LargeBinary largeBinary) {
+        throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
+      }
+
+      @Override
+      public Type visit(LargeList largeList) {
         throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
       }
 

@@ -91,6 +91,7 @@ import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ClassPathFileSystem;
@@ -260,6 +261,12 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   public boolean supportsColocatedReads() {
     return true;
+  }
+
+  @Override
+  public BatchSchema mergeSchemas(DatasetConfig oldConfig, BatchSchema newSchema) {
+    boolean mixedTypesSupported = context.getOptionManager().getOption(ExecConstants.ENABLE_MIXED_TYPES_FS_SOURCES);
+    return CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema, mixedTypesSupported);
   }
 
   @Override

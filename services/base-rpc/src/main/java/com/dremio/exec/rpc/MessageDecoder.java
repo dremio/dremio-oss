@@ -17,6 +17,7 @@ package com.dremio.exec.rpc;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -157,7 +158,7 @@ public class MessageDecoder extends ByteToMessageDecoder {
 
 
       try {
-        dBody = allocator.buffer(dBodyLength).asNettyBuffer();
+        dBody = NettyArrowBuf.unwrapBuffer(allocator.buffer(dBodyLength));
         // need to make buffer copy, otherwise netty will try to refill this buffer if we move the readerIndex forward...
         // TODO: Can we avoid this copy?
         dBody.writeBytes(frame.nioBuffer(frame.readerIndex(), dBodyLength));

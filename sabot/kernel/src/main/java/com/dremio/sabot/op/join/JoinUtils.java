@@ -64,10 +64,19 @@ public class JoinUtils {
     final List<RexNode> exps = new ArrayList<>();
     final int nFields = origJoin.getRight().getRowType().getFieldCount();
 
-    List<Integer> projected = newJoin.getProjectedFields().asList();
+    List<Integer> projected;
+    ImmutableBitSet projectedSet;
+    if (newJoin.getProjectedFields() == null) {
+      projectedSet = ImmutableBitSet.range(newJoin.getRowType().getFieldCount());
+    }
+    else {
+      projectedSet = newJoin.getProjectedFields();
+    }
+    projected = projectedSet.asList();
+
     for (int i = 0; i < newJoinFields.size(); i++) {
       final int source = (i + nFields) % newJoinFields.size();
-      if (newJoin.getProjectedFields().get(source)) {
+      if (projectedSet.get(source)) {
         RelDataTypeField field = newJoinFields.get(source);
         exps.add(rexBuilder.makeInputRef(field.getType(), projected.indexOf(source)));
       }
@@ -115,6 +124,9 @@ public class JoinUtils {
   }
 
   public static ImmutableBitSet projectSwap(ImmutableBitSet projectedFields, int numFieldLeft, int size) {
+    if (null == projectedFields) {
+      return null;
+    }
     int[] adjustments = new int[size];
     Arrays.fill(adjustments, 0, numFieldLeft, size-numFieldLeft);
     Arrays.fill(adjustments, numFieldLeft, numFieldLeft + size-numFieldLeft, -numFieldLeft);

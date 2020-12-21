@@ -283,7 +283,6 @@ export class YarnForm extends Component {
 
   render() {
     const { fields, handleSubmit, style, provision, dirty } = this.props;
-
     const confirmText = isRestartRequired(provision, dirty) ? la('Restart') : la('Save & Launch');
     const hostNameLabel = YarnForm.hostNameLabel(this.props.values);
 

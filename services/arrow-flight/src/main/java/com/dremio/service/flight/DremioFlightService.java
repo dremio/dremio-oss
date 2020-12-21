@@ -33,7 +33,9 @@ import java.util.Enumeration;
 import javax.inject.Provider;
 
 import org.apache.arrow.flight.FlightServer;
+import org.apache.arrow.flight.FlightServerMiddleware;
 import org.apache.arrow.flight.Location;
+import org.apache.arrow.flight.ServerHeaderMiddleware;
 import org.apache.arrow.flight.auth.BasicServerAuthHandler;
 import org.apache.arrow.flight.auth.BasicServerAuthHandler.BasicAuthValidator;
 import org.apache.arrow.memory.BufferAllocator;
@@ -47,7 +49,8 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.service.Service;
-import com.dremio.service.flight.auth.DremioFlightServerAuthValidator;
+import com.dremio.service.flight.auth.DremioFlightServerBasicAuthValidator;
+import com.dremio.service.flight.auth2.DremioBearerTokenAuthenticator;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.UserService;
@@ -63,6 +66,14 @@ public class DremioFlightService implements Service {
   public static final String FLIGHT_SSL_PREFIX = "services.flight.ssl.";
   public static final String FLIGHT_SSL_ENABLED = FLIGHT_SSL_PREFIX + DremioConfig.SSL_ENABLED;
 
+  // Flight authentication modes
+  // Backwards compatible auth with ServerAuthHandler.
+  public static final String FLIGHT_LEGACY_AUTH_MODE = "legacy.arrow.flight.auth";
+  // New basic token auth with FlightServer middleware CallHeaderAuthenticator.
+  public static final String FLIGHT_AUTH2_AUTH_MODE = "arrow.flight.auth2";
+
+  public static final String FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE = "client-properties-middleware";
+
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFlightService.class);
 
   private final Provider<DremioConfig> configProvider;
@@ -74,7 +85,6 @@ public class DremioFlightService implements Service {
   private final Provider<OptionManager> optionManagerProvider;
   private final RunQueryResponseHandlerFactory runQueryResponseHandlerFactory;
 
-  private BasicAuthValidator validator;
   private DremioFlightSessionsManager dremioFlightSessionsManager;
 
   private volatile FlightServer server;
@@ -118,8 +128,7 @@ public class DremioFlightService implements Service {
     logger.info("Starting Flight Service");
 
     allocator = bufferAllocator.get().newChildAllocator("flight-service-allocator", 0, Long.MAX_VALUE);
-    dremioFlightSessionsManager = new DremioFlightSessionsManager(sabotContextProvider);
-    validator = createBasicAuthValidator(userServiceProvider, tokenManagerProvider, dremioFlightSessionsManager);
+    dremioFlightSessionsManager = new DremioFlightSessionsManager(sabotContextProvider, tokenManagerProvider);
 
     final DremioConfig config = configProvider.get();
     final int port = config.getInt(DremioConfig.FLIGHT_SERVICE_PORT_INT);
@@ -131,8 +140,24 @@ public class DremioFlightService implements Service {
       .location(location)
       .allocator(allocator)
       .producer(new DremioFlightProducer(location, dremioFlightSessionsManager, userWorkerProvider,
-        optionManagerProvider, allocator, runQueryResponseHandlerFactory))
-      .authHandler(new BasicServerAuthHandler(validator));
+        optionManagerProvider, allocator, runQueryResponseHandlerFactory));
+
+    builder.middleware(FlightServerMiddleware.Key.of(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE),
+      new ServerHeaderMiddleware.Factory());
+
+    final String authMode = config.getString(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE);
+    if (FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
+      builder.authHandler(new BasicServerAuthHandler(
+        createBasicAuthValidator(userServiceProvider, tokenManagerProvider, dremioFlightSessionsManager)));
+      logger.info("Using basic authentication with ServerAuthHandler.");
+    } else if (FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
+      builder.headerAuthenticator(new DremioBearerTokenAuthenticator(userServiceProvider,
+        tokenManagerProvider, dremioFlightSessionsManager));
+      logger.info("Using bearer token authentication with CallHeaderAuthenticator.");
+    } else {
+      throw new RuntimeException(authMode
+        + " is not a supported authentication mode for the Dremio FlightServer Endpoint.");
+    }
 
     if (config.getBoolean(FLIGHT_SSL_ENABLED)) {
       final SSLConfig sslConfig = getSSLConfig(config, new SSLConfigurator(config, FLIGHT_SSL_PREFIX, "flight"));
@@ -177,7 +202,7 @@ public class DremioFlightService implements Service {
   protected BasicAuthValidator createBasicAuthValidator(Provider<UserService> userServiceProvider,
                                                         Provider<TokenManager> tokenManagerProvider,
                                                         DremioFlightSessionsManager dremioFlightSessionsManager) {
-    return new DremioFlightServerAuthValidator(userServiceProvider, tokenManagerProvider, dremioFlightSessionsManager);
+    return new DremioFlightServerBasicAuthValidator(userServiceProvider, tokenManagerProvider, dremioFlightSessionsManager);
   }
 
   @VisibleForTesting

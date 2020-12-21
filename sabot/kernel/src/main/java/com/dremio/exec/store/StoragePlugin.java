@@ -97,13 +97,17 @@ public interface StoragePlugin extends Service, SourceMetadata {
     if (DatasetHelper.getSchemaBytes(oldConfig) == null) {
       merge = newSchema;
     } else {
-      merge = CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema);
+      merge = mergeSchemas(oldConfig, newSchema);
     }
 
     DatasetConfig newConfig = DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
     newConfig.setRecordSchema(ByteString.copyFrom(merge.serialize()));
 
     return newConfig;
+  }
+
+  default BatchSchema mergeSchemas(DatasetConfig oldConfig, BatchSchema newSchema) {
+    return CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema);
   }
 
   @Deprecated // Remove this method as the namespace should keep track of views.

@@ -33,7 +33,8 @@ import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
-import com.dremio.io.AsyncByteReader;
+import com.dremio.io.ReusableAsyncByteReader;
+import com.dremio.plugins.util.CloseableRef;
 import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ByteBuf;
@@ -50,10 +51,11 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
  * <p>
  * This is the workaround suggested in https://github.com/aws/aws-sdk-java-v2/issues/1122
  */
-class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
+class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(S3AsyncByteReaderUsingSyncClient.class);
   private static final ExecutorService threadPool = Executors.newCachedThreadPool(new NamedThreadFactory("s3-read-"));
 
+  private final CloseableRef<S3Client> s3Ref;
   private final S3Client s3;
   private final String bucket;
   private final String path;
@@ -61,8 +63,9 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
   private final String threadName;
   private final boolean requesterPays;
 
-  S3AsyncByteReaderUsingSyncClient(S3Client s3, String bucket, String path, String version, boolean requesterPays) {
-    this.s3 = s3;
+  S3AsyncByteReaderUsingSyncClient(CloseableRef<S3Client> s3Ref, String bucket, String path, String version, boolean requesterPays) {
+    this.s3Ref = s3Ref;
+    this.s3 = s3Ref.acquireRef();
     this.bucket = bucket;
     this.path = path;
     this.instant = Instant.ofEpochMilli(Long.parseLong(version));
@@ -171,5 +174,10 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
         }
       }
     }
+  }
+
+  @Override
+  public void onClose() throws Exception {
+    this.s3Ref.close();
   }
 }

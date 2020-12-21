@@ -109,6 +109,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator STREAM_AGG_WITH_GROUPS = new BooleanValidator("planner.streamagg.allow_grouping", false);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
+  public static final BooleanValidator TRANSITIVE_FILTER_NOT_NULL_EXPR_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown_not_null_expr", false); // Until DX-26452 is fixes
   public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", true);
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
@@ -153,9 +154,9 @@ public class PlannerSettings implements Context{
     (ENABLE_VECTORIZED_PARQUET_DECIMAL_KEY, true);
 
   public static final BooleanValidator ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN =
-          new BooleanValidator("planner.parquet.in_expression_push_down", false);
+          new BooleanValidator("planner.parquet.in_expression_push_down", true);
   public static final BooleanValidator ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN =
-          new BooleanValidator("planner.parquet.multi_column_filter_push_down", false);
+          new BooleanValidator("planner.parquet.multi_column_filter_push_down", true);
 
   public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
   /**
@@ -361,6 +362,10 @@ public class PlannerSettings implements Context{
 
   public boolean isTransitiveFilterPushdownEnabled() {
     return options.getOption(TRANSITIVE_FILTER_JOIN_PUSHDOWN);
+  }
+
+  public boolean isTransitiveFilterNotNullExprPushdownEnabled() {
+    return options.getOption(TRANSITIVE_FILTER_NOT_NULL_EXPR_PUSHDOWN);
   }
 
   public boolean isComplexTypeFilterPushdownEnabled() {

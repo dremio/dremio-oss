@@ -171,8 +171,8 @@ public class SplitPattern {
         return;
       }
 
-      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in
-        .buffer.asNettyBuffer(), in.start, in.end, errCtx);
+      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
+        in.start, in.end, errCtx);
       final String v = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
 
       java.util.List<Match> matches = com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, v);

@@ -167,17 +167,6 @@ public class TestParquetWriter extends BaseTestQuery {
   }
 
   @Test
-  public void testDx14882() throws Exception {
-    runTestAndValidate("*", "*", "cp.\"/store/json/unionlist.json\"", "unionlist_parquet", false);
-
-    runTestAndValidate("*", "*", "cp.\"/store/json/unionList-1.json\"", "unionlist_parquet1",
-      false);
-
-    runTestAndValidate("*", "*", "cp.\"/store/json/unionList-2.json\"", "unionlist_parquet2",
-      false);
-  }
-
-  @Test
   public void testLargeFooter() throws Exception {
     StringBuffer sb = new StringBuffer();
     // create a JSON document with a lot of columns
@@ -972,7 +961,7 @@ public class TestParquetWriter extends BaseTestQuery {
     }
     try (FileWriter fw = new FileWriter(input2)) {
       fw.append("{\"b\":\"foo\"}\n");
-      fw.append("{\"a\":1, \"b\":\"baz\"}\n");
+      fw.append("{\"a\":\"baz\",\"b\":\"baz\"}\n");
       fw.append("{\"a\":\"baz\",\"b\":\"boz\"}\n");
     }
     // we don't retry in test, so let the schema learn the first time around
@@ -984,27 +973,6 @@ public class TestParquetWriter extends BaseTestQuery {
     }
     // and it should work the second time
     runTestAndValidate("*", "*", "dfs.\"" + dir.getAbsolutePath() + "\"", "schema_change_parquet", false);
-  }
-
-  /**
-   * Validate that union type survives going through Parquet
-   */
-  @Test
-  public void testMixedType() throws Exception {
-    File dir = new File("target/tests/" + this.getClass().getName() + "/testMixedType");
-    if ((!dir.exists() && !dir.mkdirs()) || (dir.exists() && !dir.isDirectory())) {
-      throw new RuntimeException("can't create dir " + dir);
-    }
-    File input1 = new File(dir, "1.json");
-    try (FileWriter fw = new FileWriter(input1)) {
-      fw.append("{\"a\":\"foo\", \"b\":\"foo\"}\n");
-      fw.append("{\"a\":\"bar\"}\n");
-      fw.append("{\"b\":\"bar\"}\n");
-      fw.append("{\"a\":1, \"b\":\"baz\"}\n");
-      fw.append("{\"a\":\"baz\",\"b\":\"boz\"}\n");
-    }
-    test("select * from " + "dfs.\"" + dir.getAbsolutePath() + "\"");
-    runTestAndValidate("*", "*", "dfs.\"" + dir.getAbsolutePath() + "\"", "mixed_type_parquet", false);
   }
 
 /*

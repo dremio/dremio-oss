@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobSummary;
@@ -99,7 +100,7 @@ class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
     if (t instanceof StatusRuntimeException) {
       final StatusRuntimeException sre = (StatusRuntimeException) t;
       final Optional<UserException> userException =
-          JobsRpcUtils.fromStatusRuntimeException(sre);
+          GrpcExceptionUtil.fromStatusRuntimeException(sre);
       if (userException.isPresent()) {
         failureCallback.accept(userException.get());
       } else {

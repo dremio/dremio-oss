@@ -30,6 +30,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
@@ -40,6 +41,7 @@ import com.dremio.exec.store.hive.exec.HiveORCVectorizedReader;
 import com.dremio.exec.store.hive.exec.HiveProxyingOrcScanFilter;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.github.slugify.Slugify;
@@ -90,7 +92,8 @@ public class ORCFilterPushDownRule extends RelOptRule {
     final RexNode originalFilter = filter.getCondition();
 
     try {
-      RexNode filterThatCanBePushed = originalFilter.accept(new ORCFindRelevantFilters(rexBuilder));
+      final ORCFindRelevantFilters filterFinder = new ORCFindRelevantFilters(rexBuilder, scan.getRowType());
+      RexNode filterThatCanBePushed = originalFilter.accept(filterFinder);
       if (filterThatCanBePushed == null) {
         return;
       }
@@ -107,6 +110,10 @@ public class ORCFilterPushDownRule extends RelOptRule {
       final List<String> columnNames = scan.getRowType().getFieldNames();
       final Set<String> columnNameSet = columnNames.stream().map(String::toUpperCase).collect(Collectors.toSet());
       final BatchSchema scanTableSchema = scan.getTableMetadata().getSchema();
+      final List<SchemaPath> filterColumns = new ArrayList<>();
+      try {
+        filterColumns.add(ParquetFilterCondition.rexToSchemaPath(filterThatCanBePushed, scan.getRowType()));
+      } catch(UnsupportedOperationException ignored) {}
 
       // columnInfos contains hive data type info
       // scanTableSchema is table BatchSchema
@@ -126,7 +133,7 @@ public class ORCFilterPushDownRule extends RelOptRule {
       filterThatCanBePushed.accept(sargGenerator);
       final SearchArgument sarg = sargGenerator.get();
 
-      final HiveProxiedOrcScanFilter proxiedOrcScanFilter = new ORCScanFilter(sarg, pluginId);
+      final HiveProxiedOrcScanFilter proxiedOrcScanFilter = new ORCScanFilter(sarg, pluginId, filterFinder.getColumn());
       final HiveProxyingOrcScanFilter proxyingOrcScanFilter = new HiveProxyingOrcScanFilter(pluginId.getName(), proxiedOrcScanFilter);
 
       final RelNode newScan = scan.applyFilter(proxyingOrcScanFilter);

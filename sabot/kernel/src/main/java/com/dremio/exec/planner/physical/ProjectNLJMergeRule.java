@@ -75,8 +75,13 @@ public class ProjectNLJMergeRule extends RelOptRule {
     }
 
     if (builder.cardinality() == 0) {
-      //project at least one column
-      builder.set(0);
+      if (bottomProjectedColumns.cardinality() > 0) {
+        //project at least one column
+        builder.set(0);
+      }
+      else {
+        return;
+      }
     }
 
     ImmutableBitSet newJoinProjectedFields = builder.build();

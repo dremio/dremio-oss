@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-import com.dremio.io.AsyncByteReader;
+import com.dremio.io.ReusableAsyncByteReader;
 import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ByteBuf;
@@ -36,7 +36,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 /**
  * A ByteReader that uses AWS's asynchronous S3 client to read byte ranges. No read ahead is done.
  */
-class S3AsyncByteReader implements AsyncByteReader {
+class S3AsyncByteReader extends ReusableAsyncByteReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(S3AsyncByteReader.class);
 
   private static final AtomicInteger numOutstandingReads = new AtomicInteger(0);

@@ -21,13 +21,14 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
 
+import JobDetails from '@app/pages/JobPage/components/JobDetails/JobDetails';
+
 import { cancelJobAndShowNotification, loadJobDetails, showJobProfile } from 'actions/jobs/jobs';
 import { downloadFile } from 'sagas/downloadFile';
 import socket from 'utils/socket';
 import { getEntity, getViewState } from 'selectors/resources';
 import { updateViewState } from 'actions/resources';
 import './JobDetails.less';
-import JobDetails from '@app/pages/JobPage/components/JobDetails/JobDetails';
 
 const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
 
@@ -48,6 +49,7 @@ export class JobDetailsWrapper extends Component {
     updateViewState: PropTypes.func,
 
     //connected
+    token: PropTypes.string,
     viewState: PropTypes.instanceOf(Immutable.Map)
   };
 
@@ -139,7 +141,8 @@ export class JobDetailsWrapper extends Component {
 function mapStateToProps(state, ownProps) {
   return {
     viewState: getViewState(state, VIEW_ID),
-    jobDetails: getEntity(state, ownProps.jobId, 'jobDetails')
+    jobDetails: getEntity(state, ownProps.jobId, 'jobDetails'),
+    token: state.account.get('user').get('token')
   };
 }
 

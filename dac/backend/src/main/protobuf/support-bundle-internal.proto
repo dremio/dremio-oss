@@ -1,0 +1,47 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+package com.dremio.dac.service.support;
+
+option java_package = "com.dremio.dac.service.support";
+option optimize_for = SPEED;
+option java_outer_classname = "SupportBundleRPC";
+
+/**
+ * Service API for internal communication between QueryLogBundleService instances
+ * from different coordinators.
+ */
+service CoordinatorLogService {
+  rpc getServerLog (LogRequest) returns (stream Chunk);
+}
+
+enum LogType {
+  SERVER_LOG = 0;
+  SERVER_GC = 1;
+  SERVER_OUT = 2;
+  QUERIES_JSON = 3;
+}
+
+message LogRequest {
+  int64 start = 1;
+  int64 end = 2;
+  LogType type = 3;
+}
+
+message Chunk {
+  bytes content = 1;
+  int32 length = 2;
+}

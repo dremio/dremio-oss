@@ -35,7 +35,7 @@ public class IsUTF8 implements SimpleFunction {
 
   @Override
   public void eval() {
-    out.value = (com.dremio.exec.expr.fn.impl.GuavaUtf8.isUtf8(in.buffer.asNettyBuffer(), in.start, in.end) ? 1
+    out.value = (com.dremio.exec.expr.fn.impl.GuavaUtf8.isUtf8(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start, in.end) ? 1
       : 0);
   }
 }

@@ -286,6 +286,7 @@ message SqlQuery {
   string sql = 1;
   repeated string context = 2;
   string username = 3;
+  string engine_name = 4;
 }
 
 message SubstitutionSettings {

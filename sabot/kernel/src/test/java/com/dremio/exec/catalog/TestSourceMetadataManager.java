@@ -42,6 +42,7 @@ import org.mockito.stubbing.Answer;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunkListing;
@@ -53,6 +54,7 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -266,6 +268,50 @@ public class TestSourceMetadataManager {
             DatasetRetrievalOptions.DEFAULT.toBuilder()
                 .setDeleteUnavailableDatasets(false)
                 .build()));
+  }
+
+  @Test
+  public void handleUnavailableSourceDataset() throws Exception {
+
+    NamespaceService ns = mock(NamespaceService.class);
+
+    doThrow(new NamespaceNotFoundException(new NamespaceKey(""), "not found"))
+      .when(ns)
+      .getDataset(any());
+
+    ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
+    when(sp.getDatasetHandle(any(), any(), any()))
+      .thenReturn(Optional.empty());
+
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
+      .thenReturn(sp);
+    when(msp.getMetadataPolicy())
+      .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
+    when(msp.getMaxMetadataColumns())
+      .thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels())
+      .thenReturn(MAX_NESTED_LEVELS);
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
+
+    SourceMetadataManager manager = new SourceMetadataManager(
+      new NamespaceKey("joker"),
+      mock(SchedulerService.class),
+      true,
+      mock(LegacyKVStore.class),
+      msp,
+      optionManager,
+      CatalogServiceMonitor.DEFAULT,
+      () -> broadcaster);
+
+    thrownException.expect(DatasetNotFoundException.class);
+    manager.refreshDataset(new NamespaceKey("three"),
+      DatasetRetrievalOptions.DEFAULT.toBuilder()
+        .setForceUpdate(true)
+        .setMaxMetadataLeafColumns(1)
+        .build());
+
   }
 
   @Test

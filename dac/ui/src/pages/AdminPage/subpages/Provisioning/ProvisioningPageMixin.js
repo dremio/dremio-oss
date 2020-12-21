@@ -24,6 +24,10 @@ export default function(input) {
     },
     getQueues() {
       return QUEUES;
+    },
+
+    getBtnLabel() {
+      return la('New Engine');
     }
   });
 }

@@ -33,7 +33,7 @@ import io.netty.buffer.ByteBuf;
 public class AsyncByteReaderTest {
   @Test
   public void testVersionedReadFully_exceptionInReadFully() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
@@ -59,7 +59,7 @@ public class AsyncByteReaderTest {
 
   @Test
   public void testVersionedReadFully_exceptionInCheckVersion() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         return CompletableFuture.completedFuture(null);
@@ -85,7 +85,7 @@ public class AsyncByteReaderTest {
 
   @Test
   public void testVersionedReadFully_multipleExceptions_oneFNFE() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
@@ -113,7 +113,7 @@ public class AsyncByteReaderTest {
 
   @Test
   public void testVersionedReadFully_multipleExceptions_bothFNFE() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
@@ -140,7 +140,7 @@ public class AsyncByteReaderTest {
 
   @Test
   public void testVersionedReadFully_multipleSameExceptions_noneFNFE() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
@@ -168,7 +168,7 @@ public class AsyncByteReaderTest {
 
   @Test
   public void testVersionedReadFully_multipleDifferentExceptions_nonFNFE() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         CompletableFuture<Void> completableFuture = CompletableFuture.runAsync(sleep());
@@ -195,7 +195,7 @@ public class AsyncByteReaderTest {
 
   @Test
   public void testVersionedReadFully_noExceptions() {
-    AsyncByteReader byteReader = new AsyncByteReader() {
+    AsyncByteReader byteReader = new ReusableAsyncByteReader() {
       @Override
       public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
         return CompletableFuture.completedFuture(null);

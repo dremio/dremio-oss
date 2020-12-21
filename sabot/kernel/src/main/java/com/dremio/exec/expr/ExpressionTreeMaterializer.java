@@ -146,6 +146,11 @@ public class ExpressionTreeMaterializer {
     CodeGenerationContextAnnotator contextAnnotator = new CodeGenerationContextAnnotator();
     // convert expression tree to a context tree first
     CodeGenContext contextTree = out.accept(contextAnnotator, null);
+
+    if(contextAnnotator.isExpHasComplexField() == true) {
+      codeGenOption = SupportedEngines.CodeGenOption.Java;
+    }
+
     switch (codeGenOption) {
       case Gandiva:
       case GandivaOnly:

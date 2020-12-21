@@ -73,12 +73,13 @@ import com.dremio.exec.expr.fn.hll.RewriteNdvAsHll;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.AggregateRule;
-import com.dremio.exec.planner.logical.CompositeFilterJoinRule;
 import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.CorrelateRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
+import com.dremio.exec.planner.logical.DremioJoinPushTransitivePredicatesRule;
 import com.dremio.exec.planner.logical.DremioProjectJoinTransposeRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.DremioSortMergeRule;
 import com.dremio.exec.planner.logical.EmptyRule;
 import com.dremio.exec.planner.logical.ExpansionDrule;
 import com.dremio.exec.planner.logical.FilterFlattenTransposeRule;
@@ -86,6 +87,7 @@ import com.dremio.exec.planner.logical.FilterJoinRulesUtil;
 import com.dremio.exec.planner.logical.FilterMergeCrule;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.FilterRule;
+import com.dremio.exec.planner.logical.FilterWindowTransposeRule;
 import com.dremio.exec.planner.logical.FlattenRule;
 import com.dremio.exec.planner.logical.JoinFilterCanonicalizationRule;
 import com.dremio.exec.planner.logical.JoinNormalizationRule;
@@ -200,6 +202,7 @@ public enum PlannerPhase {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
       ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
+      PlannerSettings ps = context.getPlannerSettings();
       b.add(
         ConvertCountDistinctToHll.INSTANCE,
         RewriteNdvAsHll.INSTANCE,
@@ -207,33 +210,39 @@ public enum PlannerPhase {
         PushProjectIntoScanRule.INSTANCE,
         PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
 
+        // Add support for WHERE style joins.
+        FILTER_INTO_JOIN_CALCITE_RULE,
+        JOIN_CONDITION_PUSH_CALCITE_RULE,
+        JOIN_PUSH_EXPRESSIONS_RULE,
+        // End support for WHERE style joins.
+
         JoinFilterCanonicalizationRule.INSTANCE,
 
         FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
         FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
         FILTER_MERGE_CALCITE_RULE,
 
+        DremioSortMergeRule.INSTANCE,
+
         PlannerPhase.PUSH_PROJECT_PAST_JOIN_CALCITE_RULE,
         ProjectWindowTransposeRule.INSTANCE,
         ProjectSetOpTransposeRule.INSTANCE,
         MergeProjectRule.CALCITE_INSTANCE,
-        RemoveEmptyScansRule.INSTANCE
+        RemoveEmptyScansRule.INSTANCE,
+        FilterWindowTransposeRule.INSTANCE
       );
 
-      if (context.getPlannerSettings().isRelPlanningEnabled()) {
+      if (ps.isRelPlanningEnabled()) {
         b.add(LOGICAL_FILTER_CORRELATE_RULE);
       }
 
-      if (context.getPlannerSettings().isTransitiveFilterPushdownEnabled()) {
-        b.add(CompositeFilterJoinRule.NO_TOP_FILTER,
-          CompositeFilterJoinRule.TOP_FILTER,
-          JOIN_PUSH_EXPRESSIONS_RULE);
-      } else {
+      if (ps.isTransitiveFilterPushdownEnabled()) {
         b.add(
-        // Add support for WHERE style joins.
-        FILTER_INTO_JOIN_CALCITE_RULE,
-          JOIN_CONDITION_PUSH_CALCITE_RULE,
-          JOIN_PUSH_EXPRESSIONS_RULE);
+          // Add a new instance of DremioJoinPushTransitivePredicatesRule since it keeps
+          // a cache of pushed down filters per query.
+          new DremioJoinPushTransitivePredicatesRule());
+        // Add reduce expression rules to reduce any filters after applying transitive rule.
+        b.addAll(REDUCE_EXPRESSIONS.getRules(context));
       }
 
       return RuleSets.ofList(b.build());

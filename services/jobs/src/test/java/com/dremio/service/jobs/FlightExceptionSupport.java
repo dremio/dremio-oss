@@ -15,7 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.service.jobs.JobsRpcUtils.toStatusRuntimeException;
+import static com.dremio.common.exceptions.GrpcExceptionUtil.toStatusRuntimeException;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -44,7 +44,7 @@ import com.dremio.common.exceptions.UserException;
 public class FlightExceptionSupport {
 
   private static FlightServer server;
-  private static final BufferAllocator allocator = new RootAllocator();
+  private static final BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
   private static final Location location = Location.forGrpcInsecure("localhost", 12543);
   private static String expectedMessage = "Mixed types decimal(10,10), decmial(10,0) for field dcol are not supported.";
 

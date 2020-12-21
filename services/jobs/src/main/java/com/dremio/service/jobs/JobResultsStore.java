@@ -34,6 +34,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileMetadataValidator;
 import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -223,6 +224,13 @@ public class JobResultsStore implements Service {
     }
   }
 
+  private boolean shouldSkipJobResults(JobId jobId) {
+    final JobResult job = store.get(jobId);
+    final List<ArrowFileMetadata> resultMetadata = getLastAttempt(job).getResultMetadataList();
+    return resultMetadata != null && !resultMetadata.isEmpty() &&
+      resultMetadata.stream().anyMatch(ArrowFileMetadataValidator::hasInvalidUnions);
+  }
+
   protected List<RecordBatchHolder> getQueryResults(Path jobOutputDir,
                                                     ArrowFileMetadata arrowFileMetadata,
                                                     BufferAllocator allocator,
@@ -242,10 +250,14 @@ public class JobResultsStore implements Service {
    * @throws IOException
    */
   protected boolean doesQueryResultsDirExists(Path jobOutputDir, JobId jobId) throws IOException {
+    if (shouldSkipJobResults(jobId)) {
+      return false;
+    }
+
     Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
     if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
       logger.debug("There are no nodeEndpoints where query results dir existence need to be checked." +
-                   "For eg: in non-UI queries, results are not stored on executors.");
+                   "For eg: for jdbc queries, results are not stored on executors.");
       return false;
     }
     return dfs.exists(jobOutputDir);

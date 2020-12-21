@@ -30,7 +30,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
-import com.dremio.service.reflection.IncrementalUpdateUtils;
+import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.Materialization;
@@ -64,14 +64,15 @@ class RefreshDecisionMaker {
       RelNode strippedPlan,
       Iterable<DremioTable> requestedTables,
       RelSerializerFactory serializerFactory,
-      boolean strictRefresh) {
+      boolean strictRefresh,
+      boolean forceFullUpdate) {
 
     final long newSeriesId = System.currentTimeMillis();
 
     final RefreshDecision decision = new RefreshDecision();
 
     // We load settings here to determine what type of update we need to do (full or incremental)
-    final AccelerationSettings settings = IncrementalUpdateUtils.extractRefreshSettings(strippedPlan, reflectionSettings);
+    final AccelerationSettings settings = IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings);
 
     decision.setAccelerationSettings(settings);
 
@@ -141,6 +142,13 @@ class RefreshDecisionMaker {
       return decision.setInitialRefresh(true)
           .setUpdateId(new UpdateId())
           .setSeriesId(newSeriesId);
+    }
+
+    if (forceFullUpdate) {
+      logger.trace("Forcing full update.");
+      return decision.setInitialRefresh(true)
+        .setUpdateId(new UpdateId())
+        .setSeriesId(newSeriesId);
     }
 
     // if the refresh settings changed, do an initial refresh.

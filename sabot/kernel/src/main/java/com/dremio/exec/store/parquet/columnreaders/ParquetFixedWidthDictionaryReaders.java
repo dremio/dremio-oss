@@ -117,7 +117,7 @@ public class ParquetFixedWidthDictionaryReaders {
       if (usingDictionary) {
         for (int i = 0; i < recordsReadInThisIteration; i++){
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readInteger()));
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
+          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
           valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         }
       }
@@ -194,7 +194,7 @@ public class ParquetFixedWidthDictionaryReaders {
       for (int i = 0; i < recordsReadInThisIteration; i++){
         try {
           BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readLong()));
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i);
+          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
           valueVec.setIndexDefined(valuesReadInCurrentPass + i);
         } catch ( Exception ex) {
           throw ex;

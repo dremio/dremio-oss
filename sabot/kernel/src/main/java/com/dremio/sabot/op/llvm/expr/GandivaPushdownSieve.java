@@ -21,7 +21,6 @@ import java.util.Set;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CompleteType;
@@ -88,13 +87,6 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
       if (incomingSelectionVectorMode != BatchSchema.SelectionVectorMode.NONE) {
         return contextExpr;
-      }
-
-      // if schema contains complex fields, skip annotation with Gandiva
-      for(Field field : batchSchema.getFields()) {
-        if (field.getType().isComplex()) {
-          return contextExpr;
-        }
       }
 
       CodeGenContext codeGenContextModifiedExpr = contextExpr.getChild().accept(this, contextExpr);

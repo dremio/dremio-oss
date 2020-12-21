@@ -91,34 +91,46 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
       RexCall op0 = (RexCall) call.getOperands().get(0);
       RexNode op1 = call.getOperands().get(1);
       switch (op0.getKind()) {
-      case TIMES:
-        if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
-          RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
-          if (!(reversed instanceof RexCall)) {
-            return null;
+        case TIMES:
+          if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
+            RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
+            if (!(reversed instanceof RexCall)) {
+              return null;
+            }
+            op0 = (RexCall) reversed;
           }
-          op0 = (RexCall) reversed;
-        }
-        RexNode rightNode = op0.getOperands().get(0);
-        if (rightNode instanceof RexLiteral) {
-          SqlOperator comparison = isNegative(((RexLiteral) rightNode)) ? op(call.getKind().reverse()) : call.getOperator();
-          return builder.makeCall(comparison, op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.DIVIDE, op1, op0.getOperands().get(1)));
-        }
-        break;
-      case PLUS:
-        if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
-          RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
-          if (!(reversed instanceof RexCall)) {
-            return null;
+          RexNode rightNode = op0.getOperands().get(0);
+          if (rightNode instanceof RexLiteral) {
+            SqlOperator comparison = isNegative(((RexLiteral) rightNode)) ? op(call.getKind().reverse()) : call.getOperator();
+            return builder.makeCall(comparison, op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.DIVIDE, op1, op0.getOperands().get(1)));
           }
-          op0 = (RexCall) reversed;
-        }
-        if (RexUtil.isConstant(op0.getOperands().get(1))) {
-          return builder.makeCall(call.getOperator(), op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.MINUS, op1, op0.getOperands().get(1)));
-        }
-        break;
-      default:
-        break;
+          break;
+        case PLUS:
+          if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
+            RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
+            if (!(reversed instanceof RexCall)) {
+              return null;
+            }
+            op0 = (RexCall) reversed;
+          }
+          if (RexUtil.isConstant(op0.getOperands().get(1))) {
+            return builder.makeCall(call.getOperator(), op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.MINUS, op1, op0.getOperands().get(1)));
+          }
+          break;
+        case MINUS:
+          if (RexUtil.isConstant(op0.getOperands().get(0)) && !RexUtil.isConstant(op0.getOperands().get(1))) {
+            RexNode reversed = builder.makeCall(op0.getOperator(), Lists.reverse(op0.operands));
+            if (!(reversed instanceof RexCall)) {
+              return null;
+            }
+            op0 = (RexCall) reversed;
+          }
+          if (RexUtil.isConstant(op0.getOperands().get(1))) {
+            return builder.makeCall(call.getOperator(), op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.PLUS, op1, op0.getOperands().get(1)));
+          }
+          break;
+        default:
+          break;
       }
       return null;
     }
@@ -156,17 +168,17 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
       String name = functionCall.getOperator().getName().toUpperCase();
       SqlOperator op;
       switch (name) {
-      case "ASIN":
-        op = SqlStdOperatorTable.SIN;
-        break;
-      case "ACOS":
-        op = SqlStdOperatorTable.COS;
-        break;
-      case "ATAN":
-        op = SqlStdOperatorTable.TAN;
-        break;
-      default:
-        return null;
+        case "ASIN":
+          op = SqlStdOperatorTable.SIN;
+          break;
+        case "ACOS":
+          op = SqlStdOperatorTable.COS;
+          break;
+        case "ATAN":
+          op = SqlStdOperatorTable.TAN;
+          break;
+        default:
+          return null;
       }
       RexNode newCall = builder.makeCall(op, call.getOperands().get(1));
       return builder.makeCall(call.getOperator(), ((RexCall) call.getOperands().get(0)).getOperands().get(0), newCall);

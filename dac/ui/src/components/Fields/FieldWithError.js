@@ -42,8 +42,25 @@ export default class FieldWithError extends Component {
     children: PropTypes.node.isRequired,
     name: PropTypes.string,
     hoverHelpText: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    labelTooltip: PropTypes.string
   };
+
+  constructor(props) {
+    super(props);
+
+    this.start = {
+      overLabel: false
+    };
+  }
+
+  onMouseEnterLabel = () => {
+    this.setState({overLabel: true});
+  }
+
+  onMouseLeaveLabel = () => {
+    this.setState({overLabel: false});
+  }
 
   render() {
     const {style, children, touched, error, errorPlacement, name, className} = this.props;
@@ -73,17 +90,43 @@ export default class FieldWithError extends Component {
   }
 
   renderLabel() {
-    const {label, hoverHelpText, labelClass} = this.props;
+    const {label, hoverHelpText, labelClass, labelTooltip} = this.props;
+    const {overLabel} = this.state;
 
     const hoverHelp = hoverHelpText ? <HoverHelp content={hoverHelpText} /> : null;
 
     // todo: <label> is not correctly associated with the input here (i.e. it is broken and doing nothing)
     // todo: hoverHelp should not be inside the <label>
-    return label && <label
-      className={classNames({
-        [labelClass]: !!labelClass
-      })}
-      style={[forms.label, styles.label, this.props.labelStyle]}>{label}{hoverHelp}</label>;
+    return (label &&
+    <div>
+      <label
+        className={classNames({
+          [labelClass]: !!labelClass
+        })}
+        style={[forms.label, styles.label, this.props.labelStyle]}
+      >
+        <div
+          onMouseEnter={this.onMouseEnterLabel}
+          onMouseLeave={this.onMouseLeaveLabel}
+          ref='labelTarget'
+        >
+          {label}
+        </div>
+        {hoverHelp}
+      </label>
+      <Tooltip
+        container={this}
+        target={() => overLabel && labelTooltip ? this.refs.labelTarget : null}
+        placement={'top-start'}
+        type='status'
+        dataQa='status'
+        style={{zIndex:40000}}
+      >
+        {labelTooltip}
+      </Tooltip>
+    </div>
+    )
+    ;
   }
 }
 

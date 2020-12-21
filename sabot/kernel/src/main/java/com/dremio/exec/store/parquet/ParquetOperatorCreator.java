@@ -274,7 +274,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
 
       @Override
-      public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
+      public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
         if(inputStreamProvider != null) {
           return;
         }
@@ -291,16 +291,22 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
             mTime = fileAttributes.lastModifiedTime().toMillis();
           }
 
-          final MutableParquetMetadata validLastFooter = path.equals(lastPath) ? lastFooter : null;
+          final Path lastPath = (lastInputStreamProvider != null) ? lastInputStreamProvider.getStreamPath() : null;
+          MutableParquetMetadata validLastFooter = null;
+          InputStreamProvider validLastInputStreamProvider = null;
+          if (path.equals(lastPath)) {
+            validLastFooter = lastFooter;
+            validLastInputStreamProvider = lastInputStreamProvider;
+          }
           // if we are not using the last footer, mark the footer for trimming
           trimFooter = (validLastFooter == null) && trimRowGroups;
 
-          BiConsumer<Path, MutableParquetMetadata> depletionListener = (path, footer) -> {
+          BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener = (inputStreamProvider, footer) -> {
             if(!prefetchReader || next == null) {
               return;
             }
 
-            next.createInputStreamProvider(path, footer);
+            next.createInputStreamProvider(inputStreamProvider, footer);
           };
 
           final boolean readFullFile = length < context.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_THRESHOLD) &&
@@ -322,6 +328,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               datasetSplit.getPartitionInfo().getSize(),
               projectedColumns,
               validLastFooter,
+              validLastInputStreamProvider,
               (footer) -> splitXAttr.getRowGroupIndex(),
               depletionListener,
               readFullFile,

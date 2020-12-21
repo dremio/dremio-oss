@@ -78,7 +78,7 @@ class RemoteNodeFileSystem extends FileSystem {
   static final int REMOTE_WRITE_BUFFER_SIZE_DEFAULT = 128*1024;
 
   static final String RPC_TIMEOUT_KEY = "dremio.pdfs.remote.rpc.timeout.ms";
-  static final long RPC_TIMEOUT_MS_DEFAULT = 5000;
+  static final long RPC_TIMEOUT_MS_DEFAULT = 30000;
 
   private static final Path ROOT_PATH = new Path("/");
 

@@ -35,7 +35,7 @@ describe('getEngineSizeLabel', () => {
   it('should find standard size label', () => {
     expect(getEngineSizeLabel(2)).to.equal('Small - 2');
     expect(getEngineSizeLabel(4)).to.equal('Medium - 4');
-    expect(getEngineSizeLabel(64)).to.equal('3XLarge - 64');
+    expect(getEngineSizeLabel(64)).to.equal('3X Large - 64');
   });
 
   it('should use custom size for non-standard', () => {

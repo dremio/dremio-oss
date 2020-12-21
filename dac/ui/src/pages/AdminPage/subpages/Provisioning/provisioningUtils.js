@@ -20,6 +20,10 @@ export function isYarn(entity) {
   return entity.get('clusterType') === 'YARN';
 }
 
+export function isEc2(entity) {
+  return entity.get('clusterType') === 'EC2';
+}
+
 export function getYarnSubProperty(entity, propName) {
   const subProperty = entity.getIn(['yarnProps', 'subPropertyList'])
     .find((i) => i.get('key') === propName);
@@ -44,6 +48,17 @@ export function makeContainerPropertyRow(listItem) {
   return containerPropertyList.reduce((prev, property) => {
     return {...prev, [property.get('key')]: {node: () => property.get('value')}};
   }, {});
+}
+
+export function makeExecutorInfoRow(listItem) {
+  const listEntries = [...listItem].map(([key, value]) => ({ key, value }));
+
+  return listEntries.reduce((prev, property) => {
+    return {...prev, [property.key]: {node: () => property.value}};
+  }, {});
+}
+export function getExecutorId(listItem) {
+  return listItem.get('instanceId');
 }
 
 export function makeDefaultNodePropertyRow(columns, emptySymbol = '-') {

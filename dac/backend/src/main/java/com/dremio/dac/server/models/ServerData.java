@@ -40,6 +40,7 @@ public class ServerData {
   private final String edition;
   private final AnalyzeTools analyzeTools;
   private final boolean crossSourceDisabled;
+  private final boolean queryBundleUsersEnabled;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -60,6 +61,7 @@ public class ServerData {
     this.edition = builder.edition;
     this.analyzeTools = builder.analyzeTools;
     this.crossSourceDisabled = builder.crossSourceDisabled;
+    this.queryBundleUsersEnabled = builder.queryBundleUsersEnabled;
   }
 
   public String getServerEnvironment() {
@@ -130,6 +132,10 @@ public class ServerData {
     return analyzeTools;
   }
 
+  public boolean getQueryBundleUsersEnabled() {
+    return queryBundleUsersEnabled;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -164,6 +170,7 @@ public class ServerData {
     private String edition;
     private AnalyzeTools analyzeTools;
     private boolean crossSourceDisabled;
+    private boolean queryBundleUsersEnabled;
 
     protected Builder() {
     }
@@ -187,6 +194,7 @@ public class ServerData {
       this.edition = builder.edition;
       this.analyzeTools = builder.analyzeTools;
       this.crossSourceDisabled = builder.crossSourceDisabled;
+      this.queryBundleUsersEnabled = builder.queryBundleUsersEnabled;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -276,6 +284,11 @@ public class ServerData {
 
     public Builder setCrossSourceDisabled(boolean crossSourceDisabled) {
       this.crossSourceDisabled = crossSourceDisabled;
+      return this;
+    }
+
+    public Builder setQueryBundleUsersEnabled(boolean queryBundleUsersEnabled) {
+      this.queryBundleUsersEnabled = queryBundleUsersEnabled;
       return this;
     }
 
