@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>12.0.0-202012212145230282-d8947fd3</version>
+  <version>12.1.0-202101041749050132-55c827cb</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -40,7 +40,7 @@
     -->
     <arrow.version>3.0.0-20201208112059-2953033003-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202012022204530538-af1f354</calcite.version>
+    <calcite.version>1.16.0-202101020531550866-5383404</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>

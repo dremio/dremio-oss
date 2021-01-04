@@ -155,8 +155,8 @@
 |brcast                                                      |3.0.1               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202012022204530538-af1f354|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202012022204530538-af1f354|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202101020531550866-5383404|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202101020531550866-5383404|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
