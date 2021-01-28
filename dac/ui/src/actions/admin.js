@@ -112,7 +112,9 @@ export function createFirstUser(form, meta) {
     form
   };
 
-  const apiCall = new APIV2Call().paths('bootstrap/firstuser');
+  const apiCall = new APIV2Call()
+    .path('bootstrap')
+    .path('firstuser');
 
   return {
     [RSAA]: {

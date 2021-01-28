@@ -124,7 +124,7 @@ public class DownloadUtil {
         DatasetDownloadManager manager = datasetService.downloadManager();
 
         JobId downloadJobId = manager.scheduleDownload(datasetPath, previewJobInfo.getSql(),
-          downloadFormat, previewJobInfo.getContextList(), 1_000_000, currentUser, previewJobId);
+          downloadFormat, previewJobInfo.getContextList(), currentUser, previewJobId);
 
         JobDataClientUtils.waitForFinalState(jobsService, downloadJobId);
         //get the final state of a job after completion

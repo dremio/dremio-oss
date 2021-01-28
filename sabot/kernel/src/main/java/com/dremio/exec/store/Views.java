@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import static com.dremio.exec.util.ViewFieldsHelper.serializeField;
+import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +29,10 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.dotfile.View.FieldType;
+import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
@@ -58,16 +61,24 @@ public class Views {
     List<FieldType> fields = new ArrayList<>();
     boolean requiresUpdate = false;
     for (ViewFieldType sqlField : fieldTypes) {
-      final SqlTypeName type = en(SqlTypeName.class, sqlField.getType());
+      SqlTypeName type = en(SqlTypeName.class, sqlField.getType());
       final String fieldName = sqlField.getName();
       Field field = null;
       if (sqlField.getSerializedField() != null) {
         field = ViewFieldsHelper.deserializeField(sqlField.getSerializedField());
       }
       if (field == null && (type.equals(SqlTypeName.ANY) || type.equals(SqlTypeName.ARRAY)) && schema != null) {
-        field = schema.findField(fieldName);
-        if (field != null) {
-          requiresUpdate = true;
+        // update old view to support complex type.
+        // get complex field type and information from schema
+        Field fieldFromSchema = schema.findField(fieldName);
+        if (fieldFromSchema != null) {
+          SqlTypeName fieldType = TypeInferenceUtils.getCalciteTypeFromMinorType(
+            MajorTypeHelper.getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(fieldFromSchema.getFieldType().getType())));
+          if (isComplexType(fieldType)) {
+            field = fieldFromSchema;
+            type = fieldType;
+            requiresUpdate = true;
+          }
         }
       }
       FieldType fieldType = new View.FieldType(
@@ -109,6 +120,10 @@ public class Views {
       }
     }
     return sqlFields;
+  }
+
+  public static boolean isComplexType(SqlTypeName type) {
+    return type.equals(SqlTypeName.ARRAY) || type.equals(SqlTypeName.MAP) || type.equals(SqlTypeName.ROW);
   }
 
   public static List<FieldType> relDataTypeToFieldType(final RelDataType rowType) {

@@ -19,6 +19,7 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import { APIV2Call } from '@app/core/APICall';
+import { updateBody } from '@inject/actions/explore/dataset/updateLocation';
 
 export const NEW_UNTITLED_START   = 'NEW_UNTITLED_START';
 export const NEW_UNTITLED_SUCCESS = 'NEW_UNTITLED_SUCCESS';
@@ -76,6 +77,7 @@ export function postNewUntitledSql(href, sql, queryContext, viewId) {
     context: queryContext,
     sql
   };
+  updateBody(body);
 
   const apiCall = new APIV2Call().fullpath(href);
 
@@ -98,7 +100,7 @@ export function newUntitledSql(sql, queryContext, viewId) {
   return (dispatch) => {
     const newVersion = exploreUtils.getNewDatasetVersion();
     const href = exploreUtils.getUntitledSqlHref({newVersion});
-    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId));
+    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, false));
   };
 }
 
@@ -106,6 +108,6 @@ export function newUntitledSqlAndRun(sql, queryContext, viewId) {
   return (dispatch) => {
     const newVersion = exploreUtils.getNewDatasetVersion();
     const href = exploreUtils.getUntitledSqlAndRunHref({newVersion});
-    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId));
+    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, true));
   };
 }

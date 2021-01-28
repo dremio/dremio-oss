@@ -54,7 +54,7 @@ public interface ParquetReaderFactory {
                          BatchSchema tableSchema,
                          boolean ignoreSchemaLearning);
 
-  ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema schema, BufferAllocator allocator);
+  ParquetFilterCreator newFilterCreator(OperatorContext operatorContext, ManagedSchemaType type, ManagedSchema schema, BufferAllocator allocator);
 
   ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema);
 
@@ -88,7 +88,7 @@ public interface ParquetReaderFactory {
     }
 
     @Override
-    public ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema managedSchema, BufferAllocator allocator) {
+    public ParquetFilterCreator newFilterCreator(OperatorContext operatorContext, ManagedSchemaType type, ManagedSchema managedSchema, BufferAllocator allocator) {
       return ParquetFilterCreator.DEFAULT;
     }
 

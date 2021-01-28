@@ -27,15 +27,28 @@ public class SqlQuery {
   private final String sql;
   private final List<String> context;
   private final String username;
+  private final String engineName;
 
   public SqlQuery(String sql, List<String> context, String username) {
     this.sql = sql;
     this.context = context;
     this.username = username;
+    this.engineName = null;
+  }
+
+  public SqlQuery(String sql, List<String> context, String userName, String engineName) {
+    this.sql = sql;
+    this.context = context;
+    this.username = userName;
+    this.engineName = engineName;
   }
 
   public SqlQuery(String sql, List<String> context, SecurityContext securityContext) {
     this(sql, context, securityContext.getUserPrincipal().getName());
+  }
+
+  public SqlQuery(String sql, List<String> context, SecurityContext securityContext, String engineName) {
+    this(sql, context, securityContext.getUserPrincipal().getName(), engineName);
   }
 
   public SqlQuery(String sql, String username) {
@@ -56,6 +69,10 @@ public class SqlQuery {
 
   public SqlQuery cloneWithNewSql(String sql) {
     return new SqlQuery(sql, context, username);
+  }
+
+  public String getEngineName() {
+    return engineName;
   }
 
   @Override

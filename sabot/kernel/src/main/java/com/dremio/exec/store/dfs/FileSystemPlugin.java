@@ -265,8 +265,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public BatchSchema mergeSchemas(DatasetConfig oldConfig, BatchSchema newSchema) {
-    boolean mixedTypesSupported = context.getOptionManager().getOption(ExecConstants.ENABLE_MIXED_TYPES_FS_SOURCES);
-    return CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema, mixedTypesSupported);
+    boolean mixedTypesDisabled = context.getOptionManager().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+    return CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema, mixedTypesDisabled);
   }
 
   @Override

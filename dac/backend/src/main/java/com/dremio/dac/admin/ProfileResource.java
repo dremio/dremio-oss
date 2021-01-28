@@ -39,6 +39,7 @@ import org.glassfish.jersey.server.mvc.Viewable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.resource.NotificationResponse;
 import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.admin.profile.ProfileWrapper;
@@ -131,6 +132,7 @@ public class ProfileResource {
   @GET
   @Path("/{queryid}")
   @Produces(TEXT_HTML)
+  @TemporaryAccess
   public Viewable getProfile(@PathParam("queryid") String queryId,
       @QueryParam("attempt") @DefaultValue("0") int attempt) {
     final QueryProfile profile;

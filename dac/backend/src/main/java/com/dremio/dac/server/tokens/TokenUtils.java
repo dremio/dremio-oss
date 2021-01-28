@@ -15,10 +15,9 @@
  */
 package com.dremio.dac.server.tokens;
 
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.container.ContainerRequestContext;
+import java.text.ParseException;
 
-import org.apache.http.HttpHeaders;
+import javax.ws.rs.container.ContainerRequestContext;
 
 /**
  * Utility methods for tokens.
@@ -26,6 +25,9 @@ import org.apache.http.HttpHeaders;
 public final class TokenUtils {
 
   public static final String AUTH_HEADER_PREFIX = "_dremio";
+  public static final String BEARER_TOKEN_PREFIX = "Bearer";
+  public static final String TOKEN_QUERY_PARAM = ".token";
+  private static final String TOKEN_QUERY_CONTEXT_KEY = "TemporaryToken";
 
   /**
    * Attempt to read an auth token from an input string
@@ -33,51 +35,45 @@ public final class TokenUtils {
    * @param input String containing auth token
    * @return the token if it exists, otherwise null
    */
-  private static String getToken(final String input) {
-    if (input != null && input.startsWith(AUTH_HEADER_PREFIX)) {
-      return input.substring(AUTH_HEADER_PREFIX.length()).trim();
+  public static String getToken(final String input) {
+    if (input == null) {
+      return null;
     }
-    return null;
+    return input.startsWith(AUTH_HEADER_PREFIX)? input.substring(AUTH_HEADER_PREFIX.length()).trim() : input.trim();
   }
 
   /**
-   * Get token from the authorization header.
-   *
-   * @param authHeader authorization header
-   * @return token
-   * @throws NotAuthorizedException if header format is incorrect
+   * Get bearer token from auth header.
    */
-  public static String getTokenFromAuthHeader(final String authHeader) throws NotAuthorizedException {
-    final String token = getToken(authHeader);
-    if (token == null) {
-      throw new NotAuthorizedException("Authorization header must be provided");
+  public static String getBearerTokenFromAuthHeader(final String authHeader)
+      throws ParseException {
+    if (authHeader != null
+        && authHeader.matches("(.*)" + BEARER_TOKEN_PREFIX + "(.*)")) {
+      final String[] splitToken = authHeader.split(" ", 2);
+      if (splitToken.length != 2) {
+        throw new ParseException("Invalid token. ", splitToken.length);
+      }
+
+      return splitToken[1];
     }
-    return token;
+
+    throw new ParseException("Bearer token must be provided.", 0);
   }
 
   private TokenUtils() {
   }
 
   /**
-   * Get token from the authorization header or from the query parameters.
-   *
-   * @param context The request context
-   * @return token
-   * @throws NotAuthorizedException if header format is incorrect and the token is not supplied as a query param
+   * Return token from property. If not present, return null.
    */
-  public static String getTokenFromAuthHeaderOrQueryParameter(final ContainerRequestContext context)
-    throws NotAuthorizedException {
+  public static String getTemporaryToken(ContainerRequestContext context) {
+    return getToken((String) context.getProperty(TOKEN_QUERY_CONTEXT_KEY));
+  }
 
-    final String authHeader = getToken(context.getHeaderString(HttpHeaders.AUTHORIZATION));
-    if (authHeader != null) {
-      return authHeader;
-    }
-
-    final String token = getToken(context.getUriInfo().getQueryParameters().getFirst(HttpHeaders.AUTHORIZATION));
-    if (token != null) {
-      return token;
-    }
-
-    throw new NotAuthorizedException("Authorization header or access token must be provided");
+  /**
+   * Set the request context property with the temporary token.
+   */
+  public static void setTemporaryToken(ContainerRequestContext context, String temporaryToken) {
+    context.setProperty(TokenUtils.TOKEN_QUERY_CONTEXT_KEY, temporaryToken);
   }
 }

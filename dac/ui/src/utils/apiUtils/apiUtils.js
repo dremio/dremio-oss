@@ -16,9 +16,9 @@
 import uuid from 'uuid';
 import Immutable from 'immutable';
 
-import { API_URL_V2, API_URL_V3 } from '@app/constants/Api';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import APICall from '@app/core/APICall';
+import ApiCallMixin from '@inject/utils/apiUtils/ApiUtilsMixin';
 
 /**
  * Error names from api middleware.
@@ -31,7 +31,7 @@ export const ApiMiddlewareErrors = {
   RequestError: 'RequestError',
   ApiError: 'ApiError'
 };
-
+@ApiCallMixin
 class ApiUtils {
   isApiError(error) {
     return error instanceof Error &&
@@ -109,8 +109,9 @@ class ApiUtils {
     throw error;
   };
 
-  fetch(endpoint, options = {}, version = 3) {
-    const apiVersion = (version === 3) ? API_URL_V3 : API_URL_V2;
+  fetch = (endpoint, options = {}, version = 3) => {
+    const apiVersion = this.getAPIVersion(version, options.customOptions);
+    const params = this.getParams(version);
 
     const headers = new Headers({
       'Content-Type': 'application/json',
@@ -126,7 +127,17 @@ class ApiUtils {
       url = endpoint.startsWith('/') ? `${apiVersion}${endpoint}` : `${apiVersion}/${endpoint}`;
     }
 
-    return fetch(url, {...options, headers})
+    // Include all options except custom options which are used to set URL
+    const {
+      customOptions, // eslint-disable-line @typescript-eslint/no-unused-vars
+      ...fetchOptions
+    } = options;
+
+    if (params) {
+      url += `?${params}`;
+    }
+
+    return fetch(url, {...fetchOptions, headers})
       .then(response => response.ok ? response : Promise.reject(response));
   }
 

@@ -75,7 +75,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
-import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -136,7 +136,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
       SabotContext context,
       Executor executor,
       boolean isMaster,
-      SchedulerService scheduler,
+      ModifiableSchedulerService modifiableScheduler,
       NamespaceService systemUserNamespaceService,
       LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       SourceConfig sourceConfig,
@@ -166,7 +166,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     // leaks this so do last.
     this.metadataManager = new SourceMetadataManager(
         sourceKey,
-        scheduler,
+        modifiableScheduler,
         isMaster,
         sourceDataStore,
         new MetadataBridge(),

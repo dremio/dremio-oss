@@ -101,6 +101,9 @@ public class AttemptManager implements Runnable {
   private static final Counter FAILED_1D = Metrics.newCounter(Metrics.join("jobs", "failed_1d"), ResetType.PERIODIC_1D);
 
   @VisibleForTesting
+  public static final String INJECTOR_CONSTRUCTOR_ERROR = "constructor-error";
+
+  @VisibleForTesting
   public static final String INJECTOR_TRY_BEGINNING_ERROR = "run-try-beginning";
 
   @VisibleForTesting
@@ -200,6 +203,7 @@ public class AttemptManager implements Runnable {
     RUN_15M.increment();
     RUN_1D.increment();
     recordNewState(QueryState.ENQUEUED);
+    injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_CONSTRUCTOR_ERROR);
   }
 
   private class CompletionListenerImpl implements CompletionListener {

@@ -19,6 +19,7 @@ import java.util.Map;
 
 import com.dremio.service.namespace.file.proto.ArrowFileConfig;
 import com.dremio.service.namespace.file.proto.AvroFileConfig;
+import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.HttpLogFileConfig;
@@ -73,6 +74,9 @@ public class FileFormatDefinitions {
 
     types.put(IcebergFileConfig.class, FileType.ICEBERG);
     schemas.put(IcebergFileConfig.class, IcebergFileConfig.getSchema());
+
+    types.put(DeltalakeFileConfig.class, FileType.DELTA);
+    schemas.put(DeltalakeFileConfig.class, DeltalakeFileConfig.getSchema());
 
     FILE_TYPES = types.build();
     SCHEMAS = schemas.build();

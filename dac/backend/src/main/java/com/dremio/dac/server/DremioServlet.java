@@ -32,6 +32,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.models.AnalyzeTools;
 import com.dremio.dac.server.models.ServerData;
+import com.dremio.dac.service.datasets.DatasetDownloadManager;
 import com.dremio.dac.support.QueryLogBundleService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.catalog.CatalogOptions;
@@ -134,7 +135,8 @@ public class DremioServlet implements Servlet {
       .setEdition(DremioEdition.getAsString())
       .setAnalyzeTools(AnalyzeTools.from(options))
       .setCrossSourceDisabled(options.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT))
-      .setQueryBundleUsersEnabled(options.getOption(QueryLogBundleService.USERS_BUNDLE_DOWNLOAD));
+      .setQueryBundleUsersEnabled(options.getOption(QueryLogBundleService.USERS_BUNDLE_DOWNLOAD))
+      .setDownloadRecordsLimit(options.getOption(DatasetDownloadManager.DOWNLOAD_RECORDS_LIMIT));
   }
 
   protected Provider<SupportService> getSupportService() {

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LOAD_PROVISIONING_SUCCESS, LOAD_AWS_DEFAULTS_SUCCESS
-} from '@app/actions/resources/provisioning';
+import { LOAD_PROVISIONING_SUCCESS, LOAD_AWS_DEFAULTS_SUCCESS } from '@app/actions/resources/provisioning';
 import Immutable from 'immutable';
 import { decorateProvision } from 'utils/decorators/resourceDecorators';
+import {extraProvisionReducer} from '@inject/reducers/resources/entityReducers/provisionExtra';
 
-export default function data(state, action) {
+export default function provisionReducer(state, action) {
   switch (action.type) {
   case LOAD_PROVISIONING_SUCCESS: {
     const provisions = action.payload.clusterList.reduce((items, provision) => {
@@ -33,7 +33,8 @@ export default function data(state, action) {
   case LOAD_AWS_DEFAULTS_SUCCESS: {
     return state.setIn(['awsDefaults'], Immutable.fromJS({awsProps: action.payload}));
   }
+
   default:
-    return state;
+    return extraProvisionReducer(state, action);
   }
 }

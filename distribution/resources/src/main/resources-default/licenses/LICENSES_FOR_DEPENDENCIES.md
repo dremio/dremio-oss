@@ -39,33 +39,33 @@
 |Apache Commons Text                                         |1.4                 |Apache 2.0          |
 |Apache Drill                                                |                    |Apache 2.0          |
 |Apache Hadoop Amazon Web Services support                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop Amazon Web Services support                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop Amazon Web Services support                   |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop Annotations                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop Annotations                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop Annotations                                   |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop Auth                                          |2.8.5               |Apache 2.0          |
-|Apache Hadoop Auth                                          |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop Auth                                          |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop Azure Data Lake support                       |2.8.5               |Apache 2.0          |
-|Apache Hadoop Azure Data Lake support                       |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
-|Apache Hadoop Azure support                                 |2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c|Apache 2.0          |
+|Apache Hadoop Azure Data Lake support                       |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
+|Apache Hadoop Azure support                                 |2.8.5-dremio-r2-d65ae5d215c7b9d342ccd1edfb8f42ead358feb9|Apache 2.0          |
 |Apache Hadoop Client                                        |2.8.5               |Apache 2.0          |
-|Apache Hadoop Client                                        |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop Client                                        |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop Common                                        |2.8.5               |Apache 2.0          |
-|Apache Hadoop Common                                        |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
-|Apache Hadoop HDFS                                          |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop Common                                        |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
+|Apache Hadoop HDFS                                          |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop HDFS Client                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop HDFS Client                                   |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop MapReduce App                                 |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce Common                              |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce Common                              |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop MapReduce Common                              |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop MapReduce Core                                |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce Core                                |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop MapReduce Core                                |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop MapReduce JobClient                           |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce JobClient                           |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop MapReduce JobClient                           |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop MapReduce Shuffle                             |2.8.5               |Apache 2.0          |
 |Apache Hadoop YARN API                                      |2.8.5               |Apache 2.0          |
-|Apache Hadoop YARN API                                      |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop YARN API                                      |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop YARN Common                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop YARN Common                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop YARN Common                                   |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |Apache Hadoop YARN Server Common                            |2.8.5               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.9               |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
@@ -76,15 +76,15 @@
 |Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
 |Apache Log4j API                                            |2.13.3              |Apache 2.0          |
 |Apache Log4j to SLF4J Adapter                               |2.13.3              |Apache 2.0          |
-|Apache Parquet Arrow                                        |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Column                                       |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Common                                       |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Encodings                                    |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
+|Apache Parquet Arrow                                        |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
+|Apache Parquet Column                                       |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
+|Apache Parquet Common                                       |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
+|Apache Parquet Encodings                                    |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
 |Apache Parquet Format (Incubating)                          |2.7.0-201901172054060715-5352a59|Apache 2.0          |
-|Apache Parquet Format Structures                            |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Generator                                    |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Hadoop                                       |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
-|Apache Parquet Jackson                                      |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
+|Apache Parquet Format Structures                            |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
+|Apache Parquet Generator                                    |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
+|Apache Parquet Hadoop                                       |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
+|Apache Parquet Jackson                                      |1.12.0-202012300655090309-fc8298d|Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
@@ -102,13 +102,13 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
-|Arrow Format                                                |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
-|Arrow Memory Core                                           |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
-|Arrow Memory Netty                                          |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
-|Arrow Vectors                                               |3.0.0-20201208112059-2953033003-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Format                                                |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Memory Core                                           |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Memory Netty                                          |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Vectors                                               |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -199,10 +199,10 @@
 |css-vendor                                                  |0.3.8               |MIT                 |
 |css-what                                                    |2.1.0               |BSD-2-Clause        |
 |csstype                                                     |2.6.2               |MIT                 |
-|Curator Client                                              |2.12.0              |Apache 2.0          |
-|Curator Framework                                           |2.12.0              |Apache 2.0          |
-|Curator Recipes                                             |2.12.0              |Apache 2.0          |
-|Curator Service Discovery                                   |2.12.0              |Apache 2.0          |
+|Curator Client                                              |4.2.0               |Apache 2.0          |
+|Curator Framework                                           |4.2.0               |Apache 2.0          |
+|Curator Recipes                                             |4.2.0               |Apache 2.0          |
+|Curator Service Discovery                                   |4.2.0               |Apache 2.0          |
 |curvesapi                                                   |1.06                |BSD 3-clause        |
 |d3                                                          |3.5.17              |BSD-3-Clause        |
 |Data Mapper for Jackson                                     |1.9.13              |Apache 2.0          |
@@ -224,12 +224,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |12.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |12.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |12.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |12.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |12.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |12.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |13.0.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |13.0.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |13.0.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |13.0.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |13.0.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |13.0.0              |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -297,7 +297,7 @@
 |gud                                                         |1.0.0               |MIT                 |
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
 |Hadoop YARN Client                                          |2.8.5               |Apache 2.0          |
-|Hadoop YARN Client                                          |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Hadoop YARN Client                                          |3.2.1-dremio-202101121111520916-3f79071|Apache 2.0          |
 |has                                                         |1.0.1               |MIT                 |
 |has                                                         |1.0.3               |MIT                 |
 |has-symbols                                                 |1.0.0               |MIT                 |
@@ -389,7 +389,7 @@
 |Javax WS RS API                                             |2.0.1               |GPL v2 w/ CPE       |
 |javax.annotation API                                        |1.3.2               |GPL v2 w/ CPE       |
 |javax.inject                                                |1                   |Apache 2.0          |
-|JAX RS Provider For JSON Content Type                       |1.9.2               |Apache 2.0, LGPL 2.1|
+|JAX RS Provider For JSON Content Type                       |1.9.13              |Apache 2.0, LGPL 2.1|
 |JAXB API bundle for GlassFish V3                            |2.2.11              |GPL v2 w/ CPE       |
 |JAXB API bundle for GlassFish V3                            |2.2.2               |GPL v2 w/ CPE       |
 |JBoss Logging 3                                             |3.3.2.Final         |Apache 2.0          |
@@ -460,6 +460,7 @@
 |jss-vendor-prefixer                                         |7.0.0               |MIT                 |
 |JUL to SLF4J bridge                                         |1.7.28              |MIT                 |
 |JVM Integration For Metrics                                 |4.1.0               |Apache 2.0          |
+|jwt-decode                                                  |3.1.2               |MIT                 |
 |kafka                                                       |0.8.0               |Apache 2.0          |
 |Kerb Simple Kdc                                             |1.0.1               |Apache 2.0          |
 |Kerby ASN1 Project                                          |1.0.1               |Apache 2.0          |
@@ -672,6 +673,7 @@
 |react-dom                                                   |16.7.0              |MIT                 |
 |react-dropzone                                              |4.1.3               |MIT                 |
 |react-event-listener                                        |0.6.6               |MIT                 |
+|react-gtm-module                                            |2.0.11              |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
 |react-intl                                                  |2.4.0               |BSD-3-Clause        |
 |react-is                                                    |16.7.0              |MIT                 |
@@ -766,7 +768,7 @@
 |symbol-observable                                           |1.2.0               |MIT                 |
 |T-Digest                                                    |3.0                 |Apache 2.0          |
 |tapable                                                     |1.1.3               |MIT                 |
-|The Netty Project                                           |3.10.6.Final        |Apache 2.0          |
+|The Netty Project                                           |3.10.6.Final-nohttp |Apache 2.0          |
 |ThreeTen backport                                           |1.3.3               |BSD 3-clause        |
 |toggle-selection                                            |1.0.6               |MIT                 |
 |Token provider project                                      |1.0.1               |Apache 2.0          |
@@ -797,7 +799,7 @@
 |Xalan Java Serializer                                       |2.7.2               |Apache 2.0          |
 |Xerces2-j                                                   |2.12.0              |Apache 2.0          |
 |XML Commons External Components XML APIs                    |1.4.01              |Apache 2.0          |
-|Xml Compatibility Extensions For Jackson                    |1.9.2               |Apache 2.0, LGPL 2.1|
+|Xml Compatibility Extensions For Jackson                    |1.9.13              |Apache 2.0, LGPL 2.1|
 |XmlBeans                                                    |3.1.0               |Apache 2.0          |
 |xmlenc Library                                              |0.52                |BSD 2-clause        |
 |ZkClient                                                    |0.10                |Apache 2.0          |

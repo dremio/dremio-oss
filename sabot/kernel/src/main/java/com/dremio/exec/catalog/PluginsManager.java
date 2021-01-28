@@ -49,6 +49,7 @@ import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
@@ -83,6 +84,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   protected final NamespaceService systemNamespace;
   protected final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
   private final Predicate<String> influxSourcePred;
+  protected final ModifiableSchedulerService modifiableScheduler;
 
   public PluginsManager(
     SabotContext context,
@@ -96,7 +98,8 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     ConnectionReader reader,
     CatalogServiceMonitor monitor,
     Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
-    Predicate<String> influxSourcePred
+    Predicate<String> influxSourcePred,
+    ModifiableSchedulerService modifiableScheduler
   ) {
     // context should only be used for MangedStoragePlugin
     this.context = context;
@@ -111,6 +114,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.monitor = monitor;
     this.broadcasterProvider = broadcasterProvider;
     this.influxSourcePred = influxSourcePred;
+    this.modifiableScheduler = modifiableScheduler;
   }
 
   ConnectionReader getReader() {
@@ -259,7 +263,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
       context,
       executor,
       isVirtualMaster,
-      scheduler,
+      modifiableScheduler,
       systemNamespace,
       sourceDataStore,
       config,

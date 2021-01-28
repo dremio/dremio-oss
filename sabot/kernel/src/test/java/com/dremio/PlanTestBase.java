@@ -76,13 +76,13 @@ public class PlanTestBase extends BaseTestQuery {
    * See the convenience methods for passing a single string in either the
    * excluded list, included list or both.
    *
-   * @param query - an explain query, this method does not add it for you
+   * @param query - a query, this method prepends EXPLAIN to the query
    * @param expectedPatterns - list of patterns that should appear in the plan
    * @param excludedPatterns - list of patterns that should not appear in the plan
    * @throws Exception - if an inclusion or exclusion check fails, or the
    *                     planning process throws an exception
    */
-  public static void testPlanMatchingPatterns(String query, String[] expectedPatterns, String... excludedPatterns)
+  public static String testPlanMatchingPatterns(String query, String[] expectedPatterns, String... excludedPatterns)
       throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
     // Check and make sure all expected patterns are in the plan
@@ -102,6 +102,7 @@ public class PlanTestBase extends BaseTestQuery {
         assertFalse(UNEXPECTED_FOUND + s + ". Plan was:\n" + plan, m.find());
       }
     }
+    return plan;
   }
 
   /**
@@ -116,7 +117,7 @@ public class PlanTestBase extends BaseTestQuery {
    * See the convenience methods for passing a single string in either the
    * excluded list, included list or both.
    *
-   * @param query - an explain query, this method does not add it for you
+   * @param query - a query, this method prepends EXPLAIN to the query
    * @param expectedPatterns - list of patterns that should appear in the plan
    * @param excludedPatterns - list of patterns that should not appear in the plan
    * @throws Exception - if an inclusion or exclusion check fails, or the

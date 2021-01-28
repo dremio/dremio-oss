@@ -23,15 +23,22 @@ import java.util.List;
 import java.util.Random;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.util.BatchPrinter;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures.Table;
+import com.dremio.sabot.Generator;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.filter.FilterOperator;
+
+import io.airlift.tpch.GenerationDefinition.TpchTable;
+import io.airlift.tpch.TpchGenerator;
 
 public class TestSimpleFilter extends BaseTestOperator {
 
@@ -72,6 +79,30 @@ public class TestSimpleFilter extends BaseTestOperator {
     );
 
     validateSingle(f, FilterOperator.class, input, output);
+  }
+
+  /**
+   * This gives wrong results. Filter operator should handle SV2, but apparently it doesn't
+   *
+   * @throws Exception
+   */
+  @Test
+  @Ignore
+  public void filterOnFilter() throws Exception {
+    Filter f = new Filter(PROPS, null, toExpr("mod(n_nationkey, 2) = 0"), 1f);
+    FilterOperator op = newOperator(FilterOperator.class, f, 100);
+    Generator gen = TpchGenerator.singleGenerator(TpchTable.NATION, 1, getTestAllocator());
+    VectorAccessible f1Output = op.setup(gen.getOutput());
+    Filter f2 = new Filter(PROPS, null, toExpr("mod(n_nationkey, 3) = 0"), 1f);
+    FilterOperator op2 = newOperator(FilterOperator.class, f2, 100);
+    VectorAccessible finalOutput = op2.setup(f1Output);
+    gen.next(100);
+    op.consumeData(100);
+    op.outputData();
+    BatchPrinter.printBatch(f1Output);
+    op2.consumeData(100);
+    op2.outputData();
+    BatchPrinter.printBatch(finalOutput);
   }
 
   @Test

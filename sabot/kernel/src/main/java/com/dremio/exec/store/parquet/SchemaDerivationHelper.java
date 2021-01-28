@@ -114,7 +114,7 @@ public class SchemaDerivationHelper {
    * @return
    */
   public CompleteType getType(String filteredColumn) {
-    return schemaFromTableMetadata.getFieldId(new SchemaPath(filteredColumn)).getFinalType();
+    return schemaFromTableMetadata.getFieldId(SchemaPath.getCompoundPath(filteredColumn.split("\\."))).getFinalType();
   }
 
   public static class Builder {

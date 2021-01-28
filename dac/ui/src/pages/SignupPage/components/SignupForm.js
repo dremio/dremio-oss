@@ -20,6 +20,7 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
+import Spinner from '@app/components/Spinner';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
 import ViewStateWrapper from 'components/ViewStateWrapper';
@@ -47,6 +48,10 @@ export class SignupForm extends Component {
     location: PropTypes.object.isRequired
   }
 
+  state = {
+    showSpinner: false
+  }
+
   componentDidMount() {
     this.props.noUsersError(); // if user navigated directly to /signup - ensure socket closing, etc
   }
@@ -63,7 +68,9 @@ export class SignupForm extends Component {
       'extra': form.extra || instanceId
     };
     const viewId = SIGNUP_FORM_VIEW_ID;
-    return this.props.createFirstUser(mappedValues, {viewId});
+    this.setState({showSpinner: true}, () => {
+      return this.props.createFirstUser(mappedValues, {viewId});
+    });
   }
 
   render() {
@@ -83,10 +90,20 @@ export class SignupForm extends Component {
           />
           <hr style={[divider, { width: '100vw'}]}/>
           <div style={styles.footer}>
-            <Button
-              type={ButtonTypes.NEXT}
-              text={la('Next')}
-            />
+            <div style={styles.submit}>
+              <Button
+                type={ButtonTypes.NEXT}
+                text={la('Next')}
+                disable={this.state.showSpinner}
+              />
+              { this.state.showSpinner &&
+                <Spinner
+                  iconStyle={styles.spinnerIcon}
+                  style={styles.spinner}
+                  message='Loading...'
+                />
+              }
+            </div>
             <div style={styles.footerLink}>
               <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
             </div>
@@ -122,6 +139,19 @@ const styles = {
   },
   footerLink: {
     marginBottom: '5px'
+  },
+  spinner: {
+    position: 'relative',
+    height: 'auto',
+    width: 'auto'
+  },
+  spinnerIcon: {
+    width: 24,
+    height: 24
+  },
+  submit: {
+    display: 'flex',
+    alignItems: 'center'
   }
 };
 

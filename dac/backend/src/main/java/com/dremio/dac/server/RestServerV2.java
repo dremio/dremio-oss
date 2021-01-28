@@ -43,6 +43,7 @@ public class RestServerV2 extends ResourceConfig {
   public static final String TEST_API_ENABLE = "dac.rest.config.test-resources.enable";
   public static final String ERROR_STACKTRACE_ENABLE = "dac.rest.config.stacktrace.enable";
   public static final String DAC_AUTH_FILTER_DISABLE = "dac.rest.config.auth.disable";
+  public static final String EE_DAC_AUTH_FILTER_DISABLE = "dac.rest.config.ee-auth.disable";
   public static final String JSON_PRETTYPRINT_ENABLE = "dac.rest.config.json-prettyprint.enable";
 
   public RestServerV2(ScanResult result) {
@@ -79,12 +80,8 @@ public class RestServerV2 extends ResourceConfig {
     register(JsonParseExceptionMapper.class);
     register(JsonMappingExceptionMapper.class);
 
-
-    //  BODY WRITERS //
-    register(QlikAppMessageBodyGenerator.class);
-    register(TableauMessageBodyGenerator.class);
-    register(PowerBIMessageBodyGenerator.class);
-
+    // BODY WRITERS //
+    registerBIToolMessageBodyGenerators();
 
     // PROPERTIES //
     property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
@@ -92,6 +89,13 @@ public class RestServerV2 extends ResourceConfig {
     final String disableMoxy = PropertiesHelper.getPropertyNameForRuntime(CommonProperties.MOXY_JSON_FEATURE_DISABLE,
         getConfiguration().getRuntimeType());
     property(disableMoxy, true);
+  }
+
+  protected void registerBIToolMessageBodyGenerators() {
+    //  BODY WRITERS //
+    register(QlikAppMessageBodyGenerator.class);
+    register(TableauMessageBodyGenerator.class);
+    register(PowerBIMessageBodyGenerator.class);
     property(TableauMessageBodyGenerator.CUSTOMIZATION_ENABLED, false);
   }
 

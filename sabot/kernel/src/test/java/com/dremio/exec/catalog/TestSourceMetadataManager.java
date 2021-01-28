@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.options.TypeValidators.PositiveLongValidator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -33,12 +34,14 @@ import java.util.Collections;
 import java.util.Optional;
 
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -48,6 +51,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -60,7 +64,8 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
-import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -70,6 +75,7 @@ public class TestSourceMetadataManager {
   private static final int MAX_NESTED_LEVELS = 16;
   private OptionManager optionManager;
   private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
+  private ModifiableSchedulerService modifiableSchedulerService;
 
   @Rule
   public final ExpectedException thrownException = ExpectedException.none();
@@ -80,6 +86,16 @@ public class TestSourceMetadataManager {
     when(optionManager.getOption(eq(CatalogOptions.SPLIT_COMPRESSION_TYPE)))
       .thenAnswer((Answer) invocation -> NamespaceService.SplitCompression.SNAPPY.toString());
     doNothing().when(broadcaster).communicateChange(any());
+
+    PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
+    when(optionManager.getOption(option)).thenReturn(1L);
+    modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
+        option, optionManager);
+  }
+
+  @After
+  public void tearDown() throws Exception{
+    AutoCloseables.close(modifiableSchedulerService);
   }
 
   @Test
@@ -118,13 +134,14 @@ public class TestSourceMetadataManager {
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
         new NamespaceKey("joker"),
-        mock(SchedulerService.class),
+        modifiableSchedulerService,
         true,
         mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster);
+        () -> broadcaster
+      );
 
     assertEquals(DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
@@ -162,13 +179,14 @@ public class TestSourceMetadataManager {
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
         new NamespaceKey("joker"),
-        mock(SchedulerService.class),
+        modifiableSchedulerService,
         true,
         mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster);
+        () -> broadcaster
+    );
 
 
     assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
@@ -213,13 +231,14 @@ public class TestSourceMetadataManager {
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
         new NamespaceKey("joker"),
-        mock(SchedulerService.class),
+        modifiableSchedulerService,
         true,
         mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster);
+        () -> broadcaster
+    );
 
     assertEquals(DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
@@ -255,13 +274,14 @@ public class TestSourceMetadataManager {
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
         new NamespaceKey("joker"),
-        mock(SchedulerService.class),
+        modifiableSchedulerService,
         true,
         mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT,
-        () -> broadcaster);
+        () -> broadcaster
+    );
 
     assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
         manager.refreshDataset(new NamespaceKey(""),
@@ -297,13 +317,14 @@ public class TestSourceMetadataManager {
 
     SourceMetadataManager manager = new SourceMetadataManager(
       new NamespaceKey("joker"),
-      mock(SchedulerService.class),
+      modifiableSchedulerService,
       true,
       mock(LegacyKVStore.class),
       msp,
       optionManager,
       CatalogServiceMonitor.DEFAULT,
-      () -> broadcaster);
+      () -> broadcaster
+    );
 
     thrownException.expect(DatasetNotFoundException.class);
     manager.refreshDataset(new NamespaceKey("three"),
@@ -355,7 +376,7 @@ public class TestSourceMetadataManager {
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
         new NamespaceKey("joker"),
-        mock(SchedulerService.class),
+        modifiableSchedulerService,
         true,
         mock(LegacyKVStore.class),
         msp,
@@ -423,7 +444,7 @@ public class TestSourceMetadataManager {
 
     SourceMetadataManager manager = new SourceMetadataManager(
       dataSetKey,
-      mock(SchedulerService.class),
+      modifiableSchedulerService,
       true,
       mock(LegacyKVStore.class),
       msp,
@@ -470,7 +491,7 @@ public class TestSourceMetadataManager {
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
         new NamespaceKey("joker"),
-        mock(SchedulerService.class),
+        modifiableSchedulerService,
         true,
         mock(LegacyKVStore.class),
         msp,

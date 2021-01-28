@@ -20,7 +20,7 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import browserUtils from 'utils/browserUtils';
 import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
-import LoginForm from './components/LoginForm';
+import LoginFormContainer from './components/LoginFormContainer';
 
 @Radium
 @pureRender
@@ -46,7 +46,7 @@ export class AuthenticationPage extends Component {
     return (
       this.state.showLoginForm ?
         <div id='authentication-page' className='page' style={[style, styles.base]}>
-          <LoginForm />
+          <LoginFormContainer />
         </div>
         : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} style={style}/>
     );

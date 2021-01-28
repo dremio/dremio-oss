@@ -272,7 +272,7 @@ public class TestHiveRecordReaderIterator {
 
         List<SplitReaderCreator> creators = Collections.EMPTY_LIST;
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreator> it = new PrefetchingIterator<>(ctx, readerConfig, creators);
+        PrefetchingIterator<SplitReaderCreator> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter = prepareRuntimeFilter();
             closer.add(filter.getPartitionColumnFilter().getBloomFilter());

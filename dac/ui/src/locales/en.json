@@ -369,5 +369,6 @@
   "Message.ApiErr.Load.Reflections": "Failed to load reflection list with error: {err}",
   "Message.ApiErr.Load.Dataset": "Failed to load dataset with error: {err}",
   "Message.Show.More": "Show more",
-  "Message.Show.Less": "Show less"
+  "Message.Show.Less": "Show less",
+  "Setting.Organization.Setting": "Organization Settings"
 }

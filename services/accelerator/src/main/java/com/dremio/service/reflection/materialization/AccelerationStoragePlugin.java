@@ -72,6 +72,7 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -87,6 +88,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   private MaterializationStore materializationStore;
   private ParquetFormatPlugin formatPlugin;
   private IcebergFormatPlugin icebergFormatPlugin;
+  private List<Property> props = null;
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -96,6 +98,13 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   protected List<Property> getProperties() {
     List<Property> props = new ArrayList<>();
     props.add(new Property(FSConstants.FS_S3A_FILE_STATUS_CHECK, Boolean.toString(getConfig().isS3FileStatusCheckEnabled())));
+    if (!Strings.isNullOrEmpty(getConfig().getAccessKey())) {
+      props.add(new Property(FSConstants.FS_S3A_ACCESS_KEY, getConfig().getAccessKey()));
+    }
+    if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
+      props.add(new Property(FSConstants.FS_S3A_SECRET_KEY, getConfig().getSecretKey()));
+    }
+
     return props;
   }
 
@@ -109,6 +118,10 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   @Override
   public FileSystem createFS(String userName, OperatorContext operatorContext, boolean metadata) throws IOException {
+    if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
+      getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
+      getFsConf().set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
+    }
     return new AccelerationFileSystem(super.createFS(userName, operatorContext, metadata));
   }
 

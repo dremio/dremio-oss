@@ -15,7 +15,7 @@
  */
 import { all, fork } from 'redux-saga/effects';
 
-import { afterLogin, afterLogout, afterAppStop } from '@app/sagas/loginLogout';
+import loginLogout from 'dyn-load/sagas/loginLogout';
 import { afterAppInit } from 'dyn-load/sagas/appBoot';
 import wsEvents from './wsEvents';
 import qlik from './qlik';
@@ -38,10 +38,8 @@ export default function* rootSaga() {
     fork(downloadDataset),
     fork(downloadFile),
     fork(signupUser),
-    fork(afterLogin),
-    fork(afterLogout),
+    fork(loginLogout),
     fork(afterAppInit),
-    fork(afterAppStop),
     fork(performTransform),
     fork(performLoadDataset),
     fork(transformHistoryCheck),

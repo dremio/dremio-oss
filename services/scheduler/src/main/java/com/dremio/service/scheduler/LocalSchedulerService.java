@@ -67,6 +67,10 @@ public class LocalSchedulerService implements SchedulerService {
       null, null, false);
   }
 
+  public LocalSchedulerService(int corePoolSize, String threadNamePrefix) {
+    this(new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize),
+      null, null, false);
+  }
 
   public LocalSchedulerService(int corePoolSize,
                                Provider<ClusterCoordinator> clusterCoordinatorProvider,

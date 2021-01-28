@@ -20,6 +20,7 @@ import { get } from 'lodash';
 
 import { LOGOUT_USER_START, NO_USERS_ERROR } from 'actions/account';
 import developmentOptions from 'dyn-load/reducers/developmentOptions';
+import account from '@inject/reducers/account';
 import admin from 'dyn-load/reducers/admin';
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
@@ -28,7 +29,6 @@ import search from './search';
 
 import home from './home/home';
 import ui from './ui/ui';
-import account from './account';
 
 import jobs from './jobs/index';
 import modals from './modals/index';

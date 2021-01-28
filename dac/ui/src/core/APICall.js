@@ -15,7 +15,7 @@
  */
 
 
-import APICallMixin from 'dyn-load/core/APICallMixin';
+import APICallMixin from '@inject/core/APICallMixin';
 /**
  * APICall handles building urls for API calls.
  */
@@ -25,6 +25,7 @@ export default class APICall {
   _fullPath = null;
   _params = new Map();
   _apiVersion = 3;
+  _appendFrontSlash = true;
 
   apiVersion(value) {
     this._apiVersion = value;
@@ -68,6 +69,11 @@ export default class APICall {
       this.param(key, value);
     }
 
+    return this;
+  }
+
+  appendFrontSlash(value = true) {
+    this._appendFrontSlash = value;
     return this;
   }
 
@@ -116,7 +122,7 @@ export default class APICall {
       return url + '&' + urlSearchParams.toString();
     } else {
       // require a trailing / when we have parameters
-      if (!url.endsWith('/')) {
+      if (!url.endsWith('/') && this._appendFrontSlash) {
         url += '/';
       }
 

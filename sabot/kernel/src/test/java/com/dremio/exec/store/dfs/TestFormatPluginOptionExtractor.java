@@ -67,8 +67,11 @@ public class TestFormatPluginOptionExtractor extends ExecTest {
               d.presentParams());
           break;
         case "iceberg":
-          assertEquals(d.typeName, "(type: String, metaStoreType: IcebergMetaStoreType, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)",
+          assertEquals(d.typeName, "(type: String, outputExtension: String, metaStoreType: IcebergMetaStoreType, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)",
             d.presentParams());
+          break;
+        case "delta":
+          assertEquals(d.typeName, "(type: String, dataFormatType: FileType)", d.presentParams());
           break;
         default:
           fail("add validation for format plugin type " + d.typeName);

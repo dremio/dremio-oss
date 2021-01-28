@@ -28,9 +28,7 @@ describe('LoginForm', () => {
     minimalProps = {
       ...minimalFormProps(['userName', 'password']),
       loginUser: sinon.stub().returns(Promise.resolve({error: false})),
-      replace: sinon.spy(),
-      viewState: Immutable.Map(),
-      location: {}
+      viewState: Immutable.Map()
     };
     commonProps = {
       ...minimalProps
@@ -42,9 +40,8 @@ describe('LoginForm', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render LoginTitle and 2 Fields', () => {
+  it('should render 2 Fields', () => {
     const wrapper = shallow(<LoginForm {...commonProps}/>);
-    expect(wrapper.find('LoginTitle')).to.have.length(1);
     expect(wrapper.find('FieldWithError')).to.have.length(2);
   });
 

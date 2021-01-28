@@ -78,6 +78,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   ReflectionManager getReflectionManager();
 
+  void updateAccelerationBasePath();
+
   /**
    * mainly useful to reduce conflicts on the implementation when we update this interface
    */
@@ -256,6 +258,10 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     @Override
     public ReflectionManager getReflectionManager() {
       return null;
+    }
+
+    @Override
+    public void updateAccelerationBasePath() {
     }
   }
 

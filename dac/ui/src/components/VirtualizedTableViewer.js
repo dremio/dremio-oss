@@ -21,6 +21,7 @@ import classNames from 'classnames';
 import Immutable from 'immutable';
 
 import { humanSorter, getSortValue } from '@app/utils/sort';
+import { virtualizedRow } from './VirtualizedTableViewer.less';
 
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 30;
@@ -68,7 +69,7 @@ export default class VirtualizedTableViewer extends Component {
   };
 
   rowClassName(rowData, index) {
-    return ((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even');
+    return classNames(((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even'), virtualizedRow); // Adding virtualizedRow for keeping the Row styles stable wrt another class
   }
 
   handleScroll = ({scrollTop}) => {

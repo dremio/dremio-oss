@@ -391,7 +391,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       ImmutableBitSet fieldsUsed,
       Set<RelDataTypeField> extraFields) {
     if(!setOp.all) {
-      return result(setOp, Mappings.createIdentity(setOp.getRowType().getFieldCount()));
+      return super.trimFields(setOp, ImmutableBitSet.range(setOp.getRowType().getFieldCount()), extraFields);
     }
     return super.trimFields(setOp, fieldsUsed, extraFields);
   }

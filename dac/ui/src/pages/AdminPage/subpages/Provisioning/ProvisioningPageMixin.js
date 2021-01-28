@@ -28,6 +28,14 @@ export default function(input) {
 
     getBtnLabel() {
       return la('New Engine');
+    },
+
+    openAdd(props, clusterType) {
+      props.openAddProvisionModal(clusterType);
+    },
+
+    getProvision(props, clusterType, VIEW_ID, pollAgain) {
+      props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
     }
   });
 }

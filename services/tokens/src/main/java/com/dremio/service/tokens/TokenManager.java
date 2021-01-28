@@ -15,6 +15,9 @@
  */
 package com.dremio.service.tokens;
 
+import java.util.List;
+import java.util.Map;
+
 import com.dremio.service.Service;
 
 /**
@@ -32,6 +35,21 @@ public interface TokenManager extends Service {
   TokenDetails createToken(String username, String clientAddress);
 
   /**
+   * Create a temporary token for certain API requests that require ui to make
+   * a non-ajax call.
+   *
+   * @param username user name
+   * @param path designated REST API url path
+   * @param queryParams designated REST API url query params
+   * @param durationMillis duration of the temporary token in milliseconds
+   * @return token details
+   */
+  TokenDetails createTemporaryToken(String username,
+                                    String path,
+                                    Map<String, List<String>> queryParams,
+                                    long durationMillis);
+
+  /**
    * Validate the token, and return details about the token.
    *
    * @param token session token
@@ -39,6 +57,19 @@ public interface TokenManager extends Service {
    * @throws IllegalArgumentException if the token is invalid or expired
    */
   TokenDetails validateToken(String token) throws IllegalArgumentException;
+
+  /**
+   * Validate the temporary token, and return details about the token.
+   *
+   * @param token temporary token
+   * @param path incoming REST API url path
+   * @param queryParams incoming REST API url query parameters
+   * @return token details
+   * @throws IllegalArgumentException if the token is invalid or expired
+   */
+  TokenDetails validateTemporaryToken(String token,
+                                      String path,
+                                      Map<String, List<String>> queryParams);
 
   /**
    * Invalidate the token.

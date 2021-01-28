@@ -16,16 +16,20 @@
 package com.dremio.service.tokens;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Math.min;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
 import com.dremio.config.DremioConfig;
+import com.dremio.dac.proto.model.tokens.QueryParam;
 import com.dremio.dac.proto.model.tokens.SessionState;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -62,6 +66,12 @@ public class TokenManagerImpl implements TokenManager {
       "token.release.leadership.ms",
       Long.MAX_VALUE,
       TimeUnit.HOURS.toMillis(40));
+
+  public static final PositiveLongValidator TEMPORARY_TOKEN_EXPIRATION_TIME_SECONDS =
+    new PositiveLongValidator(
+      "token.temporary.expiration.sec",
+      Integer.MAX_VALUE,
+      TimeUnit.SECONDS.convert(5, TimeUnit.MINUTES));
 
   private final SecureRandom generator = new SecureRandom();
 
@@ -151,17 +161,19 @@ public class TokenManagerImpl implements TokenManager {
 
   @VisibleForTesting
   TokenDetails createToken(final String username, final String clientAddress, final long issuedAt,
-                     final long expiresAt) {
+                     final long expiresAt, final String path, final List<QueryParam> queryParams) {
     final String token = newToken();
     final SessionState state = new SessionState()
       .setUsername(username)
       .setClientAddress(clientAddress)
       .setIssuedAt(issuedAt)
-      .setExpiresAt(expiresAt);
+      .setExpiresAt(expiresAt)
+      .setPath(path)
+      .setQueryParamsList(queryParams);
 
     tokenStore.put(token, state);
     tokenCache.put(token, state);
-    logger.trace("Created token: {}", token);
+    logger.trace("Created token for user: {}", username);
     return TokenDetails.of(token, username, expiresAt);
   }
 
@@ -172,7 +184,28 @@ public class TokenManagerImpl implements TokenManager {
       .get()
       .getOption(TOKEN_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES);
 
-    return createToken(username, clientAddress, now, expires);
+    return createToken(username, clientAddress, now, expires, null, null);
+  }
+
+  @Override
+  public TokenDetails createTemporaryToken(String username,
+                                           String path,
+                                           Map<String, List<String>> queryParamsMap,
+                                           long durationMillis) {
+    checkArgument(path != null, "missing designated URL path");
+    checkArgument(queryParamsMap != null, "missing designated URL query params");
+
+    final long now = System.currentTimeMillis();
+    final long duration = min(durationMillis, TimeUnit.SECONDS.toMillis(optionManagerProvider
+      .get()
+      .getOption(TEMPORARY_TOKEN_EXPIRATION_TIME_SECONDS)));
+    final long expires = now + duration;
+
+    List<QueryParam> queryParamsList = queryParamsMap.entrySet().stream()
+      .map(e -> new QueryParam().setKey(e.getKey()).setValuesList(e.getValue()))
+      .collect(Collectors.toList());
+
+    return createToken(username, "", now, expires, path, queryParamsList);
   }
 
   private SessionState getSessionState(final String token) {
@@ -195,13 +228,89 @@ public class TokenManagerImpl implements TokenManager {
       throw new IllegalArgumentException("token expired");
     }
 
-    logger.trace("Validated token: {}", token);
+    if (value.getPath() != null) {
+      // non temporary access API is not allowed to use temporary token
+      throw new IllegalArgumentException("invalid token");
+    }
+
+    logger.trace("Validated token for user: {}", value.getUsername());
     return TokenDetails.of(token, value.getUsername(), value.getExpiresAt());
+  }
+
+  public TokenDetails validateTemporaryToken(String token,
+                                             String path,
+                                             Map<String, List<String>> queryParams) throws IllegalArgumentException {
+    checkArgument(path != null,"undefined request path");
+    checkArgument(queryParams != null,"undefined request query params");
+    final SessionState value = getSessionState(token);
+    if (System.currentTimeMillis() >= value.getExpiresAt()) {
+      tokenCache.invalidate(token); // removes from the store as well
+      throw new IllegalArgumentException("token expired");
+    }
+
+    if (value.getPath() == null) {  // token is a regular session token
+      throw new IllegalArgumentException("invalid token");
+    }
+    validateRequestUrl(path, value.getPath(), queryParams, value.getQueryParamsList());
+
+    logger.trace("Validated token for user: {}", value.getUsername());
+    return TokenDetails.of(token, value.getUsername(), value.getExpiresAt());
+  }
+
+  /**
+   * Validate if the incoming REST API request url matches the designated request url of the token
+   * @param requestUriPath incoming REST API url path
+   * @param designatedUrlPath designated REST API url path.
+   * @param requestUriQueryParams incoming REST API url query parameters
+   * @param designatedUrlQueryParams designated REST API url query parameters
+   * @throws IllegalArgumentException if validation fails
+   */
+  static void validateRequestUrl(final String requestUriPath, final String designatedUrlPath,
+                                 final Map<String, List<String>> requestUriQueryParams,
+                                 final List<QueryParam> designatedUrlQueryParams) throws IllegalArgumentException {
+    if (!requestsUrlPathsMatch(requestUriPath, designatedUrlPath) ||
+      !requestsQueryParamsMatch(requestUriQueryParams, designatedUrlQueryParams)) {
+      logger.debug("Incoming request and designated request did not match.");
+      throw new IllegalArgumentException("invalid token");
+    }
+  }
+
+  /**
+   * @return true if both paths are the same. Note: ignore starting or ending slash.
+   */
+  private static boolean requestsUrlPathsMatch(String path1, String path2) {
+    return trimPath(path1).equals(trimPath(path2));
+  }
+
+  private static String trimPath(String path) {
+    path = path.startsWith("/") ? path.substring(1) : path;
+    return path.endsWith("/") ? path.substring(0, path.length()-1) : path;
+  }
+
+  /**
+   * Check if both query params have the same set of keys and each corresponding
+   * value(s) should be the same (order and duplication don't matter).
+   * @param queryParams1 a map of query param key to values. Values could contain duplicates.
+   * @param queryParams2 a list of QueryParam. No duplicate keys from QueryParam instances of the list.
+   * @return true if both match.
+   */
+  private static boolean requestsQueryParamsMatch(final Map<String, List<String>> queryParams1,
+                                                  final List<QueryParam> queryParams2) {
+    if (queryParams1.size() != queryParams2.size()) {
+      return false;
+    }
+    for (QueryParam q : queryParams2) {
+      List<String> v = queryParams1.get(q.getKey());
+      if (v == null || !(v.containsAll(q.getValuesList()) && q.getValuesList().containsAll(v))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
   public void invalidateToken(final String token) {
-    logger.trace("Invalidate token: {}", token);
+    logger.trace("Invalidate token");
     tokenCache.invalidate(token); // removes from the store as well
   }
 

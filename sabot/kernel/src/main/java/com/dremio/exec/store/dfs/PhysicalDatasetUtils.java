@@ -21,6 +21,8 @@ import java.util.List;
 
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
+import com.dremio.exec.store.deltalake.DeltaLakeFormatPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.excel.ExcelFormatPlugin;
@@ -40,6 +42,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ArrowFileConfig;
+import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -173,6 +176,8 @@ public class PhysicalDatasetUtils {
         icebergFormatConfig.setMetaStoreType(icebergFileConfig.getMetaStoreType());
         icebergFormatConfig.setDataFormatConfig(toParquetFormatConfig(icebergFileConfig.getParquetDataFormat()));
         return icebergFormatConfig;
+      case DELTA:
+        return new DeltaLakeFormatConfig();
       default:
         break;
     }
@@ -242,6 +247,9 @@ public class PhysicalDatasetUtils {
         .setMetaStoreType(icebergFormatConfig.getMetaStoreType())
         .setDataFormatTypeList(Collections.singletonList(icebergFormatConfig.getDataFormatType()))
         .setParquetDataFormat(toParquetFileConfig((ParquetFormatConfig)icebergFormatConfig.getDataFormatConfig()));
+    }
+    if(formatPlugin instanceof DeltaLakeFormatPlugin) {
+      return new DeltalakeFileConfig();
     }
     return new UnknownFileConfig();
   }

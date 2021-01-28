@@ -35,6 +35,12 @@ export default class FormTab extends Component {
     const tabTitleText = tabConfig.getTitle(formConfig);
     const tabSectionsClass = (tabConfigJson.layout === 'tall') ? tabTallSections : tabSections;
 
+    const isSectionDisabled = (section, propsFields, propDisabled) => {
+      const controller = section.getConfig().checkboxController;
+      return propDisabled || (
+        controller && propsFields.config && propsFields.config[controller] && !propsFields.config[controller].value
+      );
+    };
     return (
       <div>
         {!!tabTitleText &&
@@ -47,11 +53,13 @@ export default class FormTab extends Component {
         }
         <div className={tabSectionsClass}>
           {tabConfig.getSections().map((section, index) => (
-            <FormSection fields={fields} key={index} sectionConfig={section} disabled={disabled}/>
+            <FormSection
+              fields={fields} key={index} sectionConfig={section}
+              disabled={isSectionDisabled(section, fields, disabled)}
+            />
           ))}
         </div>
       </div>
     );
   }
-
 }

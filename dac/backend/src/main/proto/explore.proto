@@ -448,6 +448,7 @@ message TransformUpdateSQL {
   option (extends_class) = "com.dremio.dac.explore.model.TransformBase";
   required string sql = 1;
   repeated string sqlContext = 2;
+  optional string engineName = 3;
 }
 message TransformField {
   option (extends_class) = "com.dremio.dac.explore.model.TransformBase";

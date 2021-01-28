@@ -36,6 +36,7 @@ import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.service.job.DownloadSettings;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SubmitJobRequest;
@@ -60,6 +61,7 @@ public class DatasetDownloadManager {
    * If set to true, download will request data from job results store directly for *NON-pdfs* job storages
    */
   public static final BooleanValidator DOWNLOAD_FROM_JOBS_STORE = new BooleanValidator("dac.download.from_jobs_store", true);
+  public static final RangeLongValidator DOWNLOAD_RECORDS_LIMIT = new RangeLongValidator("dac.download.records_limit", 0L, 1_000_000L, 1_000_000L);
 
   private static final Map<DownloadFormat, String> extensions = ImmutableMap.of(
     DownloadFormat.JSON, "json",
@@ -94,7 +96,6 @@ public class DatasetDownloadManager {
     String sql,
     DownloadFormat downloadFormat,
     List<String> context,
-    int limit,
     String userName,
     JobId jobId) {
 
@@ -110,6 +111,7 @@ public class DatasetDownloadManager {
       SqlUtils.quoteIdentifier(jobId.getId())): sql;
 
     final String selectQuery;
+    final long limit = this.optionManager.getOption(DOWNLOAD_RECORDS_LIMIT);
     if (limit != -1) {
       selectQuery = format("SELECT * FROM (\n%s\n) LIMIT %d", targetQuery, limit);
     } else {

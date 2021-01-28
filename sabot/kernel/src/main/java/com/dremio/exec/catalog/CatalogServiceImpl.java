@@ -39,6 +39,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -73,6 +74,8 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
@@ -130,6 +133,7 @@ public class CatalogServiceImpl implements CatalogService {
   protected final CatalogServiceMonitor monitor;
   private final Set<String> influxSources; //will contain any sources influx(i.e actively being modified). Otherwise empty.
   protected final Predicate<String> isInfluxSource;
+  protected ModifiableSchedulerService modifiableSchedulerService;
 
   public CatalogServiceImpl(
     Provider<SabotContext> context,
@@ -188,6 +192,8 @@ public class CatalogServiceImpl implements CatalogService {
     this.allocator = bufferAllocator.get().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.sourceDataStore = kvStoreProvider.get().getStore(CatalogSourceDataCreator.class);
+    this.modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
+        ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, optionManager.get());
     this.plugins = newPluginsManager();
     plugins.start();
     this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), config.getSabotConfig());
@@ -238,7 +244,8 @@ public class CatalogServiceImpl implements CatalogService {
 
   protected PluginsManager newPluginsManager() {
     return new PluginsManager(context.get(), systemNamespace, datasetListingService.get(), optionManager.get(),
-      config, roles, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider, isInfluxSource);
+      config, roles, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider,
+      isInfluxSource, modifiableSchedulerService);
   }
 
   private void communicateChange(SourceConfig config, RpcType rpcType) {
@@ -344,6 +351,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
     ex.suppressingClose(protocol);
     ex.suppressingClose(allocator);
+    ex.suppressingClose(modifiableSchedulerService);
     ex.close();
   }
 

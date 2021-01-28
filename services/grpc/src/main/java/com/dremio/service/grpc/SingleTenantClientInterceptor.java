@@ -15,6 +15,8 @@
  */
 package com.dremio.service.grpc;
 
+import javax.inject.Provider;
+
 import com.dremio.context.RequestContext;
 import com.dremio.context.TenantContext;
 import com.dremio.context.UserContext;
@@ -32,9 +34,9 @@ import io.grpc.MethodDescriptor;
  * Interceptor for cases where the client is a per-tenant service. Use the defaults unless the caller overrides them.
  */
 public class SingleTenantClientInterceptor implements ClientInterceptor {
-  private final RequestContext defaultRequestContext;
+  private Provider<RequestContext> defaultRequestContext;
 
-  public SingleTenantClientInterceptor(RequestContext defaultRequestContext) {
+  public SingleTenantClientInterceptor(Provider<RequestContext> defaultRequestContext) {
     this.defaultRequestContext = defaultRequestContext;
   }
 
@@ -46,14 +48,14 @@ public class SingleTenantClientInterceptor implements ClientInterceptor {
 
         TenantContext tenantContext = RequestContext.current().get(TenantContext.CTX_KEY);
         if (tenantContext == null) {
-          tenantContext = defaultRequestContext.get(TenantContext.CTX_KEY);
+          tenantContext = defaultRequestContext.get().get(TenantContext.CTX_KEY);
         }
         headers.put(HeaderKeys.PROJECT_ID_HEADER_KEY, tenantContext.getProjectId().toString());
         headers.put(HeaderKeys.ORG_ID_HEADER_KEY, tenantContext.getOrgId().toString());
 
         UserContext userContext = RequestContext.current().get(UserContext.CTX_KEY);
         if (userContext == null) {
-          userContext = defaultRequestContext.get(UserContext.CTX_KEY);
+          userContext = defaultRequestContext.get().get(UserContext.CTX_KEY);
         }
         headers.put(HeaderKeys.USER_HEADER_KEY, userContext.serialize());
 

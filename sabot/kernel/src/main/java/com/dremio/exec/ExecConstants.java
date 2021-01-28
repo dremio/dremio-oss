@@ -91,6 +91,11 @@ public interface ExecConstants {
 
   BooleanValidator REST_API_RUN_QUERY_ASYNC = new BooleanValidator("dremio.coordinator.rest.run_query.async", false);
 
+  // max number of concurrent metadata refresh in progress.
+  PositiveLongValidator MAX_CONCURRENT_METADATA_REFRESHES = new PositiveLongValidator("coordinator.metadata.refreshes.concurrency",
+                                                                                      Integer.MAX_VALUE,
+                                                                                      24);
+
   // Whether or not to replace a group of ORs with a set operation.
   BooleanValidator FAST_OR_ENABLE = new BooleanValidator("exec.operator.orfast", true);
 
@@ -451,6 +456,8 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
 
+  BooleanValidator ENABLE_DELTALAKE = new BooleanValidator("dremio.deltalake.enabled", false);
+
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
 
@@ -486,6 +493,6 @@ public interface ExecConstants {
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
 
-  // Option to disable support for mixed data types for filesystem sources
-  BooleanValidator ENABLE_MIXED_TYPES_FS_SOURCES = new BooleanValidator("store.enable.mixed_types", true);
+  // Option to toggle support for mixed data types
+  BooleanValidator MIXED_TYPES_DISABLED = new BooleanValidator("store.disable.mixed_types", false);
 }

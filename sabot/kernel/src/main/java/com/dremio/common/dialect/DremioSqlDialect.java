@@ -362,6 +362,17 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
+   * Determine if the supplied Dremio-specific regex string can be supported by the RDBMS by mapping it to
+   * the RDBMS specific regex string.
+   *
+   * @param regex The Dremio regex string to check support for.
+   * @return True if the regex string can be fully mapped to the RDBMS regex string.
+   */
+  public boolean supportsRegexString(String regex) {
+    return true;
+  }
+
+  /**
    * Indicates if the window frames Calcite automatically generates should be removed
    * in OVER clauses.
    */

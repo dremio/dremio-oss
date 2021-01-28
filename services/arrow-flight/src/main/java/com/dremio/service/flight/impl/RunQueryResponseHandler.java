@@ -271,7 +271,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   protected void serverStreamListenerOnCancelledCallback() {
     if (!completed) {
       completed = true;
-      workerProvider.get().cancelQuery(runExternalId, userSession.getTargetUserName());
+      workerProvider.get().cancelQuery(runExternalId, userSession.getCredentials().getUserName());
     }
   }
 

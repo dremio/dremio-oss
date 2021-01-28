@@ -179,9 +179,10 @@ public class CatalogImpl implements Catalog {
         addUniqueSource(t);
         if (t instanceof ViewTable) {
           View view = ((ViewTable) t).getView();
+          NamespaceKey viewPath = ((ViewTable) t).getPath();
           try {
             if (view.isFieldUpdated()) {
-              updateView(resolved, ((ViewTable) t).getView());
+              updateView(viewPath, view);
             }
           } catch (Exception ex) {
             logger.warn("Failed to update view with updated nested schema: ", ex);
@@ -195,9 +196,10 @@ public class CatalogImpl implements Catalog {
       addUniqueSource(t);
       if (t instanceof ViewTable) {
         View view = ((ViewTable) t).getView();
+        NamespaceKey viewPath = ((ViewTable) t).getPath();
         try {
           if (view.isFieldUpdated()) {
-            updateView(resolved, ((ViewTable) t).getView());
+            updateView(viewPath, view);
           }
         } catch (Exception ex) {
           logger.warn("Failed to update view with updated nested schema: ", ex);

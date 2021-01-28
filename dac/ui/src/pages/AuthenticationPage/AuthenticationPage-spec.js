@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
-import LoginForm from './components/LoginForm';
+import LoginFormContainer from './components/LoginFormContainer';
 import { AuthenticationPage } from './AuthenticationPage';
 
 describe('AuthenticationPage', () => {
@@ -32,7 +32,7 @@ describe('AuthenticationPage', () => {
   it('should render loginForm or UnsupportedBrowserForm depending on state.showLoginForm', () => {
     const wrapper = shallow(<AuthenticationPage {...commonProps}/>);
     wrapper.setState({showLoginForm: true});
-    expect(wrapper.find(LoginForm)).to.have.length(1);
+    expect(wrapper.find(LoginFormContainer)).to.have.length(1);
     wrapper.setState({showLoginForm: false});
     expect(wrapper.name()).to.equal('UnsupportedBrowserForm');
 

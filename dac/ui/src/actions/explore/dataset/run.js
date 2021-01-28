@@ -21,6 +21,7 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { APIV2Call } from '@app/core/APICall';
+import { updateParams } from '@inject/actions/explore/dataset/updateLocation';
 
 export const RUN_DATASET_START = 'RUN_DATASET_START';
 export const RUN_DATASET_SUCCESS = 'RUN_DATASET_SUCCESS';
@@ -35,6 +36,7 @@ function fetchRunDataset(dataset, viewId) {
   if (tipVersion) {
     apiCall.params({tipVersion});
   }
+  updateParams(apiCall);
 
   const meta = { dataset, viewId };
   return {

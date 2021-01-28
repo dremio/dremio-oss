@@ -55,25 +55,32 @@ const readServerSettings = () => {
   ));
 };
 
-// Job profiles load their css/js from /static/*, so redirect those calls as well
-app.use(['/api*', '/static/*'], function() {
-  // todo it would be nice to enforce server and web socket to use the same origin.
-  // See https://github.com/dremio/dremio/blob/64ada2028fb042e6b3a035b9ef64814218095e30/oss/dac/ui/src/constants/Api.js#L22
-  const newAPIOrigin = readServerSettings().apiOrigin;
-  if (newAPIOrigin !== prevAPIOrigin) {
-    storedProxy = proxy({
-      target: newAPIOrigin,
-      changeOrigin: true,
-      logLevel: 'debug',
-      ws: true,
-      onProxyRes(proxyRes) {
-        proxyRes.headers['x-proxied-from'] = newAPIOrigin; // useful for HAR reports
-      }
-    });
-    prevAPIOrigin = newAPIOrigin;
-  }
+const settings = readServerSettings();
 
-  return storedProxy(...arguments);
+const getApiOrigin = (pattern) => {
+  return settings[pattern.origin || 'apiOrigin'] + (pattern.subDomain || '');
+};
+
+// Job profiles load their css/js from /static/*, so redirect those calls as well
+settings.proxyPatterns.forEach(p => {
+  console.error('Patterns: ', p);
+  app.use(p.patterns, function() {
+    const newAPIOrigin = getApiOrigin(p);
+    if (newAPIOrigin !== prevAPIOrigin) {
+      storedProxy = proxy({
+        target: newAPIOrigin,
+        changeOrigin: true,
+        logLevel: 'debug',
+        ws: p.patterns.length === 2,
+        onProxyRes(proxyRes) {
+          proxyRes.headers['x-proxied-from'] = newAPIOrigin; // useful for HAR reports
+        }
+      });
+      prevAPIOrigin = newAPIOrigin;
+    }
+
+    return storedProxy(...arguments);
+  });
 });
 
 // todo: this doesn't show dyn-loader tests

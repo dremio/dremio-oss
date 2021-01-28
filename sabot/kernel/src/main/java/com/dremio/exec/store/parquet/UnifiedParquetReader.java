@@ -18,7 +18,6 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -81,7 +80,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 
 public class UnifiedParquetReader implements RecordReader {
 
@@ -180,7 +178,7 @@ public class UnifiedParquetReader implements RecordReader {
       .flatMap(ccf -> ccf.getColumnsList().stream())
       .map(String::toLowerCase).collect(Collectors.toSet());
     if (filterConditions != null) {
-      filterColumns.addAll(filterConditions.stream().map(pfc -> pfc.getPath().getAsNamePart().getName().toLowerCase()).collect(Collectors.toSet()));
+      filterColumns.addAll(filterConditions.stream().map(pfc -> pfc.getPath().toDotString().toLowerCase()).collect(Collectors.toSet()));
     }
 
     // init validity buf only if filters are on multiple columns
@@ -429,7 +427,8 @@ public class UnifiedParquetReader implements RecordReader {
       }
     }
 
-    paths: for (SchemaPath path : getResolvedColumns(block.getColumns())) {
+    AdditionalColumnResolver additionalColumnResolver = new AdditionalColumnResolver(tableSchema, columnResolver);
+    paths: for (SchemaPath path : additionalColumnResolver.resolveColumns(block.getColumns())) {
       String name = path.getRootSegment().getNameSegment().getPath();
       for (Type type : vectorizableTypes) {
         if (type.getName().equalsIgnoreCase(name)) {
@@ -543,38 +542,6 @@ public class UnifiedParquetReader implements RecordReader {
       .stream()
       .map((s) -> s.getRootSegment().getNameSegment().getPath().toLowerCase())
       .collect(Collectors.toSet());
-  }
-
-  private Collection<SchemaPath> getResolvedColumns(List<ColumnChunkMetaData> metadata){
-    if(!ColumnUtils.isStarQuery(this.columnResolver.getBatchSchemaProjectedColumns())){
-      // Return all selected columns + any additional columns that are not present in the table schema (for schema
-      // learning purpose)
-      List<SchemaPath> columnsToRead = Lists.newArrayList(this.columnResolver.getProjectedParquetColumns());
-      Set<String> columnsTableDef = Sets.newHashSet();
-      Set<String> columnsTableDefLowercase = Sets.newHashSet();
-      tableSchema.forEach(f -> columnsTableDef.add(f.getName()));
-      tableSchema.forEach(f -> columnsTableDefLowercase.add(f.getName().toLowerCase()));
-      for (ColumnChunkMetaData c : metadata) {
-        final String columnInParquetFile = c.getPath().iterator().next();
-        // Column names in parquet are case sensitive, in Dremio they are case insensitive
-        // First try to find the column with exact case. If not found try the case insensitive comparision.
-        String batchSchemaColumnName = this.columnResolver.getBatchSchemaColumnName(columnInParquetFile);
-        if (batchSchemaColumnName != null &&
-            !columnsTableDef.contains(batchSchemaColumnName) &&
-            !columnsTableDefLowercase.contains(batchSchemaColumnName.toLowerCase())) {
-          columnsToRead.add(SchemaPath.getSimplePath(columnInParquetFile));
-        }
-      }
-
-      return columnsToRead;
-    }
-
-    List<SchemaPath> paths = new ArrayList<>();
-    for(ColumnChunkMetaData c : metadata){
-      paths.add(SchemaPath.getSimplePath(c.getPath().iterator().next()));
-    }
-
-    return paths;
   }
 
   private boolean determineFilterConditions(List<SchemaPath> nonVectorizableColumns) {

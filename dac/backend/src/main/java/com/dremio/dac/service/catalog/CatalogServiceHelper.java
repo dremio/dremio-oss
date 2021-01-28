@@ -91,6 +91,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -1179,6 +1180,13 @@ public class CatalogServiceHelper {
     return resultList
       .map(CatalogItem.Builder::build)
       .collect(Collectors.toList());
+  }
+
+  public void createHomeSpace(String userName) {
+    try {
+      CatalogServiceHelper.ensureUserHasHomespace(sabotContext.getNamespaceService(SystemUser.SYSTEM_USERNAME), userName);
+    } catch (NamespaceException ignored) {
+    }
   }
 
   public static void ensureUserHasHomespace(NamespaceService namespaceService, String userName) throws NamespaceException {

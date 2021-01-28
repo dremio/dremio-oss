@@ -205,6 +205,7 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   public Home getHome(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents) throws NamespaceException, HomeNotFoundException, DatasetNotFoundException {
     try {
+      checkHomeSpaceExists(homePath);
       long dsCount = namespaceService.getDatasetCount(homePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
       final HomeConfig homeConfig = namespaceService.getHome(homePath.toNamespaceKey()).setExtendedConfig(new ExtendedConfig().setDatasetCount(dsCount));
       Home home = newHome(homePath, homeConfig);
@@ -525,5 +526,8 @@ public class HomeResource extends BaseResourceWithAllocator {
       @QueryParam("limit") Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     return datasetsResource.createUntitledFromHomeFile(homeName, path, limit);
+  }
+
+  protected void checkHomeSpaceExists(HomePath homePath) {
   }
 }

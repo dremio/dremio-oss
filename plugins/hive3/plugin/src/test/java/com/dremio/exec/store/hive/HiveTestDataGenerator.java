@@ -532,16 +532,10 @@ public class HiveTestDataGenerator {
       createPartitionTruncatedVarchar(hiveDriver, "parquet_fixed_length_varchar_partition");
       createPartitionTruncatedChar(hiveDriver, "parquet_fixed_length_char_partition");
 
-      createVeryComplexHiveTableIntToLong(hiveDriver);
-      createVeryComplexHiveTableFloatToDouble(hiveDriver);
-      createSimpleListHiveTables(hiveDriver);
       createSimpleListWithNullsHiveTables(hiveDriver);
       createNestedListWithNullsHiveTables(hiveDriver);
       createNestedStructWithNullsHiveTables(hiveDriver);
-      createSimpleStructHiveTables(hiveDriver);
       createParuqetComplexFilterTestTable(hiveDriver);
-      createParquetComplexCaseInsensitivityTestTable(hiveDriver);
-      createParquetComplexNullTestTable(hiveDriver);
       createComplexTypesTextTable(hiveDriver, "orccomplex");
       createComplexTypesTable(hiveDriver, "orc", "orccomplex");
       createComplexVarcharHiveTables(hiveDriver);
@@ -571,6 +565,7 @@ public class HiveTestDataGenerator {
       createTableNestedStruct(hiveDriver, "complex_types_nested_struct");
       createTableWithUnsupportedComplexTypes(hiveDriver, "complex_types_map");
       createTableNestedWithUnsupportedComplexTypes(hiveDriver, "complex_types_nested_map");
+      createTableForUnsupportedMapTypeInParquet(hiveDriver, "complex_types_map_support_parquet");
       createTableMixedCaseColumnsWithComplexTypes(hiveDriver, "complex_types_case_test");
       createTableFlagTestColumns(hiveDriver, "complex_types_flag_test");
       createTableForPartitionValueFormatException(hiveDriver, "partition_format_exception");
@@ -581,6 +576,8 @@ public class HiveTestDataGenerator {
 
       // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
       createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
+
+      createParquetStructWithCoercionTestTable(hiveDriver);
     }
   }
 
@@ -821,125 +818,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, partitionRepair);
   }
 
-  private void createSimpleListHiveTables(final Driver hiveDriver) throws Exception {
-    final File simpleListParquetDir = new File(BaseTestQuery.getTempDir("simplelistparquet"));
-    simpleListParquetDir.mkdirs();
-    final URL simpleListParquetUrl = Resources.getResource("simple_list_test.parquet");
-    if (simpleListParquetUrl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "simple_list_test.parquet"));
-    }
-
-    // parquet file has following columns with one valid row
-    // tinyintcol array<tinyint>
-    // smallintcol array<smallint>
-    // intcol array<int>
-    // bigintcol array<bigint>
-    // floatcol array<float>
-    // doublcol array<double>
-    // decimalcol array<decimal(10,3)>
-    // charcol array<char(16)>
-    // varcharcol array<varchar(16)>
-    // stringcol array<string>
-    final File simpleListParquetFile = new File(simpleListParquetDir, "simple_list_test.parquet");
-    simpleListParquetFile.deleteOnExit();
-    simpleListParquetDir.deleteOnExit();
-    Files.write(Paths.get(simpleListParquetFile.toURI()), Resources.toByteArray(simpleListParquetUrl));
-
-    // create good table with matching names, types and positions
-    final String basicAllMatchingTest = "create external table array_simple_test_ext1(" +
-      "tinyintcol array<tinyint>, "+
-      "smallintcol array<smallint>, "+
-      "intcol array<int>, "+
-      "bigintcol array<bigint>, "+
-      "floatcol array<float>, "+
-      "doublcol array<double>, "+
-      "decimalcol array<decimal(10,3)>, "+
-      "charcol array<char(16)>, "+
-      "varcharcol array<varchar(16)>, "+
-      "stringcol array<string> ) " +
-      "stored as parquet location '" + simpleListParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, basicAllMatchingTest);
-
-    // create table with matching names and types but different positions
-    final String positionMismatchTest = "create external table array_simple_test_ext2(" +
-      "smallintcol array<smallint>, " +
-      "tinyintcol array<tinyint>, " +
-      "bigintcol array<bigint>, " +
-      "intcol array<int>, " +
-      "doublcol array<double>, " +
-      "floatcol array<float>, " +
-      "charcol array<char(16)>, " +
-      "decimalcol array<decimal(10,3)>, " +
-      "stringcol array<string>, " +
-      "varcharcol array<varchar(16)>) " +
-      "stored as parquet location '" + simpleListParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, positionMismatchTest);
-
-    // create table with matching names and types but different positions
-    // also remove a column
-    final String lessNumberOfColumnsTest = "create external table array_simple_test_ext3(" +
-      "smallintcol array<smallint>, " +
-      "bigintcol array<bigint>, " +
-      "intcol array<int>, " +
-      "doublcol array<double>, " +
-      "floatcol array<float>, " +
-      "decimalcol array<decimal(10,3)>, " +
-      "stringcol array<string>, " +
-      "varcharcol array<varchar(16)>) " +
-      "stored as parquet location '" + simpleListParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, lessNumberOfColumnsTest);
-
-    // create table with matching names and types but different positions
-    // remove a column
-    // also up promote int to bigint, float to double, decimal to decimal
-    final String upPromotionTest = "create external table array_simple_test_ext4(" +
-      "smallintcol array<bigint>, " +
-      "bigintcol array<bigint>, " +
-      "intcol array<bigint>, " +
-      "doublcol array<double>, " +
-      "floatcol array<double>, " +
-      "decimalcol array<decimal(3,1)>, " +
-      "stringcol array<string>, " +
-      "varcharcol array<varchar(8)> ) " +
-      "stored as parquet location '" + simpleListParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, upPromotionTest);
-
-    // create table with matching names and types but different positions
-    // remove a column
-    // up promote int to bigint, float to double, decimal to decimal
-    // also add one new column
-    final String addExtraColumnTest = "create external table array_simple_test_ext5(" +
-      "smallintcol array<bigint>, " +
-      "bigintcol array<bigint>, " +
-      "intcol array<bigint>, " +
-      "doublcol array<double>, " +
-      "newcol array<int>, " +
-      "floatcol array<double>, " +
-      "decimalcol array<decimal(3,1)>, " +
-      "stringcol array<string>, " +
-      "varcharcol array<varchar(8)>) " +
-      "stored as parquet location '" + simpleListParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, addExtraColumnTest);
-
-    // create table with matching names and types but different positions
-    // remove a column
-    // up promote int to bigint, float to double, decimal to decimal
-    // add one new column
-    // also add a type cast that is not allowed
-    final String invalidTypeConversion = "create external table array_simple_test_ext6(" +
-      "smallintcol array<string>, " +
-      "bigintcol array<bigint>, " +
-      "intcol array<bigint>, " +
-      "doublcol array<double>, " +
-      "newcol array<int>, " +
-      "floatcol array<double>, " +
-      "decimalcol array<decimal(3,1)>, " +
-      "stringcol array<string>, " +
-      "varcharcol array<varchar(8)> ) " +
-      "stored as parquet location '" + simpleListParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, invalidTypeConversion);
-  }
-
   private void createSimpleListWithNullsHiveTables(final Driver hiveDriver) throws Exception {
     final File simpleListWithNullsParquetDir = new File(BaseTestQuery.getTempDir("simplelistwithnullsparquet"));
     simpleListWithNullsParquetDir.mkdirs();
@@ -1044,184 +922,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, nestedStructTest);
   }
 
-  private void createSimpleStructHiveTables(final Driver hiveDriver) throws Exception {
-    final File simpleStructParquetDir = new File(BaseTestQuery.getTempDir("simplestructparquet"));
-    simpleStructParquetDir.mkdirs();
-    final URL simpleStructParquetUrl = Resources.getResource("simple_struct_test.parquet");
-    if (simpleStructParquetUrl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "simple_struct_test.parquet"));
-    }
-
-    // parquet file has following columns with one valid row
-    // structcol struct<tinyintf:tinyint,
-    //                  smallintf:smallint,
-    //                  intf:int,
-    //                  bigintf:bigint,
-    //                  floatf:float,
-    //                  doublef:double,
-    //                  decimalf:decimal(10,3),
-    //                  charf:char(16),
-    //                  varcharf:varchar(16),
-    //                  stringf:string>
-    final File simpleStructParquetFile = new File(simpleStructParquetDir, "simple_struct_test.parquet");
-    simpleStructParquetFile.deleteOnExit();
-    simpleStructParquetDir.deleteOnExit();
-    Files.write(Paths.get(simpleStructParquetFile.toURI()), Resources.toByteArray(simpleStructParquetUrl));
-
-    // create good table with matching names, types and positions
-    final String basicAllMatchingTest = "create external table struct_simple_test_ext1(" +
-      "structcol struct<" +
-      "tinyintf:tinyint," +
-      "smallintf:smallint," +
-      "intf:int," +
-      "bigintf:bigint," +
-      "floatf:float," +
-      "doublef:double," +
-      "decimalf:decimal(10,3)," +
-      "charf:char(16)," +
-      "varcharf:varchar(16)," +
-      "stringf:string>) " +
-      "stored as parquet location '" + simpleStructParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, basicAllMatchingTest);
-
-    // create table with matching names and types but different positions
-    final String positionMismatchTest = "create external table struct_simple_test_ext2(" +
-      "structcol struct<" +
-      "smallintf:smallint," +
-      "tinyintf:tinyint," +
-      "bigintf:bigint," +
-      "intf:int," +
-      "doublef:double," +
-      "floatf:float," +
-      "charf:char(16)," +
-      "decimalf:decimal(10,3)," +
-      "stringf:string," +
-      "varcharf:varchar(16)>) " +
-      "stored as parquet location '" + simpleStructParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, positionMismatchTest);
-
-    // create table with matching names and types but different positions
-    // also remove a field
-    final String lessNumberOfFieldsTest = "create external table struct_simple_test_ext3(" +
-      "structcol struct<" +
-      "smallintf:smallint," +
-      "bigintf:bigint," +
-      "intf:int," +
-      "doublef:double," +
-      "floatf:float," +
-      "decimalf:decimal(10,3)," +
-      "stringf:string," +
-      "varcharf:varchar(16)>) " +
-      "stored as parquet location '" + simpleStructParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, lessNumberOfFieldsTest);
-
-    // create table with matching names and types but different positions
-    // remove a field
-    // also up promote int to bigint, float to double, decimal to decimal
-    final String upPromotionTest = "create external table struct_simple_test_ext4(" +
-      "structcol struct<" +
-      "smallintf:bigint," +
-      "bigintf:bigint," +
-      "intf:bigint," +
-      "doublef:double," +
-      "floatf:double," +
-      "decimalf:decimal(3,1)," +
-      "stringf:string," +
-      "varcharf:varchar(8)>) " +
-      "stored as parquet location '" + simpleStructParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, upPromotionTest);
-
-    // create table with matching names and types but different positions
-    // remove a field
-    // up promote int to bigint, float to double, decimal to decimal
-    // also add one new field
-    final String addExtraFieldTest = "create external table struct_simple_test_ext5(" +
-      "structcol struct<" +
-      "smallintf:bigint," +
-      "bigintf:bigint," +
-      "intf:bigint," +
-      "newf:int," +
-      "doublef:double," +
-      "floatf:double," +
-      "decimalf:decimal(3,1)," +
-      "stringf:string," +
-      "varcharf:varchar(8)>) " +
-      "stored as parquet location '" + simpleStructParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, addExtraFieldTest);
-
-    // create table with matching names and types but different positions
-    // remove a field
-    // up promote int to bigint, float to double, decimal to decimal
-    // add one new field
-    // also add a type cast that is not allowed
-    final String invalidTypeConversion = "create external table struct_simple_test_ext6(" +
-      "structcol struct<" +
-      "smallintf:string," +
-      "bigintf:bigint," +
-      "intf:bigint," +
-      "newf:int," +
-      "doublef:double," +
-      "floatf:double," +
-      "decimalf:decimal(3,1)," +
-      "stringf:string," +
-      "varcharf:varchar(8)>) " +
-      "stored as parquet location '" + simpleStructParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, invalidTypeConversion);
-
-  }
-
-  private void createVeryComplexHiveTableIntToLong(final Driver hiveDriver) throws Exception {
-    final File verycomplexparquetDir = new File(BaseTestQuery.getTempDir("verycomplexparquet"));
-    verycomplexparquetDir.mkdirs();
-    final URL verycomplexparqueurl = Resources.getResource("very_complex.parquet");
-    if (verycomplexparqueurl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "very_complex.parquet"));
-    }
-
-    final File verycomplexparquefile = new File(verycomplexparquetDir, "very_complex.parquet");
-    verycomplexparquefile.deleteOnExit();
-    verycomplexparquetDir.deleteOnExit();
-    Files.write(Paths.get(verycomplexparquefile.toURI()), Resources.toByteArray(verycomplexparqueurl));
-
-    final String verycomplexparquetable = "create external table very_complex_parquet(col1 " +
-      "array<array<array<struct<f1:array<array<array<int>>>,f2:struct<sub_f1:array<array<array<int>>>,sub_f2:array<array<array<struct<sub_sub_f1:int,sub_sub_f2:string>>>>>>>>>, " +
-      " col2 int) " +
-      "stored as parquet location '" + verycomplexparquefile.getParent() + "'";
-    executeQuery(hiveDriver, verycomplexparquetable);
-
-    final String verycomplexparquetable_uppromote_int = "create external table very_complex_parquet_int_to_long(col1 " +
-      "array<array<array<struct<f1:array<array<array<bigint>>>,f2:struct<sub_f1:array<array<array<bigint>>>,sub_f2:array<array<array<struct<sub_sub_f1:bigint,sub_sub_f2:string>>>>>>>>>, " +
-      " col2 int) " +
-      "stored as parquet location '" + verycomplexparquefile.getParent() + "'";
-    executeQuery(hiveDriver, verycomplexparquetable_uppromote_int);
-  }
-
-  private void createVeryComplexHiveTableFloatToDouble(final Driver hiveDriver) throws Exception {
-    final File verycomplexparquetDir = new File(BaseTestQuery.getTempDir("verycomplexparquetfloat"));
-    verycomplexparquetDir.mkdirs();
-    final URL verycomplexparqueurl = Resources.getResource("very_complex_float.parquet");
-    if (verycomplexparqueurl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "very_complex_float.parquet"));
-    }
-
-    final File verycomplexparquefile = new File(verycomplexparquetDir, "very_complex_float.parquet");
-    verycomplexparquefile.deleteOnExit();
-    verycomplexparquetDir.deleteOnExit();
-    Files.write(Paths.get(verycomplexparquefile.toURI()), Resources.toByteArray(verycomplexparqueurl));
-
-    final String verycomplexparquetable = "create external table very_complex_parquet_float(col1 " +
-      "array<array<array<struct<f1:array<array<array<float>>>,f2:struct<sub_f1:array<array<array<float>>>,sub_f2:array<array<array<struct<sub_sub_f1:float,sub_sub_f2:string>>>>>>>>>, " +
-      " col2 int) " +
-      "stored as parquet location '" + verycomplexparquefile.getParent() + "'";
-    executeQuery(hiveDriver, verycomplexparquetable);
-
-    final String verycomplexparquetable_uppromote_double = "create external table very_complex_parquet_float_to_double(col1 " +
-      "array<array<array<struct<f1:array<array<array<double>>>,f2:struct<sub_f1:array<array<array<double>>>,sub_f2:array<array<array<struct<sub_sub_f1:double,sub_sub_f2:string>>>>>>>>>, " +
-      " col2 int) " +
-      "stored as parquet location '" + verycomplexparquefile.getParent() + "'";
-    executeQuery(hiveDriver, verycomplexparquetable_uppromote_double);
-  }
-
   private void createParuqetComplexFilterTestTable(final Driver hiveDriver)  throws Exception {
     final File complexFilterTest = new File(BaseTestQuery.getTempDir("parquetcomplexfiltertest"));
     complexFilterTest.mkdirs();
@@ -1266,28 +966,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, tableWithCoercions);
   }
 
-  private void createParquetComplexCaseInsensitivityTestTable(final Driver hiveDriver)  throws Exception {
-    final File complexCaseTest = new File(BaseTestQuery.getTempDir("parquetcomplexcasetest"));
-    complexCaseTest.mkdirs();
-    final URL complexCaseTestParquetUrl = Resources.getResource("complex_types_case_test.parquet");
-    if (complexCaseTestParquetUrl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "complex_types_case_test.parquet"));
-    }
-
-    final File complexCaseTestParquetFile = new File(complexCaseTest, "complex_types_case_test.parquet");
-    complexCaseTestParquetFile.deleteOnExit();
-    complexCaseTest.deleteOnExit();
-    Files.write(Paths.get(complexCaseTestParquetFile.toURI()), Resources.toByteArray(complexCaseTestParquetUrl));
-    final String caseSensitivityTest = "create external table complex_types_case_test_ext(" +
-      "listcol array<int>, " +
-      "structcol struct<" +
-      "f1:int," +
-      "list_field:array<int>," +
-      "struct_field:struct<sub_f1:int>>)" +
-      "stored as parquet location '" + complexCaseTestParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, caseSensitivityTest);
-  }
-
   private void createParquetTableWithDeeplyNestedColumns(final Driver hiveDriver)  throws Exception {
     final File complexNestedLevels = new File(BaseTestQuery.getTempDir("parquetcomplexnestedlevels"));
     complexNestedLevels.mkdirs();
@@ -1328,26 +1006,6 @@ public class HiveTestDataGenerator {
       "f1:struct<f1:array<struct<f1:array<struct<f1:string>>>>>>>>>>>>>>>>>>>>) " +
       "stored as parquet";
     executeQuery(hiveDriver, nestedLevelsStructTest);
-  }
-
-  private void createParquetComplexNullTestTable(final Driver hiveDriver)  throws Exception {
-    final File complexNullTest = new File(BaseTestQuery.getTempDir("parquetcomplexnulltest"));
-    complexNullTest.mkdirs();
-    final URL complexNullTestParquetUrl = Resources.getResource("complex_null_test.parquet");
-    if (complexNullTestParquetUrl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "complex_null_test.parquet"));
-    }
-
-    final File complexNullTestParquetFile = new File(complexNullTest, "complex_null_test.parquet");
-    complexNullTestParquetFile.deleteOnExit();
-    complexNullTest.deleteOnExit();
-    Files.write(Paths.get(complexNullTestParquetFile.toURI()), Resources.toByteArray(complexNullTestParquetUrl));
-    final String nullTest = "create external table complex_types_null_test_ext(" +
-      "id int," +
-      "emp_name string," +
-      "city array<struct<f1:string>>)" +
-      "stored as parquet location '" + complexNullTestParquetFile.getParent() + "'";
-    executeQuery(hiveDriver, nullTest);
   }
 
   private void createComplexVarcharHiveTables(final Driver hiveDriver) throws Exception {
@@ -2280,6 +1938,29 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert);
   }
 
+  private void createTableForUnsupportedMapTypeInParquet(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (col1 map<int, int>, " +
+      " col2 array<map<int, int>>, " +
+      " col3 array<array<array<map<int, int>>>>, " +
+      " col4 struct<f1: map<int, int>>, " +
+      " col5 struct<f1: array<map<int, int>>>, " +
+      " col6 struct<f1: array<array<array<map<int, int>>>>>, " +
+      " col7 struct<f1: struct<f2: array<array<array<map<int, int>>>>>>, " +
+      " col8 struct<crossdomainid: string, deviceuseragentid: string, sourcelist: map<string, string>>)" +
+      " stored as parquet";
+    String insert = "insert into " + table + " select map(1,1), " +
+      " array(map(1,1)), " +
+      " array(array(array(map(1,1)))), " +
+      " named_struct('f1',map(1,1)), " +
+      " named_struct('f1',array(map(1,1))), " +
+      " named_struct('f1',array(array(array(map(1,1))))), " +
+      " named_struct('f1',named_struct('f2',array(array(array(map(1,1)))))), " +
+      " named_struct('crossdomainid','abc','deviceuseragentid','edf','sourcelist',map('a','b'))";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
   private void createTableMixedCaseColumnsWithComplexTypes(Driver hiveDriver, String table) throws IOException {
     final File casetestDir = new File(BaseTestQuery.getTempDir("casetest"));
     casetestDir.mkdirs();
@@ -2379,5 +2060,26 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.9)");
     executeQuery(hiveDriver, "alter table orc_part_test change col1 col1 decimal(5,3)");
     executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.987)");
+  }
+
+  private void createParquetStructWithCoercionTestTable(final Driver hiveDriver) throws Exception {
+    final File structDir = new File(BaseTestQuery.getTempDir("struct_coercion_filter"));
+    structDir.mkdirs();
+    final URL structUrl = Resources.getResource("multifieldstruct.parquet");
+    if (structUrl == null) {
+      throw new IOException(String.format("Unable to find path %s.", "multifieldstruct.parquet"));
+    }
+
+    // parquet file schema:
+    // f0 struct<f1: int, f2: float, f3: decimal (10, 5), f4: string>, f1 int
+    final File structFile = new File(structDir, "multifieldstruct.parquet");
+    structFile.deleteOnExit();
+    structDir.deleteOnExit();
+    Files.write(Paths.get(structFile.toURI()), Resources.toByteArray(structUrl));
+
+    final String structExtraFieldTest = "create external table struct_coercion_filter(" +
+      "f0 struct<f1:bigint, f2:double, f3: decimal(7, 2), f4: varchar(2)>, f1 bigint) " +
+      "stored as parquet location '" + structFile.getParent() + "'";
+    executeQuery(hiveDriver, structExtraFieldTest);
   }
 }

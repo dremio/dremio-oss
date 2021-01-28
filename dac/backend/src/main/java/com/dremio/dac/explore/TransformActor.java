@@ -146,7 +146,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
   @Override
   public TransformResult visit(TransformUpdateSQL updateSQL) throws Exception {
-    final SqlQuery query = new SqlQuery(updateSQL.getSql(), updateSQL.getSqlContextList(), username);
+    final SqlQuery query = new SqlQuery(updateSQL.getSql(), updateSQL.getSqlContextList(), username, updateSQL.getEngineName());
     m.setSql(getMetadata(query));
     return m.result();
   }

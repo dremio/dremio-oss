@@ -16,7 +16,7 @@
 import Immutable from 'immutable';
 import { NODE_COLUMNS_CONFIG } from '@app/constants/provisioningPage/provisioningConstants';
 import { makeContainerPropertyRow } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
-import { EngineStatusBar } from './EngineStatusBar';
+import { EngineStatusBar } from '@inject/pages/AdminPage/subpages/Provisioning/components/EngineStatusBar';
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties

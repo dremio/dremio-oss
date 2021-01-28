@@ -140,10 +140,11 @@ public class DatasetTool {
       BufferAllocator allocator,
       VirtualDatasetUI newDataset,
       DatasetVersionResourcePath tipVersion,
-      Integer limit
+      Integer limit,
+      String engineName
       ) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
 
-    SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username());
+    SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName);
     JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion(), JobStatusListener.NO_OP);
 
     return createPreviewResponse(newDataset, jobData, tipVersion, allocator, limit, true);
@@ -458,6 +459,19 @@ public class DatasetTool {
       throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, false);
   }
+
+  public InitialPreviewResponse newUntitled(
+    BufferAllocator allocator,
+    FromBase from,
+    DatasetVersion version,
+    List<String> context,
+    DatasetSummary parentSummary,
+    boolean prepare,
+    Integer limit,
+    String engineName)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
+    return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, false, engineName);
+  }
   /**
    * Create a new untitled dataset, and load preview data.
    *
@@ -478,11 +492,12 @@ public class DatasetTool {
       DatasetSummary parentSummary,
       boolean prepare,
       Integer limit,
-      boolean runInSameThread)
+      boolean runInSameThread,
+      String engineName)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
     final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
-    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username());
+    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName);
 
     try {
       final MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
@@ -518,7 +533,20 @@ public class DatasetTool {
     }
   }
 
-  VirtualDatasetUI createNewUntitledMetadataOnly(FromBase from,
+  public InitialPreviewResponse newUntitled(
+    BufferAllocator allocator,
+    FromBase from,
+    DatasetVersion version,
+    List<String> context,
+    DatasetSummary parentSummary,
+    boolean prepare,
+    Integer limit,
+    boolean runInSameThread)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
+    return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, runInSameThread, null);
+  }
+
+    VirtualDatasetUI createNewUntitledMetadataOnly(FromBase from,
                                                 DatasetVersion version,
                                                 List<String> context) {
     final DatasetPath datasetPath = TMP_DATASET_PATH;
@@ -529,11 +557,12 @@ public class DatasetTool {
 
   InitialRunResponse newUntitledAndRun(FromBase from,
                                        DatasetVersion version,
-                                       List<String> context)
+                                       List<String> context,
+                                       String engineName)
     throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
 
     final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
-    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username());
+    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName);
 
     newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
     MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
@@ -557,6 +586,13 @@ public class DatasetTool {
       UserException uex = UserException.systemError(e).buildSilently();
       throw toInvalidQueryException(uex, query.getSql(), context);
     }
+  }
+
+  InitialRunResponse newUntitledAndRun(FromBase from,
+                                       DatasetVersion version,
+                                       List<String> context)
+    throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
+    return newUntitledAndRun(from, version, context, null);
   }
 
   private void applyQueryMetaToDatasetAndSave(JobInfo jobInfo, QueryMetadata queryMetadata,

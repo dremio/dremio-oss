@@ -15,8 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-import org.codehaus.jackson.annotate.JsonCreator;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**

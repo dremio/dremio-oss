@@ -27,7 +27,8 @@ export default class UserNavigation extends Component {
   };
 
   static propTypes = {
-    sections: PropTypes.arrayOf(PropTypes.object)
+    sections: PropTypes.arrayOf(PropTypes.object),
+    title: PropTypes.string
   };
 
   static getFlatMenuItemsList(sections) {
@@ -61,7 +62,7 @@ export default class UserNavigation extends Component {
   render() {
     return (
       <div className='left-menu' style={styles.leftMenu} data-qa='left-menu'>
-        <h3 style={styles.title}>{la('Admin')}</h3>
+        <h3 style={styles.title}>{this.props.title || la('Admin')}</h3>
         {/*<DocumentTitle title={this.getSelectedItem().name} />*/}
         <ul>
           {this.props.sections.map((section, sectionIndex) => (

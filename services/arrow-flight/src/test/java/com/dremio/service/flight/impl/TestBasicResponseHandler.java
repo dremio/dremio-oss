@@ -71,49 +71,4 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
       testFailed("Unexpected RpcException thrown.");
     }
   }
-
-  @Test
-  public void testIsCancelledTrue() throws Exception {
-    super.testIsCancelledTrue();
-  }
-
-  @Test
-  public void testIsCancelledFalse() {
-    super.testIsCancelledFalse();
-  }
-
-  @Test
-  public void testIsCancelledDuringWaitTrue() throws Exception {
-    super.testIsCancelledDuringWaitTrue();
-  }
-
-  @Test
-  public void testUserResultStateFailedWithNoException() {
-    super.testUserResultStateFailedWithNoException();
-  }
-
-  @Test
-  public void testUserResultStateFailedWithException() {
-    super.testUserResultStateFailedWithException();
-  }
-
-  @Test
-  public void testUserResultStateCancelledWithReason() {
-    super.testUserResultStateCancelledWithReason();
-  }
-
-  @Test
-  public void testUserResultStateCancelledWithNoException() {
-    super.testUserResultStateCancelledWithNoException();
-  }
-
-  @Test
-  public void testUserResultStateCancelledWithException() {
-    super.testUserResultStateCancelledWithException();
-  }
-
-  @Test
-  public void testUserResultStateCompleted() {
-    super.testUserResultStateCompleted();
-  }
 }

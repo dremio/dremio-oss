@@ -97,14 +97,12 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
         socketOpen: take(WS_CONNECTION_OPEN),
         stop: take(LOGOUT_USER_SUCCESS)
       });
-
       log('wait for socket open result:', raceResult);
       if (raceResult.stop) {
         // if a user is logged out before socket is opened, terminate current saga
         return;
       }
     }
-
     yield call([socket, socket.startListenToJobProgress],
       jobId,
       // force listen request to force a response from server.
@@ -113,6 +111,7 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
     );
     console.warn(`=+=+= socket listener registered for job id ${jobId}`);
 
+    call(explorePageChanged);
     const { jobDone } = yield race({
       jobProgress: call(watchUpdateHistoryOnJobProgress, datasetVersion, jobId),
       jobDone: take(getJobDoneActionFilter(jobId)),

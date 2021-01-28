@@ -19,23 +19,30 @@ import { get } from 'lodash';
 import { FormattedMessage, injectIntl } from 'react-intl';
 import Immutable from 'immutable';
 import moment from 'moment';
+
 import { formDescription } from 'uiTheme/radium/typography';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
 import metrics from '@app/metrics';
+
 import Modal from 'components/Modals/Modal';
 import Art from 'components/Art';
 import Spinner from 'components/Spinner';
+
 import { getEdition } from '@inject/utils/versionUtils';
 import timeUtils from 'utils/timeUtils';
+
 import TabsNavigationItem from '../../../../JobPage/components/JobDetails/TabsNavigationItem';
 import {clusterData} from './AboutModal.less';
+
 @injectIntl
 export default class AboutModal extends Component {
+
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
     intl: PropTypes.object.isRequired
   };
+
   constructor(props) {
     super(props);
     this.state = {
@@ -52,17 +59,21 @@ export default class AboutModal extends Component {
       }
     };
   }
+
   tabDetails =  Immutable.fromJS([
     {name: 'build', label: this.props.intl.formatMessage({ id: 'Common.BuildInfo'})},
     {name: 'metrics', label: this.props.intl.formatMessage({ id: 'Common.ClusterData'})}
   ])
+
   componentDidMount() {
     this.fetchInfo();
     this.getMetrics();
   }
+
   handleTabChange = (activeTab) => {
     this.setState({activeTab});
   };
+
   fetchInfo = () => {
     this.setState({
       inProgress: true
@@ -74,6 +85,7 @@ export default class AboutModal extends Component {
       });
     }, () => this.setState({ inProgress: false }));
   };
+
   getMetrics = () => {
     this.setState({
       metricsInProgress: true
@@ -118,6 +130,7 @@ export default class AboutModal extends Component {
       });
     });
   }
+
   renderTabs() {
     return (<div className='tabs-holder' style={styles.base}>
       {
@@ -129,19 +142,21 @@ export default class AboutModal extends Component {
             onClick={() => this.handleTabChange(item.get('name'))}>
             {item.get('label')}
           </TabsNavigationItem>
-        )
-        )
+        ))
       }
     </div>);
   }
+
   renderTabsContent = (activeTab) => {
     return activeTab === 'build' ? this.renderVersion() : this.renderCluterData();
   };
+
   renderVersion() {
     const {
       versionInfo,
       inProgress
     } = this.state;
+
     const buildTime = timeUtils.formatTime(
       versionInfo.buildTime,
       la(timeUtils.INVALID_DATE_MSG),
@@ -154,20 +169,27 @@ export default class AboutModal extends Component {
       window.navigator.locale,
       timeUtils.formats.ISO
     );
-    return inProgress ? <Spinner style={{top: 0}}/>  :
+
+    return inProgress ?
+      <Spinner style={{top: 0}}/> :
       <dl className='normalFontSize'>
-      <dt style={styles.dtStyle}><FormattedMessage id='App.Build'/></dt>
-      <dd>{versionInfo.version}</dd>
-      <dt style={styles.dtStyle}><FormattedMessage id='App.Edition'/></dt>
-      <dd>{getEdition()}</dd>
-      <dt style={styles.dtStyle}><FormattedMessage id='App.BuildTime'/></dt>
-      <dd>{buildTime}</dd>
-      <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeHash'/></dt>
-      <dd>{get(versionInfo, 'commit.hash')}</dd>
-      <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeTime'/></dt>
-      <dd>{commitTime}</dd>
-    </dl>;
+        <dt style={styles.dtStyle}><FormattedMessage id='App.Build'/></dt>
+        <dd>{versionInfo.version}</dd>
+
+        <dt style={styles.dtStyle}><FormattedMessage id='App.Edition'/></dt>
+        <dd>{getEdition()}</dd>
+
+        <dt style={styles.dtStyle}><FormattedMessage id='App.BuildTime'/></dt>
+        <dd>{buildTime}</dd>
+
+        <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeHash'/></dt>
+        <dd>{get(versionInfo, 'commit.hash')}</dd>
+
+        <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeTime'/></dt>
+        <dd>{commitTime}</dd>
+      </dl>;
   }
+
   getDates(format) {
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -175,8 +197,11 @@ export default class AboutModal extends Component {
     }
     return dates;
   }
+
   renderCluterData = () => {
+
     const {users, jobs, average, metricsInProgress} = this.state;
+
     return metricsInProgress ? <Spinner style={{top: 0}}/>  : (
       <table className={clusterData}>
         <thead>
@@ -205,15 +230,18 @@ export default class AboutModal extends Component {
       </table>
     );
   }
+
   render() {
     const { isOpen, hide, intl} = this.props;
     const { activeTab } = this.state;
+
     return (
       <Modal
         size='small'
         title={this.props.intl.formatMessage({id: 'App.AboutHeading'})}
         isOpen={isOpen}
-        hide={hide}>
+        hide={hide}
+      >
         <div style={styles.container}>
           <div style={styles.logoPane}>
             <Art className='dremioLogo' src='NarwhalLogo.svg' style={{width: 150}} alt={la('Dremio Narwhal')} />
@@ -237,6 +265,7 @@ export default class AboutModal extends Component {
     );
   }
 }
+
 const styles = {
   container: {
     display: 'flex',
@@ -250,12 +279,14 @@ const styles = {
     display: 'flex',
     flexDirection: 'column'
   },
+
   logoPane: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     display: 'flex'
   },
+
   dtStyle: {
     fontWeight: '500',
     marginTop: 15,

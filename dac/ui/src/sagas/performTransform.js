@@ -33,6 +33,7 @@ import { loadTableData, cancelDataLoad, loadDataset, focusSqlEditorSaga } from '
 import { transformHistoryCheck } from 'sagas/transformHistoryCheck';
 import { getExploreState, getExplorePageDataset } from 'selectors/explore';
 import { getExploreViewState } from 'selectors/resources';
+import { updateTransformData } from '@inject/actions/explore/dataset/updateLocation';
 
 import apiUtils from 'utils/apiUtils/apiUtils';
 import { needsTransform } from 'sagas/utils';
@@ -40,6 +41,7 @@ import { needsTransform } from 'sagas/utils';
 import {
   transformThenNavigate, TransformFailedError, TransformCanceledError, TransformCanceledByLocationChangeError
 } from './transformWatcher';
+
 
 export default function* watchPerformTransform() {
   yield all([
@@ -159,6 +161,7 @@ export function* getFetchDatasetMetaAction({
   transformData,
   forceDataLoad
 }) {
+
   const sql = currentSql || dataset.get('sql');
   invariant(!queryContext || queryContext instanceof Immutable.List, 'queryContext must be Immutable.List');
   const finalTransformData = yield call(getTransformData, dataset, sql, queryContext, transformData);
@@ -171,6 +174,8 @@ export function* getFetchDatasetMetaAction({
       apiAction = yield call(newUntitledSqlAndRun, sql, queryContext, viewId);
       navigateOptions = { changePathname: true }; //changePathname to navigate to newUntitled
     } else if (finalTransformData) {
+      updateTransformData(finalTransformData);
+
       // transform is requested. Transform and run.
       yield put(resetViewState(EXPLORE_TABLE_ID)); // Clear error from previous query run
       apiAction = yield call(transformAndRunDataset, dataset, finalTransformData, viewId);

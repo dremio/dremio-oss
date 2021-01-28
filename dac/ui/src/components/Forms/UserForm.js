@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import { FieldWithError, TextField, PasswordField } from 'components/Fields';
 import { applyValidators, isRequired, confirmPassword, isEmail } from 'utils/validation';
 import { formRow } from 'uiTheme/radium/forms';
-import {EDITION} from '@inject/constants/serverStatus';
+import {EDITION} from 'dyn-load/constants/serverStatus';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import * as VersionUtils from '@app/utils/versionUtils';
 

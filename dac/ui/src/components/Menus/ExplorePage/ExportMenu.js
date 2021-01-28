@@ -19,12 +19,13 @@ import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
 
 import { LIST, MAP, MIXED } from '@app/constants/DataTypes';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import { getExploreJobId, getExploreState } from '@app/selectors/explore';
 import { isSqlChanged } from '@app/sagas/utils';
 import { addNotification } from 'actions/notification';
 import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 import { APIV2Call } from '@app/core/APICall';
+import config from 'dyn-load/utils/config';
 import MenuItem from './MenuItem';
 import Menu from './Menu';
 
@@ -51,20 +52,35 @@ export class ExportMenu extends PureComponent {
     addNotification: PropTypes.func
   };
 
-  makeUrl = (type) => {
-    const {jobId} = this.props;
+  handleDatasetDownload = (type) => {
     const token = localStorageUtils.getAuthToken();
-
-    const apiCall = new APIV2Call()
-      .path('job')
-      .path(jobId)
-      .path('download')
+    const tempApiCall = new APIV2Call()
+      .path('temp-token')
       .params({
-        downloadFormat: type.name,
-        Authorization: token
+        'durationSeconds': 30,
+        'request': '/apiv2/job/' + this.props.jobId + '/download/?downloadFormat=' + type.name
       });
 
-    return apiCall.toString();
+    this.showNotification(type.label);
+    fetch(tempApiCall.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const apiCall = new APIV2Call()
+          .path('job')
+          .path(this.props.jobId)
+          .path('download')
+          .params({
+            'downloadFormat': type.name,
+            '.token': data.token ? data.token : ''
+          });
+        window.location.assign(apiCall.toString());
+      });
   };
 
   renderMenuItems() {
@@ -75,11 +91,10 @@ export class ExportMenu extends PureComponent {
 
     return TYPES.map(type => {
       const types = UNSUPPORTED_TYPE_COLUMNS[type.name];
-      const disabled = isSqlDirty || !jobId || (types && isTypesIntersected(types));
-      const href = this.makeUrl(type);
+      const disabled = (config.downloadRecordsLimit === 0) || isSqlDirty || !jobId || (types && isTypesIntersected(types));
       const itemTitle = intl.formatMessage({ id: 'Download.DownloadLimitValue' });
 
-      return <MenuItem key={type.name} href={href} disabled={disabled} title={itemTitle} onClick={this.showNotification.bind(this, type.label)}>{type.label}</MenuItem>;
+      return <MenuItem key={type.name} disabled={disabled} title={itemTitle} onClick={this.handleDatasetDownload.bind(this, type)}>{type.label}</MenuItem>;
     });
   }
 

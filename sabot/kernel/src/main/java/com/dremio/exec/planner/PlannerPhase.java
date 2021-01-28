@@ -73,10 +73,10 @@ import com.dremio.exec.expr.fn.hll.RewriteNdvAsHll;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.AggregateRule;
+import com.dremio.exec.planner.logical.CompositeFilterJoinRule;
 import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.CorrelateRule;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
-import com.dremio.exec.planner.logical.DremioJoinPushTransitivePredicatesRule;
 import com.dremio.exec.planner.logical.DremioProjectJoinTransposeRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.DremioSortMergeRule;
@@ -183,6 +183,15 @@ public enum PlannerPhase {
     }
   },
 
+  // fake for reporting purposes.
+  TRANSITIVE_PREDICATE_PULLUP("Transitive Predicate Pullup") {
+
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      throw new UnsupportedOperationException();
+    }
+  },
+
   FLATTEN_PUSHDOWN("Flatten Function Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
@@ -198,6 +207,15 @@ public enum PlannerPhase {
     }
   },
 
+  PROJECT_PUSHDOWN("Project Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(
+        PushProjectIntoScanRule.INSTANCE
+      );
+    }
+  },
+
   PRE_LOGICAL("Pre-Logical Filter Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
@@ -207,14 +225,7 @@ public enum PlannerPhase {
         ConvertCountDistinctToHll.INSTANCE,
         RewriteNdvAsHll.INSTANCE,
 
-        PushProjectIntoScanRule.INSTANCE,
         PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
-
-        // Add support for WHERE style joins.
-        FILTER_INTO_JOIN_CALCITE_RULE,
-        JOIN_CONDITION_PUSH_CALCITE_RULE,
-        JOIN_PUSH_EXPRESSIONS_RULE,
-        // End support for WHERE style joins.
 
         JoinFilterCanonicalizationRule.INSTANCE,
 
@@ -237,15 +248,39 @@ public enum PlannerPhase {
       }
 
       if (ps.isTransitiveFilterPushdownEnabled()) {
-        b.add(
-          // Add a new instance of DremioJoinPushTransitivePredicatesRule since it keeps
-          // a cache of pushed down filters per query.
-          new DremioJoinPushTransitivePredicatesRule());
         // Add reduce expression rules to reduce any filters after applying transitive rule.
-        b.addAll(REDUCE_EXPRESSIONS.getRules(context));
+        if (ps.options.getOption(PlannerSettings.REDUCE_ALGEBRAIC_EXPRESSIONS)) {
+          b.add(ReduceTrigFunctionsRule.INSTANCE);
+        }
+
+        b.add(CompositeFilterJoinRule.NO_TOP_FILTER,
+          CompositeFilterJoinRule.TOP_FILTER);
+
+        if (ps.isConstantFoldingEnabled()) {
+          if (ps.isTransitiveReduceProjectExpressionsEnabled()) {
+            b.add(PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE);
+          }
+          if (ps.isTransitiveReduceFilterExpressionsEnabled()) {
+            b.add(FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE);
+          }
+          if (ps.isTransitiveReduceCalcExpressionsEnabled()) {
+            b.add(CALC_REDUCE_EXPRESSIONS_CALCITE_RULE);
+          }
+        }
+      } else {
+        b.add(FILTER_INTO_JOIN_CALCITE_RULE,
+          JOIN_CONDITION_PUSH_CALCITE_RULE,
+          JOIN_PUSH_EXPRESSIONS_RULE);
       }
 
       return RuleSets.ofList(b.build());
+    }
+  },
+
+  PRE_LOGICAL_TRANSITIVE("Pre-Logical Transitive Filter Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(PRE_LOGICAL.getRules(context));
     }
   },
 

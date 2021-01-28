@@ -21,6 +21,7 @@ import java.util.List;
 
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.service.namespace.file.proto.AvroFileConfig;
+import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -58,6 +59,7 @@ import io.protostuff.Schema;
   @Type(value = IcebergFileConfig.class, name = "Iceberg"),
   @Type(value = ExcelFileConfig.class, name = "Excel"),
   @Type(value = XlsFileConfig.class, name = "XLS"),
+  @Type(value = DeltalakeFileConfig.class, name = "Delta"),
   @Type(value = UnknownFileConfig.class, name = "Unknown")
 })
 public abstract class FileFormat {
@@ -74,6 +76,7 @@ public abstract class FileFormat {
     .put("avro", FileType.AVRO)
     .put("parquet", FileType.PARQUET)
     .put("iceberg", FileType.ICEBERG)
+    .put("delta", FileType.DELTA)
     .put("xlsx", FileType.EXCEL)
     .put("xls", FileType.XLS)
     .put("unknown", FileType.UNKNOWN)
@@ -135,6 +138,9 @@ public abstract class FileFormat {
 
       case AVRO:
         return "type => 'avro'";
+
+      case DELTA:
+        return "type => 'delta'";
 
       case HTTP_LOG:
       case UNKNOWN:

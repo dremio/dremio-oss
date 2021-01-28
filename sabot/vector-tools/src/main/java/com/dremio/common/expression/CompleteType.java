@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.arrow.flatbuf.Schema;
 import org.apache.arrow.vector.BigIntVector;
@@ -107,9 +108,10 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.types.SchemaUpPromotionRules;
+import com.dremio.common.types.TypeCoercionRules;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.UpPromotionRules;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.common.util.ObjectType;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -699,7 +701,7 @@ public class CompleteType {
     return mergedList;
   }
 
-  public static List<Field> mergeWithUpPromotion(List<Field> tableFields, List<Field> fileFields) {
+  public static List<Field> mergeFieldListsWithUpPromotionOrCoercion(List<Field> tableFields, List<Field> fileFields) {
     Map<String,Field> secondFieldMap = new LinkedHashMap<>();
     List<Field> mergedList = new ArrayList<>();
     for (Field field : fileFields) {
@@ -709,7 +711,7 @@ public class CompleteType {
     for (Field tableSchemaField : tableFields) {
       Field matchingField = secondFieldMap.remove(tableSchemaField.getName().toLowerCase());
       if (matchingField != null) {
-        mergedList.add(fromField(tableSchemaField).mergeWithUpPromotion(fromField(matchingField)).toField(tableSchemaField.getName()));
+        mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField)).toField(tableSchemaField.getName()));
       } else {
         mergedList.add(tableSchemaField);
       }
@@ -781,24 +783,45 @@ public class CompleteType {
 
   /**
    * Merges a file {@code CompleteType} with the current table {@code CompleteType} by following a set of
-   * up-promotion rules defined under {@link UpPromotionRules}. This method should be used instead of
-   * {@link #merge(CompleteType)} when Union types are not desirable.
+   * schema up-promotion and type coercion rules. This method should be used instead of {@link #merge(CompleteType)}
+   * when Union types are not desirable.
    *
    * @param fileType the {@code CompleteType} of the file
    * @return the merged {@code CompleteType} after up promotion
    * @throws UnsupportedOperationException if the merge could not be done due to incompatible types
    */
-  public CompleteType mergeWithUpPromotion(CompleteType fileType) throws UnsupportedOperationException {
+  public CompleteType mergeFieldListsWithUpPromotionOrCoercion(CompleteType fileType) throws UnsupportedOperationException {
     CompleteType tableType = this;
     if (tableType.getType().equals(fileType.getType())) {
-      // Fall back to the normal merge if schemas are of the same type
-      return merge(fileType, false);
+      if (tableType.isScalar()) {
+        return tableType;
+      }
+
+      if (tableType.isList()) {
+        CompleteType tableTypeChild = fromField(tableType.getOnlyChild());
+        CompleteType fileTypeChild = fromField(fileType.getOnlyChild());
+        return new CompleteType(tableType.getType(), tableTypeChild.mergeFieldListsWithUpPromotionOrCoercion(fileTypeChild).toInternalList());
+      }
+
+      if (tableType.isStruct()) {
+        return new CompleteType(tableType.getType(), mergeFieldListsWithUpPromotionOrCoercion(tableType.getChildren(), fileType.getChildren()));
+      }
+
+      throw new IllegalStateException("Unsupported type: " + tableType);
     }
 
-    return UpPromotionRules
-        .getResultantType(fileType, tableType)
-        .orElseThrow(() -> new UnsupportedOperationException("Up promotion not supported from file type: "
-            + fileType.getType() + " to table type: " + tableType.getType()));
+    Optional<CompleteType> tableSchemaUpPromotion = SchemaUpPromotionRules.getResultantType(fileType, tableType);
+    if (tableSchemaUpPromotion.isPresent()) {
+      return tableSchemaUpPromotion.get();
+    }
+
+    Optional<CompleteType> typeCoercion = TypeCoercionRules.getResultantType(fileType, tableType);
+    if (typeCoercion.isPresent()) {
+      return typeCoercion.get();
+    }
+
+    throw new UnsupportedOperationException(String.format(
+      "No up-promotion or coercion supported from file type: %s to table type: %s", fileType.getType(), tableType.getType()));
   }
 
   // TODO : Move following to Output Derivation as part of DX-16966

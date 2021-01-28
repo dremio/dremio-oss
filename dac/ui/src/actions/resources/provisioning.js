@@ -152,7 +152,6 @@ function fetchCreateProvision(form, viewId) {
   };
 }
 
-
 export function createProvision(form, viewId) {
   return (dispatch) => {
     return dispatch(fetchCreateProvision(form, viewId));
@@ -230,3 +229,6 @@ export function openAdjustWorkersModal(entityId) {
     }));
   };
 }
+
+export const extraProvisingPageMapDispatchToProps = {};
+

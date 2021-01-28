@@ -16,7 +16,7 @@
 import { call, put, race, select, take, takeEvery } from 'redux-saga/effects';
 import qsocks from 'qsocks';
 
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 
 import * as Actions from 'actions/explore/download';
 import * as QlikActions from 'actions/qlik';

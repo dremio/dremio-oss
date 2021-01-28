@@ -13,20 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, put, select, takeLatest } from 'redux-saga/effects';
-import { replace } from 'react-router-redux';
-import { getLocation } from '@app/selectors/routing';
+import { call, takeLatest } from 'redux-saga/effects';
 import {
   afterLogin, handleLogin, handleAppInit,
-  LOGIN_PATH, SIGNUP_PATH, checkAppState,
-  isAuthorized, resetAppInitState, handleAppStop
+  checkAppState, resetAppInitState, handleAppStop
 } from '@app/sagas/loginLogout';
 import { LOGIN_USER_SUCCESS } from '@app/actions/account';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import intercomUtils from '@app/utils/intercomUtils';
-import socket from '@app/utils/socket';
 import { expect } from 'chai';
-
+import { default as handleAppInitHelper } from '@inject/sagas/utils/handleAppInit';
+import { isAuthorized } from '@inject/sagas/utils/isAuthorized';
 
 describe('login', () => {
   it('afterLogin calls handleLogin saga if LOGIN_USER_SUCCESS is dispatched', () => {
@@ -54,44 +50,12 @@ describe('login', () => {
 
     const testBoot = () => {
       gen = handleAppInit();
-      expect(gen.next().value).to.be.eql(call([intercomUtils, intercomUtils.boot]));
-      expect(gen.next().value).to.be.eql(call([socket, socket.open]));
-      expect(gen.next().value).to.be.eql(select(getLocation));
-    };
-
-    const testRedirect = (fromUrl) => {
-      const redirectUrl = 'some/url';
-      expect(gen.next({
-        pathname: fromUrl,
-        query: { redirect: redirectUrl }
-      }).value).to.be.eql(put(replace(redirectUrl)));
-
+      expect(gen.next().value).to.be.eql(call(handleAppInitHelper));
       expect(gen.next().done).to.be.true;
-
     };
-
-    it('redirects from login page', () => {
-      testBoot();
-      testRedirect(LOGIN_PATH);
-    });
-
-    it('redirects from sign up page', () => {
-      testBoot();
-      testRedirect(SIGNUP_PATH);
-    });
-
-    it('does not redirect form other pages', () => {
-      testBoot();
-      const redirectUrl = 'some/url';
-      expect(gen.next({
-        pathname: '/home',
-        query: { redirect: redirectUrl }
-      }).done).to.be.true;
-    });
 
     it('has effect only once until handleAppStop is called', () => {
       testBoot();
-      testRedirect(LOGIN_PATH);
       // call app init several times. Saga should be completed immediately
       expect(handleAppInit().next().done).to.be.true;
       expect(handleAppInit().next().done).to.be.true;
@@ -101,7 +65,6 @@ describe('login', () => {
       }
       // standard flow should be enabled
       testBoot();
-      testRedirect(LOGIN_PATH);
     });
   });
 

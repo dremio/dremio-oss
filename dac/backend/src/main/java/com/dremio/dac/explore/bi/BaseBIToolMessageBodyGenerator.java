@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.explore.bi;
 
+import static com.dremio.dac.explore.bi.BIToolsConstants.EXPORT_HOSTNAME;
 import static java.lang.String.format;
 
 import java.lang.annotation.Annotation;
@@ -27,9 +28,11 @@ import javax.ws.rs.ext.MessageBodyWriter;
 
 import com.dremio.dac.server.WebServer;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 
 /**
  * A base class for generating responses to load datasets in BI tools.
@@ -37,10 +40,12 @@ import com.google.common.base.MoreObjects;
 abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<DatasetConfig> {
   private final CoordinationProtos.NodeEndpoint endpoint;
   private final String masterNode;
+  private final OptionManager optionManager;
 
-  protected BaseBIToolMessageBodyGenerator(CoordinationProtos.NodeEndpoint endpoint) {
+  protected BaseBIToolMessageBodyGenerator(CoordinationProtos.NodeEndpoint endpoint, OptionManager optionManager) {
     this.endpoint = endpoint;
     this.masterNode = MoreObjects.firstNonNull(endpoint.getAddress(), "localhost");
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -63,10 +68,23 @@ abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<Datas
    * @return The hostname.
    */
   protected String getHostname(MultivaluedMap<String, Object> httpHeaders) {
+    final String hostnameOverride = optionManager.getOption(EXPORT_HOSTNAME);
+    if (!Strings.isNullOrEmpty(hostnameOverride)) {
+      return hostnameOverride;
+    }
+
     if (httpHeaders.containsKey(WebServer.X_DREMIO_HOSTNAME)) {
       return (String) httpHeaders.getFirst(WebServer.X_DREMIO_HOSTNAME);
     }
     return masterNode;
+  }
+
+  /**
+   * Getter method to retrieve OptionManager.
+   * @return the OptionManager of this instance.
+   */
+  protected OptionManager getOptionManager() {
+    return this.optionManager;
   }
 
   /**

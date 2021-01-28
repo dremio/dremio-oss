@@ -66,6 +66,7 @@ export default { // defaults, and defaults for unit tests
   crossSourceDisabled: false,
   queryBundleAdminsEnabled: false,
   queryBundleUsersEnabled: false,
+  downloadRecordsLimit: 1000000,
   ...((window && window.dremioConfig) || {}),
   displayTutorialsLink: false
 };

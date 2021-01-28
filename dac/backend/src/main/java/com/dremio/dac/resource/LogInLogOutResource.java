@@ -150,7 +150,7 @@ public class LogInLogOutResource {
 
   @DELETE
   public void logout(@HeaderParam(HttpHeaders.AUTHORIZATION) String authHeader) {
-    tokenManager.invalidateToken(TokenUtils.getTokenFromAuthHeader(authHeader));
+    tokenManager.invalidateToken(TokenUtils.getToken(authHeader));
   }
 
   @GET

@@ -23,10 +23,10 @@ import Immutable from 'immutable';
 
 import sentryUtil from 'utils/sentryUtil';
 import startup from 'dyn-load/startup';
+import setupMetrics from '@inject/setupMetrics';
 
 import './vendor/chat';
 import './vendor/gtm';
-import metrics from './metrics';
 import 'imports-loader?this=>window!script-loader!jsplumb/dist/js/jsPlumb-2.1.4-min.js';
 import './main.less';
 // add css here to be sure that its content will appear after compiled main.less content.
@@ -47,7 +47,7 @@ window.React = React;
 window.$ = $;
 window.Immutable = Immutable;
 
-window.DremioMetrics = metrics;
+setupMetrics();
 
 window.la = (key) => {
   // (config.environment !== 'PRODUCTION') && console.warn('using unsupported localization function for:', key);

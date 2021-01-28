@@ -68,6 +68,9 @@ export class JobPage extends Component {
 
   componentDidMount() {
     this.receiveProps(this.props);
+    if (this.props.clusterType === 'NA') {
+      this.handleCluster();
+    }
   }
 
   componentWillReceiveProps(nextProps) {
@@ -94,9 +97,8 @@ export class JobPage extends Component {
   }
 
   render() {
-    const { jobId, jobs, queryState, viewState, style, location, intl, clusterType } = this.props;
+    const { jobId, jobs, queryState, viewState, style, location, intl } = this.props;
     const runningJobsCount = jobsUtils.getNumberOfRunningJobs(jobs);
-    clusterType === 'NA' ? this.handleCluster() : '';
 
     return (
       <div style={style}>

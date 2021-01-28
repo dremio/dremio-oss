@@ -23,9 +23,20 @@ import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
+import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 public interface RecordReader extends AutoCloseable {
+  String SPLIT_INFORMATION = "splits";
+  BatchSchema SPLIT_GEN_SCAN_SCHEMA = BatchSchema.newBuilder()
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType(SPLIT_INFORMATION, Types.optional(MinorType.VARBINARY)))
+    .setSelectionVectorMode(SelectionVectorMode.NONE)
+    .build();
+
   /**
    * Configure the RecordReader with the provided schema and the record batch that should be written to.
    * @param output

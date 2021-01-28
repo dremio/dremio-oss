@@ -39,6 +39,7 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -50,6 +51,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
@@ -62,6 +64,7 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -71,6 +74,8 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
@@ -86,6 +91,7 @@ public class TestPluginsManager {
   private PluginsManager plugins;
   private SabotContext sabotContext;
   private SchedulerService schedulerService;
+  private ModifiableSchedulerService modifiableSchedulerService;
 
   @Before
   public void setup() throws Exception {
@@ -142,9 +148,14 @@ public class TestPluginsManager {
     mockScheduleInvocation();
     final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
     doNothing().when(broadcaster).communicateChange(any());
+
+    PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
+    modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
+      option, optionManager);
+
     plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, dremioConfig,
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT, () -> broadcaster,null);
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT, () -> broadcaster,null, modifiableSchedulerService);
     plugins.start();
   }
 
@@ -157,6 +168,8 @@ public class TestPluginsManager {
     if (storeProvider != null) {
       storeProvider.close();
     }
+
+    AutoCloseables.close(modifiableSchedulerService);
   }
 
   private void mockScheduleInvocation() {

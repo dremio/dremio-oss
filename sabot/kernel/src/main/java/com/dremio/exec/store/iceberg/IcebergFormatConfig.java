@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.util.List;
 import java.util.Objects;
 
 import com.dremio.common.logical.FormatPluginConfig;
@@ -23,9 +24,13 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.IcebergMetaStoreType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableList;
 
 @JsonTypeName("iceberg") @JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public class IcebergFormatConfig implements FormatPluginConfig {
+  public String outputExtension = "avro";
+  private static final List<String> DEFAULT_EXTS = ImmutableList.of("avro");
+
   private IcebergMetaStoreType metaStoreType = IcebergMetaStoreType.HDFS;
   private FileType dataFormatType = FileType.PARQUET;
   private FormatPluginConfig dataFormatConfig = new ParquetFormatConfig();
@@ -84,5 +89,10 @@ public class IcebergFormatConfig implements FormatPluginConfig {
       " metaStoreType " + metaStoreType +
       "(" + dataFormatConfig.toString() + ")" +
       "]";
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+  public List<String> getExtensions() {
+    return DEFAULT_EXTS;
   }
 }

@@ -22,6 +22,7 @@ import { getLocation } from 'selectors/routing';
 
 import Menu from 'components/Menus/Menu';
 import MenuItemLink from 'components/Menus/MenuItemLink';
+import AdditionalHelpMenu from '@inject/components/AdditionalHelpMenu';
 
 @injectIntl
 export class HelpMenu extends Component {
@@ -41,6 +42,7 @@ export class HelpMenu extends Component {
         text={intl.formatMessage({ id: 'HeaderMenu.CommunitySite' })} />
       <MenuItemLink href={{...location, state: {modal: 'AboutModal'}}} closeMenu={closeMenu}
         text={intl.formatMessage({ id: 'App.AboutHeading' })} />
+      {AdditionalHelpMenu && <AdditionalHelpMenu closeMenu={closeMenu}/>}
     </Menu>;
   }
 }

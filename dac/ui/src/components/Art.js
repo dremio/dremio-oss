@@ -16,7 +16,7 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 
-import allBitmaps from '@app/art/bitmap.pattern';
+import { allBitmaps } from 'dyn-load/components/bitmapLoader';
 
 import SVG from './SVG';
 
@@ -41,7 +41,6 @@ export default class Art extends PureComponent {
     let {src, alt, title, ...props} = this.props;
 
     const bitmapURL = allBitmaps[`./${src}`];
-
     if (title === true) {
       title = alt;
     }

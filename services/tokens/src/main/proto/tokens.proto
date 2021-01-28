@@ -30,4 +30,12 @@ message SessionState {
   optional int64 issuedAt = 3;
   // time when the token will expire
   optional int64 expiresAt = 4;
+  // designated REST API url components
+  optional string path = 5;
+  repeated QueryParam query_params = 6;
+}
+
+message QueryParam {
+  required string key = 1;
+  repeated string values = 2;
 }

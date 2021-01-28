@@ -16,6 +16,7 @@
 import Immutable  from 'immutable';
 
 import { SET_CURRENT_SQL, RESET_NEW_QUERY, SET_QUERY_CONTEXT, FOCUS_EDITOR,
+  SET_CURRENT_ENGINE, SET_DEFAULT_ENGINE,
   datasetMetadataActions } from 'actions/explore/view';
 import { RUN_TABLE_TRANSFORM_SUCCESS } from 'actions/explore/dataset/common';
 import { LOAD_EXPLORE_ENTITIES_SUCCESS } from 'actions/explore/dataset/get';
@@ -69,11 +70,32 @@ const sqlEditorFocusKey = (state = 0, { type }) => {
   }
 };
 
+const currentEngine = (state = null, {type, engine}) => {
+  switch (type) {
+  case SET_CURRENT_ENGINE: {
+    return engine;
+  }
+  default:
+    return state;
+  }
+};
+
+const defaultEngine = (state = null, {type, engine}) => {
+  switch (type) {
+  case SET_DEFAULT_ENGINE:
+    return engine;
+  default:
+    return state;
+  }
+};
+
 export default combineReducers({
   queryContext,
   currentSql,
   isPreviewMode,
   sqlEditorFocusKey,
+  currentEngine,
+  defaultEngine,
   // DX-14650 as of now this filed is used to indicate whether or not disable headers in the table
   // on explore page. Metadata here includes sql, query context, table columns, history. Data is not
   // included.

@@ -28,7 +28,7 @@ export default function(input) {
       return null;
     },
 
-    renderButtons(onEdit, isReadOnly) {
+    renderButtons(styles, isReadOnly) {
       return (
         <Button
           style={styles.edit}
@@ -41,10 +41,3 @@ export default function(input) {
     }
   });
 }
-
-const styles = {
-  edit: {
-    width: 100,
-    marginTop: 5
-  }
-};

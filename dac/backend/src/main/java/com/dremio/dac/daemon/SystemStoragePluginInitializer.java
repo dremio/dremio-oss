@@ -42,6 +42,7 @@ import com.dremio.service.BindingProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.Initializer;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ProjectConfig;
 import com.dremio.service.coordinator.TaskLeaderElection;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -113,12 +114,13 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final CatalogService catalogService = provider.lookup(CatalogService.class);
     final NamespaceService ns = provider.lookup(SabotContext.class).getNamespaceService(SYSTEM_USERNAME);
     final DeferredException deferred = new DeferredException();
+    final ProjectConfig projectConfig = provider.lookup(ProjectConfig.class);
 
     final Path supportPath = Paths.get(sabotContext.getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
     final Path logPath = Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
 
     final URI homePath = config.getURI(DremioConfig.UPLOADS_PATH_STRING);
-    final URI accelerationPath = config.getURI(DremioConfig.ACCELERATOR_PATH_STRING);
+    final ProjectConfig.DistPathConfig accelerationPathConfig = projectConfig.getAcceleratorConfig();
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     final URI scratchPath = config.getURI(DremioConfig.SCRATCH_PATH_STRING);
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
@@ -140,14 +142,16 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
 
     boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
-    final boolean enableS3FileStatusCheck = FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme().equals(accelerationPath.getScheme()) ?
+    final boolean enableS3FileStatusCheck =
+      FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme().equals(accelerationPathConfig.getUri().getScheme()) ?
       enable(config, DremioConfig.DEBUG_DIST_S3_FILE_STATUS_CHECK) : true;
-    if (FileSystemConf.isCloudFileSystemScheme(accelerationPath.getScheme())) {
+    if (FileSystemConf.isCloudFileSystemScheme(accelerationPathConfig.getUri().getScheme())) {
       enableCachingForAcceleration = sabotContext.getOptionManager().getOption(CLOUD_CACHING_ENABLED) ;
     }
     createSafe(catalogService, ns,
-        AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration,
-            enableCachingForAcceleration, maxCacheSpacePercent, enableS3FileStatusCheck), deferred);
+        AccelerationStoragePluginConfig.create(accelerationPathConfig.getUri(), enableAsyncForAcceleration,
+            enableCachingForAcceleration, maxCacheSpacePercent, enableS3FileStatusCheck, accelerationPathConfig.getAwsKeys().getAccessKey(),
+          accelerationPathConfig.getAwsKeys().getSecretKey()), deferred);
 
     final boolean enableAsyncForJobs = enable(config, DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
     createSafe(catalogService, ns,

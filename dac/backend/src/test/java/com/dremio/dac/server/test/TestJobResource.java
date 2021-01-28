@@ -31,6 +31,7 @@ import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.dac.annotations.RestResourceUsedForTesting;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.server.BufferAllocatorFactory;
@@ -71,11 +72,24 @@ public class TestJobResource extends JobResource {
   @GET
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
+  @TemporaryAccess
   public Response download(
     @PathParam("jobId") JobId previewJobId,
     @QueryParam("downloadFormat") DownloadFormat downloadFormat
   ) throws JobResourceNotFoundException, JobNotFoundException {
     return doDownload(previewJobId, downloadFormat);
+  }
+
+  /**
+   * No-op method for testing non temporary access method
+   *
+   * @return ok
+   */
+  @GET
+  @Path("test")
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Response testNonTemporaryAccessMethod() {
+    return Response.ok().build();
   }
 
   @Override

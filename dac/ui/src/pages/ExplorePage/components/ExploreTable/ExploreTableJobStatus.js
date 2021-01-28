@@ -28,6 +28,7 @@ import jobsUtils from '@app/utils/jobsUtils';
 import {getJobProgress, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
 import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
 import TooltipEnabledLabel from '@app/components/TooltipEnabledLabel';
+import ExploreTableJobStatusMixin from 'dyn-load/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusMixin';
 
 export const JOB_STATUS = {
   notSubmitted: 'NOT_SUBMITTED',
@@ -61,6 +62,7 @@ export const isWorking = (status) => {
 };
 
 @injectIntl
+@ExploreTableJobStatusMixin
 export class ExploreTableJobStatus extends Component {
   static propTypes = {
     approximate: PropTypes.bool,
@@ -197,6 +199,7 @@ export class ExploreTableJobStatus extends Component {
         <span style={styles.timeValue}>
           {this.renderTime(jobProgress)}
         </span>
+        {this.renderExtraStatus()}
       </div>
     );
   }
@@ -245,7 +248,7 @@ const styles = {
     alignItems: 'center'
   },
   timeValue: {
-    minWidth: 30
+    minWidth: 10
   },
   divider: {
     display: 'inline-box',

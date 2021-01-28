@@ -85,6 +85,13 @@ public class HiveSchemaConverter {
     return true;
   }
 
+  private static boolean supportsDroppingSubFields(InputFormat<?,?> format) {
+    if (MapredParquetInputFormat.class.isAssignableFrom(format.getClass())) {
+      return true;
+    }
+    return false;
+  }
+
   public static Field getArrowFieldFromHiveType(String name, TypeInfo typeInfo, InputFormat<?, ?> format, boolean includeParquetComplexTypes) {
     if (isTypeNotSupported(format, typeInfo.getCategory(), includeParquetComplexTypes)) {
       return null;
@@ -112,9 +119,16 @@ public class HiveSchemaConverter {
           Field f = HiveSchemaConverter.getArrowFieldFromHiveType(fieldName,
             fieldTypeInfo, format, includeParquetComplexTypes);
           if (f == null) {
-            return null;
+            if (supportsDroppingSubFields(format)) {
+              continue;
+            } else {
+              return null;
+            }
           }
           structFields.add(f);
+        }
+        if (structFields.isEmpty()) {
+          return null;
         }
         return new Field(name, true, Types.MinorType.STRUCT.getType(),
           structFields);

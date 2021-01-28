@@ -30,6 +30,7 @@ import com.dremio.dac.explore.join.JoinRecommender;
 import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.server.tokens.TokenInfo;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
@@ -100,6 +101,7 @@ public class DremioBinder extends AbstractBinder {
     bindFactory(OptionManagerFactory.class).to(OptionManager.class);
     bind(JobsBasedRecommender.class).to(JoinRecommender.class);
     bind(DACSecurityContext.class).in(RequestScoped.class).to(SecurityContext.class);
+    bindFactory(TokenInfo.Factory.class).proxy(true).in(RequestScoped.class).to(TokenInfo.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(Catalog.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(EntityExplorer.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(DatasetCatalog.class);

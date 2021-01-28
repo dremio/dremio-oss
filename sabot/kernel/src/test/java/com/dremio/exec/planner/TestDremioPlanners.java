@@ -120,7 +120,7 @@ public class TestDremioPlanners {
 
     HepProgramBuilder builder = new HepProgramBuilder();
     builder.addRuleInstance(new LoopRule());
-    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL);
+    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL, new MatchCountListener(0, 0, 0));
 
     checkCancelFlag(planner);
   }

@@ -51,7 +51,6 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.exec.store.RecordReader;
@@ -65,6 +64,7 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveAsyncStreamConf;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.exec.store.parquet.OutputMutatorHelper;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
@@ -74,7 +74,6 @@ import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
-import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.exec.util.BatchSchemaField;
@@ -332,25 +331,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
         .limitListItems(true)
         .build();
 
-      final Set<String> columnsToReadSet = columnsToRead.stream()
-        .map(col -> col.getRootSegment()
-          .getNameSegment()
-          .getPath()
-          .toLowerCase())
-        .collect(Collectors.toSet());
-      footer.getFileMetaData()
-        .getSchema()
-        .getFields()
-        .stream()
-        .filter(field -> columnsToReadSet.contains(field.getName()
-          .toLowerCase()))
-        .map(field -> ParquetTypeHelper.toField(field, schemaHelper))
-        .filter(Optional::isPresent)
-        .map(Optional::get)
-        .forEach(field -> output.addField(field, TypeHelper.getValueVectorClass(field)));
+      OutputMutatorHelper.addFooterFieldsToOutputMutator(output, schemaHelper, footer, columnsToRead);
 
-      ((SampleMutator) output).getContainer().buildSchema();
-      output.getAndResetSchemaChanged();
       checkFieldTypesCompatibleWithHiveTable(output, tableSchema);
       oContext.getStats()
         .addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
@@ -395,7 +377,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       }
 
-      innerReadersIter = new PrefetchingIterator<>(oContext, readerConfig, innerReaderCreators);
+      innerReadersIter = new PrefetchingIterator<>(oContext, readerConfig, innerReaderCreators, 1);
 
       currentReader = innerReadersIter.hasNext() ? innerReadersIter.next() : null;
     } catch (IOException e) {
@@ -605,7 +587,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead),
             null,
             conditions,
-            readerFactory.newFilterCreator(ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()),
+            readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()),
             readerFactory.newDictionaryConvertor(ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema),
             splitXAttr,
             fs,

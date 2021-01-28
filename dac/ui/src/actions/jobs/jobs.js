@@ -22,7 +22,7 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import jobDetailsSchema from 'schemas/jobDetails';
 import { renderQueryState, renderQueryStateForServer } from 'utils/jobsQueryState';
 import { addNotification } from 'actions/notification';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import { APIV2Call } from '@app/core/APICall';
 
 export const UPDATE_JOB_DETAILS = 'UPDATE_JOB_DETAILS';
@@ -323,17 +323,32 @@ export function askGnarly(jobId) {
 
 export function showJobProfile(profileUrl) {
   return (dispatch, getState) => {
-    const apiCall = new APIV2Call()
-      .fullpath(profileUrl)
-      .param('Authorization', localStorageUtils.getAuthToken());
-
-    const location = getState().routing.locationBeforeTransitions;
-    return dispatch(
-      push({...location, state: {
-        modal: 'JobProfileModal',
-        profileUrl: apiCall.toString()
-      }})
-    );
+    const tempApiCall = new APIV2Call()
+      .path('temp-token')
+      .params({
+        'durationSeconds': 30,
+        'request': '/apiv2' + profileUrl
+      });
+    fetch(tempApiCall.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': localStorageUtils.getAuthToken()
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const apiCall = new APIV2Call()
+          .fullpath(profileUrl)
+          .param('.token', data.token ? data.token : '' );
+        const location = getState().routing.locationBeforeTransitions;
+        return dispatch(
+          push({...location, state: {
+            modal: 'JobProfileModal',
+            profileUrl: apiCall.toString()
+          }})
+        );
+      });
   };
 }
 

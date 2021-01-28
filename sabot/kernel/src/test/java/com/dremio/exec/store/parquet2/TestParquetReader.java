@@ -291,10 +291,14 @@ public class TestParquetReader extends BaseTestQuery {
         .forEach(p -> {
         });
       runSQL("alter table dfs.\"" + parquetFiles + "\" refresh metadata force update");  // so it detects second parquet
+      setEnableReAttempts(true);
+      runSQL("select * from dfs.\"" + parquetFiles + "\""); // need to run select * from pds to get correct schema update. Check DX-25496 for details.
       return parquetFiles;
     } catch (Exception e) {
       delete(Paths.get(parquetFiles));
       throw e;
+    } finally {
+      setEnableReAttempts(false);
     }
   }
 

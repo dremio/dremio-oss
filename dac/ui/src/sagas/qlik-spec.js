@@ -20,7 +20,7 @@ import { API_URL_V2 } from '@app/constants/Api';
 import * as Actions from 'actions/explore/download';
 import { SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
 import * as QlikActions from 'actions/qlik';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 
 
 import {

@@ -28,7 +28,7 @@ import { addNotification } from 'actions/notification';
 
 import { getViewState } from 'selectors/resources';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import APICall from '@app/core/APICall';
+import APICall, {APIV2Call} from '@app/core/APICall';
 
 import jobsUtils from 'utils/jobsUtils';
 import config from 'dyn-load/utils/config';
@@ -81,22 +81,34 @@ export class HelpSection extends PureComponent {
     this.props.addNotification(message, 'success', 3);
   }
 
-  makeURL = () => {
+  handleQueryDownload = () => {
     const token = localStorageUtils.getAuthToken();
-    const apiCall = new APICall()
-      .path('support-bundle')
-      .path(this.props.jobId)
-      .path('download')
+    const tempApiCall = new APIV2Call()
+      .path('temp-token')
       .params({
-        Authorization: token
+        'durationSeconds': 30,
+        'request': '/api/v3/support-bundle/' + this.props.jobId + '/download/'
       });
 
-    return apiCall.toString();
-  }
-
-  handleQueryDownload = () => {
     this.showNotification();
-    window.location.assign(this.makeURL());
+    fetch(tempApiCall.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const apiCall = new APICall()
+          .path('support-bundle')
+          .path(this.props.jobId)
+          .path('download')
+          .params({
+            '.token': data.token ? data.token : ''
+          });
+        window.location.assign(apiCall.toString());
+      });
   };
 
   handleEmail = () => {

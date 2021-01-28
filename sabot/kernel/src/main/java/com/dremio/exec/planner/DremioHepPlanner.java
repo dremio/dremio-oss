@@ -51,17 +51,20 @@ public class DremioHepPlanner extends HepPlanner {
   private final CancelFlag cancelFlag;
   private final PlannerPhase phase;
   private final MaxNodesListener listener;
+  private final MatchCountListener matchCountListener;
   private final ExecutionControls executionControls;
   private final PlannerSettings plannerSettings;
 
-  public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase) {
+  public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase, MatchCountListener matchCountListener) {
     super(program, context, false, null, costFactory);
     plannerSettings = context.unwrap(PlannerSettings.class);
     this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
     this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = phase;
     this.listener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
+    this.matchCountListener = matchCountListener;
     addListener(listener);
+    addListener(matchCountListener);
   }
 
   @Override
@@ -79,6 +82,10 @@ public class DremioHepPlanner extends HepPlanner {
         throw ex;
       }
     }
+  }
+
+  public MatchCountListener getMatchCountListener() {
+    return matchCountListener;
   }
 
   @Override

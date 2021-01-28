@@ -101,49 +101,4 @@ public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryRes
     assertEquals("Timeout while waiting for client to be in ready state.", argument.getValue().getMessage());
     verifyNoMoreInteractions(outcomeListener);
   }
-
-  @Test
-  public void testIsCancelledTrue() throws Exception {
-    super.testIsCancelledTrue();
-  }
-
-  @Test
-  public void testIsCancelledFalse() {
-    super.testIsCancelledFalse();
-  }
-
-  @Test
-  public void testIsCancelledDuringWaitTrue() throws Exception {
-    super.testIsCancelledDuringWaitTrue();
-  }
-
-  @Test
-  public void testUserResultStateFailedWithNoException() {
-    super.testUserResultStateFailedWithNoException();
-  }
-
-  @Test
-  public void testUserResultStateFailedWithException() {
-    super.testUserResultStateFailedWithException();
-  }
-
-  @Test
-  public void testUserResultStateCancelledWithReason() {
-    super.testUserResultStateCancelledWithReason();
-  }
-
-  @Test
-  public void testUserResultStateCancelledWithNoException() {
-    super.testUserResultStateCancelledWithNoException();
-  }
-
-  @Test
-  public void testUserResultStateCancelledWithException() {
-    super.testUserResultStateCancelledWithException();
-  }
-
-  @Test
-  public void testUserResultStateCompleted() {
-    super.testUserResultStateCompleted();
-  }
 }

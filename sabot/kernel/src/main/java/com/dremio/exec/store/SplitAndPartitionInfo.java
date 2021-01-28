@@ -17,10 +17,9 @@ package com.dremio.exec.store;
 
 import java.util.Objects;
 
-import org.codehaus.jackson.annotate.JsonCreator;
-
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**

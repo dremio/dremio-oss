@@ -168,6 +168,9 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.dremio.service.coordinator.NoOpClusterCoordinator;
+import com.dremio.service.coordinator.ProjectConfig;
+import com.dremio.service.coordinator.ProjectConfigImpl;
+import com.dremio.service.coordinator.ProjectConfigStore;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.execselector.ExecutorSelectionService;
@@ -371,19 +374,13 @@ public class DACDaemonModule implements DACModule {
     registry.bind(GrpcChannelBuilderFactory.class,
       new SingleTenantGrpcChannelBuilderFactory(
         registry.lookup(Tracer.class),
-        registry.lookup(RequestContext.class),
+        registry.provider(RequestContext.class),
         () -> { return Maps.newHashMap();}
       )
     );
     registry.bind(GrpcServerBuilderFactory.class, new MultiTenantGrpcServerBuilderFactory(registry.lookup(Tracer.class)));
 
-    // Fabric
-    final String fabricAddress;
-    try {
-      fabricAddress = FabricServiceImpl.getAddress(false);
-    } catch (UnknownHostException e) {
-      throw new RuntimeException("Cannot get local address", e);
-    }
+    final String fabricAddress = getFabricAddress();
 
     registry.bind(
         FabricService.class,
@@ -1087,6 +1084,23 @@ public class DACDaemonModule implements DACModule {
     }
 
     registerHeapMonitorManager(registry, isCoordinator);
+
+    if (isCoordinator) {
+      registry.bind(ProjectConfigStore.class, ProjectConfigStore.NO_OP);
+      registry.bind(ProjectConfig.class, new ProjectConfigImpl(registry.provider(DremioConfig.class),
+        registry.provider(ProjectConfigStore.class)));
+    }
+  }
+
+  protected String getFabricAddress() {
+    // Fabric
+    final String fabricAddress;
+    try {
+      fabricAddress = FabricServiceImpl.getAddress(false);
+    } catch (UnknownHostException e) {
+      throw new RuntimeException("Cannot get local address", e);
+    }
+    return fabricAddress;
   }
 
   // Registering heap monitor manager as a service,

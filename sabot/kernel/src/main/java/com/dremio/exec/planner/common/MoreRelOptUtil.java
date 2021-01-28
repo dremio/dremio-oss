@@ -135,7 +135,13 @@ public final class MoreRelOptUtil {
     return minDepth + 1;
   }
 
-
+  public static int countRelNodes(RelNode rel) {
+    int count = 1; // Current node
+    for (RelNode child : rel.getInputs()) { // Add children
+      count += countRelNodes(child);
+    }
+    return count;
+  }
 
   public static boolean areRowTypesCompatibleForInsert(
     RelDataType rowType1,

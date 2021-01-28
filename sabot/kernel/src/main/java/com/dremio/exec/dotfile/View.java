@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.dotfile;
 
+import static com.dremio.exec.store.Views.isComplexType;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -298,7 +300,7 @@ public class View {
       if (   SqlTypeFamily.INTERVAL_YEAR_MONTH == field.getType().getFamily()
           || SqlTypeFamily.INTERVAL_DAY_TIME   == field.getType().getFamily() ) {
        type = factory.createSqlIntervalType( field.getIntervalQualifier() );
-      } else if (field.getType().equals(SqlTypeName.ARRAY) || field.getType().equals(SqlTypeName.ROW) || field.getType().equals(SqlTypeName.MAP)) {
+      } else if (isComplexType(field.getType())) {
         Field complexFieldType = field.getField();
         if (complexFieldType != null) {
           type = CalciteArrowHelper.toCalciteFieldType(complexFieldType, factory, true);

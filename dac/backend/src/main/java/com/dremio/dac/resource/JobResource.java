@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataWrapper;
@@ -220,6 +221,7 @@ public class JobResource extends BaseResourceWithAllocator {
   @GET
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
+  @TemporaryAccess
   public Response download(
     @PathParam("jobId") JobId previewJobId,
     @QueryParam("downloadFormat") DownloadFormat downloadFormat

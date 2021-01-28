@@ -36,6 +36,7 @@ enum FileType {
   XLS = 10;
   ARROW = 11;
   ICEBERG = 12;
+  DELTA = 13;
 }
 
 message FileConfig {
@@ -125,4 +126,8 @@ message IcebergFileConfig {
 
   // one of these for each supported data format types.
   optional ParquetFileConfig parquet_data_format = 3;
+}
+
+message  DeltalakeFileConfig {
+  option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
 }

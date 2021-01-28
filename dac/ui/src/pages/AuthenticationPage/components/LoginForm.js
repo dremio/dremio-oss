@@ -14,40 +14,37 @@
  * limitations under the License.
  */
 import { PureComponent } from 'react';
-import { compose } from 'redux';
-import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { withRouter } from 'react-router';
+import Radium from 'radium';
 import Immutable from 'immutable';
 
-import { LOGIN_VIEW_ID, loginUser } from 'actions/account';
-import { applyValidators, isRequired } from 'utils/validation';
-import Spinner from 'components/Spinner';
+import { LOGIN_VIEW_ID, loginUser } from '@inject/actions/account';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import Button from 'components/Buttons/Button';
-import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
-import FieldWithError from 'components/Fields/FieldWithError.js';
-import TextField from 'components/Fields/TextField.js';
+import Button from '@app/components/Buttons/Button';
+import { FieldWithError, TextField } from '@app/components/Fields';
 import { getViewState } from 'selectors/resources';
+import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
 import ViewStateWrapper from 'components/ViewStateWrapper';
-import LoginFormMixin from 'dyn-load/pages/AuthenticationPage/components/LoginFormMixin';
+import Spinner from '@app/components/Spinner';
 
-import { formLabel, lightLink } from 'uiTheme/radium/typography';
-
-import LoginTitle from './LoginTitle';
+import { formLabel } from 'uiTheme/radium/typography';
+import { applyValidators, isRequired } from '@app/utils/validation';
 
 @Radium
 export class LoginForm extends PureComponent {
   static propTypes = {
+    showMessage: PropTypes.bool,
     // redux-form
     fields: PropTypes.object,
     // connected
     user: PropTypes.instanceOf(Immutable.Map),
     viewState: PropTypes.instanceOf(Immutable.Map),
-    loginUser: PropTypes.func.isRequired,
-    // from withRouter
-    location: PropTypes.object.isRequired
+    loginUser: PropTypes.func.isRequired
+  };
+
+  static defaultProps = {
+    showMessage: true
   };
 
   static validate(values) {
@@ -55,113 +52,81 @@ export class LoginForm extends PureComponent {
   }
 
   submit = (form) => {
-    return this.props.loginUser(form, this.props.viewState.get('viewId'));
+    const {
+      loginUser: dispatchLoginUser,
+      viewState
+    } = this.props;
+    return dispatchLoginUser(form, viewState.get('viewId'));
   }
 
   render() {
-    const { viewState } = this.props;
-
+    const {
+      fields: {
+        userName,
+        password
+      },
+      showMessage,
+      viewState
+    } = this.props;
     return (
-      <div id='login-form' style={[styles.base]}>
-        <LoginTitle
-          style={{marginBottom: 10}}
-          subTitle={la('Welcome to Dremio, please log in.')}/>
-        <ViewStateWrapper
-          style={{paddingTop: 30}}
-          hideChildrenWhenFailed={false}
-          viewState={viewState}
-          hideSpinner
-          multilineErrorMessage
-        >
-          {this.renderForm()}
-        </ViewStateWrapper>
-      </div>
-    );
-  }
-
-  renderForm() {
-    const { fields: { userName, password }, viewState } = this.props;
-
-    return (
-      <InnerComplexForm
-        {...this.props}
-        style={styles.form}
-        onSubmit={this.submit}>
-        <div style={styles.fieldsRow}>
-          <FieldWithError
-            {...userName}
-            errorPlacement='top'
-            label={la('Username')}
-            labelStyle={styles.label}
-            style={{...formLabel, ...styles.field}}>
-            <TextField
+      <ViewStateWrapper
+        style={{paddingTop: 30}}
+        hideChildrenWhenFailed={false}
+        viewState={viewState}
+        showMessage={showMessage}
+        hideSpinner
+        multilineErrorMessage
+      >
+        <InnerComplexForm
+          {...this.props}
+          style={styles.form}
+          onSubmit={this.submit}>
+          <div style={styles.fieldsRow}>
+            <FieldWithError
               {...userName}
-              initialFocus
-              style={styles.input}/>
-          </FieldWithError>
-          <FieldWithError
-            {...password}
-            errorPlacement='top'
-            label={la('Password')}
-            labelStyle={styles.label}
-            style={{...formLabel, ...styles.field}}>
-            <TextField
+              errorPlacement='top'
+              label={la('Username')}
+              labelStyle={styles.label}
+              style={{...formLabel, ...styles.field}}>
+              <TextField
+                {...userName}
+                initialFocus
+                style={styles.input}/>
+            </FieldWithError>
+            <FieldWithError
               {...password}
-              type='password'
-              style={styles.input}/>
-          </FieldWithError>
-        </div>
-        <div style={styles.submitWrapper}>
-          <div style={{display: 'flex', flexGrow: 1}}>
-            <Button
-              type={ButtonTypes.NEXT}
-              key='details-wizard-next'
-              style={{marginBottom: 0}}
-              text={la('Log In')}/>
-            <Spinner
-              iconStyle={styles.spinnerIcon}
-              style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
+              errorPlacement='top'
+              label={la('Password')}
+              labelStyle={styles.label}
+              style={{...formLabel, ...styles.field}}>
+              <TextField
+                {...password}
+                type='password'
+                style={styles.input}/>
+            </FieldWithError>
           </div>
-          <div style={{display: 'flex', alignItems: 'center'}}>
-            <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
+          <div style={styles.submitWrapper}>
+            <div style={{display: 'flex', flexGrow: 1}}>
+              <Button
+                type={ButtonTypes.NEXT}
+                key='details-wizard-next'
+                style={{marginBottom: 0}}
+                text={la('Log In')}/>
+              <Spinner
+                iconStyle={styles.spinnerIcon}
+                style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
+            </div>
+            <div style={{display: 'flex', alignItems: 'center'}}>
+              <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
+            </div>
           </div>
-        </div>
-      </InnerComplexForm>
+        </InnerComplexForm>
+      </ViewStateWrapper>
     );
   }
 }
-
-function mapStateToProps(state) {
-  return {
-    user: state.account.get('user'),
-    viewState: getViewState(state, LOGIN_VIEW_ID)
-  };
-}
-
-export default compose(
-  connectComplexForm({
-    form: 'login',
-    fields: ['userName', 'password']
-  }, [LoginForm], mapStateToProps, {
-    loginUser
-  }),
-  withRouter,
-  LoginFormMixin
-)(LoginForm);
 
 const styles = {
-  base: {
-    position: 'relative',
-    backgroundColor: '#344253',
-    minWidth: 775,
-    height: 430,
-    maxWidth: 775,
-    maxHeight: 430,
-    overflow: 'hidden',
-    padding: 40,
-    display: 'flex',
-    flexDirection: 'column'
-  },
   spinner: {
     position: 'relative',
     height: 'auto',
@@ -193,12 +158,6 @@ const styles = {
     display: 'flex',
     flexDirection: 'row'
   },
-  link: {
-    flexGrow: 1,
-    textAlign: 'right',
-    alignSelf: 'center',
-    ...lightLink
-  },
   form: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -207,3 +166,17 @@ const styles = {
     width: 695
   }
 };
+
+function mapStateToProps(state) {
+  return {
+    user: state.account.get('user'),
+    viewState: getViewState(state, LOGIN_VIEW_ID)
+  };
+}
+
+export default  connectComplexForm({
+  form: 'login',
+  fields: ['userName', 'password']
+}, [LoginForm], mapStateToProps, {
+  loginUser
+})(LoginForm);

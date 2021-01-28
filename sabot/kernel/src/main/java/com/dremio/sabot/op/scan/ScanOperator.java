@@ -520,7 +520,7 @@ public class ScanOperator implements ProducerOperator {
     closeables.add(outgoing);
     closeables.add(currentReader);
     closeables.add(globalDictionaries);
-    closeables.add(readers instanceof AutoCloseable ? (AutoCloseable) readers : null);
+    closeables.add(readers);
     closeables.addAll(runtimeFilters);
     AutoCloseables.close(closeables);
     OperatorStats operatorStats = context.getStats();

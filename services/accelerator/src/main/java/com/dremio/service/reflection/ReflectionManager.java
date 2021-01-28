@@ -139,7 +139,7 @@ public class ReflectionManager implements Runnable {
   private final Set<ReflectionId> reflectionsToUpdate;
   private final WakeUpCallback wakeUpCallback;
   private final Supplier<ExpansionHelper> expansionHelper;
-  private final Path accelerationBasePath;
+  private volatile Path accelerationBasePath;
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
   private RefreshStartHandler refreshStartHandler;
@@ -670,6 +670,20 @@ public class ReflectionManager implements Runnable {
 
     // we don't need to handle the job, if it did complete and wrote some data, they will eventually get deleted
     // when the materialization entry is deleted
+  }
+
+  void setAccelerationBasePath(Path path) {
+    if (path.equals(accelerationBasePath)) {
+      return;
+    }
+    Iterable<ReflectionEntry> entries = reflectionStore.find();
+    // if there are already reflections don't update the path if the input and current path is different.
+    if (Iterables.size(entries) > 0) {
+      logger.warn("Failed to set acceleration base path as there are reflections present. Input path {} existing path {}",
+        path, accelerationBasePath);
+      return;
+    }
+    this.accelerationBasePath = path;
   }
 
   @VisibleForTesting

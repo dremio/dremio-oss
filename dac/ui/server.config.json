@@ -1,3 +1,11 @@
 {
-  "apiOrigin": "http://localhost:9047"
+  "proxyPatterns": [{
+      "patterns": ["/v1*"], "origin": "atlantisApi", "subDomain": ".api.drem.io", "ws": false
+    }, {
+      "patterns": ["/ui*"], "origin": "atlantisApi", "subDomain": ".app.drem.io", "ws": true
+    }, {
+      "patterns": ["/api*", "/static"], "ws": true
+    }],
+  "apiOrigin": "http://localhost:9047",
+  "atlantisApi": "http://dcs-aws-1516-ns"
 }

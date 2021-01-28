@@ -28,6 +28,7 @@ import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.ConstructorChecker;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin;
@@ -107,6 +108,7 @@ public class FormatCreator {
     defaultFormats.put("json", new JSONFormatPlugin.JSONFormatConfig());
     defaultFormats.put("dremarrow1", new ArrowFormatPluginConfig());
     defaultFormats.put("iceberg", new IcebergFormatConfig());
+    defaultFormats.put("delta", new DeltaLakeFormatConfig());
     return defaultFormats;
   }
 

@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>12.1.0-202101041749050132-55c827cb</version>
+  <version>13.0.0-202101272034330307-20fb9275</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>3.0.0-20201208112059-2953033003-dremio</arrow.version>
+    <arrow.version>3.0.0-20201218102458-4bb1c04f92-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
     <calcite.version>1.16.0-202101020531550866-5383404</calcite.version>
     <derby.version>10.14.2.0</derby.version>
@@ -51,13 +51,13 @@
 
     <hibernate-validator.version>6.1.5.Final</hibernate-validator.version>
 
-    <hadoop.version>3.2.1-dremio-202007112304180043-647afb0</hadoop.version>
+    <hadoop.version>3.2.1-dremio-202101121111520916-3f79071</hadoop.version>
     <avro.version>1.9.2</avro.version>
     <iceberg.version>0.9.0</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive2.azure-datalake.version>
-    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c</plugin.hive2.hadoop-azure.version>
+    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-d65ae5d215c7b9d342ccd1edfb8f42ead358feb9</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
@@ -78,7 +78,7 @@
     -->
     <plugin.hive2.hbase.version>1.1.13</plugin.hive2.hbase.version>
 
-    <plugin.hive3.hadoop.version>3.2.1-dremio-202007112304180043-647afb0</plugin.hive3.hadoop.version>
+    <plugin.hive3.hadoop.version>3.2.1-dremio-202101121111520916-3f79071</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
     <plugin.hive3.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
@@ -108,8 +108,9 @@
     <metrics.version>4.1.0</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
     <netty.version>4.1.48.Final</netty.version>
+    <netty3.version>3.10.6.Final-nohttp</netty3.version>
     <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
-    <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
+    <parquet.version>1.12.0-202012300655090309-fc8298d</parquet.version>
     <pf4j.version>3.0.1</pf4j.version>
     <postgresql.version>42.2.18</postgresql.version>
     <protobuf.version>3.9.1</protobuf.version>
@@ -119,7 +120,8 @@
     <twill.version>0.14.0</twill.version>
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.14</zookeeper.version>
-    <curator.version>2.12.0</curator.version>
+    <curator.version>4.2.0</curator.version>
+    <curator-test.version>2.12.0</curator-test.version>
     <aws-sdk.version>1.11.761</aws-sdk.version>
     <aws-sdk-2.version>2.11.13</aws-sdk-2.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
@@ -497,13 +499,15 @@
                     <exclude>org.mortbay.jetty:servlet-api-2.5</exclude>
                     <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
                     <exclude>log4j:*</exclude>
-                    <exclude>io.netty:*:4.0</exclude> <!-- exclude netty versions 4.0 and above. some of our dependencies (e.g. ES) still depend on netty 3.x which is fine as versions < 4.0 have a completely different package names -->
+                    <exclude>io.netty:*:*</exclude> <!-- exclude all netty versions. The versions needed are explicitly included below. -->
                     <!-- For the sake of space do not include all AWS dependencies but rely on BOM and include individual ones when needed -->
                     <exclude>com.amazonaws:aws-java-sdk</exclude>
                     <exclude>software.amazon.awssdk:aws-sdk-java</exclude>
                   </excludes>
                   <includes>
-                    <include>io.netty:*:${netty.version}</include>
+                    <include>io.netty:*:${netty.version}</include> <!-- include the netty packages that match the version -->
+                    <include>io.netty:netty:${netty3.version}</include> <!-- include 3.10.6.Final version without the http classes, the http classes are deemed insecure -->
+                    <include>io.netty:netty-tcnative-boringssl-static:${netty.boringssl.version}</include>
                   </includes>
                 </bannedDependencies>
                 <bannedPlugins>
@@ -1549,7 +1553,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.curator</groupId>
         <artifactId>curator-test</artifactId>
-        <version>${curator.version}</version>
+        <version>${curator-test.version}</version>
       </dependency>
       <dependency>
         <groupId>ch.qos.logback</groupId>
@@ -1769,7 +1773,7 @@ limitations under the License.
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
-        <version>3.10.6.Final</version>
+        <version>${netty3.version}</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
@@ -3045,7 +3049,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c</version>
+        <version>2.8.5-dremio-r2-d65ae5d215c7b9d342ccd1edfb8f42ead358feb9</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>

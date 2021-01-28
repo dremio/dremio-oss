@@ -180,13 +180,11 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
   private final boolean customizationEnabled;
   private final TableauExportType exportType;
-  private final OptionManager optionManager;
 
   @Inject
   public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager) {
-    super(endpoint);
+    super(endpoint, optionManager);
     this.customizationEnabled = MoreObjects.firstNonNull((Boolean) configuration.getProperty(CUSTOMIZATION_ENABLED), false);
-    this.optionManager = optionManager;
 
     // The EnumValidator lower-cases the enum for some reason, so we upper case it to match our enum values again.
     this.exportType = TableauExportType.valueOf(optionManager.getOption(TABLEAU_EXPORT_TYPE).toUpperCase(Locale.ROOT));
@@ -278,7 +276,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     xmlStreamWriter.writeAttribute("server", hostname);
     xmlStreamWriter.writeAttribute("username", "");
 
-    String customExtraProperties = optionManager.getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES);
+    String customExtraProperties = getOptionManager().getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES);
     customExtraProperties = customExtraProperties.replace(" ", "").toLowerCase(Locale.ROOT);
 
     // The "parsing" here is rudimentary, and is not meant to be advanced. We simply need a flag to determine if SSL
@@ -299,7 +297,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
     // Create advanced properties string
     final StringBuilder extraProperties = new StringBuilder();
-    final String customExtraProperties = optionManager.getOption(EXTRA_CONNECTION_PROPERTIES);
+    final String customExtraProperties = getOptionManager().getOption(EXTRA_CONNECTION_PROPERTIES);
     // Writing custom extra properties first as they will take precedence over default ones
     if (!customExtraProperties.isEmpty()) {
       extraProperties.append(customExtraProperties).append(";");

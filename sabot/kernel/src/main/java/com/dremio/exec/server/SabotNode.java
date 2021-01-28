@@ -442,7 +442,7 @@ public class SabotNode implements AutoCloseable {
         bind(MaterializationDescriptorProvider.class).toInstance(MaterializationDescriptorProvider.EMPTY);
         bind(QueryObserverFactory.class).toInstance(QueryObserverFactory.DEFAULT);
         bind(GrpcChannelBuilderFactory.class).toInstance(
-          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, defaultRequestContext,
+          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, () -> defaultRequestContext,
             () -> Maps.newHashMap() ));
 
         GrpcServerBuilderFactory gRpcServerBuilderFactory =

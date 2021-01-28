@@ -90,10 +90,7 @@ public class SampleDataPopulatorService implements Service {
     final LegacyKVStoreProvider kv = kvStore.get();
     final NamespaceService ns = contextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
-    if (addDefaultUser) {
-      addDefaultDremioUser(userService.get(), ns);
-    }
-
+    addDefaultUser();
     if (prepopulate) {
       final ReflectionServiceHelper reflectionServiceHelper = new SampleReflectionServiceHelper(ns, kvStore);
 
@@ -111,6 +108,14 @@ public class SampleDataPopulatorService implements Service {
       );
 
       sample.populateInitialData();
+    }
+  }
+
+  public void addDefaultUser() throws Exception {
+    final NamespaceService ns = contextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+
+    if (addDefaultUser) {
+      addDefaultDremioUser(userService.get(), ns);
     }
   }
 

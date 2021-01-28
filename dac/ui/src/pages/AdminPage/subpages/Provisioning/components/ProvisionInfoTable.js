@@ -18,38 +18,12 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import ViewCheckContent from 'components/ViewCheckContent';
 import TableViewer from 'components/TableViewer';
+import {getTableData} from '@inject/pages/AdminPage/subpages/Provisioning/components/ProvisionInfoTableMixin';
 
 export default class ProvisionInfoTable extends Component {
   static propTypes = {
     provision: PropTypes.instanceOf(Immutable.Map)
   };
-
-  getTableData() {
-    if (!this.props.provision) return new Immutable.List();
-
-    const getRows = (key, status) => {
-      const items = this.props.provision.getIn(['containers', key]);
-      if (!items) return new Immutable.List();
-
-      return items.map((item) => {
-        const containerPropertyList = item.getIn(['containerPropertyList']);
-        const row = {
-          rowClassName: '',
-          data: containerPropertyList.reduce((prev, property) => {
-            return {...prev, [property.get('key')]: property.get('value')};
-          }, {status})
-        };
-        return row;
-      });
-    };
-
-    // Note: 'Running' is not a term we use elsewhere in the UI
-    // but in this list we can't distinguish "Active" from "Decomissioning"
-    const runningData = getRows('runningList', la('Running'));
-    const disconnectedData = getRows('disconnectedList', la('Provisioning or Disconnected'));
-
-    return disconnectedData.concat(runningData);
-  }
 
   getTableColumns() {
     const {provision} = this.props;
@@ -77,7 +51,7 @@ export default class ProvisionInfoTable extends Component {
 
   render() {
     const columns = this.getTableColumns();
-    const tableData = this.getTableData(columns);
+    const tableData = getTableData(columns);
 
     return (
       <div style={styles.base}>

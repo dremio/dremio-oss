@@ -74,12 +74,14 @@ public class FilterOperator implements SingleInputOperator {
 
     switch (input.getSchema().getSelectionVectorMode()) {
       case NONE:
-      case TWO_BYTE:
         generateSV2Filterer(accessible);
         break;
+      case TWO_BYTE:
+        throw new UnsupportedOperationException("Filter operator does not support SV2");
       case FOUR_BYTE:
+        throw new UnsupportedOperationException("Filter operator does not support SV4");
       default:
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Unsupported selection vector mode: " + input.getSchema().getSelectionVectorMode());
     }
     output.buildSchema(SelectionVectorMode.TWO_BYTE);
     state = State.CAN_CONSUME;

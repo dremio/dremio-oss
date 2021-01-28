@@ -80,7 +80,7 @@ public final class TransportCheck {
   }
 
   private static final UncaughtExceptionHandler UNCAUGHT_EXCEPTION_HANDLER = (thread, t) -> logger.error("Uncaught exception in thread {}", thread.getName(), t);
-  private static ThreadFactory newThreadFactory(String prefix) {
+  public static ThreadFactory newThreadFactory(String prefix) {
     final ThreadFactory namedThreadFactory = new NamedThreadFactory(prefix);
 
     // Adding an uncaught exception handler to make sure threads are logged using slf4j

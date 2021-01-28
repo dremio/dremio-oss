@@ -90,7 +90,7 @@ public final class DatasetHelper {
    */
   public static boolean hasParquetDataFiles(FileConfig fileConfig) {
     Preconditions.checkNotNull(fileConfig);
-    return fileConfig.getType() == FileType.ICEBERG || fileConfig.getType() == FileType.PARQUET;
+    return fileConfig.getType() == FileType.PARQUET;
   }
 
 }

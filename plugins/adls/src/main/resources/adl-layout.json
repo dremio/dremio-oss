@@ -68,6 +68,7 @@
           },
           {
             "name": "Cache Options",
+            "checkboxController": "enableAsync",
             "elements": [
               {
                 "propName": "config.isCachingEnabled"

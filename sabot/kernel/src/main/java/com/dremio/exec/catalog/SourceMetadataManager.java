@@ -60,8 +60,8 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
-import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -112,7 +112,7 @@ class SourceMetadataManager implements AutoCloseable {
 
   public SourceMetadataManager(
       NamespaceKey sourceName,
-      SchedulerService scheduler,
+      ModifiableSchedulerService modifiableScheduler,
       boolean isMaster,
       LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       final ManagedStoragePlugin.MetadataBridge bridge,
@@ -131,7 +131,7 @@ class SourceMetadataManager implements AutoCloseable {
 
     if(isMaster) {
       // we can schedule on all nodes since this is a clustered singleton and will only run on a single node.
-      this.wakeupTask = scheduler.schedule(
+      this.wakeupTask = modifiableScheduler.schedule(
           Schedule.Builder.everyMillis(WAKEUP_FREQUENCY_MS)
             .asClusteredSingleton("metadata-refresh-" + sourceKey)
             .build(),

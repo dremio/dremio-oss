@@ -47,4 +47,8 @@ public final class HomeName extends RootEntity {
   public RootType getRootType() {
     return RootType.HOME;
   }
+
+  public String getUserName() {
+    return this.getName().substring(1);
+  }
 }

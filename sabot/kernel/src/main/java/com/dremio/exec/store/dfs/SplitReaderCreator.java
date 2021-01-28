@@ -25,7 +25,6 @@ import org.apache.arrow.util.Preconditions;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.io.file.Path;
@@ -43,7 +42,6 @@ public abstract class SplitReaderCreator implements AutoCloseable {
   protected List<List<String>> tablePath;
   protected InputStreamProvider inputStreamProvider;
   protected ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr;
-
 
   public SplitReaderCreator() {
   }
@@ -124,10 +122,6 @@ public abstract class SplitReaderCreator implements AutoCloseable {
    */
   public void setNext(SplitReaderCreator next) {
     this.next = next;
-  }
-
-  public SplitAndPartitionInfo getSplit() {
-    return null;
   }
 
   /**

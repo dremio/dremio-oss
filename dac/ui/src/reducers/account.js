@@ -19,7 +19,7 @@ import * as ActionTypes from 'actions/account';
 import * as AccountTypes from 'actions/admin';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
-function getInitialState() {
+export function getInitialState() {
   return Immutable.fromJS({
     user: { // TODO: no fake objects: this should be of User type and null by default
       ...(localStorageUtils ? localStorageUtils.getUserData() : {}),
@@ -35,30 +35,39 @@ function getInitialState() {
   });
 }
 
-export default function users(state = getInitialState(), action) {
-  switch (action.type) {
+const loginUserStart = (state, action) => {
+  return state.setIn(['user', 'isInProgress'], !action.error)
+    .setIn(['user', 'isFailed'], action.error)
+    .setIn(['user', 'name'], action.meta.userName);
+};
 
-  case ActionTypes.LOGIN_USER_START: {
-    return state.setIn(['user', 'isInProgress'], !action.error)
-      .setIn(['user', 'isFailed'], action.error)
-      .setIn(['user', 'name'], action.meta.userName);
-  }
+const loginUserSuccess = (state, action) => {
+  return state.set('user', Immutable.fromJS({...action.payload, inProgress: false, isFailed: false}));
+};
 
-  case ActionTypes.LOGIN_USER_SUCCESS: {
-    return state.set('user', Immutable.fromJS({...action.payload, inProgress: false, isFailed: false}));
-  }
+const loginUserFailure = (state, action) => {
+  return state.setIn(['user', 'isInProgress'], false)
+    .setIn(['user', 'isFailed'], true)
+    .setIn(['user', 'name'], action.meta.userName);
+};
 
-  case ActionTypes.LOGIN_USER_FAILURE: {
-    return state.setIn(['user', 'isInProgress'], false)
-      .setIn(['user', 'isFailed'], true)
-      .setIn(['user', 'name'], action.meta.userName);
+const editAccountSuccess = (state, action) => {
+  return state.set('user', Immutable.fromJS({
+    ...state.get('user').toJS(),
+    ...action.payload.userConfig
+  }));
+};
+
+export const handlers = {
+  [ActionTypes.LOGIN_USER_START]: loginUserStart,
+  [ActionTypes.LOGIN_USER_SUCCESS]: loginUserSuccess,
+  [ActionTypes.LOGIN_USER_FAILURE]: loginUserFailure,
+  [AccountTypes.EDIT_ACCOUNT_SUCCESS]: editAccountSuccess
+};
+
+export default function accounts(state = getInitialState(), action) {
+  if (handlers[action.type]) {
+    return handlers[action.type](state, action);
   }
-  case AccountTypes.EDIT_ACCOUNT_SUCCESS:
-    return state.set('user', Immutable.fromJS({
-      ...state.get('user').toJS(),
-      ...action.payload.userConfig
-    }));
-  default:
-    return state;
-  }
+  return state;
 }

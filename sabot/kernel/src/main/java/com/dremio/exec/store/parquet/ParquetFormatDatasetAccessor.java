@@ -227,7 +227,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
     }
 
     BatchSchema newSchema = BatchSchema.newBuilder().addFields(fields).build();
-    return oldSchema != null ? oldSchema.merge(newSchema) : newSchema;
+    boolean mixedTypesDisabled = context.getOptionManager().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+    return oldSchema != null ? oldSchema.merge(newSchema, mixedTypesDisabled) : newSchema;
   }
 
   /**

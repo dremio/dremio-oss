@@ -23,9 +23,11 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -582,6 +585,28 @@ public class BaseTestQuery extends ExecTest {
       throw new IOException(String.format("Unable to find path %s.", resource));
     }
     return Resources.toString(url, Charsets.UTF_8);
+  }
+
+  public void writeDir(java.nio.file.Path baseDir, java.nio.file.Path dest, String srcDirName) {
+    URL resource = Resources.getResource(baseDir.resolve(srcDirName).toString());
+    try (Stream<java.nio.file.Path> fileStream = java.nio.file.Files.walk(Paths.get(resource.getPath()))) {
+      fileStream.forEach(inputFile -> {
+        if (!java.nio.file.Files.isDirectory(inputFile)) {
+          writeFile(baseDir, dest, inputFile.getFileName());
+        }
+      });
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public void writeFile(java.nio.file.Path baseDir, java.nio.file.Path dest, java.nio.file.Path srcFileName) {
+    URL resource = Resources.getResource(baseDir.resolve(dest.getFileName()).resolve(srcFileName).toString());
+    try {
+      java.nio.file.Files.write(dest.resolve(srcFileName), Resources.toByteArray(resource));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /**

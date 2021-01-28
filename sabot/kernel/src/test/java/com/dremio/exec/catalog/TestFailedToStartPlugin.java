@@ -33,9 +33,11 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -54,6 +56,7 @@ import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -66,6 +69,7 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -79,6 +83,8 @@ import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.LocalSchedulerService;
+import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
+import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
@@ -102,7 +108,7 @@ public class TestFailedToStartPlugin extends DremioTest {
   private DatasetListingService mockDatasetListingService;
   private SourceConfig mockUpConfig;
   private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
-
+  private ModifiableSchedulerService modifiableSchedulerService;
   private static final String MOCK_UP = "mockup-failed-to-start";
 
   @Before
@@ -199,6 +205,34 @@ public class TestFailedToStartPlugin extends DremioTest {
     };
     doNothing().when(broadcaster).communicateChange(any());
 
+    PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
+    modifiableSchedulerService = new ModifiableSchedulerService(){
+      ModifiableSchedulerService delegate = new ModifiableLocalSchedulerService(
+        3, "modifiable-scheduler-", option, optionManager);
+      @Override
+      public void close() throws Exception {
+        delegate.close();
+      }
+
+      @Override
+      public void start() throws Exception {
+        delegate.start();
+      }
+
+      @Override
+      public Cancellable schedule(Schedule arg0, Runnable arg1) {
+        // replace timing of wakeup.
+        return delegate.schedule(
+          Schedule.Builder.everyMillis(100).asClusteredSingleton("metadata-refresh-test")
+            .build(), arg1);
+      }
+    };
+
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    AutoCloseables.close(modifiableSchedulerService);
   }
 
   /**
@@ -265,7 +299,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)){
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)){
 
       mockUpPlugin.setThrowAtStart();
       assertEquals(0, mockUpPlugin.getNumFailedStarts());
@@ -308,7 +342,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)) {
 
       // Setting bad state (eg. offline) at start, wakeup task should be running and no metadata refresh due to bad state
       mockUpPlugin.setSimulateBadState(true);
@@ -354,7 +388,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)) {
 
       // create a source with healthy state
       mockUpPlugin.setSimulateBadState(false);
@@ -409,7 +443,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)) {
 
       // add a source with bad state, SourceMetadataManager should be closed and no wakeup task
       mockUpPlugin.setSimulateBadState(true);

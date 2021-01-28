@@ -123,6 +123,7 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.users.UserNotFoundException;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 /**
@@ -304,12 +305,14 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
   @Produces(APPLICATION_JSON)
   public InitialPreviewResponse getDatasetForVersion(
       @QueryParam("tipVersion") DatasetVersion tipVersion,
-      @QueryParam("limit") Integer limit) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
+      @QueryParam("limit") Integer limit,
+      @QueryParam("engineName") String engineName) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     // tip version is optional, as it is only needed when we are navigated back in history
     // otherwise assume the current version is at the tip of the history
     VirtualDatasetUI dataset = getDatasetConfig();
     tipVersion = tipVersion != null ? tipVersion : dataset.getVersion();
-    return tool.createPreviewResponseForExistingDataset(getOrCreateAllocator("getDatasetForVersion"), dataset, new DatasetVersionResourcePath(datasetPath, tipVersion), limit);
+    return tool.createPreviewResponseForExistingDataset(getOrCreateAllocator("getDatasetForVersion"), dataset,
+      new DatasetVersionResourcePath(datasetPath, tipVersion), limit, engineName);
   }
 
   @GET @Path("review")
@@ -389,9 +392,12 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
    */
   @GET @Path("run")
   @Produces(APPLICATION_JSON) @Consumes(APPLICATION_JSON)
-  public InitialRunResponse run(@QueryParam("tipVersion") DatasetVersion tipVersion) throws DatasetVersionNotFoundException, InterruptedException, NamespaceException {
+  public InitialRunResponse run(@QueryParam("tipVersion") DatasetVersion tipVersion,
+                                @QueryParam("engineName") String engineName) throws DatasetVersionNotFoundException, InterruptedException, NamespaceException {
     final VirtualDatasetUI virtualDatasetUI = getDatasetConfig();
-    final SqlQuery query = new SqlQuery(virtualDatasetUI.getSql(), virtualDatasetUI.getState().getContextList(), securityContext);
+
+    final SqlQuery query = new SqlQuery(virtualDatasetUI.getSql(), virtualDatasetUI.getState().getContextList(), securityContext,
+      Strings.isNullOrEmpty(engineName)? null : engineName);
     JobSubmittedListener listener = new JobSubmittedListener();
     final JobId jobId = executor.runQueryWithListener(query, QueryType.UI_RUN, datasetPath, version, listener).getJobId();
     // wait for job to start (or WAIT_FOR_RUN_HISTORY_S seconds).

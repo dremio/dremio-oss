@@ -18,6 +18,7 @@ package com.dremio.exec.util;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
@@ -29,6 +30,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SearchableBatchSchema;
 import com.dremio.test.DremioTest;
 
 public class BatchSchemaFieldTest extends DremioTest {
@@ -310,5 +312,29 @@ public class BatchSchemaFieldTest extends DremioTest {
 
     Assert.assertTrue(BatchSchema.of(new Field("union_field", FieldType.nullable(new ArrowType.Union(UnionMode.Sparse, typeIds)), union_children))
       .equalsTypesWithoutPositions(BatchSchema.of(new Field("union_field", FieldType.nullable(new ArrowType.Union(UnionMode.Sparse, revTypeIds)), rev_union_children))));
+  }
+
+  @Test
+  public void testFindField() {
+    int columns = 1000000;
+    String fieldPrefix = "field_name_";
+    List<Field> fields = new ArrayList<>();
+    for (int c = 0; c < columns; ++c) {
+      fields.add(new Field(fieldPrefix + c, FieldType.nullable(new ArrowType.Int(32, false)), null));
+    }
+
+    BatchSchema schema = BatchSchema.of(fields.toArray(new Field[0]));
+    SearchableBatchSchema searchableBatchSchema = SearchableBatchSchema.of(schema);
+
+    for (int c = 0; c < columns; ++c) {
+      String fieldName = fieldPrefix + c;
+      Optional<Field> field = searchableBatchSchema.findFieldIgnoreCase(fieldName);
+      Assert.assertTrue(field.isPresent());
+      Assert.assertNotNull(field.get());
+    }
+
+    String fieldName = fieldPrefix + "non_existent";
+    Optional<Field> field = searchableBatchSchema.findFieldIgnoreCase(fieldName);
+    Assert.assertFalse(field.isPresent());
   }
 }

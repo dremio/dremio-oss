@@ -36,6 +36,7 @@ import javax.ws.rs.core.MultivaluedMap;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -133,8 +134,10 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   @Inject
-  public PowerBIMessageBodyGenerator(@Context Configuration configuration, CoordinationProtos.NodeEndpoint endpoint) {
-    super(endpoint);
+  public PowerBIMessageBodyGenerator(@Context Configuration configuration,
+                                     CoordinationProtos.NodeEndpoint endpoint,
+                                     OptionManager optionManager) {
+    super(endpoint, optionManager);
   }
 
   @Override

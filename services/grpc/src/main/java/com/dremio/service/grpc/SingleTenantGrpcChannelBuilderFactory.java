@@ -28,7 +28,7 @@ import io.opentracing.Tracer;
  *  Channel builder factory where the client is a single-tenant service.
  */
 public class SingleTenantGrpcChannelBuilderFactory extends BaseGrpcChannelBuilderFactory {
-  public SingleTenantGrpcChannelBuilderFactory(Tracer tracer, RequestContext defaultContext, Provider<Map<String, Object>> defaultServiceConfigProvider) {
+  public SingleTenantGrpcChannelBuilderFactory(Tracer tracer, Provider<RequestContext> defaultContext, Provider<Map<String, Object>> defaultServiceConfigProvider) {
     super(tracer, Sets.newHashSet(new SingleTenantClientInterceptor(defaultContext)), defaultServiceConfigProvider);
   }
 }

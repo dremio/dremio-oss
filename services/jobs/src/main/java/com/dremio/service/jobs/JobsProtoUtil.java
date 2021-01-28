@@ -677,6 +677,10 @@ public final class JobsProtoUtil {
     if (!Strings.isNullOrEmpty(sqlQuery.getUsername())) {
       sqlQueryBuilder.setUsername(sqlQuery.getUsername());
     }
+    if (!Strings.isNullOrEmpty(sqlQuery.getEngineName())) {
+      sqlQueryBuilder.setEngineName(sqlQuery.getEngineName());
+    }
+
     return sqlQueryBuilder.build();
   }
 

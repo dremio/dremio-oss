@@ -17,7 +17,6 @@ package com.dremio;
 
 import java.util.regex.Pattern;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestFilterPastJoin extends PlanTestBase {
@@ -35,7 +34,7 @@ public class TestFilterPastJoin extends PlanTestBase {
     String sql = "SELECT * " +
         "FROM cp.\"tpch/lineitem.parquet\" l1, cp.\"tpch/lineitem.parquet\" l2 " +
         "WHERE l1.l_orderkey - l2.l_partkey = 10";
-        testPlanMatchingPatterns(sql, new String[]{ Pattern.quote("NestedLoopJoin(condition=[=(-($0, $17), 10)]") }, new String[]{});
+        testPlanMatchingPatterns(sql, new String[]{ Pattern.quote("NestedLoopJoin(condition=[=(-($0, $17), 10)]") });
   }
 
   @Test
@@ -55,7 +54,6 @@ public class TestFilterPastJoin extends PlanTestBase {
   }
 
   @Test
-  @Ignore("DX-16984")
   public void filterInOnClauseTransitive() throws Exception {
     String sql = "SELECT count(*)\n" +
       "FROM cp.\"tpch/lineitem.parquet\" JOIN cp.\"tpch/orders.parquet\"\n" +

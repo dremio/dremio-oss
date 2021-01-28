@@ -20,7 +20,7 @@ import { mapDataset } from 'apiMappers/datasetMapper';
 import { applyDecorators } from 'utils/decorators';
 
 class SchemaUtils {
-  getSuccessActionTypeWithSchema(type, schema, meta, key, value) {
+  getSuccessActionTypeWithSchema(type, schema, meta, key, value, transform) {
     return {
       type,
       meta,
@@ -28,17 +28,18 @@ class SchemaUtils {
         const contentType = res.headers.get('Content-Type');
         if (contentType && contentType.indexOf('json') !== -1) {
           return res.json().then((pureJson) => {
+            const finalJson = !!transform && typeof transform === 'function' ? transform(pureJson) : pureJson;
             if (typeof key === 'object') {
               key.forEach(item => {
-                pureJson[item.key] = item.value;
+                finalJson[item.key] = item.value;
               });
             } else if (key && value) {
-              pureJson[key] = value; //when no id from api, we generate it
+              finalJson[key] = value; //when no id from api, we generate it
             }
             const hash = {
               fullDataset: mapDataset
             };
-            const payload = Immutable.fromJS(normalize(hash[schema._key] && hash[schema._key](pureJson, key) || pureJson, schema));
+            const payload = Immutable.fromJS(normalize(hash[schema._key] && hash[schema._key](finalJson, key) || finalJson, schema));
             return payload.set('entities', applyDecorators(payload.get('entities')));
           });
         }

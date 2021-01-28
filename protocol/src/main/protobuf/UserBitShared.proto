@@ -626,6 +626,7 @@ enum CoreOperatorType {
   WRITER_COMMITTER = 49;
   ROUND_ROBIN_SENDER = 50;
   BOOST_PARQUET = 51;
+  ICEBERG_SUB_SCAN = 52;
 }
 message MetricDef {
   optional int32 id = 1;

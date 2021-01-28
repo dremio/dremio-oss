@@ -24,6 +24,7 @@ import {
   openAddProvisionModal, openEditProvisionModal,
   editProvision, openAdjustWorkersModal
 } from '@app/actions/resources/provisioning';
+import {extraProvisingPageMapDispatchToProps } from '@inject/actions/resources/provisioning';
 import { showConfirmationDialog } from '@app/actions/confirmation';
 import { addNotification } from '@app/actions/notification';
 import { getViewState } from '@app/selectors/resources';
@@ -161,12 +162,11 @@ export class ProvisioningPage extends Component {
     if (PROVISION_MANAGERS.length === 1) {
       clusterType = PROVISION_MANAGERS[0].clusterType;
     }
-
-    this.props.openAddProvisionModal(clusterType);
+    this.openAdd(this.props, clusterType);
   };
 
   handleSelectClusterType = (clusterType) => {
-    this.props.openAddProvisionModal(clusterType);
+    this.openAdd(this.props, clusterType);
   };
 
   stopPollingProvisionData() {
@@ -180,8 +180,11 @@ export class ProvisioningPage extends Component {
         this.pollId = setTimeout(this.startPollingProvisionData, PROVISION_POLL_INTERVAL);
       }
     };
-
-    this.props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
+    let clusterType = null;
+    if (PROVISION_MANAGERS.length === 1) {
+      clusterType = PROVISION_MANAGERS[0].clusterType;
+    }
+    this. getProvision(this.props, clusterType, VIEW_ID, pollAgain);
   };
 
   getSelectedEngine = (id) => {
@@ -268,7 +271,8 @@ export default connect(mapStateToProps, {
   openAdjustWorkersModal,
   showConfirmationDialog,
   addNotification,
-  editProvision
+  editProvision,
+  ...extraProvisingPageMapDispatchToProps
 })(ProvisioningPage);
 
 const styles = {

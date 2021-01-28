@@ -65,11 +65,17 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Tag(6)
   public boolean enableS3FileStatusCheck = true;
 
+  @Tag(7)
+  public String accessKey = null;
+
+  @Tag(8)
+  public String secretKey = null;
+
   public AccelerationStoragePluginConfig() {
   }
 
   public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
-                                         boolean enableS3FileStatusCheck) {
+                                         boolean enableS3FileStatusCheck, String accessKey, String secretKey) {
     if(path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -83,6 +89,8 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     this.enableCaching = enableCaching;
     this.maxCacheSpacePercent = maxCacheSpacePercent;
     this.enableS3FileStatusCheck = enableS3FileStatusCheck;
+    this.accessKey = accessKey;
+    this.secretKey = secretKey;
   }
 
   @Override
@@ -121,10 +129,10 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   }
 
   public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
-                                    boolean enableS3FileStatusCheck) {
+                                    boolean enableS3FileStatusCheck, String accessKey, String secretKey) {
     SourceConfig conf = new SourceConfig();
     AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync,
-      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck);
+      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck, accessKey, secretKey);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -143,6 +151,14 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
 
   public boolean isS3FileStatusCheckEnabled() {
     return enableS3FileStatusCheck;
+  }
+
+  public String getAccessKey() {
+    return accessKey;
+  }
+
+  public String getSecretKey() {
+    return secretKey;
   }
 
   @Override

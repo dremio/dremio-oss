@@ -40,8 +40,12 @@ import com.dremio.sabot.exec.context.OperatorContext;
 public class PrefetchingIterator<T extends SplitReaderCreator> implements RecordReaderIterator {
   private static final Logger logger = LoggerFactory.getLogger(PrefetchingIterator.class);
 
-  private int location = -1;
-  private int nextLocation = 0;
+  // The next split to create. This will change as intermediate splits are pruned due to
+  // runtime partition pruning
+  private SplitReaderCreator nextSplit;
+  // Number of splits to prefetch
+  private final int numSplitsToPrefetch;
+  // All the unused, but initialised creators are closed as part of close on the PrefetchingIterator
   private final List<T> creators;
   private InputStreamProvider inputStreamProvider;
   private MutableParquetMetadata footer;
@@ -49,24 +53,26 @@ public class PrefetchingIterator<T extends SplitReaderCreator> implements Record
   private final CompositeReaderConfig readerConfig;
   private List<RuntimeFilterEvaluator> runtimeFilterEvaluators;
 
-  public PrefetchingIterator(OperatorContext context, CompositeReaderConfig readerConfig, List<T> creators) {
+  public PrefetchingIterator(OperatorContext context, CompositeReaderConfig readerConfig, List<T> creators, int numSplitsToPrefetch) {
     this.creators = creators;
+    this.nextSplit = creators.size() > 0 ? creators.get(0) : null;
     this.context = context;
     this.readerConfig = readerConfig;
     this.runtimeFilterEvaluators = new ArrayList<>();
+    this.numSplitsToPrefetch = numSplitsToPrefetch;
   }
 
   @Override
   public boolean hasNext() {
-    return nextLocation < creators.size();
+    return nextSplit != null;
   }
 
   @Override
   public RecordReader next() {
     Preconditions.checkArgument(hasNext());
-    location = nextLocation;
-    setNextLocation(location + 1);
-    final SplitReaderCreator current = creators.get(location);
+    final SplitReaderCreator current = nextSplit;
+    applyRuntimeFilters(current, numSplitsToPrefetch);
+    nextSplit = current.next;
     current.createInputStreamProvider(inputStreamProvider, footer);
     this.inputStreamProvider = current.getInputStreamProvider();
     this.footer = current.getFooter();
@@ -83,37 +89,54 @@ public class PrefetchingIterator<T extends SplitReaderCreator> implements Record
     }
   }
 
-  private void setNextLocation(int baseNext) {
-    this.nextLocation = baseNext;
-    if (runtimeFilterEvaluators.isEmpty() || !hasNext()) {
+  private boolean canSkipSplit(final SplitAndPartitionInfo split) {
+    final List<NameValuePair<?>> nameValuePairs = this.readerConfig.getPartitionNVPairs(this.context.getAllocator(), split);
+    try {
+      for (RuntimeFilterEvaluator runtimeFilterEvaluator : runtimeFilterEvaluators) {
+        if (runtimeFilterEvaluator.canBeSkipped(split, nameValuePairs)) {
+          return true;
+        }
+      }
+    } finally {
+      AutoCloseables.close(RuntimeException.class, nameValuePairs);
+    }
+
+    return false;
+  }
+
+  // Starting from base, returns the next valid split
+  // Returns null, if there is no valid split
+  private SplitReaderCreator getNextValidSplit(SplitReaderCreator base) {
+    Preconditions.checkArgument(base instanceof GetSplitAndPartitionInfo, "Unexpected argument passed to getNextValidSplit");
+    if (runtimeFilterEvaluators.isEmpty()) {
+      return base.next;
+    }
+
+    // there are runtime filters and next
+    SplitReaderCreator nextLoc = base.next;
+    while (nextLoc != null) {
+      final SplitAndPartitionInfo split = ((GetSplitAndPartitionInfo)nextLoc).getSplit();
+      if (!canSkipSplit(split)) {
+        // this split cannot be skipped
+        return nextLoc;
+      }
+
+      nextLoc = nextLoc.next;
+    }
+
+    return nextLoc;
+  }
+
+  private void applyRuntimeFilters(SplitReaderCreator baseSplit, int numSplitsToPrefetch) {
+    SplitReaderCreator current = baseSplit;
+    if (!(current instanceof GetSplitAndPartitionInfo)) {
       return;
     }
-    boolean skipPartition;
-    do {
-      skipPartition = false;
-      final SplitAndPartitionInfo split = creators.get(nextLocation).getSplit();
-      if (split == null) {
-        return;
-      }
 
-      final List<NameValuePair<?>> nameValuePairs = this.readerConfig.getPartitionNVPairs(this.context.getAllocator(), split);
-      try {
-        for (RuntimeFilterEvaluator runtimeFilterEvaluator : runtimeFilterEvaluators) {
-          if (runtimeFilterEvaluator.canBeSkipped(split, nameValuePairs)) {
-            skipPartition = true;
-            this.nextLocation++;
-            break;
-          }
-        }
-      } finally {
-        AutoCloseables.close(RuntimeException.class, nameValuePairs);
-      }
-    } while (skipPartition && hasNext());
-
-    // Reset pre-fetching next
-    if (location >= 0 && nextLocation > location + 1) {
-      final SplitReaderCreator nextReaderCreator = nextLocation < creators.size() ? creators.get(nextLocation) : null;
-      creators.get(location).setNext(nextReaderCreator);
+    for(int i = 0; (i < numSplitsToPrefetch) && (current != null); i++) {
+      SplitReaderCreator nextSplit = getNextValidSplit(current);
+      current.setNext(nextSplit);
+      current = nextSplit;
     }
   }
 

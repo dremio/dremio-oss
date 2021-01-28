@@ -20,7 +20,7 @@ import config from 'dyn-load/utils/config';
 import { injectIntl } from 'react-intl';
 
 import fileABug from 'utils/fileABug';
-import { logoutUser } from 'actions/account';
+import { logoutUser } from '@inject/actions/account';
 
 
 import Menu from 'components/Menus/Menu';

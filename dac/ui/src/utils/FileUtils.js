@@ -15,7 +15,7 @@
  */
 import Immutable from 'immutable';
 
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import FileSaver from 'file-saver';
 
 class FileDownloadError {

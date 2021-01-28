@@ -34,6 +34,16 @@ export function resetNewQuery(viewId) {
   return { type: RESET_NEW_QUERY, viewId };
 }
 
+export const SET_CURRENT_ENGINE = 'SET_CURRENT_ENGINE';
+export function setCurrentEngine(engine) {
+  localStorage.setItem('currentEngine', JSON.stringify(engine));
+  return { type: SET_CURRENT_ENGINE, engine};
+}
+export const SET_DEFAULT_ENGINE = 'SET_DEFAULT_ENGINE';
+export function setDefaultEngine(engine) {
+  return {type: SET_DEFAULT_ENGINE, engine};
+}
+
 export const UPDATE_COLUMN_FILTER = 'UPDATE_COLUMN_FILTER';
 export const updateColumnFilter = (columnFilter) => ({ type: UPDATE_COLUMN_FILTER, columnFilter });
 

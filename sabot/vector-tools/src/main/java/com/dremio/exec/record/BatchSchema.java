@@ -628,8 +628,8 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return false;
   }
 
-  public BatchSchema merge(BatchSchema schemaToMergeIntoThis, boolean mixedTypesSupported) {
-    if (!mixedTypesSupported) {
+  public BatchSchema merge(BatchSchema schemaToMergeIntoThis, boolean mixedTypesDisabled) {
+    if (mixedTypesDisabled) {
       return mergeWithUpPromotion(schemaToMergeIntoThis);
     } else {
       return merge(schemaToMergeIntoThis);
@@ -649,7 +649,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
 
   private List<Field> mergeWithUpPromotion(List<Field> fileFields) {
     try {
-      return CompleteType.mergeWithUpPromotion(ImmutableList.copyOf(this), fileFields);
+      return CompleteType.mergeFieldListsWithUpPromotionOrCoercion(ImmutableList.copyOf(this), fileFields);
     } catch (UnsupportedOperationException e) {
       throw UserException.unsupportedError().message(e.getMessage()).build(logger);
     }

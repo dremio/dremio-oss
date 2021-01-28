@@ -388,6 +388,15 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     wakeupHandler = new WakeupHandler(executorService, reflectionManager);
   }
 
+  @Override
+  public void updateAccelerationBasePath() {
+    if (reflectionManager != null) {
+      final FileSystemPlugin accelerationPlugin = sabotContext.get().getCatalogService()
+        .getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
+      reflectionManager.setAccelerationBasePath(accelerationPlugin.getConfig().getPath());
+    }
+  }
+
   public RefreshHelper getRefreshHelper() {
     return new RefreshHelper() {
 

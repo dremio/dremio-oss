@@ -98,6 +98,16 @@ public class TestMaestroResiliency extends BaseTestQuery {
   }
 
   @Test
+  public void testFailureInAttemptManagerConstructor() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(AttemptManager.class, AttemptManager.INJECTOR_CONSTRUCTOR_ERROR,
+        RuntimeException.class)
+      .build();
+
+    runMultiple(controls, AttemptManager.INJECTOR_CONSTRUCTOR_ERROR);
+  }
+
+  @Test
   public void testFailureInAttemptManagerBegin() throws Exception {
     final String controls = Controls.newBuilder()
       .addException(AttemptManager.class, AttemptManager.INJECTOR_TRY_BEGINNING_ERROR,

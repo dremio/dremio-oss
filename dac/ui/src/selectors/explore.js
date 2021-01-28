@@ -284,6 +284,10 @@ export const getHistoryItems = createSelector(
   historyItems => historyItems
 );
 
+export function getCurrentEngine(state) {
+  const exploreState = getExploreState(state);
+  return exploreState.view.currentEngin;
+}
 
 export const exploreStateKey = 'explorePage'; // a key that would be used for dynamic redux state
 export const getExploreState = state => getModuleState(state, exploreStateKey);

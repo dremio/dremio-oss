@@ -19,8 +19,6 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.ws.rs.NotAuthorizedException;
-
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
@@ -95,12 +93,7 @@ public class SocketServlet extends WebSocketServlet {
       }
 
       final String authHeader = req.getSubProtocols().get(0);
-      final String token;
-      try {
-        token = TokenUtils.getTokenFromAuthHeader(authHeader);
-      } catch (NotAuthorizedException ignored) {
-        return sendForbiddenAsResponse(resp);
-      }
+      final String token = TokenUtils.getToken(authHeader);
 
       final UserName userName;
       try {

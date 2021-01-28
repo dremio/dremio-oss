@@ -33,7 +33,7 @@ export const LOGIN_USER_FAILURE = 'LOGIN_USER_FAILURE';
 
 export const LOGIN_VIEW_ID = 'LoginForm';
 
-const getLoginMeta = userName => ({
+export const getLoginMeta = userName => ({
   userName,
   viewId: LOGIN_VIEW_ID
 });
@@ -77,7 +77,7 @@ export const userLoggedIn = userInfo => ({
   meta: getLoginMeta(userInfo.userName)
 });
 
-const getLogInFailedBaseDescriptor = userName => ({
+export const getLogInFailedBaseDescriptor = userName => ({
   type: LOGIN_USER_FAILURE,
   meta: {
     ...getLoginMeta(userName),

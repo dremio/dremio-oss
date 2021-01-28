@@ -159,8 +159,7 @@ public class FlattenVisitors {
       return totalCount.value;
     }
 
-
-    protected FlattenCounter() {
+    public FlattenCounter() {
       super(true);
     }
 

@@ -21,12 +21,17 @@ import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.container.ResourceInfo;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
 
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.model.usergroup.UserName;
+import com.dremio.dac.server.tokens.TokenInfo;
 import com.dremio.dac.server.tokens.TokenUtils;
+import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
@@ -42,6 +47,7 @@ public class DACAuthFilter implements ContainerRequestFilter {
 
   @Inject private javax.inject.Provider<UserService> userService;
   @Inject private TokenManager tokenManager;
+  @Inject private ResourceInfo resourceInfo;
 
   public DACAuthFilter() {
   }
@@ -49,17 +55,60 @@ public class DACAuthFilter implements ContainerRequestFilter {
   @Override
   public void filter(ContainerRequestContext requestContext) {
     try {
-      final String token = TokenUtils.getTokenFromAuthHeaderOrQueryParameter(requestContext);
-      final UserName userName;
-      try {
-        userName = new UserName(tokenManager.validateToken(token).username);
-      } catch (final IllegalArgumentException e) {
-        throw new NotAuthorizedException(e);
-      }
+      final UserName userName = getUserNameFromToken(requestContext);
       final User userConfig = userService.get().getUser(userName.getName());
       requestContext.setSecurityContext(new DACSecurityContext(userName, userConfig, requestContext));
     } catch (UserNotFoundException | NotAuthorizedException e) {
       requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
     }
   }
+
+  /**
+   * If temporary access resource:
+   *   1. get token from query param. if not present fallback to header
+   *   2. validate temp token
+   * If not a temporary resource or temporary token validation failed:
+   *   1. get token from auth header
+   *   2. validate token
+   * @param requestContext
+   * @return UserName
+   * @throws NotAuthorizedException if validation fails
+   */
+  protected UserName getUserNameFromToken(ContainerRequestContext requestContext) throws NotAuthorizedException {
+    final UserName userName;
+
+    try {
+      TokenDetails tokenDetails;
+
+      if (resourceInfo.getResourceMethod().isAnnotationPresent(TemporaryAccess.class)) {
+        String temporaryToken = TokenUtils.getTemporaryToken(requestContext);
+        if (temporaryToken != null) {
+          tokenDetails = tokenManager.validateTemporaryToken(
+            temporaryToken,
+            requestContext.getUriInfo().getRequestUri().getPath(),
+            requestContext.getUriInfo().getQueryParameters());
+        } else {
+          temporaryToken = TokenUtils.getToken(requestContext.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+          try {
+            tokenDetails = tokenManager.validateTemporaryToken(
+              temporaryToken,
+              requestContext.getUriInfo().getRequestUri().getPath(),
+              requestContext.getUriInfo().getQueryParameters());
+          } catch (IllegalArgumentException e) {
+            tokenDetails = tokenManager.validateToken(temporaryToken);
+          }
+        }
+      } else {
+        String token = TokenUtils.getToken(requestContext.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+        tokenDetails = tokenManager.validateToken(token);
+      }
+
+      TokenInfo.setContext(requestContext, tokenDetails);
+      userName = new UserName(tokenDetails.username);
+      return userName;
+    } catch (IllegalArgumentException e) {
+      throw new NotAuthorizedException(e);
+    }
+  }
+
 }

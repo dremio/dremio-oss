@@ -76,7 +76,7 @@ public class FilterPrel extends FilterRelBase implements Prel {
 
   @Override
   public SelectionVectorMode[] getSupportedEncodings() {
-    return SelectionVectorMode.NONE_AND_TWO;
+    return SelectionVectorMode.DEFAULT;
   }
 
   /**

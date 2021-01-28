@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import org.apache.hadoop.hive.serde2.typeinfo.BaseCharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapred.JobConf;
@@ -61,31 +62,45 @@ public class ManagedHiveSchema implements ManagedSchema {
     while (fieldNames.hasNext() && fieldTypes.hasNext()) {
       final String fieldName = fieldNames.next();
       final TypeInfo fieldType = fieldTypes.next();
-      ManagedSchemaField field;
-      if (fieldType instanceof DecimalTypeInfo) {
-        field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
-          ((DecimalTypeInfo) fieldType).getPrecision(), ((DecimalTypeInfo) fieldType).getScale());
-        typeInfoMap.put(fieldName, fieldType);
-      } else if (fieldType instanceof BaseCharTypeInfo) {
-        if (varcharTruncationEnabled) {
-          field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
-              ((BaseCharTypeInfo) fieldType).getLength(), 0);
-          typeInfoMap.put(fieldName, fieldType);
-        } else {
-          field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
-        }
-      } else {
-        // Extend ManagedSchemaField.java in case granular information has to be stored.
-        // No mention of len and scale means it is unbounded. So, we store max values.
-        field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
-        typeInfoMap.put(fieldName, fieldType);
-      }
-      schemaFieldMap.put(fieldName, field);
+      fillSchemaFieldAndTypeInfoMap(fieldName, fieldType, schemaFieldMap, typeInfoMap);
     }
     fieldInfo = CaseInsensitiveMap.newImmutableMap(schemaFieldMap);
     typeInfo = CaseInsensitiveMap.newImmutableMap(typeInfoMap);
   }
 
+  private void fillSchemaFieldAndTypeInfoMap(String fieldName, TypeInfo fieldType, Map<String, ManagedSchemaField> schemaFieldMap, Map<String, TypeInfo> typeInfoMap) {
+    ManagedSchemaField field;
+    if (fieldType instanceof DecimalTypeInfo) {
+      field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
+        ((DecimalTypeInfo) fieldType).getPrecision(), ((DecimalTypeInfo) fieldType).getScale());
+      typeInfoMap.put(fieldName, fieldType);
+      schemaFieldMap.put(fieldName, field);
+    } else if (fieldType instanceof BaseCharTypeInfo) {
+      if (varcharTruncationEnabled) {
+        field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
+          ((BaseCharTypeInfo) fieldType).getLength(), 0);
+        typeInfoMap.put(fieldName, fieldType);
+      } else {
+        field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
+      }
+      schemaFieldMap.put(fieldName, field);
+    } else if (fieldType instanceof StructTypeInfo) {
+      Iterator<String> structFieldNames = ((StructTypeInfo) fieldType).getAllStructFieldNames().iterator();
+      Iterator<TypeInfo> structTypeInfos = ((StructTypeInfo) fieldType).getAllStructFieldTypeInfos().iterator();
+      while (structFieldNames.hasNext() && structTypeInfos.hasNext()) {
+        fillSchemaFieldAndTypeInfoMap(fieldName + "." + structFieldNames.next(), structTypeInfos.next(), schemaFieldMap, typeInfoMap);
+      }
+      field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
+      typeInfoMap.put(fieldName, fieldType);
+      schemaFieldMap.put(fieldName, field);
+    } else {
+      // Extend ManagedSchemaField.java in case granular information has to be stored.
+      // No mention of len and scale means it is unbounded. So, we store max values.
+      field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
+      typeInfoMap.put(fieldName, fieldType);
+      schemaFieldMap.put(fieldName, field);
+    }
+  }
 
   @Override
   public Optional<ManagedSchemaField> getField(final String fieldName) {

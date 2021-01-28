@@ -40,6 +40,7 @@ import org.glassfish.jersey.server.ChunkedOutput;
 
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.provision.service.ProvisioningHandlingException;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -75,6 +76,7 @@ public class QueryLogBundleResource {
   @GET
   @Path("/download")
   @Consumes(MediaType.APPLICATION_JSON)
+  @TemporaryAccess
   public Response getClusterLog(@PathParam("jobId") JobId jobId) {
 
     try {

@@ -138,19 +138,19 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     this.catalogServiceHelper = catalogServiceHelper;
   }
 
-  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion, Integer limit)
+  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion, Integer limit, String engineName)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FromTable from = new FromTable(fromDatasetPath.toPathString());
     DatasetSummary summary = getDatasetSummary(fromDatasetPath);
 
-    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit);
+    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName);
   }
 
   private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context,
-                                             DatasetSummary parentSummary, Integer limit)
+                                             DatasetSummary parentSummary, Integer limit, String engineName)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    return tool.newUntitled(getOrCreateAllocator("newUntitled"), from, newVersion, context, parentSummary, false, limit);
+    return tool.newUntitled(getOrCreateAllocator("newUntitled"), from, newVersion, context, parentSummary, false, limit, engineName);
   }
 
   /**
@@ -172,7 +172,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       /* body */ CreateFromSQL sql)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
-    return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null, limit);
+    return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null, limit, sql.getEngineName());
   }
 
   @POST @Path("new_untitled_sql_and_run")
@@ -184,7 +184,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, InterruptedException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
 
-    return tool.newUntitledAndRun(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext());
+    return tool.newUntitledAndRun(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), sql.getEngineName());
   }
 
   /**
@@ -199,15 +199,16 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   public InitialPreviewResponse newUntitledFromParent(
       @QueryParam("parentDataset") DatasetPath parentDataset,
       @QueryParam("newVersion") DatasetVersion newVersion,
-      @QueryParam("limit") Integer limit)
+      @QueryParam("limit") Integer limit,
+      @QueryParam("engineName") String engineName)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
     try {
-      return newUntitled(parentDataset, newVersion, limit);
+      return newUntitled(parentDataset, newVersion, limit, engineName);
     } catch (DatasetNotFoundException | NamespaceException e) {
       // TODO: this should really be a separate API from the UI.
       // didn't find as virtual dataset, let's return as opaque sql (as this could be a source) .
-      return newUntitled(parentDataset, newVersion, limit);
+      return newUntitled(parentDataset, newVersion, limit, engineName);
     }
   }
 

@@ -195,7 +195,8 @@ describe('ExplorePageController', () => {
   it('addHasChangesHook is called on mount', () => {
     const props = {
       ...commonProps,
-      addHasChangesHook: sinon.stub()
+      addHasChangesHook: sinon.stub(),
+      loadDcsProvision: sinon.stub()
     };
     const instance = shallow(<ExplorePageControllerComponent {...props}/>, { disableLifecycleMethods: false }).instance();
     expect(props.addHasChangesHook).to.be.calledWith(instance.shouldShowUnsavedChangesPopup);

@@ -73,6 +73,7 @@ public class ConduitServer implements Service {
     }
 
     for (CloseableBindableService closeableService : registry.getCloseableServiceList()) {
+      logger.debug("Conduit service being added {}", closeableService.getClass().getName());
       serverBuilder.addService(closeableService);
       closeableServices.add(closeableService);
     }

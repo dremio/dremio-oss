@@ -172,6 +172,7 @@ Copyright (c) 2014-present Oleg Slobodskoi",
 Copyright (c) 2014-present Oleg Slobodskoi",
 ,jss,,,9.8.7,https://github.com/cssinjs/jss,MIT,,,,"The MIT License (MIT)
 Copyright (c) 2014-present Oleg Slobodskoi",
+,jwt-decode,,,3.1.2,https://github.com/auth0/jwt-decode,MIT,,,,"Copyright (c) 2015 Auth0, Inc. <support@auth0.com> (http://auth0.com)",
 ,linkifyjs,,,2.1.9,https://github.com/SoapBox/linkifyjs,MIT,,,,Copyright (c) 2018 SoapBox Innovations Inc.,
 ,lodash._getnative,,,3.9.1,https://github.com/lodash/lodash,MIT,,,,"Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
 Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas,
@@ -254,6 +255,7 @@ Copyright (c) 2015-2016 Adphorus",
 ,react-dom,,,16.7.0,https://github.com/facebook/react,MIT,,,,,
 ,react-dropzone,,,4.1.3,https://github.com/react-dropzone/react-dropzone,MIT,,,,Copyright (c) 2014 Param Aggarwal,
 ,react-event-listener,,,0.6.6,https://github.com/oliviertassinari/react-event-listener,MIT,,,,,
+,react-gtm-module,,,2.0.11,https://github.com/alinemorelli/react-gtm,MIT,,,,Copyright (c) 2016 HolidayCheck,
 ,react-immutable-proptypes,,,2.1.0,https://github.com/HurricaneJames/react-immutable-proptypes,MIT,,,,Copyright (c) 2015 James Burnett,
 ,react-intl,,,2.4.0,https://github.com/yahoo/react-intl,BSD-3-Clause,,,,"Copyright 2014 Yahoo Inc.
 All rights reserved.",

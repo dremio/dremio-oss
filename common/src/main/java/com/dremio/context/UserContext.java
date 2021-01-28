@@ -20,6 +20,8 @@ package com.dremio.context;
  */
 public class UserContext {
   public static final RequestContext.Key<UserContext> CTX_KEY = RequestContext.newKey("user_ctx_key");
+  public static final UserContext DEFAULT_SERVICE_CONTEXT = new UserContext("dremio");
+
   private final String userName;
 
   public UserContext(String userName) {

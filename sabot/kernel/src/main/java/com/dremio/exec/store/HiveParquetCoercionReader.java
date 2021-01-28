@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -37,6 +39,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.parquet.CopyingFilteringReader;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
+import com.dremio.exec.store.parquet.UpPromotingParquetReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -47,6 +50,8 @@ import com.google.common.base.Stopwatch;
  * TODO(DX-26038): Remove duplicate code with FilteringCoercionReader
  */
 public class HiveParquetCoercionReader extends AbstractRecordReader {
+  private static final Logger logger = LoggerFactory.getLogger(HiveParquetCoercionReader.class);
+
   protected final RecordReader inner;
   protected final OperatorContext context;
   protected final ExpressionEvaluationOptions projectorOptions;
@@ -106,6 +111,13 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
     if (setupCalledByFilteringReader) {
       this.filteringReaderInputMutator = (ScanOperator.ScanMutator) output;
     } else {
+      if (inner instanceof UpPromotingParquetReader) {
+        ((UpPromotingParquetReader) inner).setupMutator(output);
+        if (output.getSchemaChanged()) {
+          logger.info("Detected schema change. Not initializing further readers");
+          return;
+        }
+      }
       this.outputMutator = output;
       inner.setup(mutator); // this will modify filters in schema mismatch case
       incoming.buildSchema();

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,7 @@ import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.invocation.InvocationOnMock;
 
@@ -93,6 +95,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     return allocator;
   }
 
+  @Test
   public void testIsCancelledTrue() throws Exception {
     // Arrange
     when(listener.isCancelled()).thenReturn(true);
@@ -103,6 +106,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     assertTrue(handler.isCancelled());
   }
 
+  @Test
   public void testIsCancelledDuringWaitTrue() throws Exception {
     // Arrange
     when(listener.isCancelled()).thenReturn(true);
@@ -113,6 +117,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     assertTrue(handler.isCancelled());
   }
 
+  @Test
   public void testIsCancelledFalse() {
     // Arrange
     when(listener.isCancelled()).thenReturn(false);
@@ -121,6 +126,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     assertFalse(createHandler().isCancelled());
   }
 
+  @Test
   public void testUserResultStateFailedWithNoException() {
     // Arrange
     final UserResult result = mock(UserResult.class);
@@ -142,6 +148,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     verify(listener, times(1)).error(any(FlightRuntimeException.class));
   }
 
+  @Test
   public void testUserResultStateFailedWithException() {
     // Arrange
     final String expectedMessage = "Test UserException data read error.";
@@ -167,6 +174,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     verify(listener, times(1)).error(any(FlightRuntimeException.class));
   }
 
+  @Test
   public void testUserResultStateCancelledWithReason() {
     // Arrange
     final String expectedMessage = "Test cancellation reason";
@@ -190,6 +198,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     verify(listener, times(1)).error(any(FlightRuntimeException.class));
   }
 
+  @Test
   public void testUserResultStateCancelledWithNoException() {
     // Arrange
     final UserResult result = mock(UserResult.class);
@@ -212,6 +221,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     verify(listener, times(1)).error(any(FlightRuntimeException.class));
   }
 
+  @Test
   public void testUserResultStateCancelledWithException() {
     // Arrange
     final String expectedMessage = "Test UserException data read error.";
@@ -237,6 +247,7 @@ public abstract class BaseTestRunQueryResponseHandler {
     verify(listener, times(1)).error(any(FlightRuntimeException.class));
   }
 
+  @Test
   public void testUserResultStateCompleted() {
     // Arrange
     final UserResult result = mock(UserResult.class);
@@ -247,5 +258,25 @@ public abstract class BaseTestRunQueryResponseHandler {
 
     // Verify
     verify(listener, times(1)).completed();
+  }
+
+  @Test
+  public void testUsernameOnCancel() {
+    // Arrange
+    final String username = "testUser";
+    final String impersonationName = "testImpersonationName";
+    final UserBitShared.UserCredentials credentials =
+      UserBitShared.UserCredentials.newBuilder().setUserName(username).build();
+    final UserWorker worker = mock(UserWorker.class);
+
+    when(userSession.getCredentials()).thenReturn(credentials);
+    when(userSession.getTargetUserName()).thenReturn(impersonationName);
+    when(workerProvider.get()).thenReturn(worker);
+
+    // Act
+    createHandler().serverStreamListenerOnCancelledCallback();
+
+    // Verify
+    verify(worker, times(1)).cancelQuery(eq(externalId), eq(username));
   }
 }
