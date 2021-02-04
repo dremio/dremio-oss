@@ -197,7 +197,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Sets a configuration entry.
    *
-   * @param key a key associated with the configuration entry
+   * @param key   a key associated with the configuration entry
    * @param entry the configuration entry to be set
    */
   @Override
@@ -226,8 +226,7 @@ public class BasicSupportService implements SupportService {
    * <p>In case another server already have stored it, retrieves the stored identity.
    *
    * @param identity the cluster identity to be stored
-   * @return the cluster identity stored in the Configuration KVStore.
-   *
+   * @return the cluster identity stored in the Configuration KVStore
    * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
@@ -257,8 +256,8 @@ public class BasicSupportService implements SupportService {
    * to build the cluster identity, such as its version and ID itself.
    *
    * @return the acquired cluster ID
-   * @throws RpcException  If it was unable to fetch the cluster identity by the RPC request
-   * @throws Exception  If any other exception occurs
+   * @throws RpcException If it was unable to fetch the cluster identity by the RPC request
+   * @throws Exception    If any other exception occurs
    */
   private ClusterIdentity getClusterIdentityFromRPC() throws Exception {
     final ClusterIdentityRequest.Builder requestBuilder = ClusterIdentityRequest.newBuilder();
