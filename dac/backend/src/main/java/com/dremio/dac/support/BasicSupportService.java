@@ -401,6 +401,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Updates a cluster identity's configuration entry.
+   *
+   * @param  provider the KVStore to acquire the identity's support store
+   * @param  identity the cluster identity to be updated
+   */
   public static void updateClusterIdentity(LegacyKVStoreProvider provider, ClusterIdentity identity) {
     final LegacyKVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
 
