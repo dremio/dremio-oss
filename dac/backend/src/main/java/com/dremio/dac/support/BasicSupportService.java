@@ -194,10 +194,10 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Sets a config store entry
+   * Sets a configuration entry
    *
-   * @param key
-   * @param entry
+   * @param key a key associated with the configuration entry
+   * @param entry the configuration entry to be set
    */
   @Override
   public void setConfigurationEntry(String key, ConfigurationEntry entry) {
