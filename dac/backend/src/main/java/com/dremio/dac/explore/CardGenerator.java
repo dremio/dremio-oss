@@ -69,14 +69,15 @@ public class CardGenerator {
   }
 
   /**
-   * Generate cards.
+   * Generate cards to count how many rows that satisfied a given set of rules and generate cards examples to each rule.
    *
-   * @param datasetSql            Sql of the dataset version for which cards are needed.
-   * @param colName               Column name on which the transform rule needs to be applied
-   * @param transformRuleWrappers set of transform rule wrappers.
-   * @param comparator            Optional comparator to use in sorting the generated cards.
-   * @param <T>                   transform rule
-   * @return
+   * @param datasetSql            the SQL query of the dataset version for which cards are needed
+   * @param colName               the column name on which the transform rule needs to be applied
+   * @param transformRuleWrappers a set of transform rule wrappers
+   * @param allocator             the BufferAllocator instance to generate cards
+   * @param comparator            an optional comparator to use in sorting the generated cards
+   * @param <T>                   the type parameter to a generic list of cards that will be returned
+   * @return                      the cards that satisfied a given set of rules
    */
   public <T> List<Card<T>> generateCards(SqlQuery datasetSql, String colName,
     List<TransformRuleWrapper<T>> transformRuleWrappers, Comparator<Card<T>> comparator,
