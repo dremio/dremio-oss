@@ -305,6 +305,13 @@ public class BasicSupportService implements SupportService {
     return id;
   }
 
+  /**
+   * Acquires the current cluster identity from a given KVStore.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param provider the KVStore to acquire the cluster identity
+   * @return the cluster identity, or null if it failed to get the cluster ID
+   */
   public static Optional<ClusterIdentity> getClusterIdentity(LegacyKVStoreProvider provider) {
     ConfigurationStore store = new ConfigurationStore(provider);
     return getClusterIdentityFromStore(store, provider);
