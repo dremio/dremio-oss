@@ -194,6 +194,15 @@ public class CardGenerator {
     }
   }
 
+  /**
+   * Generates the SQL query statement to retrieve the cards examples.
+   *
+   * @param inputColName        the column name that it which to select data from
+   * @param datasetPreviewTable the table path that it which to select data from
+   * @param evaluators          the transform recommendation rule to verify if can generate card examples
+   * @param <T>                 the type parameter to a generic SQL query statement that will be returned
+   * @return                    the SQL query statement to retrieve the cards examples
+   */
   <T> String generateCardGenQuery(String inputColName, String datasetPreviewTable,
     List<TransformRuleWrapper<T>> evaluators) {
 
@@ -226,6 +235,15 @@ public class CardGenerator {
     return queryBuilder.toString();
   }
 
+  /**
+   * Generates the SQL query statement to retrieve the cards match count.
+   *
+   * @param inputColName        the column name that it which to select data from
+   * @param datasetPreviewTable the table path that it which to select data from
+   * @param evaluators          the transform recommendation rule to verify if can generate card examples
+   * @param <T>                 the type parameter to a generic SQL query statement that will be returned
+   * @return                    the SQL query statement to retrieve the the cards match count
+   */
   <T> String generateMatchCountQuery(String inputColName, String datasetPreviewTable,
     List<TransformRuleWrapper<T>> evaluators) {
 
