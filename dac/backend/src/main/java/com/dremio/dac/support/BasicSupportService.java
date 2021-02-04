@@ -183,7 +183,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Gets a configuration value.
+   * Gets a configuration entry.
    *
    * @param key a key associated with the configuration value
    * @return the configuration value associated with the given key
