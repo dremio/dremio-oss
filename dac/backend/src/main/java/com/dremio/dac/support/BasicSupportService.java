@@ -173,9 +173,10 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Gets the current cluster's identifier.
+   * Acquires the current cluster identity.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
    *
-   * @return the cluster's identifier
+   * @return the acquired cluster ID.
    */
   @Override
   public ClusterIdentity getClusterId() {
