@@ -343,6 +343,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Migrates an old support store cluster identity to the new the new store.
+   *
+   * @param  provider a key-value store provider to be migrated
+   * @return          the migrated cluster identity
+   */
   private static Optional<ClusterIdentity> upgradeToNewSupportStore(LegacyKVStoreProvider provider) {
     final LegacyKVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
     ClusterIdentity clusterIdentity = oldSupportStore.get(CLUSTER_ID);
