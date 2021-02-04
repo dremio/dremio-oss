@@ -206,7 +206,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Store DremioEdition in Configuration Store
+   * Stores the current DremioEdition in the Configuration Store.
    */
   protected void storeDremioEdition() {
     try {
