@@ -252,6 +252,14 @@ public class BasicSupportService implements SupportService {
     return identity;
   }
 
+  /**
+   * Acquires the current cluster identity by a RPC request.  The RPC request returns all the metadata necessary
+   * to build the cluster identity, such as its version and ID it self.
+   *
+   * @return the acquired cluster ID
+   * @throws RpcException  If it was unable to fetch the cluster identity by the RPC request
+   * @throws Exception  If any other exception occurs
+   */
   private ClusterIdentity getClusterIdentityFromRPC() throws Exception {
     final ClusterIdentityRequest.Builder requestBuilder = ClusterIdentityRequest.newBuilder();
     final ClusterIdentityResponse response;
