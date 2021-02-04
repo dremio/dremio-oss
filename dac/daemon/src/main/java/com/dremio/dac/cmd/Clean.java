@@ -47,7 +47,7 @@ import com.dremio.service.namespace.PartitionChunkId;
 
 
 /**
- * Backup command line.
+ * Clean is the class responsible for cleaning Dremio metadata on command line.
  */
 @AdminCommand(value = "clean", description = "Cleans Dremio metadata")
 public class Clean {
@@ -57,36 +57,37 @@ public class Clean {
    */
   @Parameters(separators = "=")
   static final class Options {
-    @Parameter(names={"-h", "--help"}, description="show usage", help=true)
+    @Parameter(names = {"-h", "--help"}, description = "show usage", help = true)
     private boolean help = false;
 
-    @Parameter(names= {"-j", "--max-job-days"}, description="delete jobs older than provided number of days", required=false, validateWith=PositiveInteger.class)
+    @Parameter(names = {"-j", "--max-job-days"}, description = "delete jobs older than provided number of days", required = false, validateWith = PositiveInteger.class)
     private int maxJobDays = Integer.MAX_VALUE;
 
-    @Parameter(names= {"-p", "--delete-orphan-profiles"}, description="delete orphans profiles in kvstore", required=false)
+    @Parameter(names = {"-p", "--delete-orphan-profiles"}, description = "delete orphans profiles in kvstore", required = false)
     private boolean deleteOrphanProfiles = false;
 
-    @Parameter(names= {"-o", "--delete-orphans"}, description="delete orphans records in kvstore (e.g. old splits)", required=false)
+    @Parameter(names = {"-o", "--delete-orphans"}, description = "delete orphans records in kvstore (e.g. old splits)", required = false)
     private boolean deleteOrphans = false;
 
-    @Parameter(names= {"-i", "--reindex-data"}, description="reindex data", required=false)
+    @Parameter(names = {"-i", "--reindex-data"}, description = "reindex data", required = false)
     private boolean reindexData = false;
 
-    @Parameter(names= {"-c", "--compact"}, description="compact kvstore", required=false)
+    @Parameter(names = {"-c", "--compact"}, description = "compact kvstore", required = false)
     private boolean compactKvStore = false;
 
     /**
-     * Validates that value passed for --max-job-days(-j)
-     * is positive
+     * PositiveInteger is responsible for validating if a given value defined
+     * for the --max-job-days(-j) parameter is positive.
      */
     public static class PositiveInteger extends com.beust.jcommander.validators.PositiveInteger {
 
       /**
-       * Validates parameter and throws exception if incorrect value or type for param.
-       * Parameter value should be a positive integer
-       * @param name Name of parameter
-       * @param value Value of parameter
-       * @throws ParameterException
+       * Validates if a given parameter value is a positive integer and throws an exception
+       * if the value or its type are incorrect.
+       *
+       * @param name  the name of the parameter
+       * @param value the string value of the parameter
+       * @throws ParameterException If the defined value is not a positive integer
        */
       @Override
       public void validate(String name, String value) throws ParameterException {
@@ -94,35 +95,80 @@ public class Clean {
         try {
           super.validate(name, value);
         } catch (NumberFormatException | ParameterException e) {
-          throw new ParameterException("Parameter " + name + " should be a positive integer (found " + value +")");
+          throw new ParameterException("Parameter " + name + " should be a positive integer (found " + value + ")");
         }
       }
     }
 
+    /**
+     * Returns a flag which indicates if there is any active operation command requested.
+     * <p>
+     * Returns true if any of the parameters maxJobDays, deleteOrphans, reindexData or compactKvStore
+     * were defined by the user clean command.
+     *
+     * @return a flag which indicates if any active operation command was requested
+     */
     public boolean hasActiveOperation() {
       return maxJobDays != Integer.MAX_VALUE || deleteOrphans || reindexData || compactKvStore;
     }
 
+    /**
+     * Returns a flag which indicates if the help command was requested.
+     *
+     * @return a flag which indicates if the help command was requested
+     */
     public boolean isHelp() {
       return help;
     }
 
+    /**
+     * Gets the maximum number of days that allows older files to be deleted.
+     *
+     * @return the maximum number of days that allows older files to be deleted
+     */
     public int getMaxJobDays() {
       return maxJobDays;
     }
 
+    /**
+     * Returns a flag which indicates if split and collaboration orphans should be deleted
+     * from the key-value stores.
+     *
+     * @return a flag which indicates if split and collaboration orphans should be deleted
+     */
     public boolean isDeleteOrphans() {
       return deleteOrphans;
     }
 
+    /**
+     * Returns a flag which indicates if the keys and values should be re-indexed
+     * on the key-value index stores.
+     *
+     * @return a flag which indicates if keys and values should be re-indexed
+     */
     public boolean isReindexData() {
       return reindexData;
     }
 
+    /**
+     * Returns a flag which indicates if the keys and values should be compacted
+     * on the key-value stores.
+     *
+     * @return a flag which indicates if keys and values should be compacted
+     */
     public boolean isCompactKvStore() {
       return compactKvStore;
     }
 
+    /**
+     * Parses all command line parameters to an Options object.
+     * <p>
+     * If the parse cannot be executed successfully or the command is identified as
+     * the --help command, shows the help usage summary output to the user.
+     *
+     * @param cliArgs the array of command line parameters
+     * @return an Option object representing all parsed command line parameters
+     */
     public static Options parse(String[] cliArgs) {
       Options args = new Options();
       JCommander jc = JCommander.newBuilder()
@@ -138,7 +184,7 @@ public class Clean {
         System.exit(1);
       }
 
-      if(args.help){
+      if (args.help) {
         jc.usage();
       }
       return args;
@@ -146,15 +192,20 @@ public class Clean {
   }
 
   /**
-   * Method to run operation that throws exceptions rather than exiting VM for test purposes.
-   * @param args Command line arguments, same as main()
-   * @throws Exception
+   * Runs the clean command line operation to clean the internal Dremio metadata.
+   * <p>
+   * Useful for test purposes on operations that throws exceptions to avoid exiting VM.
+   *
+   * @param args the array of command line parameters
+   * @throws UnsupportedOperationException If the clean command is run by a node
+   *                                       that is not master
+   * @throws Exception                     If any other exception is thrown on the running process
    */
   public static void go(String[] args) throws Exception {
     final DACConfig dacConfig = DACConfig.newConfig();
     final Options options = Options.parse(args);
 
-    if(options.help) {
+    if (options.help) {
       return;
     }
 
@@ -174,23 +225,23 @@ public class Clean {
       if (provider.getStores().size() == 0) {
         AdminLogger.log("No store stats available");
       }
-      if(options.hasActiveOperation()) {
+      if (options.hasActiveOperation()) {
         AdminLogger.log("Initial Store Status.");
       } else {
         AdminLogger.log("No operation requested. ");
       }
 
-      for(StoreWithId<?, ?> id : provider) {
+      for (StoreWithId<?, ?> id : provider) {
         KVAdmin admin = id.getStore().getAdmin();
         AdminLogger.log(admin.getStats());
       }
 
-      if(options.deleteOrphans) {
+      if (options.deleteOrphans) {
         deleteSplitOrphans(provider.asLegacy());
         deleteCollaborationOrphans(provider.asLegacy());
       }
 
-      if(options.maxJobDays < Integer.MAX_VALUE) {
+      if (options.maxJobDays < Integer.MAX_VALUE) {
         deleteOldJobsAndProfiles(provider.asLegacy(), options.maxJobDays);
       }
 
@@ -198,17 +249,17 @@ public class Clean {
         deleteOrphanProfiles(provider.asLegacy());
       }
 
-      if(options.reindexData) {
+      if (options.reindexData) {
         reindexData(provider);
       }
 
-      if(options.compactKvStore) {
+      if (options.compactKvStore) {
         compactStore(provider);
       }
 
-      if(options.hasActiveOperation()) {
+      if (options.hasActiveOperation()) {
         AdminLogger.log("\n\nFinal Store Status.");
-        for(StoreWithId<?, ?> id : provider.unwrap(LocalKVStoreProvider.class)) {
+        for (StoreWithId<?, ?> id : provider.unwrap(LocalKVStoreProvider.class)) {
           KVAdmin admin = id.getStore().getAdmin();
           AdminLogger.log(admin.getStats());
         }
@@ -228,7 +279,7 @@ public class Clean {
   }
 
   /**
-   * Offline profile deletion using LocalProfileStore.
+   * OfflineProfileCleanup is responsible for offline profile deletions using the LocalProfileStore.
    */
   private static class OfflineProfileCleanup implements ProfileCleanup {
     private final LegacyKVStoreProvider provider;
@@ -237,6 +288,11 @@ public class Clean {
       this.provider = provider;
     }
 
+    /**
+     * Deletes specific old profiles, based on a given identifier, from the local profile store.
+     *
+     * @param attemptId id associated with a profile attempt
+     */
     @Override
     public void go(AttemptId attemptId) {
       LocalProfileStore.deleteOldProfile(provider, attemptId);
@@ -244,7 +300,12 @@ public class Clean {
   }
 
   /**
-   * Method to delete jobs and their corresponding profiles older than provided number of maxDays.
+   * Deletes jobs and their corresponding profiles that are older than the provided maximum number
+   * of days.
+   *
+   * @param provider the key-value store provider
+   * @param maxDays  the maximum number of days that allows older files
+   *                 to be deleted
    */
   private static void deleteOldJobsAndProfiles(LegacyKVStoreProvider provider, int maxDays) {
     AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
@@ -254,7 +315,9 @@ public class Clean {
   }
 
   /**
-   * Method to delete any orphan profiles (i.e a profile without a corresponding entry in the job store).
+   * Deletes any profiles without a corresponding entry in the job key-value store (orphan profiles).
+   *
+   * @param provider the key-value store provider
    */
   private static void deleteOrphanProfiles(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting orphan profiles... ");
@@ -276,6 +339,12 @@ public class Clean {
     AdminLogger.log("Completed. Deleted {} orphan profiles.", profilesDeleted);
   }
 
+  /**
+   * Deletes any possible stale metadata about dataset splits that need to be cleaned up internally
+   * (split orphans).
+   *
+   * @param provider the key-value store provider
+   */
   private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
@@ -283,25 +352,39 @@ public class Clean {
       service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY));
   }
 
+  /**
+   * Deletes any entries that are orphan in the collaboration stores.
+   *
+   * @param provider the key-value store provider
+   */
   private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting collaboration orphans... ");
     AdminLogger.log("Completed. Deleted {} orphans.", CollaborationHelper.pruneOrphans(provider));
   }
 
+  /**
+   * Reindex any key-value stores that are considered an index store.
+   *
+   * @param provider the key-value store provider
+   */
   private static void reindexData(LocalKVStoreProvider provider) throws Exception {
-    for(StoreWithId s : provider) {
+    for (StoreWithId s : provider) {
       AdminLogger.log("Reindexing {}... ", s.getId());
       s.getStore().getAdmin().reindex();
       AdminLogger.log("Completed.");
     }
   }
 
+  /**
+   * Compacts all the keys and values within each store on the provider.
+   *
+   * @param provider the key-value store provider
+   */
   private static void compactStore(LocalKVStoreProvider provider) throws Exception {
-    for(StoreWithId s : provider) {
+    for (StoreWithId s : provider) {
       AdminLogger.log("Compacting {}... ", s.getId());
       s.getStore().getAdmin().compactKeyValues();
       AdminLogger.log("Completed.");
     }
   }
-
 }

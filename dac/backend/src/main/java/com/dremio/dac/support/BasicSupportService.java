@@ -149,17 +149,17 @@ public class BasicSupportService implements SupportService {
   private SendEndpointCreator<ClusterIdentityRequest, ClusterIdentityResponse> getClusterIdentityEndpointCreator; // used on server and client side
 
   public BasicSupportService(
-      DACConfig config,
-      Provider<LegacyKVStoreProvider> kvStoreProvider,
-      Provider<JobsService> jobsService,
-      Provider<UserService> userService,
-      Provider<ClusterCoordinator> clusterCoordinatorProvider,
-      Provider<OptionManager> optionManagerProvider,
-      Provider<NamespaceService> namespaceServiceProvider,
-      Provider<CatalogService> catalogServiceProvider,
-      Provider<FabricService> fabricServiceProvider,
-      BufferAllocator allocator
-      ) {
+    DACConfig config,
+    Provider<LegacyKVStoreProvider> kvStoreProvider,
+    Provider<JobsService> jobsService,
+    Provider<UserService> userService,
+    Provider<ClusterCoordinator> clusterCoordinatorProvider,
+    Provider<OptionManager> optionManagerProvider,
+    Provider<NamespaceService> namespaceServiceProvider,
+    Provider<CatalogService> catalogServiceProvider,
+    Provider<FabricService> fabricServiceProvider,
+    BufferAllocator allocator
+  ) {
     this.kvStoreProvider = kvStoreProvider;
     this.jobsService = jobsService;
     this.userService = userService;
@@ -172,16 +172,22 @@ public class BasicSupportService implements SupportService {
     this.config = config;
   }
 
+  /**
+   * Acquires the current cluster identity.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @return the acquired cluster ID.
+   */
   @Override
-  public ClusterIdentity getClusterId(){
+  public ClusterIdentity getClusterId() {
     return identity;
   }
 
   /**
-   * Retrieve a config store entry
+   * Gets a configuration entry.
    *
-   * @param key
-   * @return
+   * @param  key a key associated with the configuration value
+   * @return     the configuration value associated with the given key
    */
   @Override
   public ConfigurationEntry getConfigurationEntry(String key) {
@@ -189,10 +195,10 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Sets a config store entry
+   * Sets a configuration entry.
    *
-   * @param key
-   * @param entry
+   * @param  key   a key associated with the configuration entry
+   * @param  entry the configuration entry to be set
    */
   @Override
   public void setConfigurationEntry(String key, ConfigurationEntry entry) {
@@ -200,7 +206,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Store DremioEdition in Configuration Store
+   * Stores the current DremioEdition in the Configuration Store.
    */
   protected void storeDremioEdition() {
     try {
@@ -214,25 +220,30 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * tries to store identity in the KVStore, in case another server already stored it, retrieves the stored identity
-   * @param identity identity we want to store
-   * @return identity stored in the KVStore
+   * Registers a cluster identity in the current Configuration KVStore.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * <p>In case another server already have stored it, retrieves the stored identity.
+   *
+   * @param  identity the cluster identity to be stored
+   * @return          the cluster identity stored in the Configuration KVStore
+   * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
     storeDremioEdition();
-    try{
+    try {
       ConfigurationEntry entry = new ConfigurationEntry();
       entry.setType(CLUSTER_IDENTITY);
       entry.setValue(convertClusterIdentityToByteString(identity));
 
       store.put(CLUSTER_ID, entry);
       logger.info("New Cluster Identifier Generated: {}", identity.getIdentity());
-    } catch(ConcurrentModificationException ex) {
+    } catch (ConcurrentModificationException ex) {
       // someone else inserted the new cluster identifier before we were able to.
       ConfigurationEntry entry = store.get(CLUSTER_ID);
       ProtostuffIOUtil.mergeFrom(entry.getValue().toByteArray(), identity, ClusterIdentity.getSchema());
 
-      if(identity == null){
+      if (identity == null) {
         throw new IllegalStateException("Failed to retrieve or create cluster identity but identity is also not available.", ex);
       }
     }
@@ -240,6 +251,14 @@ public class BasicSupportService implements SupportService {
     return identity;
   }
 
+  /**
+   * Acquires the current cluster identity by a RPC request.  The RPC request returns all the metadata necessary
+   * to build the cluster identity, such as its version and ID itself.
+   *
+   * @return the acquired cluster ID
+   * @throws RpcException If it was unable to fetch the cluster identity by the RPC request
+   * @throws Exception    If any other exception occurs
+   */
   private ClusterIdentity getClusterIdentityFromRPC() throws Exception {
     final ClusterIdentityRequest.Builder requestBuilder = ClusterIdentityRequest.newBuilder();
     final ClusterIdentityResponse response;
@@ -286,11 +305,26 @@ public class BasicSupportService implements SupportService {
     return id;
   }
 
+  /**
+   * Acquires the current cluster identity from a given KVStore.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param  provider the KVStore to acquire the cluster identity
+   * @return          the cluster identity, or null if it failed to get the cluster ID
+   */
   public static Optional<ClusterIdentity> getClusterIdentity(LegacyKVStoreProvider provider) {
     ConfigurationStore store = new ConfigurationStore(provider);
     return getClusterIdentityFromStore(store, provider);
   }
 
+  /**
+   * Acquires the current cluster identity from a given Configuration Store.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param  store    the configuration store to get the identity
+   * @param  provider a KVStore that provided the configuration store
+   * @return          the cluster identity acquired
+   */
   private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
 
@@ -309,6 +343,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Migrates an old support store cluster identity to the new the new store.
+   *
+   * @param  provider a key-value store provider to be migrated
+   * @return          the migrated cluster identity
+   */
   private static Optional<ClusterIdentity> upgradeToNewSupportStore(LegacyKVStoreProvider provider) {
     final LegacyKVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
     ClusterIdentity clusterIdentity = oldSupportStore.get(CLUSTER_ID);
@@ -361,6 +401,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Updates a cluster identity's configuration entry.
+   *
+   * @param  provider the KVStore to acquire the identity's support store
+   * @param  identity the cluster identity to be updated
+   */
   public static void updateClusterIdentity(LegacyKVStoreProvider provider, ClusterIdentity identity) {
     final LegacyKVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
 
@@ -376,12 +422,23 @@ public class BasicSupportService implements SupportService {
     supportStore.put(CLUSTER_ID, entry);
   }
 
+  /**
+   * Converts a cluster identity object to a ByteString object.  The ByteString will be used to register
+   * the value of a configuration entry.
+   *
+   * @param  identity the cluster identity to be converted
+   * @return          the cluster identity in ByteString format
+   */
   private static ByteString convertClusterIdentityToByteString(ClusterIdentity identity) {
     final LinkedBuffer buffer = LinkedBuffer.allocate();
     byte[] bytes = ProtostuffIOUtil.toByteArray(identity, ClusterIdentity.getSchema(), buffer);
     return ByteString.copyFrom(bytes);
   }
 
+  /**
+   * Registers a endpoint to retrieve the cluster identities.  Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * to get the cluster's identity.
+   */
   private void registerClusterIdentityEndpoint() {
 
     final ProtocolBuilder builder = ProtocolBuilder.builder()
@@ -392,7 +449,7 @@ public class BasicSupportService implements SupportService {
 
     this.getClusterIdentityEndpointCreator = builder.register(TYPE_SUPPORT_CLUSTERID,
       new AbstractReceiveHandler<ClusterIdentityRequest, ClusterIdentityResponse>(
-          ClusterIdentityRequest.getDefaultInstance(), ClusterIdentityResponse.getDefaultInstance()) {
+        ClusterIdentityRequest.getDefaultInstance(), ClusterIdentityResponse.getDefaultInstance()) {
         @Override
         public SentResponseMessage<ClusterIdentityResponse> handle(ClusterIdentityRequest getIdRequest, ArrowBuf dBody) {
 
@@ -457,7 +514,7 @@ public class BasicSupportService implements SupportService {
 
   @Override
   public DownloadDataResponse downloadSupportRequest(SupportRequest request)
-      throws UserNotFoundException, IOException, JobNotFoundException {
+    throws UserNotFoundException, IOException, JobNotFoundException {
     Pointer<User> config = new Pointer<>();
     Pointer<Boolean> outIncludesLogs = new Pointer<>();
     Pointer<String> outSubmissionId = new Pointer<>();
@@ -466,12 +523,13 @@ public class BasicSupportService implements SupportService {
     return new DownloadDataResponse(Files.newInputStream(path), outSubmissionId.value + ".zip", size);
   }
 
-  public OptionManager getOptions(){
+  public OptionManager getOptions() {
     return optionManagerProvider.get();
   }
 
   /**
    * Build a support zip file and upload it to s3.
+   *
    * @param userId
    * @param jobId
    * @return
@@ -507,8 +565,8 @@ public class BasicSupportService implements SupportService {
         } else {
           final Client client = ClientBuilder.newClient();
           target = client.target(getOptions().getOption(SUPPORT_UPLOAD_BASE))
-              .path(this.getClusterId().getIdentity())
-              .path(submissionId + ".zip");
+            .path(this.getClusterId().getIdentity())
+            .path(submissionId + ".zip");
 
           response = target.request().put(Entity.entity(new FileInputStream(path.toString()), MediaType.ZIP.toString()));
 
@@ -519,11 +577,11 @@ public class BasicSupportService implements SupportService {
             return new SupportResponse(false, false, "Unable to upload diagnostics, available locally at: " + path.toString());
           }
         }
-      }catch(Exception ex){
+      } catch (Exception ex) {
         logger.error("Failure while uploading file.", ex);
         return new SupportResponse(false, false, "Unable to upload diagnostics, available locally at: " + path.toString());
       }
-    } catch (Exception ex){
+    } catch (Exception ex) {
       logger.error("Failure while generating support submission.", ex);
     }
     return new SupportResponse(false, false, null);
@@ -531,7 +589,7 @@ public class BasicSupportService implements SupportService {
 
   private Path generateSupportRequest(SupportRequest request, Pointer<Boolean> outIncludesLogs,
                                       Pointer<User> outUserConfig, Pointer<String> outSubmissionId)
-      throws IOException, UserNotFoundException, JobNotFoundException {
+    throws IOException, UserNotFoundException, JobNotFoundException {
     final String submissionId = UUID.randomUUID().toString();
     outSubmissionId.value = submissionId;
 
@@ -541,18 +599,18 @@ public class BasicSupportService implements SupportService {
     User config = outUserConfig.value;
 
     // inner try to close file once written.
-    try(
-        FileOutputStream fos = new FileOutputStream(path.toFile());
-        BufferedOutputStream dest = new BufferedOutputStream(fos);
-        ZipOutputStream zip = new ZipOutputStream(dest);
-        ) {
+    try (
+      FileOutputStream fos = new FileOutputStream(path.toFile());
+      BufferedOutputStream dest = new BufferedOutputStream(fos);
+      ZipOutputStream zip = new ZipOutputStream(dest);
+    ) {
 
       zip.putNextEntry(new ZipEntry("header.json"));
       recordHeader(zip, request, config, submissionId);
 
       final JobSummary jobSummary = getJobSummary(request, config);
 
-      for(int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts() ; attemptIndex++) {
+      for (int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts(); attemptIndex++) {
         zip.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attemptIndex)));
         QueryProfile profile = recordProfile(zip, request, attemptIndex);
 
@@ -592,7 +650,7 @@ public class BasicSupportService implements SupportService {
   }
 
   private boolean recordHeader(OutputStream output, SupportRequest supportRequest, User user, String submissionId)
-      throws UserNotFoundException, IOException, JobNotFoundException {
+    throws UserNotFoundException, IOException, JobNotFoundException {
 
     SupportHeader header = new SupportHeader();
 
@@ -601,11 +659,11 @@ public class BasicSupportService implements SupportService {
     header.setJob(JobsProtoUtil.getLastAttempt(getJobDetails(supportRequest, user)));
 
     Submission submission = new Submission()
-        .setSubmissionId(submissionId)
-        .setDate(System.currentTimeMillis())
-        .setEmail(user.getEmail())
-        .setFirst(user.getFirstName())
-        .setLast(user.getLastName());
+      .setSubmissionId(submissionId)
+      .setDate(System.currentTimeMillis())
+      .setEmail(user.getEmail())
+      .setFirst(user.getFirstName())
+      .setLast(user.getLastName());
 
     header.setSubmission(submission);
 
@@ -643,7 +701,7 @@ public class BasicSupportService implements SupportService {
   }
 
   private boolean recordLog(OutputStream output, String userId, long start, long end, JobId id, String submissionId) {
-    try{
+    try {
       final String startTime = JodaDateUtility.formatTimeStampMilli.print(start - PRE_TIME_BUFFER_MS);
       final String endTime = JodaDateUtility.formatTimeStampMilli.print(end + POST_TIME_BUFFER_MS);
 
@@ -681,33 +739,33 @@ public class BasicSupportService implements SupportService {
 
   }
 
-  private ClusterInfo getClusterInfo(){
+  private ClusterInfo getClusterInfo() {
     SoftwareVersion version = new SoftwareVersion().setVersion(DremioVersionInfo.getVersion());
 
     List<Source> sources = new ArrayList<>();
     final NamespaceService ns = namespaceServiceProvider.get();
-    for(SourceConfig source : ns.getSources()){
+    for (SourceConfig source : ns.getSources()) {
       String type = source.getType() == null ? source.getLegacySourceTypeEnum().name() : source.getType();
       sources.add(new Source().setName(source.getName()).setType(type));
     }
     List<Node> nodes = new ArrayList<>();
-    for(NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.EXECUTOR).getAvailableEndpoints()){
+    for (NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.EXECUTOR).getAvailableEndpoints()) {
       nodes.add(new Node().setName(ep.getAddress()).setRole("executor"));
     }
 
-    for(NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints()){
+    for (NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints()) {
       nodes.add(new Node().setName(ep.getAddress()).setRole("coordinator"));
     }
 
     return new ClusterInfo()
-        .setIdentity(identity)
-        .setVersion(version)
-        .setSourceList(sources)
-        .setNodeList(nodes)
-        .setJavaVmVersion(System.getProperty("java.vm.version"))
-        .setJreVersion(System.getProperty("java.specification.version"))
-        .setEdition(getEditionInfo())
-        ;
+      .setIdentity(identity)
+      .setVersion(version)
+      .setSourceList(sources)
+      .setNodeList(nodes)
+      .setJavaVmVersion(System.getProperty("java.vm.version"))
+      .setJreVersion(System.getProperty("java.specification.version"))
+      .setEdition(getEditionInfo())
+      ;
   }
 
   @Override
@@ -717,11 +775,13 @@ public class BasicSupportService implements SupportService {
   /**
    * @return the current edition that's running. Other editions should override this value
    */
-  public String getEditionInfo() { return "community"; }
+  public String getEditionInfo() {
+    return "community";
+  }
 
   // this query should be improved once we support converting from ISO8660 time format.
   private static final String LOG_QUERY =
-      "CREATE TABLE " + SqlUtils.quoteIdentifier(LOCAL_STORAGE_PLUGIN)+ ".%s \n" +
+    "CREATE TABLE " + SqlUtils.quoteIdentifier(LOCAL_STORAGE_PLUGIN) + ".%s \n" +
       "  STORE AS (type => 'json', prettyPrint => false) \n" +
       "  WITH SINGLE WRITER\n" +
       "  AS\n" +
@@ -733,7 +793,7 @@ public class BasicSupportService implements SupportService {
       "    cast(\n" +
       "      substr(" + SqlUtils.quoteIdentifier("timestamp") + ",\n" +
       "        0,\n" +
-      "        length("+ SqlUtils.quoteIdentifier("timestamp") +") - 4\n" +
+      "        length(" + SqlUtils.quoteIdentifier("timestamp") + ") - 4\n" +
       "      ) as timestamp\n" +
       "  ) between timestamp'%s' and timestamp'%s'\n" +
       "    AND \n" +
@@ -742,4 +802,4 @@ public class BasicSupportService implements SupportService {
       "  OR\n" +
       "  thread like '%s'\n" +
       "";
- }
+}

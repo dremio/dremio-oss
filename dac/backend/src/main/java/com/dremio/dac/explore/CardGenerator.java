@@ -41,12 +41,12 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
 /**
- * Generated recommendation card(s) for given transform rule wrapped in {@link TransformRuleWrapper}.
- * Each card contains:
- *   <ul>
- *     <li>how many rows matching/not-matching the rule in given dataset/version sample</li>
- *     <li>at max 3 examples of {@link CardExample}</li>
- *   </ul>
+ * Generated recommendation card(s) for given transform rule wrapped in {@link
+ * TransformRuleWrapper}. Each card contains:
+ * <ul>
+ *   <li>how many rows matching/not-matching the rule in given dataset/version sample</li>
+ *   <li>at max 3 examples of {@link CardExample}</li>
+ * </ul>
  */
 public class CardGenerator {
 
@@ -54,24 +54,34 @@ public class CardGenerator {
   private final DatasetPath datasetPath;
   private final DatasetVersion version;
 
-  public CardGenerator(final QueryExecutor executor, DatasetPath datasetPath, DatasetVersion version) {
+  /**
+   * Constructs a CardGenerator object.
+   *
+   * @param executor    the QueryExecutor instance to perform a given query
+   * @param datasetPath the path for the dataset represented by the card
+   * @param version     the version for the dataset represented by the card
+   */
+  public CardGenerator(final QueryExecutor executor, DatasetPath datasetPath,
+    DatasetVersion version) {
     this.executor = executor;
     this.datasetPath = datasetPath;
     this.version = version;
   }
 
   /**
-   * Generate cards.
+   * Generate cards to count how many rows that satisfied a given set of rules and generate cards examples to each rule.
    *
-   * @param datasetSql Sql of the dataset version for which cards are needed.
-   * @param colName Column name on which the transform rule needs to be applied
-   * @param transformRuleWrappers set of transform rule wrappers.
-   * @param comparator Optional comparator to use in sorting the generated cards.
-   * @param <T> transform rule
-   * @return
+   * @param datasetSql            the SQL query of the dataset version for which cards are needed
+   * @param colName               the column name on which the transform rule needs to be applied
+   * @param transformRuleWrappers a set of transform rule wrappers
+   * @param allocator             the BufferAllocator instance to generate cards
+   * @param comparator            an optional comparator to use in sorting the generated cards
+   * @param <T>                   the type parameter to a generic list of cards that will be returned
+   * @return                      the cards that satisfied a given set of rules
    */
   public <T> List<Card<T>> generateCards(SqlQuery datasetSql, String colName,
-      List<TransformRuleWrapper<T>> transformRuleWrappers, Comparator<Card<T>> comparator, BufferAllocator allocator) {
+    List<TransformRuleWrapper<T>> transformRuleWrappers, Comparator<Card<T>> comparator,
+    BufferAllocator allocator) {
 
     final String previewDataTable = DatasetsUtil
       .getDatasetPreviewJob(executor, datasetSql, datasetPath, version)
@@ -82,14 +92,19 @@ public class CardGenerator {
     String countQuery = generateMatchCountQuery(colName, previewDataTable, transformRuleWrappers);
 
     try (final JobDataFragment countJobData = executor
-      .runQueryAndWaitForCompletion(datasetSql.cloneWithNewSql(countQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version)
+      .runQueryAndWaitForCompletion(datasetSql.cloneWithNewSql(countQuery),
+        QueryType.UI_INTERNAL_RUN, datasetPath, version)
       .truncate(allocator, 1)) {
 
       // Get the total number of records
       final int totalCount = toIntOrZero(countJobData.extractValue("total", 0));
-      final String exGenQuery = generateCardGenQuery(colName, previewDataTable, transformRuleWrappers);
-      final JobData exGenQueryData = executor.runQueryAndWaitForCompletion(datasetSql.cloneWithNewSql(exGenQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version);
-      List<List<CardExample>> cardsExamples = getExamples(exGenQueryData, transformRuleWrappers, allocator);
+      final String exGenQuery = generateCardGenQuery(colName, previewDataTable,
+        transformRuleWrappers);
+      final JobData exGenQueryData = executor
+        .runQueryAndWaitForCompletion(datasetSql.cloneWithNewSql(exGenQuery),
+          QueryType.UI_INTERNAL_RUN, datasetPath, version);
+      List<List<CardExample>> cardsExamples = getExamples(exGenQueryData, transformRuleWrappers,
+        allocator);
 
       List<Card<T>> cards = Lists.newArrayList();
       for (int i = 0; i < transformRuleWrappers.size(); i++) {
@@ -111,15 +126,32 @@ public class CardGenerator {
     }
   }
 
+/**
+ * Converts an object to an integer, or zero if it is not a number.
+ *
+ * @param  o the object to be converted
+ * @return   the integer representation of the converted object or zero
+ */
   static int toIntOrZero(Object o) {
     // Note instanceof always returns false for null input, so this is null safe
     if (o instanceof Number) {
-      return ((Number)o).intValue();
+      return ((Number) o).intValue();
     }
     return 0;
   }
 
-  private <T> List<List<CardExample>> getExamples(JobData exGenQueryData, List<TransformRuleWrapper<T>> transformRuleWrappers, BufferAllocator allocator) {
+  /**
+   * Gets a card examples list, according to a given transform rule.
+   * <p> Iterate each row of the query metadata to extract the cards examples.
+   *
+   * @param exGenQueryData        the query metadata to get the cards examples
+   * @param transformRuleWrappers a set of transform rule wrappers
+   * @param allocator             the BufferAllocator instance to get cards examples
+   * @param <T>                   the type parameter to a generic cards examples that will be returned
+   * @return                      the card examples list, according to a given transform rule
+   */
+  private <T> List<List<CardExample>> getExamples(JobData exGenQueryData,
+    List<TransformRuleWrapper<T>> transformRuleWrappers, BufferAllocator allocator) {
 
     try (final JobDataFragment data = exGenQueryData.truncate(allocator, Card.EXAMPLES_TO_SHOW)) {
 
@@ -162,13 +194,24 @@ public class CardGenerator {
     }
   }
 
-  <T> String generateCardGenQuery(String inputColName, String datasetPreviewTable, List<TransformRuleWrapper<T>> evaluators) {
+  /**
+   * Generates the SQL query statement to retrieve the cards examples.
+   *
+   * @param inputColName        the column name that it which to select data from
+   * @param datasetPreviewTable the table path that it which to select data from
+   * @param evaluators          the transform recommendation rule to verify if can generate card examples
+   * @param <T>                 the type parameter to a generic SQL query statement that will be returned
+   * @return                    the SQL query statement to retrieve the cards examples
+   */
+  <T> String generateCardGenQuery(String inputColName, String datasetPreviewTable,
+    List<TransformRuleWrapper<T>> evaluators) {
 
     StringBuilder queryBuilder = new StringBuilder();
 
-    String inputExpr = String.format("%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
+    String inputExpr = String
+      .format("%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
     List<String> exprs = Lists.newArrayList();
-    for(int i=0; i<evaluators.size(); i++) {
+    for (int i = 0; i < evaluators.size(); i++) {
       if (evaluators.get(i).canGenerateExamples()) {
         final String expr = evaluators.get(i).getExampleFunctionExpr(inputExpr);
         final String outputColAlias = "example_" + i;
@@ -192,13 +235,24 @@ public class CardGenerator {
     return queryBuilder.toString();
   }
 
-  <T> String generateMatchCountQuery(String inputColName, String datasetPreviewTable, List<TransformRuleWrapper<T>> evaluators) {
+  /**
+   * Generates the SQL query statement to retrieve the cards match count.
+   *
+   * @param inputColName        the column name that it which to select data from
+   * @param datasetPreviewTable the table path that it which to select data from
+   * @param evaluators          the transform recommendation rule to verify if can generate card examples
+   * @param <T>                 the type parameter to a generic SQL query statement that will be returned
+   * @return                    the SQL query statement to retrieve the the cards match count
+   */
+  <T> String generateMatchCountQuery(String inputColName, String datasetPreviewTable,
+    List<TransformRuleWrapper<T>> evaluators) {
 
     StringBuilder queryBuilder = new StringBuilder();
 
-    String inputExpr = String.format("%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
+    String inputExpr = String
+      .format("%s.%s", quoteIdentifier("dremio_preview_data"), quoteIdentifier(inputColName));
     List<String> exprs = Lists.newArrayList();
-    for(int i=0; i<evaluators.size(); i++) {
+    for (int i = 0; i < evaluators.size(); i++) {
       final String expr = evaluators.get(i).getMatchFunctionExpr(inputExpr);
 
       final String outputColAlias = "matched_count_" + i;
