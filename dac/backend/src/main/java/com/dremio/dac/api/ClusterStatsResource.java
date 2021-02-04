@@ -557,6 +557,10 @@ public class ClusterStatsResource {
       this.executor = executor;
     }
 
+
+    /**
+     * Gets
+     */
     public NodeStats getCoordinator() {
       return coordinator;
     }
@@ -592,14 +596,29 @@ public class ClusterStatsResource {
       this.cpu = cpu;
     }
 
+    /**
+     * Gets the total number of NodeEndpoints in the cluster.
+     *
+     * @return the total number of NodeEndpoints in the cluster
+     */
     public int getCount() {
       return count;
     }
 
+    /**
+     * Gets the average of maximum memory direct for each NodeEndpoint in the cluster.
+     *
+     * @return the average of maximum memory direct for each NodeEndpoint in the cluster
+     */
     public long getMem() {
       return mem;
     }
 
+    /**
+     * Gets the average of available cpu cores for each NodeEndpoint.
+     *
+     * @return the average of available cpu cores for each NodeEndpoint
+     */
     public int getCpu() {
       return cpu;
     }
