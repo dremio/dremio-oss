@@ -126,6 +126,12 @@ public class CardGenerator {
     }
   }
 
+/**
+ * Converts an object to an integer, or zero if it is not a number.
+ *
+ * @param  o the object to be converted
+ * @return   the integer representation of the converted object or zero
+ */
   static int toIntOrZero(Object o) {
     // Note instanceof always returns false for null input, so this is null safe
     if (o instanceof Number) {
