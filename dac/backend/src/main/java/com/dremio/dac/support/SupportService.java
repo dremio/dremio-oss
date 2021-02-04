@@ -58,9 +58,10 @@ public interface SupportService extends Service {
   String DREMIO_EDITION = "dremioEdition";
 
   /**
-   * Gets the current cluster's identifier.
+   * Acquires the current cluster identity.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
    *
-   * @return the cluster's identifier
+   * @return the acquired cluster ID.
    */
   ClusterIdentity getClusterId();
 
