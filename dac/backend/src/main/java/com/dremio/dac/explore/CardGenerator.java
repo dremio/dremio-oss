@@ -54,6 +54,13 @@ public class CardGenerator {
   private final DatasetPath datasetPath;
   private final DatasetVersion version;
 
+  /**
+   * Constructs a CardGenerator object.
+   *
+   * @param executor  the QueryExecutor instance to perform a given query
+   * @param datasetPath   the path for the dataset represented by the card
+   * @param version   the version for the dataset represented by the card
+   */
   public CardGenerator(final QueryExecutor executor, DatasetPath datasetPath, DatasetVersion version) {
     this.executor = executor;
     this.datasetPath = datasetPath;
