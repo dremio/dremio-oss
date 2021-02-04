@@ -435,6 +435,10 @@ public class BasicSupportService implements SupportService {
     return ByteString.copyFrom(bytes);
   }
 
+  /**
+   * Registers a endpoint to retrieve the cluster identities.  Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * to get the cluster's identity.
+   */
   private void registerClusterIdentityEndpoint() {
 
     final ProtocolBuilder builder = ProtocolBuilder.builder()
