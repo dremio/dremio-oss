@@ -219,10 +219,14 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * tries to store identity in the KVStore, in case another server already stored it, retrieves the stored identity
+   * Tries to store an identity in the KVStore.
    *
-   * @param identity identity we want to store
-   * @return identity stored in the KVStore
+   * <p>In case another server already have stored it, retrieves the stored identity.
+   *
+   * @param identity the identity to be stored
+   * @return the identity stored in the KVStore
+   *
+   * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
     storeDremioEdition();
