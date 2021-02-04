@@ -138,7 +138,7 @@ public class BasicSupportService implements SupportService {
   private final Provider<UserService> userService;
   private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
   private final Provider<OptionManager> optionManagerProvider;
-  private final Provider<NamespaceService> namespaceServiceProgetConfigurationEntryvider;
+  private final Provider<NamespaceService> namespaceServiceProvider;
   private final Provider<CatalogService> catalogServiceProvider;
   private final Provider<FabricService> fabricServiceProvider;
   private Path supportPath;
