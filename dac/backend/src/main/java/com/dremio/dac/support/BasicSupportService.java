@@ -422,6 +422,13 @@ public class BasicSupportService implements SupportService {
     supportStore.put(CLUSTER_ID, entry);
   }
 
+  /**
+   * Converts a cluster identity object to a ByteString object.  The ByteString will be used to register
+   * the value of a configuration entry.
+   *
+   * @param  identity the cluster identity to be converted
+   * @return          the cluster identity in ByteString format
+   */
   private static ByteString convertClusterIdentityToByteString(ClusterIdentity identity) {
     final LinkedBuffer buffer = LinkedBuffer.allocate();
     byte[] bytes = ProtostuffIOUtil.toByteArray(identity, ClusterIdentity.getSchema(), buffer);
