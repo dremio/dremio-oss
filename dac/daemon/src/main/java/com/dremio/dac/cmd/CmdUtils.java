@@ -25,29 +25,36 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 
 /**
- * cmd utils.
+ * The class is responsible to provide the general methods for command line operations utils.
  */
 public final class CmdUtils {
 
   private CmdUtils() {}
 
+
   /**
-   * returns store provider, if data exists. Null if there is no data.
-   * @param dremioConfig
-   * @param classPathScan
-   * @return store provider
-   * @throws FileNotFoundException
+   * Gets the store provider, if data exists.
+   *
+   * <p> If data not exists, it returns null.
+   *
+   * @param dremioConfig  a Dremio configuration object to get the database path
+   * @param classPathScan the Classpath scanning utility to get the Sabot configuration
+   * @return              the store provider, if data exists
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan) {
     return getKVStoreProvider(dremioConfig, classPathScan, true);
   }
 
+
   /**
-   * returns store provider, if data exists. Null if there is no data.
-   * @param dremioConfig
-   * @param classPathScan
-   * @param noDBOpenRetry
-   * @return store provider
+   * Gets the store provider, if data exists.
+   *
+   * <p> If data not exists, it returns null.
+   *
+   * @param dremioConfig  a Dremio configuration object to get the database path
+   * @param classPathScan the Classpath scanning utility to get the Sabot configuration
+   * @param noDBOpenRetry a flag which indicates if it should retry in case of the database can't open
+   * @return              the store provider, if data exists
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry) {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
@@ -68,6 +75,12 @@ public final class CmdUtils {
       new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry));
   }
 
+  /**
+   * Gets the store provider, if data exists.
+   *
+   * @param dremioConfig a Dremio configuration object to get the database path
+   * @return             the store provider, if data exists
+   */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
     return CmdUtils.getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
   }
