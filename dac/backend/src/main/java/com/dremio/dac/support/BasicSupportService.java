@@ -254,7 +254,7 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Acquires the current cluster identity by a RPC request.  The RPC request returns all the metadata necessary
-   * to build the cluster identity, such as its version and ID it self.
+   * to build the cluster identity, such as its version and ID itself.
    *
    * @return the acquired cluster ID
    * @throws RpcException  If it was unable to fetch the cluster identity by the RPC request
