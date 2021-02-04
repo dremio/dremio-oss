@@ -172,6 +172,11 @@ public class BasicSupportService implements SupportService {
     this.config = config;
   }
 
+  /**
+   * Gets the current cluster's identifier.
+   *
+   * @return the cluster's identifier
+   */
   @Override
   public ClusterIdentity getClusterId() {
     return identity;

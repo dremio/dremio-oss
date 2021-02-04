@@ -57,6 +57,11 @@ public interface SupportService extends Service {
   String CLUSTER_IDENTITY = "clusterIdentity";
   String DREMIO_EDITION = "dremioEdition";
 
+  /**
+   * Gets the current cluster's identifier.
+   *
+   * @return the cluster's identifier
+   */
   ClusterIdentity getClusterId();
 
   /**
