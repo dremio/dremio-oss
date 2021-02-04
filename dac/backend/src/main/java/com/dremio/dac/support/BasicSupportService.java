@@ -186,8 +186,8 @@ public class BasicSupportService implements SupportService {
   /**
    * Gets a configuration entry.
    *
-   * @param key a key associated with the configuration value
-   * @return the configuration value associated with the given key
+   * @param  key a key associated with the configuration value
+   * @return     the configuration value associated with the given key
    */
   @Override
   public ConfigurationEntry getConfigurationEntry(String key) {
@@ -197,8 +197,8 @@ public class BasicSupportService implements SupportService {
   /**
    * Sets a configuration entry.
    *
-   * @param key   a key associated with the configuration entry
-   * @param entry the configuration entry to be set
+   * @param  key   a key associated with the configuration entry
+   * @param  entry the configuration entry to be set
    */
   @Override
   public void setConfigurationEntry(String key, ConfigurationEntry entry) {
@@ -225,8 +225,8 @@ public class BasicSupportService implements SupportService {
    *
    * <p>In case another server already have stored it, retrieves the stored identity.
    *
-   * @param identity the cluster identity to be stored
-   * @return the cluster identity stored in the Configuration KVStore
+   * @param  identity the cluster identity to be stored
+   * @return          the cluster identity stored in the Configuration KVStore
    * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
@@ -305,11 +305,26 @@ public class BasicSupportService implements SupportService {
     return id;
   }
 
+  /**
+   * Acquires the current cluster identity from a given KVStore.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param  provider the KVStore to acquire the cluster identity
+   * @return          the cluster identity, or null if it failed to get the cluster ID
+   */
   public static Optional<ClusterIdentity> getClusterIdentity(LegacyKVStoreProvider provider) {
     ConfigurationStore store = new ConfigurationStore(provider);
     return getClusterIdentityFromStore(store, provider);
   }
 
+  /**
+   * Acquires the current cluster identity from a given Configuration Store.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param  store    the configuration store to get the identity
+   * @param  provider a KVStore that provided the configuration store
+   * @return          the cluster identity acquired
+   */
   private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
 
@@ -328,6 +343,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Migrates an old support store cluster identity to the new the new store.
+   *
+   * @param  provider a key-value store provider to be migrated
+   * @return          the migrated cluster identity
+   */
   private static Optional<ClusterIdentity> upgradeToNewSupportStore(LegacyKVStoreProvider provider) {
     final LegacyKVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
     ClusterIdentity clusterIdentity = oldSupportStore.get(CLUSTER_ID);

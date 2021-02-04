@@ -140,6 +140,16 @@ public class CardGenerator {
     return 0;
   }
 
+  /**
+   * Gets a card examples list, according to a given transform rule.
+   * <p> Iterate each row of the query metadata to extract the cards examples.
+   *
+   * @param exGenQueryData        the query metadata to get the cards examples
+   * @param transformRuleWrappers a set of transform rule wrappers
+   * @param allocator             the BufferAllocator instance to get cards examples
+   * @param <T>                   the type parameter to a generic cards examples that will be returned
+   * @return                      the card examples list, according to a given transform rule
+   */
   private <T> List<List<CardExample>> getExamples(JobData exGenQueryData,
     List<TransformRuleWrapper<T>> transformRuleWrappers, BufferAllocator allocator) {
 
