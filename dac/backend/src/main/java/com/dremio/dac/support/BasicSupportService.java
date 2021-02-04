@@ -195,7 +195,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Sets a configuration entry
+   * Sets a configuration entry.
    *
    * @param key a key associated with the configuration entry
    * @param entry the configuration entry to be set
@@ -220,12 +220,13 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Tries to store an identity in the KVStore.
+   * Registers a cluster identity in the current Configuration KVStore.  The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
    *
    * <p>In case another server already have stored it, retrieves the stored identity.
    *
-   * @param identity the identity to be stored
-   * @return the identity stored in the KVStore
+   * @param identity the cluster identity to be stored
+   * @return the cluster identity stored in the Configuration KVStore.
    *
    * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
    */
