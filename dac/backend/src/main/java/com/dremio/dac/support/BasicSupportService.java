@@ -518,6 +518,16 @@ public class BasicSupportService implements SupportService {
     supportPath = new File(supportPathURI).toPath();
   }
 
+  /**
+   * Downloads a support request as a zip file.  The support request file will contain the request's metadata,
+   * such as its submission ID and a summary of the Job executed.
+   *
+   * @param request the request to have its metadata downloaded
+   * @return        An object with the downloaded file's metadata
+   * @throws UserNotFoundException If it couldn't find the user's profile
+   * @throws IOException           If any exception occurs while trying to create the downloaded file
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   @Override
   public DownloadDataResponse downloadSupportRequest(SupportRequest request)
     throws UserNotFoundException, IOException, JobNotFoundException {
