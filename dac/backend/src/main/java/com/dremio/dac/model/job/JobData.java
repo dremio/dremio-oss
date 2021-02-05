@@ -20,12 +20,12 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.service.job.proto.JobId;
 
 /**
- * Holds job results. Could be partial or complete job results.
+ * JobData holds a given job partial or complete results.
  */
 public interface JobData extends AutoCloseable {
 
   /**
-   * Approximate maximum getReturnedRowCount of the JSON serialized value of a cell.
+   * Defines the system property key for the maximum size in bytes for a given JSON serialized value of a cell.
    */
   String MAX_CELL_SIZE_KEY = "cellSizeLimit";
 
@@ -48,14 +48,16 @@ public interface JobData extends AutoCloseable {
   JobDataFragment truncate(BufferAllocator allocator, int maxRows);
 
   /**
-   * Get the {@link JobId} of job that produced the results in this object.
-   * @return
+   * Gets the job related {@link JobId} that produced the results in this object.
+   *
+   * @return the job identifier related to the produced results
    */
   JobId getJobId();
 
   /**
-   * Return the table path where the job results are stored.
-   * @return
+   * Gets the table related path where the job results are stored.
+   *
+   * @return the path of the table containing this job results
    */
   String getJobResultsTable();
 }
