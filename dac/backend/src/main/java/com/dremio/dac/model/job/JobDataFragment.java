@@ -26,38 +26,44 @@ import com.dremio.service.job.proto.JobId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
- * Holds job results. Could be partial or complete job results.
+ * JobDataFragment holds a given job results fragments.
  */
 public interface JobDataFragment extends AutoCloseable {
 
   /**
-   * Approximate maximum getReturnedRowCount of the JSON serialized value of a cell.
+   * Defines the system property key for the maximum size in bytes for a given JSON serialized value of a cell.
    */
   String MAX_CELL_SIZE_KEY = "cellSizeLimit";
 
   /**
-   * Get the {@link JobId} of job that produced the results in this object.
-   * @return
+   * Gets the job related {@link JobId} that produced the results in this object.
+   *
+   * @return the job identifier related to the produced results
    */
   @JsonIgnore
   JobId getJobId();
 
   /**
-   * Get the list of columns in job results.
-   * @return
+   * Gets the list of {@link Column} objects considered in this job fragment results.
+   *
+   * @return the list of columns considered in this job fragment results
+   * @see Column
    */
   List<Column> getColumns();
 
   /**
-   * Get the number of records.
-   * @return
+   * Gets the number of returned rows in this job fragment results.
+   *
+   * @return the number of returned rows in this job fragment results.
    */
   int getReturnedRowCount();
 
   /**
-   * Get metadata of column with given name.
-   * @param name
-   * @return
+   * Gets the {@link Column} object containing all its metadata based on a given column name.
+   *
+   * @param name a column name
+   * @return a {@link Column} object containing all its metadata
+   * @see Column
    */
   @JsonIgnore
   Column getColumn(String name);
@@ -67,7 +73,7 @@ public interface JobDataFragment extends AutoCloseable {
    * For complex types, they will be serialized into their JSON representation.
    *
    * @param column - name of column
-   * @param index - row index in dataset
+   * @param index  - row index in dataset
    * @return - value contained in this cell of the dataset, note this can be null
    */
   @JsonIgnore
@@ -77,7 +83,7 @@ public interface JobDataFragment extends AutoCloseable {
    * Grab a value from the dataset out of the provided column in the given row index.
    *
    * @param column - name of column
-   * @param index - row index in dataset
+   * @param index  - row index in dataset
    * @return - value contained in this cell of the dataset, note this can be null
    */
   @JsonIgnore
@@ -87,23 +93,25 @@ public interface JobDataFragment extends AutoCloseable {
   DataType extractType(String column, int index);
 
   /**
-   * Returns the arrow fields.
+   * Gets the list of arrow schema fields held in this job fragment results.
    *
-   * @return - list of arrow fields
+   * @return the list of arrow schema fields held in this job fragment results.
+   * @see Field
    */
   @JsonIgnore
   List<Field> getFields();
 
   /**
-   * Returns the record batches.
+   * Gets the list of record batches holders held in this job fragment results.
    *
-   * @return = list of record batches.
+   * @return the list of record batches holders held in this job fragment results.
+   * @see RecordBatchHolder
    */
   @JsonIgnore
   List<RecordBatchHolder> getRecordBatches();
 
   /**
-   * Close this JobDataFragment
+   * Closes and releases all resources held by this JobDataFragment object.
    */
   @Override
   void close();
