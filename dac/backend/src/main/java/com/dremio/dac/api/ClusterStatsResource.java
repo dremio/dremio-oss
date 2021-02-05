@@ -356,25 +356,27 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the pds count in the source stats.
+     * Gets the physical dataset quantity in the SourceStats.
      *
-     * @return the pds count in the source stats
+     * @return the physical dataset quantity in the SourceStats
      */
     public int getPdsCount() {
       return pdsCount;
     }
 
     /**
-     * Gets the vds count in the source stats.
+     * Gets the virtual datasets quantity in the SourceStats.
      *
-     * @return the vds count in the source stats
+     * @return the virtual datasets quantity in the SourceStats
      */
     public int getVdsCount() {
       return vdsCount;
     }
 
     /**
-     * Sets the vds count in the source stats.
+     * Sets the virtual datasets queries quantity in the SourceStats list.
+     *
+     * @param vdsCount the virtual datasets queries quantity in the SourceStats list
      *
      */
     public void setVdsCount(int vdsCount) {
