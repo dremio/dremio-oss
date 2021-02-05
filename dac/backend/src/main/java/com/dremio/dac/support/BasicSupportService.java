@@ -450,7 +450,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Registers a endpoint to retrieve the cluster identities.
    * <p> 
-   * Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * Used by {@link BasicSupportService#getClusterIdentityFromRPC}
    * to get the cluster's identity.
    */
   private void registerClusterIdentityEndpoint() {
