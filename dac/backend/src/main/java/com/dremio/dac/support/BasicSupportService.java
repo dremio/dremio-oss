@@ -174,8 +174,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Acquires the current cluster identity.
-   *
-   * <p>The cluster identity is used to identify that a executor node and a
+   * <p>
+   * The cluster identity is used to identify that a executor node and a
    * master node are at the same cluster.
    *
    * @return the acquired cluster ID.
@@ -223,11 +223,11 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Registers a cluster identity in the current Configuration KVStore.
-   *
-   * <p>The cluster identity is used to identify that a executor node
+   * <p>
+   * The cluster identity is used to identify that a executor node
    * and a master node are at the same cluster.
-   *
-   * <p>In case another server already have stored it, retrieves the stored identity.
+   * <p>
+   * In case another server already have stored it, retrieves the stored identity.
    *
    * @param identity the cluster identity to be stored
    * @return         the cluster identity stored in the Configuration KVStore
@@ -257,8 +257,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Acquires the current cluster identity by a RPC request.
-   *
-   * <p> The RPC request returns all the metadata necessary
+   * <p> 
+   * The RPC request returns all the metadata necessary
    * to build the cluster identity, such as its version and ID itself.
    *
    * @return the acquired cluster ID
@@ -313,8 +313,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Acquires the current cluster identity from a given KVStore.
-   *
-   * <p> The cluster identity is used to identify
+   * <p> 
+   * The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
    * @param provider the KVStore to acquire the cluster identity
@@ -327,8 +327,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Acquires the current cluster identity from a given Configuration Store.
-   *
-   * <p> The cluster identity is used to identify
+   * <p> 
+   * The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
    * @param store    the configuration store to get the identity
@@ -434,8 +434,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Converts a cluster identity object to a ByteString object.
-   *
-   * <p> The ByteString will be used to register
+   * <p> 
+   * The ByteString will be used to register
    * the value of a configuration entry.
    *
    * @param identity the cluster identity to be converted
@@ -449,8 +449,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Registers a endpoint to retrieve the cluster identities.
-   *
-   * <p> Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * <p> 
+   * Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
    * to get the cluster's identity.
    */
   private void registerClusterIdentityEndpoint() {
@@ -534,8 +534,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Downloads a support request as a zip file.
-   *
-   * <p> The support request file will contain the request's metadata,
+   * <p> 
+   * The support request file will contain the request's metadata,
    * such as its submission ID and a summary of the Job executed.
    *
    * @param request the request to have its metadata downloaded
@@ -781,8 +781,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Retrieves a profile based on a support request and writes it as JSON to a file.
-   *
-   * <p> It uses a Job ID generated based on the query ID.
+   * <p> 
+   * It uses a Job ID generated based on the query ID.
    *
    * @param out            a connection to the zip file where the JSON file will be written
    * @param supportRequest the support request containing the User ID and Job ID
@@ -855,7 +855,8 @@ public class BasicSupportService implements SupportService {
 
   /**
    * Retrieves a cluster information such as its identity, version, sources list, nodes list and edition.
-   * <p> Used when recording a support request header to save the cluster current
+   * <p> 
+   * Used when recording a support request header to save the cluster current
    * state along with other header information.
    *
    * @return a cluster information object containing the cluster metadata (e.g. version, identity)
