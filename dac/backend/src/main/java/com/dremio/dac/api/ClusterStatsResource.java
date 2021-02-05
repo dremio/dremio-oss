@@ -310,7 +310,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * SourceStats represents the sources statistics.
+   * SourceStats represents the sources stats.
    */
   public static class SourceStats {
     private final EntityId id;
@@ -385,7 +385,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * ReflectionStats represents the data reflection statistics.
+   * ReflectionStats represents the data reflection stats.
    */
   public static class ReflectionStats {
     private final int activeReflections;
@@ -408,29 +408,54 @@ public class ClusterStatsResource {
       this.incrementalReflectionCount = incrementalReflectionCount;
     }
 
+    /**
+     * Gets the quantity of available reflections in the cluster.
+     *
+     * @return the quantity of available reflections in the cluster
+     */
     public int getActiveReflections() {
       return activeReflections;
     }
 
+    /**
+     * Gets the quantity of unavailable reflections in the cluster.
+     *
+     * @return the quantity of unavailable reflections in the cluster
+     */
     public int getErrorReflections() {
       return errorReflections;
     }
 
+    /**
+     * Gets the reflection's total bytes size in the cluster.
+     *
+     * @return the reflection's total bytes size in the cluster
+     */
     public long getTotalReflectionSizeBytes() {
       return totalReflectionSizeBytes;
     }
 
+    /**
+     * Gets the latest reflections bytes size in the cluster.
+     *
+     * @return the latest reflections bytes size in the cluster
+     */
     public long getLatestReflectionsSizeBytes() {
       return latestReflectionsSizeBytes;
     }
 
+    /**
+     * Gets the quantify of incremental reflections.
+     *
+     * @return the quantify of incremental reflections
+     */
     public int getIncrementalReflectionCount() {
       return incrementalReflectionCount;
     }
   }
 
   /**
-   * ClusterStats represents the cluster statistics.
+   * ClusterStats represents the cluster stats.
    */
   public static class ClusterStats {
     private List<EndpointStats> coordinators;
@@ -463,58 +488,128 @@ public class ClusterStatsResource {
       this.edition = edition;
     }
 
+    /**
+     * Gets the cluster coordinator & executor stats.
+     *
+     * @return the cluster coordinator & executor stats
+     */
     public ClusterNodes getClusterNodes() {
       return nodes;
     }
 
+    /**
+     * Sets the cluster coordinator & executor stats.
+     *
+     * @param nodes the cluster coordinator & executor stats
+     */
     public void setClusterNodes(ClusterNodes nodes) {
       this.nodes = nodes;
     }
 
+    /**
+     * Gets the list of stats for each source in the cluster.
+     *
+     * @return the sources stats
+     */
     public List<SourceStats> getSources() {
       return sources;
     }
 
+    /**
+     * Sets the list of stats for each source in the cluster.
+     *
+     * @param sources the list of stats for each source in the cluster
+     */
     public void setSources(List<SourceStats> sources) {
       this.sources = sources;
     }
 
+    /**
+     * Gets the list of stats jobs types in the cluster.
+     *
+     * @return the list of stats jobs types in the cluster
+     */
     public List<JobTypeStats> getJobStats() {
       return jobStats;
     }
 
+    /**
+     * Sets the list of stats jobs types in the cluster.
+     *
+     * @param jobStats the list of stats jobs types in the cluster
+     */
     public void setJobStats(List<JobTypeStats> jobStats) {
       this.jobStats = jobStats;
     }
 
+    /**
+     * Gets the data reflection stats in the cluster.
+     *
+     * @return the data reflection stats in the cluster
+     */
     public ReflectionStats getReflectionStats() {
       return reflectionStats;
     }
 
+    /**
+     * Sets the data reflection stats in the cluster.
+     *
+     * @param reflectionStats the data reflection stats in the cluster
+     */
     public void setReflectionStats(ReflectionStats reflectionStats) {
       this.reflectionStats = reflectionStats;
     }
 
+    /**
+     * Gets the cluster stats edition (marketplace, enterprise or community).
+     *
+     * @return the cluster stats edition (marketplace, enterprise or community)
+     */
     public String getEdition() {
       return edition;
     }
 
+    /**
+     * Sets the cluster stats edition (marketplace, enterprise or community).
+     *
+     * @param edition the cluster stats edition (marketplace, enterprise or community)
+     */
     public void setEdition(String edition) {
       this.edition = edition;
     }
 
+    /**
+     * Gets the list of stats for each coordinator node in the cluster.
+     *
+     * @return the list of stats for each coordinator node in the cluster
+     */
     public List<EndpointStats> getCoordinators() {
       return coordinators;
     }
 
+    /**
+     * Sets the list of stats for each coordinator node in the cluster.
+     *
+     * @param coordinators the list of stats for each coordinator node in the cluster
+     */
     public void setCoordinators(List<EndpointStats> coordinators) {
       this.coordinators = coordinators;
     }
 
+    /**
+     * Gets the list of stats for each executor node in the cluster.
+     *
+     * @return the list of stats for each executor node in the cluster
+     */
     public List<EndpointStats> getExecutors() {
       return executors;
     }
 
+    /**
+     * Sets the list of stats for each executor node in the cluster.
+     *
+     * @param executors the list of stats for each executor node in the cluster
+     */
     public void setExecutors(List<EndpointStats> executors) {
       this.executors = executors;
     }
@@ -587,7 +682,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * ClusterNodes represents the general coordinator & executor statistics.
+   * ClusterNodes represents the general coordinator & executor stats.
    */
   public static class ClusterNodes {
     private NodeStats coordinator;
