@@ -344,6 +344,18 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
     return null;
   }
 
+  /**
+   * Retrieves the coordinator's logs filtered by a defined period of generation, and store them in a single tar file.
+   * <p>
+   * The logs are retrieved from a remote instance in a streaming way using a gRPC call.
+   *
+   * @param start               the lower limit for the log generation
+   * @param end                 the upper limit for the log generation
+   * @param coordinatorEndPoint the metadata about the cluster's coordinator instance, for example the
+   *                            IP address
+   * @param taros               the {@code OutputStream} class used to join all generated logs files into a unique
+   *                            tar file
+   */
   private void getCoordinatorLogsOverGrpc(long start, long end,
                                   NodeEndpoint coordinatorEndPoint,
                                   TarArchiveOutputStream taros) {
