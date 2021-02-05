@@ -44,8 +44,8 @@ import com.google.common.collect.Lists;
  * Generated recommendation card(s) for given transform rule wrapped in {@link
  * TransformRuleWrapper}. Each card contains:
  * <ul>
- *   <li>how many rows matching/not-matching the rule in given dataset/version sample</li>
- *   <li>at max 3 examples of {@link CardExample}</li>
+ *   <li>How many rows matching/not-matching the rule in given dataset/version sample</li>
+ *   <li>At maximum 3 examples of {@link CardExample}</li>
  * </ul>
  */
 public class CardGenerator {
@@ -69,7 +69,7 @@ public class CardGenerator {
   }
 
   /**
-   * Generate cards to count how many rows that satisfied a given set of rules and generate cards examples to each rule.
+   * Generates cards to count how many rows satisfied a given set of rules and generate cards examples for each rule.
    *
    * @param datasetSql            the SQL query of the dataset version for which cards are needed
    * @param colName               the column name on which the transform rule needs to be applied
@@ -197,9 +197,9 @@ public class CardGenerator {
   /**
    * Generates the SQL query statement to retrieve the cards examples.
    *
-   * @param inputColName        the column name that it which to select data from
-   * @param datasetPreviewTable the table path that it which to select data from
-   * @param evaluators          the transform recommendation rule to verify if can generate card examples
+   * @param inputColName        the selected column name
+   * @param datasetPreviewTable the selected table path
+   * @param evaluators          the transform recommendation rule to verify if it can generate card examples
    * @param <T>                 the type parameter to a generic SQL query statement that will be returned
    * @return                    the SQL query statement to retrieve the cards examples
    */
@@ -236,13 +236,13 @@ public class CardGenerator {
   }
 
   /**
-   * Generates the SQL query statement to retrieve the cards match count.
+   * Generates the SQL count query statement to retrieve the cards match count.
    *
-   * @param inputColName        the column name that it which to select data from
-   * @param datasetPreviewTable the table path that it which to select data from
+   * @param inputColName        the selected column name
+   * @param datasetPreviewTable the selected table path
    * @param evaluators          the transform recommendation rule to verify if can generate card examples
    * @param <T>                 the type parameter to a generic SQL query statement that will be returned
-   * @return                    the SQL query statement to retrieve the the cards match count
+   * @return                    the SQL query statement to retrieve the cards match count
    */
   <T> String generateMatchCountQuery(String inputColName, String datasetPreviewTable,
     List<TransformRuleWrapper<T>> evaluators) {

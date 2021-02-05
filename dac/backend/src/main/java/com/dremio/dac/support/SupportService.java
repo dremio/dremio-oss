@@ -61,7 +61,7 @@ public interface SupportService extends Service {
    * Acquires the current cluster identity.  The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
-   * @return the acquired cluster ID.
+   * @return the acquired cluster ID
    */
   ClusterIdentity getClusterId();
 

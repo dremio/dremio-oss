@@ -78,7 +78,7 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
    * Executes an upgrade in the current Arrow Binary Schema.
    *
    * @param context an instance that contains the stores required by the current upgrade task
-   * @throws Exception If any exception or errors occurs.
+   * @throws Exception If any exception or errors occurs
    */
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
@@ -234,9 +234,9 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
   /**
    * Gets the Arrow type from a given field.
    *
-   * <p>It is necessary to get the same type as Arrow,
+   * <p> It is necessary to get the same type as Arrow,
    * otherwise it is not quite possible to construct type offset as it is a
-   * union of different types that have different structure
+   * union of different types that have different structures.
    *
    * @param field the field to get the Arrow type
    * @return      the Arrow type from a given field

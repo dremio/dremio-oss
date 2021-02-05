@@ -39,7 +39,7 @@ public abstract class UpgradeTask {
    * Constructs an UpgradeTask object.
    *
    * @param description  the upgrade task description
-   * @param dependencies the dependencies that this task
+   * @param dependencies the dependencies of this task
    */
   protected UpgradeTask(String description, List<String> dependencies) {
     this.description = Preconditions.checkNotNull(description);
@@ -86,7 +86,7 @@ public abstract class UpgradeTask {
    * Executes an upgrade task.
    *
    * @param context an instance that contains the stores required by the current upgrade task
-   * @throws Exception If any exception or errors occurs.
+   * @throws Exception If any exception or errors occurs
    */
   public abstract void upgrade(UpgradeContext context) throws Exception;
 

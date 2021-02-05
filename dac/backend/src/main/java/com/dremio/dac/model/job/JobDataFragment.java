@@ -54,7 +54,7 @@ public interface JobDataFragment extends AutoCloseable {
   /**
    * Gets the number of returned rows in this job fragment results.
    *
-   * @return the number of returned rows in this job fragment results.
+   * @return the number of returned rows in this job fragment results
    */
   int getReturnedRowCount();
 
@@ -100,7 +100,7 @@ public interface JobDataFragment extends AutoCloseable {
   /**
    * Retrieves the specific column type based on the defined column name.
    * <p>
-   * Notice, that the defined row index will be useful only if the defined column
+   * Notice that the defined row index will be useful only if the defined column
    * type identified on the column metadata is MIXED. If so, the index will be used to find
    * the related row record batch data where the column type will be able to be extracted.
    *

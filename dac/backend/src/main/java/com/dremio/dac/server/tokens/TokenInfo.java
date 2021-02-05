@@ -61,8 +61,8 @@ public interface TokenInfo {
    * Sets the token detailed information in the defined request context.
    *
    * @param context the request context instance
-   * @param token   the token detailed information containing the token itself,
-   *                the token related username and the expiration timestamp
+   * @param token   the token detailed information containing the token related username,
+   *                the expiration timestamp and the string token itself
    */
   static void setContext(ContainerRequestContext context, TokenDetails token) {
     Objects.requireNonNull(token);

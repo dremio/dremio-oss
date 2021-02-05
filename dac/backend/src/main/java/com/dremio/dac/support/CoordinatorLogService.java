@@ -140,7 +140,7 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
    * Gets queries logs from the Dremio files on logs directory filtering by left and right bounds date.
    *
    * <p> Gets all the queries gzip log filtering by the date. Then, sort the files by time and write each file
-   * to response observer. If  query is run today, compress server logs first then send to response.
+   * to response observer. If the query ran today, compress server logs first then send to response.
    *
    * @param dremioLogPath    the Dremio logs directory path
    * @param responseObserver the observable log of Dremio files
@@ -208,7 +208,7 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   }
 
   /**
-   * Selects lines of a file for the days that overlap with left bound and right bound dates interval. Write the content to gzipFile.
+   * Selects lines of a file for the days that overlap with left and right bound date intervals and writes the content to a gzipFile.
    *
    * @param files     a list of files
    * @param gzipFile  the gzip file to write the content
@@ -298,7 +298,7 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
    * Writes a log file in a given observer.
    *
    * @param file              the file log to be written
-   * @param responseObserver  the the observable log of Dremio files
+   * @param responseObserver  the observable log of Dremio files
    */
   private static void writeAFileToResponseObserver(File file, StreamObserver<Chunk> responseObserver) {
     try (BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(file))) {
@@ -345,7 +345,7 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
    *
    * @param input  the input file to be transformed
    * @param output the OutputStream object
-   * @throws IOException If any exceptions or errors occurs.
+   * @throws IOException If any exceptions or errors occurs
    */
   private static void copyFromInputStreamToOutStream(InputStream input, OutputStream output) throws IOException {
     byte[] buf = new byte[BUFFER_SIZE];

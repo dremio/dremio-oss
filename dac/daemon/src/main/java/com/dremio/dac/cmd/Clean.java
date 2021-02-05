@@ -101,7 +101,7 @@ public class Clean {
     }
 
     /**
-     * Returns a flag which indicates if there is any active operation command requested.
+     * Gets a flag which indicates if there is any active operation command requested.
      * <p>
      * Returns true if any of the parameters maxJobDays, deleteOrphans, reindexData or compactKvStore
      * were defined by the user clean command.
@@ -113,7 +113,7 @@ public class Clean {
     }
 
     /**
-     * Returns a flag which indicates if the help command was requested.
+     * Checks if the help command was requested.
      *
      * @return a flag which indicates if the help command was requested
      */
@@ -131,7 +131,7 @@ public class Clean {
     }
 
     /**
-     * Returns a flag which indicates if split and collaboration orphans should be deleted
+     * Checks if split and collaboration orphans should be deleted
      * from the key-value stores.
      *
      * @return a flag which indicates if split and collaboration orphans should be deleted
@@ -141,7 +141,7 @@ public class Clean {
     }
 
     /**
-     * Returns a flag which indicates if the keys and values should be re-indexed
+     * Checks if the keys and values should be re-indexed
      * on the key-value index stores.
      *
      * @return a flag which indicates if keys and values should be re-indexed
@@ -151,7 +151,7 @@ public class Clean {
     }
 
     /**
-     * Returns a flag which indicates if the keys and values should be compacted
+     * Checks if the keys and values should be compacted
      * on the key-value stores.
      *
      * @return a flag which indicates if keys and values should be compacted
@@ -162,8 +162,7 @@ public class Clean {
 
     /**
      * Parses all command line parameters to an Options object.
-     * <p>
-     * If the parse cannot be executed successfully or the command is identified as
+     * <p> If the parse cannot be executed successfully or the command is identified as
      * the --help command, shows the help usage summary output to the user.
      *
      * @param cliArgs the array of command line parameters
@@ -193,8 +192,7 @@ public class Clean {
 
   /**
    * Runs the clean command line operation to clean the internal Dremio metadata.
-   * <p>
-   * Useful for test purposes on operations that throws exceptions to avoid exiting VM.
+   * <p> Useful for test purposes on operations that throws exceptions to avoid exiting VM.
    *
    * @param args the array of command line parameters
    * @throws UnsupportedOperationException If the clean command is run by a node
@@ -289,9 +287,9 @@ public class Clean {
     }
 
     /**
-     * Deletes specific old profiles, based on a given identifier, from the local profile store.
+     * Deletes specific old profiles from the local profile store based on a given identifier.
      *
-     * @param attemptId id associated with a profile attempt
+     * @param attemptId the ID associated with a profile attempt
      */
     @Override
     public void go(AttemptId attemptId) {

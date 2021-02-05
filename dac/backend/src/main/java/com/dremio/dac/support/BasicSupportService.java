@@ -206,7 +206,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Stores the current DremioEdition in the Configuration Store.
+   * Stores the current DremioEdition (Marketplace, Enterprise or Community) in the Configuration Store.
    */
   protected void storeDremioEdition() {
     try {
@@ -344,7 +344,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Migrates an old support store cluster identity to the new the new store.
+   * Migrates an old support store cluster identity to the new store.
    *
    * @param provider a key-value store provider to be migrated
    * @return the migrated cluster identity
@@ -481,7 +481,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Starts a support service's metadata. Define the cluster identity and its requirements, such and its RPC end point
+   * Starts a support service's metadata. Define the cluster identity and its requirements, such and its RPC endpoint
    * and a support file path.
    *
    * @throws Exception If any exception occurs while trying to get the cluster identity from its RPC endpoint
@@ -699,7 +699,7 @@ public class BasicSupportService implements SupportService {
    * @param output         an output stream where the header will be written
    * @param supportRequest an object with the support request's metadata
    * @param user           an object with the user that requested support metadata, such as its name and UUID
-   * @param submissionId   an identify for the support request1
+   * @param submissionId   an identify for the support request
    * @return               a flag which indicates if the header was successfully registered
    * @throws UserNotFoundException If it couldn't find the user profile that requested support
    * @throws IOException           If any exception occurs while writing the header at the output stream
@@ -794,7 +794,7 @@ public class BasicSupportService implements SupportService {
    * @param end          the time when the
    * @param id           the Job ID from the support request
    * @param submissionId the Submission ID from the support request
-   * @return             returns true if the log is succcessfully recorded, otherwise returns false
+   * @return             returns a flag indicating if the log was successfully recorded
    */
   private boolean recordLog(OutputStream output, String userId, long start, long end, JobId id, String submissionId) {
     try {
@@ -875,7 +875,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Gets the current edition running. Returns "community" as default other editions should override it.
+   * Gets the current edition running. Returns "community" as default, other editions (marketplace or enterprise) should override it.
    *
    * @return the current edition running
    */

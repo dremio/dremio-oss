@@ -100,10 +100,10 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Defines the GET HTTP operation which retrieve the stats for the cluster.
+   * Defines the GET HTTP operation which retrieves the stats for the cluster.
    *
    * @param showCompactStats a flag which indicates if the stats information should be shown
-   *                         in a compacted visualization or not.
+   *                         in a compacted visualization or not
    * @return                 the cluster stats
    */
   @GET
@@ -113,10 +113,10 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Creates and process the cluster stats information.
+   * Creates and processes the cluster stats information.
    *
    * @param showCompactStats a flag which indicates if the stats information should be shown
-   *                         in a compacted visualization or not.
+   *                         in a compacted visualization or not
    * @return                 the cluster stats
    */
   ClusterStats createStats(boolean showCompactStats) {
@@ -206,7 +206,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Creates and process the general sources stats and vds queries information.
+   * Creates and processes the general sources stats and virtual datasets queries information.
    *
    * @param allSources a list of sources configuration
    * @param context    the SabotContext object instance
@@ -240,7 +240,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Stats represents the general sources and vds queries statistics for the service.
+   * Stats represents the general sources and virtual datasets queries stats for the service.
    */
   static class Stats {
     private List<SourceStats> sources;
@@ -253,7 +253,7 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Adds a new source at the source statistics.
+     * Adds a new source at the source stats.
      *
      * @param source the SourceStats instance
      */
@@ -262,7 +262,7 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Adds a new SearchQuery instance at the source statistics.
+     * Adds a new SearchQuery instance at the source stats.
      *
      * @param query the SearchQuery instance
      */
@@ -271,9 +271,9 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets all the SourceStats instances that existing.
+     * Gets all the SourceStats instances that exist in the cluster.
      *
-     * @return the SourceStats instances that existing
+     * @return the SourceStats instances that exist in the cluster
      */
     public List<SourceStats> getAllSources() {
       return sources;
@@ -338,9 +338,9 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the source stats id.
+     * Gets the source stats ID.
      *
-     * @return the source stats id
+     * @return the source stats ID
      */
     public String getId() {
       return id.getId();
