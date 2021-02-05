@@ -52,6 +52,14 @@ public class DACAuthFilter implements ContainerRequestFilter {
   public DACAuthFilter() {
   }
 
+  /**
+   * Validates if the requester user is authorized and exists.
+   * <p>
+   * If the user is not found or is unauthorized, aborts the request
+   * with an unauthorized response.
+   *
+   * @param requestContext the request context instance
+   */
   @Override
   public void filter(ContainerRequestContext requestContext) {
     try {
