@@ -26,7 +26,7 @@ import org.immutables.value.Value;
 import com.dremio.service.tokens.TokenDetails;
 
 /**
- * Required info of a token that is injectable into any resource.
+ * TokenInfo represents the required information of a token that can be injectable into any resource.
  */
 @Value.Immutable
 public interface TokenInfo {
