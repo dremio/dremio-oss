@@ -347,7 +347,7 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the source stats type.
+     * Gets the source stats type, such as "SampleS3"
      *
      * @return the source stats type
      */
