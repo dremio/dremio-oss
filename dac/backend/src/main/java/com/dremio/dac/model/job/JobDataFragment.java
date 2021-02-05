@@ -62,7 +62,7 @@ public interface JobDataFragment extends AutoCloseable {
    * Gets the {@link Column} object containing all its metadata based on a given column name.
    *
    * @param name a column name
-   * @return a {@link Column} object containing all its metadata
+   * @return     a {@link Column} object containing all its metadata
    * @see Column
    */
   @JsonIgnore
@@ -77,8 +77,8 @@ public interface JobDataFragment extends AutoCloseable {
    *
    * @param column a column name
    * @param index  a row index in the job fragment result
-   * @return the specific string value for a given column contained in a defined row.
-   * Notice that this value can be null
+   * @return       the specific string value for a given column contained in a defined row.
+   *               Notice that this value can be null
    * @see JobDataFragmentWrapper#extractString(String, int)
    */
   @JsonIgnore
@@ -90,8 +90,8 @@ public interface JobDataFragment extends AutoCloseable {
    *
    * @param column a column name
    * @param index  a row index in the job fragment result
-   * @return the specific Object value for a given column contained in a defined row.
-   * Notice that this value can be null
+   * @return       the specific Object value for a given column contained in a defined row.
+   *               Notice that this value can be null
    * @see JobDataFragmentWrapper#extractValue(String, int)
    */
   @JsonIgnore
@@ -106,7 +106,7 @@ public interface JobDataFragment extends AutoCloseable {
    *
    * @param column a column name
    * @param index  a row index in the job fragment result
-   * @return the specific column data type
+   * @return       the specific column data type
    * @see JobDataFragmentWrapper#extractType(String, int)
    * @see DataType
    */

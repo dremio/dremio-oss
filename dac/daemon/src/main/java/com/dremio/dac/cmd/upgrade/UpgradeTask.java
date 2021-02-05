@@ -59,6 +59,11 @@ public abstract class UpgradeTask {
     return taskName;
   }
 
+  /**
+   * Gets the upgrade task UUID.
+   *
+   * @return the UUID from the current task
+   */
   public abstract String getTaskUUID();
 
   public abstract void upgrade(UpgradeContext context) throws Exception;

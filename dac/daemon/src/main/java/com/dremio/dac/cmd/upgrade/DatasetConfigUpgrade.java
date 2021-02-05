@@ -63,6 +63,7 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
     super("Upgrade Arrow Schema", ImmutableList.of());
   }
 
+
   @Override
   public Version getMaxVersion() {
     return VERSION_210;
