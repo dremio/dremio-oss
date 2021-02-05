@@ -92,7 +92,7 @@ public class DACAuthFilter implements ContainerRequestFilter {
    * otherwise, a NotAuthorizedException will be thrown.
    *
    * @param requestContext the request context instance
-   * @return UserName the token related username
+   * @return               UserName the token related username
    * @throws NotAuthorizedException If the token validation fails
    */
   protected UserName getUserNameFromToken(ContainerRequestContext requestContext) throws NotAuthorizedException {
