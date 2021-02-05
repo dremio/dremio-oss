@@ -710,6 +710,14 @@ public class BasicSupportService implements SupportService {
     return true;
   }
 
+  /**
+   * Acquires a support request query profile.
+   *
+   * @param supportRequest the profile's support request
+   * @param attempt the number of attempts that was already tried to execute the current job
+   * @return an object with the query profile's metadata
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected QueryProfile getProfile(SupportRequest supportRequest, int attempt) throws JobNotFoundException {
     QueryProfileRequest request = QueryProfileRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
