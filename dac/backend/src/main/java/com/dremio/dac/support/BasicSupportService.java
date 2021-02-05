@@ -681,7 +681,7 @@ public class BasicSupportService implements SupportService {
    *
    * @param supportRequest the support request that generated the job
    * @param user           an object with the user that requested support metadata, such as its name
-   * @return               an object with the founded job execution details
+   * @return an object with the founded job execution details
    * @throws JobNotFoundException If it couldn't find the Job for the request
    */
   protected JobDetails getJobDetails(SupportRequest supportRequest, User user) throws JobNotFoundException {
@@ -693,6 +693,18 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobDetails(request);
   }
 
+  /**
+   * Registers a support request's header in a zip file.
+   *
+   * @param output         an output stream where the header will be written
+   * @param supportRequest an object with the support request's metadata
+   * @param user           an object with the user that requested support metadata, such as its name and UUID
+   * @param submissionId   an identify for the support request1
+   * @return               a flag which indicates if the header was successfully registered
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
+   * @throws IOException           If any exception occurs while writing the header at the output stream
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   private boolean recordHeader(OutputStream output, SupportRequest supportRequest, User user, String submissionId)
     throws UserNotFoundException, IOException, JobNotFoundException {
 
