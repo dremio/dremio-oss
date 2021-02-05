@@ -789,7 +789,9 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * @return the current edition that's running. Other editions should override this value
+   * Gets the current edition running. Returns "community" as default other editions should override it.
+   *
+   * @return the current edition running
    */
   public String getEditionInfo() {
     return "community";
