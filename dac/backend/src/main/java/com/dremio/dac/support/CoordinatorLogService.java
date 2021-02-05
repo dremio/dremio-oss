@@ -70,8 +70,8 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   /**
    * Constructs a CoordinatorLogService object.
    *
-   * @param sabotContextProvider   the object that provides instances of SabotContext
-   * @param supportServiceProvider the object that provides instances of SabotContext
+   * @param sabotContextProvider   the SabotContextProvider instance that contains all the metadata required by Sabot engine
+   * @param supportServiceProvider the object that provides cluster identity and upload data to Dremio
    */
   public CoordinatorLogService(Provider<SabotContext> sabotContextProvider,
     Provider<SupportService> supportServiceProvider) {
@@ -108,8 +108,8 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
 
   /**
    * Gets server logs from the Dremio files on logs directory filtering by left and right bounds date.
-   *
-   * <p> Gets all the server gzip log filtering by the date. Then, sort the files by time and write each file
+   * <p>
+   * Gets all the server gzip log filtering by the date. Then, sort the files by time and write each file
    * to response observer.
    *
    * @param dremioLogPath    the Dremio logs directory path
@@ -138,8 +138,8 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
 
   /**
    * Gets queries logs from the Dremio files on logs directory filtering by left and right bounds date.
-   *
-   * <p> Gets all the queries gzip log filtering by the date. Then, sort the files by time and write each file
+   * <p>
+   * Gets all the queries gzip log filtering by the date. Then, sort the files by time and write each file
    * to response observer. If the query ran today, compress server logs first then send to response.
    *
    * @param dremioLogPath    the Dremio logs directory path
@@ -341,7 +341,7 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   }
 
   /**
-   * Transfers from file InputStream object to OutputStream object.
+   * Copies a file InputStream content to an OutputStream object.
    *
    * @param input  the input file to be transformed
    * @param output the OutputStream object
