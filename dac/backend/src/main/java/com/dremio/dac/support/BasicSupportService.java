@@ -433,7 +433,9 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Converts a cluster identity object to a ByteString object.  The ByteString will be used to register
+   * Converts a cluster identity object to a ByteString object.
+   *
+   * <p>The ByteString will be used to register
    * the value of a configuration entry.
    *
    * @param identity the cluster identity to be converted
@@ -446,7 +448,9 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Registers a endpoint to retrieve the cluster identities.  Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * Registers a endpoint to retrieve the cluster identities.
+   *
+   * <p>Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
    * to get the cluster's identity.
    */
   private void registerClusterIdentityEndpoint() {
@@ -529,7 +533,9 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Downloads a support request as a zip file.  The support request file will contain the request's metadata,
+   * Downloads a support request as a zip file.
+   *
+   * <p>The support request file will contain the request's metadata,
    * such as its submission ID and a summary of the Job executed.
    *
    * @param request the request to have its metadata downloaded
@@ -774,7 +780,9 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Retrieves a profile based on a support request and writes it as JSON to a file.  It uses a Job ID generated based on the query ID.
+   * Retrieves a profile based on a support request and writes it as JSON to a file.
+   *
+   * <p>It uses a Job ID generated based on the query ID.
    *
    * @param out            a connection to the zip file where the JSON file will be written
    * @param supportRequest the support request containing the User ID and Job ID
