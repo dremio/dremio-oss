@@ -41,6 +41,11 @@ public abstract class UpgradeTask {
     this.dependencies.addAll(dependencies);
   }
 
+  /**
+   * Gets the upgrade task description.
+   *
+   * @return the upgrade task description
+   */
   public String getDescription() {
     return description;
   }
@@ -55,6 +60,11 @@ public abstract class UpgradeTask {
     return dependencies;
   }
 
+  /**
+   * Gets the upgrade task name.
+   *
+   * @return the upgrade task name
+   */
   String getTaskName() {
     return taskName;
   }
