@@ -45,9 +45,12 @@ import com.dremio.service.users.UserService;
 @Priority(Priorities.AUTHENTICATION)
 public class DACAuthFilter implements ContainerRequestFilter {
 
-  @Inject private javax.inject.Provider<UserService> userService;
-  @Inject private TokenManager tokenManager;
-  @Inject private ResourceInfo resourceInfo;
+  @Inject
+  private javax.inject.Provider<UserService> userService;
+  @Inject
+  private TokenManager tokenManager;
+  @Inject
+  private ResourceInfo resourceInfo;
 
   public DACAuthFilter() {
   }
@@ -72,15 +75,25 @@ public class DACAuthFilter implements ContainerRequestFilter {
   }
 
   /**
-   * If temporary access resource:
-   *   1. get token from query param. if not present fallback to header
-   *   2. validate temp token
-   * If not a temporary resource or temporary token validation failed:
-   *   1. get token from auth header
-   *   2. validate token
-   * @param requestContext
-   * @return UserName
-   * @throws NotAuthorizedException if validation fails
+   * Gets the username from the request token.
+   * <p>
+   * If the token is a temporary access resource:
+   * <ol>
+   *   <li>Tries to retrieve the token from the query parameters and if it is not present
+   *    tries to retrieve it from the authorization header;</li>
+   *    <li>Validates the temporary token;</li>
+   * </ol>
+   * If the token is not a temporary resource or if the temporary token validation failed:
+   * <ol>
+   *   <li>Gets the token directly from the authorization header;</li>
+   *   <li>Validates the token;</li>
+   * </ol>
+   * Then, if everything is validated properly, returns the token related username,
+   * otherwise, a NotAuthorizedException will be thrown.
+   *
+   * @param requestContext the request context instance
+   * @return UserName the token related username
+   * @throws NotAuthorizedException If the token validation fails
    */
   protected UserName getUserNameFromToken(ContainerRequestContext requestContext) throws NotAuthorizedException {
     final UserName userName;
