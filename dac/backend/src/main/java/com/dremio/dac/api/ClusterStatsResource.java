@@ -436,9 +436,9 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the latest reflections bytes size in the cluster.
+     * Gets the latest reflection's bytes size in the cluster.
      *
-     * @return the latest reflections bytes size in the cluster
+     * @return the latest reflection's bytes size in the cluster
      */
     public long getLatestReflectionsSizeBytes() {
       return latestReflectionsSizeBytes;
@@ -509,7 +509,7 @@ public class ClusterStatsResource {
     /**
      * Gets the list of stats for each source in the cluster.
      *
-     * @return the sources stats
+     * @return the list of stats for each source in the cluster
      */
     public List<SourceStats> getSources() {
       return sources;
@@ -633,7 +633,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * EndpointStats represents the node endpoint statistics.
+   * EndpointStats represents the node endpoint stats.
    */
   public static final class EndpointStats {
     private final String address;
@@ -654,18 +654,38 @@ public class ClusterStatsResource {
       this.startedAt = startedAt;
     }
 
+    /**
+     * Gets the node endpoint address in the cluster.
+     *
+     * @return the node endpoint address in the cluster
+     */
     public String getAddress() {
       return address;
     }
 
+    /**
+     * Gets the node endpoint available cores in the cluster.
+     *
+     * @return the node endpoint available cores in the cluster
+     */
     public int getAvailableCores() {
       return availableCores;
     }
 
+    /**
+     * Gets the maximum direct memory bytes in the cluster.
+     *
+     * @return the maximum direct memory bytes in the cluster
+     */
     public long getMaxDirectMemoryBytes() {
       return maxDirectMemoryBytes;
     }
 
+    /**
+     * Gets the node endpoint start time.
+     *
+     * @return the node endpoint start time
+     */
     public long getStartedAt() {
       return startedAt;
     }

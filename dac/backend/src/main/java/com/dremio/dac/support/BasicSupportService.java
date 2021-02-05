@@ -808,8 +808,8 @@ public class BasicSupportService implements SupportService {
    *
    * @param output       a connection to the zip file where the JSON file containing the log information will be written
    * @param userId       the User ID from the support request
-   * @param start        the time when the
-   * @param end          the time when the
+   * @param start        the time when the query processing started
+   * @param end          the time when the query processing ended
    * @param id           the Job ID from the support request
    * @param submissionId the Submission ID from the support request
    * @return             returns a flag indicating if the log was successfully recorded
