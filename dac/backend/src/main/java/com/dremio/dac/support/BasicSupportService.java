@@ -610,7 +610,7 @@ public class BasicSupportService implements SupportService {
    * @param outIncludesLogs a flag with indicates if the output file should include the job logs
    * @param outUserConfig   an object with the user's metadata
    * @param outSubmissionId an object to hold the support request submission ID
-   * @return                an object that hold the output file path
+   * @return an object that hold the output file path
    * @throws IOException           If any exception occurs while building the zip file
    * @throws UserNotFoundException If it couldn't find the user profile that requested support
    * @throws JobNotFoundException  If it couldn't find the Job for the request
@@ -660,6 +660,14 @@ public class BasicSupportService implements SupportService {
     return path;
   }
 
+  /**
+   * Acquires a summary of a job execution, such as the maximum number of attempts to execute it.
+   *
+   * @param supportRequest the support request that generated the job
+   * @param config         an object with the user that requested support metadata, such as its name
+   * @return an object with the founded job execution summary
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected JobSummary getJobSummary(SupportRequest supportRequest, User config) throws JobNotFoundException {
     final JobSummaryRequest request = JobSummaryRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
@@ -668,6 +676,14 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobSummary(request);
   }
 
+  /**
+   * Acquires the details of a job execution, such as the results of the attempts to execute it.
+   *
+   * @param supportRequest the support request that generated the job
+   * @param user           an object with the user that requested support metadata, such as its name
+   * @return an object with the founded job execution details
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected JobDetails getJobDetails(SupportRequest supportRequest, User user) throws JobNotFoundException {
     final JobDetailsRequest request = JobDetailsRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
@@ -677,6 +693,18 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobDetails(request);
   }
 
+  /**
+   * Registers a support request's header in a zip file.
+   *
+   * @param output         an output stream where the header will be written
+   * @param supportRequest an object with the support request's metadata
+   * @param user           an object with the user that requested support metadata, such as its name and UUID
+   * @param submissionId   an identify for the support request1
+   * @return               a flag which indicates if the header was successfully registered
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
+   * @throws IOException           If any exception occurs while writing the header at the output stream
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   private boolean recordHeader(OutputStream output, SupportRequest supportRequest, User user, String submissionId)
     throws UserNotFoundException, IOException, JobNotFoundException {
 
@@ -702,6 +730,14 @@ public class BasicSupportService implements SupportService {
     return true;
   }
 
+  /**
+   * Acquires a support request query profile.
+   *
+   * @param supportRequest the profile's support request
+   * @param attempt        the number of attempts that was already tried to execute the current job
+   * @return an object with the query profile's metadata
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected QueryProfile getProfile(SupportRequest supportRequest, int attempt) throws JobNotFoundException {
     QueryProfileRequest request = QueryProfileRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
