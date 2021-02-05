@@ -39,7 +39,7 @@ public interface JobData extends AutoCloseable {
    * @param offset    the number of the starting row to include in the output result
    * @param limit     the maximum number of rows to consider in the output result
    *                  based on the starting offset.
-   * @return the job results defined in a given offset and limit range
+   * @return          the job results defined in a given offset and limit range
    * @see JobDataFragment
    * @see JobDataWrapper
    */
@@ -51,7 +51,7 @@ public interface JobData extends AutoCloseable {
    * @param allocator a buffer allocator to accept the result data
    * @param maxRows   the maximum number of rows to consider in the output result
    *                  based on a zero offset.
-   * @return the job results defined for a maximum number of rows to consider
+   * @return          the job results defined for a maximum number of rows to consider
    * @see JobDataFragment
    * @see JobDataWrapper
    */
