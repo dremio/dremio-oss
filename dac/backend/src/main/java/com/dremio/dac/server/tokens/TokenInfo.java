@@ -40,10 +40,11 @@ public interface TokenInfo {
 
 
   /**
-   * Set token information in the current request context
+   * Sets the token detailed information in the defined request context.
    *
-   * @param context
-   * @param token
+   * @param context the request context instance
+   * @param token   the token detailed information containing the token itself,
+   *                the token related username and the expiration timestamp
    */
   static void setContext(ContainerRequestContext context, TokenDetails token) {
     Objects.requireNonNull(token);
@@ -53,7 +54,6 @@ public interface TokenInfo {
 
   /**
    * Factory to extract TokenInfo from the current request context.
-   *
    */
   class Factory implements Supplier<TokenInfo> {
     private static final String CONTEXT_KEY = "dremio.token.info";
