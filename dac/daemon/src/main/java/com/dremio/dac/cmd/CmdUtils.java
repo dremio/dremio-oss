@@ -35,7 +35,8 @@ public final class CmdUtils {
   /**
    * Gets the store provider, if data exists.
    *
-   * <p> If data not exists, it returns null.
+   * <p>
+   * If data not exists, it returns null.
    *
    * @param dremioConfig  a Dremio configuration object to get the database path
    * @param classPathScan the Classpath scanning utility to get the Sabot configuration
@@ -49,7 +50,8 @@ public final class CmdUtils {
   /**
    * Gets the store provider, if data exists.
    *
-   * <p> If data not exists, it returns null.
+   * <p>
+   * If data not exists, it returns null.
    *
    * @param dremioConfig  a Dremio configuration object to get the database path
    * @param classPathScan the Classpath scanning utility to get the Sabot configuration
