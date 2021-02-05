@@ -46,10 +46,14 @@ public interface JobData extends AutoCloseable {
   JobDataFragment range(BufferAllocator allocator, int offset, int limit);
 
   /**
-   * Create a new data object that truncates the results to at max given rows.
+   * Creates a {@link JobDataFragment} object containing the results for a defined maximum number of rows.
    *
-   * @param allocator Allocator to accept data
-   * @param maxRows
+   * @param allocator a buffer allocator to accept the result data
+   * @param maxRows   the maximum number of rows to consider in the output result
+   *                  based on a zero offset.
+   * @return the job results defined for a maximum number of rows to consider
+   * @see JobDataFragment
+   * @see JobDataWrapper
    */
   JobDataFragment truncate(BufferAllocator allocator, int maxRows);
 
