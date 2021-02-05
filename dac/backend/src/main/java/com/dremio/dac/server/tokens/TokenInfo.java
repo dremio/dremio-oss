@@ -30,20 +30,39 @@ import com.dremio.service.tokens.TokenDetails;
  */
 @Value.Immutable
 public interface TokenInfo {
+  /**
+   * Gets the token related username.
+   *
+   * @return a username
+   */
   String getUsername();
 
+  /**
+   * Gets the token related expiration timestamp.
+   *
+   * @return an expiration timestamp
+   */
   long getExpiresAt();
 
+  /**
+   * Builds an immutable TokenInfo instance containing the token related username
+   * and expiration timestamp.
+   *
+   * @param username  the token related username
+   * @param expiresAt the token related expiration timestamp
+   * @return an immutable TokenInfo instance
+   */
   static TokenInfo of(String username, long expiresAt) {
     return new ImmutableTokenInfo.Builder().setUsername(username).setExpiresAt(expiresAt).build();
   }
 
 
   /**
-   * Set token information in the current request context
+   * Sets the token detailed information in the defined request context.
    *
-   * @param context
-   * @param token
+   * @param context the request context instance
+   * @param token   the token detailed information containing the token itself,
+   *                the token related username and the expiration timestamp
    */
   static void setContext(ContainerRequestContext context, TokenDetails token) {
     Objects.requireNonNull(token);
@@ -53,9 +72,11 @@ public interface TokenInfo {
 
   /**
    * Factory to extract TokenInfo from the current request context.
-   *
    */
   class Factory implements Supplier<TokenInfo> {
+    /**
+     * The defined default context property key to be set on request context objects.
+     */
     private static final String CONTEXT_KEY = "dremio.token.info";
 
     private final ContainerRequestContext requestContext;
@@ -65,6 +86,12 @@ public interface TokenInfo {
       this.requestContext = requestContext;
     }
 
+    /**
+     * Gets the current request context token information containing the token related username
+     * and expiration timestamp.
+     *
+     * @return the TokenInfo instance set on the current request context
+     */
     @Override
     public TokenInfo get() {
       return (TokenInfo) requestContext.getProperty(CONTEXT_KEY);
