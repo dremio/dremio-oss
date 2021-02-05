@@ -103,8 +103,8 @@ public class Clean {
     /**
      * Gets a flag which indicates if there is any active operation command requested.
      * <p>
-     * Returns true if any of the parameters maxJobDays, deleteOrphans, reindexData or compactKvStore
-     * were defined by the user clean command.
+     * Returns if there is any active operation checking if the parameters maxJobDays, deleteOrphans,
+     * reindexData or compactKvStore were defined by the user clean command.
      *
      * @return a flag which indicates if any active operation command was requested
      */
@@ -192,7 +192,8 @@ public class Clean {
 
   /**
    * Runs the clean command line operation to clean the internal Dremio metadata.
-   * <p> Useful for test purposes on operations that throws exceptions to avoid exiting VM.
+   * <p>
+   * Useful for test purposes on operations that throws exceptions to avoid exiting VM.
    *
    * @param args the array of command line parameters
    * @throws UnsupportedOperationException If the clean command is run by a node
