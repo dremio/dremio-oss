@@ -38,7 +38,7 @@ import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 
 /**
- * Read cookie from request and validate it.
+ * DACAuthFilter reads the cookie from the request and validates its content.
  */
 @Secured
 @Provider
