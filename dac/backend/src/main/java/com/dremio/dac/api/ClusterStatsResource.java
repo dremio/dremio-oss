@@ -270,10 +270,20 @@ public class ClusterStatsResource {
       vdsQueries.add(query);
     }
 
+    /**
+     * Gets all the source stats that have been counted.
+     *
+     * @return the source stats that have been counted
+     */
     public List<SourceStats> getAllSources() {
       return sources;
     }
 
+    /**
+     * Gets all the vds queries stats that have been counted.
+     *
+     * @return the vds queries stats that have been counted
+     */
     public List<SearchTypes.SearchQuery> getVdsQueries() {
       return vdsQueries;
     }
