@@ -85,8 +85,8 @@ public class Clean {
        * Validates if a given parameter value is a positive integer and throws an exception
        * if the value or its type are incorrect.
        *
-       * @param name  the name of the parameter
-       * @param value the string value of the parameter
+       * @param  name  the name of the parameter
+       * @param  value the string value of the parameter
        * @throws ParameterException If the defined value is not a positive integer
        */
       @Override
@@ -166,7 +166,7 @@ public class Clean {
      * If the parse cannot be executed successfully or the command is identified as
      * the --help command, shows the help usage summary output to the user.
      *
-     * @param cliArgs the array of command line parameters
+     * @param  cliArgs the array of command line parameters
      * @return an Option object representing all parsed command line parameters
      */
     public static Options parse(String[] cliArgs) {
@@ -196,7 +196,7 @@ public class Clean {
    * <p>
    * Useful for test purposes on operations that throws exceptions to avoid exiting VM.
    *
-   * @param args the array of command line parameters
+   * @param  args the array of command line parameters
    * @throws UnsupportedOperationException If the clean command is run by a node
    *                                       that is not master
    * @throws Exception                     If any other exception is thrown on the running process
@@ -291,7 +291,7 @@ public class Clean {
     /**
      * Deletes specific old profiles, based on a given identifier, from the local profile store.
      *
-     * @param attemptId id associated with a profile attempt
+     * @param  attemptId id associated with a profile attempt
      */
     @Override
     public void go(AttemptId attemptId) {
@@ -303,9 +303,9 @@ public class Clean {
    * Deletes jobs and their corresponding profiles that are older than the provided maximum number
    * of days.
    *
-   * @param provider the key-value store provider
-   * @param maxDays  the maximum number of days that allows older files
-   *                 to be deleted
+   * @param  provider the key-value store provider
+   * @param  maxDays  the maximum number of days that allows older files
+   *                  to be deleted
    */
   private static void deleteOldJobsAndProfiles(LegacyKVStoreProvider provider, int maxDays) {
     AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
@@ -343,7 +343,7 @@ public class Clean {
    * Deletes any possible stale metadata about dataset splits that need to be cleaned up internally
    * (split orphans).
    *
-   * @param provider the key-value store provider
+   * @param  provider the key-value store provider
    */
   private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting split orphans... ");
@@ -355,7 +355,7 @@ public class Clean {
   /**
    * Deletes any entries that are orphan in the collaboration stores.
    *
-   * @param provider the key-value store provider
+   * @param  provider the key-value store provider
    */
   private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting collaboration orphans... ");
@@ -365,7 +365,7 @@ public class Clean {
   /**
    * Reindex any key-value stores that are considered an index store.
    *
-   * @param provider the key-value store provider
+   * @param  provider the key-value store provider
    */
   private static void reindexData(LocalKVStoreProvider provider) throws Exception {
     for (StoreWithId s : provider) {
@@ -378,7 +378,7 @@ public class Clean {
   /**
    * Compacts all the keys and values within each store on the provider.
    *
-   * @param provider the key-value store provider
+   * @param  provider the key-value store provider
    */
   private static void compactStore(LocalKVStoreProvider provider) throws Exception {
     for (StoreWithId s : provider) {
