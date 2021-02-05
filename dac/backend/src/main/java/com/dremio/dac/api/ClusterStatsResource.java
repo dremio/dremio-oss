@@ -253,36 +253,36 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Adds a new source at the current source stats.
+     * Adds a new source at the source statistics.
      *
-     * @param source the current source stats
+     * @param source the SourceStats instance
      */
     public void addSource(SourceStats source) {
       sources.add(source);
     }
 
     /**
-     * Adds a new vds query at the current vds stats.
+     * Adds a new SearchQuery instance at the source statistics.
      *
-     * @param query the current vds stats
+     * @param query the SearchQuery instance
      */
     public void addVdsQuery(SearchTypes.SearchQuery query) {
       vdsQueries.add(query);
     }
 
     /**
-     * Gets all the source stats that have been counted.
+     * Gets all the SourceStats instances that existing.
      *
-     * @return the source stats that have been counted
+     * @return the SourceStats instances that existing
      */
     public List<SourceStats> getAllSources() {
       return sources;
     }
 
     /**
-     * Gets all the vds queries stats that have been counted.
+     * Gets all the virtual datasets query that existing.
      *
-     * @return the vds queries stats that have been counted
+     * @return the virtual datasets query that existing
      */
     public List<SearchTypes.SearchQuery> getVdsQueries() {
       return vdsQueries;
