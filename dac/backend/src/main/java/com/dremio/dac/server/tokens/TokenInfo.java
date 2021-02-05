@@ -34,6 +34,14 @@ public interface TokenInfo {
 
   long getExpiresAt();
 
+  /**
+   * Builds an immutable TokenInfo instance containing the token related username
+   * and expiration timestamp.
+   *
+   * @param username  the token related username
+   * @param expiresAt the token related expiration timestamp
+   * @return an immutable token TokenInfo instance
+   */
   static TokenInfo of(String username, long expiresAt) {
     return new ImmutableTokenInfo.Builder().setUsername(username).setExpiresAt(expiresAt).build();
   }
