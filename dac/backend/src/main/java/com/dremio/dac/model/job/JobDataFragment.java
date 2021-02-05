@@ -79,17 +79,20 @@ public interface JobDataFragment extends AutoCloseable {
    * @param index  a row index in the job fragment result
    * @return the specific string value for a given column contained in a defined row.
    * Notice that this value can be null
-   * @see JobDataFragmentWrapper
+   * @see JobDataFragmentWrapper#extractString(String, int)
    */
   @JsonIgnore
   String extractString(String column, int index);
 
   /**
-   * Grab a value from the dataset out of the provided column in the given row index.
+   * Retrieves the specific column Object value for a given row in this job result fragment,
+   * based on the defined column name.
    *
-   * @param column - name of column
-   * @param index  - row index in dataset
-   * @return - value contained in this cell of the dataset, note this can be null
+   * @param column a column name
+   * @param index  a row index in the job fragment result
+   * @return the specific Object value for a given column contained in a defined row.
+   * Notice that this value can be null
+   * @see JobDataFragmentWrapper#extractValue(String, int)
    */
   @JsonIgnore
   Object extractValue(String column, int index);
