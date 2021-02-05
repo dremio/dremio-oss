@@ -699,12 +699,33 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getProfile(request);
   }
 
+  /**
+   * Retrieves a profile based on a support request and writes it as JSON to a file.
+   *
+   * @param  out            a connection to the zip file where the JSON file will be written
+   * @param  supportRequest the support request containing the User ID and Job ID
+   * @param  attempt        the number of performed attempts to retrieve the support request profile
+   * @return                the retrieved support request profile
+   * @throws IOException          if an error occurs during serialization
+   * @throws JobNotFoundException if it doesn't find the job related to the support request
+   */
   private QueryProfile recordProfile(OutputStream out, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
     QueryProfile profile = getProfile(supportRequest, attempt);
     ProtobufUtils.writeAsJSONTo(out, profile);
     return profile;
   }
 
+  /**
+   * Retrieves a profile based on a support request and writes it as JSON to a file.  It uses a Job ID generated based on the query ID.
+   *
+   * @param  out            a connection to the zip file where the JSON file will be written
+   * @param  supportRequest the support request containing the User ID and Job ID
+   * @param  attempt        the number of performed attempts to retrieve the support request profile
+   * @param  id             the Job ID generated for the support request based on the query ID
+   * @return                the retrieved support request profile
+   * @throws IOException          if an error occurs during serialization
+   * @throws JobNotFoundException if it doesn't find the job related to the support request
+   */
   private QueryProfile recordProfile(OutputStream out, JobId id, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
     QueryProfileRequest request = QueryProfileRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(id))
