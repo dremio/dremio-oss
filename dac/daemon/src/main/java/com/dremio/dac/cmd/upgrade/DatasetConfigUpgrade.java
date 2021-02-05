@@ -74,6 +74,12 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
     return taskUUID;
   }
 
+  /**
+   * Executes an upgrade in the current Arrow Binary Schema.
+   *
+   * @param context an instance that contains the stores required by the current upgrade task
+   * @throws Exception If any exception or errors occurs.
+   */
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final LegacyKVStoreProvider localStore = context.getKVStoreProvider();
@@ -324,6 +330,11 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
     }
   }
 
+  /**
+   * Gets a string representation of the current Arrow schema description and Dremio release.
+   *
+   * @return a string representation of the current Arrow schema description and Dremio release
+   */
   @Override
   public String toString() {
     return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
