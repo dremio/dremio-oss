@@ -35,6 +35,12 @@ public abstract class UpgradeTask {
   private final String description;
   private final List<String> dependencies = Lists.newArrayList(); // list of UUID of the tasks this one depends on
 
+  /**
+   * Constructs an UpgradeTask object.
+   *
+   * @param description  the upgrade task description
+   * @param dependencies the dependencies that this task
+   */
   protected UpgradeTask(String description, List<String> dependencies) {
     this.description = Preconditions.checkNotNull(description);
     this.taskName = getClass().getSimpleName();
