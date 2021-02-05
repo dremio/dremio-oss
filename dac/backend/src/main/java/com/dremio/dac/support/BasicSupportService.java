@@ -522,8 +522,8 @@ public class BasicSupportService implements SupportService {
    * Downloads a support request as a zip file.  The support request file will contain the request's metadata,
    * such as its submission ID and a summary of the Job executed.
    *
-   * @param request the request to have its metadata downloaded
-   * @return        An object with the downloaded file's metadata
+   * @param  request the request to have its metadata downloaded
+   * @return         An object with the downloaded file's metadata
    * @throws UserNotFoundException If it couldn't find the user's profile
    * @throws IOException           If any exception occurs while trying to create the downloaded file
    * @throws JobNotFoundException  If it couldn't find the Job for the request
@@ -546,11 +546,11 @@ public class BasicSupportService implements SupportService {
   /**
    * Builds a support zip file and upload it to s3.
    *
-   * @param userId
-   * @param jobId
-   * @return
-   * @throws IOException
-   * @throws UserNotFoundException
+   * @param  userId the user ID that requested support
+   * @param  jobId  the Job ID executed by the support request
+   * @return        the built support response
+   * @throws IOException           If any exception occurs while building the zip file
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
    */
   @Override
   public SupportResponse uploadSupportRequest(String userId, JobId jobId) throws UserNotFoundException {
