@@ -337,22 +337,46 @@ public class ClusterStatsResource {
       this.vdsCount = -1;
     }
 
+    /**
+     * Gets the source stats id.
+     *
+     * @return the source stats id
+     */
     public String getId() {
       return id.getId();
     }
 
+    /**
+     * Gets the source stats type.
+     *
+     * @return the source stats type
+     */
     public String getType() {
       return type;
     }
 
+    /**
+     * Gets the pds count in the source stats.
+     *
+     * @return the pds count in the source stats
+     */
     public int getPdsCount() {
       return pdsCount;
     }
 
+    /**
+     * Gets the vds count in the source stats.
+     *
+     * @return the vds count in the source stats
+     */
     public int getVdsCount() {
       return vdsCount;
     }
 
+    /**
+     * Sets the vds count in the source stats.
+     *
+     */
     public void setVdsCount(int vdsCount) {
       this.vdsCount = vdsCount;
     }
@@ -600,7 +624,7 @@ public class ClusterStatsResource {
 
     /** Gets the executor nodes in the cluster.
      *
-     * @return the executor nodes in the cluster.
+     * @return the executor nodes in the cluster
      */
     public NodeStats getExecutor() {
       return executor;
