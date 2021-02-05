@@ -209,7 +209,7 @@ public class ClusterStatsResource {
    * Creates and processes the general sources stats and virtual datasets queries information.
    *
    * @param allSources a list of sources configuration
-   * @param context    the SabotContext object instance
+   * @param context    the SabotContext instance that contains all the metadata required by Sabot engine
    * @return           the general sources stats
    */
   @VisibleForTesting
