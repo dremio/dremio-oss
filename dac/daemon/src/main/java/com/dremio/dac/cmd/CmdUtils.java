@@ -33,14 +33,11 @@ public final class CmdUtils {
 
 
   /**
-   * Gets the store provider, if data exists.
-   *
-   * <p>
-   * If data not exists, it returns null.
+   * Gets the key-value store provider based on the defined path configuration.
    *
    * @param dremioConfig  a Dremio configuration object to get the database path
    * @param classPathScan the Classpath scanning utility to get the Sabot configuration
-   * @return              the store provider, if data exists
+   * @return              the defined key-value store provider
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan) {
     return getKVStoreProvider(dremioConfig, classPathScan, true);
@@ -48,15 +45,12 @@ public final class CmdUtils {
 
 
   /**
-   * Gets the store provider, if data exists.
-   *
-   * <p>
-   * If data not exists, it returns null.
+   * Gets the key-value store provider based on the defined path configuration.
    *
    * @param dremioConfig  a Dremio configuration object to get the database path
    * @param classPathScan the Classpath scanning utility to get the Sabot configuration
    * @param noDBOpenRetry a flag which indicates if it should retry in case of the database can't open
-   * @return              the store provider, if data exists
+   * @return              the defined key-value store provider
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry) {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
@@ -78,10 +72,10 @@ public final class CmdUtils {
   }
 
   /**
-   * Gets the store provider, if data exists.
+   * Gets the key-value store provider based on the defined path configuration.
    *
    * @param dremioConfig a Dremio configuration object to get the database path
-   * @return             the store provider, if data exists
+   * @return             the defined key-value store provider
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
     return CmdUtils.getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
