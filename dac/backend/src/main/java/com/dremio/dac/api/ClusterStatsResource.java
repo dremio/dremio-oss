@@ -102,9 +102,9 @@ public class ClusterStatsResource {
   /**
    * Defines the GET HTTP operation which retrieve the stats for the cluster.
    *
-   * @param  showCompactStats a flag which indicates if the stats information should be shown
-   *                          in a compacted visualization or not.
-   * @return                  the cluster stats
+   * @param showCompactStats a flag which indicates if the stats information should be shown
+   *                         in a compacted visualization or not.
+   * @return                 the cluster stats
    */
   @GET
   @RolesAllowed({"admin", "user"})
@@ -115,9 +115,9 @@ public class ClusterStatsResource {
   /**
    * Creates and process the cluster stats information.
    *
-   * @param  showCompactStats a flag which indicates if the stats information should be shown
-   *                          in a compacted visualization or not.
-   * @return                  the cluster stats
+   * @param showCompactStats a flag which indicates if the stats information should be shown
+   *                         in a compacted visualization or not.
+   * @return                 the cluster stats
    */
   ClusterStats createStats(boolean showCompactStats) {
     final ClusterStats result = new ClusterStats();
@@ -208,9 +208,9 @@ public class ClusterStatsResource {
   /**
    * Creates and process the general sources stats and vds queries information.
    *
-   * @param  allSources a list of sources configuration
-   * @param  context    the SabotContext object instance
-   * @return            the general sources stats
+   * @param allSources a list of sources configuration
+   * @param context    the SabotContext object instance
+   * @return           the general sources stats
    */
   @VisibleForTesting
   public static Stats getSources(List<SourceConfig> allSources, SabotContext context) {
@@ -294,8 +294,8 @@ public class ClusterStatsResource {
   /**
    * Gets the general node stats such as average memory and available cores for each cluster node.
    *
-   * @param  endpoints the list of node endpoints
-   * @return           the general node stats
+   * @param endpoints the list of node endpoints
+   * @return          the general node stats
    */
   private NodeStats getNodeStats(Collection<CoordinationProtos.NodeEndpoint> endpoints) {
     final int count = endpoints.size();
@@ -521,8 +521,8 @@ public class ClusterStatsResource {
   /**
    * Creates and process the general node endpoint stats.
    *
-   * @param  endpoints the list of node endpoints
-   * @return           the list of node endpoint stats
+   * @param endpoints the list of node endpoints
+   * @return          the list of node endpoint stats
    */
   private List<EndpointStats> processEndPoints(Collection<CoordinationProtos.NodeEndpoint> endpoints) {
     final List<EndpointStats> result = endpoints.stream()
