@@ -66,6 +66,12 @@ public abstract class UpgradeTask {
    */
   public abstract String getTaskUUID();
 
+  /**
+   * Executes an upgrade task.
+   *
+   * @param context an instance that contains the stores required by the current upgrade task
+   * @throws Exception If any exception or errors occurs.
+   */
   public abstract void upgrade(UpgradeContext context) throws Exception;
 
   /**
