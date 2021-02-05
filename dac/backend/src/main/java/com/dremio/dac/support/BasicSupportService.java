@@ -481,9 +481,10 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Starts the cluster identity and its required metadata, such as its end point and file path.
+   * Starts a support service's metadata. Define the cluster identity and its requirements, such and its RPC end point
+   * and a support file path.
    *
-   * @throws  Exception If any exception occurs while trying to get the cluster identity from its RPC endpoint
+   * @throws Exception If any exception occurs while trying to get the cluster identity from its RPC endpoint
    */
   @Override
   public void start() throws Exception {
@@ -533,7 +534,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Build a support zip file and upload it to s3.
+   * Builds a support zip file and upload it to s3.
    *
    * @param userId
    * @param jobId
