@@ -41,7 +41,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
 /**
- * Generated recommendation card(s) for given transform rule wrapped in {@link
+ * The CardGenerator represents the Generated recommendation card(s) for given transform rule wrapped in {@link
  * TransformRuleWrapper}. Each card contains:
  * <ul>
  *   <li>How many rows matching/not-matching the rule in given dataset/version sample</li>
@@ -142,6 +142,7 @@ public class CardGenerator {
 
   /**
    * Gets a card examples list, according to a given transform rule.
+   *
    * <p> Iterate each row of the query metadata to extract the cards examples.
    *
    * @param exGenQueryData        the query metadata to get the cards examples

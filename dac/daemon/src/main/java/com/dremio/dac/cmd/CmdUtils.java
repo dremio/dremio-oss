@@ -25,7 +25,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 
 /**
- * The class is responsible to provide the general methods for command line operations utils.
+ * The CmdUtils is responsible to provide the general methods for command line operations utils.
  */
 public final class CmdUtils {
 
