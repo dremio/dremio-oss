@@ -735,7 +735,7 @@ public class BasicSupportService implements SupportService {
    *
    * @param supportRequest the profile's support request
    * @param attempt        the number of attempts that was already tried to execute the current job
-   * @return an object with the query profile's metadata
+   * @return               an object with the query profile's metadata
    * @throws JobNotFoundException If it couldn't find the Job for the request
    */
   protected QueryProfile getProfile(SupportRequest supportRequest, int attempt) throws JobNotFoundException {
@@ -753,7 +753,7 @@ public class BasicSupportService implements SupportService {
    * @param out            a connection to the zip file where the JSON file will be written
    * @param supportRequest the support request containing the User ID and Job ID
    * @param attempt        the number of performed attempts to retrieve the support request profile
-   * @return the retrieved support request profile
+   * @return               the retrieved support request profile
    * @throws IOException          if an error occurs during serialization
    * @throws JobNotFoundException if it doesn't find the job related to the support request
    */
@@ -770,7 +770,7 @@ public class BasicSupportService implements SupportService {
    * @param supportRequest the support request containing the User ID and Job ID
    * @param attempt        the number of performed attempts to retrieve the support request profile
    * @param id             the Job ID generated for the support request based on the query ID
-   * @return the retrieved support request profile
+   * @return               the retrieved support request profile
    * @throws IOException          if an error occurs during serialization
    * @throws JobNotFoundException if it doesn't find the job related to the support request
    */
@@ -785,6 +785,17 @@ public class BasicSupportService implements SupportService {
     return profile;
   }
 
+  /**
+   * Creates a log file containing the information of a failed query.
+   *
+   * @param output       a connection to the zip file where the JSON file containing the log information will be written
+   * @param userId       the User ID from the support request
+   * @param start        the time when the
+   * @param end          the time when the
+   * @param id           the Job ID from the support request
+   * @param submissionId the Submission ID from the support request
+   * @return             returns true if the log is succcessfully recorded, otherwise returns false
+   */
   private boolean recordLog(OutputStream output, String userId, long start, long end, JobId id, String submissionId) {
     try {
       final String startTime = JodaDateUtility.formatTimeStampMilli.print(start - PRE_TIME_BUFFER_MS);
@@ -824,6 +835,12 @@ public class BasicSupportService implements SupportService {
 
   }
 
+  /**
+   * Retrieves a cluster information such as its identity, version, sources list, nodes list and edition. Used when recording a support request header
+   * to save the cluster current state along with other header information.
+   *
+   * @return a cluster information object containing the cluster metadata (e.g. version, identity)
+   */
   private ClusterInfo getClusterInfo() {
     SoftwareVersion version = new SoftwareVersion().setVersion(DremioVersionInfo.getVersion());
 
