@@ -231,7 +231,7 @@ public class BasicSupportService implements SupportService {
    *
    * @param identity the cluster identity to be stored
    * @return         the cluster identity stored in the Configuration KVStore
-   * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
+   * @throws IllegalStateException If failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
     storeDremioEdition();
