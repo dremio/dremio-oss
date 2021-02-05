@@ -610,7 +610,7 @@ public class BasicSupportService implements SupportService {
    * @param outIncludesLogs a flag with indicates if the output file should include the job logs
    * @param outUserConfig   an object with the user's metadata
    * @param outSubmissionId an object to hold the support request submission ID
-   * @return                an object that hold the output file path
+   * @return an object that hold the output file path
    * @throws IOException           If any exception occurs while building the zip file
    * @throws UserNotFoundException If it couldn't find the user profile that requested support
    * @throws JobNotFoundException  If it couldn't find the Job for the request
@@ -660,6 +660,14 @@ public class BasicSupportService implements SupportService {
     return path;
   }
 
+  /**
+   * Acquires a summary of a job execution, such as the maximum number of attempts to execute it.
+   *
+   * @param supportRequest the support request that generated the job
+   * @param config         an object with the user that requested support metadata, such as its name
+   * @return               an object with the founded job execution summary
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected JobSummary getJobSummary(SupportRequest supportRequest, User config) throws JobNotFoundException {
     final JobSummaryRequest request = JobSummaryRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
