@@ -69,12 +69,17 @@ public interface JobDataFragment extends AutoCloseable {
   Column getColumn(String name);
 
   /**
-   * Grab a value from the dataset out of the provided column in the given row index.
-   * For complex types, they will be serialized into their JSON representation.
+   * Retrieves the specific string column value for a given row in this job result fragment,
+   * based on the defined column name.
+   * <p>
+   * For complex types such as Date, Time and Datetime, the column string value will be serialized
+   * into their JSON representation format {@link JobDataFragmentWrapper#extractString(String, int)}.
    *
-   * @param column - name of column
-   * @param index  - row index in dataset
-   * @return - value contained in this cell of the dataset, note this can be null
+   * @param column a column name
+   * @param index  a row index in the job fragment result
+   * @return the specific string value for a given column contained in a defined row.
+   * Notice that this value can be null
+   * @see JobDataFragmentWrapper
    */
   @JsonIgnore
   String extractString(String column, int index);
