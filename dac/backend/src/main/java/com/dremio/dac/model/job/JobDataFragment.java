@@ -97,6 +97,19 @@ public interface JobDataFragment extends AutoCloseable {
   @JsonIgnore
   Object extractValue(String column, int index);
 
+  /**
+   * Retrieves the specific column type based on the defined column name.
+   * <p>
+   * Notice, that the defined row index will be useful only if the defined column
+   * type identified on the column metadata is MIXED. If so, the index will be used to find
+   * the related row record batch data where the column type will be able to be extracted.
+   *
+   * @param column a column name
+   * @param index  a row index in the job fragment result
+   * @return the specific column data type
+   * @see JobDataFragmentWrapper#extractType(String, int)
+   * @see DataType
+   */
   @JsonIgnore
   DataType extractType(String column, int index);
 
