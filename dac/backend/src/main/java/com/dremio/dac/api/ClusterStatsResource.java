@@ -248,7 +248,8 @@ public class ClusterStatsResource {
 
     public Stats() {
       sources = new ArrayList<>();
-      vdsQueries = new ArrayList<>();
+      vdsQueries = new ArrayList<>
+              ();
     }
 
     public void addSource(SourceStats source) {
@@ -559,20 +560,36 @@ public class ClusterStatsResource {
 
 
     /**
-     * Gets
+     * Gets the coordinator nodes in the cluster.
+     *
+     * @return the coordinator nodes in the cluster
      */
     public NodeStats getCoordinator() {
       return coordinator;
     }
 
+
+    /** Sets the coordinator nodes in the cluster.
+     *
+     * @param coordinator the coordinator to be set
+     */
     public void setCoordinator(NodeStats coordinator) {
       this.coordinator = coordinator;
     }
 
+
+    /** Gets the executor nodes in the cluster.
+     *
+     * @return the executor nodes in the cluster.
+     */
     public NodeStats getExecutor() {
       return executor;
     }
 
+    /** Sets the executor nodes in the cluster.
+     *
+     * @param executor the executor to be set
+     */
     public void setExecutor(NodeStats executor) {
       this.executor = executor;
     }
