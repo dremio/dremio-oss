@@ -280,9 +280,9 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets all the virtual datasets query that existing.
+     * Gets all the virtual datasets query that exist in the cluster.
      *
-     * @return the virtual datasets query that existing
+     * @return the virtual datasets query that exist in the cluster
      */
     public List<SearchTypes.SearchQuery> getVdsQueries() {
       return vdsQueries;
