@@ -68,6 +68,11 @@ public abstract class UpgradeTask {
 
   public abstract void upgrade(UpgradeContext context) throws Exception;
 
+  /**
+   * Gets a string representation of the current task description.
+   *
+   * @return the task description represented by a string format
+   */
   @Override
   public String toString() {
     return String.format("'%s'", description);
