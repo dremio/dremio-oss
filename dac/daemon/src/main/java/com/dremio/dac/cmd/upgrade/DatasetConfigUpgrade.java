@@ -51,7 +51,7 @@ import com.google.flatbuffers.FlatBufferBuilder;
 import io.protostuff.ByteString;
 
 /**
- * To upgrade Arrow Binary Schema to latest Arrow release Dremio uses as of 2.1.0 release
+ * The DatasetConfigUpgrade represents the upgrade Arrow Binary Schema to latest Arrow release Dremio uses as of 2.1.0 release
  * Looks like we have 3 stores that store DatasetConfig that contains binary Schema
  */
 public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTask {
@@ -234,7 +234,8 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
   /**
    * Gets the Arrow type from a given field.
    *
-   * <p> It is necessary to get the same type as Arrow,
+   * <p>
+   * It is necessary to get the same type as Arrow,
    * otherwise it is not quite possible to construct type offset as it is a
    * union of different types that have different structures.
    *

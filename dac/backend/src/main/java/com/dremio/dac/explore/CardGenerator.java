@@ -143,7 +143,8 @@ public class CardGenerator {
   /**
    * Gets a card examples list, according to a given transform rule.
    *
-   * <p> Iterate each row of the query metadata to extract the cards examples.
+   * <p>
+   * Iterate each row of the query metadata to extract the cards examples.
    *
    * @param exGenQueryData        the query metadata to get the cards examples
    * @param transformRuleWrappers a set of transform rule wrappers

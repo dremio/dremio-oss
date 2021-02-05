@@ -258,7 +258,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Acquires the current cluster identity by a RPC request.
    *
-   * <p>The RPC request returns all the metadata necessary
+   * <p> The RPC request returns all the metadata necessary
    * to build the cluster identity, such as its version and ID itself.
    *
    * @return the acquired cluster ID
@@ -314,7 +314,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Acquires the current cluster identity from a given KVStore.
    *
-   * <p>The cluster identity is used to identify
+   * <p> The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
    * @param provider the KVStore to acquire the cluster identity
@@ -328,7 +328,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Acquires the current cluster identity from a given Configuration Store.
    *
-   * <p>The cluster identity is used to identify
+   * <p> The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
    * @param store    the configuration store to get the identity
@@ -435,7 +435,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Converts a cluster identity object to a ByteString object.
    *
-   * <p>The ByteString will be used to register
+   * <p> The ByteString will be used to register
    * the value of a configuration entry.
    *
    * @param identity the cluster identity to be converted
@@ -450,7 +450,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Registers a endpoint to retrieve the cluster identities.
    *
-   * <p>Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * <p> Is used by {@link BasicSupportService#getClusterIdentityFromRPC}
    * to get the cluster's identity.
    */
   private void registerClusterIdentityEndpoint() {
@@ -535,7 +535,7 @@ public class BasicSupportService implements SupportService {
   /**
    * Downloads a support request as a zip file.
    *
-   * <p>The support request file will contain the request's metadata,
+   * <p> The support request file will contain the request's metadata,
    * such as its submission ID and a summary of the Job executed.
    *
    * @param request the request to have its metadata downloaded
@@ -569,7 +569,7 @@ public class BasicSupportService implements SupportService {
    * @throws UserNotFoundException If it couldn't find the user profile that requested support
    */
   @Override
-  public SupportResponse uploadSupportRequest(String userId, JobId jobId) throws UserNotFoundException {
+  public SupportResponse uploadSupportRequest(String userId, JobId jobId) throws UserNotFoundException, IOException {
 
     Pointer<User> outUserConfig = new Pointer<>();
     Pointer<Boolean> outIncludesLogs = new Pointer<>(false);
@@ -770,8 +770,8 @@ public class BasicSupportService implements SupportService {
    * @param supportRequest the support request containing the User ID and Job ID
    * @param attempt        the number of performed attempts to retrieve the support request profile
    * @return               the retrieved support request profile
-   * @throws IOException          if an error occurs during serialization
-   * @throws JobNotFoundException if it doesn't find the job related to the support request
+   * @throws IOException          If an error occurs during serialization
+   * @throws JobNotFoundException If it doesn't find the job related to the support request
    */
   private QueryProfile recordProfile(OutputStream out, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
     QueryProfile profile = getProfile(supportRequest, attempt);
@@ -782,15 +782,15 @@ public class BasicSupportService implements SupportService {
   /**
    * Retrieves a profile based on a support request and writes it as JSON to a file.
    *
-   * <p>It uses a Job ID generated based on the query ID.
+   * <p> It uses a Job ID generated based on the query ID.
    *
    * @param out            a connection to the zip file where the JSON file will be written
    * @param supportRequest the support request containing the User ID and Job ID
    * @param attempt        the number of performed attempts to retrieve the support request profile
    * @param id             the Job ID generated for the support request based on the query ID
    * @return               the retrieved support request profile
-   * @throws IOException          if an error occurs during serialization
-   * @throws JobNotFoundException if it doesn't find the job related to the support request
+   * @throws IOException          If an error occurs during serialization
+   * @throws JobNotFoundException If it doesn't find the job related to the support request
    */
   private QueryProfile recordProfile(OutputStream out, JobId id, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
     QueryProfileRequest request = QueryProfileRequest.newBuilder()
@@ -854,8 +854,9 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Retrieves a cluster information such as its identity, version, sources list, nodes list and edition. Used when recording a support request header
-   * to save the cluster current state along with other header information.
+   * Retrieves a cluster information such as its identity, version, sources list, nodes list and edition.
+   * <p> Used when recording a support request header to save the cluster current
+   * state along with other header information.
    *
    * @return a cluster information object containing the cluster metadata (e.g. version, identity)
    */
