@@ -108,6 +108,12 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
     }
   }
 
+  /**
+   * Updates the Arrow Schema properties.
+   *
+   * @param datasetConfig the Arrow Schema properties
+   * @return              the Arrow Schema properties updated
+   */
   private DatasetConfig update(DatasetConfig datasetConfig) {
     if (datasetConfig == null) {
       return null;
@@ -130,10 +136,10 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
   }
 
   /**
-   * Converting old Arrow Schema to new one based on Arrow version used
-   * in Dremio as of 2.1.0
-   * @param oldSchema
-   * @return
+   * Converts the old Arrow schema to new one based on Arrow version used in Dremio as of 2.1.0.
+   *
+   * @param oldSchema the old Arrow schema will be converted
+   * @return          the new schema to Arrow format as of Dremio 2.1.0+, serialized by the FlatBuffer
    */
   @VisibleForTesting
   byte[] convertFromOldSchema(OldSchema oldSchema) {
@@ -161,11 +167,11 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
   }
 
   /**
-   * Converting old Arrow Field to new one based on Arrow version used
-   * in Dremio as of 2.1.0
-   * @param oldField
-   * @param builder
-   * @return
+   * Converts the old Arrow Field to new one based on Arrow version used in Dremio as of 2.1.0.
+   *
+   * @param oldField the old field to be converted
+   * @param builder  a FlatBufferBuilder to serialize the field
+   * @return         the new field to Arrow format as of Dremio 2.1.0+, serialized by the FlatBuffer
    */
   private int convertFromOldField(OldField oldField, FlatBufferBuilder builder) {
     int nameOffset = oldField.name() == null ? -1 : builder.createString(oldField.name());
@@ -219,11 +225,14 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
   }
 
   /**
-   * Really just copy from Arrow, as it accepts only Field
-   * otherwise it is not quite possible to construct type offset
-   * as it is union of different types that have different structuure
-   * @param field
-   * @return
+   * Gets the Arrow type from a given field.
+   *
+   * <p>It is necessary to get the same type as Arrow,
+   * otherwise it is not quite possible to construct type offset as it is a
+   * union of different types that have different structure
+   *
+   * @param field the field to get the Arrow type
+   * @return      the Arrow type from a given field
    */
   private static org.apache.arrow.vector.types.pojo.ArrowType getTypeForField(org.apache.arrow.flatbuf.OldField field) {
     switch(field.typeType()) {
