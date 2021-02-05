@@ -480,6 +480,11 @@ public class BasicSupportService implements SupportService {
     builder.register(fabricServiceProvider.get());
   }
 
+  /**
+   * Starts the cluster identity and its required metadata, such as its end point and file path.
+   *
+   * @throws  Exception If any exception occurs while trying to get the cluster identity from its RPC endpoint
+   */
   @Override
   public void start() throws Exception {
     registerClusterIdentityEndpoint();
