@@ -36,7 +36,7 @@ public abstract class UpgradeTask {
   private final List<String> dependencies = Lists.newArrayList(); // list of UUID of the tasks this one depends on
 
   /**
-   * Constructs an UpgradeTask object.
+   * Constructs an implemented UpgradeTask object.
    *
    * @param description  the upgrade task description
    * @param dependencies the dependencies of this task
