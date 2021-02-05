@@ -186,8 +186,8 @@ public class BasicSupportService implements SupportService {
   /**
    * Gets a configuration entry.
    *
-   * @param  key a key associated with the configuration value
-   * @return     the configuration value associated with the given key
+   * @param key a key associated with the configuration value
+   * @return the configuration value associated with the given key
    */
   @Override
   public ConfigurationEntry getConfigurationEntry(String key) {
@@ -197,8 +197,8 @@ public class BasicSupportService implements SupportService {
   /**
    * Sets a configuration entry.
    *
-   * @param  key   a key associated with the configuration entry
-   * @param  entry the configuration entry to be set
+   * @param key   a key associated with the configuration entry
+   * @param entry the configuration entry to be set
    */
   @Override
   public void setConfigurationEntry(String key, ConfigurationEntry entry) {
@@ -225,8 +225,8 @@ public class BasicSupportService implements SupportService {
    *
    * <p>In case another server already have stored it, retrieves the stored identity.
    *
-   * @param  identity the cluster identity to be stored
-   * @return          the cluster identity stored in the Configuration KVStore
+   * @param identity the cluster identity to be stored
+   * @return the cluster identity stored in the Configuration KVStore
    * @throws IllegalStateException If it's failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
@@ -309,8 +309,8 @@ public class BasicSupportService implements SupportService {
    * Acquires the current cluster identity from a given KVStore.  The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
-   * @param  provider the KVStore to acquire the cluster identity
-   * @return          the cluster identity, or null if it failed to get the cluster ID
+   * @param provider the KVStore to acquire the cluster identity
+   * @return the cluster identity, or null if it failed to get the cluster ID
    */
   public static Optional<ClusterIdentity> getClusterIdentity(LegacyKVStoreProvider provider) {
     ConfigurationStore store = new ConfigurationStore(provider);
@@ -321,9 +321,9 @@ public class BasicSupportService implements SupportService {
    * Acquires the current cluster identity from a given Configuration Store.  The cluster identity is used to identify
    * that a executor node and a master node are at the same cluster.
    *
-   * @param  store    the configuration store to get the identity
-   * @param  provider a KVStore that provided the configuration store
-   * @return          the cluster identity acquired
+   * @param store    the configuration store to get the identity
+   * @param provider a KVStore that provided the configuration store
+   * @return the cluster identity acquired
    */
   private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
@@ -346,8 +346,8 @@ public class BasicSupportService implements SupportService {
   /**
    * Migrates an old support store cluster identity to the new the new store.
    *
-   * @param  provider a key-value store provider to be migrated
-   * @return          the migrated cluster identity
+   * @param provider a key-value store provider to be migrated
+   * @return the migrated cluster identity
    */
   private static Optional<ClusterIdentity> upgradeToNewSupportStore(LegacyKVStoreProvider provider) {
     final LegacyKVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
@@ -404,8 +404,8 @@ public class BasicSupportService implements SupportService {
   /**
    * Updates a cluster identity's configuration entry.
    *
-   * @param  provider the KVStore to acquire the identity's support store
-   * @param  identity the cluster identity to be updated
+   * @param provider the KVStore to acquire the identity's support store
+   * @param identity the cluster identity to be updated
    */
   public static void updateClusterIdentity(LegacyKVStoreProvider provider, ClusterIdentity identity) {
     final LegacyKVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
@@ -426,8 +426,8 @@ public class BasicSupportService implements SupportService {
    * Converts a cluster identity object to a ByteString object.  The ByteString will be used to register
    * the value of a configuration entry.
    *
-   * @param  identity the cluster identity to be converted
-   * @return          the cluster identity in ByteString format
+   * @param identity the cluster identity to be converted
+   * @return the cluster identity in ByteString format
    */
   private static ByteString convertClusterIdentityToByteString(ClusterIdentity identity) {
     final LinkedBuffer buffer = LinkedBuffer.allocate();
@@ -522,8 +522,8 @@ public class BasicSupportService implements SupportService {
    * Downloads a support request as a zip file.  The support request file will contain the request's metadata,
    * such as its submission ID and a summary of the Job executed.
    *
-   * @param  request the request to have its metadata downloaded
-   * @return         An object with the downloaded file's metadata
+   * @param request the request to have its metadata downloaded
+   * @return an object with the downloaded file's metadata
    * @throws UserNotFoundException If it couldn't find the user's profile
    * @throws IOException           If any exception occurs while trying to create the downloaded file
    * @throws JobNotFoundException  If it couldn't find the Job for the request
@@ -546,9 +546,9 @@ public class BasicSupportService implements SupportService {
   /**
    * Builds a support zip file and upload it to s3.
    *
-   * @param  userId the user ID that requested support
-   * @param  jobId  the Job ID executed by the support request
-   * @return        the built support response
+   * @param userId the user ID that requested support
+   * @param jobId  the Job ID executed by the support request
+   * @return the built support response
    * @throws IOException           If any exception occurs while building the zip file
    * @throws UserNotFoundException If it couldn't find the user profile that requested support
    */
@@ -603,6 +603,18 @@ public class BasicSupportService implements SupportService {
     return new SupportResponse(false, false, null);
   }
 
+  /**
+   * Generates a support request output zip file.
+   *
+   * @param request         the support request executed
+   * @param outIncludesLogs a flag with indicates if the output file should include the job logs
+   * @param outUserConfig   an object with the user's metadata
+   * @param outSubmissionId an object to hold the support request submission ID
+   * @return                an object that hold the output file path
+   * @throws IOException           If any exception occurs while building the zip file
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   private Path generateSupportRequest(SupportRequest request, Pointer<Boolean> outIncludesLogs,
                                       Pointer<User> outUserConfig, Pointer<String> outSubmissionId)
     throws IOException, UserNotFoundException, JobNotFoundException {
@@ -702,10 +714,10 @@ public class BasicSupportService implements SupportService {
   /**
    * Retrieves a profile based on a support request and writes it as JSON to a file.
    *
-   * @param  out            a connection to the zip file where the JSON file will be written
-   * @param  supportRequest the support request containing the User ID and Job ID
-   * @param  attempt        the number of performed attempts to retrieve the support request profile
-   * @return                the retrieved support request profile
+   * @param out            a connection to the zip file where the JSON file will be written
+   * @param supportRequest the support request containing the User ID and Job ID
+   * @param attempt        the number of performed attempts to retrieve the support request profile
+   * @return the retrieved support request profile
    * @throws IOException          if an error occurs during serialization
    * @throws JobNotFoundException if it doesn't find the job related to the support request
    */
@@ -718,11 +730,11 @@ public class BasicSupportService implements SupportService {
   /**
    * Retrieves a profile based on a support request and writes it as JSON to a file.  It uses a Job ID generated based on the query ID.
    *
-   * @param  out            a connection to the zip file where the JSON file will be written
-   * @param  supportRequest the support request containing the User ID and Job ID
-   * @param  attempt        the number of performed attempts to retrieve the support request profile
-   * @param  id             the Job ID generated for the support request based on the query ID
-   * @return                the retrieved support request profile
+   * @param out            a connection to the zip file where the JSON file will be written
+   * @param supportRequest the support request containing the User ID and Job ID
+   * @param attempt        the number of performed attempts to retrieve the support request profile
+   * @param id             the Job ID generated for the support request based on the query ID
+   * @return the retrieved support request profile
    * @throws IOException          if an error occurs during serialization
    * @throws JobNotFoundException if it doesn't find the job related to the support request
    */
