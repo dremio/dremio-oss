@@ -665,7 +665,7 @@ public class BasicSupportService implements SupportService {
    *
    * @param supportRequest the support request that generated the job
    * @param config         an object with the user that requested support metadata, such as its name
-   * @return               an object with the founded job execution summary
+   * @return an object with the founded job execution summary
    * @throws JobNotFoundException If it couldn't find the Job for the request
    */
   protected JobSummary getJobSummary(SupportRequest supportRequest, User config) throws JobNotFoundException {
@@ -676,6 +676,14 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobSummary(request);
   }
 
+  /**
+   * Acquires the details of a job execution, such as the results of the attempts to execute it.
+   *
+   * @param supportRequest the support request that generated the job
+   * @param user           an object with the user that requested support metadata, such as its name
+   * @return               an object with the founded job execution details
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected JobDetails getJobDetails(SupportRequest supportRequest, User user) throws JobNotFoundException {
     final JobDetailsRequest request = JobDetailsRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
@@ -714,7 +722,7 @@ public class BasicSupportService implements SupportService {
    * Acquires a support request query profile.
    *
    * @param supportRequest the profile's support request
-   * @param attempt the number of attempts that was already tried to execute the current job
+   * @param attempt        the number of attempts that was already tried to execute the current job
    * @return an object with the query profile's metadata
    * @throws JobNotFoundException If it couldn't find the Job for the request
    */
