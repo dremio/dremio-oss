@@ -240,18 +240,54 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     }
   }
 
+  /**
+   * Creates the first version of the dataset that will be created based on a source name.
+   *
+   * @param sourceName the given dataset source name
+   * @param path       the given dataset path
+   * @param limit      the number of records to return in the initial response
+   * @return           the result of a transform apply (preview result)
+   * @throws NamespaceException              If the provided namespace contains an incorrect path
+   * @throws DatasetNotFoundException        If the accessed dataset is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   * @throws NewDatasetQueryException        If the SQL query is invalid
+   */
   public InitialPreviewResponse createUntitledFromSourceFile(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     return tool.newUntitled(getOrCreateAllocator("createUntitledFromSourceFile"), new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
   }
 
+  /**
+   * Creates the first version of the dataset that will be created based on a source folder.
+   *
+   * @param sourceName the given dataset source name
+   * @param path       the given dataset path
+   * @param limit      the number of records to return in the initial response
+   * @return           the result of a transform apply (preview result)
+   * @throws NamespaceException              If the provided namespace contains an incorrect path
+   * @throws DatasetNotFoundException        If the accessed dataset is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   * @throws NewDatasetQueryException        If the SQL query is invalid
+   */
   public InitialPreviewResponse createUntitledFromSourceFolder(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
     return tool.newUntitled(getOrCreateAllocator("createUntitledFromSourceFolder"), new FromTable(folderPath.toPathString()), DatasetVersion.newVersion(), folderPath.toPathList(), limit);
   }
 
+  /**
+   * Creates the first version of the dataset that will be created based on a physical dataset.
+   *
+   * @param sourceName the given dataset source name
+   * @param path       the given dataset path
+   * @param limit      the number of records to return in the initial response
+   * @return           the result of a transform apply (preview result)
+   * @throws NamespaceException              If the provided namespace contains an incorrect path
+   * @throws DatasetNotFoundException        If the accessed dataset is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   * @throws NewDatasetQueryException        If the SQL query is invalid
+   */
   public InitialPreviewResponse createUntitledFromPhysicalDataset(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     PhysicalDatasetPath datasetPath = PhysicalDatasetPath.fromURLPath(sourceName, path);
@@ -275,7 +311,6 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     return tool.newUntitled(getOrCreateAllocator("createUntitledFromHomeFile"), new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
   }
-
 
   /**
    * Defines the GET HTTP method to search for datasets of an user.
