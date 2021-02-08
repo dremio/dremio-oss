@@ -442,10 +442,25 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     );
   }
 
+  /**
+   * Creates a new home page.
+   *
+   * @param homePath the path for the home page
+   * @param home     the basic config for the home page
+   * @return         the new home page
+   */
   protected Home newHome(HomePath homePath, HomeConfig home) {
     return new Home(homePath, home);
   }
 
+  /**
+   * Creates a new space model.
+   *
+   * @param spaceConfig  the basic config to create the space
+   * @param datasetCount the number of datasets that the space has
+   * @return             the created space
+   * @throws Exception   If any exception occurs
+   */
   protected Space newSpace(SpaceConfig spaceConfig, int datasetCount) throws Exception {
     return Space.newInstance(spaceConfig, null, datasetCount);
   }
