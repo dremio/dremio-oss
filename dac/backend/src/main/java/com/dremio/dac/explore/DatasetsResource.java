@@ -274,10 +274,11 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Get summary for dataset (physical datasets, virtual datasets)
-   * @param path relative path to the summary
-   * @return
-   * @throws NamespaceException
+   * Gets a summary for a dataset (physical or virtual).
+   * @param path the relative dataset path to the summary
+   * @return     an object with the dataset data summary
+   * @throws NamespaceException       If it couldn't find the dataset's namespace
+   * @throws DatasetNotFoundException If the dataset to get the summary couldn't be found
    */
   @GET
   @Path("/summary/{path: .*}")
