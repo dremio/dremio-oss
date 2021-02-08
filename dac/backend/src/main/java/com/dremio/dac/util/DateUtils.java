@@ -21,14 +21,14 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 
 /**
- * Simple date conversion tasks
+ * DateUtils is responsible for provide useful methods for date conversion tasks.
  */
 public class DateUtils {
 
   /**
-   * Returns Epoch time value for start of last month.
-   * Example if today is 25 March 2020, This will return time equivalent of 01 Feb 2020 00:00:00
-   * @return
+   * Retrieves the date value of last month's start in milliseconds.
+   *
+   * @return the date value of last month's start in milliseconds
    */
   public static long getStartOfLastMonth() {
     LocalDate now = LocalDate.now();
