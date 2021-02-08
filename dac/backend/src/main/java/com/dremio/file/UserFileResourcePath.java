@@ -24,16 +24,28 @@ import com.dremio.dac.model.common.RootEntity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
- * "/file/{@home}.[folder.]*name}"
+ * UserFileResourcePath represents the user's file resource path, which can be defined from a JSON or FilePath object. Such as example: (String),
+ * such as "/file/{@home}.{folder.▪*name}".
  */
 public class UserFileResourcePath extends ResourcePath {
 
   private final FilePath filePath;
 
+  /**
+   * Constructs a UserFileResourcePath object.
+   *
+   * @param path the user file path resource
+   */
   public UserFileResourcePath(FilePath path) {
     this.filePath = path;
   }
 
+  /**
+   * Constructs a UserFileResourcePath object.
+   *
+   * @param filePath the user file path resource in JSON format
+   * @throws IllegalArgumentException If the JSON format is incorrect or the file path is invalid for home
+   */
   @JsonCreator
   public UserFileResourcePath(String filePath) {
     List<String> path = parse(filePath, "file");
@@ -46,11 +58,23 @@ public class UserFileResourcePath extends ResourcePath {
     }
   }
 
+  /**
+   * Gets the path of a file.
+   * <p>
+   * The file path returns a list of string, that the first element is the "file" and second element is the file path.
+   *
+   * @return the path of a file
+   */
   @Override
   public List<String> asPath() {
     return asList("file", filePath.toPathString());
   }
 
+  /**
+   * Gets the full path to a file.
+   *
+   * @return the full path to a file
+   */
   public FilePath getFile() {
     return filePath;
   }
