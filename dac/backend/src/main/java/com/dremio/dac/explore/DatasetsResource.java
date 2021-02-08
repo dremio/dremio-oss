@@ -372,6 +372,15 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       datasetService.getDescendantsCount(datasetPath.toNamespaceKey()));
   }
 
+  /**
+   * Creates a new dataset summary object.
+   *
+   * @param datasetConfig the dataset's configurations
+   * @param jobCount      the number of jobs executed on the dataset until now
+   * @param descendants   the number of descendants datasets that the dataset generated
+   * @return              the new dataset summary
+   * @throws NamespaceException If it wasn't possible to find the dataset namespace
+   */
   protected DatasetSummary newDatasetSummary(DatasetConfig datasetConfig, int jobCount, int descendants) throws NamespaceException {
     return DatasetSummary.newInstance(datasetConfig, jobCount, descendants);
   }
