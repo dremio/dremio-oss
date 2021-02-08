@@ -100,10 +100,10 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Defines the GET HTTP operation which retrieves the stats for the cluster.
+   * Defines the GET HTTP route which is responsible for retrieving the stats for the cluster.
    *
    * @param showCompactStats a flag which indicates if the stats information should be shown
-   *                         in a compacted visualization or not
+   *                         in a compacted format or not
    * @return                 the cluster stats
    */
   @GET
@@ -113,7 +113,8 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Creates and processes the cluster stats information.
+   * Creates and processes the cluster stats, retrieving states information from
+   * coordinators, executors, nodes, jobs and sources in the cluster.
    *
    * @param showCompactStats a flag which indicates if the stats information should be shown
    *                         in a compacted visualization or not
@@ -206,7 +207,8 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Creates and processes the general sources stats and virtual datasets queries information.
+   * Creates and processes specific sources stats, retrieving information such as
+   * the virtual datasets queries in the cluster.
    *
    * @param allSources a list of sources configuration
    * @param context    the SabotContext instance that contains all the metadata required by Sabot engine
@@ -240,7 +242,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Stats represents the general sources and virtual datasets queries stats for the service.
+   * Stats represents the general sources stats for the cluster.
    */
   static class Stats {
     private List<SourceStats> sources;
@@ -253,25 +255,25 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Adds a new source at the source stats.
+     * Adds a new source statistic to the defined list of source stats.
      *
-     * @param source the SourceStats instance
+     * @param source a SourceStats instance
      */
     public void addSource(SourceStats source) {
       sources.add(source);
     }
 
     /**
-     * Adds a new SearchQuery instance at the source stats.
+     * Adds a new SearchQuery instance to the defined list of virtual datasets queries.
      *
-     * @param query the SearchQuery instance
+     * @param query a SearchQuery instance
      */
     public void addVdsQuery(SearchTypes.SearchQuery query) {
       vdsQueries.add(query);
     }
 
     /**
-     * Gets all the SourceStats instances that exist in the cluster.
+     * Gets the list of statistics for each source in the cluster.
      *
      * @return the SourceStats instances that exist in the cluster
      */
@@ -280,9 +282,9 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets all the virtual datasets query that exist in the cluster.
+     * Gets all the defined virtual datasets queries stats.
      *
-     * @return the virtual datasets query that exist in the cluster
+     * @return the list of virtual datasets queries stats
      */
     public List<SearchTypes.SearchQuery> getVdsQueries() {
       return vdsQueries;
@@ -292,7 +294,7 @@ public class ClusterStatsResource {
 
 
   /**
-   * Gets the general node stats such as average memory and available cores for each cluster node.
+   * Gets the general nodes stats such as average memory and available cores for each cluster node.
    *
    * @param endpoints the list of node endpoints
    * @return          the general node stats
@@ -310,7 +312,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * SourceStats represents the sources stats.
+   * SourceStats represents the stats for a given source.
    */
   public static class SourceStats {
     private final EntityId id;
@@ -338,45 +340,45 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the source stats ID.
+     * Gets the defined source ID.
      *
-     * @return the source stats ID
+     * @return the defined source ID
      */
     public String getId() {
       return id.getId();
     }
 
     /**
-     * Gets the source stats type, such as "SampleS3"
+     * Gets the defined source type.
      *
-     * @return the source stats type
+     * @return the defined source type
      */
     public String getType() {
       return type;
     }
 
     /**
-     * Gets the physical dataset quantity in the SourceStats.
+     * Gets the defined number of physical datasets in the source.
      *
-     * @return the physical dataset quantity in the SourceStats
+     * @return the physical datasets quantity in the source
      */
     public int getPdsCount() {
       return pdsCount;
     }
 
     /**
-     * Gets the virtual datasets quantity in the SourceStats.
+     * Gets the defined number of virtual datasets in the source.
      *
-     * @return the virtual datasets quantity in the SourceStats
+     * @return the number of virtual datasets in the source
      */
     public int getVdsCount() {
       return vdsCount;
     }
 
     /**
-     * Sets the virtual datasets queries quantity in the SourceStats list.
+     * Sets the defined number of virtual datasets in the source.
      *
-     * @param vdsCount the virtual datasets queries quantity in the SourceStats list
+     * @param vdsCount the defined number of virtual datasets in the source
      *
      */
     public void setVdsCount(int vdsCount) {
@@ -385,7 +387,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * ReflectionStats represents the data reflection stats.
+   * ReflectionStats represents the data reflection stats in the cluster.
    */
   public static class ReflectionStats {
     private final int activeReflections;
@@ -445,9 +447,9 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the quantify of incremental reflections.
+     * Gets the quantify of incremental reflections in the cluster.
      *
-     * @return the quantify of incremental reflections
+     * @return the quantify of incremental reflections in the cluster
      */
     public int getIncrementalReflectionCount() {
       return incrementalReflectionCount;
@@ -455,7 +457,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * ClusterStats represents the cluster stats.
+   * ClusterStats represents the general cluster stats.
    */
   public static class ClusterStats {
     private List<EndpointStats> coordinators;
@@ -489,18 +491,18 @@ public class ClusterStatsResource {
     }
 
     /**
-     * Gets the cluster coordinator & executor stats.
+     * Gets the cluster node coordinators & executors stats.
      *
-     * @return the cluster coordinator & executor stats
+     * @return the cluster node coordinators & executors stats
      */
     public ClusterNodes getClusterNodes() {
       return nodes;
     }
 
     /**
-     * Sets the cluster coordinator & executor stats.
+     * Sets the cluster node coordinator & executor stats.
      *
-     * @param nodes the cluster coordinator & executor stats
+     * @param nodes the cluster node coordinator & executor stats
      */
     public void setClusterNodes(ClusterNodes nodes) {
       this.nodes = nodes;
@@ -616,7 +618,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Creates and process the general node endpoint stats.
+   * Creates and processes the general nodes endpoints stats.
    *
    * @param endpoints the list of node endpoints
    * @return          the list of node endpoint stats
@@ -633,7 +635,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * EndpointStats represents the node endpoint stats.
+   * EndpointStats represents a node endpoint stats.
    */
   public static final class EndpointStats {
     private final String address;
