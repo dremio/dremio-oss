@@ -153,6 +153,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return descendantPaths;
   }
 
+  /**
+   * Defines the GET HTTP request responsible for getting a given dataset's acceleration settings, such as its refresh period.
+   *
+   * @return a JSON with the acceleration settings
+   * @throws NamespaceException If the namespace for the current dataset can't be found
+   */
   @GET
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
@@ -192,6 +198,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return descriptor;
   }
 
+  /**
+   * Defines the PUT HTTP method to update the acceleration settings of a given dataset.
+   *
+   * @param descriptor a descriptor with the updated acceleration settings
+   * @throws NamespaceException If the namespace for the current dataset can't be found
+   */
   @PUT
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
