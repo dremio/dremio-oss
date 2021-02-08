@@ -38,10 +38,13 @@ public class DateUtils {
   }
 
   /**
-   * Calculates the date of the start of the week. Sunday represents the start of the week.
    *
-   * @param dateWithinWeek
-   * @return
+   * Gets the date of the week's start based on the current weekday.
+   * <p>
+   * Sunday represents the start of the week.
+   *
+   * @param dateWithinWeek the current weekday's date
+   * @return the date of the week's start based on the current weekday
    */
   public static LocalDate getLastSundayDate(final LocalDate dateWithinWeek) {
     int dayOfWeek = dateWithinWeek.getDayOfWeek().getValue();
