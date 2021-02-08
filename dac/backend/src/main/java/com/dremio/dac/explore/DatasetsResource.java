@@ -274,8 +274,9 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Gets a summary for a dataset (physical or virtual).
-   * @param path the relative dataset path to the summary
+   * Defines a GET HTTPS method to get a summary for a dataset (physical or virtual).
+   *
+   * @param path the relative path to the summary
    * @return     an object with the dataset data summary
    * @throws NamespaceException       If it couldn't find the dataset's namespace
    * @throws DatasetNotFoundException If the dataset to get the summary couldn't be found
@@ -288,6 +289,14 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     return getDatasetSummary(datasetPath);
   }
 
+  /**
+   * Gets a summary for a dataset (physical or virtual).
+   *
+   * @param datasetPath the relative dataset path to the summary
+   * @return            an object with the dataset data summary
+   * @throws NamespaceException       If it couldn't find the dataset's namespace
+   * @throws DatasetNotFoundException If the dataset to get the summary couldn't be found
+   */
   private DatasetSummary getDatasetSummary(DatasetPath datasetPath) throws NamespaceException, DatasetNotFoundException {
     final DremioTable table = datasetCatalog.getTable(datasetPath.toNamespaceKey());
     if (table == null) {
