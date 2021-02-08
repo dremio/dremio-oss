@@ -43,7 +43,7 @@ public class DateUtils {
    * Sunday represents the start of the week.
    *
    * @param dateWithinWeek the current weekday's date
-   * @return the date of the week's start based on the current weekday
+   * @return               the date of the week's start based on the current weekday
    */
   public static LocalDate getLastSundayDate(final LocalDate dateWithinWeek) {
     int dayOfWeek = dateWithinWeek.getDayOfWeek().getValue();
@@ -55,7 +55,7 @@ public class DateUtils {
    * Gets the date of the month's start based on the month's current day.
    *
    * @param dateWithinMonth the month's current day
-   * @return the date of the month's start based on the month's current day
+   * @return                the date of the month's start based on the month's current day
    */
   public static LocalDate getMonthStartDate(final LocalDate dateWithinMonth) {
     int dayOfMonth = dateWithinMonth.getDayOfMonth();
@@ -63,10 +63,10 @@ public class DateUtils {
   }
 
   /**
-   * Returns the UTC converted LocalDate from the epoch milliseconds
+   * Gets the UTC converted LocalDate using milliseconds passed as parameters from 1970-01-01T00:00:00Z.
    *
-   * @param epochMillis
-   * @return
+   * @param epochMillis the number of milliseconds from 1970-01-01T00:00:00Z
+   * @return            the UTC converted LocalDate using milliseconds passed as parameters from 1970-01-01T00:00:00Z
    */
   public static LocalDate fromEpochMillis(final long epochMillis) {
     return Instant.ofEpochMilli(epochMillis).atZone(ZoneOffset.UTC).toLocalDate();
