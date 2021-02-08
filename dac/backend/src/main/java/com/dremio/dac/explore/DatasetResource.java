@@ -339,7 +339,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Renames a given dataset.
+   * Defines the POST HTTP method to rename a given dataset.
    *
    * @param renameTo the new name for the dataset
    * @return         an object with all the dataset information needed on the UI
@@ -358,7 +358,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Moves a dataset from its old path to a new given path.
+   * Defines the POST HTTP method to move a dataset from its old path to a new given path.
    *
    * @param newDatasetPath a dataset path
    * @return               an object with all the dataset information needed on the UI
@@ -376,7 +376,9 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Get the preview response of dataset. Dataset could be a physical or virtual dataset.
+   * Defines the GET HTTP method to retrieve the preview response of a dataset.
+   * <p>
+   * Dataset could be a physical or virtual dataset.
    *
    * @param limit the maximum number of records on the initial response
    * @return      a dataset preview response containing initial data and pagination URL to fetch the remaining data
@@ -403,7 +405,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Creates and returns an object with all the dataset information needed on the UI.
+   * Creates an object with all the dataset information needed on the UI.
    *
    * @param vds the virtual dataset UI object
    * @return    a DatasetUI object containing the dataset information needed on the UI
