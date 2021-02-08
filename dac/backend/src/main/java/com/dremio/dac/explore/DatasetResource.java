@@ -338,6 +338,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return newDataset(ds);
   }
 
+  /**
+   * Renames a given dataset.
+   *
+   * @param renameTo the new name for the dataset
+   * @return         an object with all the dataset information needed on the UI
+   * @throws NamespaceException              If the renamed dataset has an incorrect path
+   * @throws DatasetNotFoundException        If the given dataset path is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   */
   @POST @Path("/rename")
   @Produces(APPLICATION_JSON)
   public DatasetUI renameDataset(@QueryParam("renameTo") String renameTo)
@@ -348,6 +357,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return newDataset(ds);
   }
 
+  /**
+   * Moves a dataset from its old path to a new given path.
+   *
+   * @param newDatasetPath a dataset path
+   * @return               an object with all the dataset information needed on the UI
+   * @throws NamespaceException              If the {@code newDatasetPath} provided contains an incorrect path
+   * @throws DatasetNotFoundException        If the given dataset path is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   */
   @POST @Path("/moveTo/{newpath}")
   @Produces(APPLICATION_JSON)
   public DatasetUI moveDataset(@PathParam("newpath") DatasetPath newDatasetPath)
@@ -359,8 +377,9 @@ public class DatasetResource extends BaseResourceWithAllocator {
 
   /**
    * Get the preview response of dataset. Dataset could be a physical or virtual dataset.
-   * @param limit Maximum number of records in initial response.
-   * @return
+   *
+   * @param limit the maximum number of records on the initial response
+   * @return      a dataset preview response containing initial data and pagination URL to fetch the remaining data
    */
   @GET
   @Path("preview")
@@ -383,6 +402,13 @@ public class DatasetResource extends BaseResourceWithAllocator {
     }
   }
 
+  /**
+   * Creates and returns an object with all the dataset information needed on the UI.
+   *
+   * @param vds the virtual dataset UI object
+   * @return    a DatasetUI object containing the dataset information needed on the UI
+   * @throws NamespaceException If the {@code vds} provided contains an incorrect dataset path
+   */
   protected DatasetUI newDataset(VirtualDatasetUI vds) throws NamespaceException {
     return DatasetUI.newInstance(vds, null, namespaceService);
   }
