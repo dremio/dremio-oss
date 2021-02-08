@@ -237,6 +237,16 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   }
 
 
+  /**
+   * Defines the GET HTTP method to search for datasets of an user.
+   *
+   * @param filters    the filters to be used in the dataset search
+   * @param sortColumn the name of the column which the datasets will be sorted by
+   * @param order      the order to sort the datasets
+   * @return           a list with the founded datasets' minimal info needed by UI
+   * @throws NamespaceException              If the dataset's namespace being search couldn't be found
+   * @throws DatasetVersionNotFoundException If the dataset's version couldn't be found
+   */
   @GET
   @Path("search")
   @Produces(MediaType.APPLICATION_JSON)
