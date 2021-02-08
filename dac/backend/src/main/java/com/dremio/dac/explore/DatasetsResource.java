@@ -385,6 +385,15 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     return DatasetSummary.newInstance(datasetConfig, jobCount, descendants);
   }
 
+  /**
+   * Defines the GET HTTPS method to get a dataset's details, such as the number of descendants that it has.
+   *
+   * @param type             the location where the dataset is (home page, sources, or at any space)
+   * @param datasetContainer the dataset container which the dataset is in
+   * @param path             an relative path for the dataset
+   * @return                 an object with the details about the dataset
+   * @throws Exception       If it couldn't find dataset, or its namespace
+   */
   @GET
   @Path("/context/{type}/{datasetContainer}/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
