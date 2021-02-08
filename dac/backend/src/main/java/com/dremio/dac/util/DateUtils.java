@@ -26,7 +26,7 @@ import java.time.ZoneOffset;
 public class DateUtils {
 
   /**
-   * Retrieves the date value of last month's start in milliseconds.
+   * Gets the date value of last month's start in milliseconds.
    *
    * @return the date value of last month's start in milliseconds
    */
@@ -38,7 +38,6 @@ public class DateUtils {
   }
 
   /**
-   *
    * Gets the date of the week's start based on the current weekday.
    * <p>
    * Sunday represents the start of the week.
@@ -53,10 +52,10 @@ public class DateUtils {
   }
 
   /**
-   * Return the starting date of the month
+   * Gets the date of the month's start based on the month's current day.
    *
-   * @param dateWithinMonth
-   * @return
+   * @param dateWithinMonth the month's current day
+   * @return the date of the month's start based on the month's current day
    */
   public static LocalDate getMonthStartDate(final LocalDate dateWithinMonth) {
     int dayOfMonth = dateWithinMonth.getDayOfMonth();
