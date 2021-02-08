@@ -230,6 +230,18 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     return tool.newUntitled(getOrCreateAllocator("createUntitledFromPhysicalDataset"), new FromTable(datasetPath.toPathString()), DatasetVersion.newVersion(), datasetPath.toParentPathList(), limit);
   }
 
+  /**
+   * Creates an untitled dataset from an user home page name.
+   *
+   * @param homeName the user home page name.
+   * @param path     a dataset path for the untitled dataset
+   * @param limit    the limit of rows returned in the dataset preview query
+   * @return         an object with the new dataset initial preview
+   * @throws DatasetNotFoundException        If the new dataset couldn't be founded in the preview query
+   * @throws DatasetVersionNotFoundException If the dataset version couldn't be founded
+   * @throws NamespaceException              If wasn't possible to find the datasets namespace
+   * @throws NewDatasetQueryException        If any exception occurs in the new dataset initial query
+   */
   public InitialPreviewResponse createUntitledFromHomeFile(HomeName homeName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
