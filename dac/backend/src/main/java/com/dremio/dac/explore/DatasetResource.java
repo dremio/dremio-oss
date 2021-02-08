@@ -124,6 +124,11 @@ public class DatasetResource extends BaseResourceWithAllocator {
     this.collaborationService = collaborationService;
   }
 
+  /**
+   * Defines the GET HTTP request responsible for getting the count of datasets depending on a given dataset.
+   *
+   * @return a JSON with the number of descendants datasets
+   */
   @GET
   @Path("descendants/count")
   @Produces(APPLICATION_JSON)
@@ -131,6 +136,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return datasetService.getDescendantsCount(datasetPath.toNamespaceKey());
   }
 
+  /**
+   * Defines the GET HTTP request responsible for getting a list of dataset paths depending on a given dataset.
+   *
+   * @return a JSON with a list with all datasets paths descending from the current dataset
+   * @throws NamespaceException If the namespace for the current dataset can't be found
+   */
   @GET
   @Path("descendants")
   @Produces(APPLICATION_JSON)
