@@ -39,7 +39,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.collect.ImmutableList;
 
 /**
- * Scan for datasets whose id may cause unsafe dataset split ids
+ * UpdateDatasetSplitIdTask implements a Scan for datasets whose ID may cause unsafe dataset split IDs
  * as they are using reserved characters
  */
 public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgradeTask {
@@ -53,6 +53,11 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
       ImmutableList.of(ReIndexAllStores.taskUUID, "ff9f6514-d7e6-44c7-b628-865cd3ce7368"));
   }
 
+  /**
+   * Gets the upgrade task UUID.
+   *
+   * @return the UUID from the current task
+   */
   @Override
   public String getTaskUUID() {
     return taskUUID;
@@ -63,6 +68,12 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     return VERSION_300;
   }
 
+  /**
+   * Executes a verification in store providers and update the store partitions.
+   *
+   * @param context an instance that contains the stores required by the current upgrade
+   * @throws Exception If any exception or errors occurs
+   */
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final LegacyKVStoreProvider storeProvider = context.getKVStoreProvider();
@@ -99,6 +110,12 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     AdminLogger.log("  Updated {} dataset splits with new ids.", fixedSplitIds);
   }
 
+  /**
+   * Generates new ID, add a new partition from a given store partition and deletes the partition with the old ID.
+   *
+   * @param partitionChunksStore a piece of a partition of a dataset
+   * @param config               a DatasetConfig instance
+   */
   private void fixSplits(final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
       DatasetConfig config) {
     final long version = config.getReadDefinition().getSplitVersion();
@@ -123,9 +140,10 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
 
 
   /**
-   * Run the task against a directory
+   * Run the task against a directory.
+   *
    * @param args one single argument, the path to the database
-   * @throws Exception
+   * @throws Exception If any exception or errors occurs
    */
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
@@ -151,6 +169,11 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     }
   }
 
+  /**
+   * Gets a string representation of the current task description.
+   *
+   * @return the task description represented by a string format
+   */
   @Override
   public String toString() {
     return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
