@@ -298,12 +298,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Clones a virtual dataset with a new name. Caused when UI clicks "Copy new from Existing".
+   * Defines the PUT HTTP method to create a virtual dataset from the current one, but with a different name.
+   * <p>
+   * Caused when UI clicks "Copy new from Existing".
    *
-   * @param existingDatasetPath
-   * @return
-   * @throws NamespaceException
-   * @throws DatasetNotFoundException
+   * @param existingDatasetPath the existing dataset path to be cloned with a different name
+   * @return                    the minimal info about the created dataset
+   * @throws DatasetNotFoundException If it couldn't found the needed dataset
+   * @throws UserNotFoundException    If it couldn't found the user that owns the dataset
+   * @throws NamespaceException       If it couldn't found the dataset's namespace
    */
   @PUT
   @Path("copyFrom/{cpathFrom}")
