@@ -258,10 +258,11 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * returns the current version of the dataset
-   * @return
-   * @throws DatasetNotFoundException
-   * @throws NamespaceException
+   * Defines the GET HTTP method to get a given dataset's minimal info needed by UI.
+   *
+   * @return the minimal info about a given dataset
+   * @throws DatasetNotFoundException If it couldn't found the needed dataset
+   * @throws NamespaceException       If it couldn't found the dataset's namespace
    */
   @GET
   @Produces(APPLICATION_JSON)
@@ -270,6 +271,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return newDataset(virtualDataset);
   }
 
+  /**
+   * Defines the DELETE HTTP method to delete the current dataset.
+   *
+   * @param savedTag the dataset's entity version to be deleted
+   * @return         the minimal info about the deleted dataset
+   * @throws DatasetNotFoundException If it couldn't found the needed dataset
+   * @throws UserNotFoundException    If it couldn't found the user that owns the dataset
+   * @throws NamespaceException       If it couldn't found the dataset's namespace
+   */
   @DELETE
   @Produces(APPLICATION_JSON)
   public DatasetUI deleteDataset(@QueryParam("savedTag") String savedTag)
