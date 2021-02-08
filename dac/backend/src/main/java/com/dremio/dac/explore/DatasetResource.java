@@ -358,7 +358,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Defines the POST HTTP method to move a dataset from its old path to a new given path.
+   * Defines the POST HTTP method to move a dataset to a new dataset path.
    *
    * @param newDatasetPath a dataset path
    * @return               an object with all the dataset information needed on the UI
