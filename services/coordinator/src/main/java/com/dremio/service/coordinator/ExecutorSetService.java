@@ -15,7 +15,10 @@
  */
 package com.dremio.service.coordinator;
 
+import java.util.Collection;
+
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.service.Service;
@@ -47,4 +50,11 @@ public interface ExecutorSetService extends Service {
   default ListenableSet getExecutorSet() {
     return getExecutorSet(null, null);
   }
+
+  /**
+   * Get all available endpoints across all engines and subEngines
+   * @return
+   */
+  Collection<NodeEndpoint> getAllAvailableEndpoints();
+
 }

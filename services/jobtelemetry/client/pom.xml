@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-jobtelemetry</artifactId>
-    <version>13.0.0-202101272034330307-20fb9275</version>
+    <version>13.1.0-202102110202430875-3e6f3e7c</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -30,7 +30,7 @@
   <artifactId>dremio-services-jobtelemetry-client</artifactId>
   <packaging>jar</packaging>
   <name>Services - Job Telemetry Client</name>
-  <version>13.0.0-202101272034330307-20fb9275</version>
+  <version>13.1.0-202102110202430875-3e6f3e7c</version>
 
   <dependencies>
     <dependency>

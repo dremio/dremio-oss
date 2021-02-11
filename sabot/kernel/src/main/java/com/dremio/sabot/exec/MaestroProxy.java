@@ -15,17 +15,24 @@
  */
 package com.dremio.sabot.exec;
 
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.util.LoadingCacheWithExpiry;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.CoordExecRPC;
+import com.dremio.exec.proto.CoordExecRPC.ActiveQueriesOnForeman;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
@@ -34,7 +41,10 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 import com.dremio.service.maestroservice.MaestroClientFactory;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheLoader;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
@@ -93,10 +103,13 @@ public class MaestroProxy implements AutoCloseable {
    *
    * @param queryId queryId
    * @param ticket query ticket
+   * @param querySentTime
    * @return true if the query was started successfully.
    */
-  boolean tryStartQuery(QueryId queryId, QueryTicket ticket) {
-    return trackers.getUnchecked(queryId).tryStart(ticket,
+  boolean tryStartQuery(QueryId queryId, QueryTicket ticket, Long querySentTime) {
+    QueryTracker queryTracker = trackers.getUnchecked(queryId);
+    queryTracker.setQuerySentTime(querySentTime);
+    return  queryTracker.tryStart(ticket,
             ticket.getForeman(),
             maestroServiceClientFactoryProvider.get().getMaestroClient(ticket.getForeman()),
             jobTelemetryClientFactoryProvider.get().getClient(ticket.getForeman()));
@@ -166,4 +179,96 @@ public class MaestroProxy implements AutoCloseable {
   public void markQueryAsDone(QueryId queryId) {
     doNotTrackQueries.remove(queryId);
   }
+
+  /**
+   * Determine queries to be cancelled based on activeQueryList and
+   * cancel those queries. See implementation for actual algo.
+   * @param activeQueryList
+   */
+  public Set<QueryId> reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList) {
+    return reconcileActiveQueriesHelper(activeQueryList, trackers.asMap());
+  }
+
+  @VisibleForTesting
+  static Set<QueryId> reconcileActiveQueriesHelper(CoordExecRPC.ActiveQueryList activeQueryList,
+                                                   Map<QueryId, QueryTracker> queryTrackerMap) {
+    final Set<QueryId> activeQueriesOnExec = queryTrackerMap.entrySet()
+                                                            .stream()
+                                                            .filter(e -> !e.getValue().isTerminal()) // skip terminal queries
+                                                            .map(e -> e.getKey())
+                                                            .collect(Collectors.toSet());
+
+    if (activeQueriesOnExec.isEmpty()) {
+      logger.info("There are no active queries on this executor. So nothing to reconcile.");
+      return Sets.newHashSet();
+    }
+
+    logger.debug("ActiveQueryList received: {}", activeQueryList.toString());
+
+    Set<QueryId> activeQueriesFromAQL = activeQueryList.getActiveQueriesOnForemanList()
+                                                       .stream()
+                                                       .map(x->x.getQueryIdList())
+                                                       .flatMap(x->x.stream())
+                                                       .collect(Collectors.toSet());
+
+    final Set<QueryId> queryIdsToCheck = Sets.difference(activeQueriesOnExec, activeQueriesFromAQL);
+
+    if (queryIdsToCheck.isEmpty()) {
+      logger.info("All queries on executor are active on coordinator. No queries to cancel.");
+      return Sets.newHashSet();
+    }
+
+    logger.debug("Potential stale queries to be checked:{}", queryIdsToCheck.stream()
+                                                                            .map(q->QueryIdHelper.getQueryId(q))
+                                                                            .collect(Collectors.joining(", ")));
+
+    // process AQL
+    final Map<NodeEndpoint, Long> foremanToTimestampMapFromAQL = Maps.newHashMap();
+    final Set<NodeEndpoint> foremanSetFromAQL = Sets.newHashSet();
+
+    for(ActiveQueriesOnForeman activeQueriesOnForeman: activeQueryList.getActiveQueriesOnForemanList()) {
+      NodeEndpoint foremanFromAQL = activeQueriesOnForeman.getForeman();
+      foremanSetFromAQL.add(EndpointHelper.getMinimalEndpoint(foremanFromAQL));
+      foremanToTimestampMapFromAQL.put(foremanFromAQL, activeQueriesOnForeman.getTimestamp());
+    }
+
+    final Set<QueryId> queryIdsToCancel = new HashSet<>();
+
+    // For each active query on the executor side
+    for (QueryId queryId: queryIdsToCheck) {
+      String queryIdString = QueryIdHelper.getQueryId(queryId);
+      QueryTracker queryTracker = queryTrackerMap.get(queryId);
+      if (queryTracker == null) {
+       logger.debug("QueryId:{} is no more active on executor.", queryIdString);
+       continue;
+      }
+      if (queryTracker instanceof NoOpQueryTracker) {
+        logger.debug("QueryId:{} is a doNotTrackQuery.", queryIdString);
+        continue;
+      }
+      NodeEndpoint foremanEndpoint = EndpointHelper.getMinimalEndpoint(queryTracker.getForeman());
+
+      // If foreman endpoint is not present in AQL, then cancel query.
+      if (!foremanSetFromAQL.contains(foremanEndpoint)) {
+        logger.info("Foreman of queryId:{} is not in AQL. Considered for cancelling.", queryIdString);
+        queryIdsToCancel.add(queryId);
+        continue;
+      }
+
+      long queryIdStartTimestamp = queryTracker.getQuerySentTime();
+      long aqlTimestamp = foremanToTimestampMapFromAQL.get(foremanEndpoint);
+
+      // If the query start-timestamp >= timestamp in AQL, then do NOT cancel query.
+      // It means query was started after the AQL was sent from coordinator.
+      if (queryIdStartTimestamp >= aqlTimestamp) {
+        continue;
+      } else {
+        logger.info("Stale queryId:{} running on executor. Considered for cancelling.", queryIdString);
+        queryIdsToCancel.add(queryId);
+        continue;
+      }
+    }
+    return queryIdsToCancel;
+  }
+
 }

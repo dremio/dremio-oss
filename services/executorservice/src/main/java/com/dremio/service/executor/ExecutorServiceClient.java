@@ -34,7 +34,11 @@ public interface ExecutorServiceClient {
   public void cancelFragments(CoordExecRPC.CancelFragments cancelFragments,
                               StreamObserver<Empty> responseObserver);
 
-  public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver);
+  public void getNodeStats(Empty empty,
+                           StreamObserver<CoordExecRPC.NodeStatResp> responseObserver);
+
+  public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList,
+                                     StreamObserver<Empty> emptyStreamObserver);
 
 
 }

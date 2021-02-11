@@ -168,7 +168,7 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     // Assert
     assertEquals(actualStringResults.size(), 1);
     assertTrue(actualStringResults.get(0).contains(
-      "Project(col_int=[$0], col_string=[$1]) : rowType =" +
+      "Project(col_int=[1], col_string=['foobar']) : rowType =" +
         " RecordType(INTEGER col_int, VARCHAR(6) col_string): rowcount = 1.0"));
   }
 

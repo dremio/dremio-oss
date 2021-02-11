@@ -66,6 +66,13 @@ public class ExecutorServiceProductClient implements ExecutorServiceClient {
   }
 
   @Override
+  public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList,
+                                     StreamObserver<Empty> responseObserver)  {
+    EndpointListener listener = getEndpointListener(activeQueryList, responseObserver);
+    tunnelCreator.getTunnel(endpoint).reconcileActiveQueries(listener, activeQueryList);
+  }
+
+  @Override
   public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver) {
     RpcOutcomeListener outcomeListener = new RpcOutcomeListener<CoordExecRPC.NodeStatResp>() {
       @Override

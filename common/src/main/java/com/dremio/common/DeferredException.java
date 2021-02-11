@@ -15,6 +15,8 @@
  */
 package com.dremio.common;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -35,6 +37,8 @@ public class DeferredException implements AutoCloseable {
   private Exception exception = null;
   private boolean isClosed = false;
   private final Supplier<Exception> exceptionSupplier;
+  private final AtomicInteger suppressedExceptions = new AtomicInteger(0);
+  private static final int LIMIT_SUPRESSED_EXCEPTION = 5;
 
   /**
    * Constructor.
@@ -70,23 +74,42 @@ public class DeferredException implements AutoCloseable {
   public void addException(final Exception exception) {
     Preconditions.checkNotNull(exception);
 
+    if (suppressedExceptions.addAndGet(1) > (LIMIT_SUPRESSED_EXCEPTION)) {
+      return;
+    }
+
+    Exception exceptionToAdd = limitSuppressedExeptions(exception);
+
     synchronized(this) {
       Preconditions.checkState(!isClosed);
 
       if (this.exception == null) {
         if (exceptionSupplier == null) {
-          this.exception = exception;
+          this.exception = exceptionToAdd;
         } else {
           this.exception = exceptionSupplier.get();
           if (this.exception == null) {
             this.exception = new RuntimeException("Missing root exception");
           }
-          this.exception.addSuppressed(exception);
+          this.exception.addSuppressed(exceptionToAdd);
         }
       } else if (this.exception != exception) { //Self-suppression is not permitted
-        this.exception.addSuppressed(exception);
+        this.exception.addSuppressed(exceptionToAdd);
       }
     }
+  }
+
+  private Exception limitSuppressedExeptions(Exception exception) {
+    Exception exception1 = exception;
+    final Throwable[] suppressed = exception.getSuppressed();
+    // strip down the suppressed exception to max
+    if (suppressed.length > LIMIT_SUPRESSED_EXCEPTION) {
+      exception1 = new Exception(exception.getMessage(), exception.getCause());
+      for (int i = 0; i < LIMIT_SUPRESSED_EXCEPTION; i++) {
+        exception1.addSuppressed(suppressed[i]);
+      }
+    }
+    return exception1;
   }
 
   public void addThrowable(final Throwable throwable) {

@@ -75,6 +75,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private JobTelemetryExecutorClient jobTelemetryClient;
   private QueryTicket queryTicket;
   private NodeEndpoint foreman;
+  private long querySentTime;
   private long expirationTime;
   private boolean resultsSent;
   private DremioPBError firstErrorInQuery;
@@ -141,6 +142,10 @@ class MaestroProxyQueryTracker implements QueryTracker {
     return true;
   }
 
+  public NodeEndpoint getForeman() {
+    return foreman;
+  }
+
   @Override
   public synchronized boolean isStarted() {
     return state != State.INVALID;
@@ -155,6 +160,11 @@ class MaestroProxyQueryTracker implements QueryTracker {
   @Override
   public synchronized boolean isCancelled() {
     return this.cancelled;
+  }
+
+  @Override
+  public synchronized boolean isTerminal() {
+    return this.cancelled || state == State.DONE || isExpired();
   }
 
   @Override
@@ -404,6 +414,16 @@ class MaestroProxyQueryTracker implements QueryTracker {
       " state " + state +
       " resultsSent " + resultsSent +
       " pendingPhases " + (queryTicket == null ? 0 : queryTicket.getActivePhaseTickets().size());
+  }
+
+  @Override
+  public void setQuerySentTime(long querySentTime) {
+    this.querySentTime = querySentTime;
+  }
+
+  @Override
+  public long getQuerySentTime() {
+    return querySentTime;
   }
 
   private class RetryingObserver implements StreamObserver<Empty> {

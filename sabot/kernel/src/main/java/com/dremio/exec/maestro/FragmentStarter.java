@@ -273,7 +273,7 @@ class FragmentStarter {
       final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures,
       PlanFragmentStats planFragmentStats, final FragmentSubmitSuccess fragmentSubmitSuccess) {
 
-    final InitializeFragments.Builder fb = InitializeFragments.newBuilder();
+    final InitializeFragments.Builder fb = InitializeFragments.newBuilder().setQuerySentTime(System.currentTimeMillis());
     final PlanFragmentSet.Builder setb = fb.getFragmentSetBuilder();
 
     Set<Integer> majorsAddedSet = new HashSet<>();

@@ -27,6 +27,7 @@ import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
+import com.dremio.exec.proto.CoordExecRPC.ActiveQueryList;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
@@ -203,6 +204,13 @@ public class CoordExecService implements Service {
         }
 
         // coordinator > executor
+        case RpcType.REQ_RECONCILE_ACTIVE_QUERIES_VALUE: {
+          final ActiveQueryList activeQueryList = get(pBody, ActiveQueryList.PARSER);
+          executorService.get().reconcileActiveQueries(activeQueryList, responseObserver);
+          break;
+        }
+
+        // coordinator > executor
         case RpcType.REQ_START_FRAGMENTS_VALUE: {
           final InitializeFragments fragments = get(pBody, InitializeFragments.PARSER);
           executorService.get().startFragments(fragments, responseObserver);
@@ -338,6 +346,7 @@ public class CoordExecService implements Service {
             .add(RpcType.REQ_START_FRAGMENTS, InitializeFragments.class, RpcType.ACK, Ack.class)
             .add(RpcType.REQ_ACTIVATE_FRAGMENTS, ActivateFragments.class, RpcType.ACK, Ack.class)
             .add(RpcType.REQ_CANCEL_FRAGMENTS, CancelFragments.class, RpcType.ACK, Ack.class)
+            .add(RpcType.REQ_RECONCILE_ACTIVE_QUERIES, ActiveQueryList.class, RpcType.ACK, Ack.class)
             .add(RpcType.REQ_QUERY_DATA, QueryData.class, RpcType.ACK, Ack.class)
             .add(RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION, NodeQueryScreenCompletion.class, RpcType.ACK, Ack.class)
             .add(RpcType.REQ_NODE_QUERY_COMPLETION, NodeQueryCompletion.class, RpcType.ACK, Ack.class)

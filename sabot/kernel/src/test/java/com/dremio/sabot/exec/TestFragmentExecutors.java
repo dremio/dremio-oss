@@ -24,6 +24,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.Test;
@@ -31,13 +33,16 @@ import org.mockito.stubbing.Answer;
 
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC;
+import com.dremio.exec.proto.CoordExecRPC.ActiveQueriesOnForeman;
+import com.dremio.exec.proto.CoordExecRPC.ActiveQueryList;
+import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
-import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
@@ -50,6 +55,8 @@ import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import com.google.api.client.util.Maps;
+import com.google.common.collect.Lists;
 
 import io.grpc.stub.StreamObserver;
 
@@ -132,14 +139,15 @@ public class TestFragmentExecutors {
 
   private static class TestState implements AutoCloseable {
     private final FragmentExecutors fragmentExecutors;
-    private final CoordExecRPC.InitializeFragments initializeFragments;
+    private final InitializeFragments initializeFragments;
     private final List<AsyncTaskWrapper> runningTasks;
     private final Runnable actionOnStart;
     private boolean started;
 
     TestState(final FragmentExecutors fragmentExecutors,
-              final CoordExecRPC.InitializeFragments initializeFragments,
+              final InitializeFragments initializeFragments,
               List<AsyncTaskWrapper> runningTasks,
+              MaestroProxy maestroProxy,
               Runnable actionOnStart) {
       this.fragmentExecutors = fragmentExecutors;
       this.initializeFragments = initializeFragments;
@@ -150,7 +158,7 @@ public class TestFragmentExecutors {
     FragmentExecutors getFragmentExecutors() {
       return fragmentExecutors;
     }
-    CoordExecRPC.InitializeFragments getInitializeFragments() {
+    InitializeFragments getInitializeFragments() {
       return initializeFragments;
     }
     List<AsyncTaskWrapper> getRunningTasks() {
@@ -169,7 +177,6 @@ public class TestFragmentExecutors {
         fragmentExecutors.close();
       }
     }
-
   }
 
   private TestState makeFragmentExecutor(final long queryKey, final int numFragments, final boolean exceptionAtStartup) throws Exception {
@@ -186,7 +193,7 @@ public class TestFragmentExecutors {
     }).when(mockTaskPool).execute(any());
 
     final MaestroProxy mockMaestroProxy = mock(MaestroProxy.class);
-    when(mockMaestroProxy.tryStartQuery(any(), any())).thenReturn(true);
+    when(mockMaestroProxy.tryStartQuery(any(), any(), any())).thenReturn(true);
 
     final FragmentExecutors fe = new FragmentExecutors(
       mockMaestroProxy,
@@ -194,7 +201,7 @@ public class TestFragmentExecutors {
       mockTaskPool,
       mockOptionManager);
 
-    final UserBitShared.QueryId queryId = UserBitShared.QueryId
+    final QueryId queryId = QueryId
       .newBuilder()
       .setPart1(123)
       .setPart2(queryKey)
@@ -204,7 +211,7 @@ public class TestFragmentExecutors {
     // First fragment is 0:0; All other fragments are: 1:(i-1)
     // (i.e., major ID + minor ID == fragment index)
 
-    CoordExecRPC.InitializeFragments.Builder initializeFragmentsBuilder = CoordExecRPC.InitializeFragments.newBuilder();
+    InitializeFragments.Builder initializeFragmentsBuilder = InitializeFragments.newBuilder();
     PlanFragmentSet.Builder setBuilder = initializeFragmentsBuilder.getFragmentSetBuilder();
 
     for (int i = 0; i < numFragments; i++) {
@@ -234,9 +241,9 @@ public class TestFragmentExecutors {
       setBuilder.addMinor(planFragmentMinor);
     }
 
-    final CoordExecRPC.InitializeFragments initializeFragments = initializeFragmentsBuilder.build();
+    final InitializeFragments initializeFragments = initializeFragmentsBuilder.build();
 
-    final CoordinationProtos.NodeEndpoint nodeEndpoint = CoordinationProtos.NodeEndpoint
+    final NodeEndpoint nodeEndpoint = NodeEndpoint
       .newBuilder()
       .build();
 
@@ -274,7 +281,7 @@ public class TestFragmentExecutors {
       return fragmentExecutors[majorId + minorId];
     }).when(mockFragmentExecutorBuilder).build(any(), any(), any(), any(), any());
 
-    return new TestState(fe, initializeFragments, runningTasks, new Runnable() {
+    return new TestState(fe, initializeFragments, runningTasks, mockMaestroProxy, new Runnable() {
       @Override
       public void run() {
         fe.startFragments(initializeFragments, mockFragmentExecutorBuilder, mock(StreamObserver.class),
@@ -287,7 +294,7 @@ public class TestFragmentExecutors {
     });
   }
 
-  private FragmentHandle getHandleForMinorFragment(CoordExecRPC.InitializeFragments initializeFragments, int index) {
+  private FragmentHandle getHandleForMinorFragment(InitializeFragments initializeFragments, int index) {
     PlanFragmentMajor major = initializeFragments.getFragmentSet().getMajor(index == 0 ? 0: 1);
     PlanFragmentMinor minor = initializeFragments.getFragmentSet().getMinor(index);
     PlanFragmentFull full = new PlanFragmentFull(major, minor);
@@ -311,7 +318,7 @@ public class TestFragmentExecutors {
     assertEquals(0, fe.size());
 
     // Eviction should get rid of all the fragments, once the time for expiration (artificially) arrives
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     FragmentHandle handle = getHandleForMinorFragment(initializeFragments, 0);
     ((FragmentHandler)fe.getEventProvider(handle)).testExpireNow();
     fe.checkAndEvict();
@@ -334,7 +341,7 @@ public class TestFragmentExecutors {
     final FragmentExecutors fe = testState.getFragmentExecutors();
     assertEquals(numFrags, fe.size());
 
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     int numRunningFrags = numFrags;
     for (final AsyncTaskWrapper frag : testState.getRunningTasks()) {
       frag.getCleaner().close();
@@ -366,7 +373,7 @@ public class TestFragmentExecutors {
     final FragmentExecutors fe = testState.getFragmentExecutors();
     assertEquals(1, fe.size());
 
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
     fe.cancelFragment(fragment0Handle);
     for (final AsyncTaskWrapper frag : testState.getRunningTasks()) {
@@ -385,7 +392,7 @@ public class TestFragmentExecutors {
     testState.close();
   }
 
-  // Single fragment, cancelled before completion
+  // Multiple fragments, cancelled before completion
   @Test
   public void testMultipleFragCancelled() throws Exception {
     final int numFragments = 3;
@@ -398,7 +405,7 @@ public class TestFragmentExecutors {
     final FragmentExecutors fe = testState.getFragmentExecutors();
     assertEquals(numFragments, fe.size());
 
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     for (int i = 0; i < numFragments; i++) {
       final ExecProtos.FragmentHandle fragmentHandle = getHandleForMinorFragment(initializeFragments, i);
       fe.cancelFragment(fragmentHandle);
@@ -422,6 +429,208 @@ public class TestFragmentExecutors {
     testState.close();
   }
 
+  /**
+   * Query should NOT be cancelled because queryId is present in both AQL
+   * and is active query on executor side.
+   * @throws Exception
+   */
+  @Test
+  public void testReconcileActiveQueriesNotCancelled1() throws Exception {
+    int numFragments = 3; // Number of fragments in a query.
+    boolean shouldQueryBeCancelled = false;
+    boolean addQueryIdInAQL = true;
+    long queryStartTime = 0;
+    long aqlTimestamp = 1000;
+    boolean useDifferentForemanInAQL = false;
+    testReconcileActiveQueriesHelper(numFragments, shouldQueryBeCancelled, addQueryIdInAQL, queryStartTime,
+      aqlTimestamp, useDifferentForemanInAQL);
+  }
+
+  /**
+   * When queryId is not in AQL and queryStartTime on executor side is earlier
+   * to min of all timestamps in AQL, then its a stale query on executor, so cancel it.
+   * @throws Exception
+   */
+  @Test
+  public void testReconcileActiveQueriesCancelled1() throws Exception {
+    int numFragments = 3;
+    boolean shouldQueryBeCancelled = true;
+    boolean addQueryIdInAQL = false;
+    long queryStartTime = 0;
+    long aqlTimestamp = 1000;
+    boolean useDifferentForemanInAQL = false;
+    testReconcileActiveQueriesHelper(numFragments, shouldQueryBeCancelled, addQueryIdInAQL, queryStartTime,
+      aqlTimestamp, useDifferentForemanInAQL);
+  }
+
+  /**
+   * When queryId is not in AQL and when queryStartTime on executor side is later
+   * to min of all timestamps in AQL, then its a query started after AQL is generated on coordinator,
+   * so do NOT cancel it.
+   * @throws Exception
+   */
+  @Test
+  public void testReconcileActiveQueriesNotCancelled2() throws Exception {
+    int numFragments = 3;
+    boolean shouldQueryBeCancelled = false;
+    boolean addQueryIdInAQL = false;
+    long queryStartTime = 1100;
+    long aqlTimestamp = 1000;
+    boolean useDifferentForemanInAQL = false;
+    testReconcileActiveQueriesHelper(numFragments, shouldQueryBeCancelled, addQueryIdInAQL, queryStartTime,
+      aqlTimestamp, useDifferentForemanInAQL);
+  }
+
+  /**
+   * If the query start-timestamp >= timestamp in AQL, then do NOT cancel the query.
+   * It means query was started after the AQL was sent from coordinator.
+   * @throws Exception
+   */
+  @Test
+  public void testReconcileActiveQueriesNotCancelled3() throws Exception {
+    int numFragments = 3;
+    boolean shouldQueryBeCancelled = false;
+    boolean addQueryIdInAQL = true;
+    long queryStartTime = 1100;
+    long aqlTimestamp = 1000;
+    boolean useDifferentForemanInAQL = false;
+    testReconcileActiveQueriesHelper(numFragments, shouldQueryBeCancelled, addQueryIdInAQL, queryStartTime,
+      aqlTimestamp, useDifferentForemanInAQL);
+  }
+
+  /**
+   * If foreman endpoint of a query on executor siee is not present in AQL, then cancel query.
+   * @throws Exception
+   */
+  @Test
+  public void testReconcileActiveQueriesCancelled2() throws Exception {
+    int numFragments = 3;
+    boolean shouldQueryBeCancelled = true;
+    boolean addQueryIdInAQL = false;
+    long queryStartTime = 0;
+    long aqlTimestamp = 1000;
+    boolean useDifferentForemanInAQL = true;
+    testReconcileActiveQueriesHelper(numFragments, shouldQueryBeCancelled, addQueryIdInAQL, queryStartTime,
+      aqlTimestamp, useDifferentForemanInAQL);
+  }
+
+  private void testReconcileActiveQueriesHelper(int numFragments,
+                                                boolean shouldQueryBeCancelled,
+                                                boolean addQueryIdInAQL,
+                                                long querySentTime,
+                                                long aqlTimestamp,
+                                                boolean useDifferentForemanInAQL) throws Exception {
+    final TestState testState = makeFragmentExecutor(4, numFragments, false)
+      .start();
+
+    // query was now 'started'. 'runningTasks' now contains a task for each of the running fragments
+    assertEquals(numFragments, testState.getRunningTasks().size());
+
+    final FragmentExecutors fe = testState.getFragmentExecutors();
+    assertEquals(numFragments, fe.size());
+
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
+    List<FragmentHandle> fragmentHandles = Lists.newArrayList();
+    List<FragmentTicket> fragmentTickets = Lists.newArrayList();
+    for (int i = 0; i < numFragments; i++) {
+      FragmentHandle fragmentHandle = getHandleForMinorFragment(initializeFragments, i);
+      FragmentTicket fragmentTicket = mock(FragmentTicket.class);
+      when(fragmentTicket.getHandle()).thenReturn(fragmentHandle);
+
+      fragmentHandles.add(fragmentHandle);
+      fragmentTickets.add(fragmentTicket);
+    }
+
+    QueryId queryId = fragmentHandles.get(0).getQueryId();
+    NodeEndpoint foreman = NodeEndpoint.newBuilder().build();
+
+    NodeEndpoint foremanFromAQL = foreman;
+    if (useDifferentForemanInAQL) {
+      foremanFromAQL = NodeEndpoint.newBuilder().setAddress("different-foreman").build();
+    }
+    ActiveQueryList activeQueryList = getActiveQueryList(foremanFromAQL, queryId, addQueryIdInAQL, aqlTimestamp);
+
+    QueryTracker queryTracker = mock(QueryTracker.class);
+    when(queryTracker.getForeman()).thenReturn(foreman);
+    when(queryTracker.getQuerySentTime()).thenReturn(querySentTime);
+
+    Map<QueryId, QueryTracker> queryIdQueryTrackerMap = Maps.newHashMap();
+    queryIdQueryTrackerMap.put(queryId, queryTracker);
+
+    QueriesClerk queriesClerk = mock(QueriesClerk.class);
+    when(queriesClerk.getFragmentTickets(queryId)).thenReturn(fragmentTickets);
+
+    Set<QueryId> queryIdSet = MaestroProxy.reconcileActiveQueriesHelper(activeQueryList, queryIdQueryTrackerMap);
+    fe.cancelFragments(queryIdSet, queriesClerk);
+
+    for (final AsyncTaskWrapper frag : testState.getRunningTasks()) {
+      final TestAsyncTask underlyingTask = (TestAsyncTask)frag.getAsyncTask();
+      if (underlyingTask.isCancelRequested()) {
+        frag.getCleaner().close();
+      }
+    }
+
+    // assert num of fragments still running
+    assertEquals(shouldQueryBeCancelled, fe.size() == 0);
+
+    // cleanup fragments using cancelFragments - this is teardown for this test case.
+    tearDownReconcileActiveQueries(numFragments, testState, fe, initializeFragments, fragmentHandles);
+  }
+
+  /**
+   * Cleanup fragments using cancelFragments - this is teardown for this test case.
+   * @param numFragments
+   * @param testState
+   * @param fe
+   * @param initializeFragments
+   * @param fragmentHandles
+   * @throws Exception
+   */
+  private void tearDownReconcileActiveQueries(int numFragments,
+                                              TestState testState,
+                                              FragmentExecutors fe,
+                                              InitializeFragments initializeFragments,
+                                              List<FragmentHandle> fragmentHandles) throws Exception {
+    fragmentHandles.forEach(x-> fe.cancelFragment(x));
+
+    for (final AsyncTaskWrapper frag : testState.getRunningTasks()) {
+      final TestAsyncTask underlyingTask = (TestAsyncTask)frag.getAsyncTask();
+      if (underlyingTask.isCancelRequested()) {
+        frag.getCleaner().close();
+      }
+    }
+
+    // Eviction should get rid of all the fragments, once the time for expiration (artificially) arrives
+    for (int i = 0; i < numFragments; i++) {
+      FragmentHandle handle = getHandleForMinorFragment(initializeFragments, i);
+      ((FragmentHandler) fe.getEventProvider(handle)).testExpireNow();
+    }
+    fe.checkAndEvict();
+    assertEquals(0, fe.getNumHandlers());
+
+    testState.close();
+  }
+
+
+  private ActiveQueryList getActiveQueryList(NodeEndpoint foreman, QueryId queryId, boolean addQueryIdInAQL, long aqlTimeStamp) {
+    ActiveQueriesOnForeman.Builder builder = ActiveQueriesOnForeman.newBuilder()
+      .setForeman(foreman)
+      .setTimestamp(aqlTimeStamp);
+
+    if (addQueryIdInAQL) {
+      builder = builder.addQueryId(queryId);
+    }
+
+    ActiveQueriesOnForeman activeQueriesOnForeman = builder.build();
+
+    ActiveQueryList activeQueryList = ActiveQueryList
+      .newBuilder()
+      .addActiveQueriesOnForeman(activeQueriesOnForeman)
+      .build();
+
+    return activeQueryList;
+  }
+
   // Single fragment, cancelled after completion
   @Test
   public void testSingleFragPostCancelled() throws Exception {
@@ -439,7 +648,7 @@ public class TestFragmentExecutors {
     assertEquals(0, fe.size());
     assertEquals(1, fe.getNumHandlers());
 
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
     fe.cancelFragment(fragment0Handle);
     assertEquals(0, fe.size());
@@ -465,7 +674,7 @@ public class TestFragmentExecutors {
     assertEquals(0, fe.getNumHandlers());
 
     // Cancel before start
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
     fe.cancelFragment(fragment0Handle);
 
@@ -497,7 +706,7 @@ public class TestFragmentExecutors {
     assertEquals(1, fe.getNumHandlers());
 
     // Eviction should get rid of all the fragments, once the time for expiration (artificially) arrives
-    final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
+    final InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
     ((FragmentHandler)fe.getEventProvider(fragment0Handle)).testExpireNow();
     fe.checkAndEvict();

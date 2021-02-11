@@ -52,4 +52,23 @@ public class NoOpQueryTracker implements QueryTracker {
   public boolean isExpired() {
     return true; // okay if evicted from LoadingCache since creation logic is simple
   }
+
+  @Override
+  public boolean isTerminal() {
+    return true;
+  }
+
+  @Override
+  public CoordinationProtos.NodeEndpoint getForeman() {
+    return null;
+  }
+
+  @Override
+  public long getQuerySentTime() {
+    return 0;
+  }
+
+  @Override
+  public void setQuerySentTime(long querySentTime) {
+  }
 }

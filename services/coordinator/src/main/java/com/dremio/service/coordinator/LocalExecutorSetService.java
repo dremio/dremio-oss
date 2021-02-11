@@ -27,6 +27,7 @@ import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -64,6 +65,13 @@ public class LocalExecutorSetService implements ExecutorSetService {
       }
     }
     return executorSet;
+  }
+
+  public Collection<NodeEndpoint> getAllAvailableEndpoints() {
+    if(executorSet != null) {
+      return executorSet.getAvailableEndpoints();
+    }
+    return Lists.newArrayList();
   }
 
   /**

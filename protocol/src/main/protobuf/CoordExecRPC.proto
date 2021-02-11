@@ -34,6 +34,7 @@ enum RpcType {
   REQ_START_FRAGMENTS = 2;
   REQ_ACTIVATE_FRAGMENTS = 3;
   REQ_CANCEL_FRAGMENTS = 4;
+  REQ_RECONCILE_ACTIVE_QUERIES = 15;
 
   // exec > coordinator
   REQ_FRAGMENT_STATUS = 5;
@@ -85,6 +86,7 @@ message FragmentStatus {
 message InitializeFragments {
   optional SchedulingInfo scheduling_info = 2;
   optional PlanFragmentSet fragment_set = 4;
+  optional int64 query_sent_time = 5;
 }
 
 message PlanFragmentSet {
@@ -108,6 +110,16 @@ message ActivateFragments {
 
 message CancelFragments {
   optional exec.shared.QueryId query_id = 2;
+}
+
+message ActiveQueriesOnForeman {
+  optional NodeEndpoint foreman = 1;
+  repeated exec.shared.QueryId query_id = 2;
+  optional int64 timestamp = 3; // time at which query_ids were determined.
+}
+
+message ActiveQueryList {
+  repeated ActiveQueriesOnForeman active_queries_on_foreman = 1;
 }
 
 enum FragmentCodec {

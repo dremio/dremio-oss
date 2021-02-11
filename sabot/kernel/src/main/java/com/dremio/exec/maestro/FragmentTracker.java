@@ -19,14 +19,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.nodes.EndpointHelper;
+import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
@@ -39,9 +43,13 @@ import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.ListenableSet;
 import com.dremio.service.coordinator.NodeStatusListener;
+import com.dremio.service.executor.ExecutorServiceClient;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Empty;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 class FragmentTracker implements AutoCloseable {
@@ -54,6 +62,7 @@ class FragmentTracker implements AutoCloseable {
   private final AtomicReference<Exception> firstError = new AtomicReference<>();
   private final NodeStatusListener nodeStatusListener = new ExecutorNodeStatusListener();
   private final AtomicBoolean completionSuccessNotified = new AtomicBoolean(false);
+  private final CloseableSchedulerThreadPool closeableSchedulerThreadPool;
   private volatile ListenableSet executorSet;
   private volatile boolean cancelled;
   private volatile boolean queryCloserInvoked;
@@ -66,7 +75,8 @@ class FragmentTracker implements AutoCloseable {
     CompletionListener completionListener,
     Runnable queryCloser,
     ExecutorServiceClientFactory executorServiceClientFactory,
-    ExecutorSetService executorSetService
+    ExecutorSetService executorSetService,
+    CloseableSchedulerThreadPool closeableSchedulerThreadPool
     ) {
 
     this.queryId = queryId;
@@ -74,6 +84,7 @@ class FragmentTracker implements AutoCloseable {
     this.queryCloser = queryCloser;
     this.executorSetService = executorSetService;
     this.executorServiceClientFactory = executorServiceClientFactory;
+    this.closeableSchedulerThreadPool = closeableSchedulerThreadPool;
   }
 
   public QueryId getQueryId() {
@@ -234,21 +245,66 @@ class FragmentTracker implements AutoCloseable {
   /**
    * Cancel all fragments. Only one rpc is sent per executor.
    */
-  private void cancelExecutingFragmentsInternal() {
+  void cancelExecutingFragmentsInternal() {
+    Retryer retryer = new Retryer.Builder()
+      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 5000, 5000)
+      .retryIfExceptionOfType(StatusRuntimeException.class)
+      .setMaxRetries(12)
+      .build();
+
+    cancelExecutingFragmentsInternalHelper(queryId, pendingNodes, executorServiceClientFactory, retryer, closeableSchedulerThreadPool);
+    checkAndNotifyCompletionListener();
+  }
+
+  /**
+   * Cancel all fragments. Only one rpc is sent per executor.
+   */
+  @VisibleForTesting
+  void cancelExecutingFragmentsInternalHelper(QueryId queryId,
+                                              Set<NodeEndpoint> pendingNodes,
+                                              ExecutorServiceClientFactory executorServiceClientFactory,
+                                              Retryer retryer,
+                                              CloseableSchedulerThreadPool closeableSchedulerThreadPool) {
     CancelFragments fragments = CancelFragments
       .newBuilder()
       .setQueryId(queryId)
       .build();
-
     for (NodeEndpoint endpoint : pendingNodes) {
+      Retryer retryerPerEndpoint = retryer.copy();
       logger.debug("sending cancellation for query {} to node {}:{}",
         QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort());
 
-      executorServiceClientFactory.getClientForEndpoint(endpoint).cancelFragments(fragments, new SignalListener(endpoint, fragments,
-        SignalListener.Signal.CANCEL));
+      ExecutorServiceClient executorServiceClient = executorServiceClientFactory.getClientForEndpoint(endpoint);
+      CompletableFuture.runAsync(() ->
+      { cancelFragmentsHelper(executorServiceClient, fragments, endpoint, retryerPerEndpoint); },
+      closeableSchedulerThreadPool);
     }
+  }
 
-    checkAndNotifyCompletionListener();
+  @VisibleForTesting
+  SignalListener getResponseObserver(NodeEndpoint endpoint,
+                                     CancelFragments fragments) {
+    return new SignalListener(endpoint, fragments, SignalListener.Signal.CANCEL);
+  }
+
+  private void cancelFragmentsHelper(ExecutorServiceClient executorServiceClient,
+                             CancelFragments fragments,
+                             NodeEndpoint endpoint,
+                             Retryer retryer) {
+    try {
+      retryer.call(() -> {
+        SignalListener responseObserver = getResponseObserver(endpoint, fragments);
+        executorServiceClient.cancelFragments(fragments, responseObserver);
+        responseObserver.await(); // wait until we get a response, before checking for exception.
+        if (responseObserver.getException() != null) {
+          throw responseObserver.getException();
+        }
+        return null;
+      });
+    }
+    catch(Retryer.OperationFailedAfterRetriesException e) {
+      logger.error("Retrying cancelling fragments failed. Max retries reached. No more retry done.");
+    }
   }
 
   // Save and propagate the first reported by any executor.
@@ -323,7 +379,7 @@ class FragmentTracker implements AutoCloseable {
    * that the target fragment has acknowledged the signal. As a result, this listener doesn't do anything
    * but log messages.
    */
-  private static class SignalListener implements StreamObserver<Empty> {
+  static class SignalListener implements StreamObserver<Empty> {
     @Override
     public void onNext(Empty empty) {
 
@@ -333,13 +389,26 @@ class FragmentTracker implements AutoCloseable {
     public void onError(Throwable throwable) {
       final String endpointIdentity = endpoint != null ?
               endpoint.getAddress() + ":" + endpoint.getUserPort() : "<null>";
-      logger.error("Failure while attempting to {} fragments of query {} on endpoint {} with {}.",
-              signal, QueryIdHelper.getQueryId(value.getQueryId()), endpointIdentity, throwable);
+
+      String errorMessage = new StringBuilder()
+        .append("Failure while attempting to ")
+        .append(signal)
+        .append(" fragments of query ")
+        .append(QueryIdHelper.getQueryId(value.getQueryId()))
+        .append(" on endpoint ")
+        .append(endpointIdentity)
+        .append(" with exception:")
+        .toString();
+
+      logger.error(errorMessage, throwable);
+      exception = Status.INTERNAL.withDescription(errorMessage + throwable.getMessage())
+                                 .asRuntimeException();
+      latch.countDown();
     }
 
     @Override
     public void onCompleted() {
-
+      latch.countDown();
     }
 
     /**
@@ -352,11 +421,22 @@ class FragmentTracker implements AutoCloseable {
     private final Signal signal;
     private final NodeEndpoint endpoint;
     private final CancelFragments value;
+    private final CountDownLatch latch;
+    private StatusRuntimeException exception;
 
     SignalListener(final NodeEndpoint endpoint, CancelFragments fragments, final Signal signal) {
       this.signal = signal;
       this.endpoint = endpoint;
       this.value = fragments;
+      this.latch = new CountDownLatch(1);
+    }
+
+    public StatusRuntimeException getException() {
+      return exception;
+    }
+
+    public void await() throws InterruptedException {
+      latch.await();;
     }
   }
 }

@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.maestro.planner.ExecutionPlanCreator;
 import com.dremio.exec.ops.QueryContext;
@@ -86,7 +87,8 @@ public class QueryTrackerImpl implements QueryTracker {
     JobTelemetryClient jobTelemetryClient,
     MaestroObserver observer,
     CompletionListener listener,
-    Runnable queryCloser) {
+    Runnable queryCloser,
+    CloseableSchedulerThreadPool closeableSchedulerThreadPool) {
 
     this.queryId = queryId;
     this.context = context;
@@ -99,7 +101,7 @@ public class QueryTrackerImpl implements QueryTracker {
     this.observer = observer;
 
     this.fragmentTracker = new FragmentTracker(queryId, listener,
-      queryCloser, executorServiceClientFactory, executorSetService);
+      queryCloser, executorServiceClientFactory, executorSetService, closeableSchedulerThreadPool);
   }
 
   @Override

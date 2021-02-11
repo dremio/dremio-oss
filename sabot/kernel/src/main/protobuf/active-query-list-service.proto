@@ -15,29 +15,22 @@
  */
 syntax = "proto3";
 
-option java_package = "com.dremio.service.executorservice";
+option java_package = "com.dremio.service.activequerylistservice";
 option optimize_for = SPEED;
 
 option java_generate_equals_and_hash = true;
 option java_multiple_files = true;
-option java_outer_classname = "ExecutorsServiceRPC";
+option java_outer_classname = "ActiveQueryListServiceRPC";
 
-package dremio.executorservice;
+package dremio.activequerylistservice;
 
 import "CoordExecRPC.proto";
 import "google/protobuf/empty.proto";
 
-service ExecutorService {
+service ActiveQueryListService {
 
-  rpc StartFragments(exec.bit.control.InitializeFragments) returns (google.protobuf.Empty) {}
+  rpc GetActiveQueriesOnForeman(google.protobuf.Empty) returns (exec.bit.control.ActiveQueriesOnForeman) {}
 
-  rpc ActivateFragment (exec.bit.control.ActivateFragments) returns (google.protobuf.Empty) {}
-
-  rpc CancelFragments(exec.bit.control.CancelFragments) returns (google.protobuf.Empty) {}
-
-  rpc GetNodeStats(google.protobuf.Empty) returns (exec.bit.control.NodeStatResp) {}
-
-  rpc ReconcileActiveQueries(exec.bit.control.ActiveQueryList) returns (google.protobuf.Empty) {}
 }
 
 

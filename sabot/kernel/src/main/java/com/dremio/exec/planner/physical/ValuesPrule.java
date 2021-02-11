@@ -36,7 +36,7 @@ public class ValuesPrule extends RelOptRule {
   public void onMatch(final RelOptRuleCall call) {
     final ValuesRel rel = (ValuesRel) call.rel(0);
     try{
-      call.transformTo(new ValuesPrel(rel.getCluster(), rel.getTraitSet().plus(Prel.PHYSICAL), rel.getRowType(), rel.getTuplesAsJsonOptions(), rel.getRows()));
+      call.transformTo(new ValuesPrel(rel.getCluster(), rel.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON), rel.getRowType(), rel.getTuplesAsJsonOptions(), rel.getRows()));
     }catch(IOException e){
       logger.warn("Failure while converting JSONOptions.", e);
     }

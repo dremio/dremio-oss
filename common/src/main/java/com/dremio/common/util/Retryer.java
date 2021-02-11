@@ -123,6 +123,16 @@ public class Retryer<T> implements ExponentialBackoff {
     }
   }
 
+  public Retryer<T> copy() {
+    Retryer<T> copy = new Retryer<>();
+    copy.waitStrategy = waitStrategy;
+    copy.baseMillis = baseMillis;
+    copy.maxMillis = maxMillis;
+    copy.maxRetries = maxRetries;
+    copy.retryableExceptionClasses.addAll(retryableExceptionClasses);
+    return copy;
+  }
+
   public static class OperationFailedAfterRetriesException extends RuntimeException {
     OperationFailedAfterRetriesException() {
       super();

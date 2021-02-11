@@ -454,6 +454,9 @@ public interface ExecConstants {
   AdminBooleanValidator COORDINATOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("coordinator.heap.monitoring.enable", true);
   RangeLongValidator COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("coordinator.heap.monitoring.thresh.percentage", 50, 100, 85);
 
+  AdminBooleanValidator ENABLE_RECONCILE_QUERIES = new AdminBooleanValidator("coordinator.reconcile.queries.enable", false);
+  RangeLongValidator RECONCILE_QUERIES_FREQUENCY_SECS = new RangeLongValidator("coordinator.reconcile.queries.frequency.secs", 1, 1800, 300);
+
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
 
   BooleanValidator ENABLE_DELTALAKE = new BooleanValidator("dremio.deltalake.enabled", false);

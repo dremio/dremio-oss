@@ -35,6 +35,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
@@ -84,6 +85,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
   private static String TEST_PATH = TestTools.getWorkingPath() + "/src/test/resources";
   private static File tblPath = null;
+  private static CloseableSchedulerThreadPool closeableSchedulerThreadPool;
 
   @BeforeClass
   public static void createTable() throws Exception {
@@ -94,11 +96,14 @@ public class ResourceAllocationsTest extends BaseTestQuery {
     FileUtils.copyFileToDirectory(new File(TEST_PATH + "/yelp_business.json"), tblPath);
     FileUtils.moveFile(new File(tblPath + "/yelp_business.json"), new File(tblPath + "/1.json"));
     FileUtils.copyFile(new File(tblPath + "/1.json"), new File(tblPath + "/2.json"));
+
+    closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-",1);
   }
 
   @AfterClass
-  public static void cleanUpTable() throws Exception {
+  public static void cleanUp() throws Exception {
     FileUtils.deleteQuietly(tblPath);
+    closeableSchedulerThreadPool.close();
   }
 
   @Test
@@ -179,7 +184,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
     QueryTrackerImpl foreman = new QueryTrackerImpl(null, queryContext, plan, pPlanReader,
       resourceAllocator, null, executorSelectionService, null,
-      null, AbstractMaestroObserver.NOOP, null, null);
+      null, AbstractMaestroObserver.NOOP, null, null, closeableSchedulerThreadPool);
     foreman.allocateResources();
 
     final ExecutionPlanningResources executionPlanningResources = ExecutionPlanCreator.getParallelizationInfo(queryContext,

@@ -191,6 +191,26 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     }
   }
 
+  /**
+   * Determine queries to be cancelled based on activeQueryList and
+   * cancel those queries. See implementation for actual algo.
+   * @param activeQueryList
+   * @param clerk
+   */
+  public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList, QueriesClerk clerk) {
+    Set<QueryId> queryIdsToCancel = maestroProxy.reconcileActiveQueries(activeQueryList);
+    cancelFragments(queryIdsToCancel, clerk);
+  }
+
+  @VisibleForTesting
+  void cancelFragments(Set<QueryId> queryIdsToCancel, QueriesClerk clerk) {
+    logger.debug("# queries to be cancelled:{}", queryIdsToCancel);
+    for(QueryId queryId: queryIdsToCancel) {
+      logger.info("cancelling queryId:{} as determined using ActiveQueryList.", queryId);
+      cancelFragments(queryId, clerk);
+    }
+  }
+
   /*
    * Fail all fragments for the specified query.
    *
@@ -369,7 +389,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       UserRpcException userRpcException = null;
       Set<FragmentHandle> fragmentHandlesForQuery = Sets.newHashSet();
       try {
-        if (!maestroProxy.tryStartQuery(queryId, queryTicket)) {
+        if (!maestroProxy.tryStartQuery(queryId, queryTicket, initializeFragments.getQuerySentTime())) {
           boolean isDuplicateStart = maestroProxy.isQueryStarted(queryId);
           if (isDuplicateStart) {
             // duplicate op, do nothing.

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.maestro;
 
+import java.util.List;
+
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -88,4 +90,10 @@ public interface MaestroService extends Service, SafeExit {
    * @return rpc handler.
    */
   ExecToCoordStatusHandler getExecStatusHandler();
+
+
+  /**
+   * @return list of query Ids for all active execution foremen.
+   */
+  List<QueryId> getActiveQueryIds();
 }

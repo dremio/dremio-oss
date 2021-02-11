@@ -57,6 +57,15 @@ interface QueryTracker extends MayExpire {
   boolean isCancelled();
 
   /**
+   * Return true if query is one of following
+   * 1. completed successfully
+   * 2. marked as cancelled
+   * 3. expired
+   * @return
+   */
+  boolean isTerminal();
+
+  /**
    * Initialize with the set of fragment handles for the query before
    * starting the query.
    *
@@ -79,4 +88,18 @@ interface QueryTracker extends MayExpire {
   default void refreshFragmentStatus(CoordExecRPC.FragmentStatus newStatus) {}
 
   Optional<ListenableFuture<Empty>> sendQueryProfile();
+
+  CoordinationProtos.NodeEndpoint getForeman();
+
+  /**
+   * Return time on foreman side, at which query fragment was sent to executor
+   * @return
+   */
+  long getQuerySentTime();
+
+  /**
+   * Set time on foreman side, at which query fragment was sent to executor
+   * @return
+   */
+  void setQuerySentTime(long querySentTime);
 }

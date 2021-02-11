@@ -15,69 +15,78 @@
  */
 package com.dremio.exec.physical.impl.join;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 
 public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
 
+  private static final String NATION ="dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\"";
+  private static final String REGION ="dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\"";
+
   @Test
   public void testHashJoin() throws Exception {
-    String sql = "SELECT nations.N_NAME, count(*) FROM\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\" nations \n"
+    String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+      + "%s nations \n"
       + "JOIN\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\" regions \n"
+      + "%s regions \n"
       + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
-      + "group by nations.N_NAME";
+      + "group by nations.N_NAME", NATION, REGION);
     String excludedColNames1 =  "runtimeFilter";
-    setup();
-    testPlanWithAttributesMatchingPatterns(sql, new String[]{excludedColNames1}, null);
+    testPlanMatchingPatterns(sql, new String[]{excludedColNames1});
   }
 
   @Test
   public void testLeftHashJoin() throws Exception {
-    String sql = "SELECT nations.N_NAME, count(*) FROM\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\" nations \n"
+    String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+      + "%s nations \n"
       + "LEFT JOIN\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\" regions \n"
+      + "%s regions \n"
       + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
-      + "group by nations.N_NAME";
+      + "group by nations.N_NAME", NATION, REGION);
     String excludedColNames1 =  "runtimeFilterInfo";
     String excludedColNames2 =  "runtimeFilter";
-    setup();
-    testPlanWithAttributesMatchingPatterns(sql, null, new String[]{excludedColNames1, excludedColNames2});
+    testPlanMatchingPatterns(sql, null, excludedColNames1, excludedColNames2);
   }
 
 
   @Test
   public void testHashJoinWithFuncJoinCondition() throws Exception {
-    String sql = "SELECT nations.N_NAME, count(*) FROM\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\" nations \n"
+    String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+      + "%s nations \n"
       + "JOIN\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\" regions \n"
+      + "%s regions \n"
       + "  on (nations.N_REGIONKEY +1) = regions.R_REGIONKEY \n"
-      + "group by nations.N_NAME";
+      + "group by nations.N_NAME", NATION, REGION);
     String excludedColNames1 =  "runtimeFilterInfo";
     String excludedColNames2 =  "runtimeFilter";
-    setup();
-    testPlanWithAttributesMatchingPatterns(sql, null, new String[]{excludedColNames1, excludedColNames2});
+    testPlanMatchingPatterns(sql, null, excludedColNames1, excludedColNames2);
   }
 
   @Test
   public void testHashJoinWithCast() throws Exception {
-    String sql = "SELECT nations.N_NAME, count(*) FROM\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\" nations \n"
+    String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+      + "%s nations \n"
       + "JOIN\n"
-      + "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\" regions \n"
+      + "%s regions \n"
       + "  on CAST (nations.N_REGIONKEY as INT) = regions.R_REGIONKEY\n"
-      + "group by nations.N_NAME";
+      + "group by nations.N_NAME", NATION, REGION);
     String excludedColNames1 =  "runtimeFilterInfo";
     String excludedColNames2 =  "runtimeFilter";
-    setup();
-    testPlanWithAttributesMatchingPatterns(sql, null, new String[]{excludedColNames1, excludedColNames2});
+    testPlanMatchingPatterns(sql, null, excludedColNames1, excludedColNames2);
   }
 
-  private void setup() throws Exception{
+  @Test
+  public void testWithAlias() throws Exception {
+    String sql = String.format("select * from\n" +
+      "  (select n_regionkey as key, convert_from(n_comment, 'utf8') as comment from %s)\n" +
+      "where key = (select max(r_regionkey) from %s)", NATION, REGION);
+    testPlanMatchingPatterns(sql, new String[] {"runtimeFilter.*N_REGIONKEY"});
+  }
+
+  @Before
+  public void setup() throws Exception{
     testNoResult("alter session set \"planner.slice_target\" = 1");
     testNoResult("alter session set \"planner.enable_broadcast_join\" = true");
     testNoResult("alter session set \"planner.filter.runtime_filter\" = true");

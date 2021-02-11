@@ -119,6 +119,7 @@ import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.exec.work.protector.ActiveQueryListService;
 import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
@@ -1089,6 +1090,27 @@ public class DACDaemonModule implements DACModule {
       registry.bind(ProjectConfigStore.class, ProjectConfigStore.NO_OP);
       registry.bind(ProjectConfig.class, new ProjectConfigImpl(registry.provider(DremioConfig.class),
         registry.provider(ProjectConfigStore.class)));
+    }
+
+    registerActiveQueryListService(registry, isCoordinator, isDistributedMaster, conduitServiceRegistry);
+  }
+
+  private void registerActiveQueryListService(SingletonRegistry registry, boolean isCoordinator,
+                                              boolean isDistributedMaster, ConduitServiceRegistry conduitServiceRegistry) {
+    if (isCoordinator) {
+      ActiveQueryListService activeQueryListService = new ActiveQueryListService(
+        registry.provider(SchedulerService.class),
+        registry.provider(ExecutorServiceClientFactory.class),
+        registry.provider(NodeEndpoint.class),
+        registry.provider(ExecutorSetService.class),
+        registry.provider(MaestroService.class),
+        registry.provider(SabotContext.class),
+        registry.provider(ConduitProvider.class),
+        registry.provider(OptionManager.class),
+        isDistributedMaster);
+
+      registry.bindSelf(activeQueryListService);
+      conduitServiceRegistry.registerService(activeQueryListService);
     }
   }
 

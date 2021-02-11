@@ -62,6 +62,13 @@ public class ExecutorServiceImpl extends ExecutorService {
   }
 
   @Override
+  public void reconcileActiveQueries(com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
+                                     io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+    fragmentExecutors.reconcileActiveQueries(request, builder.getClerk());
+    responseObserver.onCompleted();
+  }
+
+  @Override
   public void getNodeStats(com.google.protobuf.Empty request,
                            io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {
     try {
@@ -148,6 +155,13 @@ public class ExecutorServiceImpl extends ExecutorService {
 
     public void cancelFragments(com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
+              "operations."));
+    }
+
+    @Override
+    public void reconcileActiveQueries(com.dremio.exec.proto.CoordExecRPC.ActiveQueryList request,
+                                       io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
               "operations."));
     }

@@ -15,13 +15,21 @@
  */
 package com.dremio.exec.maestro;
 
+import static java.lang.Thread.sleep;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InOrder;
@@ -29,7 +37,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.util.Retryer;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.MetadataStatsCollector;
 import com.dremio.exec.ops.QueryContext;
@@ -56,7 +66,12 @@ import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
+import com.dremio.service.executor.ExecutorServiceClient;
+import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.collect.ImmutableSet;
+
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 
 public class TestFragmentTracker {
   private final QueryId queryId = QueryId
@@ -67,6 +82,8 @@ public class TestFragmentTracker {
 
   private final NodeEndpoint selfEndpoint =
     NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
+
+  private CloseableSchedulerThreadPool closeableSchedulerThreadPool;
 
   @Mock
   private QueryContext context;
@@ -89,6 +106,8 @@ public class TestFragmentTracker {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+
+    this.closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-",1);
 
     // Boilerplate
     when(context.getQueryUserName()).thenReturn("myuser");
@@ -122,6 +141,80 @@ public class TestFragmentTracker {
     });
   }
 
+  @After
+  public void tearDown() throws Exception {
+    closeableSchedulerThreadPool.close();
+  }
+
+  /**
+   * Check that retrier calls only the maximum number of times initialised and
+   * if it succeeds before maximum number of retries, it should stop
+   */
+  @Test
+  public void testCancelFragmentsHelper() throws Exception {
+    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener, queryCloser, null,
+      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
+                                  DirectProvider.wrap(optionManager)),
+      closeableSchedulerThreadPool);
+
+    ExecutorServiceClient mockExecutorServiceClient = Mockito.mock(ExecutorServiceClient.class);
+    doNothing().when(mockExecutorServiceClient).cancelFragments(any(), any());
+
+    ExecutorServiceClientFactory executorServiceClientFactory = Mockito.mock(ExecutorServiceClientFactory.class);
+    doReturn(mockExecutorServiceClient).when(executorServiceClientFactory).getClientForEndpoint(any());
+
+    Set<NodeEndpoint> pendingNodes = new HashSet<>();
+    pendingNodes.add(NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build());
+
+    int MAX_RETRIES = 4;
+    int baseMillis = 100;
+    Retryer retryer = new Retryer.Builder()
+      .setWaitStrategy(Retryer.WaitStrategy.FLAT, baseMillis, baseMillis)
+      .retryIfExceptionOfType(StatusRuntimeException.class)
+      .setMaxRetries(MAX_RETRIES)
+      .build();
+
+    FragmentTracker.SignalListener errorResponse = Mockito.mock(FragmentTracker.SignalListener.class);
+    doReturn(new StatusRuntimeException(Status.INTERNAL)).when(errorResponse).getException();
+
+    FragmentTracker.SignalListener successResponse = Mockito.mock(FragmentTracker.SignalListener.class);
+    doReturn(null).when(successResponse).getException();
+
+    fragmentTracker = spy(fragmentTracker);
+
+    // Fail for timesFailures times and next time - return success
+    int timesFailures = 2;
+    int timesSuccess = 1;
+    doReturn(errorResponse)
+      .doReturn(errorResponse)
+      .doReturn(successResponse)
+      .when(fragmentTracker)
+      .getResponseObserver(any(), any());
+
+    fragmentTracker.cancelExecutingFragmentsInternalHelper(queryId, pendingNodes, executorServiceClientFactory, retryer, closeableSchedulerThreadPool);
+
+    sleep(1000 + baseMillis * (timesFailures + timesSuccess)); // plus 1000 is done to have extra sleep.
+
+    //To verify retry stops after success, when cancelFragments fails for timesFailures and then succeeds.
+    Mockito.verify(mockExecutorServiceClient, Mockito.times(timesFailures + timesSuccess))
+      .cancelFragments(Mockito.any(), Mockito.any());
+
+    reset(fragmentTracker, mockExecutorServiceClient);
+    doNothing().when(mockExecutorServiceClient).cancelFragments(any(), any());
+
+    //To verify retry happened not more than MAX_RETRIES, when cancelFragments always fails.
+    timesFailures = MAX_RETRIES;
+    timesSuccess = 0;
+    doReturn(errorResponse) // always return errorResponse
+      .when(fragmentTracker)
+      .getResponseObserver(any(), any());
+
+    fragmentTracker.cancelExecutingFragmentsInternalHelper(queryId, pendingNodes, executorServiceClientFactory, retryer, closeableSchedulerThreadPool);
+    sleep(1000 + baseMillis * (timesFailures + timesSuccess)); // plus 1000 is done to have extra sleep.
+    Mockito.verify(mockExecutorServiceClient, Mockito.times(timesFailures + timesSuccess))
+      .cancelFragments(Mockito.any(), Mockito.any());
+  }
+
   /**
    * Check that a dead node doesn't not trigger a successful query notification if
    * node managing the last major fragments (see DX-10956)
@@ -133,7 +226,7 @@ public class TestFragmentTracker {
     FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
       () -> {}, null,
       new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)));
+                                  DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
 
     PlanFragmentFull fragment = new PlanFragmentFull(
       PlanFragmentMajor.newBuilder()
@@ -164,7 +257,7 @@ public class TestFragmentTracker {
     FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
       () -> {}, null,
       new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)));
+                                  DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
 
     PlanFragmentFull fragment = new PlanFragmentFull(
       PlanFragmentMajor.newBuilder()
@@ -200,7 +293,7 @@ public class TestFragmentTracker {
     FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
       queryCloser, null,
       new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)));
+                                  DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
 
     fragmentTracker.populate(Collections.emptyList(), new ResourceSchedulingDecisionInfo());
 

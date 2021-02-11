@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -86,6 +87,7 @@ public class MaestroServiceImpl implements MaestroService {
   private final Provider<JobTelemetryClient> jobTelemetryClient;
   // single map of currently running queries
   private final ConcurrentMap<QueryId, QueryTracker> activeQueryMap = Maps.newConcurrentMap();
+  private final CloseableSchedulerThreadPool closeableSchedulerThreadPool;
 
   private final Provider<MaestroForwarder> forwarder;
 
@@ -114,6 +116,8 @@ public class MaestroServiceImpl implements MaestroService {
     this.executorServiceClientFactory = executorServiceClientFactory;
     this.jobTelemetryClient = jobTelemetryClient;
     this.forwarder = forwarder;
+
+    this.closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-",1);
   }
 
   @Override
@@ -141,7 +145,7 @@ public class MaestroServiceImpl implements MaestroService {
       resourceAllocator.get(), executorSetService.get(), executorSelectionService.get(),
       executorServiceClientFactory.get(), jobTelemetryClient.get(), observer,
       listener,
-      () -> closeQuery(queryId));
+      () -> closeQuery(queryId), closeableSchedulerThreadPool);
     Preconditions.checkState(activeQueryMap.putIfAbsent(queryId, queryTracker) == null,
     "query already queued for execution " + QueryIdHelper.getQueryId(queryId));
 
@@ -212,16 +216,14 @@ public class MaestroServiceImpl implements MaestroService {
 
   @Override
   public void close() throws Exception {
+    closeableSchedulerThreadPool.close();
   }
 
-  /**
-   * @return list of query Ids strings for all active execution foremen.
-   */
-  private List<String> getActiveQueryIds() {
+  @Override
+  public List<QueryId> getActiveQueryIds() {
     return activeQueryMap
       .keySet()
       .stream()
-      .map((e) -> QueryIdHelper.getQueryId(e))
       .collect(Collectors.toList());
   }
 

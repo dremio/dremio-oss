@@ -57,6 +57,6 @@ public class RuntimeFilterEntry {
 
   @Override
   public String toString() {
-    return probeFieldName;
+    return String.format("%02d-%02d %s", probeScanMajorFragmentId, probeScanOperatorId & 0xFF, probeFieldName);
   }
 }

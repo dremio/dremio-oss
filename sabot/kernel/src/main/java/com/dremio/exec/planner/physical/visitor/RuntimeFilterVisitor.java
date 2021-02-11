@@ -24,15 +24,19 @@ import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
+import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
+import com.dremio.exec.planner.physical.LeafPrel;
+import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.StreamAggPrel;
@@ -96,65 +100,72 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
 
     JoinRelType joinRelType = hashJoinPrel.getJoinType();
     JoinInfo joinInfo = hashJoinPrel.analyzeCondition();
-    boolean allowRuntimeFilter = (joinInfo.isEqui()) && (joinRelType == JoinRelType.INNER || joinRelType == JoinRelType.RIGHT);
-    if (!allowRuntimeFilter) {
+    if (!joinInfo.isEqui()) {
       return null;
     }
 
-    final RelNode currentLeft;
-    final RelNode currentRight;
-    final List<Integer> leftKeys;
-    final List<Integer> rightKeys;
+    if ((joinRelType == JoinRelType.LEFT && !hashJoinPrel.isSwapped())
+        || (joinRelType == JoinRelType.RIGHT && hashJoinPrel.isSwapped())) {
+      return null;
+    }
+
+    final RelNode currentProbe;
+    final RelNode currentBuild;
+    final List<Integer> probeKeys;
+    final List<Integer> buildKeys;
     final RelMetadataQuery relMetadataQuery = hashJoinPrel.getCluster().getMetadataQuery();
 
     //identify probe sie and build side prel tree
     if (hashJoinPrel.isSwapped()) {
-      currentLeft = hashJoinPrel.getRight();
-      currentRight = hashJoinPrel.getLeft();
-      leftKeys = hashJoinPrel.getRightKeys();
-      rightKeys = hashJoinPrel.getLeftKeys();
+      currentProbe = hashJoinPrel.getRight();
+      currentBuild = hashJoinPrel.getLeft();
+      probeKeys = hashJoinPrel.getRightKeys();
+      buildKeys = hashJoinPrel.getLeftKeys();
     } else {
-      currentLeft = hashJoinPrel.getLeft();
-      currentRight = hashJoinPrel.getRight();
-      leftKeys = hashJoinPrel.getLeftKeys();
-      rightKeys = hashJoinPrel.getRightKeys();
+      currentProbe = hashJoinPrel.getLeft();
+      currentBuild = hashJoinPrel.getRight();
+      probeKeys = hashJoinPrel.getLeftKeys();
+      buildKeys = hashJoinPrel.getRightKeys();
     }
 
     // find exchange node from build side
-    ExchangePrel rightExchangePrel = findExchangePrel(currentRight);
-    ExchangePrel leftExchangePrel = findExchangePrel(currentLeft);
-    if(rightExchangePrel == null && leftExchangePrel == null) {
+    ExchangePrel buildExchangePrel = findExchangePrel(currentBuild);
+    ExchangePrel probeExchangePrel = findExchangePrel(currentProbe);
+    if(buildExchangePrel == null && probeExchangePrel == null) {
       //does not support single fragment mode, that is the right build side can
       //only be BroadcastExchangePrel or HashToRandomExchangePrel
       return null;
     }
-    List<String> leftFields = currentLeft.getRowType().getFieldNames();
-    List<String> rightFields = currentRight.getRowType().getFieldNames();
+    List<String> rightFields = currentBuild.getRowType().getFieldNames();
 
-    int keyIndex = 0;
-    for (Integer leftKey : leftKeys) {
-      String leftFieldName = leftFields.get(leftKey);
-      Integer rightKey = rightKeys.get(keyIndex++);
-      String rightFieldName = rightFields.get(rightKey);
+    for (Pair<Integer,Integer> keyPair : Pair.zip(probeKeys, buildKeys)) {
+      Integer probeKey = keyPair.left;
+      Integer buildKey = keyPair.right;
+      String buildFieldName = rightFields.get(buildKey);
 
       //avoid runtime filter if the join column is not original column
-      final RelColumnOrigin leftColumnOrigin = relMetadataQuery.getColumnOrigin(currentLeft, leftKey);
-      if (null == leftColumnOrigin) {
+      final RelColumnOrigin probeColumnOrigin = relMetadataQuery.getColumnOrigin(currentProbe, probeKey);
+      if (null == probeColumnOrigin) {
         //this includes column is derived
         continue;
       }
 
       //This also avoids the left field of the join condition with a function call.
-      ScanPrelBase scanPrel = findLeftScanPrel(leftFieldName, currentLeft);
+      if (!(currentProbe instanceof Prel)) {
+        return null;
+      }
+      ScanPrelBase scanPrel = ((Prel) currentProbe).accept(new FindScanVisitor(), probeKey);
       if (scanPrel != null) {
         //if contains block node on path from join to scan, we may not push down runtime filter
-        if(hasBlockNode((Prel) currentLeft, scanPrel)) {
+        if(hasBlockNode((Prel) currentProbe, scanPrel)) {
           return null;
         }
+
+        String leftFieldName = probeColumnOrigin.getOriginTable().getRowType().getFieldNames().get(probeColumnOrigin.getOriginColumnOrdinal());
         PrelSequencer.OpId opId = prelOpIdMap.get(scanPrel);
         int probeScanMajorFragmentId = opId.getFragmentId();
         int probeScanOperatorId = opId.getAsSingleInt();
-        RuntimeFilterEntry runtimeFilterEntry = new RuntimeFilterEntry(leftFieldName, rightFieldName, probeScanMajorFragmentId, probeScanOperatorId);
+        RuntimeFilterEntry runtimeFilterEntry = new RuntimeFilterEntry(leftFieldName, buildFieldName, probeScanMajorFragmentId, probeScanOperatorId);
         if (isPartitionColumn(scanPrel, leftFieldName)) {
           partitionColumns.add(runtimeFilterEntry);
         } else {
@@ -168,7 +179,7 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
       return new RuntimeFilterInfo.Builder()
         .nonPartitionJoinColumns(nonPartitionColumns)
         .partitionJoinColumns(partitionColumns)
-        .isBroadcastJoin((rightExchangePrel instanceof BroadcastExchangePrel))
+        .isBroadcastJoin((buildExchangePrel instanceof BroadcastExchangePrel))
         .build();
     } else {
       return null;
@@ -176,37 +187,71 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
 
   }
 
-  /**
-   * Find a join condition's left input source scan Prel. If we can't find a target scan Prel then this
-   * RuntimeFilter can not pushed down to a probe side scan Prel.
-   *
-   * @param fieldName   left join condition field Name
-   * @param leftRelNode left RelNode of a BiRel or the SingleRel
-   * @return a left scan Prel which contains the left join condition name or null
-   */
-  private ScanPrelBase findLeftScanPrel(String fieldName, RelNode leftRelNode) {
-    if (leftRelNode instanceof ScanPrelBase) {
-      RelDataType scanRowType = leftRelNode.getRowType();
-      RelDataTypeField field = scanRowType.getField(fieldName, true, true);
-      if (field != null) {
-        //found
-        return (ScanPrelBase) leftRelNode;
-      } else {
-        return null;
-      }
-    }  else if (leftRelNode == null) {
-      return null;
-    } else {
-      List<RelNode> relNodes = leftRelNode.getInputs();
-      RelNode scanNode;
-      for (RelNode node: relNodes) {
-        scanNode = findLeftScanPrel(fieldName, node);
-        if (scanNode != null) {
-          return (ScanPrelBase) scanNode;
+  private static class FindScanVisitor extends BasePrelVisitor<ScanPrelBase,Integer,RuntimeException> {
+    @Override
+    public ScanPrelBase visitPrel(Prel prel, Integer idx) {
+      if (prel instanceof FilterPrel) {
+        if (prel.getInput(0) instanceof Prel) {
+          return ((Prel) prel.getInput(0)).accept(this, idx);
         }
       }
       return null;
     }
+
+    @Override
+    public ScanPrelBase visitProject(ProjectPrel prel, Integer idx) {
+      if (!(prel.getChildExps().get(idx) instanceof RexInputRef)) {
+        return null;
+      }
+      RexInputRef ref = (RexInputRef) prel.getChildExps().get(idx);
+      if (prel.getInput(0) instanceof Prel) {
+        return ((Prel) prel.getInput(0)).accept(this, ref.getIndex());
+      }
+      return null;
+    }
+
+    @Override
+    public ScanPrelBase visitExchange(ExchangePrel exchange, Integer idx) {
+      if (exchange.getInput() instanceof Prel) {
+        return ((Prel) exchange.getInput()).accept(this, idx);
+      }
+      return null;
+    }
+
+    @Override
+    public ScanPrelBase visitLeaf(LeafPrel prel, Integer idx) {
+      if (prel instanceof ScanPrelBase) {
+        return (ScanPrelBase) prel;
+      }
+      return null;
+    }
+
+    @Override
+    public ScanPrelBase visitJoin(JoinPrel join, Integer idx) {
+      if (join instanceof NestedLoopJoinPrel) {
+        return null;
+      }
+      if (idx < join.getLeft().getRowType().getFieldCount()) {
+        if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.RIGHT) {
+          if (!(join.getLeft() instanceof Prel)) {
+            return null;
+          }
+          Prel left = (Prel) join.getLeft();
+          return left.accept(this, idx);
+        }
+      } else {
+        if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT) {
+          int newIdx = idx - join.getLeft().getRowType().getFieldCount();
+          if (!(join.getRight() instanceof Prel)) {
+            return null;
+          }
+          Prel right = (Prel) join.getRight();
+          return right.accept(this, newIdx);
+        }
+      }
+      return null;
+    }
+
   }
 
   private ExchangePrel findExchangePrel(RelNode rightRelNode) {
@@ -231,7 +276,7 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
     if (readDefinition.getPartitionColumnsList() == null) {
       return false;
     }
-    return readDefinition.getPartitionColumnsList().isEmpty()? false:readDefinition.getPartitionColumnsList().contains(fieldName);
+    return !readDefinition.getPartitionColumnsList().isEmpty() && readDefinition.getPartitionColumnsList().contains(fieldName);
   }
 
   private boolean hasBlockNode(Prel startNode, Prel endNode) {

@@ -42,7 +42,7 @@ import com.google.common.collect.Sets;
  */
 public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
   public static final SoftAffinityFragmentParallelizer INSTANCE = new SoftAffinityFragmentParallelizer();
-
+  private static final int MAX_SYSTEM_ENDPOINTS = 10000;
   private static final Ordering<EndpointAffinity> ENDPOINT_AFFINITY_ORDERING =
       Ordering.from(new Comparator<EndpointAffinity>() {
         @Override
@@ -62,7 +62,10 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     width = Math.min(width, Math.min(maxWidth, parameters.getMaxGlobalWidth()));
 
     // 3. Cap the parallelization width by system level per node width limit
-    width = Math.min(width, parameters.getMaxWidthPerNode() * numEndpoints);
+    //    adding extra step to avoid overflow
+    Long sysMaxWidthL = Long.valueOf(parameters.getMaxWidthPerNode() * numEndpoints);
+    int sysMaxWidth = (sysMaxWidthL > Integer.MAX_VALUE) ? Integer.MAX_VALUE:sysMaxWidthL.intValue();
+    width = Math.min(width, sysMaxWidth);
 
     // 4. Make sure width is at least the min width enforced by operators
     width = Math.max(minWidth, width);
@@ -100,7 +103,7 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
   public int getIdealFragmentWidth(final Wrapper fragment, final ParallelizationParameters parameters) {
     // Find the parallelization width of fragment
     final Stats stats = fragment.getStats();
-    return getWidth(stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, Integer.MAX_VALUE);
+    return getWidth(stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, MAX_SYSTEM_ENDPOINTS);
   }
 
   @VisibleForTesting
