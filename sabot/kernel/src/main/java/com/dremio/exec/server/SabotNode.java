@@ -85,6 +85,7 @@ import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.QueryCancelTool;
 import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.RuleBasedEngineSelector;
 import com.dremio.resource.basic.BasicResourceAllocator;
 import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.sabot.exec.FragmentWorkManager;
@@ -574,6 +575,7 @@ public class SabotNode implements AutoCloseable {
           new GrpcTracerFacade(TracerFacade.INSTANCE)));
 
         bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
+        bind(RuleBasedEngineSelector.class).toInstance(RuleBasedEngineSelector.NO_OP);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -741,7 +743,8 @@ public class SabotNode implements AutoCloseable {
             Provider<CommandPool> commandPool,
             Provider<MaestroService> maestroService,
             Provider<JobTelemetryClient> jobTelemetryClient,
-            Provider<MaestroForwarder> forwarderProvider
+            Provider<MaestroForwarder> forwarderProvider,
+            Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider
     ) {
       return new ForemenWorkManager(
               fabricService,
@@ -750,7 +753,8 @@ public class SabotNode implements AutoCloseable {
               maestroService,
               jobTelemetryClient,
               forwarderProvider,
-              TracerFacade.INSTANCE
+              TracerFacade.INSTANCE,
+              ruleBasedEngineSelectorProvider
       );
     }
 

@@ -22,19 +22,30 @@ option java_generate_equals_and_hash = true;
 option java_multiple_files = true;
 option java_outer_classname = "ProjectConfigProto";
 
-
 message AwsKeys {
   string access_key = 1;
   string secret_key = 2;
 }
 
+message AwsRole {
+  string iam_role = 1;
+  string external_id = 2;
+}
+
+message DataCredentials {
+  oneof credentials {
+    AwsKeys keys = 1;
+    AwsRole data_role = 2;
+  }
+}
+
 message DistStoreConfig {
   string path = 1;
-  AwsKeys aws_keys = 2;
 }
 
 message ProjectConfig {
   DistStoreConfig dist_store_config = 1;
   string org_id = 2;
+  DataCredentials data_credentials = 3;
 }
 

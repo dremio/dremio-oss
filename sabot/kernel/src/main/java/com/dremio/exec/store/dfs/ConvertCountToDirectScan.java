@@ -116,7 +116,8 @@ public class ConvertCountToDirectScan extends Prule {
       return false;
     }
     // we only support accurate counts when using Parquet, everything else is executed normally.
-    return scan.getPluginId().getType().equals(type) && DatasetHelper.hasParquetDataFiles(scan.getTableMetadata().getFormatSettings());
+    return scan.getPluginId().getType().equals(type) &&
+            DatasetHelper.hasParquetDataFiles(scan.getTableMetadata().getFormatSettings());
   }
 
   private static long getAccurateRowCount(Iterator<PartitionChunkMetadata> splits){

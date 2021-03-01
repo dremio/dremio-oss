@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>13.1.0-202102110202430875-3e6f3e7c</version>
+  <version>14.0.0-202103011714040666-9a0c2e10</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>3.0.0-20201218102458-4bb1c04f92-dremio</arrow.version>
+    <arrow.version>3.0.0-20210225085553-dacbd01b9e-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
     <calcite.version>1.16.0-202101020531550866-5383404</calcite.version>
     <derby.version>10.14.2.0</derby.version>
@@ -131,6 +131,7 @@
     <grpc.version>1.30.2</grpc.version>
     <guava.version>28.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
+    <redis.clients.jedis.version>3.4.1</redis.clients.jedis.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>5.5.3</elasticsearch.version>

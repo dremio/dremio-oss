@@ -31,8 +31,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.test.UserExceptionMatcher;
 
 public class TestJsonReaderUnion extends BaseTestQuery {
@@ -240,8 +240,16 @@ public class TestJsonReaderUnion extends BaseTestQuery {
   @Test
   public void unionAssertFailure() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
-      ScreenPrel.MIXED_TYPES_ERROR));
+      BatchSchema.MIXED_TYPES_ERROR));
 
     test("SELECT * FROM cp.\"jsoninput/mixed_number_types.json\"");
+  }
+
+  @Test
+  public void hiddenUnionAssertFailure() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+      "Cast \"field2.inner2.hidden1\" to a primitive data type either in the select statement or the VDS definition."));
+
+    test("SELECT * FROM cp.\"jsoninput/hidden_mixed_type.json\"");
   }
 }

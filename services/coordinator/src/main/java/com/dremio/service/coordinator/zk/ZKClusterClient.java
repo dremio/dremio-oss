@@ -15,19 +15,6 @@
  */
 package com.dremio.service.coordinator.zk;
 
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.CLUSTER_ID;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_CONNECTION;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ELECTION_POLLING;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_INITIAL_TIMEOUT_MS;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_BASE_DELAY;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_LIMIT;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_MAX_DELAY;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_RETRY_UNLIMITED;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ROOT;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_SESSION_TIMEOUT;
-import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_TIMEOUT;
-
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -59,7 +46,6 @@ import org.apache.zookeeper.ZooKeeper;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.NamedThreadFactory;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.CoordinatorLostHandle;
 import com.dremio.service.coordinator.DistributedSemaphore;
@@ -83,7 +69,7 @@ class ZKClusterClient implements com.dremio.service.Service {
   private final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(new NamedThreadFactory("zk-curator-")));
   private CuratorFramework curator;
   private ServiceDiscovery<NodeEndpoint> discovery;
-  private SabotConfig config;
+  private ZKClusterConfig config;
   private final String connect;
   private String connectionString;
   private Provider<Integer> localPortProvider;
@@ -91,19 +77,19 @@ class ZKClusterClient implements com.dremio.service.Service {
   private final CoordinatorLostHandle connectionLostHandler;
 
 
-  public ZKClusterClient(SabotConfig config, String connect) throws IOException {
+  public ZKClusterClient(ZKClusterConfig config, String connect) throws IOException {
     this(config, connect, null);
   }
 
-  public ZKClusterClient(SabotConfig config, Provider<Integer> localPort) throws IOException {
+  public ZKClusterClient(ZKClusterConfig config, Provider<Integer> localPort) throws IOException {
     this(config, null, localPort);
   }
 
-  private ZKClusterClient(SabotConfig config, String connect, Provider<Integer> localPort) throws IOException {
+  private ZKClusterClient(ZKClusterConfig config, String connect, Provider<Integer> localPort) throws IOException {
     this.localPortProvider = localPort;
     this.connect = connect;
     this.config = config;
-    String clusterId = config.getString(CLUSTER_ID);
+    String clusterId = config.getClusterId();
     if(connect != null){
       final Matcher m = ZK_COMPLEX_STRING.matcher(connect);
       if(m.matches()) {
@@ -111,7 +97,7 @@ class ZKClusterClient implements com.dremio.service.Service {
       }
     }
     this.clusterId = clusterId;
-    this.connectionLostHandler = config.getInstance(ZK_LOST_HANDLER_MODULE_CLASS, CoordinatorLostHandle.class, CoordinatorLostHandle.NO_OP);
+    this.connectionLostHandler = config.isConnectionHandleEnabled() ? config.getConnectionLostHandler() : CoordinatorLostHandle.NO_OP;
   }
 
   @Override
@@ -119,12 +105,12 @@ class ZKClusterClient implements com.dremio.service.Service {
     if(localPortProvider != null){
       connectionString = "localhost:" + localPortProvider.get();
     } else if(this.connect == null || this.connect.isEmpty()){
-      connectionString = config.getString(ZK_CONNECTION);
+      connectionString = config.getConnection();
     } else {
       connectionString = this.connect;
     }
 
-    String zkRoot = config.getString(ZK_ROOT);
+    String zkRoot = config.getRoot();
 
 
     // check if this is a complex zk string.  If so, parse into components.
@@ -139,15 +125,15 @@ class ZKClusterClient implements com.dremio.service.Service {
     logger.info("Connect: {}, zkRoot: {}, clusterId: {}", connectionString, zkRoot, clusterId);
 
     RetryPolicy rp = new BoundedExponentialDelay(
-      config.getMilliseconds(ZK_RETRY_BASE_DELAY).intValue(),
-      config.getMilliseconds(ZK_RETRY_MAX_DELAY).intValue(),
-      config.getBoolean(ZK_RETRY_UNLIMITED),
-      config.getLong(ZK_RETRY_LIMIT));
+      config.getRetryBaseDelayMilliSecs(),
+      config.getRetryMaxDelayMilliSecs(),
+      config.isRetryUnlimited(),
+      config.getRetryLimit());
     curator = CuratorFrameworkFactory.builder()
       .namespace(zkRoot)
-      .connectionTimeoutMs(config.getInt(ZK_TIMEOUT))
-      .sessionTimeoutMs(config.getInt(ZK_SESSION_TIMEOUT))
-      .maxCloseWaitMs(config.getMilliseconds(ZK_RETRY_MAX_DELAY).intValue())
+      .connectionTimeoutMs(config.getConnectionTimeoutMilliSecs())
+      .sessionTimeoutMs(config.getSessionTimeoutMilliSecs())
+      .maxCloseWaitMs(config.getRetryMaxDelayMilliSecs())
       .retryPolicy(rp)
       .connectString(connectionString)
       .build();
@@ -156,11 +142,12 @@ class ZKClusterClient implements com.dremio.service.Service {
     curator.start();
     discovery = newDiscovery(clusterId);
 
-    logger.info("Starting ZKClusterClient, ZK_TIMEOUT: {}, ZK_SESSION_TIMEOUT:{}, ZK_RETRY_MAX_DELAY:{}, ZK_RETRY_UNLIMITED:{}, ZK_RETRY_LIMIT:{}",
-      config.getInt(ZK_TIMEOUT), config.getInt(ZK_SESSION_TIMEOUT), config.getMilliseconds(ZK_RETRY_MAX_DELAY), config.getBoolean(ZK_RETRY_UNLIMITED), config.getLong(ZK_RETRY_LIMIT));
+    logger.info("Starting ZKClusterClient, ZK_TIMEOUT: {}, ZK_SESSION_TIMEOUT:{}, ZK_RETRY_MAX_DELAY:{}, ZK_RETRY_UNLIMITED:{}, ZK_RETRY_LIMIT:{}, CONNECTION_HANDLE_ENABLED:{}",
+      config.getConnectionTimeoutMilliSecs(), config.getSessionTimeoutMilliSecs(), config.getRetryMaxDelayMilliSecs(),
+      config.isRetryUnlimited(), config.getRetryLimit(), config.isConnectionHandleEnabled());
     discovery.start();
 
-    if (!config.getBoolean(ZK_RETRY_UNLIMITED) && !this.initialConnection.await(config.getLong(ZK_INITIAL_TIMEOUT_MS), TimeUnit.MILLISECONDS)) {
+    if (!config.isRetryUnlimited() && !this.initialConnection.await(config.getInitialTimeoutMilliSecs(), TimeUnit.MILLISECONDS)) {
       logger.info("Failed to get initial connection to ZK");
       connectionLostHandler.handleConnectionState(ConnectionState.LOST);
     } else {
@@ -219,8 +206,8 @@ class ZKClusterClient implements com.dremio.service.Service {
     final AtomicReference<ListenableFuture<?>> newLeaderRef = new AtomicReference<>();
 
     leaderLatch.addListener(new LeaderLatchListener() {
-      private final long electionTimeoutMs = config.getMilliseconds(ZK_ELECTION_TIMEOUT);
-      private final long electionPollingMs = config.getMilliseconds(ZK_ELECTION_POLLING);
+      private final long electionTimeoutMs = config.getElectionTimeoutMilliSecs();
+      private final long electionPollingMs = config.getElectionPollingMilliSecs();
 
       @Override
       public void notLeader() {

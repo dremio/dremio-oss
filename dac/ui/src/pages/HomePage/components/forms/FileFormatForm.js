@@ -169,6 +169,7 @@ export class FileFormatForm extends Component {
       {option: 'Parquet',  label: intl.formatMessage({ id: 'File.Parquet' })},
       {option: 'Excel',  label: intl.formatMessage({ id: 'File.Excel' })},
       {option: 'Iceberg',  label: intl.formatMessage({ id: 'File.Iceberg' })},
+      {option: 'Delta',  label: intl.formatMessage({ id: 'File.Delta' })},
       {option: 'XLS', label: intl.formatMessage({ id: 'File.XLS' })}
     ];
 

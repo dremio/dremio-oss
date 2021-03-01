@@ -17,7 +17,6 @@ package com.dremio.sabot.op.boost;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.arrow.vector.BitVector;
@@ -31,12 +30,10 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
-import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.physical.config.BoostPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.easy.arrow.ArrowFlatBufRecordWriter;
@@ -51,7 +48,6 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Writes columns of splits in arrow format
@@ -76,7 +72,6 @@ public class BoostOperator extends ScanOperator {
   Field COLUMN = SCHEMA.getColumn(1);
   Field BOOSTED = SCHEMA.getColumn(2);
 
-  private final Iterator<SplitAndPartitionInfo> splits;
   private final FileSystem fs;
   private BoostedFileSystem boostedFS;
   private SplitAndPartitionInfo currentSplit;
@@ -91,11 +86,10 @@ public class BoostOperator extends ScanOperator {
 
   public BoostOperator(BoostPOP boostConfig,
                        OperatorContext context,
-                       Iterator<RecordReader> readers,
+                       RecordReaderIterator readers,
                        GlobalDictionaries globalDictionaries,
                        FileSystem fileSystem) {
-    super(boostConfig.asParquetSubScan(), context, RecordReaderIterator.from(readers), globalDictionaries, null, null);
-    splits = boostConfig.getSplits().iterator();
+    super(boostConfig.asParquetSubScan(), context, readers, globalDictionaries, null, null);
 
     columnsToBoost = new ArrayList<>();
     for (SchemaPath column : boostConfig.getColumns()) {
@@ -106,7 +100,6 @@ public class BoostOperator extends ScanOperator {
       }
     }
     fs = fileSystem;
-    currentSplit = splits.next();
     currentWriters = new ArrayList<>();
     boostOutputContainer = context.createOutputVectorContainer();
     dataset = boostConfig.getReferencedTables().iterator().next();
@@ -152,7 +145,6 @@ public class BoostOperator extends ScanOperator {
       int boostOutputRecordCount = closeCurrentWritersAndProduceOutputBatch();
 
       currentReader = readers.next();
-      currentSplit = splits.next();
       setupReader(currentReader);
       currentReader.allocate(fieldVectorMap);
       setUpNewWriters();
@@ -181,12 +173,8 @@ public class BoostOperator extends ScanOperator {
    *
    */
   private void setUpNewWriters() {
-    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr;
-    try {
-      splitXAttr = LegacyProtobufSerializer.parseFrom(ParquetProtobuf.ParquetDatasetSplitScanXAttr.PARSER, currentSplit.getDatasetSplitInfo().getExtendedProperty());
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Could not deserialize parquet dataset split scan attributes", e);
-    }
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr = readers.getCurrentSplitXAttr();
+    Preconditions.checkArgument(splitXAttr != null, "splitXAttr can not be null");
     for (String columnName : columnsToBoost) {
       ArrowColumnWriter arrowColumnWriter;
       try {

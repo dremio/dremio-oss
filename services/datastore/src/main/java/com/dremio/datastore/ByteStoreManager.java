@@ -36,6 +36,7 @@ import java.util.function.Predicate;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Logger;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -84,6 +85,7 @@ class ByteStoreManager implements AutoCloseable {
 
   private final boolean inMemory;
   private final boolean noDBOpenRetry;
+  private final boolean noDBLogMessages;
   private final int stripeCount;
   private final String baseDirectory;
 
@@ -110,14 +112,15 @@ class ByteStoreManager implements AutoCloseable {
       });
 
   public ByteStoreManager(String baseDirectory, boolean inMemory) {
-    this(baseDirectory, inMemory, false);
+    this(baseDirectory, inMemory, false, false);
   }
 
-  public ByteStoreManager(String baseDirectory, boolean inMemory, boolean noDBOpenRetry) {
+  public ByteStoreManager(String baseDirectory, boolean inMemory, boolean noDBOpenRetry, boolean noDBLogMessages) {
     this.stripeCount = STRIPE_COUNT;
     this.baseDirectory = baseDirectory;
     this.inMemory = inMemory;
     this.noDBOpenRetry = noDBOpenRetry;
+    this.noDBLogMessages = noDBLogMessages;
   }
 
   private ByteStore newStore(String name) throws RocksDBException {
@@ -272,14 +275,26 @@ class ByteStoreManager implements AutoCloseable {
     // Note that Statistics also contains various histogram metrics, but those cannot be easily tracked through our metrics
   }
 
-  public RocksDB openDB(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
+public RocksDB openDB(final DBOptions dboptions, final String path, final List<ColumnFamilyDescriptor> columnNames,
       List<ColumnFamilyHandle> familyHandles) throws RocksDBException {
     boolean printLockMessage = true;
 
     while (true) {
       try {
-        return RocksDB.open(dboptions, path, columnNames, familyHandles);
-      } catch (RocksDBException e) {
+        if (!noDBLogMessages) {
+          return RocksDB.open(dboptions, path, columnNames, familyHandles);
+        }
+        try (Logger logger = new Logger(dboptions) {
+          // Create new logger that ignores all messages.
+          @Override
+          protected void log(org.rocksdb.InfoLogLevel infoLogLevel, String logMsg) {
+            //Ignore all messages.
+          }
+        }) {
+          dboptions.setLogger(logger);
+          return RocksDB.open(dboptions, path, columnNames, familyHandles);
+        }
+    } catch (RocksDBException e) {
         if (e.getStatus().getCode() != Status.Code.IOError || !e.getStatus().getState().contains("While lock")) {
           throw e;
         }

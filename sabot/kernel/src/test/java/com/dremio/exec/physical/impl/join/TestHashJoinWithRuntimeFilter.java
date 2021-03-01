@@ -19,6 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
+import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
 
@@ -83,6 +84,87 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
       "  (select n_regionkey as key, convert_from(n_comment, 'utf8') as comment from %s)\n" +
       "where key = (select max(r_regionkey) from %s)", NATION, REGION);
     testPlanMatchingPatterns(sql, new String[] {"runtimeFilter.*N_REGIONKEY"});
+  }
+
+  @Test
+  public void testWithFilter() throws Exception {
+    String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+      + "%s nations \n"
+      + "JOIN\n"
+      + "%s regions \n"
+      + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+      + " where nations.n_NATIONKEY > 1 \n"
+      + "group by nations.N_NAME", NATION, REGION);
+    String include =  "runtimeFilter";
+    testPlanMatchingPatterns(sql, new String[]{include});
+  }
+
+  @Test
+  public void test3wayJoinWithLeftJoin() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+        + "%s nations \n"
+        + "LEFT JOIN\n"
+        + "%s regions \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + " JOIN\n"
+        + "%s nations2\n"
+        + " on nations.N_NATIONKEY = nations2.N_NATIONKEY\n"
+        + "group by nations.N_NAME", NATION, REGION, NATION);
+      String includedString = "runtimeFilter";
+      testPlanMatchingPatterns(sql, new String[]{includedString});
+    }
+  }
+
+  @Test
+  public void test3wayJoinWithRightJoinNegative() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+        + "%s nations \n"
+        + "RIGHT JOIN\n"
+        + "%s regions \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + " JOIN\n"
+        + "%s nations2\n"
+        + " on nations.N_NATIONKEY = nations2.N_NATIONKEY\n"
+        + "group by nations.N_NAME", NATION, REGION, NATION);
+      String excluded = "runtimeFilter";
+      testPlanMatchingPatterns(sql, null, excluded);
+    }
+  }
+
+  @Test
+  public void test3wayJoinWithRightJoin() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+        + "%s regions \n"
+        + "RIGHT JOIN\n"
+        + "%s nations \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + " JOIN\n"
+        + "%s nations2\n"
+        + " on nations.N_NATIONKEY = nations2.N_NATIONKEY\n"
+        + "group by nations.N_NAME", REGION, NATION, NATION);
+      String includedString = "runtimeFilter";
+      testPlanMatchingPatterns(sql, new String[]{includedString});
+    }
+  }
+
+  @Test
+  public void test3wayJoinWithLeftJoinNegative() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+        + "%s regions \n"
+        + "LEFT JOIN\n"
+        + "%s nations \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + " JOIN\n"
+        + "%s nations2\n"
+        + " on nations.N_NATIONKEY = nations2.N_NATIONKEY\n"
+        + "group by nations.N_NAME", REGION, NATION, NATION);
+      String includedString = "runtimeFilter";
+      testPlanMatchingPatterns(sql, null, includedString);
+    }
   }
 
   @Before

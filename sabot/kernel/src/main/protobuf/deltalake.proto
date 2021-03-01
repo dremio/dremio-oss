@@ -32,5 +32,5 @@ message DeltaLakeDatasetXAttr {
   optional int64 closestLocalSnapshot = 4; // Last written dremio equivalent of the DeltaLake snapshot (iceberg snapshot)
   optional int64 numFiles = 5; // Total number of parquet data files
   optional int64 sizeBytes = 6; // Total size in bytes of t he parquet data files
+  optional int64 numCommitJsonDataFileCount = 7; // Number of data files mentioned only in commit jsons (not in checkpoint)
 }
-

@@ -77,6 +77,7 @@ export default class FileUtils {
   static getHeaders() {
     const headers = new Headers();
     headers.append('Accept', '*');
+    headers.append('Content-Type', 'application/json');
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
     if (authToken) {
       headers.append('Authorization', authToken);

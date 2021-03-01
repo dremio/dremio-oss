@@ -28,7 +28,7 @@ public interface ExponentialBackoff {
     try {
       // Algorithm taken from https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
       // sleep = min(cap, base * 2 ^ attemptNumber)
-      final double sleep = Math.min(getMaxMillis(), getBaseMillis() * (1 << attemptNumber));
+      final double sleep = Math.min(getMaxMillis(), (long)getBaseMillis() * (1 << attemptNumber));
       Thread.sleep((long) (Math.random() * (sleep + 1)));
     } catch (InterruptedException e) {
       // Preserve interrupt status.

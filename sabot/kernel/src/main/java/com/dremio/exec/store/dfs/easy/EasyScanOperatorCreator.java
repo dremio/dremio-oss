@@ -146,7 +146,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
 
                       RecordReader inner =
                           formatPlugin.getRecordReader(
-                              context, fs, input.getExtended(), innerFields);
+                              context, fs, input.getSplit(), input.getExtended(), innerFields, fragmentExecContext, config);
                       return readerConfig.wrapIfNecessary(
                           context.getAllocator(), inner, input.getSplit());
                     } catch (ExecutionSetupException e) {

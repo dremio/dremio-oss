@@ -70,6 +70,9 @@ public class DremioCost implements RelOptCost {
   // cost of copying data (per cell)
   public static final int COPY_COST = 1 * BASE_CPU_COST;
 
+  public static final long LARGE_ROW_COUNT = 1_000_000_000L;
+  public static final long LARGE_FILE_COUNT = 50_000L; // large file count for metadata scan operations
+
   // Default cost for unknown cost and row count.
   public static final double BIG_ROW_COUNT = 1_000_000_000D;
 

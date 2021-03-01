@@ -21,5 +21,8 @@ const editionType = process.env.EDITION_TYPE || 'ce'; // community
 module.exports = {
   getVersion() {
     return `${version}-${editionType}`;
+  },
+  getEdition() {
+    return editionType;
   }
 };

@@ -15,12 +15,14 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static org.apache.iceberg.expressions.Expressions.greaterThanOrEqual;
 import static org.joda.time.DateTimeZone.UTC;
 
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Time;
 import java.util.List;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -30,10 +32,15 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
+import org.apache.iceberg.types.Types;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.junit.Assert;
@@ -1207,6 +1214,51 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  public void testWriteMinMaxAndVerifyPruning() throws Exception {
+    final String tableName = "testWriteMinMaxAndVerifyPruning";
+    try (AutoCloseable c = enableIcebergTables()) {
+      test("create table " + TEMP_SCHEMA + "." + tableName +
+        " (col1 boolean, col2 int, col3 bigint, col4 float, col5 double, " +
+        "col6 decimal(15,3), col7 date, col8 time, " +
+        "col9 timestamp, col10 varchar)");
+
+      test("insert into " + TEMP_SCHEMA + "." + tableName +
+        " select * from (values(false, 1, 1, cast(1.0 as float), cast(1.0 as double), " +
+        "cast(1.0 as decimal(15,3)), cast('2019-12-25' as date), cast('12:00:00' as time), " +
+        "cast('2019-12-25 12:00:00' as timestamp), 'abc'))");
+
+      test("insert into " + TEMP_SCHEMA + "." + tableName +
+        " select * from (values(true, 10, 10, cast(10.0 as float), cast(10.0 as double), " +
+        "cast(10.0 as decimal(15,3)), cast('2019-12-26' as date), cast('12:10:00' as time), " +
+        "cast('2019-12-26 12:10:00' as timestamp), 'def'))");
+
+      test("insert into " + TEMP_SCHEMA + "." + tableName +
+        " select * from (values(true, 100, 100, cast(100.0 as float), cast(100.0 as double), " +
+        "cast(100.0 as decimal(15,3)), cast('2019-12-27' as date), cast('12:20:00' as time), " +
+        "cast('2019-12-27 12:20:00' as timestamp), 'ghi'))");
+
+      File tableDir = new File(getDfsTestTmpSchemaLocation(), tableName);
+      Table icebergTable = new HadoopTables(new Configuration()).load(tableDir.getPath());
+
+      Iterable<DataFile> files = FindFiles.in(icebergTable)
+        .withRecordsMatching(greaterThanOrEqual("col1", true))
+        .withRecordsMatching(greaterThanOrEqual("col2", 10))
+        .withRecordsMatching(greaterThanOrEqual("col3", 10L))
+        .withRecordsMatching(greaterThanOrEqual("col4", 10.0f))
+        .withRecordsMatching(greaterThanOrEqual("col5", 10.0d))
+        .withRecordsMatching(greaterThanOrEqual("col6", 10.0d))
+        .withRecordsMatching(greaterThanOrEqual("col7", "2019-12-26"))
+        .withRecordsMatching(greaterThanOrEqual("col8", Literal.of("12:10:00").to(Types.TimeType.get()).value()))
+        .withRecordsMatching(greaterThanOrEqual("col9", Literal.of("2019-12-26T12:10:00").to(Types.TimestampType.withoutZone()).value()))
+        .withRecordsMatching(greaterThanOrEqual("col10", "def"))
+        .collect();
+      Assert.assertEquals(2, pathSet(files).size());
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+    }
+  }
+
+  @Test
   public void testInsertValuesPartitionedTable() throws Exception {
     final String table1 = "insertTable2";
 
@@ -1443,4 +1495,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
     }
   }
 
+  private Set<String> pathSet(Iterable<DataFile> files) {
+    return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
 }

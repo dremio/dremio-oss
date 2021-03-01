@@ -22,6 +22,7 @@ import { LOGOUT_USER_START, NO_USERS_ERROR } from 'actions/account';
 import developmentOptions from 'dyn-load/reducers/developmentOptions';
 import account from '@inject/reducers/account';
 import admin from 'dyn-load/reducers/admin';
+import init from '@app/reducers/init';
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 
@@ -46,6 +47,7 @@ const appReducers = combineReducers({
   ui,
   home,
   account,
+  init,
   jobs,
   modals,
   admin,
@@ -113,10 +115,10 @@ export default cancelAction(function rootReducer(state, action) {
   // (we also don't want to do anything differently on failure)
   // also need to clear out and socket close for NO_USERS_ERROR
   if (action.type === LOGOUT_USER_START || action.type === NO_USERS_ERROR) {
-    // reset the app state (but keep routing)
+    // reset the app state (but keep routing and init state)
     // (this needs to happen before other reducers so that they go back to their initial state - thus why this is in this file)
-    const { routing } = state || {};
-    nextState = { routing };
+    const { routing, init: initState } = state || {};
+    nextState = { routing, init: initState };
   }
 
   const result = appReducers(nextState, action);

@@ -50,6 +50,8 @@ import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
+import com.dremio.exec.store.parquet.GlobalDictionaries;
+import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -270,9 +272,28 @@ public class TestHiveRecordReaderIterator {
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
 
-        List<SplitReaderCreator> creators = Collections.EMPTY_LIST;
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreator> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+        PrefetchingIterator it = new PrefetchingIterator(new SplitReaderCreatorIterator() {
+          @Override
+          public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+
+          }
+
+          @Override
+          public void close() throws Exception {
+
+          }
+
+          @Override
+          public boolean hasNext() {
+            return false;
+          }
+
+          @Override
+          public SplitReaderCreator next() {
+            return null;
+          }
+        });
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter = prepareRuntimeFilter();
             closer.add(filter.getPartitionColumnFilter().getBloomFilter());

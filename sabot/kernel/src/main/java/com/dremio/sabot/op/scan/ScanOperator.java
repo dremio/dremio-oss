@@ -257,6 +257,27 @@ public class ScanOperator implements ProducerOperator {
     return state;
   }
 
+  public static void handleExceptionDuringScan(Exception e, Collection<List<String>> referencedTables, Logger logger) throws Exception {
+    if (ErrorHelper.findWrappedCause(e, FileNotFoundException.class) != null) {
+      if (e instanceof UserException) {
+        throw UserException.invalidMetadataError(e.getCause())
+          .addContext(((UserException)e).getOriginalMessage())
+          .setAdditionalExceptionContext(
+            new InvalidMetadataErrorContext(
+              ImmutableList.copyOf(referencedTables)))
+          .build(logger);
+      } else {
+        throw UserException.invalidMetadataError(e)
+          .setAdditionalExceptionContext(
+            new InvalidMetadataErrorContext(
+              ImmutableList.copyOf(referencedTables)))
+          .build(logger);
+      }
+    } else {
+      throw e;
+    }
+  }
+
   protected void setupReader(RecordReader reader) throws Exception {
     try {
       BatchSchema initialSchema = outgoing.getSchema();
@@ -265,24 +286,7 @@ public class ScanOperator implements ProducerOperator {
       checkAndLearnSchema();
       Preconditions.checkArgument(initialSchema.equals(outgoing.getSchema()), "Schema changed but not detected.");
     } catch (Exception e) {
-      if (ErrorHelper.findWrappedCause(e, FileNotFoundException.class) != null) {
-        if (e instanceof UserException) {
-          throw UserException.invalidMetadataError(e.getCause())
-              .addContext(((UserException)e).getOriginalMessage())
-              .setAdditionalExceptionContext(
-                  new InvalidMetadataErrorContext(
-                      ImmutableList.copyOf(config.getReferencedTables())))
-              .build(logger);
-        } else {
-          throw UserException.invalidMetadataError(e)
-            .setAdditionalExceptionContext(
-              new InvalidMetadataErrorContext(
-                ImmutableList.copyOf(config.getReferencedTables())))
-            .build(logger);
-        }
-      } else {
-        throw e;
-      }
+      ScanOperator.handleExceptionDuringScan(e, config.getReferencedTables(), logger);
     }
   }
 
@@ -524,32 +528,7 @@ public class ScanOperator implements ProducerOperator {
     closeables.addAll(runtimeFilters);
     AutoCloseables.close(closeables);
     OperatorStats operatorStats = context.getStats();
-    OperatorStats.IOStats ioStats = operatorStats.getReadIOStats();
-    OperatorStats.IOStats ioStatsMetadata = operatorStats.getMetadataReadIOStats();
-
-    UserBitShared.OperatorProfileDetails.Builder profileDetailsBuilder = UserBitShared.OperatorProfileDetails.newBuilder();
-
-
-    if (ioStats != null) {
-      long minIOReadTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
-      operatorStats.setLongStat(Metric.MIN_IO_READ_TIME_NS, minIOReadTime);
-      operatorStats.setLongStat(Metric.MAX_IO_READ_TIME_NS, ioStats.maxIOTime.longValue());
-      operatorStats.setLongStat(Metric.AVG_IO_READ_TIME_NS, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
-      operatorStats.addLongStat(Metric.NUM_IO_READ, ioStats.numIO.longValue());
-      profileDetailsBuilder.addAllSlowIoInfos(ioStats.slowIOInfoList);
-    }
-
-    if(ioStatsMetadata != null) {
-      long minMetadataIOReadTime = ioStatsMetadata.minIOTime.longValue() <= ioStatsMetadata.maxIOTime.longValue() ? ioStatsMetadata.minIOTime.longValue() : 0;
-      operatorStats.addLongStat(Metric.MIN_METADATA_IO_READ_TIME_NS, minMetadataIOReadTime);
-      operatorStats.addLongStat(Metric.MAX_METADATA_IO_READ_TIME_NS, ioStatsMetadata.maxIOTime.longValue());
-      operatorStats.addLongStat(Metric.AVG_METADATA_IO_READ_TIME_NS, ioStatsMetadata.numIO.get() == 0 ? 0 : ioStatsMetadata.totalIOTime.longValue() / ioStatsMetadata.numIO.get());
-      operatorStats.addLongStat(Metric.NUM_METADATA_IO_READ, ioStatsMetadata.numIO.longValue());
-      profileDetailsBuilder.addAllSlowMetadataIoInfos(ioStatsMetadata.slowIOInfoList);
-    }
-
-    operatorStats.setProfileDetails(profileDetailsBuilder.build());
-
+    operatorStats.setReadIOStats();
     onScanDone();
   }
 

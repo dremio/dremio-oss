@@ -69,17 +69,17 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
 import com.google.common.collect.Lists;
 
 /**
  * Converter for iceberg schema to BatchSchema, and vice-versa.
  */
 public class SchemaConverter {
-
-  public SchemaConverter() {
+  private SchemaConverter() {
   }
 
-  public BatchSchema fromIceberg(org.apache.iceberg.Schema icebergSchema) {
+  public static BatchSchema fromIceberg(Schema icebergSchema) {
     return new BatchSchema(icebergSchema
       .columns()
       .stream()
@@ -170,26 +170,23 @@ public class SchemaConverter {
     }
   }
 
-  public static class NextIDImpl implements TypeUtil.NextID {
-    private int id = 0;
-    public int get() {
-      int curid = id;
-      id++;
-      return curid;
-    }
+  public static List<NestedField> toIcebergFields(List<Field> fields) {
+    UnboundedFieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
+    return fields.stream()
+      .map(field -> toIcebergColumn(field, fieldIdBroker))
+      .collect(Collectors.toList());
   }
 
-  public org.apache.iceberg.Schema toIceberg(BatchSchema schema) {
-    NextIDImpl id = new NextIDImpl();
-    return toIceberg(schema, id);
+  public static Schema toIcebergSchema(BatchSchema schema) {
+    return toIcebergSchema(schema, new UnboundedFieldIdBroker());
   }
 
-  public org.apache.iceberg.Schema toIceberg(BatchSchema schema, TypeUtil.NextID id) {
-    org.apache.iceberg.Schema icebergSchema = new org.apache.iceberg.Schema(schema
+  public static Schema toIcebergSchema(BatchSchema batchSchema, FieldIdBroker fieldIdBroker) {
+    Schema icebergSchema = new Schema(batchSchema
       .getFields()
       .stream()
-      .filter(x -> !x.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD))
-      .map(x -> toIcebergColumn(x, id))
+      .filter(field -> !field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD))
+      .map(field -> toIcebergColumn(field, fieldIdBroker))
       .collect(Collectors.toList()));
 
     return TypeUtil.assignIncreasingFreshIds(icebergSchema);
@@ -197,8 +194,8 @@ public class SchemaConverter {
 
   public static NestedField changeIcebergColumn(Field field, NestedField icebergField) {
     try {
-      return NestedField.optional(icebergField.fieldId(), field.getName(),
-        icebergField.type().isPrimitiveType() ? toIcebergType(CompleteType.fromField(field), new NextIDImpl()) : icebergField.type());
+      Type type = icebergField.type().isPrimitiveType() ? toIcebergType(CompleteType.fromField(field), null, new UnboundedFieldIdBroker()) : icebergField.type();
+      return NestedField.optional(icebergField.fieldId(), field.getName(), type);
     } catch (Exception e) {
       throw UserException.unsupportedError(e)
         .message("conversion from arrow type to iceberg type failed for field " + field.getName())
@@ -206,9 +203,17 @@ public class SchemaConverter {
     }
   }
 
-  public static NestedField toIcebergColumn(Field field, TypeUtil.NextID id) {
+  static NestedField toIcebergColumn(Field field, FieldIdBroker fieldIdBroker) {
+    return toIcebergColumn(field, fieldIdBroker, null);
+  }
+
+  private static NestedField toIcebergColumn(Field field, FieldIdBroker fieldIdBroker, String fullName) {
     try {
-      return NestedField.optional(id.get(), field.getName(), toIcebergType(CompleteType.fromField(field), id));
+      if (fullName == null) {
+        fullName = field.getName();
+      }
+      int columnId = fieldIdBroker.get(fullName);
+      return NestedField.optional(columnId, field.getName(), toIcebergType(CompleteType.fromField(field), fullName, fieldIdBroker));
     } catch (Exception e) {
       throw UserException.unsupportedError(e)
         .message("conversion from arrow type to iceberg type failed for field " + field.getName())
@@ -216,7 +221,7 @@ public class SchemaConverter {
     }
   }
 
-  private static Type toIcebergType(CompleteType completeType, TypeUtil.NextID id) {
+  private static Type toIcebergType(CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
     ArrowType arrowType = completeType.getType();
     return arrowType.accept(new ArrowTypeVisitor<Type>() {
       @Override
@@ -229,14 +234,14 @@ public class SchemaConverter {
         List<NestedField> children = completeType
           .getChildren()
           .stream()
-          .map(x -> toIcebergColumn(x, id))
+          .map(field -> toIcebergColumn(field, fieldIdBroker, fullName + "." + field.getName()))
           .collect(Collectors.toList());
         return StructType.of(children);
       }
 
       @Override
       public Type visit(ArrowType.List list) {
-        NestedField inner = toIcebergColumn(completeType.getOnlyChild(), id);
+        NestedField inner = toIcebergColumn(completeType.getOnlyChild(), fieldIdBroker, fullName + ".list.element");
         return ListType.ofOptional(inner.fieldId(), inner.type());
       }
 
@@ -252,16 +257,9 @@ public class SchemaConverter {
 
       @Override
       public Type visit(Map map) {
-        List<NestedField> children = completeType
-          .getChildren()
-          .stream()
-          .map(x -> toIcebergColumn(x, id))
-          .collect(Collectors.toList());
-        return MapType.ofOptional(
-          children.get(0).fieldId(),
-          children.get(1).fieldId(),
-          children.get(0).type(),
-          children.get(1).type());
+        NestedField key = toIcebergColumn(completeType.getChildren().get(0), fieldIdBroker, fullName + ".key");
+        NestedField value = toIcebergColumn(completeType.getChildren().get(1), fieldIdBroker, fullName + ".value");
+        return MapType.ofOptional(key.fieldId(), value.fieldId(), key.type(), value.type());
       }
 
       @Override
@@ -346,32 +344,5 @@ public class SchemaConverter {
         throw new UnsupportedOperationException("Unsupported arrow type : " + arrowType);
       }
     });
-  }
-
-  public static Schema getChildSchemaForStruct(Schema schema, String structName) {
-    if (schema == null) {
-      return null;
-    }
-
-    NestedField structField = schema.findField(structName);
-    if (!structField.type().isStructType()) {
-      return null;
-    }
-
-    return new Schema(structField.type().asStructType().fields());
-  }
-
-  public static Schema getChildSchemaForList(Schema schema, String listName) {
-    if (schema == null) {
-      return null;
-    }
-
-    NestedField listField = schema.findField(listName);
-    if (!listField.type().isListType()) {
-      return null;
-
-    }
-
-    return new Schema(listField.type().asListType().fields().get(0));
   }
 }

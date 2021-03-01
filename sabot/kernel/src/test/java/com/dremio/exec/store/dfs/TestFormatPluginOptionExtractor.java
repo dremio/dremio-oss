@@ -71,7 +71,7 @@ public class TestFormatPluginOptionExtractor extends ExecTest {
             d.presentParams());
           break;
         case "delta":
-          assertEquals(d.typeName, "(type: String, dataFormatType: FileType)", d.presentParams());
+          assertEquals(d.typeName, "(type: String, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)", d.presentParams());
           break;
         default:
           fail("add validation for format plugin type " + d.typeName);

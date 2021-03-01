@@ -21,10 +21,12 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,13 +60,14 @@ public class UserStatsResource {
   }
 
   @GET
-  public UserStats getActiveUserStats() {
+  public UserStats getActiveUserStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
+                                      @QueryParam("end") @DefaultValue("0") long endEpoch) {
     try {
       final UserStats.Builder activeUserStats = new UserStats.Builder();
       activeUserStats.setEdition(editionProvider.getEdition());
-
+      final String filter = createJobFilter(startEpoch,endEpoch);
       final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setFilterString(String.format(FILTER, getStartOfLastMonth(), System.currentTimeMillis()))
+        .setFilterString(filter)
         .build();
       final Iterable<JobSummary> resultantJobs = jobsService.searchJobs(request);
       for (JobSummary job : resultantJobs) {
@@ -75,5 +78,12 @@ public class UserStatsResource {
       logger.error("Error while computing active user stats", e);
       throw new InternalServerErrorException(e);
     }
+  }
+
+  private String createJobFilter(long startEpoch, long endEpoch) {
+    final long end = endEpoch > 0 ? endEpoch : System.currentTimeMillis();
+    final long start = startEpoch > 0 ? startEpoch : getStartOfLastMonth();
+    final String filter = String.format(FILTER, start, end);
+    return filter;
   }
 }

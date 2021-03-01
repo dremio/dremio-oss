@@ -21,10 +21,11 @@ import {
   LOGIN_USER_SUCCESS, LOGOUT_USER_SUCCESS, NO_USERS_ERROR, UNAUTHORIZED_ERROR
 } from '@app/actions/account';
 import intercomUtils from '@app/utils/intercomUtils';
-import socket from '@app/utils/socket';
+import socket from '@inject/utils/socket';
 import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import { isAuthorized } from '@inject/sagas/utils/isAuthorized';
 import { default as handleAppInitHelper } from '@inject/sagas/utils/handleAppInit';
+import { appInitComplete } from '@app/actions/app';
 
 //#region Route constants. Unfortunately should store these constants here (not in routes.js) to
 // avoid module circular references
@@ -68,9 +69,11 @@ export function* checkAppState() {
   if (!isUserValid) {
     log('clear user data and token as a user is invalid');
     yield call([localStorageUtils, localStorageUtils.clearUserData]);
+    yield put(appInitComplete());
     return;
   }
   yield call(handleAppInit);
+  yield put(appInitComplete());
 }
 
 let isAppInit = false;
@@ -99,7 +102,7 @@ export function* handleAppStop() {
   isAppInit = false;
 }
 
-function* handleLogout() {
+export function* handleLogout() {
   /*
     must be before localStorageUtils.clearUserData, as we use user data to check if a user is authorized
     to use intercom

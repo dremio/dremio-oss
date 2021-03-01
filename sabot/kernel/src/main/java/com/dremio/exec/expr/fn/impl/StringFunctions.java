@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import static com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder;
 
 import java.nio.charset.Charset;
 
@@ -1689,6 +1690,31 @@ public class StringFunctions{
 
         index -= charlen;
       }
+    }
+  }
+
+  /**
+   * Replaces all instances of a given substring with another string and returns the result.
+   */
+  @FunctionTemplate(name = "translate3", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class Translate3 implements SimpleFunction {
+    @Param  VarCharHolder in;
+    @Param  VarCharHolder searchChars;
+    @Param  VarCharHolder replaceChars;
+    @Output VarCharHolder out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      final byte[] outBytea = org.apache.commons.lang3.StringUtils.replaceChars(getStringFromVarCharHolder(in), getStringFromVarCharHolder(searchChars), getStringFromVarCharHolder(replaceChars)).getBytes();
+
+      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer.setBytes(0, outBytea);
+      out.start = 0;
+      out.end = outBytea.length;
     }
   }
 }

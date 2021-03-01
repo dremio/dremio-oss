@@ -130,4 +130,6 @@ message IcebergFileConfig {
 
 message  DeltalakeFileConfig {
   option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
+
+  optional ParquetFileConfig parquet_data_format = 1;
 }

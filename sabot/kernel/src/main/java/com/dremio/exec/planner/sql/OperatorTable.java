@@ -38,6 +38,8 @@ public class OperatorTable implements SqlOperatorTable {
   private static final SqlOperatorTable stdOperatorTable = SqlStdOperatorTable.instance();
   private static final SqlOperatorTable oracleOperatorTable =
       new ListSqlOperatorTable(OracleSqlOperatorTable.instance().getOperatorList().stream()
+        .filter(op -> op != OracleSqlOperatorTable.LTRIM)
+        .filter(op -> op != OracleSqlOperatorTable.RTRIM)
         .filter(op -> op != OracleSqlOperatorTable.SUBSTR) // calcite does not support oracles substring CALCITE-4408
         .filter(op -> op != OracleSqlOperatorTable.DECODE) // Dremio currently uses hive decode
         .collect(Collectors.toList()));

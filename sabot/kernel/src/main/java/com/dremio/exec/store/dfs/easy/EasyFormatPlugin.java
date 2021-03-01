@@ -30,6 +30,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.BaseFormatPlugin;
 import com.dremio.exec.store.dfs.BasicFormatMatcher;
 import com.dremio.exec.store.dfs.CompleteFileWork;
@@ -43,6 +44,7 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
@@ -109,7 +111,16 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       EasyDatasetSplitXAttr splitAttributes,
       List<SchemaPath> columns) throws ExecutionSetupException;
 
-
+  public RecordReader getRecordReader(
+          OperatorContext context,
+          FileSystem dfs,
+          SplitAndPartitionInfo split,
+          EasyDatasetSplitXAttr splitAttributes,
+          List<SchemaPath> columns,
+          FragmentExecutionContext fec,
+          EasySubScan config) throws ExecutionSetupException {
+    return getRecordReader(context, dfs, splitAttributes, columns);
+  }
 
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, FileAttributes attributes) throws ExecutionSetupException {

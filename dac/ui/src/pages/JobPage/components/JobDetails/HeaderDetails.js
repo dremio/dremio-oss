@@ -83,12 +83,17 @@ class HeaderDetails extends Component {
     // datasetPathList.
     const datasetFullPath = jobDetails.get('datasetPathList')
         || jobDetails.getIn(['parentsList', 0, 'datasetPathList']);
-
-    const fullPath = constructFullPathAndEncode(datasetFullPath);
+    let fullPath;
+    if (datasetFullPath && datasetFullPath.size > 0) {
+      // Todo: This is a temporary fix to avoid double quotes around Space. DX-27492
+      fullPath = `${datasetFullPath.get(0)}.${constructFullPathAndEncode(datasetFullPath.slice(1))}`;
+    } else {
+      fullPath = constructFullPathAndEncode(datasetFullPath);
+    }
     const resourcePath  = constructResourcePath(fullPath);
-
     const nextLocation = {
-      pathname: datasetPathUtils.toHref(resourcePath),
+      // Setting pathname as temp/UNTITLED in case we dont have a datasetPath available
+      pathname: datasetFullPath ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
       query: {jobId, version: jobDetails.get('datasetVersion')}
     };
 

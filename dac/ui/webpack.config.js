@@ -19,9 +19,9 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const SentryCliPlugin = require('@sentry/webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const { getVersion } = require('./scripts/versionUtils');
+const { getVersion, getEdition } = require('./scripts/versionUtils');
 const dynLoader = require('./dynLoader');
-const injectionResolver = require('./scripts/injectionResolver');
+const { injectionPath, InjectionResolver } = require('./scripts/injectionResolver');
 
 dynLoader.applyNodeModulesResolver();
 dynLoader.applyTSConfig();
@@ -33,6 +33,7 @@ const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const skipSourceMapUpload = process.env.SKIP_SENTRY_STEP === 'true';
 const dremioVersion = getVersion();
 const devtool = isProductionBuild ? 'source-map' : 'eval-source-map';  // chris says: '#cheap-eval-source-map' is really great for debugging
+const isStaticDremioConfig = process.env.STATIC_DREMIO_CONFIG === 'true';
 
 
 let outputPath = path.join(__dirname, 'build');
@@ -80,7 +81,11 @@ class BuildInfo {
 
           // because config is relying on freemarker template variables to be interpreted by the server
           // at runtime, config has to be string (and not an object). ${dremio} is a freemaker variable.
-          const config = isProductionBuild ? 'JSON.parse(\'${dremio?js_string}\')' : 'null';
+          let config = isProductionBuild ? 'JSON.parse(\'${dremio?js_string}\')' : 'null';
+
+          if (isProductionBuild && isStaticDremioConfig) {
+            config = JSON.stringify({ edition: getEdition() });
+          }
 
           htmlPluginData.plugin.options.config = config;
           callback(null, htmlPluginData);
@@ -139,11 +144,13 @@ const getStyleLoader = (isCss) => {
   };
 };
 
+const injectionPathAsList = injectionPath ? [injectionPath] : [];
+
 const rules = [
   {
     test : /\.(js(x)?|ts(x)?)$/,
     exclude: /node_modules(?!\/regenerator-runtime|\/redux-saga|\/whatwg-fetch)/,
-    include:  [__dirname, dynLoader.path],
+    include:  [__dirname, dynLoader.path, ...injectionPathAsList],
     use: [babelLoader]
   },
   getStyleLoader(false),
@@ -313,7 +320,7 @@ const config = {
           : './src/components/Icon/icons/Narwhal-Logo-With-Name-Light.svg'
       )
     },
-    plugins: [new injectionResolver()]
+    plugins: [new InjectionResolver()]
   }
 };
 

@@ -25,6 +25,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Date;
+import java.sql.DriverManager;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +42,7 @@ import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.MetaStoreTestUtils;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
 import org.apache.hadoop.hive.metastore.security.HadoopThriftAuthBridge;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -57,6 +59,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.io.Resources;
 
 public class HiveTestDataGenerator {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
   public static final String HIVE_TEST_PLUGIN_NAME = "hive";
   public static final String HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE = "hive plugin name with whitespace";
   private static volatile HiveTestDataGenerator instance;
@@ -64,7 +67,7 @@ public class HiveTestDataGenerator {
   private final String dbDir;
   private final String whDir;
   private final Map<String, String> config;
-  private final int port;
+  private int port;
 
   public static synchronized HiveTestDataGenerator getInstance() throws Exception {
     return getInstance(null);
@@ -99,14 +102,37 @@ public class HiveTestDataGenerator {
     // Disable direct SQL as it might cause not all schemas to be created
     MetastoreConf.setBoolVar(conf, MetastoreConf.ConfVars.TRY_DIRECT_SQL, false);
     MetastoreConf.setVar(conf, MetastoreConf.ConfVars.WAREHOUSE, whDirBase);
-    MetastoreConf.setVar(conf, MetastoreConf.ConfVars.CONNECT_URL_KEY, String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
+    // Configure metastore persistence db location on local filesystem
+    final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", dbDir);
+    // Set login timeout to 60 seconds
+    DriverManager.setLoginTimeout(60);
+    // Create the database for metastore in derby
+    DriverManager.getConnection(dbUrl);
+    MetastoreConf.setVar(conf, MetastoreConf.ConfVars.CONNECT_URL_KEY, dbUrl);
     HiveConf.setVar(conf, ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
     if (config != null) {
       config.forEach(conf::set);
     }
 
-    this.port = MetaStoreTestUtils.startMetaStoreWithRetry(HadoopThriftAuthBridge.getBridge(), conf);
     this.whDir = MetastoreConf.getVar(conf, MetastoreConf.ConfVars.WAREHOUSE);
+    final int maxRetries = 10;
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        port = MetaStoreUtils.startMetaStore(conf);
+        // Try to connect to hive to check if it's healthy
+        final SessionState ss = new SessionState(newHiveConf());
+        SessionState.start(ss);
+        ss.close();
+        logger.info("Start hive meta store successfully.");
+        break;
+      } catch (Exception e) {
+        if (i == maxRetries -1) {
+          throw new RuntimeException(String.format("Failed to start hive meta store after %d retries.", maxRetries), e);
+        }
+        logger.info("Failed to start hive meta store, will retry after 10 seconds.", e);
+        Thread.sleep(10_000);
+      }
+    }
 
     this.config = new HashedMap<>();
     this.config.put(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");

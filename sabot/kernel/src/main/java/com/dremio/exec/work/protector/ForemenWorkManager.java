@@ -45,6 +45,7 @@ import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -64,6 +65,7 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.QueryCancelTool;
+import com.dremio.resource.RuleBasedEngineSelector;
 import com.dremio.sabot.exec.CancelQueryContext;
 import com.dremio.sabot.rpc.CoordExecService.NoExecToCoordResultsHandler;
 import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
@@ -127,6 +129,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
   private CloseableExecutorService pool;
+  private Provider<RuleBasedEngineSelector> ruleBasedEngineSelector;
   private ExecToCoordResultsHandler execToCoordResultsHandler;
   private CoordTunnelCreator coordTunnelCreator;
   private UserWorker userWorker;
@@ -140,7 +143,8 @@ public class ForemenWorkManager implements Service, SafeExit {
           final Provider<MaestroService> maestroService,
           final Provider<JobTelemetryClient> jobTelemetryClient,
           final Provider<MaestroForwarder> forwarder,
-          final Tracer tracer) {
+          final Tracer tracer,
+          final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector) {
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.commandPool = commandPool;
@@ -149,6 +153,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.forwarder = forwarder;
 
     this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"), tracer);
+    this.ruleBasedEngineSelector = ruleBasedEngineSelector;
     this.execToCoordResultsHandler = new NoExecToCoordResultsHandler();
     this.foremenTool = new ForemenToolImpl();
     this.queryCancelTool = new QueryCancelToolImpl();
@@ -232,7 +237,7 @@ public class ForemenWorkManager implements Service, SafeExit {
                                QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
                                ReAttemptHandler attemptHandler, Cache<Long, PreparedPlan> plans) {
     return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
-            attemptHandler, plans, maestroService.get(), jobTelemetryClient.get());
+            attemptHandler, plans, maestroService.get(), jobTelemetryClient.get(), ruleBasedEngineSelector.get());
   }
 
   /**
@@ -503,7 +508,24 @@ public class ForemenWorkManager implements Service, SafeExit {
                 final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
                 submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
                 return null;
-              }, request.runInSameThread());
+              }, request.runInSameThread())
+      .whenComplete((o, e)-> {
+        if (e != null) {
+          QueryProfile profile = foremenTool.getProfile(externalId).isPresent() ?
+            foremenTool.getProfile(externalId).get() : null;
+          UserException exception = UserException.resourceError()
+                                                 .message(e.getMessage() + ". Root cause: " + Throwables.getRootCause(e).getMessage())
+                                                 .buildSilently();
+          UserResult result = new UserResult(null,
+            ExternalIdHelper.toQueryId(externalId),
+            UserBitShared.QueryResult.QueryState.FAILED,
+            profile,
+            exception,
+            null,
+            false);
+          responseHandler.completed(result);
+       }
+      });
     }
 
     @Override

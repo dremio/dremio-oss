@@ -70,9 +70,6 @@ public class IcebergCatalog {
 
   public static PartitionSpec getIcebergPartitionSpec(BatchSchema batchSchema,
                                                       List<String> partitionColumns) {
-    SchemaConverter schemaConverter = new SchemaConverter();
-    Schema schema;
-
     // match partition column name with name in schema
     List<String> partitionColumnsInSchemaCase = new ArrayList<>();
     if (partitionColumns != null) {
@@ -94,7 +91,7 @@ public class IcebergCatalog {
     }
 
     try {
-      schema = schemaConverter.toIceberg(batchSchema);
+      Schema schema = SchemaConverter.toIcebergSchema(batchSchema);
       PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
         for (String column : partitionColumnsInSchemaCase) {
           partitionSpecBuilder.identity(column);
@@ -108,10 +105,9 @@ public class IcebergCatalog {
   public void beginCreateTable(String tableName, BatchSchema writerSchema, List<String> partitionColumns) {
     Preconditions.checkState(transaction == null, "Unexpected state");
     IcebergTableOperations tableOperations = new IcebergTableOperations(fsPath, configuration);
-    SchemaConverter schemaConverter = new SchemaConverter();
     Schema schema;
     try {
-      schema = schemaConverter.toIceberg(writerSchema);
+      schema = SchemaConverter.toIcebergSchema(writerSchema);
     } catch (Exception ex) {
       throw UserException.validationError(ex).buildSilently();
     }

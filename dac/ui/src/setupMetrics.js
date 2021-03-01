@@ -15,6 +15,7 @@
  */
 
 import metrics from './metrics';
+import './vendor/gtm';
 
 const setupMetrics = () => {
   window.DremioMetrics = metrics;

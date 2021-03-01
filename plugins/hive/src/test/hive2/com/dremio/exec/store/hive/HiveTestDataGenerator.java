@@ -25,6 +25,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Date;
+import java.sql.DriverManager;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +55,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
 
 public class HiveTestDataGenerator {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestDataGenerator.class);
   public static final String HIVE_TEST_PLUGIN_NAME = "hive";
   public static final String HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE = "hive plugin name with whitespace";
   private static volatile HiveTestDataGenerator instance;
@@ -61,7 +63,7 @@ public class HiveTestDataGenerator {
   private final String dbDir;
   private final String whDir;
   private final Map<String, String> config;
-  private final int port;   // Metastore server port
+  private int port;   // Metastore server port
 
   public static synchronized HiveTestDataGenerator getInstance() throws Exception {
     return getInstance(null);
@@ -88,13 +90,36 @@ public class HiveTestDataGenerator {
     HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
     HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_AUTO_CREATE_ALL, true);
     HiveConf.setVar(conf, HiveConf.ConfVars.METASTOREWAREHOUSE, whDir);
-    HiveConf.setVar(conf, HiveConf.ConfVars.METASTORECONNECTURLKEY, String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
+    // Configure metastore persistence db location on local filesystem
+    final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", dbDir);
+    // Set login timeout to 60 seconds
+    DriverManager.setLoginTimeout(60);
+    // Create the database for metastore in derby
+    DriverManager.getConnection(dbUrl);
+    HiveConf.setVar(conf, HiveConf.ConfVars.METASTORECONNECTURLKEY, dbUrl);
     if (cfg != null) {
       cfg.forEach(conf::set);
     }
     this.config = Maps.newHashMap();
     config.put(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
-    port = MetaStoreUtils.startMetaStore(conf);
+    final int maxRetries = 10;
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        port = MetaStoreUtils.startMetaStore(conf);
+        // Try to connect to hive to check if it's healthy
+        final SessionState ss = new SessionState(newHiveConf());
+        SessionState.start(ss);
+        ss.close();
+        logger.info("Start hive meta store successfully.");
+        return;
+      } catch (Exception e) {
+        if (i == maxRetries -1) {
+          throw new RuntimeException(String.format("Failed to start hive meta store after %d retries.", maxRetries), e);
+        }
+        logger.info("Failed to start hive meta store, will retry after 10 seconds.", e);
+        Thread.sleep(10_000);
+      }
+    }
   }
 
   public String getWhDir() {

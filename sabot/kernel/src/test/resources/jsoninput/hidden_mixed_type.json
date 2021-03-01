@@ -1,0 +1,28 @@
+{
+  field1: [
+    3,
+    4,
+    5
+  ],
+  field2: {
+    inner1: 3,
+    inner2: {
+      hidden1: "hello",
+      hidden2: 32
+    }
+  }
+}
+{
+  field1: [
+    3,
+    4,
+    5
+  ],
+  field2: {
+    inner1: 3,
+    inner2: {
+      hidden1: 32,
+      hidden2: "hello"
+    }
+  }
+}

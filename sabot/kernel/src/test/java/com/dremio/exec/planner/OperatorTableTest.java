@@ -78,6 +78,15 @@ public class OperatorTableTest extends BaseTestQuery{
       .go();
   }
 
+  @Test public void testTranslateWithCast() throws Exception{
+    testBuilder()
+      .sqlQuery("SELECT TRANSLATE('good 12e', CAST('12' AS VARCHAR), 'pi') AS \"my_field\"")
+      .ordered()
+      .baselineColumns("my_field")
+      .baselineValues( "good pie")
+      .go();
+  }
+
   @Test public void testLeastOperator() throws Exception {
     testBuilder()
         .sqlQuery("SELECT LEAST(CAST(1.5 AS float), CAST(123.12 AS decimal(5,2))) AS \"my_field\"")
@@ -101,11 +110,23 @@ public class OperatorTableTest extends BaseTestQuery{
         .baselineValues("hello ")
         .go();
     testBuilder()
+      .sqlQuery("SELECT LTRIM('helloworld','hello') AS \"my_field\"")
+      .ordered()
+      .baselineColumns("my_field")
+      .baselineValues("world")
+      .go();
+    testBuilder()
         .sqlQuery("SELECT RTRIM(' hello ') AS \"my_field\"")
         .ordered()
         .baselineColumns("my_field")
         .baselineValues(" hello")
         .go();
+    testBuilder()
+      .sqlQuery("SELECT RTRIM('helloworld','world') AS \"my_field\"")
+      .ordered()
+      .baselineColumns("my_field")
+      .baselineValues("he")
+      .go();
   }
 
   @Test public void testSubStr() throws Exception {

@@ -74,6 +74,14 @@ public class OperatorCreatorRegistry implements OperatorCreator {
   }
 
   @Override
+  public <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(FragmentExecutionContext fec, OperatorContext context, T operator) throws ExecutionSetupException {
+    SingleInputOperator.Creator<T> creator = (SingleInputOperator.Creator<T>) singleInputCreators
+            .get(operator.getClass());
+    Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());
+    return creator.create(fec, context, (T) operator);
+  }
+
+  @Override
   public <T extends PhysicalOperator> DualInputOperator getDualInputOperator(OperatorContext context, T operator) throws ExecutionSetupException {
     DualInputOperator.Creator<T> creator = (DualInputOperator.Creator<T>) dualInputCreators.get(operator.getClass());
     Preconditions.checkNotNull(creator, "Unable to find creator for operator of type %s with configuration %s", operator.getClass().getName(), operator.toString());

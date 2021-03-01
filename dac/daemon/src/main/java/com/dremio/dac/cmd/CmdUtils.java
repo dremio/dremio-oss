@@ -39,7 +39,7 @@ public final class CmdUtils {
    * @throws FileNotFoundException
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan) {
-    return getKVStoreProvider(dremioConfig, classPathScan, true);
+    return getKVStoreProvider(dremioConfig, classPathScan, true, false);
   }
 
   /**
@@ -49,7 +49,7 @@ public final class CmdUtils {
    * @param noDBOpenRetry
    * @return store provider
    */
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry) {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry, boolean noDBMessages) {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
     final File dbFile = new File(dbDir);
 
@@ -65,7 +65,7 @@ public final class CmdUtils {
     }
 
     return Optional.of(
-      new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry));
+      new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry, noDBMessages));
   }
 
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {

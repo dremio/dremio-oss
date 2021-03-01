@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.collections.IteratorUtils;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
@@ -493,11 +494,14 @@ class QueryProfileParser {
             case PRODUCER_CONSUMER:
               setOperationStats(OperationType.Producer_consumer, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
-
             case FLATTEN:
               setOperationStats(OperationType.Flatten, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
-
+            case TABLE_FUNCTION:
+              if(operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.PARQUET_DATA_SCAN.ordinal()) {
+                setScanStats(operatorType, operatorProfile, majorFragment);
+              }
+              break;
             default:
               break;
           }

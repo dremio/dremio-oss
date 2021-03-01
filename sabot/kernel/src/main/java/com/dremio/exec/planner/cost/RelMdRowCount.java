@@ -41,6 +41,7 @@ import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.FlattenPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 
 public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount {
   private static final RelMdRowCount INSTANCE = new RelMdRowCount();
@@ -146,6 +147,10 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
 
   public Double getRowCount(JdbcRelBase jdbc, RelMetadataQuery mq) {
     return jdbc.getSubTree().estimateRowCount(mq);
+  }
+
+  public Double getRowCount(TableFunctionPrel rel, RelMetadataQuery mq) {
+    return rel.estimateRowCount(mq);
   }
 
   public Double getRowCount(BroadcastExchangePrel rel, RelMetadataQuery mq) { return rel.estimateRowCount(mq); }

@@ -106,7 +106,21 @@ public class DeferredException implements AutoCloseable {
     if (suppressed.length > LIMIT_SUPRESSED_EXCEPTION) {
       exception1 = new Exception(exception.getMessage(), exception.getCause());
       for (int i = 0; i < LIMIT_SUPRESSED_EXCEPTION; i++) {
-        exception1.addSuppressed(suppressed[i]);
+        // walk down the chain and strip everything down
+        exception1.addSuppressed(limitSuppressedExeptions(suppressed[i]));
+      }
+    }
+    return exception1;
+  }
+
+  private Throwable limitSuppressedExeptions(Throwable exception) {
+    Throwable exception1 = exception;
+    final Throwable[] suppressed = exception.getSuppressed();
+    // strip down the suppressed exception to max
+    if (suppressed.length > LIMIT_SUPRESSED_EXCEPTION) {
+      exception1 = new Exception(exception.getMessage(), exception.getCause());
+      for (int i = 0; i < LIMIT_SUPRESSED_EXCEPTION; i++) {
+        exception1.addSuppressed(limitSuppressedExeptions(suppressed[i]));
       }
     }
     return exception1;

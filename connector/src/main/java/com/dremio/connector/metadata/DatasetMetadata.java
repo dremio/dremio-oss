@@ -38,6 +38,16 @@ public interface DatasetMetadata extends Unwrappable {
   DatasetStats getDatasetStats();
 
   /**
+   * Transactional table queries first scan manifest files, then the data files. Override this method to set stats
+   * associated with manifest scan
+   *
+   * @return dataset stats, not null
+   */
+  default DatasetStats getManifestStats() {
+    return null;
+  }
+
+  /**
    * Get the record schema for the dataset.
    *
    * @return record schema, not null

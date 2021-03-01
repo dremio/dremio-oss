@@ -16,11 +16,14 @@
 package com.dremio.common.types;
 
 import static com.dremio.common.expression.CompleteType.BIGINT;
+import static com.dremio.common.expression.CompleteType.BIT;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 
 import java.util.Optional;
+
+import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.expression.CompleteType;
 
@@ -38,15 +41,73 @@ public class TypeCoercionRules {
    * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
    */
   public static Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
-    if (fileType.equals(INT) && tableType.equals(BIGINT)) {
-      return Optional.of(BIGINT);
-    } else if (fileType.equals(FLOAT) && tableType.equals(DOUBLE)) {
-      return Optional.of(DOUBLE);
-    } else if (fileType.isDecimal() && tableType.isDecimal()) {
-      //TODO [DX-27284]: Use the table type as the resultant until the right behavior is determined
-      return Optional.of(tableType);
-    } else {
-      return Optional.empty();
+    if (fileType.equals(INT)) {
+      return getResultantTypeForIntFileType(tableType);
     }
+    if (fileType.equals(BIGINT)) {
+      return getResultantTypeForBigIntFileType(tableType);
+    }
+    if (fileType.equals(FLOAT)) {
+      return getResultantTypeForFloatFileType(tableType);
+    }
+    if (fileType.equals(DOUBLE)) {
+      return getResultantTypeForDoubleFileType(tableType);
+    }
+    if (fileType.equals(BIT)) {
+      return getResultantTypeForBooleanFileType(tableType);
+    }
+    if (fileType.isValidDecimal()) {
+      return getResultantTypeForDecimalFileType(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForIntFileType(CompleteType tableType) {
+    if (tableType.getType().getTypeID().equals(ArrowType.ArrowTypeID.FloatingPoint)) {
+      // INT to FLOAT coercions are lossy, so we coerce to double. INT to DOUBLE coercions as usual
+      return Optional.of(DOUBLE);
+    }
+    if (tableType.isValidDecimal() || tableType.equals(BIGINT) || tableType.isText()) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForBigIntFileType(CompleteType tableType) {
+    if (tableType.getType().getTypeID().equals(ArrowType.ArrowTypeID.FloatingPoint)) {
+      return Optional.of(DOUBLE);
+    }
+    if (tableType.isValidDecimal() || tableType.isText()) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForFloatFileType(CompleteType tableType) {
+    if (tableType.isValidDecimal() || tableType.isText() || tableType.equals(DOUBLE)) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForDoubleFileType(CompleteType tableType) {
+    if (tableType.isText()) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForBooleanFileType(CompleteType tableType) {
+    if (tableType.isText()) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType tableType) {
+    if (tableType.isValidDecimal() || tableType.isText() || tableType.equals(DOUBLE)) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
   }
 }

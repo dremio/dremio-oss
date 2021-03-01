@@ -16,6 +16,7 @@
 package com.dremio;
 
 import static com.dremio.TestBuilder.listOf;
+import static com.dremio.sabot.Fixtures.ts;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -39,10 +40,12 @@ import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionMatcher;
 
 public class TestExampleQueries extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
@@ -1930,6 +1933,33 @@ public class TestExampleQueries extends PlanTestBase {
       .unOrdered()
       .baselineColumns("l")
       .baselineValues("12")
+      .build()
+      .run();
+  }
+
+  @Test // DX-27938
+  public void testSpacedBooleanCast() throws Exception {
+    String query = "select cast(CAST('    true   ' AS VARCHAR) as boolean) as \"true\", Cast(CAST('     false' AS VARCHAR) as boolean) as \"false\"";
+    test(query);
+  }
+
+  @Test // DX-27938
+  public void testSpacedBooleanCast2() throws Exception {
+    String query = "select cast(CAST('    tru  e   ' AS VARCHAR) as boolean) as \"true\", Cast(CAST('     fal s e' AS VARCHAR) as boolean) as \"false\"";
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION,
+      "FUNCTION ERROR: Invalid value for boolean: 'tru  e'"));
+    test(query);
+  }
+
+  @Test // DX-27940
+  public void testShortTimeCasting() throws Exception {
+    String query = "select CAST(\'00:00\' AS time) res1 FROM (values (\'00:00:00\'))";
+
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues(ts("1970-01-01T00:00:00.000"))
       .build()
       .run();
   }

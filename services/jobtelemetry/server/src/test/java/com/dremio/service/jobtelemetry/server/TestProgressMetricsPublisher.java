@@ -16,6 +16,7 @@
 package com.dremio.service.jobtelemetry.server;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -67,7 +68,7 @@ public class TestProgressMetricsPublisher {
     publisher.addSubscriber(queryId, consumer);
 
     Thread.sleep(100);
-    assertEquals(0, recordsProcessed.value.longValue());
+    assertNull(recordsProcessed.value);
 
     putMetrics(queryId, 2, 100);
     Thread.sleep(100);
@@ -103,6 +104,9 @@ public class TestProgressMetricsPublisher {
 
     for (int i = 0; i < 4; i++) {
       assertEquals(200, recordsProcessedMap.get(i).longValue());
+    }
+
+    for (int i = 0; i < 4; i++) {
       publisher.removeSubscriber(queryId, consumers.get(i), true);
     }
   }
@@ -113,7 +117,7 @@ public class TestProgressMetricsPublisher {
     List<UserBitShared.QueryId> queryIdList = new ArrayList<>();
     List<Consumer<CoordExecRPC.QueryProgressMetrics>> consumers = new ArrayList<>();
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 1; i < 5; i++) {
       UserBitShared.QueryId queryId = UserBitShared.QueryId.newBuilder()
         .setPart1(1000)
         .setPart2(i)
@@ -124,14 +128,14 @@ public class TestProgressMetricsPublisher {
         x -> recordsProcessedMap.put((int)queryId.getPart2(), x.getRowsProcessed());
       consumers.add(consumer);
 
-      putMetrics(queryId, i, 100);
       publisher.addSubscriber(queryId, consumer);
+      putMetrics(queryId, i, 100);
     }
     Thread.sleep(100);
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 1; i < 5; i++) {
       assertEquals(i * 100, recordsProcessedMap.get(i).longValue());
-      publisher.removeSubscriber(queryIdList.get(i), consumers.get(i), true);
+      publisher.removeSubscriber(queryIdList.get(i-1), consumers.get(i-1), true);
     }
   }
 

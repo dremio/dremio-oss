@@ -536,6 +536,7 @@ message OperatorProfile {
   repeated MetricValue metric = 8;
   optional int64 wait_nanos = 9;
   optional OperatorProfileDetails details = 10;
+  optional int32 operator_subtype = 11;
 }
 
 message StreamProfile {
@@ -627,7 +628,10 @@ enum CoreOperatorType {
   ROUND_ROBIN_SENDER = 50;
   BOOST_PARQUET = 51;
   ICEBERG_SUB_SCAN = 52;
+  TABLE_FUNCTION = 53;
+  DELTALAKE_SUB_SCAN = 54;
 }
+
 message MetricDef {
   optional int32 id = 1;
   optional string name = 2;

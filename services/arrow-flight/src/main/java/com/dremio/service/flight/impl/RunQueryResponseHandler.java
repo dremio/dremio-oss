@@ -43,7 +43,9 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.protector.UserResponseHandler;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.flight.DremioFlightServiceOptions;
 import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -328,9 +330,8 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
    */
   public static class BackpressureHandlingResponseHandler extends RunQueryResponseHandler {
 
-    private static final long CLIENT_READINESS_TIMEOUT_MILLIS = 5000L;
-
     private final RunQueryBackpressureStrategy runQueryBackpressureStrategy;
+    private final OptionManager optionManager;
 
     BackpressureHandlingResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
                                         Provider<UserWorker> workerProvider,
@@ -338,11 +339,14 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
       super(runExternalId, userSession, workerProvider, clientListener, allocator);
       this.runQueryBackpressureStrategy = new RunQueryBackpressureStrategy(this::serverStreamListenerOnCancelledCallback);
       runQueryBackpressureStrategy.register(clientListener);
+      this.optionManager = workerProvider.get().getSystemOptions();
     }
 
     @VisibleForTesting
     WaitResult clientIsReadyForData() {
-      return runQueryBackpressureStrategy.waitForListener(CLIENT_READINESS_TIMEOUT_MILLIS);
+      return runQueryBackpressureStrategy.waitForListener(
+        optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS)
+      );
     }
   }
 

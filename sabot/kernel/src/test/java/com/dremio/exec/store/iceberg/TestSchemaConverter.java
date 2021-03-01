@@ -13,25 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.common.expression.CompleteType.BIGINT;
+import static com.dremio.common.expression.CompleteType.BIT;
+import static com.dremio.common.expression.CompleteType.DATE;
+import static com.dremio.common.expression.CompleteType.DOUBLE;
+import static com.dremio.common.expression.CompleteType.FLOAT;
+import static com.dremio.common.expression.CompleteType.INT;
+import static com.dremio.common.expression.CompleteType.TIME;
+import static com.dremio.common.expression.CompleteType.TIMESTAMP;
+import static com.dremio.common.expression.CompleteType.VARBINARY;
+import static com.dremio.common.expression.CompleteType.VARCHAR;
+import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeBinary;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.types.Types.NestedField;
-import org.junit.Before;
+import org.apache.iceberg.types.Types.BinaryType;
+import org.apache.iceberg.types.Types.BooleanType;
+import org.apache.iceberg.types.Types.DateType;
+import org.apache.iceberg.types.Types.DecimalType;
+import org.apache.iceberg.types.Types.DoubleType;
+import org.apache.iceberg.types.Types.FixedType;
+import org.apache.iceberg.types.Types.FloatType;
+import org.apache.iceberg.types.Types.IntegerType;
+import org.apache.iceberg.types.Types.ListType;
+import org.apache.iceberg.types.Types.LongType;
+import org.apache.iceberg.types.Types.MapType;
+import org.apache.iceberg.types.Types.StringType;
+import org.apache.iceberg.types.Types.StructType;
+import org.apache.iceberg.types.Types.TimeType;
+import org.apache.iceberg.types.Types.TimestampType;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -39,178 +65,174 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.FieldIdBroker.SeededFieldIdBroker;
+import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
 import com.dremio.test.DremioTest;
 
 public class TestSchemaConverter extends DremioTest {
-  private SchemaConverter schemaConverter;
-
-  @Before
-  public void setup() throws Exception {
-    schemaConverter = new SchemaConverter();
-  }
-
   @Rule
   public ExpectedException expectedEx = ExpectedException.none();
 
   @Test
   public void primitiveBasic() {
-    org.apache.iceberg.Schema icebergSchema = new org.apache.iceberg.Schema(
-      NestedField.optional(1, "boolean", Types.BooleanType.get()),
-      NestedField.optional(2, "int", Types.IntegerType.get()),
-      NestedField.optional(3, "long", Types.LongType.get()),
-      NestedField.optional(4, "float", Types.FloatType.get()),
-      NestedField.optional(5, "double", Types.DoubleType.get()),
-      NestedField.optional(6, "decimal_38_16", Types.DecimalType.of(38, 16)),
-      NestedField.optional(7, "string", Types.StringType.get()),
-      NestedField.optional(8, "binary", Types.BinaryType.get()),
-      NestedField.optional(9, "date", Types.DateType.get()),
-      NestedField.optional(10, "time", Types.TimeType.get()),
-      NestedField.optional(11, "fixed_32", Types.FixedType.ofLength(32)),
-      NestedField.optional(12, "timestamp", Types.TimestampType.withZone())
+    Schema icebergSchema = new Schema(
+      optional(1, "boolean", BooleanType.get()),
+      optional(2, "int", IntegerType.get()),
+      optional(3, "long", LongType.get()),
+      optional(4, "float", FloatType.get()),
+      optional(5, "double", DoubleType.get()),
+      optional(6, "decimal_38_16", DecimalType.of(38, 16)),
+      optional(7, "string", StringType.get()),
+      optional(8, "binary", BinaryType.get()),
+      optional(9, "date", DateType.get()),
+      optional(10, "time", TimeType.get()),
+      optional(11, "fixed_32", FixedType.ofLength(32)),
+      optional(12, "timestamp", TimestampType.withZone())
     );
 
     BatchSchema schema = BatchSchema.newBuilder()
-      .addField(CompleteType.BIT.toField("boolean"))
-      .addField(CompleteType.INT.toField("int"))
-      .addField(CompleteType.BIGINT.toField("long"))
-      .addField(CompleteType.FLOAT.toField("float"))
-      .addField(CompleteType.DOUBLE.toField("double"))
+      .addField(BIT.toField("boolean"))
+      .addField(INT.toField("int"))
+      .addField(BIGINT.toField("long"))
+      .addField(FLOAT.toField("float"))
+      .addField(DOUBLE.toField("double"))
       .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
-      .addField(CompleteType.VARCHAR.toField("string"))
-      .addField(CompleteType.VARBINARY.toField("binary"))
-      .addField(CompleteType.DATE.toField("date"))
-      .addField(CompleteType.TIME.toField("time"))
+      .addField(VARCHAR.toField("string"))
+      .addField(VARBINARY.toField("binary"))
+      .addField(DATE.toField("date"))
+      .addField(TIME.toField("time"))
       .addField(new CompleteType(new ArrowType.FixedSizeBinary(32)).toField("fixed_32"))
-      .addField(CompleteType.TIMESTAMP.toField("timestamp"))
+      .addField(TIMESTAMP.toField("timestamp"))
       .build();
 
-    assertEquals(schema, schemaConverter.fromIceberg(icebergSchema));
-    assertEquals(icebergSchema.toString(), schemaConverter.toIceberg(schema).toString());
+    assertEquals(schema, SchemaConverter.fromIceberg(icebergSchema));
+    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(schema).toString());
   }
 
   @Test
   public void primitiveTwoWay() {
     BatchSchema schema = BatchSchema.newBuilder()
-      .addField(CompleteType.BIT.toField("boolean"))
-      .addField(CompleteType.INT.toField("int"))
-      .addField(CompleteType.BIGINT.toField("long"))
-      .addField(CompleteType.FLOAT.toField("float"))
-      .addField(CompleteType.DOUBLE.toField("double"))
-      .addField(CompleteType.DATE.toField("date"))
-      .addField(CompleteType.TIMESTAMP.toField("time"))
-      .addField(CompleteType.VARCHAR.toField("string"))
-      .addField(CompleteType.VARBINARY.toField("binary"))
+      .addField(BIT.toField("boolean"))
+      .addField(INT.toField("int"))
+      .addField(BIGINT.toField("long"))
+      .addField(FLOAT.toField("float"))
+      .addField(DOUBLE.toField("double"))
+      .addField(DATE.toField("date"))
+      .addField(TIMESTAMP.toField("time"))
+      .addField(VARCHAR.toField("string"))
+      .addField(VARBINARY.toField("binary"))
       .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
       .build();
 
-    org.apache.iceberg.Schema icebergSchema = schemaConverter.toIceberg(schema);
-    BatchSchema result = schemaConverter.fromIceberg(icebergSchema);
+    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
+    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
   @Test
   public void missingArrowTypes() {
-    org.apache.iceberg.Schema icebergSchema = new org.apache.iceberg.Schema(
-      NestedField.optional(1, "uuid", Types.UUIDType.get())
+    Schema icebergSchema = new Schema(
+      optional(1, "uuid", Types.UUIDType.get())
     );
 
     BatchSchema schema = BatchSchema.newBuilder()
       .addField(new CompleteType(new FixedSizeBinary(16)).toField("uuid"))
       .build();
 
-    BatchSchema result = schemaConverter.fromIceberg(icebergSchema);
+    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
   @Test
   public void list() {
     BatchSchema schema = BatchSchema.newBuilder()
-      .addField(CompleteType.INT.asList().toField("list_int"))
-      .addField(CompleteType.INT.asList().asList().toField("list_list_int"))
+      .addField(INT.asList().toField("list_int"))
+      .addField(INT.asList().asList().toField("list_list_int"))
       .build();
 
-    org.apache.iceberg.Schema icebergSchema = schemaConverter.toIceberg(schema);
-    BatchSchema result = schemaConverter.fromIceberg(icebergSchema);
+    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
+    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
   @Test
   public void struct() {
     Field struct = CompleteType.struct(
-      CompleteType.VARCHAR.toField("varchar"),
-      CompleteType.INT.toField("int"),
-      CompleteType.BIT.asList().toField("bits")
+      VARCHAR.toField("varchar"),
+      INT.toField("int"),
+      BIT.asList().toField("bits")
     ).toField("struct");
 
     BatchSchema schema = BatchSchema.newBuilder()
       .addField(struct)
       .build();
 
-    org.apache.iceberg.Schema icebergSchema = schemaConverter.toIceberg(schema);
-    BatchSchema result = schemaConverter.fromIceberg(icebergSchema);
+    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
+    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
   @Test
   public void map() {
-    org.apache.iceberg.Schema icebergSchema = new org.apache.iceberg.Schema(
-      NestedField.optional(1, "map",
-        Types.MapType.ofOptional(2, 3, Types.IntegerType.get(), Types.FloatType.get()))
+    Schema icebergSchema = new Schema(
+      optional(1, "map",
+        MapType.ofOptional(2, 3, IntegerType.get(), FloatType.get()))
     );
 
     List<Field> children = Arrays.asList(
-      CompleteType.INT.toField("key"),
-      CompleteType.FLOAT.toField("value")
+      INT.toField("key"),
+      FLOAT.toField("value")
     );
     BatchSchema schema = BatchSchema.newBuilder()
       .addField(new CompleteType(new ArrowType.Map(false), children).toField("map"))
       .build();
 
-    BatchSchema result = schemaConverter.fromIceberg(icebergSchema);
+    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
     // dremio silently drops map type columns
     assertEquals(result.getFieldCount(), 0);
 
-    org.apache.iceberg.Schema icebergResult = schemaConverter.toIceberg(schema);
+    Schema icebergResult = SchemaConverter.toIcebergSchema(schema);
     assertEquals(icebergSchema.toString(), icebergResult.toString());
   }
 
   @Test
   public void mixed() throws Exception {
     BatchSchema schema = BatchSchema.newBuilder()
-      .addField(CompleteType.INT.toField("rownum"))
-      .addField(CompleteType.VARCHAR.toField("name"))
-      .addField(CompleteType.INT.toField("age"))
-      .addField(CompleteType.FLOAT.toField("gpa"))
-      .addField(CompleteType.BIGINT.toField("studentnum"))
-      .addField(CompleteType.TIMESTAMP.toField("create_time"))
-      .addField(CompleteType.VARCHAR.asList().toField("interests"))
+      .addField(INT.toField("rownum"))
+      .addField(VARCHAR.toField("name"))
+      .addField(INT.toField("age"))
+      .addField(FLOAT.toField("gpa"))
+      .addField(BIGINT.toField("studentnum"))
+      .addField(TIMESTAMP.toField("create_time"))
+      .addField(VARCHAR.asList().toField("interests"))
       .addField(CompleteType.struct(
-        CompleteType.VARCHAR.toField("color"),
-        CompleteType.VARCHAR.toField("sport"),
-        CompleteType.VARCHAR.toField("food")
+        VARCHAR.toField("color"),
+        VARCHAR.toField("sport"),
+        VARCHAR.toField("food")
       ).toField("favorites"))
       .build();
 
-    org.apache.iceberg.Schema expectedSchema = new org.apache.iceberg.Schema(
-      NestedField.optional(1, "rownum", Types.IntegerType.get()),
-      NestedField.optional(2, "name", Types.StringType.get()),
-      NestedField.optional(3, "age", Types.IntegerType.get()),
-      NestedField.optional(4, "gpa", Types.FloatType.get()),
-      NestedField.optional(5, "studentnum", Types.LongType.get()),
-      NestedField.optional(6, "create_time", Types.TimestampType.withZone()),
-      NestedField.optional(7, "interests",
-        Types.ListType.ofOptional(9, Types.StringType.get())),
-      NestedField.optional(8, "favorites",
-        Types.StructType.of(
-          NestedField.optional(10, "color", Types.StringType.get()),
-          NestedField.optional(11, "sport", Types.StringType.get()),
-          NestedField.optional(12, "food", Types.StringType.get())
+    Schema expectedSchema = new Schema(
+      optional(1, "rownum", IntegerType.get()),
+      optional(2, "name", StringType.get()),
+      optional(3, "age", IntegerType.get()),
+      optional(4, "gpa", FloatType.get()),
+      optional(5, "studentnum", LongType.get()),
+      optional(6, "create_time", TimestampType.withZone()),
+      optional(7, "interests",
+        ListType.ofOptional(9, StringType.get())),
+      optional(8, "favorites",
+        StructType.of(
+          optional(10, "color", StringType.get()),
+          optional(11, "sport", StringType.get()),
+          optional(12, "food", StringType.get())
         ))
     );
 
-    org.apache.iceberg.Schema icebergResult = schemaConverter.toIceberg(schema);
+    Schema icebergResult = SchemaConverter.toIcebergSchema(schema);
     assertEquals(expectedSchema.toString(), icebergResult.toString());
 
     TemporaryFolder folder = new TemporaryFolder();
@@ -229,43 +251,176 @@ public class TestSchemaConverter extends DremioTest {
   @Test
   public void testPartitionComparatorField() {
     BatchSchema inputschema = BatchSchema.newBuilder()
-      .addField(CompleteType.BIT.toField("boolean"))
-      .addField(CompleteType.INT.toField("int"))
-      .addField(CompleteType.BIT.toField(WriterPrel.PARTITION_COMPARATOR_FIELD))
+      .addField(BIT.toField("boolean"))
+      .addField(INT.toField("int"))
+      .addField(BIT.toField(WriterPrel.PARTITION_COMPARATOR_FIELD))
       .build();
 
-    org.apache.iceberg.Schema expectedSchema = new org.apache.iceberg.Schema(
-      NestedField.optional(1, "boolean", Types.BooleanType.get()),
-      NestedField.optional(2, "int", Types.IntegerType.get()));
+    Schema expectedSchema = new Schema(
+      optional(1, "boolean", BooleanType.get()),
+      optional(2, "int", IntegerType.get()));
 
-    SchemaConverter convert = new SchemaConverter();
-    assertEquals(convert.toIceberg(inputschema).toString(), expectedSchema.toString());
+    assertEquals(SchemaConverter.toIcebergSchema(inputschema).toString(), expectedSchema.toString());
   }
 
   @Test
   public void unsupportedArrowTypes() {
     BatchSchema inputSchema = BatchSchema.newBuilder()
       .addField(CompleteType.union(
-        CompleteType.INT.toField("int_field"),
-        CompleteType.BIGINT.toField("bigint_field")
+        INT.toField("int_field"),
+        BIGINT.toField("bigint_field")
       ).toField("union_field"))
       .build();
 
     expectedEx.expect(UserException.class);
     expectedEx.expectMessage("conversion from arrow type to iceberg type failed for field union_field");
-    SchemaConverter convert = new SchemaConverter();
-    convert.toIceberg(inputSchema);
+    SchemaConverter.toIcebergSchema(inputSchema);
   }
 
   @Test
   public void unsupportedIcebergTypes() {
-    org.apache.iceberg.Schema schema = new org.apache.iceberg.Schema(
-      NestedField.optional(1, "timestamp_nozone_field", Types.TimestampType.withoutZone())
+    Schema schema = new Schema(
+      optional(1, "timestamp_nozone_field", TimestampType.withoutZone())
     );
 
     expectedEx.expect(UserException.class);
     expectedEx.expectMessage("conversion from iceberg type to arrow type failed for field timestamp_nozone_field");
-    SchemaConverter convert = new SchemaConverter();
-    convert.fromIceberg(schema);
+    SchemaConverter.fromIceberg(schema);
+  }
+
+  @Test
+  public void testUnboundedFieldIdBroker() {
+    Schema icebergSchema = new Schema(
+      optional(1, "boolean", BooleanType.get()),
+      optional(2, "int", IntegerType.get()),
+      optional(3, "long", LongType.get()),
+      optional(4, "float", FloatType.get()),
+      optional(5, "double", DoubleType.get())
+    );
+
+    BatchSchema batchSchema = BatchSchema.newBuilder()
+      .addField(BIT.toField("boolean"))
+      .addField(INT.toField("int"))
+      .addField(BIGINT.toField("long"))
+      .addField(FLOAT.toField("float"))
+      .addField(DOUBLE.toField("double"))
+      .build();
+
+    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+
+    FieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
+    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+  }
+
+  @Test
+  public void testSeededFieldIdBrokerForPrimitives() {
+    Schema icebergSchema = new Schema(
+      optional(1, "boolean", BooleanType.get()),
+      optional(2, "int", IntegerType.get()),
+      optional(3, "long", LongType.get()),
+      optional(4, "float", FloatType.get()),
+      optional(5, "double", DoubleType.get())
+    );
+
+    BatchSchema batchSchema = BatchSchema.newBuilder()
+      .addField(BIT.toField("boolean"))
+      .addField(INT.toField("int"))
+      .addField(BIGINT.toField("long"))
+      .addField(FLOAT.toField("float"))
+      .addField(DOUBLE.toField("double"))
+      .build();
+
+    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+
+    Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
+    FieldIdBroker fieldIdBroker = new SeededFieldIdBroker(CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap));
+    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+  }
+
+  @Test
+  public void testSeededFieldIdBrokerForStruct() {
+    BatchSchema batchSchema = BatchSchema.newBuilder()
+      .addField(CompleteType.struct(VARCHAR.toField("varchar")).toField("struct"))
+      .addField(CompleteType.struct(CompleteType.struct(VARCHAR.toField("varchar")).toField("struct")).toField("struct_struct"))
+      .addField(CompleteType.struct(CompleteType.struct(VARCHAR.toField("varchar")).toField("struct")).asList().toField("list_struct_struct"))
+      .build();
+    Schema icebergSchema = new Schema(
+      optional(1, "struct", StructType.of(optional(4, "varchar", StringType.get()))),
+      optional(2, "struct_struct", StructType.of(optional(5, "struct", StructType.of(optional(6, "varchar", StringType.get()))))),
+      optional(3, "list_struct_struct", ListType.ofOptional(7, StructType.of(optional(8, "struct", StructType.of(optional(9, "varchar", StringType.get()))))))
+    );
+    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+
+    Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
+    FieldIdBroker fieldIdBroker = new SeededFieldIdBroker(CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap));
+    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+  }
+
+  @Test
+  public void testSeededFieldIdBrokerForList() {
+    BatchSchema batchSchema = BatchSchema.newBuilder()
+      .addField(INT.asList().toField("list"))
+      .addField(INT.asList().asList().toField("list_list"))
+      .addField(CompleteType.struct(CompleteType.struct(VARCHAR.toField("varchar")).toField("struct")).asList().toField("list_struct_struct"))
+      .build();
+    Schema icebergSchema = new Schema(
+      optional(1, "list", ListType.ofOptional(4, IntegerType.get())),
+      optional(2, "list_list", ListType.ofOptional(5, ListType.ofOptional(6, IntegerType.get()))),
+      optional(3, "list_struct_struct", ListType.ofOptional(7, StructType.of(optional(8, "struct", StructType.of(optional(9, "varchar", StringType.get()))))))
+    );
+    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+
+    Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
+    FieldIdBroker fieldIdBroker = new SeededFieldIdBroker(CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap));
+    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+  }
+
+  @Test
+  public void testSeededFieldIdBrokerForMap() {
+    Schema icebergSchema = new Schema(
+      optional(1, "map", MapType.ofOptional(2, 3, IntegerType.get(), ListType.ofOptional(4, StringType.get())))
+    );
+    Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
+    CaseInsensitiveImmutableBiMap<Integer> columnIdMapping = CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap);
+
+    List<Field> children = Arrays.asList(INT.toField("int"), VARCHAR.asList().toField("varchar"));
+    Field mapField = new Field("map", FieldType.nullable(new ArrowType.Map(false)), children);
+    Types.NestedField nestedField = SchemaConverter.toIcebergColumn(mapField, new SeededFieldIdBroker(columnIdMapping));
+    assertEquals(nestedField, icebergSchema.columns().get(0));
+  }
+
+  @Test
+  public void testConversionToIcebergFields() {
+    List<Types.NestedField> icebergFields = Arrays.asList(
+      optional(0, "boolean", BooleanType.get()),
+      optional(1, "int", IntegerType.get()),
+      optional(2, "long", LongType.get()),
+      optional(3, "float", FloatType.get()),
+      optional(4, "double", DoubleType.get()),
+      optional(5, "decimal_38_16", DecimalType.of(38, 16)),
+      optional(6, "string", StringType.get()),
+      optional(7, "binary", BinaryType.get()),
+      optional(8, "date", DateType.get()),
+      optional(9, "time", TimeType.get()),
+      optional(10, "fixed_32", FixedType.ofLength(32)),
+      optional(11, "timestamp", TimestampType.withZone())
+    );
+
+    BatchSchema schema = BatchSchema.newBuilder()
+      .addField(BIT.toField("boolean"))
+      .addField(INT.toField("int"))
+      .addField(BIGINT.toField("long"))
+      .addField(FLOAT.toField("float"))
+      .addField(DOUBLE.toField("double"))
+      .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
+      .addField(VARCHAR.toField("string"))
+      .addField(VARBINARY.toField("binary"))
+      .addField(DATE.toField("date"))
+      .addField(TIME.toField("time"))
+      .addField(new CompleteType(new ArrowType.FixedSizeBinary(32)).toField("fixed_32"))
+      .addField(TIMESTAMP.toField("timestamp"))
+      .build();
+
+    assertEquals(icebergFields, SchemaConverter.toIcebergFields(schema.getFields()));
   }
 }

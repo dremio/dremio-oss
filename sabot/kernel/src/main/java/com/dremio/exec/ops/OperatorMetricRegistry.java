@@ -71,6 +71,7 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.PROJECT_VALUE, ProjectorStats.Metric.class);
     register(builder, CoreOperatorType.FILTER_VALUE, FilterStats.Metric.class);
     register(builder, CoreOperatorType.NESTED_LOOP_JOIN_VALUE, NLJEOperator.Metric.class);
+    register(builder, CoreOperatorType.TABLE_FUNCTION_VALUE, ScanOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

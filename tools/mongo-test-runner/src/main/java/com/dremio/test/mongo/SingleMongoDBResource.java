@@ -15,6 +15,12 @@
  */
 package com.dremio.test.mongo;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
@@ -25,7 +31,7 @@ import de.flapdoodle.embed.mongo.distribution.IFeatureAwareVersion;
  * A single mongod resource
  */
 class SingleMongoDBResource extends AbstractMongoDBResource {
-
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleMongoDBResource.class);
   private MongodExecutable executable = null;
   private MongodProcess process = null;
 
@@ -35,30 +41,49 @@ class SingleMongoDBResource extends AbstractMongoDBResource {
 
   @Override
   protected void before() throws Throwable {
-    final IMongodConfig config = new MongodConfigBuilder()
-        .version(getVersion())
-        .build();
-
-    executable = Environment.prepareMongod(config);
-    process = executable.start();
-
-    setPort(config.net().getPort());
-
-    super.before();
+    final int maxRetries = 10;
+    for (int i = 0; i < maxRetries; i++) {
+      final ExecutorService executor = Executors.newSingleThreadExecutor();
+      try {
+        final IMongodConfig config = new MongodConfigBuilder()
+          .version(getVersion())
+          .build();
+        executable = Environment.prepareMongod(config);
+        Future<MongodProcess> startProcess = executor.submit(() -> {
+          return executable.start();
+        });
+        process = startProcess.get(60, TimeUnit.SECONDS);
+        setPort(config.net().getPort());
+        executor.shutdown();
+        super.before();
+        return;
+      } catch (TimeoutException e) {
+        executor.shutdown();
+        if (i == maxRetries -1) {
+          throw new RuntimeException(String.format("Failed to start a single mongodb after %d retries.", maxRetries), e);
+        }
+        logger.info("Failed to start a single mongodb, will retry after 10 seconds.", e);
+        Thread.sleep(10_000);
+      }
+    }
   }
 
   @Override
   protected void after() {
     super.after();
 
-    if (process != null) {
-      process.stop();
-      process = null;
-    }
+    try {
+      if (process != null) {
+        process.stop();
+        process = null;
+      }
 
-    if (executable != null) {
-      executable.stop();
-      executable = null;
+      if (executable != null) {
+        executable.stop();
+        executable = null;
+      }
+    } catch (Exception e) {
+      logger.warn("Skipping the failure to stop the single mongodb source.", e);
     }
   }
 }

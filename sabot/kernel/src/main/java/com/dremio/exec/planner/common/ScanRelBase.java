@@ -60,7 +60,7 @@ public abstract class ScanRelBase extends TableScan {
 
   public static final double DEFAULT_COST_ADJUSTMENT = 1.0d;
 
-  private final ImmutableList<SchemaPath> projectedColumns;
+  protected final ImmutableList<SchemaPath> projectedColumns;
   protected final TableMetadata tableMetadata;
   protected final StoragePluginId pluginId;
   protected final double observedRowcountAdjustment;
@@ -250,28 +250,32 @@ public abstract class ScanRelBase extends TableScan {
 
   private void setProjectedRowType(List<SchemaPath> projectedColumns){
     if(projectedColumns != null){
-      LinkedHashSet<String> firstLevelPaths = new LinkedHashSet<>();
-      for(SchemaPath p : projectedColumns){
-        firstLevelPaths.add(p.getRootSegment().getNameSegment().getPath());
-      }
-
-      final RelDataTypeFactory factory = getCluster().getTypeFactory();
-      final FieldInfoBuilder builder = new FieldInfoBuilder(factory);
-      final Map<String, RelDataType> fields = new HashMap<>();
-      for(Field field : getBatchSchema()){
-        if(firstLevelPaths.contains(field.getName())){
-          fields.put(field.getName(), CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()));
-        }
-      }
-
-      Preconditions.checkArgument(firstLevelPaths.size() == fields.size(), "Projected column base size %s is not equal to outcome rowtype %s.", firstLevelPaths.size(), fields.size());
-
-      for(String path : firstLevelPaths){
-        builder.add(path, fields.get(path));
-      }
-      this.rowType = builder.build();
+      this.rowType = getRowTypeFromProjectedColumns(projectedColumns, getBatchSchema(), getCluster());
     } else {
       this.rowType = deriveRowType();
     }
+  }
+
+  protected static RelDataType getRowTypeFromProjectedColumns(List<SchemaPath> projectedColumns, BatchSchema schema, RelOptCluster cluster) {
+    LinkedHashSet<String> firstLevelPaths = new LinkedHashSet<>();
+    for(SchemaPath p : projectedColumns){
+      firstLevelPaths.add(p.getRootSegment().getNameSegment().getPath());
+    }
+
+    final RelDataTypeFactory factory = cluster.getTypeFactory();
+    final FieldInfoBuilder builder = new FieldInfoBuilder(factory);
+    final Map<String, RelDataType> fields = new HashMap<>();
+    for(Field field : schema){
+      if(firstLevelPaths.contains(field.getName())){
+        fields.put(field.getName(), CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()));
+      }
+    }
+
+    Preconditions.checkArgument(firstLevelPaths.size() == fields.size(), "Projected column base size %s is not equal to outcome rowtype %s.", firstLevelPaths.size(), fields.size());
+
+    for(String path : firstLevelPaths){
+      builder.add(path, fields.get(path));
+    }
+    return builder.build();
   }
 }

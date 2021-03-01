@@ -87,6 +87,9 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String NONE_PROVIDER = AnonymousAWSCredentialsProvider.NAME;
   public static final String ASSUME_ROLE_PROVIDER = "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+  // Credential provider for DCS data roles
+  public static final String DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.service.coordinator" +
+    ".DremioAssumeRoleCredentialsProviderV1";
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);

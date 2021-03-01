@@ -35,6 +35,8 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.runtime.PredicateImpl;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilderFactory;
 
 import com.dremio.exec.planner.sql.handlers.RexFieldAccessUtils;
@@ -85,7 +87,19 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
     INSTANCE = new DremioProjectJoinTransposeRule(
       LogicalProject.class,
       LogicalJoin.class,
-      ExprCondition.TRUE,
+      new ProjectJoinExprCondition(),
       DremioRelFactories.CALCITE_LOGICAL_BUILDER);
   }
+
+  private static class ProjectJoinExprCondition extends PredicateImpl<RexNode>
+    implements PushProjector.ExprCondition {
+    @Override
+    public boolean test(RexNode expr) {
+      if (expr instanceof RexCall) {
+        RexCall call = (RexCall)expr;
+        return call.getKind() != SqlKind.DIVIDE || call.getOperands().get(1).getKind() == SqlKind.LITERAL;
+      }
+      return true;
+    }
+  };
 }

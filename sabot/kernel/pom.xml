@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>13.1.0-202102110202430875-3e6f3e7c</version>
+    <version>14.0.0-202103011714040666-9a0c2e10</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -673,6 +673,18 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-catalog-api</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-junit4</artifactId>
+      <version>1.6.5</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <version>1.6.5</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

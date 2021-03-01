@@ -36,6 +36,7 @@ export default class Select extends PureComponent {
     customLabelStyle: PropTypes.object,
     dataQa: PropTypes.string,
     onChange: PropTypes.func,
+    onSelectedValue: PropTypes.func,
     comparator: PropTypes.func,
     //todo change default option to a value
     valueField: PropTypes.string, // a field name value item holds value. 'option' is a default
@@ -76,6 +77,7 @@ export default class Select extends PureComponent {
   handleChange = (closeDDFn, e, value) => {
     closeDDFn();
     this.props.onChange && this.props.onChange(value);
+    this.props.onSelectedValue && this.props.onSelectedValue(value);
   };
 
   getValue(item) {

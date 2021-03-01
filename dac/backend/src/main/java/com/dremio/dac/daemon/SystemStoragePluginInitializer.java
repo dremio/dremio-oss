@@ -16,10 +16,7 @@
 package com.dremio.dac.daemon;
 
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
-import static com.dremio.dac.support.SupportService.DREMIO_LOG_PATH_PROPERTY;
-import static com.dremio.dac.support.SupportService.LOCAL_STORAGE_PLUGIN;
-import static com.dremio.dac.support.SupportService.LOGS_STORAGE_PLUGIN;
-import static com.dremio.dac.support.SupportService.TEMPORARY_SUPPORT_PATH;
+import static com.dremio.dac.support.SupportService.*;
 import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
@@ -148,10 +145,11 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     if (FileSystemConf.isCloudFileSystemScheme(accelerationPathConfig.getUri().getScheme())) {
       enableCachingForAcceleration = sabotContext.getOptionManager().getOption(CLOUD_CACHING_ENABLED) ;
     }
+
     createSafe(catalogService, ns,
         AccelerationStoragePluginConfig.create(accelerationPathConfig.getUri(), enableAsyncForAcceleration,
-            enableCachingForAcceleration, maxCacheSpacePercent, enableS3FileStatusCheck, accelerationPathConfig.getAwsKeys().getAccessKey(),
-          accelerationPathConfig.getAwsKeys().getSecretKey()), deferred);
+            enableCachingForAcceleration, maxCacheSpacePercent, enableS3FileStatusCheck,
+          accelerationPathConfig.getDataCredentials()), deferred);
 
     final boolean enableAsyncForJobs = enable(config, DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
     createSafe(catalogService, ns,

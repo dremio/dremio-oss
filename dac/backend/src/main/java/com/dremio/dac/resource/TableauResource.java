@@ -49,7 +49,7 @@ import com.dremio.service.namespace.NamespaceService;
 public class TableauResource extends BaseBIToolResource {
   // Special option for enabling the Tableau TDS endpoint.
   public static final TypeValidators.BooleanValidator CLIENT_TOOLS_TABLEAU
-    = new TypeValidators.BooleanValidator("client.tools.tableau", false);
+    = new TypeValidators.BooleanValidator("client.tools.tableau", true);
 
   @Inject
   public TableauResource(

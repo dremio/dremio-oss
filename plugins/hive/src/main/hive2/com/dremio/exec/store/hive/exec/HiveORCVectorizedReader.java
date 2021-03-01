@@ -98,6 +98,19 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   // non-zero value indicates partially read batch in previous iteration.
   private int offset;
 
+  @Override
+  protected void logDebugMessages() {
+    super.logDebugMessages();
+    if(dataReader != null) {
+      logger.debug(dataReader.getClass().getClassLoader().toString());
+      dataReader.logMessage();
+    }
+    if(hiveOrcReader != null) {
+      logger.debug(hiveOrcReader.getClass().getClassLoader().toString());
+    }
+  }
+
+
   public HiveORCVectorizedReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,

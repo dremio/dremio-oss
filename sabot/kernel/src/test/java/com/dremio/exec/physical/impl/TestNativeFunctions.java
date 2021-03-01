@@ -40,6 +40,7 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.InExpression;
@@ -121,11 +122,34 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testCastTimestamp() throws Exception {
     testFunctions(new Object[][]{
-      {"extractYear(castTIMESTAMP(c0))","0079-10-10", 79l}
+      {"extractYear(castTIMESTAMP(c0))","0079-10-10", 79l},
+      {"extractYear(castTIMESTAMP(c0))","1979-10-10", 1979l},
+      {"castTIMESTAMP(c0)", "1970-01-01 00:00:00.1", ts("1970-01-01T00:00:00.100")}
     });
-    testFunctions(new Object[][]{
-      {"extractYear(castTIMESTAMP(c0))","1979-10-10", 1979l}
-    });
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testCastTimestampWithMicros() throws Exception {
+    try {
+      testFunctions(new Object[][]{
+        {"castTIMESTAMP(c0)", "1970-01-01 00:00:00.111111", null}
+      });
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getCause().getCause().getMessage().contains("Invalid millis for timestamp value"));
+      throw re;
+    }
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testCastTimestampWithInvalidTime() throws Exception {
+    try {
+      testFunctions(new Object[][]{
+        {"castTIMESTAMP(c0)", "1970-01-01 00:70:00.111111", null}
+      });
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getCause().getCause().getMessage().contains("Not a valid time for timestamp value"));
+      throw re;
+    }
   }
 
   @Test
@@ -168,6 +192,7 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
   }
 
+  @Ignore("DX-24037")
   @Test
   public void testToDate() throws Exception {
     testFunctions(new Object[][]{

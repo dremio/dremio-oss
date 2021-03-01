@@ -61,6 +61,7 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.DirectProvider;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
@@ -98,13 +99,14 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   protected List<Property> getProperties() {
     List<Property> props = new ArrayList<>();
     props.add(new Property(FSConstants.FS_S3A_FILE_STATUS_CHECK, Boolean.toString(getConfig().isS3FileStatusCheckEnabled())));
+    // used only in dcs.
+    // copy over only if keys are used for data credentials
+    // roles will be available as instance roles.
     if (!Strings.isNullOrEmpty(getConfig().getAccessKey())) {
+      // both go together and data credentials already validates that both are present
       props.add(new Property(FSConstants.FS_S3A_ACCESS_KEY, getConfig().getAccessKey()));
-    }
-    if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
       props.add(new Property(FSConstants.FS_S3A_SECRET_KEY, getConfig().getSecretKey()));
     }
-
     return props;
   }
 
@@ -121,6 +123,13 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
       getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
       getFsConf().set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
+    } else if (!Strings.isNullOrEmpty(getConfig().getIamRole())) {
+      getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
+      // in executor we should use the associated instance profile
+      if (!getContext().getRoles().contains(ClusterCoordinator.Role.EXECUTOR)) {
+        getFsConf().set("fs.s3a.aws.credentials.provider", "com.dremio.service.coordinator" +
+          ".DremioAssumeRoleCredentialsProviderV1");
+      }
     }
     return new AccelerationFileSystem(super.createFS(userName, operatorContext, metadata));
   }

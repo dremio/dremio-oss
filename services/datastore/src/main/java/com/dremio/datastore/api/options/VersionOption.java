@@ -54,6 +54,15 @@ public interface VersionOption extends KVStore.PutOption, KVStore.DeleteOption {
     return new ImmutableVersionOption.Builder().setTag(doc.getTag()).build();
   }
 
+  static KVStore.PutOption getTTLOption(final int timeout_sec) {
+    return new KVStore.PutOption() {
+      @Override
+      public PutOptionInfo getPutOptionInfo() {
+        return PutOptionInfo.newBuilder().setType(PutOptionType.TTL).setTimeoutSec(timeout_sec).build();
+      }
+    };
+  }
+
   /**
    * Stores information about the VersionOption parsed from an array of KVStoreOptions.
    */

@@ -72,6 +72,7 @@ public class UserResource {
     this.namespaceService = namespaceService;
   }
 
+  @RolesAllowed({"admin", "user"})
   @GET
   @Path("/{id}")
   public User getUser(@PathParam("id") String id) throws UserNotFoundException {
@@ -137,6 +138,7 @@ public class UserResource {
     return User.fromUser(userConfig);
   }
 
+  @RolesAllowed({"admin", "user"})
   @GET
   @Path("/by-name/{name}")
   public User getUserByName(@PathParam("name") String name) throws UserNotFoundException {

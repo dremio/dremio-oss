@@ -63,12 +63,11 @@ public class TestAzureAsyncReader {
 
   private final Random random = new Random();
 
-  @Test
-  public void testFileVersionChanged() {
+  void verifyTestFileVersionChanged(boolean checkVersion) {
     final String responseBody = "{\"error\":{\"code\":\"ConditionNotMet\",\"message\":\"The condition specified using HTTP " +
       "conditional header(s) is not met.\\nRequestId:89fa17ae-501f-0002-4bf0-168aaa000000\\nTime:2020-04-20T08:49:44.4893649Z\"}}";
     final int responseCode = 412;
-    AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode);
+    AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode, checkVersion);
     ByteBuf buf = Unpooled.buffer(20);
 
     try {
@@ -83,11 +82,15 @@ public class TestAzureAsyncReader {
   }
 
   @Test
-  public void testPathNotFound() {
+  public void testFileVersionChanged() {
+    verifyTestFileVersionChanged(true);
+  }
+
+  void verifyTestPathNotFound(boolean checkVersion) {
     final String responseBody = "{\"error\":{\"code\":\"PathNotFound\",\"message\":\"The specified path does not exist." +
       "\\nRequestId:5b544bd0-c01f-0048-03f0-16bacd000000\\nTime:2020-04-20T08:51:53.7856703Z\"}}";
     final int responseCode = 404;
-    AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode);
+    AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode, checkVersion);
     ByteBuf buf = Unpooled.buffer(20);
 
     try {
@@ -102,11 +105,16 @@ public class TestAzureAsyncReader {
   }
 
   @Test
-  public void testServerErrorsAndRetries() {
+  public void testPathNotFound() {
+    verifyTestPathNotFound(true);
+    verifyTestPathNotFound(false);
+  }
+
+  void verifyTestServerErrorsAndRetries(boolean checkVersion) {
     final String responseBody = "{\"error\":{\"code\":\"InternalServerError\",\"message\":\"Something wrong happened at the server." +
       "\\nRequestId:5b544bd0-c01f-0048-03f0-16bacd000000\\nTime:2020-04-20T08:51:53.7856703Z\"}}";
     final int responseCode = 500;
-    AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode);
+    AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode, checkVersion);
     ByteBuf buf = Unpooled.buffer(20);
 
     try {
@@ -125,16 +133,24 @@ public class TestAzureAsyncReader {
   }
 
   @Test
+  public void testServerErrorsAndRetries() {
+    verifyTestServerErrorsAndRetries(true);
+    verifyTestServerErrorsAndRetries(false);
+  }
+
+  @Test
   public void testReadFullySecureCase() {
-    testSuccessHttpMode(true);
+    testSuccessHttpMode(true, true);
+    testSuccessHttpMode(true, false);
   }
 
   @Test
   public void testReadFullyNonSecureCase() {
-    testSuccessHttpMode(false);
+    testSuccessHttpMode(false, true);
+    testSuccessHttpMode(false, false);
   }
 
-  private void testSuccessHttpMode(boolean isSecure) {
+  private void testSuccessHttpMode(boolean isSecure, boolean checkVersion) {
     // Prepare response
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
@@ -163,8 +179,10 @@ public class TestAzureAsyncReader {
       long dateHeaderDiffInSecs = Math.abs(dateHeaderVal.until(LocalDateTime.now(ZoneId.of("GMT")), ChronoUnit.SECONDS));
       assertTrue("Date header not set correctly", dateHeaderDiffInSecs < 2);
 
-      LocalDateTime versionHeaderVal = LocalDateTime.parse(req.getHeaders().get("If-Unmodified-Since"), DATE_RFC1123_FORMATTER);
-      assertEquals("Version header not set correctly", 0, versionHeaderVal.until(versionDate, ChronoUnit.SECONDS));
+      if (checkVersion) {
+        LocalDateTime versionHeaderVal = LocalDateTime.parse(req.getHeaders().get("If-Unmodified-Since"), DATE_RFC1123_FORMATTER);
+        assertEquals("Version header not set correctly", 0, versionHeaderVal.until(versionDate, ChronoUnit.SECONDS));
+      }
 
       assertEquals("Authz header not set correctly", req.getHeaders().get("Authorization"), "Bearer testtoken");
       assertNotNull(req.getHeaders().get("x-ms-client-request-id"));
@@ -179,11 +197,12 @@ public class TestAzureAsyncReader {
       return resFuture;
     });
 
-    AzureAsyncReader azureAsyncReader = spy(new AzureAsyncReader(
-      "account", new Path("container/directory/file_00.parquet"),
-      getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
-      isSecure, client
-    ));
+    AzureAsyncReader azureAsyncReader;
+    if (checkVersion) {
+      azureAsyncReader = getReader(String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()), isSecure, client);
+    } else {
+      azureAsyncReader = getReader("0", isSecure, client);
+    }
 
     try {
       ByteBuf buf = Unpooled.buffer(20);
@@ -193,6 +212,13 @@ public class TestAzureAsyncReader {
     } catch (Exception e) {
       fail(e.getMessage());
     }
+  }
+
+  AzureAsyncReader getReader(String version, boolean isSecure, AsyncHttpClient client) {
+    return spy(new AzureAsyncReader(
+      "account", new Path("container/directory/file_00.parquet"),
+      getMockAuthTokenProvider(), version, isSecure, client
+    ));
   }
 
   @Test
@@ -231,7 +257,7 @@ public class TestAzureAsyncReader {
   }
 
 
-  private AzureAsyncReader prepareAsyncReader(final String responseBody, final int responseCode) {
+  private AzureAsyncReader prepareAsyncReader(final String responseBody, final int responseCode, boolean checkVersion) {
     // Prepare response
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
@@ -256,13 +282,13 @@ public class TestAzureAsyncReader {
       return resFuture;
     });
 
-    AzureAsyncReader azureAsyncReader = spy(new AzureAsyncReader(
-      "account", new Path("container/directory/file_00.parquet"),
-      getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
-      true, client
-    ));
+    AzureAsyncReader azureAsyncReader;
+    if (checkVersion) {
+      azureAsyncReader = getReader(String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()), true, client);
+    } else {
+      azureAsyncReader = getReader("0", true, client);
+    }
     return azureAsyncReader;
-
   }
 
   private byte[] getRandomBytes(int size) {

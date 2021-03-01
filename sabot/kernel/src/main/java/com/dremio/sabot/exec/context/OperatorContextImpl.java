@@ -39,6 +39,7 @@ import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
@@ -107,7 +108,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     List<FragmentAssignment> assignments,
     List<MajorFragmentAssignment> majorFragmentAssignments,
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-    EndpointsIndex endpointsIndex) throws OutOfMemoryException {
+    EndpointsIndex endpointsIndex,
+    List<MinorFragmentEndpoint> minorFragmentEndpoints) throws OutOfMemoryException {
     this.config = config;
     this.handle = handle;
     this.allocator = allocator;
@@ -127,7 +129,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.optionManager = optionManager;
     this.targetBatchSize = targetBatchSize;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
-    this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager);
+    this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager, minorFragmentEndpoints);
     this.spillService = spillService;
     this.tunnelProvider = tunnelProvider;
     this.assignments = assignments;
@@ -145,7 +147,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ) {
 
     this(config, null, null, allocator, allocator, null, null, null, null, null, null, null,
-      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null);
+      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null);
   }
 
   @Override

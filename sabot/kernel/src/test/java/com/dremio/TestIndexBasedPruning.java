@@ -246,6 +246,8 @@ public class TestIndexBasedPruning extends DremioTest {
   @Mock
   private OptionManager optionManager;
   @Mock
+  private OptimizerRulesContext optimizerRulesContext;
+  @Mock
   private StoragePluginId pluginId;
   @Mock
   private RelOptTable table;
@@ -313,6 +315,8 @@ public class TestIndexBasedPruning extends DremioTest {
             .thenReturn(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
       .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
+    when(optionManager.getOption(eq(PlannerSettings.ENABLE_ICEBERG_EXECUTION.getOptionName())))
+      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
     OptionList optionList = new OptionList();
     optionList.add(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
     optionList.add(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
@@ -324,6 +328,8 @@ public class TestIndexBasedPruning extends DremioTest {
     plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager,
       () -> info);
 
+    when(optimizerRulesContext.getPlannerSettings()).thenReturn(plannerSettings);
+
     RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), REX_BUILDER);
     SplitsPointer splitsPointer = new TestSplitsPointer(0, Arrays.asList(TEST_PARTITION_CHUNK_METADATA_1, TEST_PARTITION_CHUNK_METADATA_2), 2);
 
@@ -334,10 +340,10 @@ public class TestIndexBasedPruning extends DremioTest {
 
     indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0, false);
     filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
-    scanRule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
+    scanRule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);
     sampleRel = new SampleRel(cluster, TRAITS, indexPrunableScan);
     filterAboveSample = new FilterRel(cluster, TRAITS, sampleRel, rexNode);
-    sampleScanRule = new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
+    sampleScanRule = new PruneScanRuleBase.PruneScanRuleFilterOnSampleScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);
   }
 
 

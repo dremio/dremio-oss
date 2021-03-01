@@ -16,33 +16,57 @@
 package com.dremio.common.types;
 
 import static com.dremio.common.expression.CompleteType.BIGINT;
+import static com.dremio.common.expression.CompleteType.BIT;
 import static com.dremio.common.expression.CompleteType.DECIMAL;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.LIST;
 import static com.dremio.common.expression.CompleteType.STRUCT;
+import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static com.dremio.common.types.SchemaUpPromotionRules.getResultantType;
 import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.junit.Test;
 
 import com.dremio.common.expression.CompleteType;
 
 public class TestSchemaUpPromotionRules {
+  private static final CompleteType DEC_10_5 = new CompleteType(createDecimal(10, 5, null));
+  private static final CompleteType DEC_18_18 = new CompleteType(createDecimal(18, 18, null));
+  private static final CompleteType DEC_23_18 = new CompleteType(createDecimal(23, 18, null));
+  private static final CompleteType DEC_38_0 = new CompleteType(createDecimal(38, 0, null));
+  private static final CompleteType DEC_38_1 = new CompleteType(createDecimal(38, 1, null));
+  private static final CompleteType DEC_38_33 = new CompleteType(createDecimal(38, 33, null));
+  private static final CompleteType DEC_38_35 = new CompleteType(createDecimal(38, 35, null));
+  private static final CompleteType DEC_100_50 = new CompleteType(createDecimal(100, 50, null));
+
   @Test
   public void testGetResultantTypeApi() {
     assertThat(getType(BIGINT, INT), is(BIGINT));
-    assertThat(getType(FLOAT, INT), is(FLOAT));
-    assertThat(getType(FLOAT, BIGINT), is(FLOAT));
+    assertThat(getType(FLOAT, INT), is(DOUBLE));
+    assertThat(getType(FLOAT, BIGINT), is(DOUBLE));
     assertThat(getType(DOUBLE, INT), is(DOUBLE));
     assertThat(getType(DOUBLE, BIGINT), is(DOUBLE));
     assertThat(getType(DOUBLE, FLOAT), is(DOUBLE));
     assertThat(getType(DOUBLE, DECIMAL), is(DOUBLE));
+    assertThat(getType(VARCHAR, BIT), is(VARCHAR));
+    assertThat(getType(VARCHAR, INT), is(VARCHAR));
+    assertThat(getType(VARCHAR, BIGINT), is(VARCHAR));
+    assertThat(getType(VARCHAR, FLOAT), is(VARCHAR));
+    assertThat(getType(VARCHAR, DOUBLE), is(VARCHAR));
+    assertThat(getType(VARCHAR, DECIMAL), is(VARCHAR));
+    assertThat(getType(VARCHAR, DEC_10_5), is(VARCHAR));
+    assertThat(getType(VARCHAR, DEC_18_18), is(VARCHAR));
+    assertThat(getType(VARCHAR, DEC_38_0), is(VARCHAR));
     assertThat(getType(DECIMAL, INT), is(DECIMAL));
     assertThat(getType(DECIMAL, BIGINT), is(DECIMAL));
     assertThat(getType(DECIMAL, FLOAT), is(DECIMAL));
@@ -50,30 +74,43 @@ public class TestSchemaUpPromotionRules {
 
   @Test
   public void testConversionFromDecimal() {
-    CompleteType dec105 = new CompleteType(createDecimal(10, 5, null));
-    CompleteType dec1818 = new CompleteType(createDecimal(18, 18, null));
-    CompleteType dec380 = new CompleteType(createDecimal(38, 0, null));
-    CompleteType dec10050 = new CompleteType(createDecimal(100, 50, null));
+    assertThat(getType(DOUBLE, DEC_10_5), is(DOUBLE));
+    assertThat(getType(DOUBLE, DEC_18_18), is(DOUBLE));
+    assertThat(getType(DOUBLE, DEC_38_0), is(DOUBLE));
 
-    assertThat(getType(DOUBLE, dec105), is(DOUBLE));
-    assertThat(getType(DOUBLE, dec1818), is(DOUBLE));
-    assertThat(getType(DOUBLE, dec380), is(DOUBLE));
-    assertThat(getType(DOUBLE, dec10050), is(DOUBLE));
+    assertThat(getType(DEC_10_5, INT), is(DEC_10_5));
+    assertThat(getType(DEC_18_18, INT), is(DEC_18_18));
+    assertThat(getType(DEC_38_0, INT), is(DEC_38_0));
 
-    assertThat(getType(dec105, INT), is(dec105));
-    assertThat(getType(dec1818, INT), is(dec1818));
-    assertThat(getType(dec380, INT), is(dec380));
-    assertThat(getType(dec10050, INT), is(dec10050));
+    assertThat(getType(DEC_10_5, BIGINT), is(DEC_10_5));
+    assertThat(getType(DEC_18_18, BIGINT), is(DEC_18_18));
+    assertThat(getType(DEC_38_0, BIGINT), is(DEC_38_0));
 
-    assertThat(getType(dec105, BIGINT), is(dec105));
-    assertThat(getType(dec1818, BIGINT), is(dec1818));
-    assertThat(getType(dec380, BIGINT), is(dec380));
-    assertThat(getType(dec10050, BIGINT), is(dec10050));
+    assertThat(getType(DEC_10_5, FLOAT), is(DEC_10_5));
+    assertThat(getType(DEC_18_18, FLOAT), is(DEC_18_18));
+    assertThat(getType(DEC_38_0, FLOAT), is(DEC_38_0));
+  }
 
-    assertThat(getType(dec105, FLOAT), is(dec105));
-    assertThat(getType(dec1818, FLOAT), is(dec1818));
-    assertThat(getType(dec380, FLOAT), is(dec380));
-    assertThat(getType(dec10050, FLOAT), is(dec10050));
+  @Test
+  public void testConversionBetweenDecimalsWithoutPrecisionOverflow() {
+    assertThat(getType(DEC_10_5, DEC_18_18), is(DEC_23_18));
+    assertThat(getType(DECIMAL, DEC_18_18), is(DECIMAL));
+    assertThat(getType(DEC_18_18, DECIMAL), is(DECIMAL));
+    assertThat(getType(DEC_18_18, DEC_10_5), is(DEC_23_18));
+  }
+
+  @Test
+  public void testConversionBetweenDecimalsWithPrecisionOverflow() {
+    assertThat(getType(DECIMAL, DEC_10_5), is(DEC_38_33));
+    assertThat(getType(DEC_38_35, DEC_38_1), is(DEC_38_1));
+    assertThat(getType(DEC_18_18, DEC_38_0), is(DEC_38_0));
+  }
+
+  @Test
+  public void testUnsupportedDecimals() {
+    expectException(() -> getResultantType(DEC_10_5, DEC_100_50));
+    expectException(() -> getResultantType(DEC_100_50, DEC_10_5));
+    expectException(() -> getResultantType(DEC_100_50, DEC_100_50));
   }
 
   @Test
@@ -88,5 +125,15 @@ public class TestSchemaUpPromotionRules {
 
   private CompleteType getType(CompleteType fileType, CompleteType tableType) {
     return getResultantType(fileType, tableType).get();
+  }
+
+  private void expectException(Supplier<Optional<CompleteType>> supplier) {
+    try {
+      supplier.get();
+      fail("Expected exception");
+    } catch (Exception e) {
+      assertThat(e, instanceOf(IllegalArgumentException.class));
+      assertThat(e.getMessage(), containsString("Max supported precision is 38"));
+    }
   }
 }

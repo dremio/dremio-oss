@@ -15,10 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.*;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
@@ -70,6 +67,7 @@ import com.dremio.plugins.util.CloseableResource;
 import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerFileSystem;
 import com.dremio.plugins.util.ContainerNotFoundException;
+import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -343,6 +341,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         return AnonymousCredentialsProvider.create();
       case ASSUME_ROLE_PROVIDER:
         return new STSCredentialProviderV2(config);
+      case DREMIO_ASSUME_ROLE_PROVIDER:
+        return new DremioAssumeRoleCredentialsProviderV2();
       default:
         throw new IllegalStateException(config.get(Constants.AWS_CREDENTIALS_PROVIDER));
     }

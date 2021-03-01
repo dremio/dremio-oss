@@ -36,12 +36,14 @@ public class OrInConverter {
     CompleteType.TIMESTAMP, CompleteType.VARCHAR, CompleteType.VARBINARY
   );
 
-  public static List<LogicalExpression> optimizeMultiOrs(List<LogicalExpression> expressions, Set<LogicalExpression> constants, int minConversionSize) {
-    return optimizeMultiOrs(expressions, constants, minConversionSize, supportedTypes, null);
+  public static List<LogicalExpression> optimizeMultiOrs(List<LogicalExpression> expressions, Set<LogicalExpression> constants, int minConversionSizeForNonVarchars,
+                                                         int minConversionSizeForVarchars) {
+    return optimizeMultiOrs(expressions, constants, minConversionSizeForNonVarchars, minConversionSizeForVarchars, supportedTypes, null);
   }
 
   public static List<LogicalExpression> optimizeMultiOrs(List<LogicalExpression> expressions, Set<LogicalExpression> constants,
-                                                         int minConversionSize,
+                                                         int minConversionSizeForNonVarchars,
+                                                         int minConversionSizeForVarchars,
                                                          List<CompleteType> supportedTypes,
                                                          List<Class<? extends LogicalExpression>> supportedExpressionTypes) {
 
@@ -63,6 +65,11 @@ public class OrInConverter {
     final List<LogicalExpression> finalConditions = new ArrayList<>();
     for(PossibleKey key : possibles.keySet()) {
       List<Possible> inItems = possibles.get(key);
+      int minConversionSize = minConversionSizeForNonVarchars;
+      if (inItems.get(0).original.getCompleteType().equals(CompleteType.VARCHAR) ||
+        inItems.get(0).original.getCompleteType().equals(CompleteType.VARBINARY)) {
+        minConversionSize = minConversionSizeForVarchars;
+      }
       if(inItems.size() < minConversionSize) {
         for(Possible possible : inItems) {
           notPossibles.add(possible.original);

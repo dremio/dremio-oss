@@ -15,7 +15,7 @@
  */
 import { all, put, select, takeEvery } from 'redux-saga/effects';
 
-import { WS_MESSAGE_JOB_DETAILS, WS_MESSAGE_JOB_PROGRESS } from 'utils/socket';
+import { WS_MESSAGE_JOB_DETAILS, WS_MESSAGE_JOB_PROGRESS } from '@inject/utils/socket';
 
 import { loadJobDetails, loadReflectionJobDetails, updateJobState } from 'actions/jobs/jobs';
 

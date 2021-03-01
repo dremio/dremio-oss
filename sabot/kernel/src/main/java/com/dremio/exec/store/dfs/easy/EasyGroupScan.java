@@ -90,6 +90,8 @@ public class EasyGroupScan extends AbstractGroupScan {
         return UserBitShared.CoreOperatorType.ARROW_SUB_SCAN_VALUE;
       case ICEBERG:
         return UserBitShared.CoreOperatorType.ICEBERG_SUB_SCAN_VALUE;
+      case DELTA:
+        return UserBitShared.CoreOperatorType.DELTALAKE_SUB_SCAN_VALUE;
       case UNKNOWN:
       case HTTP_LOG:
       default:

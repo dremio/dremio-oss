@@ -42,7 +42,7 @@ public class TestDeltaLakeSchemaConverter {
          * val df = spark.createDataFrame(sc.emptyRDD[Row], simpleSchema)
          * df.write.format("delta").mode("overwrite").save("/tmp/delta-tests");
          */
-        final String schemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"byteField\",\"type\":\"byte\",\"nullable\":true,\"metadata\":{}},{\"name\":\"shortField\",\"type\":\"short\",\"nullable\":true,\"metadata\":{}},{\"name\":\"intField\",\"type\":\"integer\",\"nullable\":false,\"metadata\":{}},{\"name\":\"longField\",\"type\":\"long\",\"nullable\":false,\"metadata\":{}},{\"name\":\"floatField\",\"type\":\"float\",\"nullable\":true,\"metadata\":{}},{\"name\":\"doubleField\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringField\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"binaryField\",\"type\":\"binary\",\"nullable\":true,\"metadata\":{}},{\"name\":\"booleanField\",\"type\":\"boolean\",\"nullable\":true,\"metadata\":{}},{\"name\":\"timestampField\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},{\"name\":\"dateField\",\"type\":\"date\",\"nullable\":true,\"metadata\":{}}]}";
+        final String schemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"byteField\",\"type\":\"byte\",\"nullable\":true,\"metadata\":{}},{\"name\":\"shortField\",\"type\":\"short\",\"nullable\":true,\"metadata\":{}},{\"name\":\"intField\",\"type\":\"integer\",\"nullable\":false,\"metadata\":{}},{\"name\":\"longField\",\"type\":\"long\",\"nullable\":false,\"metadata\":{}},{\"name\":\"floatField\",\"type\":\"float\",\"nullable\":true,\"metadata\":{}},{\"name\":\"doubleField\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringField\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"binaryField\",\"type\":\"binary\",\"nullable\":true,\"metadata\":{}},{\"name\":\"booleanField\",\"type\":\"boolean\",\"nullable\":true,\"metadata\":{}},{\"name\":\"timestampField\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},{\"name\":\"dateField\",\"type\":\"date\",\"nullable\":true,\"metadata\":{}},{\"name\":\"decimalField\",\"type\":\"decimal(38,10)\",\"nullable\":true,\"metadata\":{}}]}";
         /**
          * root
          *  |-- byteField: byte (nullable = true)
@@ -56,19 +56,20 @@ public class TestDeltaLakeSchemaConverter {
          *  |-- booleanField: boolean (nullable = true)
          *  |-- timestampField: timestamp (nullable = true)
          *  |-- dateField: date (nullable = true)
+         *  |-- decimalField: decimal(38, 10) (nullable = true)
          */
         final BatchSchema batchSchema = DeltaLakeSchemaConverter.fromSchemaString(schemaString);
 
-        assertEquals(9, batchSchema.getFieldCount()); // Expected 12 when all types are supported
+        assertEquals(12, batchSchema.getFieldCount()); // Expected 12 when all types are supported
         ArrowType byteType = batchSchema.findField("byteField").getType();
         assertEquals(ArrowType.ArrowTypeID.Int, byteType.getTypeID());
-        assertEquals(8, ((ArrowType.Int) byteType).getBitWidth());
+        assertEquals(32, ((ArrowType.Int) byteType).getBitWidth());
         assertTrue(((ArrowType.Int) byteType).getIsSigned());
         assertTrue(batchSchema.findField("byteField").isNullable());
 
         ArrowType shortType = batchSchema.findField("shortField").getType();
         assertEquals(ArrowType.ArrowTypeID.Int, shortType.getTypeID());
-        assertEquals(16, ((ArrowType.Int) shortType).getBitWidth());
+        assertEquals(32, ((ArrowType.Int) shortType).getBitWidth());
         assertTrue(((ArrowType.Int) shortType).getIsSigned());
         assertTrue(batchSchema.findField("shortField").isNullable());
 
@@ -103,9 +104,17 @@ public class TestDeltaLakeSchemaConverter {
         assertEquals(ArrowType.ArrowTypeID.Bool, batchSchema.findField("booleanField").getType().getTypeID());
         assertTrue(batchSchema.findField("booleanField").isNullable());
 
-        // Update once these data types are supported
-        assertFalse(batchSchema.findFieldIgnoreCase("timestampField").isPresent());
-        assertFalse(batchSchema.findFieldIgnoreCase("dateField").isPresent());
+        assertEquals(ArrowType.ArrowTypeID.Timestamp, batchSchema.findField("timestampField").getType().getTypeID());
+        assertTrue(batchSchema.findField("timestampField").isNullable());
+
+        assertEquals(ArrowType.ArrowTypeID.Date, batchSchema.findField("dateField").getType().getTypeID());
+        assertTrue(batchSchema.findField("dateField").isNullable());
+
+        ArrowType decimalType = batchSchema.findField("decimalField").getType();
+        assertEquals(ArrowType.ArrowTypeID.Decimal, decimalType.getTypeID());
+        assertEquals(((ArrowType.Decimal) decimalType).getPrecision(), 38);
+        assertEquals(((ArrowType.Decimal) decimalType).getScale(), 10);
+        assertTrue(batchSchema.findField("decimalField").isNullable());
     }
 
     @Test

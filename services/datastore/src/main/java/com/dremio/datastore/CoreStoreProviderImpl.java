@@ -98,10 +98,10 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   @VisibleForTesting
   CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed) {
-    this(baseDirectory, inMemory, timed, false, false);
+    this(baseDirectory, inMemory, timed, false, false, false);
   }
 
-  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry, boolean indicesViaPutOption) {
+  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry, boolean indicesViaPutOption, boolean noDBLogMessages) {
     super();
     switch(MODE){
     case DISK:
@@ -117,7 +117,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     this.inMemory = inMemory;
     this.indicesViaPutOption = indicesViaPutOption;
 
-    this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry);
+    this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry, noDBLogMessages);
     this.indexManager = new IndexManager(
         baseDirectory,
         inMemory,

@@ -25,6 +25,7 @@ import java.util.function.Function;
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.Request;
+import org.asynchttpclient.RequestBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +61,8 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements Exponen
                           final AsyncHttpClient asyncHttpClient) {
     this.authProvider = authProvider;
     this.path = path;
-    this.version = AzureAsyncHttpClientUtils.toHttpDateFormat(Long.parseLong(version));
+    long mtime = Long.parseLong(version);
+    this.version = (mtime != 0) ? AzureAsyncHttpClientUtils.toHttpDateFormat(mtime) : null;
     this.asyncHttpClient = asyncHttpClient;
     final String baseURL = AzureAsyncHttpClientUtils.getBaseEndpointURL(accountName, isSecure);
     final String container = ContainerFileSystem.getContainerName(path);
@@ -89,11 +91,13 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements Exponen
 
     metrics.endTimer("update-token");
     long rangeEnd = offset + len - 1L;
-    Request req = AzureAsyncHttpClientUtils.newDefaultRequestBuilder()
+    RequestBuilder requestBuilder = AzureAsyncHttpClientUtils.newDefaultRequestBuilder()
       .addHeader("Range", String.format("bytes=%d-%d", offset, rangeEnd))
-      .addHeader("If-Unmodified-Since", version)
-      .setUrl(url)
-      .build();
+      .setUrl(url);
+    if (version != null) {
+      requestBuilder.addHeader("If-Unmodified-Since", version);
+    }
+    Request req = requestBuilder.build();
     req.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(req));
 
     logger.debug("[{}] Req: URL {} {} {}", threadName, req.getUri(), req.getHeaders().get("x-ms-client-request-id"),

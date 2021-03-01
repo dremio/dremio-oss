@@ -60,6 +60,11 @@ export function getJobProgress(state, version) {
   return entities.getIn(['tableData', version, 'jobProgress']) || null;
 }
 
+export function getRunStatus(state) {
+  const { entities } = state.resources;
+  return entities.getIn(['tableData', 'jobProgress']) || { isRun: undefined };
+}
+
 export function getJobOutputRecords(state, version) {
   const jobProgress = getJobProgress(state, version);
   const datasetVersion = jobProgress && jobProgress.datasetVersion;

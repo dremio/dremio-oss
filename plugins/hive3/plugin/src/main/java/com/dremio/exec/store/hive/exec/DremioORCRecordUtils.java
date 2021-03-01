@@ -186,6 +186,15 @@ public class DremioORCRecordUtils {
     private final Set<ByteBuffer> buffersToRelease = Sets.newIdentityHashSet();
     private final Set<ByteBuffer> directBuffersToRelease = Sets.newIdentityHashSet();
 
+    protected void logMessage() {
+      if(file != null) {
+        logger.debug(file.getClass().getClassLoader().toString());
+      }
+      if(fs != null) {
+        logger.debug(fs.getClass().getClassLoader().toString());
+      }
+    }
+
     private DefaultDataReader(BufferAllocator allocator, DataReaderProperties properties, boolean useDirectMemory,
                               final boolean doComputeLocality) {
       this.fs = properties.getFileSystem();

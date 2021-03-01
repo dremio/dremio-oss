@@ -34,6 +34,8 @@ import timeUtils from 'utils/timeUtils';
 import TabsNavigationItem from '../../../../JobPage/components/JobDetails/TabsNavigationItem';
 import {clusterData} from './AboutModal.less';
 
+const numDaysBack = 7;
+
 @injectIntl
 export default class AboutModal extends Component {
 
@@ -90,8 +92,8 @@ export default class AboutModal extends Component {
     this.setState({
       metricsInProgress: true
     }, async () => {
-      const userData = await metrics.fetchUserStats();
-      const jobData = await metrics.fetchDailyJobStats();
+      const userData = await metrics.fetchUserStats(numDaysBack);
+      const jobData = await metrics.fetchDailyJobStats(numDaysBack);
       const dates = this.getDates();
       const users = [];
       const jobs = [];

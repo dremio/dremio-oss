@@ -83,6 +83,8 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   public static final BatchSchema SCHEMA_UNKNOWN_NO_DATA = BatchSchema.newBuilder().addField(new Field(SCHEMA_UNKNOWN_NO_DATA_COLNAME, true, new ArrowType.Utf8(), null)).build();
   public static final UnknownSchema UNKNOWN_SCHEMA_OBJECT = new UnknownSchema();
 
+  public static final String MIXED_TYPES_ERROR = "Mixed types are not supported as returned values over JDBC, ODBC and Flight connections.";
+
   public final static class UnknownSchema {
     public final String NO_DATA;
     private UnknownSchema() {
@@ -123,6 +125,35 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
 
   public boolean isUnknownSchema() {
     return SCHEMA_UNKNOWN_NO_DATA.equals(this);
+  }
+
+  public static void assertNoUnion(List<Field> fields) {
+    List<String> errorPath = doAssertNoUnion(fields, new ArrayList<>());
+    if (errorPath == null) {
+      return;
+    } else {
+      String errorMessage = MIXED_TYPES_ERROR;
+      errorMessage += String.format(" Cast %s to a primitive data type either in the "
+        + "select statement or the VDS definition.", errorPath.stream().collect(Collectors.joining(".", "\"", "\"")));
+      throw UserException.unsupportedError().message(errorMessage).buildSilently();
+    }
+  }
+
+  public static List<String> doAssertNoUnion(List<Field> fields, List<String> errorPath) {
+    for (Field f : fields) {
+      if(f.getFieldType().getType().getTypeID() == ArrowType.ArrowTypeID.Union) {
+        errorPath.add(f.getName());
+        return errorPath;
+      } else {
+        errorPath.add(f.getName());
+        List<String> lowerErrorPath = doAssertNoUnion(f.getChildren(), errorPath);
+        if (lowerErrorPath != null) {
+          return lowerErrorPath;
+        }
+        errorPath.remove(errorPath.size() - 1);
+      }
+    }
+    return null;
   }
 
   @Override

@@ -134,7 +134,7 @@ public class MaterializationExpander {
       schema,
       descriptor.getExpirationTimestamp(),
       preStripped,
-      StrippingFactory.LATEST_STRIP_VERSION,
+      descriptor.getStripVersion(), // Should use the strip version of the materialization we are expanding
       postStripNormalizer
     );
   }

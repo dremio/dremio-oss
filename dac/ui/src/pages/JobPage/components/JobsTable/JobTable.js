@@ -190,8 +190,8 @@ export default class JobTable extends Component {
     const even = !(index % 2);
     const dataset = item.getIn(['datasetPathList', -1]); // use dataset name on job info
     const datasetType = item.get('datasetType');
-    const fullPath = item.get('datasetPathList');
-
+    let fullPath = item.get('datasetPathList');
+    fullPath = Array.isArray(fullPath) ? Immutable.List(fullPath) : fullPath;
     // only show the overlay if we have a dataset type and the job is not a metadata job
     const showOverlay = (!jobsUtils.isMetadataJob(item.get('requestType')) && !!datasetType);
     const datasetLabel = (

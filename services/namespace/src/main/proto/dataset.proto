@@ -113,6 +113,7 @@ message ReadDefinition {
 
   optional int64 splitVersion = 7; // increasing number assigned to map read definition to its latest splits
 
+  optional ScanStats manifestScanStats = 8;
 }
 
 message PhysicalDataset {

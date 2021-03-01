@@ -18,7 +18,9 @@ package com.dremio.sabot.op.spi;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.work.foreman.UnsupportedFunctionException;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
 public interface SingleInputOperator extends Operator.Producer, Operator.SingleConsumer {
 
@@ -64,5 +66,8 @@ public interface SingleInputOperator extends Operator.Producer, Operator.SingleC
 
   interface Creator<T extends PhysicalOperator> {
     SingleInputOperator create(OperatorContext context, T operator) throws ExecutionSetupException;
+    default SingleInputOperator create(FragmentExecutionContext fec, OperatorContext context, T operator) throws ExecutionSetupException {
+      throw new UnsupportedFunctionException("Not implemented");
+    }
   }
 }

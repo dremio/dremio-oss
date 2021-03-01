@@ -79,7 +79,7 @@ public interface MaestroService extends Service, SafeExit {
 
   /* Get the resource information for the group (cluster or engine).
    *
-   * @param optionManager optionManager
+   * @param queryContext
    * @return resource information.
    */
   GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,

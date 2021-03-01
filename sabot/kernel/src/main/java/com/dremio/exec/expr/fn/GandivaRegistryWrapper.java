@@ -78,6 +78,13 @@ public class GandivaRegistryWrapper {
       return true;
     }
 
+    // blacklisting to_date variants on string param till DX-24037 is fixed.
+    if (signature.getName().equalsIgnoreCase("to_date") || signature.getName().equalsIgnoreCase("castDATE")) {
+      return signature.getParamTypes().size() == 2
+        && signature.getParamTypes().get(0).equals(new ArrowType.Utf8())
+        && signature.getParamTypes().get(1).equals(new ArrowType.Utf8());
+    }
+
     return false;
   }
 

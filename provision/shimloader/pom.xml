@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-provision-parent</artifactId>
-    <version>13.1.0-202102110202430875-3e6f3e7c</version>
+    <version>14.0.0-202103011714040666-9a0c2e10</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>

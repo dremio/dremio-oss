@@ -48,6 +48,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 
+import io.grpc.Context;
+
 /**
  * Tracker for the profile of a query attempt.
  */
@@ -134,13 +136,18 @@ class AttemptProfileTracker {
   void sendTailProfile(UserException userException) {
     this.userException = userException;
 
-    jobTelemetryClient.getBlockingStub()
-      .putQueryTailProfile(
-        PutTailProfileRequest.newBuilder()
-          .setQueryId(queryId)
-          .setProfile(getPlanningProfile())
-          .build()
-      );
+    // DX-28440 : when query is cancelled from flight service
+    // sometimes the original context might not be valid.
+    // fork a new context always.
+    Context.current().fork().run( () -> {
+      jobTelemetryClient.getBlockingStub()
+        .putQueryTailProfile(
+          PutTailProfileRequest.newBuilder()
+            .setQueryId(queryId)
+            .setProfile(getPlanningProfile())
+            .build()
+        );
+    });
   }
 
   // Get the latest planning profile.

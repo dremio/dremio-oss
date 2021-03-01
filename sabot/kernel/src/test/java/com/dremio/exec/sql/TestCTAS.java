@@ -412,14 +412,11 @@ public class TestCTAS extends PlanTestBase {
     }
   }
 
-  @Test
-  public void ctasSimpleTransactionalTable() throws Exception {
-    final String newTblName = "nation_ctas_tt";
-
-    try (AutoCloseable c = enableIcebergTables()) {
+  private void testCtasSimpleTransactionalTable(final String newTblName) throws Exception {
+    try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
-          " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
-        TEMP_SCHEMA, newTblName);
+                      " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
+              TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
@@ -444,16 +441,27 @@ public class TestCTAS extends PlanTestBase {
       })).length); // manifest list and manifest files
 
       testBuilder()
-        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(1L)
-        .build()
-        .run();
-
-
+              .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+              .unOrdered()
+              .baselineColumns("c")
+              .baselineValues(1L)
+              .build()
+              .run();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
+  @Test
+  public void ctasSimpleTransactionalTable() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      final String newTblName = "nation_ctas_tt";
+      testCtasSimpleTransactionalTable(newTblName);
+    }
+
+    try (AutoCloseable c1 = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      final String newTblName = "nation_ctas_tt_v2";
+      testCtasSimpleTransactionalTable(newTblName);
     }
   }
 
@@ -483,16 +491,13 @@ public class TestCTAS extends PlanTestBase {
     }
   }
 
-  @Test
-  public void ctasMultiSplitTransactionalTable() throws Exception {
-    final String newTblName = "supplier_ctas_multisplit_tt";
-
-    try (AutoCloseable c = enableIcebergTables()) {
+  private void testCtasMultiSplitTransactionalTable(String newTblName) throws Exception {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/supplier";
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
-          " AS SELECT * from dfs.\"" + parquetFiles +"\"",
-        TEMP_SCHEMA, newTblName);
+                      " AS SELECT * from dfs.\"" + parquetFiles +"\"",
+              TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
@@ -517,27 +522,36 @@ public class TestCTAS extends PlanTestBase {
       })).length); // manifest list and manifest files
 
       testBuilder()
-        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(200000L)
-        .build()
-        .run();
-
-
+              .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+              .unOrdered()
+              .baselineColumns("c")
+              .baselineValues(200000L)
+              .build()
+              .run();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }
   }
 
   @Test
-  public void insertSimpleTransactionalTable() throws Exception {
-    final String newTblName = "nation_insert_tt";
-
+  public void ctasMultiSplitTransactionalTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      final String newTblName = "supplier_ctas_multisplit_tt";
+      testCtasMultiSplitTransactionalTable(newTblName);
+    }
+
+    try (AutoCloseable c1 = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      final String newTblName = "supplier_ctas_multisplit_tt_new";
+      testCtasMultiSplitTransactionalTable(newTblName);
+    }
+  }
+
+  private void testInsertSimpleTransactionalTable(String newTblName) throws Exception {
+    try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
-          " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
-        TEMP_SCHEMA, newTblName);
+                      " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
+              TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
@@ -560,21 +574,32 @@ public class TestCTAS extends PlanTestBase {
       })).length); // manifest list and manifest files
 
       testBuilder()
-        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(1L)
-        .build()
-        .run();
+              .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+              .unOrdered()
+              .baselineColumns("c")
+              .baselineValues(1L)
+              .build()
+              .run();
 
       final String insertQuery = String.format("INSERT INTO %s.%s SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1", TEMP_SCHEMA, newTblName);
       test(insertQuery);
 
       assertTrue(new File(metadataFolder, "v2.metadata.json").exists());
-
-
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
+  @Test
+  public void insertSimpleTransactionalTable() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      final String newTblName = "nation_insert_tt";
+      testInsertSimpleTransactionalTable(newTblName);
+    }
+
+    try (AutoCloseable c1 = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      final String newTblName = "nation_insert_tt_new";
+      testInsertSimpleTransactionalTable(newTblName);
     }
   }
 
@@ -666,8 +691,7 @@ public class TestCTAS extends PlanTestBase {
 
       IcebergTableOperations tableOperations = new IcebergTableOperations(
         new org.apache.hadoop.fs.Path(tableFolder.toString()), new Configuration());
-      BatchSchema icebergSchema = new SchemaConverter().fromIceberg(
-        tableOperations.current().schema());
+      BatchSchema icebergSchema = SchemaConverter.fromIceberg(tableOperations.current().schema());
       SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
       schemaBuilder.addField(CompleteType.VARCHAR.toField("name"));
       schemaBuilder.addField(CompleteType.struct(CompleteType.BIGINT.toField("age"), CompleteType.VARCHAR.toField("gender")).toField("info"));

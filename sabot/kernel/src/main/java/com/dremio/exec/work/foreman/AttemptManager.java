@@ -57,6 +57,7 @@ import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingProperties;
+import com.dremio.resource.RuleBasedEngineSelector;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
@@ -135,6 +136,7 @@ public class AttemptManager implements Runnable {
 
   private final AttemptId attemptId;
   private final QueryId queryId;
+  private RuleBasedEngineSelector ruleBasedEngineSelector;
   private final String queryIdString;
   private final UserRequest queryRequest;
   private final QueryContext queryContext;
@@ -176,11 +178,13 @@ public class AttemptManager implements Runnable {
       final CommandPool commandPool,
       final MaestroService maestroService,
       final JobTelemetryClient jobTelemetryClient,
+      final RuleBasedEngineSelector ruleBasedEngineSelector,
       final boolean runInSameThread
       ) {
     this.sabotContext = sabotContext;
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
+    this.ruleBasedEngineSelector = ruleBasedEngineSelector;
     this.queryIdString = QueryIdHelper.getQueryId(queryId);
     this.queryRequest = queryRequest;
     this.plans = plans;
@@ -337,9 +341,10 @@ public class AttemptManager implements Runnable {
 
       observer.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
 
+      String ruleSetEngine = ruleBasedEngineSelector.resolveAndUpdateEngine(queryContext);
       ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
       resourceSchedulingProperties.setRoutingEngine(queryContext.getSession().getRoutingEngine());
-      // Get the resource information of the cluster/engine before planning begins.
+      resourceSchedulingProperties.setRuleSetEngine(ruleSetEngine);
       final GroupResourceInformation groupResourceInformation =
         maestroService.getGroupResourceInformation(queryContext.getOptions(), resourceSchedulingProperties);
       queryContext.setGroupResourceInformation(groupResourceInformation);

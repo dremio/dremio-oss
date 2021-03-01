@@ -15,6 +15,7 @@
  */
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
+import moment from 'moment';
 
 export default {
   fetchClusterStats() {
@@ -24,14 +25,29 @@ export default {
     }); //ignore errors
   },
 
-  fetchDailyJobStats() {
-    return ApiUtils.fetchJson('cluster/jobstats', json => {
+  fetchDailyJobStats(numDaysBack) {
+    let url = 'cluster/jobstats';
+    if (numDaysBack) {
+      const end = moment().unix() * 1000;
+      const start = moment().subtract(numDaysBack, 'days').unix() * 1000;
+
+      url += `?start=${start}&end=${end}`;
+    }
+
+    return ApiUtils.fetchJson(url, json => {
       return json;
     }, () => {}); //ignore errors
   },
 
-  fetchUserStats() {
-    return ApiUtils.fetchJson('stats/user', json => {
+  fetchUserStats(numDaysBack) {
+    let url = 'stats/user';
+    if (numDaysBack) {
+      const end = moment().unix() * 1000;
+      const start = moment().subtract(numDaysBack, 'days').unix() * 1000;
+
+      url += `?start=${start}&end=${end}`;
+    }
+    return ApiUtils.fetchJson(url, json => {
       return json;
     }, () => {}); //ignore errors
   }

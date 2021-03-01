@@ -113,4 +113,7 @@ class InjectionResolver {
   }
 }
 
-module.exports = InjectionResolver;
+module.exports = {
+  injectionPath,
+  InjectionResolver
+};

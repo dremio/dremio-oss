@@ -15,9 +15,17 @@
  */
 
 export const APP_INIT = 'APP_INIT';
+export const APP_INIT_COMPLETE = 'APP_INIT_COMPLETE';
 
 export function initApp() {
   return {
     type: APP_INIT
   };
 }
+
+export function appInitComplete() {
+  return {
+    type: APP_INIT_COMPLETE
+  };
+}
+

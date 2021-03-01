@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, takeLatest } from 'redux-saga/effects';
+import { call, put, takeLatest } from 'redux-saga/effects';
 import {
   afterLogin, handleLogin, handleAppInit,
   checkAppState, resetAppInitState, handleAppStop
@@ -23,6 +23,7 @@ import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import { expect } from 'chai';
 import { default as handleAppInitHelper } from '@inject/sagas/utils/handleAppInit';
 import { isAuthorized } from '@inject/sagas/utils/isAuthorized';
+import { appInitComplete } from '@app/actions/app';
 
 describe('login', () => {
   it('afterLogin calls handleLogin saga if LOGIN_USER_SUCCESS is dispatched', () => {
@@ -83,9 +84,12 @@ describe('login', () => {
     it('clears current user data is a user in not authorized anymore', () => {
       expect(gen.next(false).value).to.be
         .eql(call([localStorageUtils, localStorageUtils.clearUserData]));
+      expect(gen.next(true).value).to.be.eql(put(appInitComplete()));
+
     });
     it('runs handleAppBoot if user is valid', () => {
       expect(gen.next(true).value).to.be.eql(call(handleAppInit));
+      expect(gen.next(true).value).to.be.eql(put(appInitComplete()));
     });
   });
 });

@@ -1084,4 +1084,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
     JobsServiceTestUtils.resetSystemOption(l(JobsService.class), optionName);
   }
 
+  protected static AutoCloseable enableDeltaLake() {
+    setSystemOption(PlannerSettings.ENABLE_DELTALAKE.getOptionName(), "true");
+    return () ->
+      setSystemOption(PlannerSettings.ENABLE_DELTALAKE.getOptionName(),
+        PlannerSettings.ENABLE_DELTALAKE.getDefault().getBoolVal().toString());
+  }
 }

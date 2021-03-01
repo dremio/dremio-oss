@@ -25,7 +25,7 @@ import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
 import ExploreTableJobStatusSpinner from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusSpinner';
 import jobsUtils from '@app/utils/jobsUtils';
-import {getJobProgress, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
+import {getJobProgress, getRunStatus, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
 import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
 import TooltipEnabledLabel from '@app/components/TooltipEnabledLabel';
 import ExploreTableJobStatusMixin from 'dyn-load/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusMixin';
@@ -68,6 +68,7 @@ export class ExploreTableJobStatus extends Component {
     approximate: PropTypes.bool,
     //connected
     jobProgress: PropTypes.object,
+    runStatus: PropTypes.bool,
     jobId: PropTypes.string,
     haveRows: PropTypes.bool,
     outputRecords: PropTypes.number,
@@ -149,12 +150,12 @@ export class ExploreTableJobStatus extends Component {
   };
 
   render() {
-    const { jobProgress, jobId, outputRecords, intl } = this.props;
+    const { jobProgress, runStatus, jobId, outputRecords, intl } = this.props;
     if (!jobProgress) {
       return this.renderPreviewWarning();
     }
 
-    const jobTypeLabel = jobProgress.isRun ? la('Run') : la('Preview');
+    const jobTypeLabel = runStatus ? la('Run') : la('Preview');
     const isCompleteWithRecords = jobProgress.status === JOB_STATUS.completed && outputRecords;
     const jobStatusLabel = (isCompleteWithRecords) ? la('Records: ') : la('Status: ');
     const jobStatusName = (isCompleteWithRecords) ? outputRecords.toLocaleString() : this.jobStatusNames[jobProgress.status];
@@ -210,6 +211,7 @@ function mapStateToProps(state, props) {
   const {approximate, location = {}} = props;
   const version = location.query && location.query.version;
   const jobProgress = getJobProgress(state, version);
+  const runStatus = getRunStatus(state).isRun;
   const jobId = getExploreJobId(state);
   const outputRecords = getJobOutputRecords(state, version);
 
@@ -223,6 +225,7 @@ function mapStateToProps(state, props) {
 
   return {
     jobProgress,
+    runStatus,
     jobId,
     haveRows,
     outputRecords

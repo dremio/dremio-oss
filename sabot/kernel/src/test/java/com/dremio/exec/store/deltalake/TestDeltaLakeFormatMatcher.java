@@ -29,8 +29,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -43,7 +43,7 @@ public class TestDeltaLakeFormatMatcher {
   @Test
   public void matches() throws Exception {
     DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_DELTALAKE)).thenReturn(true);
+    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(true);
 
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
@@ -77,7 +77,7 @@ public class TestDeltaLakeFormatMatcher {
   @Test
   public void testAccessDenied() throws Exception {
     DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_DELTALAKE)).thenReturn(true);
+    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(true);
 
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
@@ -107,7 +107,7 @@ public class TestDeltaLakeFormatMatcher {
   @Test
   public void deltaLakeNotEnabled() throws Exception {
     DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
-    when(plugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_DELTALAKE)).thenReturn(false);
+    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(false);
 
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
@@ -128,5 +128,23 @@ public class TestDeltaLakeFormatMatcher {
 
     assertFalse(matcher.matches(fs, fileSelection, null));
   }
+
+  @Test
+  public void testNonDirectoryRoot() throws Exception {
+    DeltaLakeFormatPlugin plugin = mock(DeltaLakeFormatPlugin.class, RETURNS_DEEP_STUBS);
+    when(plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)).thenReturn(true);
+
+    DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
+    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+    File root = tempDir.newFolder();
+
+    File parquet = new File(root, "a.parquet");
+    parquet.createNewFile();
+
+    FileSelection fileSelection = FileSelection.create(fs, Path.of(parquet.toURI()));
+
+    assertFalse(matcher.matches(fs, fileSelection, null));
+  }
+
 }
 

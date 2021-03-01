@@ -64,7 +64,8 @@ public class HashPrelUtil {
 
   // The hash32 functions actually use hash64 underneath.  The reason we want to call hash32 is that
   // the hash based operators make use of 4 bytes of hash value, not 8 bytes (for reduced memory use).
-  private static final String HASH32_FUNCTION_NAME = "hash32";
+  public static final String HASH32_FUNCTION_NAME = "hash32";
+  public static final String DREMIO_SPLIT_DISTRIBUTE_HASH_FUNCTION_NAME = "dremioSplitDistribute";
   private static final String HASH32_DOUBLE_FUNCTION_NAME = "hash32AsDouble";
 
   /**
@@ -83,6 +84,13 @@ public class HashPrelUtil {
     return createHashExpression(distFields, helper);
   }
 
+  public static <T> T createHashBasedPartitionExpression(
+      List<T> distFields,
+      HashExpressionCreatorHelper<T> helper,
+      final String functionName) {
+    return createHashExpression(distFields, helper, functionName);
+  }
+
   /**
    * Create hash expression based on the given input fields.
    *
@@ -94,12 +102,17 @@ public class HashPrelUtil {
    * @return
    */
   public static <T> T createHashExpression(
+          List<T> inputExprs,
+          HashExpressionCreatorHelper<T> helper) {
+    return createHashExpression(inputExprs, helper, HASH32_FUNCTION_NAME);
+  }
+
+  public static <T> T createHashExpression(
       List<T> inputExprs,
-      HashExpressionCreatorHelper<T> helper) {
+      HashExpressionCreatorHelper<T> helper,
+      final String functionName) {
 
     assert inputExprs.size() > 0;
-
-    final String functionName = HASH32_FUNCTION_NAME;
 
     T func = helper.createCall(functionName,  ImmutableList.of(inputExprs.get(0)));
     for (int i = 1; i<inputExprs.size(); i++) {
@@ -116,8 +129,11 @@ public class HashPrelUtil {
     return createHashExpression(fields, HASH_HELPER_LOGICALEXPRESSION);
   }
 
+  public static ProjectPrel addHashProject(List<DistributionField> distFields, Prel input, Integer ringCount) {
+    return addHashProject(distFields, input, ringCount, HASH32_FUNCTION_NAME);
+  }
 
-  public static ProjectPrel addHashProject(List<DistributionField> distFields, Prel input, Integer ringCount){
+  public static ProjectPrel addHashProject(List<DistributionField> distFields, Prel input, Integer ringCount, String hashFunctionName){
 
     // Insert Project SqlOperatorImpl with new column that will be a hash for HashToRandomExchange fields
 
@@ -141,7 +157,7 @@ public class HashPrelUtil {
       RexNode rex = rexBuilder.makeInputRef(field.getType(), field.getIndex());
       updatedExpr.add(rex);
     }
-    RexNode hashExpression = HashPrelUtil.createHashBasedPartitionExpression(distFieldRefs, hashHelper);
+    RexNode hashExpression = HashPrelUtil.createHashBasedPartitionExpression(distFieldRefs, hashHelper, hashFunctionName);
 
     if(ringCount != null){
       RelDataType intType = input.getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER);

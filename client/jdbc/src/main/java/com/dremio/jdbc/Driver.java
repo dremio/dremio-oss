@@ -40,6 +40,20 @@ public class Driver implements java.sql.Driver {
   // DriverManager access it:
 
   static {
+    // Special code for supporting Java9 and higher.
+    // Netty requires some extra properties to unlock some native memory management api
+    // Dremio require in order to process data coming from the server
+    // Setting this property if not already set externally
+    // This has to be done before any netty class is being loaded
+    final String key = "io.netty.tryReflectionSetAccessible";
+    final String tryReflectionSetAccessible = System.getProperty(key);
+    if (tryReflectionSetAccessible == null) {
+      logger.info("Enabling Netty native memory API for Java9+");
+      System.setProperty(key, Boolean.TRUE.toString());
+    } else {
+      logger.info("{} key has been set to '{}'", key, tryReflectionSetAccessible);
+    }
+
     // Upon loading of class, register an instance with DriverManager.
     try {
       DriverManager.registerDriver(new Driver());

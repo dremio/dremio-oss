@@ -64,7 +64,7 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
         return visit(prel, ((HashToMergeExchangePrel) prel).getDistFields(), child);
       }
       if (prel instanceof HashToRandomExchangePrel) {
-        return visit(prel, ((HashToRandomExchangePrel) prel).getFields(), child);
+        return visit(prel, ((HashToRandomExchangePrel) prel).getFields(), child, ((HashToRandomExchangePrel) prel).getHashFunctionName());
       }
     }
 
@@ -72,11 +72,15 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
   }
 
   private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child) {
+    return visit(hashPrel, fields, child, HashPrelUtil.HASH32_FUNCTION_NAME);
+  }
+
+  private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child, String hashFunctionName) {
     final List<String> childFields = child.getRowType().getFieldNames();
 
 
     // Insert Project SqlOperatorImpl with new column that will be a hash for HashToRandomExchange fields
-    final ProjectPrel addColumnprojectPrel = HashPrelUtil.addHashProject(fields, child, null);
+    final ProjectPrel addColumnprojectPrel = HashPrelUtil.addHashProject(fields, child, null, hashFunctionName);
     final Prel newPrel = (Prel) hashPrel.copy(hashPrel.getTraitSet(), Collections.<RelNode>singletonList(addColumnprojectPrel));
 
     int validRows = newPrel.getRowType().getFieldCount() - 1;

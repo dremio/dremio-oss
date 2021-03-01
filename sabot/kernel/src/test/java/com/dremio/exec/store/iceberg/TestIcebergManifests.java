@@ -122,7 +122,7 @@ public class TestIcebergManifests extends BaseTestQuery {
       tableFolder.mkdir();
 
       IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(tableName, Path.of(tableFolder.toPath().toString()),
-        (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
+        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
       committer.consumeData(getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName));
       committer.commit();
 
@@ -135,7 +135,7 @@ public class TestIcebergManifests extends BaseTestQuery {
 
       for (int i=0; i<insertCount; ++i) {
         committer = IcebergOperation.getInsertTableCommitter(tableName,
-          Path.of(tableFolder.toPath().toString()), (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
+          Path.of(tableFolder.toPath().toString()), SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
         committer.consumeData(getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName));
         committer.commit();
       }

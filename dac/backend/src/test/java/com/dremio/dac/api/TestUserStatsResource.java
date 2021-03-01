@@ -41,7 +41,6 @@ import com.dremio.service.jobs.JobsService;
  * Tests for {@link UserStatsResource}
  */
 public class TestUserStatsResource {
-
   @Test
   public void testActiveUserStats() {
     EditionProvider editionProvider = mock(EditionProvider.class);
@@ -77,7 +76,7 @@ public class TestUserStatsResource {
     when(jobsService.searchJobs(any(SearchJobsRequest.class))).thenReturn(testJobResults);
 
     UserStatsResource resource = new UserStatsResource(jobsService, editionProvider);
-    UserStats stats = resource.getActiveUserStats();
+    UserStats stats = resource.getActiveUserStats(0,0);
 
     List<Map<String, Object>> statsByDate = stats.getUserStatsByDate();
     Map<String, Object> firstDateEntry = fetchDateEntry("date", now.toString(), statsByDate);

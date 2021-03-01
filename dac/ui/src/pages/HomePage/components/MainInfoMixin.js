@@ -22,12 +22,13 @@ export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
 
     renderConvertButton(entity, folderModalButton) {
+      const buttonType = entity.toJS().entityType;
       return (
         <div className='main-settings-btn convert-to-dataset'>
           <Link
             className='settings-button'
             to={folderModalButton.to ? folderModalButton.to : '.'}
-            style={styles.button}>
+            style={buttonType === 'folder' ? styles.folderConvertButton : styles.button}>
             {folderModalButton.icon}
           </Link>
         </div>

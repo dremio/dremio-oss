@@ -19,13 +19,12 @@ import java.util.EnumSet;
 import java.util.Set;
 
 import com.dremio.exec.proto.CoordinationProtos.Roles;
-import com.dremio.service.Service;
 
 /**
  * Pluggable interface built to manage cluster coordination. Allows SabotNode or DremioClient to register its capabilities
  * as well as understand other node's existence and capabilities.
  **/
-public abstract class ClusterCoordinator implements Service {
+public abstract class ClusterCoordinator implements ClusterServiceSetManager {
   /**
    * Cluster coordinator options
    */
@@ -44,6 +43,7 @@ public abstract class ClusterCoordinator implements Service {
     public static final String ZK_RETRY_UNLIMITED ="dremio.exec.zk.retry.unlimited";
     public static final String ZK_RETRY_LIMIT = "dremio.exec.zk.retry.limit";
     public static final String ZK_INITIAL_TIMEOUT_MS = "dremio.exec.zk.retry.initial_timeout_ms";
+    public static final String ZK_CONNECTION_HANDLE_ENABLED ="dremio.exec.zk.connection_handle.enabled";
 
   }
 

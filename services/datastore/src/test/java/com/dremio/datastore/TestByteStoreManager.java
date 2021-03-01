@@ -320,7 +320,7 @@ public class TestByteStoreManager {
 
     try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
-      ByteStoreManager bsm2 = new ByteStoreManager(dbPath, false, true);
+      ByteStoreManager bsm2 = new ByteStoreManager(dbPath, false, true, false);
       bsm2.start();
 
       fail("ByteStoreManager shouldn't have been able to open a locked instance");
@@ -328,5 +328,16 @@ public class TestByteStoreManager {
       assertTrue("RocksDBException isn't IOError type", Status.Code.IOError.equals(e.getStatus().getCode()));
       assertTrue("Incorrect error message", e.getStatus().getState().contains("While lock"));
     }
+  }
+
+  @Test
+  public void testNoDBMessages() throws Exception {
+    String dbPath = temporaryFolder.newFolder().getAbsolutePath();
+    ByteStoreManager bsm = new ByteStoreManager(dbPath, false, false, true);
+    bsm.start();
+    String logFile = dbPath + "/catalog/LOG";
+    File f = new File(logFile);
+    assertTrue(!f.exists());
+    bsm.close();
   }
 }

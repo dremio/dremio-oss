@@ -32,7 +32,7 @@ import com.google.common.base.Joiner;
 public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskLeaderStatusListener.class);
 
-  private final Provider<ClusterCoordinator> clusterCoordinator;
+  private final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider;
   private final String taskName;
 
   private final Object taskLeaderLock = new Object();
@@ -42,14 +42,14 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
   private CoordinatorLostHandle leaderUnregisteredHandle;
 
   public TaskLeaderStatusListener(String taskName,
-                                  Provider<ClusterCoordinator> clusterCoordinator) {
-    this(taskName, clusterCoordinator, false, null);
+                                  Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider) {
+    this(taskName, clusterServiceSetManagerProvider, false, null);
   }
 
   public TaskLeaderStatusListener(String taskName,
-                                  Provider<ClusterCoordinator> clusterCoordinator, boolean isLeader, CoordinatorLostHandle leaderUnregisteredHandle) {
+                                  Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider, boolean isLeader, CoordinatorLostHandle leaderUnregisteredHandle) {
     this.taskName = taskName;
-    this.clusterCoordinator = clusterCoordinator;
+    this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
     this.taskLeaderUp = isLeader;
     this.leaderUnregisteredHandle = leaderUnregisteredHandle;
     if (!taskLeaderUp && leaderUnregisteredHandle != null) {
@@ -63,8 +63,8 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
 
   public void start() throws Exception {
     logger.info("Starting TaskLeaderStatusListener for: {}", taskName);
-    clusterCoordinator.get().getOrCreateServiceSet(taskName).addNodeStatusListener(this);
-    nodesRegistered(new HashSet<>(clusterCoordinator.get().getOrCreateServiceSet(taskName)
+    clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName).addNodeStatusListener(this);
+    nodesRegistered(new HashSet<>(clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName)
       .getAvailableEndpoints()));
     logger.info("TaskLeaderStatusListener for: {} is up", taskName);
   }
@@ -76,7 +76,7 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
     synchronized (taskLeaderLock) {
       taskLeaderLock.notifyAll();
     }
-    clusterCoordinator.get().getOrCreateServiceSet(taskName).removeNodeStatusListener(this);
+    clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName).removeNodeStatusListener(this);
     logger.info("Stopped TaskLeaderStatusListener for: {}", taskName);
   }
 

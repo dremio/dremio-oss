@@ -437,6 +437,15 @@ public final class MoreRelOptUtil {
     return true;
   }
 
+  public static Pair<Integer, RelDataTypeField> findFieldWithIndex(List<RelDataTypeField> fields, String fieldName) {
+    for (int i = 0; i < fields.size(); i++) {
+      if (fields.get(i).getName().equals(fieldName)) {
+        return Pair.of(i, fields.get(i));
+      }
+    }
+    return null;
+  }
+
   public static class VertexRemover extends StatelessRelShuttleImpl {
 
     @Override

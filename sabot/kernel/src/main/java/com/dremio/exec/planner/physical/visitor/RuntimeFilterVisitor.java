@@ -38,6 +38,7 @@ import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
+import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
 import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.StreamAggPrel;
 import com.dremio.exec.planner.physical.TopNPrel;
@@ -190,7 +191,7 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
   private static class FindScanVisitor extends BasePrelVisitor<ScanPrelBase,Integer,RuntimeException> {
     @Override
     public ScanPrelBase visitPrel(Prel prel, Integer idx) {
-      if (prel instanceof FilterPrel) {
+      if (prel instanceof FilterPrel || prel instanceof SelectionVectorRemoverPrel) {
         if (prel.getInput(0) instanceof Prel) {
           return ((Prel) prel.getInput(0)).accept(this, idx);
         }
@@ -232,7 +233,7 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
         return null;
       }
       if (idx < join.getLeft().getRowType().getFieldCount()) {
-        if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.RIGHT) {
+        if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT) {
           if (!(join.getLeft() instanceof Prel)) {
             return null;
           }
@@ -240,7 +241,7 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
           return left.accept(this, idx);
         }
       } else {
-        if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT) {
+        if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.RIGHT) {
           int newIdx = idx - join.getLeft().getRowType().getFieldCount();
           if (!(join.getRight() instanceof Prel)) {
             return null;
@@ -321,11 +322,6 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
       }
 
       if (currentPrel instanceof TopNPrel) {
-        encounteredBlockNode = true;
-        return null;
-      }
-
-      if (currentPrel instanceof HashJoinPrel && ((HashJoinPrel) currentPrel).getJoinType() != JoinRelType.INNER) {
         encounteredBlockNode = true;
         return null;
       }

@@ -329,7 +329,7 @@ const styles = {
     'WebkitUserSelect': 'text',
     'UserSelect': 'text',
     position: 'relative',
-    zIndex: 3 // needs to be above disabled table overlay
+    zIndex: 100 // needs to be above disabled table overlay
   },
   messageText: {
     flexGrow: 1,

@@ -65,11 +65,11 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
   private final FunctionContext functionContext;
   private final boolean enableOrOptimization;
   private final int minConversionSize;
-  private static final List<CompleteType> supportedInTypesInGandiva = Lists.newArrayList(CompleteType.VARCHAR);
+  private final int minConversionSizeForVarchars;
+  private static final List<CompleteType> supportedInTypesInGandiva = Lists.newArrayList(CompleteType.BIGINT, CompleteType.INT,
+    CompleteType.VARCHAR);
   private static final List<Class<? extends LogicalExpression>> supportedExpressionTypes = Lists
     .newArrayList(ValueVectorReadExpression.class);
-
-
 
   private GandivaExpressionBuilder(VectorAccessible incoming, Set<Field> referencedFields, Set<LogicalExpression> constantSet, FunctionContext functionContext) {
     this.incoming = incoming;
@@ -78,6 +78,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
     this.functionContext = functionContext;
     this.enableOrOptimization = functionContext.getCompilationOptions().enableOrOptimization();
     this.minConversionSize = functionContext.getCompilationOptions().getOrOptimizationThresholdForGandiva();
+    this.minConversionSizeForVarchars = functionContext.getCompilationOptions().getVarcharOrOptimizationThresholdForGandiva();
   }
 
   /**
@@ -161,7 +162,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
 
     if(enableOrOptimization && "booleanOr".equals(operator.getName())) {
       expressions = OrInConverter.optimizeMultiOrs(expressions,
-        constantSet, minConversionSize, supportedInTypesInGandiva, supportedExpressionTypes);
+        constantSet, minConversionSize, minConversionSizeForVarchars, supportedInTypesInGandiva, supportedExpressionTypes);
       if (expressions.size() == 1) {
         return visitUnknown(expressions.get(0), null);
       }

@@ -75,6 +75,9 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
 
         <#elseif type.to == "TimeMilli">
         org.joda.time.format.DateTimeFormatter f = com.dremio.common.util.JodaDateUtility.getTimeFormatter();
+        if (input.length() == 5) {
+          input += ":00";
+        }
         out.value = (int) com.dremio.common.util.DateTimes.toMillis((f.parseLocalDateTime(input)));
         </#if>
       } catch (RuntimeException e) {

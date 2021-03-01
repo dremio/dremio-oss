@@ -79,6 +79,10 @@ public final class GrpcExceptionUtil {
     }
   }
 
+  public static StatusRuntimeException toStatusRuntimeException(DremioPBError error) {
+    return toStatusRuntimeException(error.getMessage(), toCode(error.getErrorType()), UserRemoteException.create(error));
+  }
+
   /**
    * Converts the given {@link UserException} to a {@link StatusRuntimeException}.
    *

@@ -43,6 +43,7 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.op.scan.ScanOperator;
 
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;
@@ -54,6 +55,8 @@ public class OperatorStats {
 
   protected final int operatorId;
   protected final int operatorType;
+  protected final int operatorSubType;
+
   private final BufferAllocator allocator;
 
   private IntLongHashMap longMetrics = new IntLongHashMap();
@@ -62,6 +65,12 @@ public class OperatorStats {
   public long[] recordsReceivedByInput;
   public long[] batchesReceivedByInput;
   public long[] sizeInBytesReceivedByInput;
+
+  private long outputRecords = 0;
+  private long numberOfBatches = 0;
+  private long outputSizeInBytes = 0;
+
+  private boolean recordOutput = false;
 
   enum State {
     NONE,
@@ -167,11 +176,11 @@ public class OperatorStats {
   }
 
   public OperatorStats(OpProfileDef def, BufferAllocator allocator){
-    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, Long.MAX_VALUE);
+    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, Long.MAX_VALUE, def.operatorSubType);
   }
 
   public OperatorStats(OpProfileDef def, BufferAllocator allocator, long warnIOTimeThreshold){
-    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, warnIOTimeThreshold);
+    this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator, warnIOTimeThreshold, def.operatorSubType);
   }
 
   /**
@@ -182,7 +191,7 @@ public class OperatorStats {
    * @param isClean - flag to indicate whether to start with clean state indicators or inherit those from original object
    */
   public OperatorStats(OperatorStats original, boolean isClean) {
-    this(original.operatorId, original.operatorType, original.inputCount, original.allocator, original.warnIOTimeThreshold);
+    this(original.operatorId, original.operatorType, original.inputCount, original.allocator, original.warnIOTimeThreshold, original.operatorSubType);
 
     if ( !isClean ) {
       currentState = original.currentState;
@@ -192,7 +201,7 @@ public class OperatorStats {
     }
   }
 
-  private OperatorStats(int operatorId, int operatorType, int inputCount, BufferAllocator allocator, long warnIOTimeThreshold) {
+  private OperatorStats(int operatorId, int operatorType, int inputCount, BufferAllocator allocator, long warnIOTimeThreshold, int operatorSubType) {
     super();
     this.allocator = allocator;
     this.operatorId = operatorId;
@@ -202,6 +211,7 @@ public class OperatorStats {
     this.batchesReceivedByInput = new long[inputCount];
     this.sizeInBytesReceivedByInput = new long[inputCount];
     this.warnIOTimeThreshold = warnIOTimeThreshold;
+    this.operatorSubType = operatorSubType;
   }
 
   public int getOperatorId(){
@@ -329,18 +339,25 @@ public class OperatorStats {
     sizeInBytesReceivedByInput[inputIndex] += size;
   }
 
+  public void recordBatchOutput(long records, long size) {
+    outputRecords += records;
+    numberOfBatches++;
+    outputSizeInBytes += size;
+  }
+
   public OperatorProfile getProfile() {
     return getProfile(false);
   }
 
   public OperatorProfile getProfile(boolean withDetails) {
     final OperatorProfile.Builder b = OperatorProfile //
-        .newBuilder() //
-        .setOperatorType(operatorType) //
-        .setOperatorId(operatorId) //
-        .setSetupNanos(getSetupNanos()) //
-        .setProcessNanos(getProcessingNanos())
-        .setWaitNanos(getWaitNanos());
+      .newBuilder() //
+      .setOperatorType(operatorType) //
+      .setOperatorId(operatorId) //
+      .setSetupNanos(getSetupNanos()) //
+      .setProcessNanos(getProcessingNanos())
+      .setWaitNanos(getWaitNanos())
+      .setOperatorSubtype(operatorSubType);
 
     if (allocator != null) {
       b.setPeakLocalMemoryAllocated(allocator.getPeakMemoryAllocation());
@@ -359,6 +376,14 @@ public class OperatorStats {
   }
 
   public void addStreamProfile(OperatorProfile.Builder builder) {
+    if(recordOutput) {
+      builder.addInputProfile(
+        StreamProfile.newBuilder()
+          .setBatches(numberOfBatches)
+          .setRecords(outputRecords)
+          .setSize(outputSizeInBytes));
+      return;
+    }
     for(int i = 0; i < recordsReceivedByInput.length; i++){
       builder.addInputProfile(
           StreamProfile.newBuilder()
@@ -569,4 +594,35 @@ public class OperatorStats {
     updateIOStats(metadataReadIOStats, elapsed, path, 0, 0 );
   }
 
+  public void setReadIOStats() {
+    IOStats ioStats = getReadIOStats();
+    IOStats ioStatsMetadata = getMetadataReadIOStats();
+
+    OperatorProfileDetails.Builder profileDetailsBuilder = OperatorProfileDetails.newBuilder();
+
+
+    if (ioStats != null) {
+      long minIOReadTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
+      setLongStat(ScanOperator.Metric.MIN_IO_READ_TIME_NS, minIOReadTime);
+      setLongStat(ScanOperator.Metric.MAX_IO_READ_TIME_NS, ioStats.maxIOTime.longValue());
+      setLongStat(ScanOperator.Metric.AVG_IO_READ_TIME_NS, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
+      addLongStat(ScanOperator.Metric.NUM_IO_READ, ioStats.numIO.longValue());
+      profileDetailsBuilder.addAllSlowIoInfos(ioStats.slowIOInfoList);
+    }
+
+    if(ioStatsMetadata != null) {
+      long minMetadataIOReadTime = ioStatsMetadata.minIOTime.longValue() <= ioStatsMetadata.maxIOTime.longValue() ? ioStatsMetadata.minIOTime.longValue() : 0;
+      addLongStat(ScanOperator.Metric.MIN_METADATA_IO_READ_TIME_NS, minMetadataIOReadTime);
+      addLongStat(ScanOperator.Metric.MAX_METADATA_IO_READ_TIME_NS, ioStatsMetadata.maxIOTime.longValue());
+      addLongStat(ScanOperator.Metric.AVG_METADATA_IO_READ_TIME_NS, ioStatsMetadata.numIO.get() == 0 ? 0 : ioStatsMetadata.totalIOTime.longValue() / ioStatsMetadata.numIO.get());
+      addLongStat(ScanOperator.Metric.NUM_METADATA_IO_READ, ioStatsMetadata.numIO.longValue());
+      profileDetailsBuilder.addAllSlowMetadataIoInfos(ioStatsMetadata.slowIOInfoList);
+    }
+
+    setProfileDetails(profileDetailsBuilder.build());
+  }
+
+  public void setRecordOutput(boolean recordOutput) {
+    this.recordOutput = recordOutput;
+  }
 }

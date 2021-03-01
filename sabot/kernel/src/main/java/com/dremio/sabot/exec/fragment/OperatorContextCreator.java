@@ -31,6 +31,8 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.Sender;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -75,6 +77,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final EndpointsIndex endpointsIndex;
   private Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
   private final List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments;
+  private List<MinorFragmentEndpoint> minorFragmentEndpoints;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
@@ -114,10 +117,15 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.fragmentOutputAllocator = fragmentOutputAllocator;
   }
 
+  public void setMinorFragmentEndpointsFromRootSender(PhysicalOperator root) {
+    if (root instanceof Sender) {
+      this.minorFragmentEndpoints = ((Sender)root).getDestinations(this.endpointsIndex);
+    }
+  }
+
   @Override
   public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception {
     Preconditions.checkState(this.fragmentOutputAllocator != null);
-
     final String allocatorName = String.format("op:%s:%d:%s",
       QueryIdHelper.getFragmentId(handle),
       popConfig.getProps().getLocalOperatorId(),
@@ -126,7 +134,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     final BufferAllocator operatorAllocator =
       allocator.newChildAllocator(allocatorName, popConfig.getProps().getMemReserve(), popConfig.getProps().getMemLimit());
     try (RollbackCloseable closeable = AutoCloseables.rollbackable(operatorAllocator)) {
-      final OpProfileDef def = new OpProfileDef(popConfig.getProps().getLocalOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig));
+      final OpProfileDef def = new OpProfileDef(popConfig.getProps().getLocalOperatorId(), popConfig.getOperatorType(), OperatorContext.getChildCount(popConfig), popConfig.getOperatorSubType());
       final OperatorStats stats = this.stats.newOperatorStats(def, operatorAllocator);
       FunctionLookupContext functionLookupContext = funcRegistry;
       if (options.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
@@ -153,7 +161,8 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         assignments,
         extFragmentAssignments,
         nodeEndpointProvider,
-        endpointsIndex);
+        endpointsIndex,
+        minorFragmentEndpoints);
       operatorContexts.add(context);
       closeable.commit();
       return context;

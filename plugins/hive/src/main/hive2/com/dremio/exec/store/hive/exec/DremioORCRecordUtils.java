@@ -82,6 +82,15 @@ public class DremioORCRecordUtils {
     private final Set<ByteBuffer> buffersToRelease = Sets.newIdentityHashSet();
     private final Set<ByteBuffer> directBuffersToRelease = Sets.newIdentityHashSet();
 
+    protected void logMessage() {
+      if(file != null) {
+        logger.debug(file.getClass().getClassLoader().toString());
+      }
+      if(fs != null) {
+        logger.debug(fs.getClass().getClassLoader().toString());
+      }
+    }
+
     private DefaultDataReader(DremioORCRecordUtils.DefaultDataReader other) {
       this.pool = other.pool;
       this.bufferSize = other.bufferSize;

@@ -80,8 +80,8 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   }
 
   @VisibleForTesting
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed, noDBOpenRetry);
+  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry, boolean noDBLogMessages) {
+    this(scan, null, null, null, baseDirectory, inMemory, timed, noDBOpenRetry, noDBLogMessages);
   }
 
   public LocalKVStoreProvider(
@@ -92,7 +92,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       String baseDirectory,
       boolean inMemory,
       boolean timed) {
-    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false);
+    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false, false);
   }
 
   public LocalKVStoreProvider(
@@ -103,10 +103,11 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       String baseDirectory,
       boolean inMemory,
       boolean timed,
-      boolean noDBOpenRetry
+      boolean noDBOpenRetry,
+      boolean noDBLogMessages
   ) {
 
-    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false);
+    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false, noDBLogMessages);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
@@ -129,7 +130,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       Boolean.valueOf(Preconditions.checkNotNull(config.get(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
         String.format("Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL)).toString()),
       Boolean.valueOf(Preconditions.checkNotNull(config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED)).toString()),
-      false
+      false, false
     );
 
     this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);

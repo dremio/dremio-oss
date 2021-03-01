@@ -211,7 +211,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
         .build();
 
       IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(tableName, Path.of(tableFolder.toPath().toString()),
-        (new SchemaConverter()).fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
+        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
       committer.consumeData(Lists.newArrayList(d1));
       committer.commit();
 

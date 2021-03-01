@@ -7,5 +7,5 @@
       "patterns": ["/api*", "/static"], "ws": true
     }],
   "apiOrigin": "http://localhost:9047",
-  "atlantisApi": "http://dcs-aws-1516-ns"
+  "atlantisApi": "http://dcs-aws-autodaas-1900-ns"
 }

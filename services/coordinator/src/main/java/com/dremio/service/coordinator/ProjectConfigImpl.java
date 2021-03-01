@@ -21,7 +21,7 @@ import java.net.URISyntaxException;
 import javax.inject.Provider;
 
 import com.dremio.config.DremioConfig;
-import com.dremio.service.coordinator.proto.AwsKeys;
+import com.dremio.service.coordinator.proto.DataCredentials;
 
 /**
  * merges info from file based config & store based config
@@ -62,7 +62,7 @@ public class ProjectConfigImpl implements ProjectConfig {
     String accessKey = null;
     String secretKey = null;
     ProjectConfigStore store = storeProvider.get();
-    AwsKeys.Builder builder1 = AwsKeys.newBuilder();
+    DataCredentials dataCredentials = null;
     if (store.get() == null || !store.get().hasDistStoreConfig()) {
       path = fileProvider.get().getURI(pathString);
     } else {
@@ -73,11 +73,15 @@ public class ProjectConfigImpl implements ProjectConfig {
         path = fileProvider.get().getURI(pathString);
         LOGGER.error("Invalid dist path for {} in store {}. Uri {}", pathString, store.get().getDistStoreConfig().getPath(), path);
       }
-      accessKey = store.get().getDistStoreConfig().getAwsKeys().getAccessKey();
-      secretKey = store.get().getDistStoreConfig().getAwsKeys().getSecretKey();
-      builder1.setSecretKey(secretKey).setAccessKey(accessKey);
+      if (store.get().getDataCredentials().hasKeys()) {
+        dataCredentials =
+          DataCredentials.newBuilder().setKeys(store.get().getDataCredentials().getKeys()).build();
+      } else{
+        dataCredentials =
+          DataCredentials.newBuilder().setDataRole(store.get().getDataCredentials().getDataRole()).build();
+      }
     }
-    return new DistPathConfig(path, builder1.build());
+    return new DistPathConfig(path, dataCredentials);
   }
 
   @Override

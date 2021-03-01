@@ -402,7 +402,8 @@ public class BaseTestOperator extends ExecTest {
           ImmutableList.of(),
           ImmutableList.of(),
           null,
-          endpointsIndex);
+          endpointsIndex,
+              null);
     }
 
     public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
@@ -410,7 +411,7 @@ public class BaseTestOperator extends ExecTest {
     }
 
     public ClassProducer newClassProducer(BufferManager bufferManager) {
-      return new ClassProducerImpl(new CompilationOptions(options), compiler,  getFunctionLookupContext(), contextInformation, bufferManager);
+      return new ClassProducerImpl(new CompilationOptions(options), compiler,  getFunctionLookupContext(), contextInformation, bufferManager, null);
     }
 
 

@@ -20,7 +20,7 @@ import Immutable from 'immutable';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
-import socket from 'utils/socket';
+import socket from '@inject/utils/socket';
 import { flexColumnContainer } from '@app/uiTheme/less/layout.less';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';

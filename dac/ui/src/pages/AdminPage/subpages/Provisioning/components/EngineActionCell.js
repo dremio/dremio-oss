@@ -74,7 +74,6 @@ export class EngineActionCell extends PureComponent {
 
   render() {
     const { engine } = this.props;
-
     return <div className='actions-wrap' style={{display: 'flex'}}>
       {this.renderButton()}
       <SettingsBtn className='settings-button' style={styles.settingsButton}

@@ -136,7 +136,7 @@ import com.google.flatbuffers.FlatBufferBuilder;
 @JsonSerialize(using = CompleteType.Ser.class)
 @JsonDeserialize(using = CompleteType.De.class)
 public class CompleteType {
-
+  public static final int MAX_DECIMAL_PRECISION = 38;
   public static final int DEFAULT_VARCHAR_PRECISION = 65536;
 
   public static final CompleteType NULL = new CompleteType(ArrowType.Null.INSTANCE);
@@ -157,9 +157,8 @@ public class CompleteType {
   public static final CompleteType LIST = new CompleteType(ArrowType.List.INSTANCE);
   public static final CompleteType STRUCT = new CompleteType(ArrowType.Struct.INSTANCE);
   public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
-  public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(38,
-    38));
-  public static final int MAX_DECIMAL_PRECISION = 38;
+  public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(MAX_DECIMAL_PRECISION,
+    MAX_DECIMAL_PRECISION));
 
   private static final String LIST_DATA_NAME = ListVector.DATA_VECTOR_NAME;
   public static final boolean REJECT_MIXED_DECIMALS = false;
@@ -418,6 +417,16 @@ public class CompleteType {
 
   public boolean isDecimal() {
     return type.getTypeID() == ArrowTypeID.Decimal;
+  }
+
+  public boolean isValidDecimal() {
+    if (!isDecimal()) {
+      return false;
+    }
+    if (getPrecision() > MAX_DECIMAL_PRECISION) {
+      throw new IllegalArgumentException("Illegal decimal precision in type: " + type + ". Max supported precision is " + MAX_DECIMAL_PRECISION);
+    }
+    return true;
   }
 
   public Class<? extends FieldVector> getValueVectorClass(){
@@ -821,7 +830,7 @@ public class CompleteType {
     }
 
     throw new UnsupportedOperationException(String.format(
-      "No up-promotion or coercion supported from file type: %s to table type: %s", fileType.getType(), tableType.getType()));
+      "No up-promotion or coercion supported from file type: %s to table type: %s", fileType, tableType));
   }
 
   // TODO : Move following to Output Derivation as part of DX-16966
@@ -853,9 +862,9 @@ public class CompleteType {
     int outputPrecision = Math.max(type1.getPrecision() - type1.getScale(), type2.getPrecision()
       - type2.getScale()) + outputScale;
 
-    if (outputPrecision > 38) {
+    if (outputPrecision > MAX_DECIMAL_PRECISION) {
       throw new UnsupportedOperationException("Incompatible precision and scale(common precision " +
-        "is greater than 38 digits. Please consider downcasting the values " +
+        "is greater than " + MAX_DECIMAL_PRECISION + " digits. Please consider downcasting the values " +
         "Found " + "types" + " : " + type1.getType() + " , " + type2.getType());
     }
 

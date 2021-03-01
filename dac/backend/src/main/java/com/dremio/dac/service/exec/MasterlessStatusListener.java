@@ -18,15 +18,15 @@ package com.dremio.dac.service.exec;
 import javax.inject.Provider;
 
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterServiceSetManager;
 
 /**
  * Implementation of global MasterListener in masterless cluster
  */
 public class MasterlessStatusListener extends MasterStatusListener {
 
-  public MasterlessStatusListener(Provider<ClusterCoordinator> clusterCoordinator, boolean isMaster) {
-    super(clusterCoordinator, isMaster);
+  public MasterlessStatusListener(Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider, boolean isMaster) {
+    super(clusterServiceSetManagerProvider, isMaster);
   }
 
   @Override

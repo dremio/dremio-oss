@@ -247,4 +247,24 @@ public class TestCastFunctions extends BaseTestQuery {
         .build()
         .run();
   }
+
+  @Test
+  public void testToIntervalNestedCast() throws Exception {
+
+    String query = "select cast(cast('48' as varchar) as interval year) as col1, " +
+      "cast(cast('4' as varchar) as interval month) as col2, " +
+      "cast(cast('345600000' as varchar) as interval day) as col3, " +
+      "cast(cast('14400000' as varchar) as interval hour) as col4, " +
+      "cast(cast('240000' as varchar) as interval minute) as col5, " +
+      "cast(cast('4000' as varchar) as interval second) as col6 " +
+      "from (values(48, 4, 345600000, 14400000, 240000, 4000)) as tbl(a, b, c, d, e, f)";
+
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6")
+      .baselineValues(Period.years(4), Period.months(4), Period.days(4), Period.hours(4), Period.minutes(4), Period.seconds(4))
+      .build()
+      .run();
+  }
 }

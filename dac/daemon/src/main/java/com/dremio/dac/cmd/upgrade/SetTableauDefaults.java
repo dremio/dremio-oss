@@ -91,7 +91,7 @@ public class SetTableauDefaults extends UpgradeTask {
 
       final OptionValue regularTableauDefault = TableauResource.CLIENT_TOOLS_TABLEAU.getDefault();
       final OptionValue tableauEnable = OptionValue.createBoolean(regularTableauDefault.getType(),
-        regularTableauDefault.getName(), true);
+        regularTableauDefault.getName(), false);
 
       if (!optionManager.isSet(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName())) {
         optionManager.setOption(tableauEnable);

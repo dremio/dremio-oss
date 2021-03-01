@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.record.BatchSchema.assertNoUnion;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -64,6 +66,10 @@ public class ComplexToJsonPrel extends SingleRel implements Prel, CustomPrel {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     PhysicalOperator child = ((Prel) getInput()).getPhysicalOperator(creator);
+
+    BatchSchema childSchema = child.getProps().getSchema();
+    assertNoUnion(childSchema.getFields());
+
     final SchemaBuilder builder = BatchSchema.newBuilder();
     for(Field f : child.getProps().getSchema()){
       builder.addField(f.getType().accept(new SchemaConverter(f)));

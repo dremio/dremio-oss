@@ -1217,7 +1217,8 @@ public class EvaluationVisitor {
 
         // want to optimize a non-constant boolean operator.
         if(functionContext.getCompilationOptions().enableOrOptimization() && "booleanOr".equals(e.getName())) {
-          List<LogicalExpression> newExpressions = OrInConverter.optimizeMultiOrs(e.args, constantBoundaries, functionContext.getCompilationOptions().getOrOptimizationThreshold());
+          List<LogicalExpression> newExpressions = OrInConverter.optimizeMultiOrs(e.args, constantBoundaries, functionContext.getCompilationOptions().getOrOptimizationThreshold(),
+            functionContext.getCompilationOptions().getVarcharOrOptimizationThreshold());
           return super.visitBooleanOperator(new BooleanOperator(e.getName(), newExpressions), generator);
         }
 

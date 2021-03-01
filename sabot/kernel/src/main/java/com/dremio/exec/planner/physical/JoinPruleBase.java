@@ -18,14 +18,12 @@ package com.dremio.exec.planner.physical;
 
 import java.util.List;
 
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.exec.ExecConstants;
@@ -64,28 +62,26 @@ public abstract class JoinPruleBase extends Prule {
     return distFields.build();
   }
 
-  protected boolean checkBroadcastConditions(RelOptPlanner planner, JoinRel join, RelNode left, RelNode right) {
-    final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
-    // Right node is the one that is being considered to be broadcasted..
-    double targetRowCount = mq.getRowCount(right);
-    int targetColumnCount = right.getRowType().getFieldCount();
-    double targetCellCount = targetRowCount * targetColumnCount;
-    double otherRowCount = mq.getRowCount(left);
+  public static boolean checkBroadcastConditions(JoinRelType joinType, RelNode probe, RelNode build, double probeRowCount, double buildRowCount) {
+    // Probe = Left side, Build = Right side
+    // Build node is the one that is being considered to be broadcasted.
+    final int buildColumnCount = build.getRowType().getFieldCount();
+    final double buildCellCount = buildRowCount * buildColumnCount;
+    final PlannerSettings plannerSettings = PrelUtil.getSettings(probe.getCluster());
 
-    if (targetRowCount < PrelUtil.getSettings(join.getCluster()).getBroadcastThreshold()
-        && ! left.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.SINGLETON)
-        && (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT)) {
+    if (buildRowCount < plannerSettings.getBroadcastThreshold()
+        && !probe.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.SINGLETON)
+        && (joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)) {
       // DX-3862:  For broadcast joins, the cost should not just consider the traits and join type.  If the broadcast table is small enough,
       // we shouldn't need to worry too much and allow broadcast join and see what the planner picks.
-      final PlannerSettings plannerSettings = PrelUtil.getSettings(join.getCluster());
       double cellCountThreshold = plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_CELL_COUNT_THRESHOLD);
-      if (targetCellCount > cellCountThreshold) {
+      if (buildCellCount > cellCountThreshold) {
         // DX-17913 : For cases when the table is too big due to large number of columns, we should not do the broadcast join.
         logger.debug("Won't do broadcast join if the size of the table is too big based of total number of cells (rows x columns)");
         return false;
       }
-      if (targetRowCount <= plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_MIN_THRESHOLD)) {
-        logger.debug("Enable broadcast plan? true (rightRowCount {} smaller than minimum broadcast threshold)", targetRowCount);
+      if (buildRowCount <= plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_MIN_THRESHOLD)) {
+        logger.debug("Enable broadcast plan? true (rightRowCount {} smaller than minimum broadcast threshold)", buildRowCount);
         return true;
       }
 
@@ -104,10 +100,10 @@ public abstract class JoinPruleBase extends Prule {
       final int numEndPoints = plannerSettings.numEndPoints();
       final long maxWidthPerQuery = plannerSettings.getOptions().getOption(ExecConstants.MAX_WIDTH_GLOBAL);
       final long sliceTarget = plannerSettings.getSliceTarget();
-      final double minFactor = Doubles.min(otherRowCount * 1.0 / sliceTarget, numEndPoints * maxWidthPerNode, maxWidthPerQuery);
-      final boolean enableBroadCast = (minFactor * broadcastFactor * targetRowCount < otherRowCount);
+      final double minFactor = Doubles.min(probeRowCount * 1.0 / sliceTarget, numEndPoints * maxWidthPerNode, maxWidthPerQuery);
+      final boolean enableBroadCast = (minFactor * broadcastFactor * buildRowCount < probeRowCount);
       logger.debug("Enable broadcast plan? {} minFactor {} (numEndPoints {}, maxWidthPerNode {}, rightRowCount {}, broadcastFactor {}, leftRowCount {}, sliceTarget {}, maxWidthPerQuery {})",
-          enableBroadCast, minFactor, numEndPoints, maxWidthPerNode, targetRowCount, broadcastFactor, otherRowCount, sliceTarget, maxWidthPerQuery);
+          enableBroadCast, minFactor, numEndPoints, maxWidthPerNode, buildRowCount, broadcastFactor, probeRowCount, sliceTarget, maxWidthPerQuery);
       return enableBroadCast;
     }
 

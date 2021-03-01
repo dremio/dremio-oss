@@ -131,13 +131,9 @@ export class MarkdownEditorView extends PureComponent {
     });
   }
 
-  componentWillReceiveProps(/* nextProps */ { readMode }) {
-    //put correct fullScreenMode to the state, if properties changed
-    this.setState(({ fullScreenMode }) => ({
-      fullScreenMode: this.getFullScreenFlag(readMode, fullScreenMode)
-    }));
+  static getDerivedStateFromProps(nextProps, prevState) {
+    return { fullScreenMode: getFullScreenFlag(nextProps.readMode, prevState.fullScreenMode) };
   }
-
 
   componentDidUpdate(prevProps = {}, prevState = {}) {
     this.handlePropsChange(prevProps, prevState, this.props, this.state);
@@ -246,13 +242,9 @@ export class MarkdownEditorView extends PureComponent {
   toggleFullScreen = () => {
     this.setState((/* prevState */ { fullScreenMode }, /* props */ { readMode }) => {
       return {
-        fullScreenMode: this.getFullScreenFlag(readMode, !fullScreenMode)
+        fullScreenMode: getFullScreenFlag(readMode, !fullScreenMode)
       };
     });
-  }
-
-  getFullScreenFlag = (readMode, fullScreen) => {
-    return !readMode && fullScreen;
   }
 
   getMdeInstance = (editor) => {
@@ -381,5 +373,9 @@ export class MarkdownEditorView extends PureComponent {
     );
   }
 }
+
+const getFullScreenFlag = (readMode, fullScreen) => {
+  return !readMode && fullScreen;
+};
 
 export default withErrorBoundary(MarkdownEditorView);

@@ -67,14 +67,14 @@ public class TestSetTableauDefaults extends DremioTest {
   public void testPre4x0Version() throws Exception {
     final Version version = new Version("3.9.0", 3, 9, 0, 0, "");
     assertTrue(SetTableauDefaults.updateOptionsIfNeeded(version, () -> optionManager, true));
-    assertTrue(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU));
+    assertFalse(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU));
   }
 
   @Test
   public void testPre460Version() throws Exception {
     final Version version = new Version("4.5.9", 4, 5, 9, 0, "");
     assertTrue(SetTableauDefaults.updateOptionsIfNeeded(version, () -> optionManager, true));
-    assertTrue(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU));
+    assertFalse(optionManager.getOption(TableauResource.CLIENT_TOOLS_TABLEAU));
   }
 
   @Test

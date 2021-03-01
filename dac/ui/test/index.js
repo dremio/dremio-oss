@@ -19,7 +19,7 @@
 
 const path = require('path');
 const dynLoader = require('../dynLoader');
-const InjectionResolver = require('../scripts/injectionResolver');
+const { InjectionResolver } = require('../scripts/injectionResolver');
 
 // make sure babel works, even for dynamically loaded files
 // alt: could probably move .babelrc, node_modules to dremio root

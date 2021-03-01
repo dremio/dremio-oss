@@ -26,6 +26,7 @@ import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollationImpl;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
@@ -72,7 +73,10 @@ public class MergeJoinPrule extends JoinPruleBase {
       if (isDist) {
         createDistBothPlan(call, join, left, right, collationLeft, collationRight, hashSingleKey);
       } else {
-        if (checkBroadcastConditions(call.getPlanner(), join, left, right)) {
+        final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
+        final double probeRowCount = mq.getRowCount(left);
+        final double buildRowCount = mq.getRowCount(right);
+        if (checkBroadcastConditions(join.getJoinType(), left, right, probeRowCount, buildRowCount)) {
           createBroadcastPlan(call, join, join.getCondition(), left, right, collationLeft, collationRight);
         }
       }

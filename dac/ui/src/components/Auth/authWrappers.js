@@ -21,6 +21,7 @@ import { UserAuthWrapper } from 'redux-auth-wrapper';
 
 import userUtils from 'utils/userUtils';
 import { initApp } from '@app/actions/app';
+import LoadingOverlay from '../LoadingOverlay';
 
 export const UserIsAuthenticated = UserAuthWrapper({
   authSelector: state => state.account.get('user'),
@@ -49,15 +50,22 @@ const mapDispatchToProps = {
   initApp
 };
 
+const mapStateToProps = (state) => {
+  return {
+    initComplete: state.init.complete
+  };
+};
+
 /**
  * component that send a request to a server to check whether or not user is authenticated and
  * his session is not expired
  */
-@connect(null, mapDispatchToProps)
+@connect(mapStateToProps, mapDispatchToProps)
 export class CheckUserAuthentication extends Component {
   static propTypes = {
     // connected
     initApp: PropTypes.func.isRequired,
+    initComplete: PropTypes.bool,
     children: PropTypes.node
   };
 
@@ -66,6 +74,9 @@ export class CheckUserAuthentication extends Component {
   }
 
   render() {
-    return this.props.children;
+    const { initComplete } = this.props;
+    return !initComplete ?
+      <LoadingOverlay showSpinner/> :
+      this.props.children;
   }
 }

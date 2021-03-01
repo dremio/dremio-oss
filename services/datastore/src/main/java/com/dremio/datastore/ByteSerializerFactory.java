@@ -15,16 +15,20 @@
  */
 package com.dremio.datastore;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.UUID;
 
 import com.dremio.common.utils.UUIDAdapter;
+import com.dremio.datastore.CompositeKeys.CompoundKeyPair;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.format.SerializerFactory;
 import com.dremio.datastore.format.compound.KeyPair;
 import com.dremio.datastore.format.compound.KeyTriple;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Parser;
 
 import io.protostuff.Schema;
@@ -76,6 +80,49 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
     }
   }
 
+  private static final class KeyPairSerializer<K1, K2> extends Serializer<KeyPair<K1, K2>, byte[]> {
+    private final Serializer<K1, byte[]> key1Serializer;
+    private final Serializer<K2, byte[]> key2Serializer;
+
+    public KeyPairSerializer(Serializer<K1, byte[]> key1Serializer,
+                             Serializer<K2, byte[]> key2Serializer) {
+      this.key1Serializer = key1Serializer;
+      this.key2Serializer = key2Serializer;
+    }
+
+    @Override
+    public byte[] convert(KeyPair<K1, K2> keyPair) {
+      final byte[] part1 = key1Serializer.serialize(keyPair.getKey1());
+      final byte[] part2 = key2Serializer.serialize(keyPair.getKey2());
+      return CompoundKeyPair.newBuilder()
+        .setKey1(ByteString.copyFrom(part1))
+        .setKey2(ByteString.copyFrom(part2))
+        .build().toByteArray();
+    }
+
+    @Override
+    public KeyPair<K1, K2> revert(byte[] keyPair) {
+      try {
+        CompoundKeyPair pair = CompoundKeyPair.parseFrom(keyPair);
+
+        return new KeyPair<>(key1Serializer.deserialize(pair.getKey1().toByteArray()),
+                             key2Serializer.deserialize(pair.getKey2().toByteArray()));
+      } catch (InvalidProtocolBufferException e) {
+        throw new DatastoreException("Could not parse keyPair", e);
+      }
+    }
+
+    @Override
+    public String toJson(KeyPair<K1, K2> v) throws IOException {
+      throw new UnsupportedOperationException("Conversion of compound keys to json is not supported in ByteSerializerFactory");
+    }
+
+    @Override
+    public KeyPair<K1, K2> fromJson(String v) throws IOException {
+      throw new UnsupportedOperationException("Conversion of compound keys from json is not supported in ByteSerializerFactory");
+    }
+  }
+
   @Override
   public Serializer<UUID, byte[]> visitUUIDFormat() {
     return UUIDSerializer.INSTANCE;
@@ -92,7 +139,11 @@ public final class ByteSerializerFactory implements SerializerFactory<byte[]> {
     Format<K1> key1Format,
     String key2Name,
     Format<K2> key2Format) {
-    throw new UnsupportedOperationException("Compound keys are not supported in ByteSerializerFactory");
+
+    Serializer<K1, byte[]> key1Serializer = (Serializer<K1, byte[]>) key1Format.apply(INSTANCE);
+    Serializer<K2, byte[]> key2Serializer = (Serializer<K2, byte[]>) key2Format.apply(INSTANCE);
+
+    return new KeyPairSerializer<>(key1Serializer, key2Serializer);
   }
 
   @Override

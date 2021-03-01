@@ -127,6 +127,9 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       }
       responseObserver.onNext(Empty.getDefaultInstance());
       responseObserver.onCompleted();
+
+      // delete progress metrics entry for the query
+      metricsStore.delete(queryId);
     } catch (IllegalArgumentException e) {
       responseObserver.onError(
         Status.INVALID_ARGUMENT

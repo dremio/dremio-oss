@@ -17,8 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import java.util.Set;
 
-import org.apache.parquet.Preconditions;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
@@ -37,8 +35,11 @@ public class EmptySplitReaderCreator extends SplitReaderCreator {
   }
 
   @Override
-  public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
-    Preconditions.checkNotNull(inputStreamProvider, "InputStreamProvider is not initialized");
+  public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {}
+
+  @Override
+  public InputStreamProvider getInputStreamProvider() {
+    return inputStreamProvider;
   }
 
   @Override

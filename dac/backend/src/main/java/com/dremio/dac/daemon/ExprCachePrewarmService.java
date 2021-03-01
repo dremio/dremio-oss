@@ -232,7 +232,7 @@ public class ExprCachePrewarmService implements Service {
     OperatorStats stats = new OperatorStats(new OpProfileDef(0, 0, 0), allocator);
     return new OperatorContextImpl(null, null, null, allocator, allocator, compiler, stats,
       null, null, null, functionLookupContext, null, optionManager,
-      null, null, 0, null, null, null, null, null);
+      null, null, 0, null, null, null, null, null, null);
   }
 
   @Override

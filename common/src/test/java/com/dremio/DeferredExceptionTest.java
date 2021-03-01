@@ -30,6 +30,11 @@ public class DeferredExceptionTest {
     Exception child = new Exception("child");
     Exception suppressed = new Exception("suppressed");
 
+    Exception suppressedInner = new Exception("suppressedInner");
+
+    // add a 100 suppressed exceptions to all child exceptions
+    IntStream.range(0, 100).forEach(i -> suppressed.addSuppressed(suppressedInner));
+
     // add a 100 suppressed exceptions to all child exceptions
     IntStream.range(0, 100).forEach(i -> child.addSuppressed(suppressed));
 
@@ -48,5 +53,11 @@ public class DeferredExceptionTest {
     Throwable[] suppressedExceptions = finalException.getSuppressed();
     IntStream.range(0, 4).forEach(i -> Assert.assertEquals(5,
       suppressedExceptions[i].getSuppressed().length));
+
+    IntStream.range(0, 4).forEach(i -> {
+      Assert.assertEquals(5,
+        suppressedExceptions[i].getSuppressed()[i].getSuppressed().length);
+    });
+
   }
 }

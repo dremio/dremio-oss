@@ -37,7 +37,8 @@ public class StrippingFactory {
 
   public static final int NO_STRIP_VERSION = 0;
   public static final int RETAIN_EXPANSION_NODE_STRIP_VERSION = 2;
-  public static final int LATEST_STRIP_VERSION = 2;
+  public static final int RETAIN_PROJECT_STRIP_VERSION = 3;
+  public static final int LATEST_STRIP_VERSION = 3;
 
   private final OptionManager options;
   private final SabotConfig config;

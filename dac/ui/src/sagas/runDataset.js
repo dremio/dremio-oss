@@ -19,7 +19,7 @@ import invariant from 'invariant';
 import { loadNextRows, EXPLORE_PAGE_EXIT, updateExploreJobProgress, updateJobRecordCount } from 'actions/explore/dataset/data';
 import { updateHistoryWithJobState } from 'actions/explore/history';
 
-import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_JOB_RECORDS, WS_CONNECTION_OPEN } from 'utils/socket';
+import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_JOB_RECORDS, WS_CONNECTION_OPEN } from '@inject/utils/socket';
 import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
 import { getTableDataRaw, getCurrentRouteParams } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';

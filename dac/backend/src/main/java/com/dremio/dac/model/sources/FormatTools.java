@@ -48,6 +48,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileCountTooLargeException;
@@ -356,7 +357,9 @@ public class FormatTools {
           // Reader can be closed since data that we're using will be transferred to allocator owned by us
           // when added to RecordBatchData.
           RecordReader reader = formatPlugin.getRecordReader(opCtxt, filesystem, attributes)) {
-
+          if (reader instanceof EmptyRecordReader) {
+            continue readersLoop;
+          }
           reader.setup(mutator);
 
           int output = 0;

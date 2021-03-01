@@ -25,7 +25,7 @@ import JobDetails from '@app/pages/JobPage/components/JobDetails/JobDetails';
 
 import { cancelJobAndShowNotification, loadJobDetails, showJobProfile } from 'actions/jobs/jobs';
 import { downloadFile } from 'sagas/downloadFile';
-import socket from 'utils/socket';
+import socket from '@inject/utils/socket';
 import { getEntity, getViewState } from 'selectors/resources';
 import { updateViewState } from 'actions/resources';
 import './JobDetails.less';

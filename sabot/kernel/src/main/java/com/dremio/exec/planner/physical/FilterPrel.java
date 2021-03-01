@@ -40,7 +40,7 @@ public class FilterPrel extends FilterRelBase implements Prel {
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.filter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.filter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  protected FilterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
+  public FilterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
     super(Prel.PHYSICAL, cluster, traits, child, condition);
   }
 
@@ -92,4 +92,7 @@ public class FilterPrel extends FilterRelBase implements Prel {
     return true;
   }
 
+  public static FilterPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
+    return new FilterPrel(cluster, traits, child, condition);
+  }
 }

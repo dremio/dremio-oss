@@ -241,6 +241,7 @@
   "File.JSON": "JSON",
   "File.Parquet": "Parquet",
   "File.Iceberg": "Iceberg",
+  "File.Delta": "Delta Lake",
   "File.Excel": "Excel",
   "File.XLS": "XLS",
   "File.AddFileStep1": "Add File: Browse for File (Step 1 of 2)",

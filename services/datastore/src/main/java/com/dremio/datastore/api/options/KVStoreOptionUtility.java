@@ -19,6 +19,7 @@ package com.dremio.datastore.api.options;
 import java.util.Arrays;
 import java.util.Optional;
 
+import com.dremio.datastore.RemoteDataStoreProtobuf;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.indexed.IndexPutOption;
 
@@ -80,6 +81,21 @@ public class KVStoreOptionUtility {
         return Optional.of((KVStore.PutOption) option);
       } else if (option instanceof VersionOption) {
         return Optional.of((VersionOption) option);
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  public static Optional<KVStore.PutOption> getTTLOption(KVStore.KVStoreOption... options) {
+    if (null == options || options.length == 0) {
+      return Optional.empty();
+    }
+
+    for (KVStore.KVStoreOption option : options) {
+      if (option instanceof KVStore.PutOption &&
+        ((KVStore.PutOption) option).getPutOptionInfo().getType() == RemoteDataStoreProtobuf.PutOptionType.TTL) {
+        return Optional.of((KVStore.PutOption)option);
       }
     }
 

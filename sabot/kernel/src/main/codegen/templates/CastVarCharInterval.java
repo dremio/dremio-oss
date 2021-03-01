@@ -50,8 +50,10 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
   @Param ${type.from}Holder in;
   @Output ${type.to}Holder out;
   @Inject FunctionErrorContext errCtx;
+  @Workspace java.util.regex.Pattern AllNumbers;
 
   public void setup() {
+      AllNumbers = java.util.regex.Pattern.compile("\\d+");
   }
 
   public void eval() {
@@ -63,6 +65,20 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
       // Parse the ISO format
       org.joda.time.Period period;
       try {
+        <#if type.to == "IntervalDay" || type.to == "IntervalYear">
+        if (AllNumbers.matcher(input).matches()) {
+          long temp = org.apache.calcite.runtime.SqlFunctions.toLong(input);
+          <#if type.to == "IntervalDay">
+          long days = temp / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis;
+          long miliseconds = temp % org.apache.arrow.vector.util.DateUtility.daysToStandardMillis;
+          out.days = Math.toIntExact(days);
+          out.milliseconds = Math.toIntExact(miliseconds);
+          <#elseif type.to == "IntervalYear">
+          out.value = Math.toIntExact(temp);
+          </#if>
+          return;
+        }
+        </#if>
         period = org.joda.time.Period.parse(input);
       } catch (RuntimeException e) {
         throw errCtx.error(e)
@@ -76,7 +92,7 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
                           ((long)period.getMillis());
 
       out.days         = period.getDays() +
-                         org.joda.time.field.FieldUtils.safeToInt(millis / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);;
+                         org.joda.time.field.FieldUtils.safeToInt(millis / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
 
       out.milliseconds = org.joda.time.field.FieldUtils.safeToInt(millis % org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
 

@@ -174,7 +174,7 @@ public class Upgrade {
   }
 
   public void run(boolean noDBOpenRetry) throws Exception {
-    Optional<LocalKVStoreProvider> storeOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig(), classpathScan, noDBOpenRetry);
+    Optional<LocalKVStoreProvider> storeOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig(), classpathScan, noDBOpenRetry, true);
     if (!storeOptional.isPresent()) {
       AdminLogger.log("No database found. Skipping upgrade");
       return;

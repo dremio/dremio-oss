@@ -48,11 +48,18 @@ public class HashToRandomExchangePrel extends ExchangePrel {
   public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.hashrandom.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final List<DistributionField> fields;
+  private final String hashFunctionName;
 
-  public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields) {
+  public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,
+                                  String hashFunctionName) {
     super(cluster, traitSet, input);
     this.fields = fields;
     assert input.getConvention() == Prel.PHYSICAL;
+    this.hashFunctionName = hashFunctionName;
+  }
+
+  public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields) {
+    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME);
   }
 
   /**
@@ -89,7 +96,7 @@ public class HashToRandomExchangePrel extends ExchangePrel {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields);
+    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName);
   }
 
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
@@ -130,4 +137,7 @@ public class HashToRandomExchangePrel extends ExchangePrel {
     return SelectionVectorMode.NONE;
   }
 
+  public String getHashFunctionName() {
+    return this.hashFunctionName;
+  }
 }

@@ -108,6 +108,7 @@ public final class DACDaemon implements AutoCloseable {
         .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
         .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT))
         .withSabotValue(ExecConstants.ZK_RETRY_UNLIMITED, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_UNLIMITED))
+        .withSabotValue(ExecConstants.ZK_CONNECTION_HANDLE_ENABLED, incomingConfig.getString(DremioConfig.ZK_CONNECTION_HANDLE_ENABLED))
         .withSabotValue(ExecConstants.ZK_RETRY_LIMIT, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_LIMIT))
         .withSabotValue(ExecConstants.ZK_INITIAL_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_CLIENT_INITIAL_TIMEOUT_MS));
 

@@ -144,6 +144,7 @@ public class LogInLogOutResource {
               )
           ).build();
     } catch (IllegalArgumentException | UserLoginException | UserNotFoundException e) {
+      logger.error("Encountered an issue while authenticating {}", userLogin.getUserName(), e);
       return Response.status(UNAUTHORIZED).entity(new GenericErrorMessage(e.getMessage())).build();
     }
   }

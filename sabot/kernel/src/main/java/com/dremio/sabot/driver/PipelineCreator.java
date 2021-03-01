@@ -33,6 +33,7 @@ import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.exec.physical.config.MergeJoinPOP;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.exec.physical.config.Screen;
+import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.physical.config.UnionAll;
 import com.dremio.exec.physical.config.Values;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -232,6 +233,19 @@ public class PipelineCreator {
               creator.getTerminalOperator(tunnelProvider, context, config), context, config, functionLookupContext));
       terminal(sink);
       OpPipe input = config.getChild().accept(this, null);
+      return pair(new StraightPipe(sink, input), sink).associate(input);
+    }
+
+    @Override
+    public OpPipe visitTableFunction(TableFunctionPOP config, Void value) throws Exception {
+      Preconditions.checkArgument(config instanceof AbstractSingle, "Object %s was expected to be implementation of AbstractSingle, but was not. Class was %s.", config.toString(), config.getClass().getName());
+      OperatorContext context = operatorContextCreator.newOperatorContext(config);
+      SingleInputOperator sink = record(
+              SmartOp.contextualize(creator.getSingleInputOperator(fec, context, config),
+                      context,
+                      config,
+                      functionLookupContext));
+      OpPipe input = ((AbstractSingle) config).getChild().accept(this, null);
       return pair(new StraightPipe(sink, input), sink).associate(input);
     }
 

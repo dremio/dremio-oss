@@ -28,10 +28,12 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,14 +80,15 @@ public class DailyJobStatsResource {
 
   @GET
   @RolesAllowed({"admin", "user"})
-  public DailyJobStats getStats() {
-    return createStats();
+  public DailyJobStats getStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
+                              @QueryParam("end") @DefaultValue("0") long endEpoch) {
+    return createStats(startEpoch, endEpoch);
   }
 
-  private DailyJobStatsResource.DailyJobStats createStats() {
+  private DailyJobStatsResource.DailyJobStats createStats(long startEpoch, long endEpoch) {
     try {
       final SearchJobsRequest.Builder requestBuilder = SearchJobsRequest.newBuilder();
-      final String filter = createJobFilter();
+      final String filter = createJobFilter(startEpoch,endEpoch);
       requestBuilder.setFilterString(filter);
 
       final DailyJobStats stats = aggregateJobResults(jobsService.searchJobs(requestBuilder.build()));
@@ -96,9 +99,9 @@ public class DailyJobStatsResource {
     }
   }
 
-  private String createJobFilter() {
-    final long end = System.currentTimeMillis();
-    final long start = end - TimeUnit.DAYS.toMillis(STAT_DURATION);
+  private String createJobFilter(long startEpoch, long endEpoch) {
+    final long end = endEpoch > 0 ? endEpoch : System.currentTimeMillis();
+    final long start = startEpoch > 0 ? startEpoch : end - TimeUnit.DAYS.toMillis(STAT_DURATION);
     final String filter = String.format(FILTER, start, end);
     return filter;
   }

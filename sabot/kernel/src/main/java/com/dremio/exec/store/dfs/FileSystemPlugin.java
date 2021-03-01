@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -48,6 +47,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.iceberg.types.Types;
 import org.apache.parquet.Preconditions;
 
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -121,7 +121,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
 import com.dremio.service.namespace.DatasetHelper;
-import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -843,95 +842,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   @Override
   public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata,
       ValidateMetadataOption... options) throws DatasetNotFoundException {
-    final FileUpdateKey fileUpdateKey;
-    try {
-      fileUpdateKey = LegacyProtobufSerializer.parseFrom(FileUpdateKey.PARSER, MetadataProtoUtils.toProtobuf(signature));
-    } catch (InvalidProtocolBufferException e) {
-      // Wrap protobuf exception for consistency
-      throw new RuntimeException(e);
-    }
-
-    if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
-      // TODO: evaluate the need for this.
-//       Preconditions.checkArgument(oldConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE,
-//           "only file based datasets can have empty read signature");
-      // single file dataset
-      return MetadataValidity.INVALID;
-    }
-
-    final UpdateStatus status = checkMultifileStatus(fileUpdateKey);
-    switch(status) {
-    case DELETED:
-      throw new DatasetNotFoundException(datasetHandle.getDatasetPath());
-    case UNCHANGED:
-      return MetadataValidity.VALID;
-    case CHANGED:
-      return MetadataValidity.INVALID;
-    default:
-      throw new UnsupportedOperationException(status.name());
-    }
-
-  }
-
-  private enum UpdateStatus {
-    /**
-     * Metadata hasn't changed.
-     */
-    UNCHANGED,
-
-
-    /**
-     * Metadata has changed.
-     */
-    CHANGED,
-
-    /**
-     * Dataset has been deleted.
-     */
-    DELETED
-  }
-
-  /**
-   * Given a file update key, determine whether the source system has changed since we last read the status.
-   * @param fileUpdateKey
-   * @return The type of status change.
-   */
-  private UpdateStatus checkMultifileStatus(FileUpdateKey fileUpdateKey) {
-    final List<FileSystemCachedEntity> cachedEntities = fileUpdateKey.getCachedEntitiesList();
-    for (int i = 0; i < cachedEntities.size(); ++i) {
-      final FileSystemCachedEntity cachedEntity = cachedEntities.get(i);
-      final Path cachedEntityPath =  Path.of(cachedEntity.getPath());
-      try {
-
-        try {
-          final FileAttributes updatedFileAttributes = systemUserFS.getFileAttributes(cachedEntityPath);
-          final long updatedModificationTime = updatedFileAttributes.lastModifiedTime().toMillis();
-          Preconditions.checkArgument(updatedFileAttributes.isDirectory(), "fs based dataset update key must be composed of directories");
-          if (cachedEntity.getLastModificationTime() < updatedModificationTime) {
-            // the file/folder has been changed since our last check.
-            return UpdateStatus.CHANGED;
-          }
-        } catch (FileNotFoundException e) {
-          // if first entity (root) is missing then table is deleted
-          if (i == 0) {
-            return UpdateStatus.DELETED;
-          }
-          // missing directory force update for this dataset
-          return UpdateStatus.CHANGED;
-        }
-
-        if(cachedEntity.getLastModificationTime() == 0) {
-          // this system doesn't support modification times, no need to further probe (S3)
-          return UpdateStatus.CHANGED;
-        }
-      } catch (IOException ioe) {
-        // continue with other cached entities
-        logger.error("Failed to get status for {}", cachedEntityPath, ioe);
-        return UpdateStatus.CHANGED;
-      }
-    }
-
-    return UpdateStatus.UNCHANGED;
+      //Delegate the staleness check for metadata to the DataAccessors
+      boolean metadataStale = ((FileDatasetHandle)datasetHandle).metadataValid(signature, datasetHandle, metadata, systemUserFS);
+      return metadataStale ? MetadataValidity.VALID : MetadataValidity.INVALID;
   }
 
   public SabotContext getContext() {
@@ -1111,9 +1024,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public void addColumns(NamespaceKey key, List<Field> columnsToAdd, SchemaConfig schemaConfig) {
-    SchemaConverter.NextIDImpl id = new SchemaConverter.NextIDImpl();
-    IcebergOperation.addColumns(getTableName(key),
-      validateAndGetPath(key, schemaConfig), columnsToAdd.stream().map(f -> SchemaConverter.toIcebergColumn(f, id)).collect(Collectors.toList()), fsConf);
+    List<Types.NestedField> icebergFields = SchemaConverter.toIcebergFields(columnsToAdd);
+    IcebergOperation.addColumns(getTableName(key), validateAndGetPath(key, schemaConfig), icebergFields, fsConf);
   }
 
   @Override

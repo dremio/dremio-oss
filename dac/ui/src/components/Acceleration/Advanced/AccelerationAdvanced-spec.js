@@ -29,6 +29,7 @@ describe('AccelerationAdvanced', () => {
       reflections: Immutable.Map(),
       updateFormDirtyState: sinon.spy(),
       fields: {},
+      initialValues: null,
       values: {
         aggregationReflections: [
           {
@@ -253,9 +254,9 @@ describe('AccelerationAdvanced', () => {
     });
   });
 
-  describe('#componentWillReceiveProps', () => {
+  describe('#componentDidUpdate', () => {
     it('should updateFormDirtyState when getting new props', () => {
-      const wrapper = shallow(<AccelerationAdvanced {...minimalProps}/>);
+      const wrapper = shallow(<AccelerationAdvanced {...minimalProps}/>, { disableLifecycleMethods: false });
       wrapper.setProps(commonProps);
 
       expect(commonProps.updateFormDirtyState).to.be.called;

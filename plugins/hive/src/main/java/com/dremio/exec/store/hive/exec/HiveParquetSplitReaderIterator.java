@@ -26,6 +26,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.Closeable;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
@@ -37,6 +38,7 @@ import com.dremio.exec.store.TypeCoercion;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.metadata.ManagedHiveSchema;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
@@ -180,46 +182,48 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
     }
 
     private FileSplitParquetRecordReader createFileSplitReaderFromSplit(final HiveParquetSplit hiveParquetSplit) {
-        final List<HiveReaderProto.Prop> partitionProperties;
-        // If Partition Properties are stored in DatasetMetadata (Pre 3.2.0)
-        if (HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr)) {
-            logger.debug("Reading partition properties from DatasetMetadata");
-            partitionProperties = HiveReaderProtoUtil.getPartitionProperties(tableXattr, hiveParquetSplit.getPartitionId());
-        } else {
-            logger.debug("Reading partition properties from PartitionChunk");
-            partitionProperties = HiveReaderProtoUtil.getPartitionProperties(tableXattr,
-                    HiveReaderProtoUtil.getPartitionXattr(hiveParquetSplit.getDatasetSplit()));
+        try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+            final List<HiveReaderProto.Prop> partitionProperties;
+            // If Partition Properties are stored in DatasetMetadata (Pre 3.2.0)
+            if (HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr)) {
+                logger.debug("Reading partition properties from DatasetMetadata");
+                partitionProperties = HiveReaderProtoUtil.getPartitionProperties(tableXattr, hiveParquetSplit.getPartitionId());
+            } else {
+                logger.debug("Reading partition properties from PartitionChunk");
+                partitionProperties = HiveReaderProtoUtil.getPartitionProperties(tableXattr,
+                        HiveReaderProtoUtil.getPartitionXattr(hiveParquetSplit.getDatasetSplit()));
+            }
+
+            for (HiveReaderProto.Prop prop : partitionProperties) {
+                jobConf.set(prop.getKey(), prop.getValue());
+            }
+
+            final List<ParquetFilterCondition> copyOfFilterConditions =
+                    conditions==null ? null:
+                            conditions.stream()
+                                    .map(c ->
+                                            new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort()))
+                                    .collect(Collectors.toList());
+
+            return new FileSplitParquetRecordReader(
+                    hiveStoragePlugin,
+                    context,
+                    UnifiedParquetReader.getReaderFactory(context.getConfig()),
+                    config.getFullSchema(),
+                    compositeReader.getInnerColumns(),
+                    copyOfFilterConditions,
+                    hiveParquetSplit.getFileSplit(),
+                    hiveParquetSplit.getHiveSplitXAttr(),
+                    jobConf,
+                    config.getReferencedTables(),
+                    vectorize,
+                    config.getFullSchema(),
+                    enableDetailedTracing,
+                    readerUGI,
+                    hiveSchema,
+                    pathRowGroupsMap,
+                    compositeReader);
         }
-
-        for (HiveReaderProto.Prop prop : partitionProperties) {
-            jobConf.set(prop.getKey(), prop.getValue());
-        }
-
-        final List<ParquetFilterCondition> copyOfFilterConditions =
-                conditions == null ? null :
-                        conditions.stream()
-                                .map(c ->
-                                        new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort()))
-                                .collect(Collectors.toList());
-
-        return new FileSplitParquetRecordReader(
-                hiveStoragePlugin,
-                context,
-                UnifiedParquetReader.getReaderFactory(context.getConfig()),
-                config.getFullSchema(),
-                compositeReader.getInnerColumns(),
-                copyOfFilterConditions,
-                hiveParquetSplit.getFileSplit(),
-                hiveParquetSplit.getHiveSplitXAttr(),
-                jobConf,
-                config.getReferencedTables(),
-                vectorize,
-                config.getFullSchema(),
-                enableDetailedTracing,
-                readerUGI,
-                hiveSchema,
-                pathRowGroupsMap,
-                compositeReader);
     }
 
     @Override

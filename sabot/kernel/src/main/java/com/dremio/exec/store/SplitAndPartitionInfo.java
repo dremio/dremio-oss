@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
@@ -25,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Holder for the pair of Partition and split.
  */
-public class SplitAndPartitionInfo {
+public class SplitAndPartitionInfo implements Serializable {
   private final NormalizedPartitionInfo partitionInfo;
   private final NormalizedDatasetSplitInfo datasetSplitInfo;
 

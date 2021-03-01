@@ -25,6 +25,7 @@ import org.apache.arrow.util.Preconditions;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.io.file.Path;
@@ -42,6 +43,7 @@ public abstract class SplitReaderCreator implements AutoCloseable {
   protected List<List<String>> tablePath;
   protected InputStreamProvider inputStreamProvider;
   protected ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr;
+
 
   public SplitReaderCreator() {
   }
@@ -62,6 +64,13 @@ public abstract class SplitReaderCreator implements AutoCloseable {
    * @param lastInputStreamProvider
    */
   public abstract void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter);
+
+  /**
+   * Sets InputStreamProvider to be used by split reader
+   */
+  public void setInputStreamProvider(InputStreamProvider inputStreamProvider) {
+    this.inputStreamProvider = inputStreamProvider;
+  }
 
   /**
    * Strictly abstract - all extending classes should close all closeables including inputStreamProvider
@@ -100,28 +109,39 @@ public abstract class SplitReaderCreator implements AutoCloseable {
   public abstract void addRowGroupsToRead(Set<Integer> rowGroupList);
 
   /**
-   * Iterates over the splits and identifies all row groups that are going
-   * to be read from the given filePath
-   */
-  public void getRowGroupsFromSameFile(Path filePath, Set<Integer> rowGroupList) {
-    if (!filePath.equals(path)) {
-      return;
-    }
-
-    // this split shares the same file
-    if (next != null) {
-      next.getRowGroupsFromSameFile(filePath, rowGroupList);
-    }
-
-    addRowGroupsToRead(rowGroupList);
-  }
-
-  /**
    * Sets next SplitReaderCreator
    * @param next
    */
   public void setNext(SplitReaderCreator next) {
     this.next = next;
+  }
+
+  /**
+   * Gets next SplitReaderCreator
+   * @return next splitReaderCreator
+   */
+  public SplitReaderCreator getNext() {
+    return next;
+  }
+
+  public SplitAndPartitionInfo getSplit() {
+    return null;
+  }
+
+  /**
+   * Gets current splitXAttr
+   * @return
+   */
+  public ParquetProtobuf.ParquetDatasetSplitScanXAttr getSplitXAttr() {
+    return splitXAttr;
+  }
+
+  /**
+   * Clears the local fields
+   */
+  public void clearLocalFields() {
+    this.splitXAttr = null;
+    this.inputStreamProvider = null;
   }
 
   /**

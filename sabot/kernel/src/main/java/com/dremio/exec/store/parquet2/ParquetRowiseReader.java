@@ -56,6 +56,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
@@ -231,7 +232,8 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         logger.warn("Invalid Arrow Schema", e);
       }
 
-      if (!schemaHelper.isAllowMixedDecimals()) {
+      boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+      if (!schemaHelper.isAllowMixedDecimals() && !mixedTypesDisabled) {
         verifyDecimalTypesAreSame(output, columnResolver);
       }
 

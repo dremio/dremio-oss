@@ -46,6 +46,7 @@ import com.dremio.exec.util.TSI;
 import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Longs;
 
 public class TestFunctionsQuery extends BaseTestQuery {
 
@@ -1384,6 +1385,33 @@ public class TestFunctionsQuery extends BaseTestQuery {
       .go();
   }
 
+  // DX-28148
+  @Test
+  public void testRoundForZeroArg() throws Exception {
+    Long doubleToBits = Double.doubleToLongBits(0.0);
+    byte[] byteArr = Longs.toByteArray(Long.reverseBytes(doubleToBits));
+    String query = "select convert_toDOUBLE_BE(round(val)) from cp" +
+      ".\"json/round_arg_zero.json\"";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(byteArr)
+      .go();
+
+    doubleToBits = Double.doubleToLongBits(-0.0);
+    byteArr = Longs.toByteArray(doubleToBits);
+    exception.expectMessage("did not find expected record in result set");
+    query = "select convert_toDOUBLE_BE(round(val, 12)) from cp" +
+      ".\"json/round_arg_zero.json\"";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(byteArr)
+      .go();
+  }
+
   @Test
   public void testKvGen() throws Exception {
     String query = "SELECT KVGEN(CONVERT_FROM('{\"1\": 0.123, \"2\": 0.456, \"3\": 0.789}', 'JSON')) FROM (values (1))";
@@ -1515,6 +1543,25 @@ public class TestFunctionsQuery extends BaseTestQuery {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), queryTable));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), resultTable));
     }
+  }
+
+  @Test // DX-28107
+  public void testGandivaIfElseOptimisation() throws Exception {
+    String query = "SELECT case when A IS NOT NULL then A else subtract((case when A IS NOT NULL then A else C end), A) end FROM cp.\"test_table.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues((Object) null)
+      .go();
+
+    query = "SELECT COALESCE(A,COALESCE(B,C)-D) FROM cp.\"test_table.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues((Object) null)
+      .go();
   }
 
 }

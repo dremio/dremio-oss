@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>13.1.0-202102110202430875-3e6f3e7c</version>
+    <version>14.0.0-202103011714040666-9a0c2e10</version>
   </parent>
 
   <groupId>com.dremio.tools</groupId>
@@ -37,6 +37,7 @@
     <module>build-tools</module>
     <module>fmpp-maven-plugin</module>
     <module>mongo-test-runner</module>
+    <module>redis-test-runner</module>
     <module>protostuff-maven-plugin</module>
   </modules>
 </project>

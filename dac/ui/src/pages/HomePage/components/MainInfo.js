@@ -129,7 +129,7 @@ export class MainInfoView extends Component {
     } else if (isFileSystemFolder) {
       return ([
         this.renderConvertButton(folder, {
-          icon: <FontIcon type='FolderConvert' tooltip={la('Format Folder')}/>,
+          icon: <FontIcon type='FolderConvert' style={{'marginTop': 8, 'marginLeft': -2}} tooltip={la('Format Folder')}/>,
           to: {
             ...this.context.location, state: {
               modal: 'DatasetSettingsModal',
@@ -155,7 +155,7 @@ export class MainInfoView extends Component {
     // DX-12874 not queryable files should have only promote button
     return ([
       this.renderConvertButton(file, {
-        icon: <FontIcon type='FileConvert' tooltip={la('Format File')}/>,
+        icon: <FontIcon type='FileConvert' style={{'marginTop': 8}} tooltip={la('Format File')}/>,
         to: {...this.context.location, state: {
           modal: 'DatasetSettingsModal',
           tab: 'format',
@@ -356,6 +356,16 @@ export const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between'
+  },
+  folderConvertButton: {
+    borderRadius: '2px',
+    height: 23,
+    width: 68,
+    boxShadow: '0 1px 1px #b2bec7',
+    cursor: 'pointer',
+    display: 'flex',
+    paddingTop: 1,
+    marginRight: 5
   },
   button: {
     borderRadius: '2px',

@@ -45,6 +45,7 @@ public class TestHiveMetadataUtils {
 
   final StorageDescriptor storageDescriptor_s3 = new StorageDescriptor();
   final StorageDescriptor storageDescriptor_s3a = new StorageDescriptor();
+  final StorageDescriptor storageDescriptor_abfs = new StorageDescriptor();
   final StorageDescriptor storageDescriptor_hdfs = new StorageDescriptor();
   final StorageDescriptor storageDescriptor_someotherfs = new StorageDescriptor();
   final StorageDescriptor storageDescriptor_empty = new StorageDescriptor();
@@ -54,6 +55,7 @@ public class TestHiveMetadataUtils {
   public void init() {
     storageDescriptor_s3.setLocation("s3://somehost/somepath");
     storageDescriptor_s3a.setLocation("s3a://somehost/somepath");
+    storageDescriptor_abfs.setLocation("abfs://somehost/somepath");
     storageDescriptor_hdfs.setLocation("hdfs://somehost/somepath");
     storageDescriptor_someotherfs.setLocation("someotherfs://somehost/somepath");
     storageDescriptor_invalid_uri.setLocation("123and_thensomeother_nonsense\\over here.");
@@ -79,6 +81,16 @@ public class TestHiveMetadataUtils {
   @Test
   public void getHiveTableCapabilities_s3a_supportsLastModifiedTime() {
     assertFalse(HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_s3a).supportsLastModifiedTime());
+  }
+
+  @Test
+  public void getHiveTableCapabilities_abfs_supportsImpersonation() {
+    assertTrue(HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_abfs).supportsImpersonation());
+  }
+
+  @Test
+  public void getHiveTableCapabilities_abfs_supportsLastModifiedTime() {
+    assertFalse(HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_abfs).supportsLastModifiedTime());
   }
 
   @Test
@@ -274,6 +286,17 @@ public class TestHiveMetadataUtils {
 
     HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(
       HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_s3),
+      props);
+
+    assertEquals("false", props.get(HiveConf.ConfVars.HIVE_ORC_INCLUDE_FILE_ID_IN_SPLITS.varname));
+  }
+
+  @Test
+  public void injectOrcIncludeFileIdInSplitsConf_abfs() {
+    Properties props = new Properties();
+
+    HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(
+      HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_abfs),
       props);
 
     assertEquals("false", props.get(HiveConf.ConfVars.HIVE_ORC_INCLUDE_FILE_ID_IN_SPLITS.varname));

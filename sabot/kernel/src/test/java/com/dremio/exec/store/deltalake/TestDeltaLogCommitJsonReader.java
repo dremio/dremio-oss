@@ -16,6 +16,7 @@
 package com.dremio.exec.store.deltalake;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +28,7 @@ import org.junit.Test;
 
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.collect.Lists;
@@ -42,17 +44,64 @@ public class TestDeltaLogCommitJsonReader {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(fs, Path.of(f.toURI()));
+        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
 
         assertEquals("WRITE", snapshot.getOperationType());
         final String expectedSchemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"byteField\",\"type\":\"byte\",\"nullable\":true,\"metadata\":{}},{\"name\":\"shortField\",\"type\":\"short\",\"nullable\":true,\"metadata\":{}},{\"name\":\"intField\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"longField\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"floatField\",\"type\":\"float\",\"nullable\":true,\"metadata\":{}},{\"name\":\"doubleField\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringField\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"binaryField\",\"type\":\"binary\",\"nullable\":true,\"metadata\":{}},{\"name\":\"booleanField\",\"type\":\"boolean\",\"nullable\":true,\"metadata\":{}},{\"name\":\"timestampField\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},{\"name\":\"dateField\",\"type\":\"date\",\"nullable\":true,\"metadata\":{}}]}";
         assertEquals(expectedSchemaString, snapshot.getSchema());
         assertEquals(0L, snapshot.getNetBytesAdded());
-        assertEquals(0L, snapshot.getNetFilesAdded());
-        assertEquals(0L, snapshot.getNetOutputRows());
-        assertEquals(-1L, snapshot.getVersionId()); // not written for first file
+        assertEquals(DremioCost.LARGE_FILE_COUNT, snapshot.getNetFilesAdded());
+        assertEquals(DremioCost.LARGE_ROW_COUNT, snapshot.getNetOutputRows());
         assertTrue(snapshot.getPartitionColumns().isEmpty());
         assertEquals(1609775409819L, snapshot.getTimestamp());
+        assertTrue(snapshot.isMissingRequiredValues());
+    }
+
+    @Test
+    public void testCommitInfoWithoutOpStatsOnlySchemaChange() throws IOException {
+      File f = FileUtils.getResourceAsFile("/deltalake/test1_0_noadd.json");
+      Configuration conf = new Configuration();
+      final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
+      DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
+      DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
+
+      assertEquals("WRITE", snapshot.getOperationType());
+      final String expectedSchemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"byteField\",\"type\":\"byte\",\"nullable\":true,\"metadata\":{}},{\"name\":\"shortField\",\"type\":\"short\",\"nullable\":true,\"metadata\":{}},{\"name\":\"intField\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"longField\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"floatField\",\"type\":\"float\",\"nullable\":true,\"metadata\":{}},{\"name\":\"doubleField\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringField\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"binaryField\",\"type\":\"binary\",\"nullable\":true,\"metadata\":{}},{\"name\":\"booleanField\",\"type\":\"boolean\",\"nullable\":true,\"metadata\":{}},{\"name\":\"timestampField\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},{\"name\":\"dateField\",\"type\":\"date\",\"nullable\":true,\"metadata\":{}}]}";
+      assertEquals(expectedSchemaString, snapshot.getSchema());
+      assertEquals(0L, snapshot.getNetBytesAdded());
+      assertEquals(0L, snapshot.getNetFilesAdded());
+      assertEquals(0L, snapshot.getNetOutputRows());
+      assertFalse(snapshot.isMissingRequiredValues());
+      assertTrue(snapshot.getPartitionColumns().isEmpty());
+      assertEquals(1609775409819L, snapshot.getTimestamp());
+    }
+
+    @Test
+    public void testCommitInfoStatsHasNumFiles() throws IOException {
+      File f = FileUtils.getResourceAsFile("/deltalake/jsonLog_onlyNumFiles.json");
+      Configuration conf = new Configuration();
+      final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
+      DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
+      DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
+
+      assertEquals(0L, snapshot.getNetBytesAdded());
+      assertEquals(1824L, snapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, snapshot.getNetOutputRows());
+      assertTrue(snapshot.isMissingRequiredValues());
+    }
+
+    @Test
+    public void testCommitInfoStatsHasNumRecords() throws IOException {
+      File f = FileUtils.getResourceAsFile("/deltalake/jsonLog_onlyNumRecords.json");
+      Configuration conf = new Configuration();
+      final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
+      DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
+      DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
+
+      assertEquals(0L, snapshot.getNetBytesAdded());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, snapshot.getNetFilesAdded());
+      assertEquals(1824L, snapshot.getNetOutputRows());
+      assertTrue(snapshot.isMissingRequiredValues());
     }
 
     @Test
@@ -61,7 +110,7 @@ public class TestDeltaLogCommitJsonReader {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(fs, Path.of(f.toURI()));
+        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
 
         assertEquals("WRITE", snapshot.getOperationType());
         final String expectedSchemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"byteField\",\"type\":\"byte\",\"nullable\":true,\"metadata\":{}},{\"name\":\"shortField\",\"type\":\"short\",\"nullable\":true,\"metadata\":{}},{\"name\":\"intField\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"longField\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"floatField\",\"type\":\"float\",\"nullable\":true,\"metadata\":{}},{\"name\":\"doubleField\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringField\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"binaryField\",\"type\":\"binary\",\"nullable\":true,\"metadata\":{}},{\"name\":\"booleanField\",\"type\":\"boolean\",\"nullable\":true,\"metadata\":{}},{\"name\":\"timestampField\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},{\"name\":\"dateField\",\"type\":\"date\",\"nullable\":true,\"metadata\":{}}]}";
@@ -69,9 +118,65 @@ public class TestDeltaLogCommitJsonReader {
         assertEquals(1208L, snapshot.getNetBytesAdded());
         assertEquals(1L, snapshot.getNetFilesAdded());
         assertEquals(0L, snapshot.getNetOutputRows());
-        assertEquals(-1L, snapshot.getVersionId()); // not written for first file
         assertTrue(snapshot.getPartitionColumns().isEmpty());
         assertEquals(1609775409819L, snapshot.getTimestamp());
+    }
+
+    @Test
+    public void testMerge() throws Exception {
+      Configuration conf = new Configuration();
+      final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
+      DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
+
+      File fileWithStats = FileUtils.getResourceAsFile("/deltalake/test1_1.json");
+      File fileWithNumFilesOnly = FileUtils.getResourceAsFile("/deltalake/jsonLog_onlyNumFiles.json");
+      File fileWithNumRecordsOnly = FileUtils.getResourceAsFile("/deltalake/jsonLog_onlyNumRecords.json");
+      File fileNoStats = FileUtils.getResourceAsFile("/deltalake/test1_0.json");
+
+      DeltaLogSnapshot snapshotWithStats = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(fileWithStats.toURI())));
+      DeltaLogSnapshot snapshotWithNumFilesOnly = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(fileWithNumFilesOnly.toURI())));
+      DeltaLogSnapshot snapshotWithNumRecordsOnly = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(fileWithNumRecordsOnly.toURI())));
+      DeltaLogSnapshot snapshotNoStats = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(fileNoStats.toURI())));
+
+      DeltaLogSnapshot mergedSnapshot = snapshotWithStats.clone();
+      assertFalse(mergedSnapshot.isMissingRequiredValues());
+      mergedSnapshot.merge(snapshotWithNumFilesOnly);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(snapshotWithStats.getNetFilesAdded() + snapshotWithNumFilesOnly.getNetFilesAdded(), mergedSnapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, mergedSnapshot.getNetOutputRows());
+      mergedSnapshot.merge(snapshotWithNumRecordsOnly);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, mergedSnapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, mergedSnapshot.getNetOutputRows());
+
+      mergedSnapshot = snapshotWithStats.clone();
+      mergedSnapshot.merge(snapshotWithNumRecordsOnly);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, mergedSnapshot.getNetFilesAdded());
+      assertEquals(snapshotWithStats.getNetOutputRows() + snapshotWithNumRecordsOnly.getNetOutputRows(), mergedSnapshot.getNetOutputRows());
+      mergedSnapshot.merge(snapshotWithNumFilesOnly);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, mergedSnapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, mergedSnapshot.getNetOutputRows());
+
+      mergedSnapshot = snapshotNoStats.clone();
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      mergedSnapshot.merge(snapshotWithNumFilesOnly);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, mergedSnapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, mergedSnapshot.getNetOutputRows());
+
+      mergedSnapshot = snapshotNoStats.clone();
+      mergedSnapshot.merge(snapshotWithNumRecordsOnly);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, mergedSnapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, mergedSnapshot.getNetOutputRows());
+
+      mergedSnapshot = snapshotNoStats.clone();
+      mergedSnapshot.merge(snapshotWithStats);
+      assertTrue(mergedSnapshot.isMissingRequiredValues());
+      assertEquals(DremioCost.LARGE_FILE_COUNT, mergedSnapshot.getNetFilesAdded());
+      assertEquals(DremioCost.LARGE_ROW_COUNT, mergedSnapshot.getNetOutputRows());
     }
 
     @Test
@@ -80,7 +185,7 @@ public class TestDeltaLogCommitJsonReader {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(fs, Path.of(f.toURI()));
+        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
         assertEquals(Lists.newArrayList("intField", "stringField", "longField", "doubleField"), snapshot.getPartitionColumns());
         final String schemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"byteField\",\"type\":\"byte\",\"nullable\":true,\"metadata\":{}},{\"name\":\"shortField\",\"type\":\"short\",\"nullable\":true,\"metadata\":{}},{\"name\":\"intField\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"longField\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"floatField\",\"type\":\"float\",\"nullable\":true,\"metadata\":{}},{\"name\":\"doubleField\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringField\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"binaryField\",\"type\":\"binary\",\"nullable\":true,\"metadata\":{}},{\"name\":\"booleanField\",\"type\":\"boolean\",\"nullable\":true,\"metadata\":{}},{\"name\":\"timestampField\",\"type\":\"timestamp\",\"nullable\":true,\"metadata\":{}},{\"name\":\"dateField\",\"type\":\"date\",\"nullable\":true,\"metadata\":{}}]}";
         assertEquals(schemaString, snapshot.getSchema());
@@ -92,14 +197,13 @@ public class TestDeltaLogCommitJsonReader {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(fs, Path.of(f.toURI()));
+        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
 
         assertEquals("WRITE", snapshot.getOperationType());
         assertNull(snapshot.getSchema());
         assertEquals(112657L, snapshot.getNetBytesAdded());
         assertEquals(7L, snapshot.getNetFilesAdded());
         assertEquals(2660L, snapshot.getNetOutputRows());
-        assertEquals(0L, snapshot.getVersionId()); // not written for first file
         assertTrue(snapshot.getPartitionColumns().isEmpty());
         assertEquals(1605801178171L, snapshot.getTimestamp());
     }
@@ -110,7 +214,7 @@ public class TestDeltaLogCommitJsonReader {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(fs, Path.of(f.toURI()));
+        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
 
         assertEquals("ADD COLUMNS", snapshot.getOperationType());
         final String schemaString = "{\"type\":\"struct\",\"fields\":[{\"name\":\"Year\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Month\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DayofMonth\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DayOfWeek\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DepTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CRSDepTime\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"ArrTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CRSArrTime\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"UniqueCarrier\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"FlightNum\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"TailNum\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"ActualElapsedTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CRSElapsedTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"AirTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"ArrDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DepDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Origin\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Dest\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Distance\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"TaxiIn\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"TaxiOut\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Cancelled\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CancellationCode\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Diverted\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CarrierDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"WeatherDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"NASDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"SecurityDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"LateAircraftDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"newcol\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}}]}";
@@ -118,7 +222,6 @@ public class TestDeltaLogCommitJsonReader {
         assertEquals(0L, snapshot.getNetBytesAdded());
         assertEquals(0L, snapshot.getNetFilesAdded());
         assertEquals(0L, snapshot.getNetOutputRows());
-        assertEquals(21L, snapshot.getVersionId());
         assertEquals(Lists.newArrayList("DayOfWeek"), snapshot.getPartitionColumns());
         assertEquals(1605849831878L, snapshot.getTimestamp());
     }
@@ -129,6 +232,6 @@ public class TestDeltaLogCommitJsonReader {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(fs, Path.of(f.toURI()));
+        DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(f.toURI())));
     }
 }

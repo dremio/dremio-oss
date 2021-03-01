@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.logical.partition;
 
 import static com.dremio.common.util.MajorTypeHelper.getFieldForNameAndMajorType;
+import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -102,6 +103,7 @@ import com.dremio.exec.store.parquet.ParquetFilterCondition.FilterProperties;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.github.slugify.Slugify;
 import com.google.common.base.Function;
@@ -192,6 +194,9 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     @Override
     public boolean matches(RelOptRuleCall call) {
       final ScanRelBase scan = call.rel(2);
+      if (isInvalidDataset(scan.getTableMetadata().getDatasetConfig())) {
+         return false;
+       }
       if (scan.getPluginId().getType().equals(pluginType)) {
         try {
           if(scan.getTableMetadata().getSplitRatio() == 1.0d){
@@ -229,6 +234,9 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     @Override
     public boolean matches(RelOptRuleCall call) {
       final ScanRelBase scan = call.rel(1);
+      if (isInvalidDataset(scan.getTableMetadata().getDatasetConfig())) {
+        return false;
+      }
       if (scan.getPluginId().getType().equals(pluginType)) {
         try {
           if(scan.getTableMetadata().getSplitRatio() == 1.0d){
@@ -251,6 +259,10 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     }
   }
 
+  static boolean isInvalidDataset(DatasetConfig config) {
+    return config != null && supportsPruneFilter(config);
+  }
+
   // new prune scan rule for filter on SampleRel, fires when filter above a sample rel with pruneable scan.
   public static class PruneScanRuleFilterOnSampleScan<T extends ScanRelBase & PruneableScan> extends PruneScanRuleBase<T> {
     public PruneScanRuleFilterOnSampleScan(StoragePluginId pluginId, Class<T> clazz, OptimizerRulesContext optimizerContext) {
@@ -267,6 +279,9 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     @Override
     public boolean matches(RelOptRuleCall call) {
       final ScanRelBase scan = call.rel(2);
+      if (isInvalidDataset(scan.getTableMetadata().getDatasetConfig())) {
+        return false;
+      }
       double splitRatio;
       if (scan.getPluginId().getType().equals(pluginType)) {
         try {

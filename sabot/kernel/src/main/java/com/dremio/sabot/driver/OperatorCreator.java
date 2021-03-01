@@ -30,6 +30,10 @@ import com.dremio.sabot.op.spi.TerminalOperator;
  */
 public interface OperatorCreator {
   <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(OperatorContext context, T operator) throws Exception;
+  default <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(FragmentExecutionContext fec,
+                                                                                  OperatorContext context, T operator) throws Exception {
+    throw new UnsupportedOperationException("Not implemented");
+  }
   <T extends PhysicalOperator> DualInputOperator getDualInputOperator(OperatorContext context, T operator) throws Exception;
   <T extends PhysicalOperator> TerminalOperator getTerminalOperator(TunnelProvider provider, OperatorContext context, T operator) throws Exception;
   <T extends PhysicalOperator> ProducerOperator getProducerOperator(FragmentExecutionContext fec, OperatorContext context, T operator) throws Exception;

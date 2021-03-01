@@ -17,6 +17,8 @@ package com.dremio.exec.store.deltalake;
 
 import java.io.IOException;
 
+import com.dremio.exec.server.SabotContext;
+import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -30,7 +32,8 @@ public interface DeltaLogReader {
         switch (fileType) {
             case JSON:
                 return new DeltaLogCommitJsonReader();
-                //TODO Add DeltaLogParquetParser for checkpoint files
+          case PARQUET:
+                return new DeltaLogCheckpointParquetReader();
             default:
                 throw new IllegalArgumentException("Commit file type is not supported " + fileType);
         }
@@ -40,8 +43,8 @@ public interface DeltaLogReader {
      * Parses the DeltaLake commit log file / checkpoint parquet
      *
      * @param fs
-     * @param commitFilePath
+     * @param fileAttributes
      * @return
      */
-    DeltaLogSnapshot parseMetadata(FileSystem fs, Path commitFilePath) throws IOException;
+    DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes) throws IOException;
 }

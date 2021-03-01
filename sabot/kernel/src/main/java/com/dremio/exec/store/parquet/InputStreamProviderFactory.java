@@ -17,7 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import com.dremio.exec.ExecConstants;
@@ -36,16 +35,14 @@ public interface InputStreamProviderFactory {
   InputStreamProvider create(FileSystem fs, OperatorContext context,
                              Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                              MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                             BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener, boolean readFullFile,
-                             List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices) throws IOException;
+                             boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystem fs, OperatorContext context,
                                       Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                                       MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                                      BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener, boolean readFullFile,
-                                      List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices) throws IOException {
+                                      boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices) throws IOException {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream

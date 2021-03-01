@@ -49,12 +49,6 @@
     <appender-ref ref="STDOUT" />
   </logger>
 
-  <logger name="com.dremio" additivity="false">
-    <level value="debug" />
-    <appender-ref ref="SOCKET" />
-  </logger>
-  
-
   <root>
         <level value="warn" />
         <appender-ref ref="STDOUT" />

@@ -42,7 +42,6 @@ import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.PartitionChunkListingImpl;
-import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -99,10 +98,7 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
   @Override
   public DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException {
     Table table = (new HadoopTables(this.fsPlugin.getFsConfCopy())).load(fileSelection.getSelectionRoot());
-    // TODO: Using iceberg scan schema instead of table schema. Once parquet scan fragment is introduced
-    // in the plan, this will change to use table schema.
-    //BatchSchema batchSchema = new SchemaConverter().fromIceberg(table.schema());
-    BatchSchema batchSchema = RecordReader.SPLIT_GEN_SCAN_SCHEMA;
+    BatchSchema batchSchema = SchemaConverter.fromIceberg(table.schema());
     long numRecords = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-records", "0"));
 
     return new FileConfigMetadata() {

@@ -374,12 +374,12 @@ public class TestProfiles {
       expectedRecords += req.getProfile().getProgress().getRowsProcessed();
     }
 
-    // publish tail profile.
-    server.putQueryTailProfile(profileSet.tailProfileRequest);
-
     // verify metrics
     long recordsProcessed = getSimpleQueryProgressMetrics(profileSet.queryId);
     assertEquals(expectedRecords, recordsProcessed);
+
+    // publish tail profile.
+    server.putQueryTailProfile(profileSet.tailProfileRequest);
 
     // verify profile.
     QueryProfile queryProfile = server.getQueryProfile(

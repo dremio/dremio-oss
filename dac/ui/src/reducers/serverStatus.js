@@ -16,7 +16,7 @@
 import Immutable from 'immutable';
 import moment from 'moment';
 import * as ActionTypes from 'actions/serverStatus';
-import socket, {WS_CONNECTION_OPEN, WS_CONNECTION_CLOSE} from 'utils/socket';
+import socket, {WS_CONNECTION_OPEN, WS_CONNECTION_CLOSE} from '@inject/utils/socket';
 
 import config from 'dyn-load/utils/config';
 

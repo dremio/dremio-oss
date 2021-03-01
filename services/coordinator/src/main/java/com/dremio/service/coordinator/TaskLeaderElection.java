@@ -38,7 +38,7 @@ public class TaskLeaderElection implements AutoCloseable {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskLeaderElection.class);
 
-  private final Provider<ClusterCoordinator> clusterCoordinator;
+  private final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider;
   private final TaskLeaderStatusListener taskLeaderStatusListener;
   private final String serviceName;
   private final AtomicReference<Long> leaseExpirationTime = new AtomicReference<>(null);
@@ -56,30 +56,30 @@ public class TaskLeaderElection implements AutoCloseable {
   /**
    * If we don't use relinquishing leadership - don't need executor
    * @param serviceName
-   * @param clusterCoordinator
+   * @param clusterServiceSetManagerProvider
    * @param currentEndPoint
    */
   public TaskLeaderElection(String serviceName,
-                            Provider<ClusterCoordinator> clusterCoordinator,
+                            Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
                             Provider<CoordinationProtos.NodeEndpoint> currentEndPoint) {
-    this(serviceName, clusterCoordinator, null, currentEndPoint, null);
+    this(serviceName, clusterServiceSetManagerProvider, null, currentEndPoint, null);
   }
 
   public TaskLeaderElection(String serviceName,
-                            Provider<ClusterCoordinator> clusterCoordinator,
+                            Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
                             Long leaseExpirationTime,
                             Provider<CoordinationProtos.NodeEndpoint> currentEndPoint,
                             ScheduledExecutorService executorService) {
     this.serviceName = serviceName;
-    this.clusterCoordinator = clusterCoordinator;
+    this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
     this.leaseExpirationTime.set(leaseExpirationTime);
     this.executorService = executorService;
     this.currentEndPoint = currentEndPoint;
-    this.taskLeaderStatusListener = new TaskLeaderStatusListener(serviceName, clusterCoordinator);
+    this.taskLeaderStatusListener = new TaskLeaderStatusListener(serviceName, clusterServiceSetManagerProvider);
   }
 
   public void start() throws Exception {
-    serviceSet = clusterCoordinator.get().getOrCreateServiceSet(serviceName);
+    serviceSet = clusterServiceSetManagerProvider.get().getOrCreateServiceSet(serviceName);
     taskLeaderStatusListener.start();
     enterElections();
   }
@@ -104,7 +104,7 @@ public class TaskLeaderElection implements AutoCloseable {
   private void enterElections() {
     logger.info("Starting TaskLeader Election Service for {}", serviceName);
 
-    electionHandle = clusterCoordinator.get()
+    electionHandle = clusterServiceSetManagerProvider.get()
       .joinElection(serviceName, new ElectionListener() {
       @Override
       public void onElected() {

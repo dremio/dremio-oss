@@ -16,7 +16,7 @@
 import { race, take, put, call, takeEvery } from 'redux-saga/effects';
 import { delay } from 'redux-saga';
 
-import socket, { WS_MESSAGE_JOB_PROGRESS } from 'utils/socket';
+import socket, { WS_MESSAGE_JOB_PROGRESS } from '@inject/utils/socket';
 import { addNotification } from 'actions/notification';
 
 

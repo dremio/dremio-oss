@@ -45,7 +45,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.flight.DremioFlightServiceOptions;
 
 /**
  * Unit test class for RunQueryResponseHandler.
@@ -56,6 +58,8 @@ public abstract class BaseTestRunQueryResponseHandler {
   private static Provider<UserWorker> workerProvider;
   private static FlightProducer.ServerStreamListener listener;
   private static BufferAllocator allocator;
+
+  private OptionManager optionManager;
 
   protected abstract RunQueryResponseHandler createHandler();
 
@@ -70,6 +74,12 @@ public abstract class BaseTestRunQueryResponseHandler {
 
     listener = mock(FlightProducer.ServerStreamListener.class);
     allocator = mock(BufferAllocator.class);
+
+    UserWorker userWorker = mock(UserWorker.class);
+    this.optionManager = mock(OptionManager.class);
+    when(workerProvider.get()).thenReturn(userWorker);
+    when(userWorker.getSystemOptions()).thenReturn(optionManager);
+    when(optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS)).thenReturn(5000L);
   }
 
   @Rule
@@ -93,6 +103,10 @@ public abstract class BaseTestRunQueryResponseHandler {
 
   public static BufferAllocator getAllocator() {
     return allocator;
+  }
+
+  public OptionManager getOptionManager() {
+    return optionManager;
   }
 
   @Test

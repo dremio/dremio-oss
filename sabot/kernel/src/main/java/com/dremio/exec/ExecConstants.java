@@ -45,6 +45,7 @@ public interface ExecConstants {
   String ZK_ROOT = "dremio.exec.zk.root";
   String ZK_REFRESH = "dremio.exec.zk.refresh";
   String ZK_RETRY_UNLIMITED = "dremio.exec.zk.retry.unlimited";
+  String ZK_CONNECTION_HANDLE_ENABLED = "dremio.exec.zk.connection_handle.enabled";
   String ZK_RETRY_LIMIT = "dremio.exec.zk.retry.limit";
   String ZK_INITIAL_TIMEOUT_MS = "dremio.exec.zk.retry.initial_timeout_ms";
 
@@ -102,8 +103,14 @@ public interface ExecConstants {
   // Number above which we replace a group of ORs with a set operation.
   PositiveLongValidator FAST_OR_MIN_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.min", Integer.MAX_VALUE, 5);
 
+  // Number above which we replace a group of ORs with a set operation.
+  PositiveLongValidator FAST_OR_MIN_VARCHAR_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.varchar_threshold.min", Integer.MAX_VALUE, 5);
+
   // Number above which we replace a group of ORs with a set operation in gandiva
-  PositiveLongValidator FAST_OR_MIN_THRESHOLD_GANDIVA = new PositiveLongValidator("exec.operator.orfast.gandiva_threshold.min", Integer.MAX_VALUE, 5);
+  PositiveLongValidator FAST_OR_MIN_THRESHOLD_GANDIVA = new PositiveLongValidator("exec.operator.orfast.gandiva_threshold.min", Integer.MAX_VALUE, 20);
+
+  // Number above which we replace a group of ORs with a set operation in gandiva
+  PositiveLongValidator FAST_OR_MIN_VARCHAR_THRESHOLD_GANDIVA = new PositiveLongValidator("exec.operator.orfast.gandiva_varchar_threshold.min", Integer.MAX_VALUE, 5);
 
   // Number above which we stop replacing a group of ORs with a set operation.
   PositiveLongValidator FAST_OR_MAX_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.max", Integer.MAX_VALUE, 1500);
@@ -458,8 +465,7 @@ public interface ExecConstants {
   RangeLongValidator RECONCILE_QUERIES_FREQUENCY_SECS = new RangeLongValidator("coordinator.reconcile.queries.frequency.secs", 1, 1800, 300);
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
-
-  BooleanValidator ENABLE_DELTALAKE = new BooleanValidator("dremio.deltalake.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
@@ -498,4 +504,13 @@ public interface ExecConstants {
 
   // Option to toggle support for mixed data types
   BooleanValidator MIXED_TYPES_DISABLED = new BooleanValidator("store.disable.mixed_types", false);
+
+  BooleanValidator PREFETCH_READER = new BooleanValidator("store.parquet.prefetch_reader", true);
+  BooleanValidator READ_COLUMN_INDEXES = new BooleanValidator("store.parquet.read_column_indexes", true);
+    // Increasing this will increase the number of splits that are prefetched. Unfortunately, it can also lead to multiple footer reads
+    // if the future splits are from the same file
+  RangeLongValidator NUM_SPLITS_TO_PREFETCH = new RangeLongValidator("store.parquet.num_splits_to_prefetch", 1, 20L, 1);
+
+  // Use this as a factor to scale the rowcount estimation of number of rows in a data file
+  DoubleValidator DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR = new RangeDoubleValidator("store.delta.rowcount_estimation_factor", 0.8d, 2.0d, 1.25d);
 }

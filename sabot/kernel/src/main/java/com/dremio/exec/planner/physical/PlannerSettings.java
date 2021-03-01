@@ -162,6 +162,8 @@ public class PlannerSettings implements Context{
   public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
 
   public static final BooleanValidator ENABLE_ICEBERG_EXECUTION = new BooleanValidator("dremio.execution.v2", false);
+  public static final BooleanValidator ENABLE_DELTALAKE = new BooleanValidator("dremio.deltalake.enabled", false);
+
   /**
    * Policy regarding storing query results
    */
@@ -423,7 +425,7 @@ public class PlannerSettings implements Context{
    * of cores across all executor nodes
    * @return max width per node
    */
-  long getMaxWidthPerNode() {
+  public long getMaxWidthPerNode() {
     Preconditions.checkNotNull(resourceInformation, "Need a valid reference for " +
       "Resource Information");
     Preconditions.checkNotNull(resourceInformation.get(), "Need a valid reference for " +

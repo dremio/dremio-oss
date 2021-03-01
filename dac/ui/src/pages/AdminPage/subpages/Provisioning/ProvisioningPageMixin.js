@@ -34,6 +34,10 @@ export default function(input) {
       props.openAddProvisionModal(clusterType);
     },
 
+    openEdit(props, id, clusterType) {
+      props.openEditProvisionModal(id, clusterType);
+    },
+
     getProvision(props, clusterType, VIEW_ID, pollAgain) {
       props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
     }

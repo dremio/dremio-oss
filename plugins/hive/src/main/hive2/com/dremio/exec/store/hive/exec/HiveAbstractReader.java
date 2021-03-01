@@ -272,7 +272,15 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
    * @param t (optional) exception thrown in the error context
    * @return {@link UserException} with context
    */
+
+  protected void logDebugMessages() {
+    logger.debug("Class loader is {}", this.getClass().getClassLoader().toString());
+  }
+
   UserException createExceptionWithContext(String errorMessage, Throwable t) {
+    if(logger.isDebugEnabled()) {
+      logDebugMessages();
+    }
     if (t instanceof FileNotFoundException) {
       return UserException.invalidMetadataError(t)
         .message(errorMessage)

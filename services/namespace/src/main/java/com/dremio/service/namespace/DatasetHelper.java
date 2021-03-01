@@ -69,6 +69,20 @@ public final class DatasetHelper {
   }
 
   /**
+   * Checks if datafile is from an DeltaLake dataset
+   *
+   * @param fileConfig file to check
+   * @return true if file is from an DeltaLake dataset
+   */
+  public static boolean isDeltaLake(FileConfig fileConfig) {
+    if (fileConfig == null) {
+      return false;
+    }
+
+    return fileConfig.getType() == FileType.DELTA;
+  }
+
+  /**
    * Checks if dataset is iceberg dataset
    *
    * @param dataset Dataset to check
@@ -83,6 +97,30 @@ public final class DatasetHelper {
   }
 
   /**
+   * Checks if dataset is delta lake dataset
+   *
+   * @param dataset Dataset to check
+   * @return true if dataset is an delta lake dataset
+   */
+  public static boolean isDeltaLakeDataset(DatasetConfig dataset) {
+    if (dataset.getPhysicalDataset() == null) {
+      return false;
+    }
+
+    return DatasetHelper.isDeltaLake(dataset.getPhysicalDataset().getFormatSettings());
+  }
+
+  /**
+   * Checks if dataset supports prune filter
+   *
+   * @param dataset Dataset to check
+   * @return true if dataset supports prune filter push down
+   */
+  public static boolean supportsPruneFilter(DatasetConfig dataset) {
+    return isIcebergDataset(dataset) || isDeltaLakeDataset(dataset);
+  }
+
+  /**
    * Checks if the data files are of type parquet.
    *
    * @param fileConfig config
@@ -93,4 +131,17 @@ public final class DatasetHelper {
     return fileConfig.getType() == FileType.PARQUET;
   }
 
+  public static boolean hasIcebergParquetDataFiles(FileConfig fileConfig) {
+    Preconditions.checkNotNull(fileConfig);
+    return fileConfig.getType() == FileType.ICEBERG;
+  }
+
+  public static boolean hasDeltaLakeParquetDataFiles(FileConfig fileConfig) {
+    Preconditions.checkNotNull(fileConfig);
+    return fileConfig.getType() == FileType.DELTA;
+  }
+
+  public static boolean hasParquetAsDataFiles(FileConfig fileConfig) {
+    return hasParquetDataFiles(fileConfig) || hasIcebergParquetDataFiles(fileConfig) || hasDeltaLakeParquetDataFiles(fileConfig);
+  }
 }

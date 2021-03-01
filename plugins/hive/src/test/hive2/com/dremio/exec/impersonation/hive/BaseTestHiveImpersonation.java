@@ -18,6 +18,7 @@ package com.dremio.exec.impersonation.hive;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 
+import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.shims.ShimLoader;
 
 import com.dremio.TestBuilder;
@@ -42,6 +44,7 @@ import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
 public class BaseTestHiveImpersonation extends BaseTestImpersonation {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
   protected static final String hivePluginName = "hive";
 
   protected static HiveConf hiveConf;
@@ -66,6 +69,10 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
 
     // Configure metastore persistence db location on local filesystem
     final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true",  getTempDir("metastore_db"));
+    // Set login timeout to 60 seconds
+    DriverManager.setLoginTimeout(60);
+    // Create the database for metastore in derby
+    DriverManager.getConnection(dbUrl);
     hiveConf.set(ConfVars.METASTORECONNECTURLKEY.varname, dbUrl);
 
     hiveConf.set(ConfVars.SCRATCHDIR.varname, "file:///" + getTempDir("scratch_dir"));
@@ -85,11 +92,26 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   }
 
   protected static void startHiveMetaStore() throws Exception {
-    final int port = MetaStoreUtils.findFreePort();
-
-    hiveConf.set(METASTOREURIS.varname, "thrift://localhost:" + port);
-
-    MetaStoreUtils.startMetaStore(port, ShimLoader.getHadoopThriftAuthBridge(), hiveConf);
+    final int maxRetries = 10;
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        final int port = MetaStoreUtils.findFreePort();
+        hiveConf.set(METASTOREURIS.varname, "thrift://localhost:" + port);
+        MetaStoreUtils.startMetaStore(port, ShimLoader.getHadoopThriftAuthBridge(), hiveConf);
+        // Try to connect to hive to check if it's healthy
+        final SessionState ss = new SessionState(hiveConf);
+        SessionState.start(ss);
+        ss.close();
+        logger.info("Start hive meta store successfully.");
+        return;
+      } catch (Exception e) {
+        if (i == maxRetries -1) {
+          throw new RuntimeException(String.format("Failed to start hive meta store after %d retries.", maxRetries), e);
+        }
+        logger.info("Failed to start hive meta store, will retry after 10 seconds.", e);
+        Thread.sleep(10_000);
+      }
+    }
   }
 
   public static Hive2StoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {

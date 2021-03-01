@@ -102,6 +102,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
       throws ExecutionSetupException {
     boolean useIcebergExecution = context.getOptions().getOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION);
     if (useIcebergExecution) {
+      // this is used in preview during dataset promotion.
       return new EmptyRecordReader();
     } else if (attributes.getPath().getName().endsWith("parquet")) {
       return dataFormatPlugin.getRecordReader(context, fs, attributes);
@@ -140,7 +141,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
                                       FileSystem dfs,
                                       EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
                                       List<SchemaPath> columns) throws ExecutionSetupException {
-    return new EmptyRecordReader();
+    return new IcebergManifestListRecordReader(context, dfs, splitAttributes, columns, fsPlugin.getFsConfCopy());
   }
 
   @Override

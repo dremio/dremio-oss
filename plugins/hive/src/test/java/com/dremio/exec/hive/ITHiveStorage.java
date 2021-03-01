@@ -65,8 +65,8 @@ import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
@@ -1407,7 +1407,7 @@ public class ITHiveStorage extends HiveTestBase {
       } else {
         expected = rowStr + "." + rowStr;
       }
-      final String exceptionMessage = ScreenPrel.MIXED_TYPES_ERROR;
+      final String exceptionMessage = BatchSchema.MIXED_TYPES_ERROR;
       try {
         testBuilder().sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + row)
           .ordered()

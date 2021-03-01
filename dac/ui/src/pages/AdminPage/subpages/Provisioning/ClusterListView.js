@@ -132,7 +132,7 @@ export class ClusterListView extends Component {
 
   getTableData = () => {
     const engines = this.getEngines();
-    return engines.map(engine => this.getEngineData(engine));
+    return engines.map(engine => this.getEngineData(engine, engines.size));
   };
 
   render() {

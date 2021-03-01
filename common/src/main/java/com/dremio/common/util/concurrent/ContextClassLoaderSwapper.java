@@ -25,6 +25,8 @@ public class ContextClassLoaderSwapper implements Closeable {
 
   private final ClassLoader originalClassLoader;
 
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ContextClassLoaderSwapper.class);
+
   private ContextClassLoaderSwapper(ClassLoader classLoader) {
     this.originalClassLoader = Thread.currentThread().getContextClassLoader();
     Thread.currentThread().setContextClassLoader(classLoader);
@@ -32,6 +34,7 @@ public class ContextClassLoaderSwapper implements Closeable {
 
   @Override
   public void close() {
+    logger.debug("Loading original class loader {}", originalClassLoader);
     Thread.currentThread().setContextClassLoader(originalClassLoader);
   }
 
@@ -42,6 +45,7 @@ public class ContextClassLoaderSwapper implements Closeable {
    * @return a new instance of ContextClassLoaderSwapper resource
    */
   public static Closeable swapClassLoader(final Class<?> classObj) {
+    logger.debug("Current class loader swapped with {} class loader", classObj.getClassLoader());
     return new ContextClassLoaderSwapper(classObj.getClassLoader());
   }
 }

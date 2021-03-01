@@ -116,6 +116,15 @@ public final class MetadataObjectsUtils {
         .setRecordCount(datasetRecordCount >= 0 ? datasetRecordCount : newRecordCount)
     );
 
+    final DatasetStats manifestStats = newExtended.getManifestStats();
+    if (manifestStats != null) {
+      readDefinition.setManifestScanStats(new ScanStats()
+              .setScanFactor(manifestStats.getScanFactor())
+              .setType(manifestStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT:ScanStatsType.NO_EXACT_ROW_COUNT)
+              .setRecordCount(manifestStats.getRecordCount())
+      );
+    }
+
     if (newExtended instanceof FileConfigMetadata) {
       PhysicalDataset pds = datasetConfig.getPhysicalDataset();
       if (pds == null) {

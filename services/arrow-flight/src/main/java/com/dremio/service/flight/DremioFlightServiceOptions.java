@@ -23,7 +23,6 @@ import com.dremio.options.TypeValidators;
  */
 @Options
 public interface DremioFlightServiceOptions {
-
   // Allows users enable/disable backpressure handling.
   TypeValidators.BooleanValidator ENABLE_BACKPRESSURE_HANDLING =
     new TypeValidators.BooleanValidator("flight.backpressure.handling.enable", true);
@@ -31,4 +30,10 @@ public interface DremioFlightServiceOptions {
   // Allows users to configure UserSession lifetime. Default to 120 minutes.
   TypeValidators.PositiveLongValidator SESSION_EXPIRATION_TIME_MINUTES =
     new TypeValidators.PositiveLongValidator("flight.session.expiration.minutes", Integer.MAX_VALUE, 120);
+
+  // Allows users to configure the timeout waiting for the client to be ready for data. Default to 5000ms.
+  TypeValidators.PositiveLongValidator CLIENT_READINESS_TIMEOUT_MILLIS =
+    new TypeValidators.PositiveLongValidator(
+      "flight.client.readiness.timeout.millis", 900000L, 5000L
+    );
 }

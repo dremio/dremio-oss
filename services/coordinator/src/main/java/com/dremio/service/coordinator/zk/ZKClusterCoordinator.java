@@ -16,8 +16,6 @@
 package com.dremio.service.coordinator.zk;
 
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import javax.inject.Provider;
 
@@ -47,8 +45,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     }
   }
 
-  private final ZKClusterClient zkClient;
-  private final ConcurrentMap<String, ZKServiceSet> serviceSets = new ConcurrentHashMap<>();
+  private final ZKClusterServiceSetManager zkClusterServiceSetManager;
 
   private volatile boolean closed = false;
 
@@ -57,33 +54,31 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   }
 
   public ZKClusterCoordinator(SabotConfig config, String connect) throws IOException {
-    this.zkClient = new ZKClusterClient(config, connect);
+    this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(new ZKSabotConfig(config), connect);
   }
 
   public ZKClusterCoordinator(SabotConfig config, Provider<Integer> localPort) throws IOException {
-    this.zkClient = new ZKClusterClient(config, localPort);
+    this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(new ZKSabotConfig(config), localPort);
   }
 
   @VisibleForTesting
   ZKClusterClient getZkClient() {
-    return zkClient;
+    return zkClusterServiceSetManager.getZkClient();
   }
 
   @VisibleForTesting
   public void setPortProvider(Provider<Integer> portProvider) {
-    this.zkClient.setPortProvider(portProvider);
+    this.zkClusterServiceSetManager.getZkClient().setPortProvider(portProvider);
   }
 
   @Override
   public void start() throws Exception {
-    zkClient.start();
+    zkClusterServiceSetManager.start();
 
     if (!closed) {
       Thread.sleep(5);
       for(Service service: Service.values()) {
-        ZKServiceSet serviceSet = zkClient.newServiceSet(service.name);
-        serviceSet.start();
-        serviceSets.put(service.role.name(), serviceSet);
+        zkClusterServiceSetManager.getOrCreateServiceSet(service.role.name(), service.name);
       }
       logger.info("ZKClusterCoordination is up");
     }
@@ -91,44 +86,35 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
 
   @Override
   public ServiceSet getServiceSet(final Role role) {
-    return serviceSets.get(role.name());
+    return zkClusterServiceSetManager.getServiceSet(role);
   }
 
   @Override
   public ServiceSet getOrCreateServiceSet(final String serviceName) {
-    return serviceSets.computeIfAbsent(serviceName, s -> {
-      final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
-      try {
-        newServiceSet.start();
-      } catch (Exception e) {
-        throw new RuntimeException(String.format("Unable to start %s service in Zookeeper", serviceName), e);
-      }
-      return newServiceSet;
-    });
+    return zkClusterServiceSetManager.getOrCreateServiceSet(serviceName);
   }
 
   // this interface doesn't guarantee the consistency of the registered service names.
   @Override
   public Iterable<String> getServiceNames() throws Exception {
-    return zkClient.getServiceNames();
+    return zkClusterServiceSetManager.getServiceNames();
   }
 
   @Override
   public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
-    return zkClient.getSemaphore(name, maximumLeases);
+    return zkClusterServiceSetManager.getZkClient().getSemaphore(name, maximumLeases);
   }
 
   @Override
   public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
-    return zkClient.joinElection(name, listener);
+    return zkClusterServiceSetManager.joinElection(name, listener);
   }
 
   @Override
   public void close() throws Exception {
     if (!closed) {
       closed = true;
-      AutoCloseables.close(serviceSets.values(), AutoCloseables.iter(zkClient));
+      AutoCloseables.close(zkClusterServiceSetManager);
     }
   }
-
 }

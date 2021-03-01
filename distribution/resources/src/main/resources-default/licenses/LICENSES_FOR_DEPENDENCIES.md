@@ -102,13 +102,13 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
-|Arrow Format                                                |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
-|Arrow Memory Core                                           |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
-|Arrow Memory Netty                                          |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
-|Arrow Vectors                                               |3.0.0-20201218102458-4bb1c04f92-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Format                                                |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Memory Core                                           |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Memory Netty                                          |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Vectors                                               |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -205,7 +205,6 @@
 |Curator Service Discovery                                   |4.2.0               |Apache 2.0          |
 |curvesapi                                                   |1.06                |BSD 3-clause        |
 |d3                                                          |3.5.17              |BSD-3-Clause        |
-|Data Mapper for Jackson                                     |1.9.13              |Apache 2.0          |
 |debounce                                                    |1.2.0               |MIT                 |
 |deep-diff                                                   |0.3.4               |MIT                 |
 |deep-equal                                                  |1.0.1               |MIT                 |
@@ -224,12 +223,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |13.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |13.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |13.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |13.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |13.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |13.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |14.0.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |14.0.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |14.0.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |14.0.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |14.0.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |14.0.0              |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -349,7 +348,6 @@
 |isobject                                                    |3.0.1               |MIT                 |
 |isomorphic-fetch                                            |2.2.1               |MIT                 |
 |J2ObjC Annotations                                          |1.3                 |Apache 2.0          |
-|Jackson                                                     |1.9.13              |Apache 2.0          |
 |Jackson 2 extensions to the Google HTTP Client Library for Java.|1.31.0              |Apache 2.0          |
 |Jackson Datatype Protobuf                                   |0.9.10-jackson2.9-proto2|Apache 2.0          |
 |Jackson datatype: Guava                                     |2.10.2              |Apache 2.0          |
@@ -389,7 +387,6 @@
 |Javax WS RS API                                             |2.0.1               |GPL v2 w/ CPE       |
 |javax.annotation API                                        |1.3.2               |GPL v2 w/ CPE       |
 |javax.inject                                                |1                   |Apache 2.0          |
-|JAX RS Provider For JSON Content Type                       |1.9.13              |Apache 2.0, LGPL 2.1|
 |JAXB API bundle for GlassFish V3                            |2.2.11              |GPL v2 w/ CPE       |
 |JAXB API bundle for GlassFish V3                            |2.2.2               |GPL v2 w/ CPE       |
 |JBoss Logging 3                                             |3.3.2.Final         |Apache 2.0          |
@@ -660,7 +657,7 @@
 |railroad-diagrams                                           |1.0.0               |CC0-1.0             |
 |randexp                                                     |0.4.6               |MIT                 |
 |RE2/J                                                       |1.1                 |The Go license      |
-|react                                                       |16.7.0              |MIT                 |
+|react                                                       |16.14.0             |MIT                 |
 |react-base16-styling                                        |0.4.7               |MIT                 |
 |react-base16-styling                                        |0.5.3               |MIT                 |
 |react-context-toolbox                                       |2.0.2               |MIT                 |
@@ -670,7 +667,7 @@
 |react-dnd-html5-backend                                     |7.0.2               |MIT                 |
 |react-dock                                                  |0.2.4               |MIT                 |
 |react-document-title                                        |2.0.3               |MIT                 |
-|react-dom                                                   |16.7.0              |MIT                 |
+|react-dom                                                   |16.14.0             |MIT                 |
 |react-dropzone                                              |4.1.3               |MIT                 |
 |react-event-listener                                        |0.6.6               |MIT                 |
 |react-gtm-module                                            |2.0.11              |MIT                 |
@@ -734,6 +731,7 @@
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Library                                               |2.10.1              |BSD 3-clause        |
 |scheduler                                                   |0.12.0              |MIT                 |
+|scheduler                                                   |0.19.1              |MIT                 |
 |semver                                                      |5.4.1               |ISC                 |
 |semver                                                      |5.6.0               |ISC                 |
 |sequin                                                      |0.1.1               |MIT                 |
@@ -799,7 +797,6 @@
 |Xalan Java Serializer                                       |2.7.2               |Apache 2.0          |
 |Xerces2-j                                                   |2.12.0              |Apache 2.0          |
 |XML Commons External Components XML APIs                    |1.4.01              |Apache 2.0          |
-|Xml Compatibility Extensions For Jackson                    |1.9.13              |Apache 2.0, LGPL 2.1|
 |XmlBeans                                                    |3.1.0               |Apache 2.0          |
 |xmlenc Library                                              |0.52                |BSD 2-clause        |
 |ZkClient                                                    |0.10                |Apache 2.0          |

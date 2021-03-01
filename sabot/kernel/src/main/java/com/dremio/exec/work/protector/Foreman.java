@@ -62,6 +62,7 @@ import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.resource.RuleBasedEngineSelector;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
@@ -106,6 +107,7 @@ public class Foreman {
   private final Cache<Long, PreparedPlan> plans;
   protected final MaestroService maestroService;
   protected final JobTelemetryClient jobTelemetryClient;
+  private RuleBasedEngineSelector ruleBasedEngineSelector;
 
   private AttemptId attemptId; // id of last attempt
 
@@ -127,7 +129,9 @@ public class Foreman {
     final ReAttemptHandler attemptHandler,
     Cache<Long, PreparedPlan> plans,
     final MaestroService maestroService,
-    final JobTelemetryClient jobTelemetryClient) {
+    final JobTelemetryClient jobTelemetryClient,
+    final RuleBasedEngineSelector ruleBasedEngineSelector) {
+
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
     this.commandPool = commandPool;
@@ -141,6 +145,7 @@ public class Foreman {
     this.plans = plans;
     this.maestroService = maestroService;
     this.jobTelemetryClient = jobTelemetryClient;
+    this.ruleBasedEngineSelector = ruleBasedEngineSelector;
   }
 
   public void start() {
@@ -214,7 +219,7 @@ public class Foreman {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
         queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
     return new AttemptManager(context, attemptId, queryRequest, observer, options, plans,
-      queryContext, commandPool, maestroService, jobTelemetryClient,
+      queryContext, commandPool, maestroService, jobTelemetryClient, ruleBasedEngineSelector,
       queryRequest.runInSameThread());
   }
 

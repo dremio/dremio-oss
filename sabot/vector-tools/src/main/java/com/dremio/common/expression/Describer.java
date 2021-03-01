@@ -144,7 +144,9 @@ public class Describer {
       }
 
       sb.append("list<");
-      sb.append(describe(field.getChildren().get(0), false));
+      if (!field.getChildren().isEmpty()) {
+        sb.append(describe(field.getChildren().get(0), false));
+      }
       sb.append(">");
 
       return sb.toString();

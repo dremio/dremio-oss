@@ -506,6 +506,21 @@
     <vulnerabilityName>CVE-2020-10673</vulnerabilityName>
   </suppress>
 
+  <!-- Jaeger -->
+  <suppress>
+    <notes><![CDATA[
+      file name: jaeger-client-1.1.0.jar
+      file name: jaeger-core-1.1.0.jar
+      file name: jaeger-thrift-1.1.0.jar
+      file name: jaeger-tracerresolver-1.1.0.jar
+      The vulnerability is only present in Jaeger server software stack, which shares the same
+      CPE identifier with the Java client, although they don't use the same version system.
+      The Java client is not vulnerable.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.jaegertracing/jaeger.*</packageUrl>
+    <cve>CVE-2020-10750</cve>
+  </suppress>
+
   <!-- Jetty -->
   <suppress>
     <notes><![CDATA[

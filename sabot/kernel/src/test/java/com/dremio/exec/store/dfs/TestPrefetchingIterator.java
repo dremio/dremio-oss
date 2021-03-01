@@ -16,29 +16,47 @@
 
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.exec.ExecConstants.NUM_SPLITS_TO_PREFETCH;
+import static com.dremio.exec.ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE;
+import static com.dremio.exec.ExecConstants.PREFETCH_READER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyByte;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.FileMetaData;
+import org.apache.parquet.schema.MessageType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.CompositeColumnFilter;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -47,15 +65,26 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.exec.store.parquet.InputStreamProviderFactory;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
+import com.dremio.exec.store.parquet.ParquetReaderFactory;
+import com.dremio.exec.store.parquet.ParquetSplitReaderCreatorIterator;
+import com.dremio.exec.store.parquet.ParquetSubScan;
+import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.test.AllocatorRule;
+import com.google.protobuf.ByteString;
 
 /**
  * Tests for {@link PrefetchingIterator}
@@ -81,13 +110,14 @@ public class TestPrefetchingIterator {
     @Test
     public void testIteratorWithoutFilter() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
-        List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, 1);
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(getCtx(), readerConfig, creators, 1);
+        List<SplitReaderCreator> creators = getMockSplitReaderCreators(10, 1);
+
+        PrefetchingIterator it = new PrefetchingIterator(createSplitReaderCreatorIterator(creators));
 
         MutableParquetMetadata prevFooter = null;
         InputStreamProvider inputStreamProvider = null;
         for (int i = 0; i < creators.size(); i++) {
-            SplitReaderCreatorTest insertedCreator = creators.get(i);
+            SplitReaderCreator insertedCreator = creators.get(i);
             assertTrue(it.hasNext());
             assertEquals(insertedCreator.createRecordReader(null), it.next());
             insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
@@ -98,10 +128,10 @@ public class TestPrefetchingIterator {
         assertFalse(it.hasNext());
     }
 
-    private void verifyPrefetched(int startIndex, int numPrefetch, List<SplitReaderCreatorTest> creators) throws Exception {
+    private void verifyPrefetched(int startIndex, int numPrefetch, List<SplitReaderCreator> creators) throws Exception {
       int i = 0;
       while ((startIndex + i) < creators.size()) {
-        SplitReaderCreatorTest creator = creators.get(startIndex + i);
+        SplitReaderCreatorTest creator = (SplitReaderCreatorTest) creators.get(startIndex + i);
         assertTrue(creator.prefetched);
         i++;
         if (i >= numPrefetch) {
@@ -112,13 +142,13 @@ public class TestPrefetchingIterator {
 
     private void testIteratorWithoutFilterPrefetchN(int numPrefetch) throws Exception {
       CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
-      List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, numPrefetch);
-      PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(getCtx(), readerConfig, creators, numPrefetch);
+      List<SplitReaderCreator> creators = getMockSplitReaderCreators(10, numPrefetch);
+      PrefetchingIterator it = new PrefetchingIterator(createSplitReaderCreatorIterator(creators));
 
       MutableParquetMetadata prevFooter = null;
       InputStreamProvider inputStreamProvider = null;
       for (int i = 0; i < creators.size(); i++) {
-        SplitReaderCreatorTest insertedCreator = creators.get(i);
+        SplitReaderCreator insertedCreator = creators.get(i);
         assertTrue(it.hasNext());
         assertEquals(insertedCreator.createRecordReader(null), it.next());
         insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
@@ -137,26 +167,18 @@ public class TestPrefetchingIterator {
       }
     }
 
-    @Test
-    public void testIteratorWithFilterAddedInBetween() {
+    private void testIteratorWithFilterAddedInBetween(boolean fromRowGroupSplits) throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getNonMatchingNameValuePairs());
 
-        List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, 1);
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+        SplitReaderCreatorIterator creators = createSplitReaderCreator(ctx, fromRowGroupSplits, true, 1, 10, readerConfig);
+        PrefetchingIterator it = new PrefetchingIterator(creators);
 
-        InputStreamProvider inputStreamProvider = null;
-        MutableParquetMetadata prevFooter = null;
-        SplitReaderCreatorTest lastCreator = null;
         for (int i = 0; i < 5; i++) {
-            SplitReaderCreatorTest insertedCreator = creators.get(i);
             assertTrue(it.hasNext());
-            assertEquals(insertedCreator.createRecordReader(null), it.next());
-            insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
-            prevFooter = insertedCreator.getFooter();
-            inputStreamProvider = insertedCreator.getInputStreamProvider();
+            it.next();
         }
 
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
@@ -165,44 +187,41 @@ public class TestPrefetchingIterator {
 
             it.addRuntimeFilter(filter);
             assertTrue(it.hasNext()); // next was already pre-initialized
-            it.next();
-            lastCreator = creators.get(5);
+            RecordReader recordReader = it.next();
+            assertEquals(0, recordReader.next());
 
             assertFalse(it.hasNext());
-            assertTrue(lastCreator.next == null);
-            assertEquals(4L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
+            assertEquals(5L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
         }
     }
 
-    private void verifyAllClosed(List<SplitReaderCreatorTest> creators) throws Exception {
-      for(SplitReaderCreatorTest creator : creators) {
-        assertTrue(creator.closed);
+    @Test
+    public void testIteratorWithFilterAddedInBetween() throws Exception {
+      testIteratorWithFilterAddedInBetween(true);
+      testIteratorWithFilterAddedInBetween(false);
+    }
+
+    private void verifyAllClosed(List<SplitReaderCreator> creators) throws Exception {
+      for(SplitReaderCreator creator : creators) {
+        assertTrue(((SplitReaderCreatorTest) creator).closed);
       }
     }
 
-    private void testIteratorWithFilterAddedInBetweenPrefetch(int numPrefetch) throws Exception {
+    private void testIteratorWithFilterAddedInBetweenPrefetch(boolean fromRowGroupSplits, int numPrefetch) throws Exception {
       CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
       when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
         .thenReturn(getNonMatchingNameValuePairs());
 
-      List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, numPrefetch);
       OperatorContext ctx = getCtx();
-      PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, numPrefetch);
+      SplitReaderCreatorIterator creators = createSplitReaderCreator(ctx, fromRowGroupSplits, true, numPrefetch, 10, readerConfig);
+      PrefetchingIterator it = new PrefetchingIterator(creators);
 
-      InputStreamProvider inputStreamProvider = null;
-      MutableParquetMetadata prevFooter = null;
-      SplitReaderCreatorTest lastCreator = null;
       for (int i = 0; i < 5; i++) {
-        SplitReaderCreatorTest insertedCreator = creators.get(i);
         assertTrue(it.hasNext());
-        assertEquals(insertedCreator.createRecordReader(null), it.next());
-        insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
-        prevFooter = insertedCreator.getFooter();
-        inputStreamProvider = insertedCreator.getInputStreamProvider();
-        insertedCreator.close();
+        it.next();
       }
 
       try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
@@ -212,26 +231,26 @@ public class TestPrefetchingIterator {
         it.addRuntimeFilter(filter);
         assertTrue(it.hasNext()); // next was already pre-initialized
         it.next();
-        lastCreator = creators.get(5);
 
         assertFalse(it.hasNext());
-        assertTrue(lastCreator.next == null);
-        assertEquals(4L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        lastCreator.close();
+        assertEquals(5L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
       } catch (Exception e) {
         e.printStackTrace();
         fail(e.getMessage());
       }
 
       it.close();
-      verifyAllClosed(creators);
     }
 
   @Test
   public void testIteratorWithFilterAddedInBetweenPrefetchAll() throws Exception {
-      for(int i = 1; i < 10; i++) {
-        testIteratorWithFilterAddedInBetweenPrefetch(i);
-      }
+    for(int i = 1; i < 10; i++) {
+      testIteratorWithFilterAddedInBetweenPrefetch(true, i);
+    }
+
+    for(int i = 1; i < 10; i++) {
+      testIteratorWithFilterAddedInBetweenPrefetch(false, i);
+    }
   }
 
   @Test
@@ -240,9 +259,9 @@ public class TestPrefetchingIterator {
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
 
-        List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, 1);
+        List<SplitReaderCreator> creators = getMockSplitReaderCreators(10, 1);
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+        PrefetchingIterator it = new PrefetchingIterator(createSplitReaderCreatorIterator(creators));
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter = prepareRuntimeFilter();
             closer.add(filter.getPartitionColumnFilter().getBloomFilter());
@@ -252,7 +271,7 @@ public class TestPrefetchingIterator {
             InputStreamProvider inputStreamProvider = null;
             MutableParquetMetadata prevFooter = null;
             for (int i = 0; i < creators.size(); i++) {
-                SplitReaderCreatorTest insertedCreator = creators.get(i);
+                SplitReaderCreator insertedCreator = creators.get(i);
                 assertTrue(it.hasNext());
                 assertEquals(insertedCreator.createRecordReader(null), it.next());
                 insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
@@ -266,25 +285,24 @@ public class TestPrefetchingIterator {
         }
     }
 
-    @Test
-    public void testIteratorWithFilterAllSkipped() throws Exception {
+    public void testIteratorWithFilterAllSkipped(boolean fromRowGroupSplits) throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getNonMatchingNameValuePairs());
 
-        List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, 1);
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+        SplitReaderCreatorIterator creators = createSplitReaderCreator(ctx, fromRowGroupSplits, true, 1, 10, readerConfig);
+        PrefetchingIterator it = new PrefetchingIterator(creators);
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter = prepareRuntimeFilter();
             closer.add(filter.getPartitionColumnFilter().getBloomFilter());
 
             it.addRuntimeFilter(filter);
             assertTrue(it.hasNext());
-            assertEquals(creators.get(0).createRecordReader(null), it.next());
+            RecordReader recordReader = it.next();
+            assertEquals(0, recordReader.next());
             assertFalse(it.hasNext());
-
-            assertEquals(9L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
+            assertEquals(10L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -292,27 +310,18 @@ public class TestPrefetchingIterator {
     }
 
     @Test
-    public void testIteratorWithFilterSomeSkipped() {
+    public void testIteratorWithFilterAllSkipped() throws Exception {
+      testIteratorWithFilterAllSkipped(true);
+      testIteratorWithFilterAllSkipped(false);
+    }
+
+    private void testIteratorWithFilterSomeSkipped(boolean fromRowGroupSplits) throws Exception {
         Predicate<Integer> isSelectedSplit = i -> i==1 || i==3 || i==9;
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
-        List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, 1);
-        List<SplitReaderCreatorTest> selectedCreators = new ArrayList<>();
-
-        for (int i = 0; i < creators.size(); i++) {
-            SplitAndPartitionInfo split = ((GetSplitAndPartitionInfo)creators.get(i)).getSplit();
-            if (isSelectedSplit.test(i)) {
-                when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
-                        .thenReturn(getMatchingNameValuePairs());
-                selectedCreators.add(creators.get(i));
-            } else {
-                when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
-                        .thenReturn(getNonMatchingNameValuePairs());
-            }
-        }
-
 
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+        SplitReaderCreatorIterator creators = createSplitReaderCreator(ctx, fromRowGroupSplits, true, 1, 10, readerConfig, isSelectedSplit, null);
+        PrefetchingIterator it = new PrefetchingIterator(creators);
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter = prepareRuntimeFilter();
             closer.add(filter.getPartitionColumnFilter().getBloomFilter());
@@ -320,49 +329,30 @@ public class TestPrefetchingIterator {
             it.addRuntimeFilter(filter);
             it.next();
 
-            MutableParquetMetadata prevFooter = creators.get(0).getFooter();
-            InputStreamProvider inputStreamProvider = creators.get(0).getInputStreamProvider();
-            for (int i = 0; i < selectedCreators.size(); i++) {
-                SplitReaderCreatorTest insertedCreator = selectedCreators.get(i);
-                assertTrue(it.hasNext());
-                assertEquals(insertedCreator.createRecordReader(null), it.next());
-                insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
-                prevFooter = insertedCreator.getFooter();
-                inputStreamProvider = insertedCreator.getInputStreamProvider();
-                if (i < selectedCreators.size() - 1) {
-                  assertEquals(insertedCreator.next, selectedCreators.get(i + 1));
-                } else {
-                  assertEquals(insertedCreator.next, null);
-                }
+            while (it.hasNext()) {
+                it.next();
             }
-            assertEquals(6L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
+            assertEquals(7L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
         }
     }
 
-    private void testIteratorWithFilterSomeSkippedPrefetch(int numPrefetch) throws Exception {
+    @Test
+    public void testIteratorWithFilterSomeSkipped() throws Exception {
+      testIteratorWithFilterSomeSkipped(true);
+      testIteratorWithFilterSomeSkipped(false);
+    }
+
+    private void testIteratorWithFilterSomeSkippedPrefetch(boolean fromRowGroupSplits, int numPrefetch) throws Exception {
       Predicate<Integer> isSelectedSplit = i -> i==1 || i==3 || i==9;
       CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
-      List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, numPrefetch);
-      List<SplitReaderCreatorTest> selectedCreators = new ArrayList<>();
-
-      for (int i = 0; i < creators.size(); i++) {
-        SplitAndPartitionInfo split = ((GetSplitAndPartitionInfo)creators.get(i)).getSplit();
-        if (isSelectedSplit.test(i)) {
-          when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
-            .thenReturn(getMatchingNameValuePairs());
-          selectedCreators.add(creators.get(i));
-        } else {
-          when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
-            .thenReturn(getNonMatchingNameValuePairs());
-        }
-      }
-
 
       OperatorContext ctx = getCtx();
-      PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, numPrefetch);
+      SplitReaderCreatorIterator creators = createSplitReaderCreator(ctx, fromRowGroupSplits, true, numPrefetch, 10, readerConfig, isSelectedSplit, null);
+
+      PrefetchingIterator it = new PrefetchingIterator(creators);
       try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
         RuntimeFilter filter = prepareRuntimeFilter();
         closer.add(filter.getPartitionColumnFilter().getBloomFilter());
@@ -370,99 +360,61 @@ public class TestPrefetchingIterator {
         it.addRuntimeFilter(filter);
         it.next();
 
-        MutableParquetMetadata prevFooter = creators.get(0).getFooter();
-        InputStreamProvider inputStreamProvider = creators.get(0).getInputStreamProvider();
-        for (int i = 0; i < selectedCreators.size(); i++) {
-          SplitReaderCreatorTest insertedCreator = selectedCreators.get(i);
-          assertTrue(it.hasNext());
-          assertEquals(insertedCreator.createRecordReader(null), it.next());
-          insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
-          prevFooter = insertedCreator.getFooter();
-          inputStreamProvider = insertedCreator.getInputStreamProvider();
-          if (i < selectedCreators.size() - 1) {
-            assertEquals(insertedCreator.next, selectedCreators.get(i + 1));
-          } else {
-            assertEquals(insertedCreator.next, null);
-          }
+        while (it.hasNext()) {
+          it.next();
         }
-        assertEquals(6L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
+        assertEquals(7L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
       } catch (Exception e) {
         e.printStackTrace();
         fail(e.getMessage());
       }
 
       it.close();
-      verifyAllClosed(creators);
     }
 
     @Test
     public void testIteratorWithFilterSomeSkippedPrefetchAll() throws Exception {
       for(int i = 1; i < 10; i++) {
-        testIteratorWithFilterSomeSkippedPrefetch(i);
+        testIteratorWithFilterSomeSkippedPrefetch(true, i);
+      }
+      for(int i = 1; i < 10; i++) {
+        testIteratorWithFilterSomeSkippedPrefetch(false, i);
       }
     }
 
-  @Test
-  public void testMultipleFilters() {
+  private void testMultipleFilters(boolean fromRowGroupSplits) throws Exception {
     Predicate<Integer> isSelectedSplit1 = i -> i==1 || i==2 || i==3 || i==9;
     Predicate<Integer> isSelectedSplit2 = i -> i==3 || i==5 || i==9;
 
     CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
-        List<SplitReaderCreatorTest> creators = getMockSplitReaderCreators(10, 1);
-        List<SplitReaderCreatorTest> selectedCreators = new ArrayList<>();
-        final String secondColumnName = "partitionCol2";
 
-        for (int i = 0; i < creators.size(); i++) {
-            SplitAndPartitionInfo split = ((GetSplitAndPartitionInfo)creators.get(i)).getSplit();
-            List<NameValuePair<?>> nvp = new ArrayList<>();
-            if (isSelectedSplit1.and(isSelectedSplit2).test(i)) {
-                selectedCreators.add(creators.get(i));
-                nvp.addAll(getMatchingNameValuePairs());
-                nvp.addAll(getMatchingNameValuePairs1(secondColumnName));
+    OperatorContext ctx = getCtx();
+    SplitReaderCreatorIterator creators = createSplitReaderCreator(ctx, fromRowGroupSplits, true, 1, 10, readerConfig, isSelectedSplit1, isSelectedSplit2);
 
-            } else if (isSelectedSplit1.test(i)) {
-                nvp.addAll(getMatchingNameValuePairs());
-                nvp.addAll(getNonMatchingNameValuePairs1(secondColumnName));
-            } else if (isSelectedSplit2.test(i)) {
-                nvp.addAll(getNonMatchingNameValuePairs());
-                nvp.addAll(getMatchingNameValuePairs1(secondColumnName));
-            } else {
-                nvp.addAll(getNonMatchingNameValuePairs());
-                nvp.addAll(getNonMatchingNameValuePairs1(secondColumnName));
-            }
-            when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
-                    .thenReturn(nvp);
-        }
-
-
-        OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+    PrefetchingIterator it = new PrefetchingIterator(creators);
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter1 = prepareRuntimeFilter();
             closer.add(filter1.getPartitionColumnFilter().getBloomFilter());
             it.addRuntimeFilter(filter1);
 
-            RuntimeFilter filter2 = prepareRuntimeFilter(secondColumnName, 1, 2);
+            RuntimeFilter filter2 = prepareRuntimeFilter("partitionCol2", 1, 2);
             closer.add(filter2.getPartitionColumnFilter().getBloomFilter());
             it.addRuntimeFilter(filter2);
 
-            it.next();
-
-            InputStreamProvider inputStreamProvider = creators.get(0).getInputStreamProvider();
-            MutableParquetMetadata prevFooter = creators.get(0).getFooter();
-            for (int i = 0; i < selectedCreators.size(); i++) {
-                SplitReaderCreatorTest insertedCreator = selectedCreators.get(i);
-                assertTrue(it.hasNext());
-                assertEquals(insertedCreator.createRecordReader(null), it.next());
-                insertedCreator.createInputStreamProvider(inputStreamProvider, prevFooter);
-                prevFooter = insertedCreator.getFooter();
-                inputStreamProvider = insertedCreator.getInputStreamProvider();
+            while (it.hasNext()) {
+              it.next();
             }
-            assertEquals(7L , ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
+            assertEquals(8L , ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
         }
+    }
+
+    @Test
+    public void testMultipleFilters() throws Exception {
+      testMultipleFilters(true);
+      testMultipleFilters(false);
     }
 
     @Test
@@ -471,9 +423,9 @@ public class TestPrefetchingIterator {
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
 
-        List<SplitReaderCreatorTest> creators = Collections.EMPTY_LIST;
+        List<SplitReaderCreator> creators = Collections.EMPTY_LIST;
         OperatorContext ctx = getCtx();
-        PrefetchingIterator<SplitReaderCreatorTest> it = new PrefetchingIterator<>(ctx, readerConfig, creators, 1);
+        PrefetchingIterator it = new PrefetchingIterator(createSplitReaderCreatorIterator(creators));
         try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
             RuntimeFilter filter = prepareRuntimeFilter();
             closer.add(filter.getPartitionColumnFilter().getBloomFilter());
@@ -531,12 +483,12 @@ public class TestPrefetchingIterator {
         return Collections.singletonList(new ConstantColumnPopulators.IntNameValuePair(colName, 100));
     }
 
-    private List<SplitReaderCreatorTest> getMockSplitReaderCreators(int size, int numPrefetch) {
-        final List<SplitReaderCreatorTest> readerCreators = new ArrayList<>(size);
-        SplitReaderCreatorTest prev = null;
+    private List<SplitReaderCreator> getMockSplitReaderCreators(int size, int numPrefetch) {
+        final List<SplitReaderCreator> readerCreators = new ArrayList<>(size);
+        SplitReaderCreator prev = null;
 
         for (int i = 0; i < size; i++) {
-          SplitReaderCreatorTest current = new SplitReaderCreatorTest(i, numPrefetch);
+          SplitReaderCreator current = new SplitReaderCreatorTest(i, numPrefetch);
           if (prev != null) {
             prev.setNext(current);
           }
@@ -544,6 +496,27 @@ public class TestPrefetchingIterator {
           prev = current;
         }
         return readerCreators;
+    }
+
+    private SplitReaderCreatorIterator createSplitReaderCreatorIterator(List<SplitReaderCreator> creators) {
+      Iterator<SplitReaderCreator> creatorIterator = creators.iterator();
+      return new SplitReaderCreatorIterator() {
+        @Override
+        public void addRuntimeFilter(RuntimeFilter runtimeFilter) { }
+
+        @Override
+        public void close() throws Exception { }
+
+        @Override
+        public boolean hasNext() {
+          return creatorIterator.hasNext();
+        }
+
+        @Override
+        public SplitReaderCreator next() {
+          return creatorIterator.next();
+        }
+      };
     }
 
     private OperatorContext getCtx() {
@@ -557,7 +530,7 @@ public class TestPrefetchingIterator {
         return ctx;
     }
 
-    class SplitReaderCreatorTest extends SplitReaderCreator implements GetSplitAndPartitionInfo {
+    class SplitReaderCreatorTest extends SplitReaderCreator {
       final int idx;
       final int numPrefetch;
       final SplitAndPartitionInfo split;
@@ -626,4 +599,132 @@ public class TestPrefetchingIterator {
 
       }
     }
+
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(OperatorContext context, boolean fromRowGroupSplits, boolean prefetch, long numPrefetch, int numSplits, CompositeReaderConfig readerConfig) throws Exception {
+      return createSplitReaderCreator(context, fromRowGroupSplits, prefetch, numPrefetch, numSplits, readerConfig, null, null);
+  }
+
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(OperatorContext context, boolean fromRowGroupSplits, boolean prefetch, long numPrefetch, int numSplits, CompositeReaderConfig readerConfig, Predicate<Integer> isSelectedSplit1, Predicate<Integer> isSelectedSplit2) throws Exception {
+    FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
+    ParquetSubScan config = mock(ParquetSubScan.class);
+
+    SabotConfig sabotConfig = mock(SabotConfig.class);
+    InputStreamProviderFactory inputStreamProviderFactory = mock(InputStreamProviderFactory.class);
+    OptionManager optionManager = mock(OptionManager.class);
+    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    FileSystem fs = mock(FileSystem.class);
+    StoragePluginId storagePluginId = mock(StoragePluginId.class);
+    OpProps opProps = mock(OpProps.class);
+    InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
+    MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
+
+    when(sabotConfig.getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT)).thenReturn(inputStreamProviderFactory);
+    when(sabotConfig.getInstance("dremio.plugins.parquet.factory", ParquetReaderFactory.class, ParquetReaderFactory.NONE)).thenReturn(ParquetReaderFactory.NONE);
+    when(context.getConfig()).thenReturn(sabotConfig);
+    when(context.getOptions()).thenReturn(optionManager);
+    when(optionManager.getOption(PREFETCH_READER)).thenReturn(prefetch);
+    when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
+    when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
+    when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
+    when(fileSystemPlugin.createFS(anyString(), any())).thenReturn(fs);
+    when(fs.supportsPath(any())).thenReturn(true);
+    when(fs.supportsAsync()).thenReturn(true);
+    when(config.getPluginId()).thenReturn(storagePluginId);
+    when(storagePluginId.getName()).thenReturn("");
+    when(config.getProps()).thenReturn(opProps);
+    when(opProps.getUserName()).thenReturn("");
+    when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
+    when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
+    when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
+    when(inputStreamProviderFactory.create(any(),any(),any(),anyByte(),anyByte(),any(),any(),any(),any(),anyBoolean(),any(),anyByte(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
+
+    BlockMetaData blockMetaData = mock(BlockMetaData.class);
+    when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));
+    ColumnChunkMetaData chunkMetaData = mock(ColumnChunkMetaData.class);
+    when(blockMetaData.getColumns()).thenReturn(Collections.singletonList(chunkMetaData));
+    when(chunkMetaData.getFirstDataPageOffset()).thenReturn(0L);
+    when(inputStreamProvider.getFooter()).thenReturn(footer);
+    when(footer.getFileMetaData()).thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
+
+    List<SplitAndPartitionInfo> splits = new ArrayList<>();
+    IntStream.range(0, numSplits).forEach(i -> splits.add(createSplit(fromRowGroupSplits, i)));
+
+    if (isSelectedSplit1 != null) {
+      if (isSelectedSplit2 == null) {
+        for (int i = 0; i < splits.size(); i++) {
+          SplitAndPartitionInfo split = splits.get(i);
+          if (isSelectedSplit1.test(i)) {
+            when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
+              .thenReturn(getMatchingNameValuePairs());
+          } else {
+            when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
+              .thenReturn(getNonMatchingNameValuePairs());
+          }
+        }
+      } else {
+        final String secondColumnName = "partitionCol2";
+
+        for (int i = 0; i < splits.size(); i++) {
+          SplitAndPartitionInfo split = splits.get(i);
+          List<NameValuePair<?>> nvp = new ArrayList<>();
+          if (isSelectedSplit1.and(isSelectedSplit2).test(i)) {
+            nvp.addAll(getMatchingNameValuePairs());
+            nvp.addAll(getMatchingNameValuePairs1(secondColumnName));
+
+          } else if (isSelectedSplit1.test(i)) {
+            nvp.addAll(getMatchingNameValuePairs());
+            nvp.addAll(getNonMatchingNameValuePairs1(secondColumnName));
+          } else if (isSelectedSplit2.test(i)) {
+            nvp.addAll(getNonMatchingNameValuePairs());
+            nvp.addAll(getMatchingNameValuePairs1(secondColumnName));
+          } else {
+            nvp.addAll(getNonMatchingNameValuePairs());
+            nvp.addAll(getNonMatchingNameValuePairs1(secondColumnName));
+          }
+          when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), eq(split)))
+            .thenReturn(nvp);
+        }
+      }
+
+    }
+
+    when(config.getSplits()).thenReturn(splits);
+    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, config, readerConfig, fromRowGroupSplits);
+  }
+
+  private SplitAndPartitionInfo createSplit(boolean fromRowGroupSplits, int partitionId) {
+    ByteString serializedSplitXAttr;
+    if (fromRowGroupSplits) {
+      ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr = ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
+        .setStart(0)
+        .setLength(10)
+        .setPath("/tmp/path/" + partitionId)
+        .setFileLength(10)
+        .setLastModificationTime(0)
+        .build();
+
+      serializedSplitXAttr = splitXAttr.toByteString();
+    } else {
+      ParquetProtobuf.ParquetBlockBasedSplitXAttr splitXAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
+        .setStart(0)
+        .setLength(10)
+        .setPath("/tmp/path/" + partitionId)
+        .setFileLength(10)
+        .setLastModificationTime(0)
+        .build();
+
+      serializedSplitXAttr = splitXAttr.toByteString();
+    }
+
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
+      .setId(Integer.toString(partitionId))
+      .build();
+
+    PartitionProtobuf.NormalizedDatasetSplitInfo datasetSplitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+      .setPartitionId(Integer.toString(partitionId))
+      .setExtendedProperty(serializedSplitXAttr)
+      .build();
+
+    return new SplitAndPartitionInfo(partitionInfo, datasetSplitInfo);
+  }
 }

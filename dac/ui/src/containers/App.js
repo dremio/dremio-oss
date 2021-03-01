@@ -28,7 +28,7 @@ import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDe
 import { ErrorBoundary } from '@app/components/ErrorBoundary';
 import { Suspense } from '@app/components/Lazy';
 
-import socket from '@app/utils/socket';
+import socket from '@inject/utils/socket';
 import sentryUtil from '@app/utils/sentryUtil';
 import {formatMessage} from '@app/utils/locale';
 

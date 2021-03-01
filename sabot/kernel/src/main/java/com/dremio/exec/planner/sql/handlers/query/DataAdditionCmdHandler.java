@@ -280,8 +280,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     IcebergTableOperations tableOperations = new IcebergTableOperations(
       new org.apache.hadoop.fs.Path(icebergTableProps.getTableLocation()), icebergCreateTableEntry.getPlugin().getFsConfCopy());
 
-    BatchSchema icebergSchema = new SchemaConverter().fromIceberg(
-      tableOperations.current().schema());
+    BatchSchema icebergSchema = SchemaConverter.fromIceberg(tableOperations.current().schema());
 
     // this check can be removed once we support schema evolution in dremio.
     if (!icebergSchema.equalsIgnoreCase(tableSchemaFromKVStore)) {

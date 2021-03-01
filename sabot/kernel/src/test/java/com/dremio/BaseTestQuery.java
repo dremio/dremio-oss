@@ -717,6 +717,27 @@ public class BaseTestQuery extends ExecTest {
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
   }
 
+  protected static AutoCloseable disablePartitionPruning() {
+    setSystemOption(PlannerSettings.ENABLE_PARTITION_PRUNING, "false");
+    return () ->
+      setSystemOption(PlannerSettings.ENABLE_PARTITION_PRUNING,
+        PlannerSettings.ENABLE_PARTITION_PRUNING.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableV2Execution() {
+    setSystemOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION, "true");
+    return () ->
+            setSystemOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION,
+                    PlannerSettings.ENABLE_ICEBERG_EXECUTION.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableDeltaLake() {
+    setSystemOption(PlannerSettings.ENABLE_DELTALAKE, "true");
+    return () ->
+      setSystemOption(PlannerSettings.ENABLE_DELTALAKE,
+        PlannerSettings.ENABLE_DELTALAKE.getDefault().getBoolVal().toString());
+  }
+
   protected static AutoCloseable disableExchanges() {
     setSystemOption(PlannerSettings.EXCHANGE, "true");
     return () ->

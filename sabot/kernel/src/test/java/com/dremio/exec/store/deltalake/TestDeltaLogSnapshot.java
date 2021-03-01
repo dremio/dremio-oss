@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
@@ -38,9 +39,9 @@ public class TestDeltaLogSnapshot {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(fs, Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI()));
-        DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(fs, Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI()));
-        DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(fs, Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI()));
+        DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI())));
+        DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI())));
+        DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI())));
 
         DeltaLogSnapshot snapshot00 = snapshot0.clone();
         snapshot00.merge(snapshot1);
@@ -52,7 +53,6 @@ public class TestDeltaLogSnapshot {
         assertEquals(snapshot0.getNetBytesAdded() + snapshot1.getNetBytesAdded() + snapshot2.getNetBytesAdded(), snapshot00.getNetBytesAdded());
         assertEquals(snapshot2.getSchema(), snapshot00.getSchema());
         assertEquals(snapshot2.getTimestamp(), snapshot00.getTimestamp());
-        assertEquals(snapshot2.getVersionId(), snapshot00.getVersionId());
         assertEquals(snapshot2.getPartitionColumns(), snapshot00.getPartitionColumns());
 
         // Different permutations of the merge
@@ -68,13 +68,27 @@ public class TestDeltaLogSnapshot {
         Configuration conf = new Configuration();
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-        DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(fs, Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI()));
-        DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(fs, Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI()));
-        DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(fs, Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI()));
+        DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI())));
+        DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI())));
+        DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI())));
 
         assertTrue(snapshot0.compareTo(snapshot2) < 0);
         assertTrue(snapshot1.compareTo(snapshot2) < 0);
         assertTrue(snapshot1.compareTo(snapshot0) > 0);
         assertTrue(snapshot0.clone().compareTo(snapshot0) == 0);
+    }
+
+    @Test
+    public void testMergeOnVersion() {
+        DeltaLogSnapshot snapshot1 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), false);
+        snapshot1.setSchema("schema1", new ArrayList<>());
+        snapshot1.setVersionId(11);
+
+        DeltaLogSnapshot snapshot2 = new DeltaLogSnapshot("WRITE", 1, 1, 1, 1, System.currentTimeMillis(), true);
+        snapshot2.setSchema("schema2", new ArrayList<>());
+        snapshot2.setVersionId(10);
+
+        snapshot1.merge(snapshot2);
+        assertEquals("schema1", snapshot1.getSchema());
     }
 }

@@ -56,7 +56,7 @@ public interface ResourceAllocator extends Service {
   /**
    * Get group resource information, used for planning.
    *
-   * @param optionManager optionManager
+   * @param optionManager
    * @return resource information.
    */
   GroupResourceInformation getGroupResourceInformation(final OptionManager optionManager,

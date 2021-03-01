@@ -37,6 +37,7 @@ import org.apache.calcite.tools.RuleSets;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.Catalog;
@@ -64,6 +65,7 @@ import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.exec.store.PartitionExplorerImpl;
 import com.dremio.exec.store.SchemaConfig;
@@ -368,6 +370,11 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   @Override
   public PartitionExplorer getPartitionExplorer() {
     return new PartitionExplorerImpl(catalog);
+  }
+
+  @Override
+  public EndPointListProvider getEndPointListProvider() {
+    throw UserException.unsupportedError().message("The end point list provider is not supported").buildSilently();
   }
 
   @Override

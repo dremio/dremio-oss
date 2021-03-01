@@ -21,7 +21,7 @@ import java.util.Collections;
 
 import org.apache.hadoop.security.AccessControlException;
 
-import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
@@ -42,21 +42,22 @@ public class DeltaLakeFormatMatcher extends FormatMatcher {
   @Override
   public boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException{
 
-    if(!plugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_DELTALAKE)) {
+    if(!plugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE)) {
       return false;
     }
 
     Path rootDir = Path.of(fileSelection.getSelectionRoot());
     Path metaDir = rootDir.resolve(METADATA_DIR_NAME);
 
-    if(!fs.exists(metaDir) && !fs.isDirectory(metaDir)) {
-      return false;
-    }
-
     try {
+
+      if (!fs.isDirectory(rootDir) || !fs.exists(metaDir) || !fs.isDirectory(metaDir)) {
+        return false;
+      }
+
       fs.access(metaDir, Collections.singleton(AccessMode.READ));
-    }
-    catch (AccessControlException e) {
+
+    } catch (AccessControlException e) {
       //fail silently as the file can still be read as parquet dataset.
       logger.error("{} not matched as a deltalake dataset as _delta_log is not readable. Exception {}", rootDir, e.getMessage());
       return false;

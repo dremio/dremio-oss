@@ -177,7 +177,12 @@ public class PhysicalDatasetUtils {
         icebergFormatConfig.setDataFormatConfig(toParquetFormatConfig(icebergFileConfig.getParquetDataFormat()));
         return icebergFormatConfig;
       case DELTA:
-        return new DeltaLakeFormatConfig();
+        DeltalakeFileConfig deltalakeFileConfig = (DeltalakeFileConfig) com.dremio.service.namespace.file.FileFormat.getForFile(fileConfig);
+        deltalakeFileConfig.setParquetDataFormat(new ParquetFileConfig());
+
+        final DeltaLakeFormatConfig deltaLakeFormatConfig = new DeltaLakeFormatConfig();
+        deltaLakeFormatConfig.setDataFormatConfig(toParquetFormatConfig(deltalakeFileConfig.getParquetDataFormat()));
+        return deltaLakeFormatConfig;
       default:
         break;
     }
@@ -249,7 +254,11 @@ public class PhysicalDatasetUtils {
         .setParquetDataFormat(toParquetFileConfig((ParquetFormatConfig)icebergFormatConfig.getDataFormatConfig()));
     }
     if(formatPlugin instanceof DeltaLakeFormatPlugin) {
-      return new DeltalakeFileConfig();
+      DeltaLakeFormatPlugin deltaLakeFormatPlugin = (DeltaLakeFormatPlugin)formatPlugin;
+      DeltaLakeFormatConfig deltaLakeFormatConfig = deltaLakeFormatPlugin.getConfig();
+
+      return new DeltalakeFileConfig()
+              .setParquetDataFormat(toParquetFileConfig((ParquetFormatConfig)deltaLakeFormatConfig.getDataFormatConfig()));
     }
     return new UnknownFileConfig();
   }

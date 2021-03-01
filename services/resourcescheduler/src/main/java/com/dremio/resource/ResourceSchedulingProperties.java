@@ -28,6 +28,7 @@ public class ResourceSchedulingProperties {
   private String routingQueue;
   private String routingTag;
   private String routingEngine;
+  private String ruleSetEngine;
 
   public ResourceSchedulingProperties() {
 
@@ -102,6 +103,15 @@ public class ResourceSchedulingProperties {
 
   public ResourceSchedulingProperties setRoutingEngine(String routingEngine) {
     this.routingEngine = routingEngine;
+    return this;
+  }
+
+  public String getRuleSetEngine() {
+    return ruleSetEngine;
+  }
+
+  public ResourceSchedulingProperties setRuleSetEngine(String ruleSetEngine) {
+    this.ruleSetEngine = ruleSetEngine;
     return this;
   }
 }

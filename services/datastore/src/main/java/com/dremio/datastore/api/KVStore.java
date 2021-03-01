@@ -17,8 +17,8 @@ package com.dremio.datastore.api;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 import com.dremio.context.TenantContext;
 import com.dremio.datastore.KVAdmin;
@@ -163,9 +163,12 @@ public interface KVStore<K, V> {
    *
    * @param consumer the consumer that must be applied for each matching tuple
    * @param executor the execution context which executes the consumer
+   * @param documentToTenantConverter provides tenant context by taking tenantId of the document and value of the document
+   *                                  as inputs. Note, 'K' is the key of the document which is a compound key where one
+   *                                  of the key is tenantId
    */
-  default void applyForAllTenants(Consumer<V> consumer, ExecutorService executor,
-                                  Function<V, TenantContext> documentToTenantConverter,
+  default void applyForAllTenants(BiConsumer<K, V> consumer, ExecutorService executor,
+                                  BiFunction<String, V ,TenantContext> documentToTenantConverter,
                                   FindOption... options) {
     throw new UnsupportedOperationException("Only applicable for MultiTenantKVstore");
   }

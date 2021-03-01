@@ -38,6 +38,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlSingleValueAggFunction;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
 import com.dremio.common.exceptions.UserException;
@@ -110,6 +111,12 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
     for (RexNode rex : project.getChildExps()) {
       RexNode newExpr = rex.accept(renameVisitor);
       if (newExpr != rex) {
+        if (newExpr instanceof RexCall) {
+          RexCall newExprCall = ((RexCall) newExpr);
+          if (newExprCall.op.getName().equals("CONVERT_TOJSON") && newExprCall.getOperands().get(0).getType().getSqlTypeName() == SqlTypeName.ANY) {
+            throw UserException.unsupportedError().message("Conversion to json is not supported for columns of mixed types.").buildSilently();
+          }
+        }
         rewrite = true;
       }
       exprList.add(newExpr);

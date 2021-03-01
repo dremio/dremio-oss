@@ -161,7 +161,7 @@ public class AdlsAsyncFileReader extends ReusableAsyncByteReader implements Expo
     this.path = path;
     this.fs = fs;
     this.cachedVersion = Long.parseLong(cachedVersion);
-    this.latestVersion = null;
+    this.latestVersion = (this.cachedVersion != 0) ? null : 0L;
     this.threadName = Thread.currentThread().getName();
     this.threadPool = threadPool;
   }

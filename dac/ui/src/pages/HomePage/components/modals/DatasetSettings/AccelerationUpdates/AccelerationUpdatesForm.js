@@ -58,6 +58,9 @@ export class AccelerationUpdatesForm extends Component {
     if (this.props.fileFormatType === 'Iceberg') {
       return la('Incremental updating is not available for Iceberg datasets.');
     }
+    if (this.props.fileFormatType === 'Delta') {
+      return la('Incremental updating is not available for DeltaLake datasets.');
+    }
     return undefined;
   }
 

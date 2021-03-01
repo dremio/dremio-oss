@@ -744,7 +744,7 @@ public class HiveMetadataUtils {
           return HiveStorageCapabilities.newBuilder()
             .supportsImpersonation(true)
             .supportsLastModifiedTime(false)
-            .supportsOrcSplitFileIds(true)
+            .supportsOrcSplitFileIds(false)
             .build();
         } else if (!scheme.regionMatches(true, 0, "hdfs", 0, 4)) {
           /* Most hive supported non-HDFS file systems allow for impersonation and last modified times, but

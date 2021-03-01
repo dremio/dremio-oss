@@ -33,9 +33,12 @@ import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.EndPointListProvider;
+import com.dremio.exec.store.EndPointListProviderImpl;
 import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -54,19 +57,22 @@ public class ClassProducerImpl implements ClassProducer {
   private final FunctionContext functionContext;
   private final ContextInformation contextInformation;
   private final BufferManager bufferManager;
+  private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
 
   public ClassProducerImpl(
       CompilationOptions compilationOptions,
       CodeCompiler compiler,
       FunctionLookupContext functionLookupContext,
       ContextInformation contextInformation,
-      BufferManager bufferManager) {
+      BufferManager bufferManager,
+      List<MinorFragmentEndpoint> minorFragmentEndpoints) {
     this.compilationOptions = compilationOptions;
     this.compiler = compiler;
     this.functionLookupContext = functionLookupContext;
     this.contextInformation = contextInformation;
     this.bufferManager = bufferManager;
     this.functionContext = new ProducerFunctionContext();
+    this.minorFragmentEndpoints = minorFragmentEndpoints;
   }
 
   @Override
@@ -157,6 +163,11 @@ public class ClassProducerImpl implements ClassProducer {
       throw UserException.unsupportedError().message("The partition explorer interface can only be used " +
           "in functions that can be evaluated at planning time. Make sure that the %s configuration " +
           "option is set to true.", PlannerSettings.CONSTANT_FOLDING.getOptionName()).build(logger);
+    }
+
+    @Override
+    public EndPointListProvider getEndPointListProvider() {
+      return new EndPointListProviderImpl(minorFragmentEndpoints);
     }
 
     @Override

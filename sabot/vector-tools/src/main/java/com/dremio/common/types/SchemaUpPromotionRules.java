@@ -16,9 +16,12 @@
 package com.dremio.common.types;
 
 import static com.dremio.common.expression.CompleteType.BIGINT;
+import static com.dremio.common.expression.CompleteType.BIT;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
+import static com.dremio.common.expression.CompleteType.MAX_DECIMAL_PRECISION;
+import static com.dremio.common.expression.CompleteType.VARCHAR;
 
 import java.util.Optional;
 
@@ -40,25 +43,81 @@ public class SchemaUpPromotionRules {
    * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
    */
   public static Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
-    if (fileType.equals(BIGINT) && tableType.equals(INT)) {
-      return Optional.of(BIGINT);
-    } else if (fileType.equals(FLOAT) && tableType.equals(INT)) {
-      return Optional.of(FLOAT);
-    } else if (fileType.equals(FLOAT) && tableType.equals(BIGINT)) {
-      return Optional.of(FLOAT);
-    } else if (fileType.equals(DOUBLE) && tableType.equals(INT)) {
-      return Optional.of(DOUBLE);
-    } else if (fileType.equals(DOUBLE) && tableType.equals(BIGINT)) {
-      return Optional.of(DOUBLE);
-    } else if (fileType.equals(DOUBLE) && tableType.equals(FLOAT)) {
-      return Optional.of(DOUBLE);
-    } else if (fileType.equals(DOUBLE) && tableType.isDecimal()) {
-      return Optional.of(DOUBLE);
-    } else if ((fileType.isDecimal()) && (tableType.equals(INT) || tableType.equals(BIGINT) || tableType.equals(FLOAT))) {
+    if (fileType.equals(BIGINT)) {
+      return getResultantTypeForBigIntFileType(tableType);
+    }
+    if (fileType.equals(FLOAT)) {
+      return getResultantTypeForFloatFileType(tableType);
+    }
+    if (fileType.equals(DOUBLE)) {
+      return getResultantTypeForDoubleFileType(tableType);
+    }
+    if (fileType.equals(VARCHAR)) {
+      return getResultantTypeForVarcharFileType(tableType);
+    }
+    if (fileType.isValidDecimal()) {
+      return getResultantTypeForDecimalFileType(fileType, tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType fileType, CompleteType tableType) {
+    if (tableType.equals(INT) || tableType.equals(BIGINT) || tableType.equals(FLOAT)) {
       Decimal decimal = Decimal.createDecimal(fileType.getPrecision(), fileType.getScale(), null);
       return Optional.of(new CompleteType(decimal));
-    } else {
-      return Optional.empty();
     }
+    if (tableType.isValidDecimal()) {
+      int outputScale = computeFractional(fileType, tableType);
+      int outputPrecision = computeIntegral(fileType, tableType) + outputScale;
+      if (outputPrecision > MAX_DECIMAL_PRECISION) {
+        return handlePrecisionOverflow(fileType, tableType);
+      }
+      return Optional.of(new CompleteType(Decimal.createDecimal(outputPrecision, outputScale, null)));
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForVarcharFileType(CompleteType tableType) {
+    if (tableType.equals(BIT) || tableType.equals(INT) || tableType.equals(BIGINT) ||
+      tableType.equals(FLOAT) || tableType.equals(DOUBLE) || tableType.isValidDecimal()) {
+      return Optional.of(VARCHAR);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForDoubleFileType(CompleteType tableType) {
+    if (tableType.equals(INT) || tableType.equals(BIGINT) || tableType.equals(FLOAT) || tableType.isValidDecimal()) {
+      return Optional.of(DOUBLE);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForFloatFileType(CompleteType tableType) {
+    if (tableType.equals(INT) || tableType.equals(BIGINT)) {
+      return Optional.of(DOUBLE);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForBigIntFileType(CompleteType tableType) {
+    if (tableType.equals(INT)) {
+      return Optional.of(BIGINT);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> handlePrecisionOverflow(CompleteType fileType, CompleteType tableType) {
+    // On precision overflow, use the max possible precision, and reduce the scale accordingly
+    int outputPrecision = MAX_DECIMAL_PRECISION;
+    int outputScale = outputPrecision - computeIntegral(fileType, tableType);
+    return Optional.of(new CompleteType(Decimal.createDecimal(outputPrecision, outputScale, null)));
+  }
+
+  private static int computeIntegral(CompleteType fileType, CompleteType tableType) {
+    return Math.max(fileType.getPrecision() - fileType.getScale(), tableType.getPrecision() - tableType.getScale());
+  }
+
+  private static int computeFractional(CompleteType fileType, CompleteType tableType) {
+    return Math.max(fileType.getScale(), tableType.getScale());
   }
 }

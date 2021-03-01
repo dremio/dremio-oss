@@ -43,6 +43,7 @@ import software.amazon.awssdk.core.exception.RetryableException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
@@ -68,7 +69,8 @@ class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
     this.s3 = s3Ref.acquireRef();
     this.bucket = bucket;
     this.path = path;
-    this.instant = Instant.ofEpochMilli(Long.parseLong(version));
+    long mtime = Long.parseLong(version);
+    this.instant = (mtime != 0) ? Instant.ofEpochMilli(mtime) : null;
     this.threadName = Thread.currentThread().getName();
     this.requesterPays = requesterPays;
   }
@@ -136,8 +138,10 @@ class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
         final GetObjectRequest.Builder requestBuilder = GetObjectRequest.builder()
           .bucket(bucket)
           .key(path)
-          .range(S3AsyncByteReader.range(offset, len))
-          .ifUnmodifiedSince(instant);
+          .range(S3AsyncByteReader.range(offset, len));
+        if (instant != null) {
+          requestBuilder.ifUnmodifiedSince(instant);
+        }
         if (requesterPays) {
           requestBuilder.requestPayer(REQUESTER_PAYS);
         }
@@ -149,24 +153,29 @@ class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
           byteBuf.setBytes(dstOffset, responseBytes.asInputStream(), len);
           logger.debug("[{}] Completed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
             watch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (NoSuchKeyException ne) {
+          logger.debug("[{}] Request for bucket {}, path {} failed as requested file is not present, took {} ms", threadName,
+            bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
+          throw new CompletionException(
+            new FileNotFoundException("File not found " + path));
         } catch (S3Exception s3e) {
-          switch (s3e.statusCode()) {
-            case Constants.FAILED_PRECONDITION_STATUS_CODE:
-              logger.info("[{}] Request for bucket {}, path {} failed as requested version of file not present, took {} ms", threadName,
-                bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
-              throw new CompletionException(
-                new FileNotFoundException("Version of file changed " + path));
-            case Constants.BUCKET_ACCESS_FORBIDDEN_STATUS_CODE:
-              logger.info("[{}] Request for bucket {}, path {} failed as access was denied, took {} ms", threadName,
-                bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
-              throw UserException.permissionError(s3e)
-                .message(S3FileSystem.S3_PERMISSION_ERROR_MSG)
-                .build(logger);
-            default:
-              logger.error("[{}] Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", threadName, bucket, path,
-                s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));
-              throw new CompletionException(s3e);
-          }
+              switch (s3e.statusCode()) {
+                case Constants.FAILED_PRECONDITION_STATUS_CODE:
+                  logger.info("[{}] Request for bucket {}, path {} failed as requested version of file not present, took {} ms", threadName,
+                    bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
+                  throw new CompletionException(
+                    new FileNotFoundException("Version of file changed " + path));
+                case Constants.BUCKET_ACCESS_FORBIDDEN_STATUS_CODE:
+                  logger.info("[{}] Request for bucket {}, path {} failed as access was denied, took {} ms", threadName,
+                    bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
+                  throw UserException.permissionError(s3e)
+                    .message(S3FileSystem.S3_PERMISSION_ERROR_MSG)
+                    .build(logger);
+                default:
+                  logger.error("[{}] Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", threadName, bucket, path,
+                    s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));
+                  throw new CompletionException(s3e);
+              }
         } catch (Exception e) {
           logger.error("[{}] Failed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
             watch.elapsed(TimeUnit.MILLISECONDS), e);

@@ -22,8 +22,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
@@ -41,7 +39,6 @@ public class IcebergGroupScan extends EasyGroupScan {
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
     final List<SplitAndPartitionInfo> splits = new ArrayList<>(work.size());
-    final BatchSchema fullSchema = RecordReader.SPLIT_GEN_SCAN_SCHEMA;
     for(SplitWork split : work){
       splits.add(split.getSplitAndPartitionInfo());
     }
@@ -50,7 +47,7 @@ public class IcebergGroupScan extends EasyGroupScan {
       props,
       getDataset().getFormatSettings(),
       splits,
-      fullSchema,
+      props.getSchema(),
       getDataset().getName().getPathComponents(),
       dataset.getStoragePluginId(),
       columns,

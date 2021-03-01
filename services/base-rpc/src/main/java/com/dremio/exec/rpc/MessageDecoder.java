@@ -44,7 +44,8 @@ import org.apache.arrow.memory.OutOfMemoryException;
  * OOM situations.
  */
 public class MessageDecoder extends ByteToMessageDecoder {
-  private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
+  private static final org.slf4j.Logger logger =
+    org.slf4j.LoggerFactory.getLogger(MessageDecoder.class);
 
   private BufferAllocator allocator;
   private final AtomicLong messageCounter = new AtomicLong();
@@ -57,12 +58,32 @@ public class MessageDecoder extends ByteToMessageDecoder {
 
   @Override
   protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+    int length = decodeLengthFromMessage(ctx, in);
+
+    if (length == -1) {
+      return;
+    }
+
+    final ByteBuf frame = in.slice(in.readerIndex(), length);
+    try {
+      final InboundRpcMessage message = decodeMessage(ctx, frame, length);
+      if (message != null) {
+        out.add(message);
+      }
+    } finally {
+      in.skipBytes(length);
+    }
+  }
+
+  public static int decodeLengthFromMessage(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+    int length = 0;
+
     if (!ctx.channel().isOpen()) {
       if (in.readableBytes() > 0) {
         logger.info("Channel is closed, discarding remaining {} byte(s) in buffer.", in.readableBytes());
       }
       in.skipBytes(in.readableBytes());
-      return;
+      return -1;
     }
 
     in.markReaderIndex();
@@ -71,11 +92,10 @@ public class MessageDecoder extends ByteToMessageDecoder {
      *  a variable-width message length can be up to five bytes in length. read bytes until we have a length.
      */
     final byte[] buf = new byte[5];
-    int length = 0;
     for (int i = 0; i < buf.length; i++) {
       if (!in.isReadable()) {
         in.resetReaderIndex();
-        return;
+        return -1;
       }
 
       buf[i] = in.readByte();
@@ -92,7 +112,7 @@ public class MessageDecoder extends ByteToMessageDecoder {
 
         if (in.readableBytes() < length) {
           in.resetReaderIndex();
-          return;
+          return -1;
         } else {
           // complete message in buffer.
           break;
@@ -100,17 +120,8 @@ public class MessageDecoder extends ByteToMessageDecoder {
       }
     }
 
-    final ByteBuf frame = in.slice(in.readerIndex(), length);
-    try {
-      final InboundRpcMessage message = decodeMessage(ctx, frame, length);
-      if (message != null) {
-        out.add(message);
-      }
-    } finally {
-      in.skipBytes(length);
-    }
+    return length;
   }
-
   /**
    * We decode the message in the same context as the length decoding to better
    * manage running out of memory. We decode the rpc header using heap memory

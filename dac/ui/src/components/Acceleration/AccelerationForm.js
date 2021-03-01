@@ -505,7 +505,9 @@ export class AccelerationForm extends Component {
         reflections={reflections}
         fields={fields}
         values={values}
-        updateFormDirtyState={updateFormDirtyState}/>;
+        updateFormDirtyState={updateFormDirtyState}
+        initialValues={this.initialValues}
+      />;
     }
   }
 

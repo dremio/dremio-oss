@@ -373,6 +373,7 @@ public class FragmentExecutor {
     contextCreator.setFragmentOutputAllocator(outputAllocator);
 
     final PhysicalOperator rootOperator = reader.readFragment(fragment);
+    contextCreator.setMinorFragmentEndpointsFromRootSender(rootOperator);
     FunctionLookupContext functionLookupContextToUse = functionLookupContext;
     if (fragmentOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
       functionLookupContextToUse = decimalFunctionLookupContext;

@@ -105,7 +105,7 @@ public class IcebergTableWrapper {
 
         table = (new HadoopTables(fsConf)).load(rootDir);
         schema = table.schema();
-        batchSchema = new SchemaConverter().fromIceberg(table.schema());
+        batchSchema = SchemaConverter.fromIceberg(table.schema());
         buildPartitionColumns();
         buildPartitionsAndSplits();
         buildDatasetXattr();

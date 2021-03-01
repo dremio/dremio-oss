@@ -41,6 +41,7 @@ import { SingleEngineView } from '@app/pages/AdminPage/subpages/Provisioning/com
 import { SingleEngineHeader } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader';
 import ProvisioningPageMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/ProvisioningPageMixin';
 import ClusterListView from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
+import { getRemoveFunction, getLoadProvisionFunction, getExtraFunctions } from '@inject/pages/AdminPage/subpages/Provisioning/ProvisioningPageUtils';
 
 const VIEW_ID = 'ProvisioningPage';
 const PROVISION_POLL_INTERVAL = 3000;
@@ -80,10 +81,12 @@ export class ProvisioningPage extends Component {
   }
 
   removeProvision = (entity) => {
+    const removeFunction = getRemoveFunction(this.props);
+    const loadFunction = getLoadProvisionFunction(this.props);
     ApiUtils.attachFormSubmitHandlers(
-      this.props.removeProvision(entity.get('id'), VIEW_ID)
+      removeFunction(entity.get('id'), VIEW_ID)
     ).then(() => {
-      this.props.loadProvision(null, VIEW_ID);
+      loadFunction(null, VIEW_ID);
     }).catch(e => {
       const message = e &&  e._error && e._error.message;
       const errorMessage = message && message.get('errorMessage') || la('Failed to remove provision');
@@ -142,7 +145,12 @@ export class ProvisioningPage extends Component {
   };
 
   handleEditProvision = (entity) => {
-    this.props.openEditProvisionModal(entity.get('id'), entity.get('clusterType'));
+    let clusterType = entity.get('clusterType');
+    if (clusterType === undefined && PROVISION_MANAGERS.length === 1) {
+      clusterType = PROVISION_MANAGERS[0].clusterType;
+    }
+
+    this.openEdit(this.props, entity.get('id'), clusterType);
   };
 
   handleAdjustWorkers = (entity) => {
@@ -230,6 +238,8 @@ export class ProvisioningPage extends Component {
           selectEngine={this.selectEngine}
           provisions={provisions}
           queues={queues}
+          showConfirmationDialog={this.props.showConfirmationDialog}
+          {...getExtraFunctions(this.props)}
         />}
       </div>
     );

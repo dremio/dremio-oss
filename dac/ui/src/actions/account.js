@@ -81,7 +81,7 @@ export const getLogInFailedBaseDescriptor = userName => ({
   type: LOGIN_USER_FAILURE,
   meta: {
     ...getLoginMeta(userName),
-    errorMessage: la('Authentication failed.')
+    errorMessage: la('Invalid username or password.')
   }
 });
 

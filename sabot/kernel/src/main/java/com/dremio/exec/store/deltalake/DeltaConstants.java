@@ -24,8 +24,9 @@ public final class DeltaConstants {
         // Not to be instantiated
     }
 
-
+    public static final String DELTA_FIELD_JOINER = "_";
     public static final String DELTA_LOG_DIR = "_delta_log";
+    public static final String DELTA_LAST_CHECKPOINT = "_last_checkpoint";
 
     public static final String DELTA_FIELD_COMMIT_INFO = "commitInfo";
     public static final String DELTA_FIELD_PROTOCOL = "protocol";
@@ -42,6 +43,12 @@ public final class DeltaConstants {
     public static final String SCHEMA_STRING_FIELDS_NULLABLE = "nullable";
     public static final String SCHEMA_STRING_FIELDS_ARR_ELEMENT_TYPE = "elementType";
     public static final String SCHEMA_STRING_FIELDS_ARR_CONTAINS_NULL = "containsNull";
+
+    public static final String DELTA_FIELD_ADD_SIZE = "size";
+    public static final String DELTA_FIELD_ADD_STATS_PARSED = "stats_parsed";
+    public static final String DELTA_FIELD_ADD_PATH = "path";
+
+    public static final String STATS_PARSED_NUM_RECORDS = "numRecords";
 
     public static final String DELTA_STRUCT = "struct";
     public static final String DELTA_ARRAY = "array";
@@ -67,7 +74,29 @@ public final class DeltaConstants {
     public static final String OP_NUM_OUTPUT_BYTES = "numOutputBytes";
     public static final String OP_NUM_ADDED_BYTES = "numAddedBytes";
     public static final String OP_NUM_REMOVED_BYTES = "numRemovedBytes";
-    public static final String DELTA_READ_VERSION = "readVersion";
+    public static final String OP_NUM_DELETED_ROWS = "numDeletedRows";
 
     public static final String PROTOCOL_MIN_READER_VERSION = "minReaderVersion";
+
+    public static final String SCHEMA_PATH = "path";
+    public static final String SCHEMA_KEY = "key";
+    public static final String SCHEMA_VALUE = "value";
+    public static final String SCHEMA_KEY_VALUE = "key_value";
+    public static final String SCHEMA_PARTITION_VALUES = "partitionValues";
+    public static final String SCHEMA_SIZE = "size";
+    public static final String SCHEMA_MODIFICATION_TIME = "modificationTime";
+    public static final String SCHEMA_DATA_CHANGE = "dataChange";
+    public static final String SCHEMA_TAGS = "tags";
+    public static final String SCHEMA_STATS = "stats";
+    public static final String SCHEMA_PARTITION_VALUES_PARSED = "partitionValues_parsed";
+    public static final String SCHEMA_MIN_VALUES = "minValues";
+    public static final String SCHEMA_MAX_VALUES = "maxValues";
+    public static final String SCHEMA_NULL_COUNT = "nullCount";
+    public static final String SCHEMA_NUM_RECORDS = "numRecords";
+    public static final String SCHEMA_STATS_PARSED = "stats_parsed";
+    public static final String SCHEMA_DELETION_TIMESTAMP = "deletionTimestamp";
+    public static final String SCHEMA_ADD_PATH = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_PATH;
+    public static final String SCHEMA_REMOVE_PATH = DELTA_FIELD_REMOVE + DELTA_FIELD_JOINER + SCHEMA_PATH;
+    public static final String SCHEMA_ADD_SIZE = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_SIZE;
+    public static final String SCHEMA_ADD_MODIFICATION_TIME = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_MODIFICATION_TIME;
 }

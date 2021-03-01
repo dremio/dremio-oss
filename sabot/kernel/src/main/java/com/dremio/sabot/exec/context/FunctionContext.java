@@ -21,6 +21,7 @@ import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.PartitionExplorer;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
@@ -42,6 +43,7 @@ public interface FunctionContext {
           .put(PartitionExplorer.class, "getPartitionExplorer")
           .put(ContextInformation.class, "getContextInformation")
           .put(FunctionErrorContext.class, "getFunctionErrorContext")
+          .put(EndPointListProvider.class, "getEndPointListProvider")
           .build();
 
 
@@ -93,6 +95,12 @@ public interface FunctionContext {
    * @return - an object for exploring partitions of all available schemas
    */
   PartitionExplorer getPartitionExplorer();
+
+  /**
+   * EndPointListProvider lets UDFs to get list of downstream end points
+   * @return an object for getting downstream end point destinations
+   */
+  EndPointListProvider getEndPointListProvider();
 
   /**
    * Register a function error context for later use (as an injectable) in a function

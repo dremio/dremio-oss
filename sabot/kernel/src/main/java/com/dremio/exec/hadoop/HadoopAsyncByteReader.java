@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.ReusableAsyncByteReader;
 import com.dremio.io.file.FileAttributes;
@@ -71,6 +72,13 @@ public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
       return versionFuture;
     }
 
+    long expected = Long.parseLong(version);
+    if (expected == 0) {
+      // skip version check
+      versionFuture = AsyncByteReader.completedFuture;
+      return versionFuture;
+    }
+
     synchronized (this) {
       if (versionFuture == null) {
         versionFuture = CompletableFuture.runAsync(() -> {
@@ -82,7 +90,6 @@ public class HadoopAsyncByteReader extends ReusableAsyncByteReader {
           }
 
           long lastModified = fileAttributes.lastModifiedTime().toMillis();
-          long expected = Long.parseLong(version);
           if (lastModified != expected) {
             throw new CompletionException(new FileNotFoundException(String.format(
                 "File: %s has changed. Expected mtime to be %s, but found %s",

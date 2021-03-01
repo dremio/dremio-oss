@@ -19,13 +19,20 @@ public class OpProfileDef {
 
   public int operatorId;
   public int operatorType;
+  public int operatorSubType;
   public int incomingCount;
 
-  public OpProfileDef(int operatorId, int operatorType, int incomingCount) {
+  public OpProfileDef(int operatorId, int operatorType, int incomingCount, int operatorSubType) {
     this.operatorId = operatorId;
     this.operatorType = operatorType;
     this.incomingCount = incomingCount;
+    this.operatorSubType = operatorSubType;
   }
+
+  public OpProfileDef(int operatorId, int operatorType, int incomingCount) {
+    this(operatorId, operatorType, incomingCount, 0);
+  }
+
   public int getOperatorId(){
     return operatorId;
   }
@@ -37,4 +44,7 @@ public class OpProfileDef {
     return incomingCount;
   }
 
+  public int getOperatorSubType() {
+    return operatorSubType;
+  }
 }

@@ -220,6 +220,33 @@ public class SabotConfig extends NestedConfig {
   private static SabotConfig create(String overrideFileResourcePathname,
                                     final Properties overriderProps,
                                     final boolean enableServerConfigs) {
+    final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    if (null == originalClassLoader) {
+      // If the context classloader is null, then set it on the thread and restore to null later.
+      Thread.currentThread().setContextClassLoader(SabotConfig.class.getClassLoader());
+    }
+
+    try {
+      return doCreate(overrideFileResourcePathname, overriderProps, enableServerConfigs);
+    } finally {
+      // Restore to the original context classloader.
+      Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
+  }
+
+  /**
+   * @param overrideFileResourcePathname
+   *          see {@link #create(String)}'s {@code overrideFileResourcePathname}
+   * @param overriderProps
+   *          optional property map for further overriding (after override file
+   *          is assimilated
+   * @param enableServerConfigs
+   *          whether to enable server-specific configuration options
+   * @return
+   */
+  private static SabotConfig doCreate(String overrideFileResourcePathname,
+                                      Properties overriderProps,
+                                      boolean enableServerConfigs) {
     final StringBuilder logString = new StringBuilder();
     final Stopwatch watch = Stopwatch.createStarted();
     overrideFileResourcePathname =

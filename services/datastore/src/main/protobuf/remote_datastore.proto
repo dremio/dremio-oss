@@ -64,12 +64,14 @@ enum PutOptionType {
   VERSION = 1;
   CREATE = 2;
   REMOTE_INDEX = 3;
+  TTL = 4;
 }
 
 message PutOptionInfo {
   optional PutOptionType type = 1;
   optional string parameter = 2;
   repeated PutRequestIndexField indexFields = 3;
+  optional int32 timeout_sec = 4;
 }
 
 enum PutRequestIndexKeyValueType {

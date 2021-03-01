@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.vector.DecimalVector;
@@ -129,21 +128,6 @@ public class ConstExecutor implements RexExecutor {
   @Override
   public void reduce(RexBuilder rexBuilder, List<RexNode> constExps, List<RexNode> reducedValues) {
 
-    // First reduce using calcite's reducer.  This is particularly important for Decimal arithmetics, where Dremio
-    // does not really handle it properly.  For example, it is common to have 0.06 + 0.01 return 0.06999999999999999278355033993648248724639415740966796875
-    // using Dremio, when calcite returns a Decimal of exact value 0.07.  If calcite successfully reduced the value, we should keep it and only use
-    // Dremio's reduce() if calcite is unable to reduce the expressions.
-    List<RexNode> reducedValuesByCalcite = new ArrayList<>();
-    try {
-      calciteExecutor.reduce(rexBuilder, constExps, reducedValuesByCalcite);
-    } catch (Exception e) {
-      logger.debug("Failed to reduce expressions using calcite executor, " + e.getMessage());
-      reducedValuesByCalcite.clear();
-    }
-
-    // initialize the list. we will first update with dremio
-    // reductions, if not possible we will fallback to calcite
-    // reduction results.
     for (RexNode newCall : constExps) {
       reducedValues.add(null);
     }
@@ -267,7 +251,7 @@ public class ConstExecutor implements RexExecutor {
               outputString = StringFunctionHelpers.toStringFromUTF8(nullableVarCharHolder.start, nullableVarCharHolder.end, nullableVarCharHolder.buffer);
             }
             reducedValues.set(index, rexBuilder.makeVarCharLiteral(new NlsString(outputString,
-              null,null)));
+              null, null)));
             break;
           case BIT:
             int bitValue;
@@ -345,13 +329,13 @@ public class ConstExecutor implements RexExecutor {
             int scale, precision;
             if (output instanceof DecimalHolder) {
               DecimalHolder decimalOutput = (DecimalHolder) output;
-              outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer,0 ,
+              outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer, 0,
                 decimalOutput.scale, DecimalVector.TYPE_WIDTH);
               precision = decimalOutput.precision;
               scale = decimalOutput.scale;
             } else {
               NullableDecimalHolder decimalOutput = (NullableDecimalHolder) output;
-              outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer,0 ,
+              outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer, 0,
                 decimalOutput.scale, DecimalVector.TYPE_WIDTH);
               precision = decimalOutput.precision;
               scale = decimalOutput.scale;
@@ -373,17 +357,6 @@ public class ConstExecutor implements RexExecutor {
       } catch (Exception e) {
         logger.debug("Failed to reduce expression {}", newCall, e);
         reducedValues.set(index, newCall);
-      }
-    }
-
-    index = -1;
-    // copy over from calcite anything that we were not able to reduce.
-    if (!reducedValuesByCalcite.isEmpty()) {
-      for (RexNode newCall : constExps) {
-        index++;
-        if (reducedValues.get(index).equals(newCall)){
-          reducedValues.set(index, reducedValuesByCalcite.get(index));
-        }
       }
     }
 

@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 
 import Spinner from '@app/components/Spinner';
 import FontIcon from '@app/components/Icon/FontIcon';
-import socket from '@app/utils/socket';
+import socket from '@inject/utils/socket';
 
 import { isWorking, JOB_STATUS } from './ExploreTableJobStatus';
 

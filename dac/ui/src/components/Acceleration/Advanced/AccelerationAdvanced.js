@@ -32,7 +32,8 @@ export class AccelerationAdvanced extends Component {
     fields: PropTypes.object.isRequired,
     location: PropTypes.object.isRequired,
     updateFormDirtyState: PropTypes.func.isRequired,
-    values: PropTypes.object.isRequired
+    values: PropTypes.object.isRequired,
+    initialValues: PropTypes.any
   };
 
   static getFields() {
@@ -64,13 +65,17 @@ export class AccelerationAdvanced extends Component {
     });
   }
 
-  componentWillReceiveProps(nextProps) {
-    const { values, updateFormDirtyState } = nextProps;
+  componentDidUpdate(newProps) {
+    const { values, updateFormDirtyState } = newProps;
     const aggregationReflections = Immutable.fromJS(values.aggregationReflections);
     const rawReflections = Immutable.fromJS(values.rawReflections);
-
-    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections));
+    this.initialReflections = Immutable.fromJS({
+      aggregationReflections: this.props.initialValues === null ? this.props.values.aggregationReflections : this.props.initialValues.aggregationReflections,
+      rawReflections: this.props.initialValues === null ? this.props.values.rawReflections : this.props.initialValues.rawReflections
+    });
+    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections)); // ! is needed. Returned value of true means not dirty, but would mean to dirty to updateFormDirtyState
   }
+
 
   getActiveTab() {
     if (this.state.activeTab) return this.state.activeTab;

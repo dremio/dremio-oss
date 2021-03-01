@@ -18,7 +18,10 @@ package com.dremio.exec.planner.sql;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
+import java.util.List;
+
 import org.apache.calcite.rel.type.DynamicRecordType;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlBasicCall;
@@ -37,6 +40,7 @@ import org.apache.calcite.sql.fun.SqlLeadLagAggFunction;
 import org.apache.calcite.sql.fun.SqlNtileAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlScopedShuttle;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
@@ -181,7 +185,10 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
         try {
           fqId = this.getScope().fullyQualify(id).identifier;
         } catch (CalciteContextException ex) {
-          if(id.names.size() > 1) {
+          // The failure here may be happening because the path references a field within ANY type column.
+          // Check if the first derivable type in parents is ANY. If this is the case, fall back to ITEM operator.
+          // Otherwise, throw the original exception.
+          if(id.names.size() > 1 && checkAnyType(id)) {
             SqlBasicCall itemCall = new SqlBasicCall(
               SqlStdOperatorTable.ITEM,
               new SqlNode[]{id.getComponent(0, id.names.size()-1), SqlLiteral.createCharString((String) Util.last(id.names), id.getParserPosition())}, id.getParserPosition());
@@ -212,14 +219,21 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
           return call;
         default:
           SqlCall newCall = call;
-          if ("dot".equals(((SqlCall) call).getOperator().getName().toLowerCase())) {
+          if (call.getOperator() == SqlStdOperatorTable.DOT) {
             try {
               validator.deriveType(getScope(), call);
             } catch (Exception ex) {
-              SqlNode left = call.getOperandList().get(0);
-              SqlNode right = call.getOperandList().get(1);
-              SqlNode[] inputs = new SqlNode[]{left, SqlLiteral.createCharString(right.toString(), call.getParserPosition())};
-              newCall = new SqlBasicCall(SqlStdOperatorTable.ITEM, inputs, call.getParserPosition());
+              // The failure here may be happening because the dot operator was used within ANY type column.
+              // Check if the first derivable type in parents is ANY. If this is the case, fall back to ITEM operator.
+              // Otherwise, throw the original exception.
+              if (checkAnyType(call)) {
+                SqlNode left = call.getOperandList().get(0);
+                SqlNode right = call.getOperandList().get(1);
+                SqlNode[] inputs = new SqlNode[]{left, SqlLiteral.createCharString(right.toString(), call.getParserPosition())};
+                newCall = new SqlBasicCall(SqlStdOperatorTable.ITEM, inputs, call.getParserPosition());
+              } else {
+                throw ex;
+              }
             }
           }
           ArgHandler<SqlNode> argHandler = new CallCopyingArgHandler(newCall, false);
@@ -228,6 +242,45 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
           this.validator.setOriginal(result, newCall);
           return result;
       }
+    }
+
+    private boolean checkAnyType(SqlIdentifier identifier) {
+      List<String> names = identifier.names;
+      for (int i = names.size(); i > 0; i--) {
+        try {
+          final RelDataType type = validator.deriveType(getScope(), new SqlIdentifier(names.subList(0, i), identifier.getParserPosition()));
+          return SqlTypeName.ANY == type.getSqlTypeName();
+        } catch (Exception ignored) {
+        }
+      }
+      return false;
+    }
+
+    private boolean checkAnyType(SqlCall call) {
+      if (call.getOperandList().size() == 0) {
+        return false;
+      }
+
+      RelDataType type = null;
+      final SqlNode operand = call.operand(0);
+      try {
+        type = validator.deriveType(getScope(), operand);
+      } catch (Exception ignored) {
+      }
+
+      if(type != null) {
+        return SqlTypeName.ANY == type.getSqlTypeName();
+      }
+
+      if(operand instanceof SqlCall) {
+        return checkAnyType((SqlCall) operand);
+      }
+
+      if(operand instanceof SqlIdentifier) {
+        return checkAnyType((SqlIdentifier) operand);
+      }
+
+      return false;
     }
   }
 }

@@ -45,6 +45,8 @@ import com.typesafe.config.ConfigValueFactory;
  */
 public class TestZKClusterClient extends DremioTest {
 
+  private static final ZKClusterConfig DEFAULT_ZK_CLUSTER_CONFIG = new ZKSabotConfig(DEFAULT_SABOT_CONFIG);
+
   @Rule
   public final ZooKeeperServerResource zooKeeperServer = new ZooKeeperServerResource();
 
@@ -53,9 +55,11 @@ public class TestZKClusterClient extends DremioTest {
     // Default root from sabot-module.conf
     assertNull(zooKeeperServer.getZKClient().exists("/dremio/test-path", false));
 
-    final SabotConfig config = DEFAULT_SABOT_CONFIG
+    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
         .withValue(ZK_ROOT, ConfigValueFactory.fromAnyRef("dremio/test-path"))
         .withValue(CLUSTER_ID, ConfigValueFactory.fromAnyRef("test-cluster-id"));
+
+    final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
     try(ZKClusterClient client = new ZKClusterClient(config, new Provider<Integer>() {
       @Override
@@ -79,7 +83,7 @@ public class TestZKClusterClient extends DremioTest {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio1", false));
 
     try(ZKClusterClient client = new ZKClusterClient(
-        DEFAULT_SABOT_CONFIG,
+      DEFAULT_ZK_CLUSTER_CONFIG,
         String.format("%s/dremio1", zooKeeperServer.getConnectString()))
     ) {
       client.start();
@@ -98,7 +102,7 @@ public class TestZKClusterClient extends DremioTest {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio2/test-cluster-id", false));
 
     try(ZKClusterClient client = new ZKClusterClient(
-        DEFAULT_SABOT_CONFIG,
+      DEFAULT_ZK_CLUSTER_CONFIG,
         String.format("%s/dremio2/test-cluster-id", zooKeeperServer.getConnectString()))
     ) {
       client.start();
@@ -117,7 +121,7 @@ public class TestZKClusterClient extends DremioTest {
     assertNull(zooKeeperServer.getZKClient().exists("/dremio3/test/test-cluster-id", false));
 
     try(ZKClusterClient client = new ZKClusterClient(
-        DEFAULT_SABOT_CONFIG,
+      DEFAULT_ZK_CLUSTER_CONFIG,
         String.format("%s/dremio3/test/test-cluster-id", zooKeeperServer.getConnectString()))
     ) {
       client.start();
@@ -140,7 +144,7 @@ public class TestZKClusterClient extends DremioTest {
 
 
     try(ZKClusterClient client = new ZKClusterClient(
-        DEFAULT_SABOT_CONFIG,
+      DEFAULT_ZK_CLUSTER_CONFIG,
         String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
     ) {
       client.start();
@@ -196,12 +200,14 @@ public class TestZKClusterClient extends DremioTest {
   public void testElectionDisconnection() throws Exception {
     final CountDownLatch elected = new CountDownLatch(1);
     final CountDownLatch cancelled = new CountDownLatch(1);
+    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("20ms"))
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100ms"));
+    final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
     try(ZKClusterClient client = new ZKClusterClient(
-        DEFAULT_SABOT_CONFIG
-        .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("20ms"))
-        .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100ms")),
-        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      config,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
     ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
@@ -232,12 +238,14 @@ public class TestZKClusterClient extends DremioTest {
     final CountDownLatch cancelled = new CountDownLatch(1);
     final CountDownLatch loss = new CountDownLatch(1);
     final CountDownLatch reconnected = new CountDownLatch(1);
+    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("5s"));
+    final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
 
     try(ZKClusterClient client = new ZKClusterClient(
-        DEFAULT_SABOT_CONFIG
-        .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
-        .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("5s")),
-        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      config,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
         ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {

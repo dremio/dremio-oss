@@ -33,6 +33,7 @@ import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.service.coordinator.proto.DataCredentials;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.google.common.collect.ImmutableList;
@@ -71,11 +72,17 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Tag(8)
   public String secretKey = null;
 
+  @Tag(9)
+  public String iamRole = null;
+
+  @Tag(10)
+  public String externalId = null;
+
   public AccelerationStoragePluginConfig() {
   }
 
   public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
-                                         boolean enableS3FileStatusCheck, String accessKey, String secretKey) {
+                                         boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
     if(path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -89,8 +96,15 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     this.enableCaching = enableCaching;
     this.maxCacheSpacePercent = maxCacheSpacePercent;
     this.enableS3FileStatusCheck = enableS3FileStatusCheck;
-    this.accessKey = accessKey;
-    this.secretKey = secretKey;
+    if (dataCredentials != null) {
+      if (dataCredentials.hasKeys()) {
+        this.accessKey = dataCredentials.getKeys().getAccessKey();
+        this.secretKey = dataCredentials.getKeys().getSecretKey();
+      } else {
+        this.iamRole = dataCredentials.getDataRole().getIamRole();
+        this.externalId = dataCredentials.getDataRole().getExternalId();
+      }
+    }
   }
 
   @Override
@@ -129,10 +143,10 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   }
 
   public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
-                                    boolean enableS3FileStatusCheck, String accessKey, String secretKey) {
+                                    boolean enableS3FileStatusCheck, DataCredentials dataCredentials) {
     SourceConfig conf = new SourceConfig();
     AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync,
-      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck, accessKey, secretKey);
+      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck, dataCredentials);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -159,6 +173,14 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
 
   public String getSecretKey() {
     return secretKey;
+  }
+
+  public String getIamRole() {
+    return iamRole;
+  }
+
+  public String getExternalId() {
+    return externalId;
   }
 
   @Override

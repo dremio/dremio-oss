@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.exec.store.dfs;
+export const getRemoveFunction = (props) => {
+  return props.removeProvision;
+};
 
-import com.dremio.exec.store.SplitAndPartitionInfo;
+export const getLoadProvisionFunction = (props) => {
+  return props.loadProvision;
+};
 
-/**
- * Helper interface to get split and partition info
- */
-public interface GetSplitAndPartitionInfo {
-  /**
-   * Returns split and partition info
-   * @return
-   */
-  public SplitAndPartitionInfo getSplit();
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getExtraFunctions = (props) => {
+  return [];
+};

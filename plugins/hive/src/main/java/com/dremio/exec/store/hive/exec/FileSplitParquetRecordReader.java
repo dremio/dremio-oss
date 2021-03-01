@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import static com.dremio.exec.store.parquet.ParquetOperatorCreator.PREFETCH_READER;
-import static com.dremio.exec.store.parquet.ParquetOperatorCreator.READ_COLUMN_INDEXES;
+import static com.dremio.exec.ExecConstants.PREFETCH_READER;
+import static com.dremio.exec.ExecConstants.READ_COLUMN_INDEXES;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -64,6 +64,7 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveAsyncStreamConf;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.OutputMutatorHelper;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
@@ -75,6 +76,7 @@ import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
+import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.exec.util.BatchSchemaField;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
@@ -281,7 +283,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
         knownFooter,
         lastInputStreamProvider,
         rowGroupIndexProvider,
-        (a, b) -> {},
         readFullFile,
         dataset,
         fileLastModificationTime,
@@ -377,7 +378,28 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       }
 
-      innerReadersIter = new PrefetchingIterator<>(oContext, readerConfig, innerReaderCreators, 1);
+      Iterator<SplitReaderCreator> creatorIterator = innerReaderCreators.iterator();
+      innerReadersIter = new PrefetchingIterator(new SplitReaderCreatorIterator() {
+        @Override
+        public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+
+        }
+
+        @Override
+        public void close() throws Exception {
+          AutoCloseables.close(innerReaderCreators);
+        }
+
+        @Override
+        public boolean hasNext() {
+          return creatorIterator.hasNext();
+        }
+
+        @Override
+        public SplitReaderCreator next() {
+          return creatorIterator.next();
+        }
+      });
 
       currentReader = innerReadersIter.hasNext() ? innerReadersIter.next() : null;
     } catch (IOException e) {
@@ -538,7 +560,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       private UnifiedParquetReader innerReader; // member variable so it can be closed
 
       private final BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener = (inputStreamProvider, footer) -> {
-        if (!prefetchReader) {
+        if (!prefetchReader || !fs.supportsAsync()) {
           return;
         }
         if (next != null) {
@@ -613,8 +635,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
           }
           return innerReader;
         } finally {
-          splitXAttr = null;
-          inputStreamProvider = null;
+          clearLocalFields();
         }
       }
 
@@ -628,7 +649,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
           boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
           inputStreamProvider = inputStreamProviderFactory.create(fs, oContext, path, fileLength, splitXAttr.getLength(),
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, lastInputStreamProvider, (f) -> splitXAttr.getRowGroupIndex(),
-            (a, b) -> {}, // prefetching happens in this.createRecordReader()
             readFullFile, dataset, splitXAttr.getLastModificationTime(), false,
             ((conditions != null) && (conditions.size() >=1) && readColumnIndices));
           return null;

@@ -38,8 +38,16 @@ public class CompilationOptions {
     return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD);
   }
 
+  public int getVarcharOrOptimizationThreshold() {
+    return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_VARCHAR_THRESHOLD);
+  }
+
   public int getOrOptimizationThresholdForGandiva() {
     return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD_GANDIVA);
+  }
+
+  public int getVarcharOrOptimizationThresholdForGandiva() {
+    return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_VARCHAR_THRESHOLD_GANDIVA);
   }
 
   public int getNewMethodThreshold() {

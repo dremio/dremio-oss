@@ -52,7 +52,7 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
     // Act
     try {
-      assertEquals(createHandler().clientIsReadyForData(), READY);
+      assertEquals(READY, createHandler().clientIsReadyForData());
     } catch (RpcException ex) {
       testFailed("Unexpected RpcException thrown.");
     }
@@ -66,7 +66,7 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
     // Act
     try {
-      assertEquals(createHandler().clientIsReadyForData(), READY);
+      assertEquals(READY, createHandler().clientIsReadyForData());
     } catch (RpcException ex) {
       testFailed("Unexpected RpcException thrown.");
     }

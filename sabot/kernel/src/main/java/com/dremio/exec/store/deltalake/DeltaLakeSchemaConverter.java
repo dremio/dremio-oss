@@ -21,7 +21,6 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_BINARY;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_BOOL;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_BYTE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_DATE;
-import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_DECIMAL;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_DOUBLE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FLOAT;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_INT;
@@ -47,7 +46,9 @@ import java.util.stream.StreamSupport;
 
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -65,10 +66,6 @@ public class DeltaLakeSchemaConverter {
     private static final Logger logger = LoggerFactory.getLogger(DeltaLakeSchemaConverter.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    /**
-     * NOTE: This function impl is done in order to facilitate E2E validations and is not the final version.
-     * Final version will be covered as part of DX-26748
-     */
     public static BatchSchema fromSchemaString(String schemaString) throws IOException {
         Preconditions.checkNotNull(schemaString);
         final JsonNode schemaJson = OBJECT_MAPPER.readTree(schemaString);
@@ -113,11 +110,17 @@ public class DeltaLakeSchemaConverter {
     }
 
     public static FieldType fromPrimitiveType(final String type, final boolean isNullable) {
-        switch (type) {
+
+      if (type.startsWith("decimal")) {
+        // extract precision and scale
+        String[] scaleAndPrecision = type.split("\\s*[()]\\s*")[1].split(",");
+        ArrowType decimal = new ArrowType.Decimal(Integer.parseInt(scaleAndPrecision[0]), Integer.parseInt(scaleAndPrecision[1]));
+        return new FieldType(isNullable, decimal, null);
+      }
+
+      switch (type) {
             case DELTA_BYTE:
-                return new FieldType(isNullable, new ArrowType.Int(8, true), null);
             case DELTA_SHORT:
-                return new FieldType(isNullable, new ArrowType.Int(16, true), null);
             case DELTA_INT:
                 return new FieldType(isNullable, new ArrowType.Int(32, true), null);
             case DELTA_LONG:
@@ -132,14 +135,13 @@ public class DeltaLakeSchemaConverter {
                 return new FieldType(isNullable, new ArrowType.Utf8(), null);
             case DELTA_BINARY:
                 return new FieldType(isNullable, new ArrowType.Binary(), null);
-            // TODO: Map remaining Delta Lake types
             case DELTA_TIMESTAMP:
+                return new FieldType(isNullable, new ArrowType.Timestamp(TimeUnit.MILLISECOND, null), null);
             case DELTA_DATE:
-            case DELTA_DECIMAL:
-                return null;
+                return new FieldType(isNullable, new ArrowType.Date(DateUnit.MILLISECOND), null);
             default:
-                logger.error("Unsupported type : " + type);
-                throw new UnsupportedOperationException("Unsupported type : " + type);
+              logger.error("Unsupported type : " + type);
+              throw new UnsupportedOperationException("Unsupported type : " + type);
         }
     }
 }

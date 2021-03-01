@@ -608,6 +608,13 @@
    > `<=` javax.ws.rs.core.Response   
 
 
+## Resource defined by class com.dremio.dac.resource.TemporaryTokenResource
+
+ - POST /temp-token?request={String}&durationSeconds={long}   
+   > `=>`   
+   > `<=` javax.ws.rs.core.Response   
+
+
 ## Resource defined by class com.dremio.dac.resource.UserResource
 
  - DELETE /user/{userName}?version={String} (path params: userName={com.dremio.dac.model.usergroup.UserName})   

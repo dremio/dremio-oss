@@ -108,6 +108,7 @@ public class DremioConfig extends NestedConfig {
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
   public static final String ZK_CLIENT_RETRY_UNLIMITED = "zk.client.retry.unlimited";
+  public static final String ZK_CONNECTION_HANDLE_ENABLED = "zk.client.connection_handle.enabled";
   public static final String ZK_CLIENT_RETRY_LIMIT = "zk.client.retry.limit";
   public static final String ZK_CLIENT_INITIAL_TIMEOUT_MS = "zk.client.retry.initial_timeout_ms";
 

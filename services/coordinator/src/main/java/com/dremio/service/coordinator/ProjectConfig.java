@@ -18,7 +18,7 @@ package com.dremio.service.coordinator;
 
 import java.net.URI;
 
-import com.dremio.service.coordinator.proto.AwsKeys;
+import com.dremio.service.coordinator.proto.DataCredentials;
 
 /**
  * Interface to define project config
@@ -54,19 +54,19 @@ public interface ProjectConfig {
    */
   public static class DistPathConfig {
     private final URI uri;
-    private final AwsKeys awsKeys;
+    private final DataCredentials dataCredentials;
 
-    public DistPathConfig(URI uri, AwsKeys awsKeys) {
+    public DistPathConfig(URI uri, DataCredentials dataCredentials) {
       this.uri = uri;
-      this.awsKeys = awsKeys;
+      this.dataCredentials = dataCredentials;
     }
 
     public URI getUri() {
       return uri;
     }
 
-    public AwsKeys getAwsKeys() {
-      return awsKeys;
+    public DataCredentials getDataCredentials() {
+      return dataCredentials;
     }
   }
 }

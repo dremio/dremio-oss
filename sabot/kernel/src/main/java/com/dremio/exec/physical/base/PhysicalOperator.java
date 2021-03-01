@@ -87,6 +87,9 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
   @JsonIgnore
   public int getOperatorType();
 
+  @JsonIgnore
+  default int getOperatorSubType() { return 0;}
+
   /**
    * Other major fragments, this operator will be interested in sending messages to.
    * This is processed only once per major fragment.

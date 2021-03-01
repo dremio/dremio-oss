@@ -22,7 +22,8 @@ import java.util.Collection;
 import java.util.List;
 
 import org.joda.time.LocalDateTime;
-import org.junit.Ignore;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -32,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.plugins.elastic.DateFormats.FormatterAndType;
 import com.google.common.collect.ImmutableMap;
+
+import ch.qos.logback.classic.Level;
 
 /**
  *
@@ -43,6 +46,19 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
 
   private String format;
   private FormatterAndType formatter;
+  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME));
+  private static Level originalLogLevel;
+
+  @BeforeClass
+  public static void initLogLevel() {
+    originalLogLevel = rootLogger.getLevel();
+    rootLogger.setLevel(Level.DEBUG);
+  }
+
+  @AfterClass
+  public static void restoreLogLevel() {
+    rootLogger.setLevel(originalLogLevel);
+  }
 
   public ITTestDateTypes(String format) {
     this.format = format;

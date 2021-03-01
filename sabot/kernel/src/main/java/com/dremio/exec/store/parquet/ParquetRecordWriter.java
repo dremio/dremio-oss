@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA_2_1;
+import static com.dremio.common.map.CaseInsensitiveImmutableBiMap.newImmutableMap;
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Math.max;
@@ -29,7 +30,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -50,7 +50,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
-import org.apache.iceberg.types.Types.NestedField;
 import org.apache.parquet.NoExceptionAutoCloseables;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnWriteStore;
@@ -58,7 +57,6 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.impl.ColumnWriteStoreV1;
 import org.apache.parquet.column.page.PageWriteStore;
-import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.column.values.factory.DefaultV1ValuesWriterFactory;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.compression.CompressionCodecFactory.BytesInputCompressor;
@@ -66,11 +64,7 @@ import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.CodecFactory.BytesCompressor;
 import org.apache.parquet.hadoop.ColumnChunkPageWriteStoreExposer;
 import org.apache.parquet.hadoop.ParquetFileWriter;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.api.RecordConsumer;
@@ -103,6 +97,7 @@ import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.FieldIdBroker.SeededFieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergCatalog;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -117,7 +112,6 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -191,6 +185,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private final long minRecordsForFlush;
   private List<String> partitionColumns;
   private boolean isIcebergWriter;
+  private org.apache.iceberg.Schema icebergSchema;
   private CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap;
 
   private final String queryUser;
@@ -270,17 +265,17 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   public void setup() throws IOException {
     this.fs = plugin.createFS(queryUser, context);
     this.batchSchema = incoming.getSchema();
-    if (this.isIcebergWriter && this.icebergColumnIDMap == null) {
-      initIcebergColumnIDList();
+
+    if (this.isIcebergWriter) {
+      if (this.icebergColumnIDMap == null) {
+        this.icebergSchema = SchemaConverter.toIcebergSchema(batchSchema);
+        this.icebergColumnIDMap = newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema));
+      } else {
+        SeededFieldIdBroker fieldIdBroker = new SeededFieldIdBroker(icebergColumnIDMap);
+        this.icebergSchema = SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
+      }
     }
     newSchema();
-  }
-
-  private void initIcebergColumnIDList() {
-    SchemaConverter schemaConverter = new SchemaConverter();
-    org.apache.iceberg.Schema icebergSchema = schemaConverter.toIceberg(batchSchema);
-    Map<String, Integer> schemaNameIDMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
-    this.icebergColumnIDMap = CaseInsensitiveImmutableBiMap.newImmutableMap(schemaNameIDMap);
   }
 
   private void initIcebergColumnIDList(ByteString extendedProperty) {
@@ -290,7 +285,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs = icebergDatasetXAttr.getColumnIdsList();
       Map<String, Integer> icebergColumns = new HashMap<>();
       icebergColumnIDs.forEach(field -> icebergColumns.put(field.getSchemaPath(), field.getId()));
-      this.icebergColumnIDMap = CaseInsensitiveImmutableBiMap.newImmutableMap(icebergColumns);
+      this.icebergColumnIDMap = newImmutableMap(icebergColumns);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Could not deserialize Parquet dataset info", e);
     }
@@ -462,12 +457,6 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
   }
 
-  // Includes the column_id for this field and its children in the Parquet schema. The column_id is taken
-  // from the equivalent field with name icebergFieldName from the icebergSchema
-  //
-  // icebergFieldName is the name of this field used by iceberg. Pass null to use the name from the field
-  // icebergSchema contains the iceberg schema with column_ids. If non-null, this method extracts the column id
-  //               for the field from iceberg schema and initializes the Parquet type accordingly
   @Nullable
   private Type getTypeWithId(Field field, String icebergFieldName) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();
@@ -658,53 +647,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     // add column level metrics
-    Metrics metrics = footerMetricsToIcebergMetrics(parquetFileWriter.getFooter(), batchSchema);
+    Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetFileWriter.getFooter(), icebergSchema);
     dataFileBuilder = dataFileBuilder.withMetrics(metrics);
     return IcebergSerDe.serializeDataFile(dataFileBuilder.build());
-  }
-
-  public static Metrics footerMetricsToIcebergMetrics(ParquetMetadata metadata, BatchSchema batchSchema) {
-    long rowCount = 0;
-    Map<Integer, Long> columnSizes = Maps.newHashMap();
-    Map<Integer, Long> valueCounts = Maps.newHashMap();
-    Map<Integer, Long> nullValueCounts = Maps.newHashMap();
-    Set<Integer> missingStats = Sets.newHashSet();
-
-    org.apache.iceberg.Schema fileSchema = new SchemaConverter().toIceberg(batchSchema);
-
-    List<BlockMetaData> blocks = metadata.getBlocks();
-    for (BlockMetaData block : blocks) {
-      rowCount += block.getRowCount();
-      for (ColumnChunkMetaData column : block.getColumns()) {
-        ColumnPath columnPath = column.getPath();
-        NestedField field = fileSchema.findField(columnPath.toDotString());
-        if (field == null) {
-          // - lists are called favorite.list.element is parquet and just favorite.element in
-          //   iceberg.
-          // - dremio counts the only the top elements (i.e num lists), parquet counts the
-          //   number of list elements (i.e total elements).
-          // skipping this accounting for lists.
-          continue;
-        }
-
-        int fieldId = field.fieldId();
-        columnSizes.merge(fieldId, column.getTotalSize(), (x, y) -> y + column.getTotalSize());
-        valueCounts.merge(fieldId, column.getValueCount(), (x, y) -> y + column.getValueCount());
-
-        Statistics stats = column.getStatistics();
-        if (stats == null) {
-          missingStats.add(fieldId);
-        } else if (!stats.isEmpty()) {
-          nullValueCounts.merge(fieldId, stats.getNumNulls(), (x, y) -> y + stats.getNumNulls());
-        }
-      }
-    }
-
-    // discard accumulated values if any stats were missing
-    for (Integer fieldId : missingStats) {
-      nullValueCounts.remove(fieldId);
-    }
-    return new Metrics(rowCount, columnSizes, valueCounts, nullValueCounts);
   }
 
   private interface UpdateTrackingConverter {

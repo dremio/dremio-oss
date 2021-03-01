@@ -56,6 +56,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexPermuteInputsShuttle;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.rex.RexWindowBound;
@@ -78,6 +79,7 @@ import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.LimitRel;
+import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.service.Pointer;
 import com.google.common.collect.ImmutableList;
@@ -351,6 +353,17 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
 
     if (failed.value) {
       return result(drel, Mappings.createIdentity(drel.getRowType().getFieldCount()));
+    }
+
+    final PruneFilterCondition pruneFilterCondition = drel.getPartitionFilter();
+    if (pruneFilterCondition != null && pruneFilterCondition.getPartitionExpression() != null) {
+      pruneFilterCondition.getPartitionExpression().accept(new RexShuttle() {
+        @Override
+        public RexNode visitInputRef(final RexInputRef inputRef) {
+          fieldBuilder.set(inputRef.getIndex());
+          return super.visitInputRef(inputRef);
+        }
+      });
     }
 
     fieldsUsed = fieldBuilder.build();
