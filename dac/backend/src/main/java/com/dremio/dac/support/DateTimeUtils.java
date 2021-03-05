@@ -27,13 +27,20 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 
 /**
- * Utils for date time compare used in support bundle
+ * DateTimeUtils implements utils for date time compare used in support bundle.
  */
 public class DateTimeUtils {
 
   public static final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
   public static final Pattern DATE_PATTERN = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})");
 
+  /**
+   * Parses a given string to Date object.
+   *
+   * @param str the string to be parsed
+   * @return    a Date object from a string
+   * @throws ParseException If a fail occur during to parse the string to Date format
+   */
   public static Date getDateFromString(String str) throws ParseException {
 
     Matcher matcher = DATE_PATTERN.matcher(str);
@@ -43,8 +50,13 @@ public class DateTimeUtils {
     throw new ParseException("Date yyyy-MM-dd not found in " + str, 0);
   }
 
+
   /**
-   * check if timestamp is within today in zone
+   * Checks if a given timestamp is within today in zone.
+   *
+   * @param timestamp the timestamp to be checked
+   * @param zone      the zone to be compare
+   * @return          a flag which indicates if the timestamp is within today in zone
    */
   public static boolean isToday(long timestamp, DateTimeZone zone) {
     if (timestamp == 0) { // 0 implies query is running now
@@ -55,11 +67,12 @@ public class DateTimeUtils {
   }
 
   /**
-   * check if target is within leftBound inclusively and rightBound inclusively
-   * @param str string that container date info in format of yyyy-mm-dd
-   * @param leftBound
-   * @param rightBound
-   * @return
+   * Checks if a given Date is within an interval of two Dates.
+   *
+   * @param str        the string that container date info in format of "yyyy-mm-dd"
+   * @param leftBound  the initial date to validate
+   * @param rightBound the final date to validate
+   * @return           a flag which indicates if the Date is within an interval of two Dates
    */
   public static boolean isBetweenDay(String str, long leftBound, long rightBound, DateTimeZone zone) {
     Date target;

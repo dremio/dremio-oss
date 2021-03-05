@@ -124,6 +124,11 @@ public class DatasetResource extends BaseResourceWithAllocator {
     this.collaborationService = collaborationService;
   }
 
+  /**
+   * Defines the GET HTTP request responsible for getting the count of datasets depending on a given dataset.
+   *
+   * @return a JSON with the number of descendants datasets
+   */
   @GET
   @Path("descendants/count")
   @Produces(APPLICATION_JSON)
@@ -131,6 +136,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return datasetService.getDescendantsCount(datasetPath.toNamespaceKey());
   }
 
+  /**
+   * Defines the GET HTTP request responsible for getting a list of dataset paths depending on a given dataset.
+   *
+   * @return a JSON with a list with all datasets paths descending from the current dataset
+   * @throws NamespaceException If the namespace for the current dataset can't be found
+   */
   @GET
   @Path("descendants")
   @Produces(APPLICATION_JSON)
@@ -142,6 +153,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return descendantPaths;
   }
 
+  /**
+   * Defines the GET HTTP request responsible for getting a given dataset's acceleration settings, such as its refresh period.
+   *
+   * @return a JSON with the acceleration settings
+   * @throws NamespaceException If the namespace for the current dataset can't be found
+   */
   @GET
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
@@ -181,6 +198,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return descriptor;
   }
 
+  /**
+   * Defines the PUT HTTP method to update the acceleration settings of a given dataset.
+   *
+   * @param descriptor a descriptor with the updated acceleration settings
+   * @throws NamespaceException If the namespace for the current dataset can't be found
+   */
   @PUT
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
@@ -235,10 +258,11 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * returns the current version of the dataset
-   * @return
-   * @throws DatasetNotFoundException
-   * @throws NamespaceException
+   * Defines the GET HTTP method to get a given dataset's minimal info needed by UI.
+   *
+   * @return the minimal info about a given dataset
+   * @throws DatasetNotFoundException If it couldn't found the needed dataset
+   * @throws NamespaceException       If it couldn't found the dataset's namespace
    */
   @GET
   @Produces(APPLICATION_JSON)
@@ -247,6 +271,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return newDataset(virtualDataset);
   }
 
+  /**
+   * Defines the DELETE HTTP method to delete the current dataset.
+   *
+   * @param savedTag the dataset's entity version to be deleted
+   * @return         the minimal info about the deleted dataset
+   * @throws DatasetNotFoundException If it couldn't found the needed dataset
+   * @throws UserNotFoundException    If it couldn't found the user that owns the dataset
+   * @throws NamespaceException       If it couldn't found the dataset's namespace
+   */
   @DELETE
   @Produces(APPLICATION_JSON)
   public DatasetUI deleteDataset(@QueryParam("savedTag") String savedTag)
@@ -265,12 +298,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Clones a virtual dataset with a new name. Caused when UI clicks "Copy new from Existing".
+   * Defines the PUT HTTP method to create a virtual dataset from the current one, but with a different name.
+   * <p>
+   * Caused when UI clicks "Copy new from Existing".
    *
-   * @param existingDatasetPath
-   * @return
-   * @throws NamespaceException
-   * @throws DatasetNotFoundException
+   * @param existingDatasetPath the existing dataset path to be cloned with a different name
+   * @return                    the minimal info about the created dataset
+   * @throws DatasetNotFoundException If it couldn't found the needed dataset
+   * @throws UserNotFoundException    If it couldn't found the user that owns the dataset
+   * @throws NamespaceException       If it couldn't found the dataset's namespace
    */
   @PUT
   @Path("copyFrom/{cpathFrom}")
@@ -302,6 +338,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return newDataset(ds);
   }
 
+  /**
+   * Defines the POST HTTP method to rename a given dataset.
+   *
+   * @param renameTo the new name for the dataset
+   * @return         an object with all the dataset information needed on the UI
+   * @throws NamespaceException              If the renamed dataset has an incorrect path
+   * @throws DatasetNotFoundException        If the given dataset path is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   */
   @POST @Path("/rename")
   @Produces(APPLICATION_JSON)
   public DatasetUI renameDataset(@QueryParam("renameTo") String renameTo)
@@ -312,6 +357,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return newDataset(ds);
   }
 
+  /**
+   * Defines the POST HTTP method to move a dataset to a new dataset path.
+   *
+   * @param newDatasetPath a dataset path
+   * @return               an object with all the dataset information needed on the UI
+   * @throws NamespaceException              If the {@code newDatasetPath} provided contains an incorrect path
+   * @throws DatasetNotFoundException        If the given dataset path is not found
+   * @throws DatasetVersionNotFoundException If the version is not found for a given dataset
+   */
   @POST @Path("/moveTo/{newpath}")
   @Produces(APPLICATION_JSON)
   public DatasetUI moveDataset(@PathParam("newpath") DatasetPath newDatasetPath)
@@ -322,9 +376,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * Get the preview response of dataset. Dataset could be a physical or virtual dataset.
-   * @param limit Maximum number of records in initial response.
-   * @return
+   * Defines the GET HTTP method to retrieve the preview response of a dataset.
+   * <p>
+   * Dataset could be a physical or virtual dataset.
+   *
+   * @param limit the maximum number of records on the initial response
+   * @return      a dataset preview response containing initial data and pagination URL to fetch the remaining data
    */
   @GET
   @Path("preview")
@@ -347,6 +404,13 @@ public class DatasetResource extends BaseResourceWithAllocator {
     }
   }
 
+  /**
+   * Creates an object with all the dataset information needed on the UI.
+   *
+   * @param vds the virtual dataset UI object
+   * @return    a DatasetUI object containing the dataset information needed on the UI
+   * @throws NamespaceException If the {@code vds} provided contains an incorrect dataset path
+   */
   protected DatasetUI newDataset(VirtualDatasetUI vds) throws NamespaceException {
     return DatasetUI.newInstance(vds, null, namespaceService);
   }

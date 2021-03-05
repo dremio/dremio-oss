@@ -65,7 +65,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.util.Timestamps;
 
 /**
- * Resource for information about sources.
+ * ClusterStatsResource represents the resource for all sources information.
  */
 @APIResource
 @Secured
@@ -84,12 +84,12 @@ public class ClusterStatsResource {
 
   @Inject
   public ClusterStatsResource(
-      Provider<SabotContext> context,
-      SourceService sourceService,
-      NamespaceService namespaceService,
-      JobsService jobsService,
-      ReflectionServiceHelper reflectionServiceHelper,
-      EditionProvider editionProvider
+    Provider<SabotContext> context,
+    SourceService sourceService,
+    NamespaceService namespaceService,
+    JobsService jobsService,
+    ReflectionServiceHelper reflectionServiceHelper,
+    EditionProvider editionProvider
   ) {
     this.context = context;
     this.sourceService = sourceService;
@@ -99,12 +99,27 @@ public class ClusterStatsResource {
     this.editionProvider = editionProvider;
   }
 
+  /**
+   * Defines the GET HTTP route which is responsible for retrieving the stats for the cluster.
+   *
+   * @param showCompactStats a flag which indicates if the stats information should be shown
+   *                         in a compacted format or not
+   * @return                 the cluster stats
+   */
   @GET
   @RolesAllowed({"admin", "user"})
   public ClusterStats getStats(@DefaultValue("false") @QueryParam("showCompactStats") final boolean showCompactStats) {
     return createStats(showCompactStats);
   }
 
+  /**
+   * Creates and processes the cluster stats, retrieving states information from
+   * coordinators, executors, nodes, jobs and sources in the cluster.
+   *
+   * @param showCompactStats a flag which indicates if the stats information should be shown
+   *                         in a compacted visualization or not
+   * @return                 the cluster stats
+   */
   ClusterStats createStats(boolean showCompactStats) {
     final ClusterStats result = new ClusterStats();
     final SabotContext sabotContext = this.context.get();
@@ -142,15 +157,15 @@ public class ClusterStatsResource {
     final long end = System.currentTimeMillis();
     final long start = end - TimeUnit.DAYS.toMillis(7);
     final JobStatsRequest request = JobStatsRequest.newBuilder()
-        .setStartDate(Timestamps.fromMillis(start))
-        .setEndDate(Timestamps.fromMillis(end))
-        .build();
+      .setStartDate(Timestamps.fromMillis(start))
+      .setEndDate(Timestamps.fromMillis(end))
+      .build();
     // job stats
     final JobStats jobStats = jobsService.getJobStats(request);
     final List<JobTypeStats> jobTypeStats = jobStats.getCountsList().stream()
-        .map(jobCountWithType -> new JobTypeStats(JobsServiceUtil.toType(jobCountWithType.getType()),
-            jobCountWithType.getCount()))
-        .collect(Collectors.toList());
+      .map(jobCountWithType -> new JobTypeStats(JobsServiceUtil.toType(jobCountWithType.getType()),
+        jobCountWithType.getCount()))
+      .collect(Collectors.toList());
     result.setJobStats(jobTypeStats);
 
     // acceleration stats
@@ -191,21 +206,29 @@ public class ClusterStatsResource {
     return result;
   }
 
+  /**
+   * Creates and processes specific sources stats, retrieving information such as
+   * the virtual datasets queries in the cluster.
+   *
+   * @param allSources a list of sources configuration
+   * @param context    the SabotContext instance that contains all the metadata required by Sabot engine
+   * @return           the general sources stats
+   */
   @VisibleForTesting
-  public static Stats getSources(List<SourceConfig> allSources, SabotContext context){
+  public static Stats getSources(List<SourceConfig> allSources, SabotContext context) {
 
-    final Stats resource  = new Stats();
+    final Stats resource = new Stats();
 
     for (SourceConfig sourceConfig : allSources) {
       int pdsCount = -1;
 
       String type = sourceConfig.getType();
 
-      if(type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
+      if (type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
         type = sourceConfig.getLegacySourceTypeEnum().name();
       }
 
-      if("S3".equals(type) && sourceConfig.getName().startsWith("Samples")) {
+      if ("S3".equals(type) && sourceConfig.getName().startsWith("Samples")) {
         type = "SamplesS3";
 
       }
@@ -219,30 +242,51 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Internal Stats
+   * Stats represents the general sources stats for the cluster.
    */
-  static class Stats{
+  static class Stats {
     private List<SourceStats> sources;
     private List<SearchTypes.SearchQuery> vdsQueries;
 
-    public Stats(){
+    public Stats() {
       sources = new ArrayList<>();
-      vdsQueries = new ArrayList<>();
+      vdsQueries = new ArrayList<>
+              ();
     }
 
-    public void addSource(SourceStats source){
+    /**
+     * Adds a new source statistic to the defined list of source stats.
+     *
+     * @param source a SourceStats instance
+     */
+    public void addSource(SourceStats source) {
       sources.add(source);
     }
 
-    public void addVdsQuery(SearchTypes.SearchQuery query){
+    /**
+     * Adds a new SearchQuery instance to the defined list of virtual datasets queries.
+     *
+     * @param query a SearchQuery instance
+     */
+    public void addVdsQuery(SearchTypes.SearchQuery query) {
       vdsQueries.add(query);
     }
 
-    public List<SourceStats> getAllSources(){
+    /**
+     * Gets the list of statistics for each source in the cluster.
+     *
+     * @return the SourceStats instances that exist in the cluster
+     */
+    public List<SourceStats> getAllSources() {
       return sources;
     }
 
-    public List<SearchTypes.SearchQuery> getVdsQueries(){
+    /**
+     * Gets all the defined virtual datasets queries stats.
+     *
+     * @return the list of virtual datasets queries stats
+     */
+    public List<SearchTypes.SearchQuery> getVdsQueries() {
       return vdsQueries;
     }
 
@@ -250,9 +294,10 @@ public class ClusterStatsResource {
 
 
   /**
-   * returns average memory,cores of node type in the cluster
-   * @param endpoints
-   * @return
+   * Gets the general nodes stats such as average memory and available cores for each cluster node.
+   *
+   * @param endpoints the list of node endpoints
+   * @return          the general node stats
    */
   private NodeStats getNodeStats(Collection<CoordinationProtos.NodeEndpoint> endpoints) {
     final int count = endpoints.size();
@@ -263,11 +308,11 @@ public class ClusterStatsResource {
       cores += endpoint.getAvailableCores();
     }
 
-    return new NodeStats(count, count == 0 ? 0 : (mem/count), count == 0 ? 0 : (cores/count));
+    return new NodeStats(count, count == 0 ? 0 : (mem / count), count == 0 ? 0 : (cores / count));
   }
 
   /**
-   * Source Stats
+   * SourceStats represents the stats for a given source.
    */
   public static class SourceStats {
     private final EntityId id;
@@ -294,29 +339,55 @@ public class ClusterStatsResource {
       this.vdsCount = -1;
     }
 
+    /**
+     * Gets the defined source ID.
+     *
+     * @return the defined source ID
+     */
     public String getId() {
       return id.getId();
     }
 
+    /**
+     * Gets the defined source type.
+     *
+     * @return the defined source type
+     */
     public String getType() {
       return type;
     }
 
+    /**
+     * Gets the defined number of physical datasets in the source.
+     *
+     * @return the physical datasets quantity in the source
+     */
     public int getPdsCount() {
       return pdsCount;
     }
 
+    /**
+     * Gets the defined number of virtual datasets in the source.
+     *
+     * @return the number of virtual datasets in the source
+     */
     public int getVdsCount() {
       return vdsCount;
     }
 
+    /**
+     * Sets the defined number of virtual datasets in the source.
+     *
+     * @param vdsCount the defined number of virtual datasets in the source
+     *
+     */
     public void setVdsCount(int vdsCount) {
       this.vdsCount = vdsCount;
     }
   }
 
   /**
-   * Reflection Stats
+   * ReflectionStats represents the data reflection stats in the cluster.
    */
   public static class ReflectionStats {
     private final int activeReflections;
@@ -339,29 +410,54 @@ public class ClusterStatsResource {
       this.incrementalReflectionCount = incrementalReflectionCount;
     }
 
+    /**
+     * Gets the quantity of available reflections in the cluster.
+     *
+     * @return the quantity of available reflections in the cluster
+     */
     public int getActiveReflections() {
       return activeReflections;
     }
 
+    /**
+     * Gets the quantity of unavailable reflections in the cluster.
+     *
+     * @return the quantity of unavailable reflections in the cluster
+     */
     public int getErrorReflections() {
       return errorReflections;
     }
 
+    /**
+     * Gets the reflection's total bytes size in the cluster.
+     *
+     * @return the reflection's total bytes size in the cluster
+     */
     public long getTotalReflectionSizeBytes() {
       return totalReflectionSizeBytes;
     }
 
+    /**
+     * Gets the latest reflection's bytes size in the cluster.
+     *
+     * @return the latest reflection's bytes size in the cluster
+     */
     public long getLatestReflectionsSizeBytes() {
       return latestReflectionsSizeBytes;
     }
 
+    /**
+     * Gets the quantify of incremental reflections in the cluster.
+     *
+     * @return the quantify of incremental reflections in the cluster
+     */
     public int getIncrementalReflectionCount() {
       return incrementalReflectionCount;
     }
   }
 
   /**
-   * Cluster Stats
+   * ClusterStats represents the general cluster stats.
    */
   public static class ClusterStats {
     private List<EndpointStats> coordinators;
@@ -394,65 +490,141 @@ public class ClusterStatsResource {
       this.edition = edition;
     }
 
+    /**
+     * Gets the cluster node coordinators & executors stats.
+     *
+     * @return the cluster node coordinators & executors stats
+     */
     public ClusterNodes getClusterNodes() {
       return nodes;
     }
 
+    /**
+     * Sets the cluster node coordinator & executor stats.
+     *
+     * @param nodes the cluster node coordinator & executor stats
+     */
     public void setClusterNodes(ClusterNodes nodes) {
       this.nodes = nodes;
     }
 
+    /**
+     * Gets the list of stats for each source in the cluster.
+     *
+     * @return the list of stats for each source in the cluster
+     */
     public List<SourceStats> getSources() {
       return sources;
     }
 
+    /**
+     * Sets the list of stats for each source in the cluster.
+     *
+     * @param sources the list of stats for each source in the cluster
+     */
     public void setSources(List<SourceStats> sources) {
       this.sources = sources;
     }
 
+    /**
+     * Gets the list of stats jobs types in the cluster.
+     *
+     * @return the list of stats jobs types in the cluster
+     */
     public List<JobTypeStats> getJobStats() {
       return jobStats;
     }
 
+    /**
+     * Sets the list of stats jobs types in the cluster.
+     *
+     * @param jobStats the list of stats jobs types in the cluster
+     */
     public void setJobStats(List<JobTypeStats> jobStats) {
       this.jobStats = jobStats;
     }
 
+    /**
+     * Gets the data reflection stats in the cluster.
+     *
+     * @return the data reflection stats in the cluster
+     */
     public ReflectionStats getReflectionStats() {
       return reflectionStats;
     }
 
+    /**
+     * Sets the data reflection stats in the cluster.
+     *
+     * @param reflectionStats the data reflection stats in the cluster
+     */
     public void setReflectionStats(ReflectionStats reflectionStats) {
       this.reflectionStats = reflectionStats;
     }
 
+    /**
+     * Gets the cluster stats edition (marketplace, enterprise or community).
+     *
+     * @return the cluster stats edition (marketplace, enterprise or community)
+     */
     public String getEdition() {
       return edition;
     }
 
+    /**
+     * Sets the cluster stats edition (marketplace, enterprise or community).
+     *
+     * @param edition the cluster stats edition (marketplace, enterprise or community)
+     */
     public void setEdition(String edition) {
       this.edition = edition;
     }
 
+    /**
+     * Gets the list of stats for each coordinator node in the cluster.
+     *
+     * @return the list of stats for each coordinator node in the cluster
+     */
     public List<EndpointStats> getCoordinators() {
       return coordinators;
     }
 
+    /**
+     * Sets the list of stats for each coordinator node in the cluster.
+     *
+     * @param coordinators the list of stats for each coordinator node in the cluster
+     */
     public void setCoordinators(List<EndpointStats> coordinators) {
       this.coordinators = coordinators;
     }
 
+    /**
+     * Gets the list of stats for each executor node in the cluster.
+     *
+     * @return the list of stats for each executor node in the cluster
+     */
     public List<EndpointStats> getExecutors() {
       return executors;
     }
 
+    /**
+     * Sets the list of stats for each executor node in the cluster.
+     *
+     * @param executors the list of stats for each executor node in the cluster
+     */
     public void setExecutors(List<EndpointStats> executors) {
       this.executors = executors;
     }
   }
 
+  /**
+   * Creates and processes the general nodes endpoints stats.
+   *
+   * @param endpoints the list of node endpoints
+   * @return          the list of node endpoint stats
+   */
   private List<EndpointStats> processEndPoints(Collection<CoordinationProtos.NodeEndpoint> endpoints) {
-    final List<EndpointStats> result =  endpoints.stream()
+    final List<EndpointStats> result = endpoints.stream()
       .map(endpoint -> {
         return new EndpointStats(endpoint.getAddress(), endpoint.getAvailableCores(), endpoint.getMaxDirectMemory(),
           endpoint.getStartTime());
@@ -463,7 +635,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * Endpoint Stats
+   * EndpointStats represents a node endpoint stats.
    */
   public static final class EndpointStats {
     private final String address;
@@ -484,18 +656,38 @@ public class ClusterStatsResource {
       this.startedAt = startedAt;
     }
 
+    /**
+     * Gets the node endpoint address in the cluster.
+     *
+     * @return the node endpoint address in the cluster
+     */
     public String getAddress() {
       return address;
     }
 
+    /**
+     * Gets the node endpoint available cores in the cluster.
+     *
+     * @return the node endpoint available cores in the cluster
+     */
     public int getAvailableCores() {
       return availableCores;
     }
 
+    /**
+     * Gets the maximum direct memory bytes in the cluster.
+     *
+     * @return the maximum direct memory bytes in the cluster
+     */
     public long getMaxDirectMemoryBytes() {
       return maxDirectMemoryBytes;
     }
 
+    /**
+     * Gets the node endpoint start time.
+     *
+     * @return the node endpoint start time
+     */
     public long getStartedAt() {
       return startedAt;
     }
@@ -512,7 +704,7 @@ public class ClusterStatsResource {
   }
 
   /**
-   * container of co-ordinator & executor stats
+   * ClusterNodes represents the general coordinator & executor stats.
    */
   public static class ClusterNodes {
     private NodeStats coordinator;
@@ -529,25 +721,45 @@ public class ClusterStatsResource {
       this.executor = executor;
     }
 
+
+    /**
+     * Gets the coordinator nodes in the cluster.
+     *
+     * @return the coordinator nodes in the cluster
+     */
     public NodeStats getCoordinator() {
       return coordinator;
     }
 
+
+    /** Sets the coordinator nodes in the cluster.
+     *
+     * @param coordinator the coordinator to be set
+     */
     public void setCoordinator(NodeStats coordinator) {
       this.coordinator = coordinator;
     }
 
+
+    /** Gets the executor nodes in the cluster.
+     *
+     * @return the executor nodes in the cluster
+     */
     public NodeStats getExecutor() {
       return executor;
     }
 
+    /** Sets the executor nodes in the cluster.
+     *
+     * @param executor the executor to be set
+     */
     public void setExecutor(NodeStats executor) {
       this.executor = executor;
     }
   }
 
   /**
-   * container of resources for a node (coordinator , executor)
+   * NodeStats represents the general node statistics.
    */
   public static class NodeStats {
     private int count;
@@ -564,14 +776,29 @@ public class ClusterStatsResource {
       this.cpu = cpu;
     }
 
+    /**
+     * Gets the total number of NodeEndpoints in the cluster.
+     *
+     * @return the total number of NodeEndpoints in the cluster
+     */
     public int getCount() {
       return count;
     }
 
+    /**
+     * Gets the average of maximum memory direct for each NodeEndpoint in the cluster.
+     *
+     * @return the average of maximum memory direct for each NodeEndpoint in the cluster
+     */
     public long getMem() {
       return mem;
     }
 
+    /**
+     * Gets the average of available cpu cores for each NodeEndpoint.
+     *
+     * @return the average of available cpu cores for each NodeEndpoint
+     */
     public int getCpu() {
       return cpu;
     }

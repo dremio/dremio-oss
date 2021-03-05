@@ -21,14 +21,14 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 
 /**
- * Simple date conversion tasks
+ * DateUtils is responsible for provide useful methods for date conversion tasks.
  */
 public class DateUtils {
 
   /**
-   * Returns Epoch time value for start of last month.
-   * Example if today is 25 March 2020, This will return time equivalent of 01 Feb 2020 00:00:00
-   * @return
+   * Gets the date value of last month's start in milliseconds.
+   *
+   * @return the date value of last month's start in milliseconds
    */
   public static long getStartOfLastMonth() {
     LocalDate now = LocalDate.now();
@@ -38,10 +38,12 @@ public class DateUtils {
   }
 
   /**
-   * Calculates the date of the start of the week. Sunday represents the start of the week.
+   * Gets the date of the week's start based on the current weekday.
+   * <p>
+   * Sunday represents the start of the week.
    *
-   * @param dateWithinWeek
-   * @return
+   * @param dateWithinWeek the current weekday's date
+   * @return               the date of the week's start based on the current weekday
    */
   public static LocalDate getLastSundayDate(final LocalDate dateWithinWeek) {
     int dayOfWeek = dateWithinWeek.getDayOfWeek().getValue();
@@ -50,10 +52,10 @@ public class DateUtils {
   }
 
   /**
-   * Return the starting date of the month
+   * Gets the date of the month's start based on the month's current day.
    *
-   * @param dateWithinMonth
-   * @return
+   * @param dateWithinMonth the month's current day
+   * @return                the date of the month's start based on the month's current day
    */
   public static LocalDate getMonthStartDate(final LocalDate dateWithinMonth) {
     int dayOfMonth = dateWithinMonth.getDayOfMonth();
@@ -61,10 +63,10 @@ public class DateUtils {
   }
 
   /**
-   * Returns the UTC converted LocalDate from the epoch milliseconds
+   * Gets the UTC converted LocalDate using milliseconds passed as parameters from 1970-01-01T00:00:00Z.
    *
-   * @param epochMillis
-   * @return
+   * @param epochMillis the number of milliseconds from 1970-01-01T00:00:00Z
+   * @return            the UTC converted LocalDate using milliseconds passed as parameters from 1970-01-01T00:00:00Z
    */
   public static LocalDate fromEpochMillis(final long epochMillis) {
     return Instant.ofEpochMilli(epochMillis).atZone(ZoneOffset.UTC).toLocalDate();

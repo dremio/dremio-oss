@@ -57,13 +57,21 @@ public interface SupportService extends Service {
   String CLUSTER_IDENTITY = "clusterIdentity";
   String DREMIO_EDITION = "dremioEdition";
 
+  /**
+   * Acquires the current cluster identity.
+   * <p>
+   * The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @return the acquired cluster ID
+   */
   ClusterIdentity getClusterId();
 
   /**
    * Retrieve a config store entry
    *
-   * @param key
-   * @return config entry.
+   * @param key a key associated with the configuration value
+   * @return    the configuration value associated with the given key
    */
   ConfigurationEntry getConfigurationEntry(String key);
 

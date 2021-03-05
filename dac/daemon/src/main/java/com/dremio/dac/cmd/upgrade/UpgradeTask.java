@@ -35,12 +35,23 @@ public abstract class UpgradeTask {
   private final String description;
   private final List<String> dependencies = Lists.newArrayList(); // list of UUID of the tasks this one depends on
 
+  /**
+   * Constructs an implemented UpgradeTask object.
+   *
+   * @param description  the upgrade task description
+   * @param dependencies the dependencies of this task
+   */
   protected UpgradeTask(String description, List<String> dependencies) {
     this.description = Preconditions.checkNotNull(description);
     this.taskName = getClass().getSimpleName();
     this.dependencies.addAll(dependencies);
   }
 
+  /**
+   * Gets the upgrade task description.
+   *
+   * @return the upgrade task description
+   */
   public String getDescription() {
     return description;
   }
@@ -55,14 +66,35 @@ public abstract class UpgradeTask {
     return dependencies;
   }
 
+  /**
+   * Gets the upgrade task name.
+   *
+   * @return the upgrade task name
+   */
   String getTaskName() {
     return taskName;
   }
 
+  /**
+   * Gets the upgrade task UUID.
+   *
+   * @return the UUID from the current task
+   */
   public abstract String getTaskUUID();
 
+  /**
+   * Executes an upgrade task.
+   *
+   * @param context an instance that contains the stores required by the current upgrade task
+   * @throws Exception If any exception or errors occurs
+   */
   public abstract void upgrade(UpgradeContext context) throws Exception;
 
+  /**
+   * Gets a string representation of the current task description.
+   *
+   * @return the task description represented by a string format
+   */
   @Override
   public String toString() {
     return String.format("'%s'", description);

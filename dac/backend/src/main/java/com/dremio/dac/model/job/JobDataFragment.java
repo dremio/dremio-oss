@@ -26,84 +26,113 @@ import com.dremio.service.job.proto.JobId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
- * Holds job results. Could be partial or complete job results.
+ * JobDataFragment holds a given job results fragments.
  */
 public interface JobDataFragment extends AutoCloseable {
 
   /**
-   * Approximate maximum getReturnedRowCount of the JSON serialized value of a cell.
+   * Defines the system property key for the maximum size in bytes for a given JSON serialized value of a cell.
    */
   String MAX_CELL_SIZE_KEY = "cellSizeLimit";
 
   /**
-   * Get the {@link JobId} of job that produced the results in this object.
-   * @return
+   * Gets the job related {@link JobId} that produced the results in this object.
+   *
+   * @return the job identifier related to the produced results
    */
   @JsonIgnore
   JobId getJobId();
 
   /**
-   * Get the list of columns in job results.
-   * @return
+   * Gets the list of {@link Column} objects considered in this job fragment results.
+   *
+   * @return the list of columns considered in this job fragment results
+   * @see Column
    */
   List<Column> getColumns();
 
   /**
-   * Get the number of records.
-   * @return
+   * Gets the number of returned rows in this job fragment results.
+   *
+   * @return the number of returned rows in this job fragment results
    */
   int getReturnedRowCount();
 
   /**
-   * Get metadata of column with given name.
-   * @param name
-   * @return
+   * Gets the {@link Column} object containing all its metadata based on a given column name.
+   *
+   * @param name a column name
+   * @return     a {@link Column} object containing all its metadata
+   * @see Column
    */
   @JsonIgnore
   Column getColumn(String name);
 
   /**
-   * Grab a value from the dataset out of the provided column in the given row index.
-   * For complex types, they will be serialized into their JSON representation.
+   * Retrieves the specific string column value for a given row in this job result fragment,
+   * based on the defined column name.
+   * <p>
+   * For complex types such as Date, Time and Datetime, the column string value will be serialized
+   * into their JSON representation format {@link JobDataFragmentWrapper#extractString(String, int)}.
    *
-   * @param column - name of column
-   * @param index - row index in dataset
-   * @return - value contained in this cell of the dataset, note this can be null
+   * @param column a column name
+   * @param index  a row index in the job fragment result
+   * @return       the specific string value for a given column contained in a defined row.
+   *               Notice that this value can be null
+   * @see JobDataFragmentWrapper#extractString(String, int)
    */
   @JsonIgnore
   String extractString(String column, int index);
 
   /**
-   * Grab a value from the dataset out of the provided column in the given row index.
+   * Retrieves the specific column Object value for a given row in this job result fragment,
+   * based on the defined column name.
    *
-   * @param column - name of column
-   * @param index - row index in dataset
-   * @return - value contained in this cell of the dataset, note this can be null
+   * @param column a column name
+   * @param index  a row index in the job fragment result
+   * @return       the specific Object value for a given column contained in a defined row.
+   *               Notice that this value can be null
+   * @see JobDataFragmentWrapper#extractValue(String, int)
    */
   @JsonIgnore
   Object extractValue(String column, int index);
 
+  /**
+   * Retrieves the specific column type based on the defined column name.
+   * <p>
+   * Notice that the defined row index will be useful only if the defined column
+   * type identified on the column metadata is MIXED. If so, the index will be used to find
+   * the related row record batch data where the column type will be able to be extracted.
+   *
+   * @param column a column name
+   * @param index  a row index in the job fragment result
+   * @return       the specific column data type
+   * @see JobDataFragmentWrapper#extractType(String, int)
+   * @see DataType
+   */
   @JsonIgnore
   DataType extractType(String column, int index);
 
   /**
-   * Returns the arrow fields.
+   * Gets the list of arrow schema fields held in this job fragment results.
    *
-   * @return - list of arrow fields
+   * @return the list of arrow schema fields held in this job fragment results.
+   * @see Field
    */
   @JsonIgnore
   List<Field> getFields();
 
   /**
-   * Returns the record batches.
+   * Gets the list of record batches holders held in this job fragment results.
    *
-   * @return = list of record batches.
+   * @return the list of record batches holders held in this job fragment results.
+   * @see RecordBatchHolder
    */
   @JsonIgnore
   List<RecordBatchHolder> getRecordBatches();
 
   /**
-   * Close this JobDataFragment
+   * Closes and releases all resources held by this JobDataFragment object.
    */
   @Override
   void close();

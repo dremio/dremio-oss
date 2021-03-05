@@ -67,8 +67,14 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
   private final Provider<SabotContext> sabotContextProvider;
   private final Provider<SupportService> supportServiceProvider;
 
+  /**
+   * Constructs a CoordinatorLogService object.
+   *
+   * @param sabotContextProvider   the SabotContextProvider instance that contains all the metadata required by Sabot engine
+   * @param supportServiceProvider the object that provides cluster identity and upload data to Dremio
+   */
   public CoordinatorLogService(Provider<SabotContext> sabotContextProvider,
-                               Provider<SupportService> supportServiceProvider) {
+    Provider<SupportService> supportServiceProvider) {
     this.sabotContextProvider = sabotContextProvider;
     this.supportServiceProvider = supportServiceProvider;
   }
@@ -100,6 +106,17 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     responseObserver.onCompleted();
   }
 
+  /**
+   * Gets server logs from the Dremio files on logs directory filtering by left and right bounds date.
+   * <p>
+   * Gets all the server gzip log filtering by the date. Then, sort the files by time and write each file
+   * to response observer.
+   *
+   * @param dremioLogPath    the Dremio logs directory path
+   * @param responseObserver the observable log of Dremio files
+   * @param start            the left bound date in milliseconds
+   * @param end              the right bound date in milliseconds
+   */
   private void getServerLog(Path dremioLogPath, StreamObserver<Chunk> responseObserver, long start, long end) {
     // obtain all needed server gzip log in archive/
     final File[] allArchiveServerLogFiles = dremioLogPath.resolve("archive").toFile().listFiles(
@@ -119,6 +136,17 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     }
   }
 
+  /**
+   * Gets queries logs from the Dremio files on logs directory filtering by left and right bounds date.
+   * <p>
+   * Gets all the queries gzip log filtering by the date. Then, sort the files by time and write each file
+   * to response observer. If the query ran today, compress server logs first then send to response.
+   *
+   * @param dremioLogPath    the Dremio logs directory path
+   * @param responseObserver the observable log of Dremio files
+   * @param start            the left bound date in milliseconds
+   * @param end              the right bound date in milliseconds
+   */
   private void getQueriesLog(Path dremioLogPath, StreamObserver<Chunk> responseObserver, long start, long end) {
     // obtain all need query gzip log in archive/
     final File[] allArchiveQueriesLogFiles = dremioLogPath.resolve("archive").toFile().listFiles(
@@ -139,6 +167,14 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
 
   }
 
+  /**
+   * Gets Garbage Collector logs from the Dremio files on logs directory filtering by left and right bounds date and compress.
+   *
+   * @param inputDir         the Dremio logs directory path
+   * @param responseObserver the observable log of Dremio files
+   * @param start            the left bound date in milliseconds
+   * @param end              the right bound date in milliseconds
+   */
   private void getGCLog(Path inputDir, StreamObserver<Chunk> responseObserver, long start, long end) {
 
     final Path tempSupportDir = Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
@@ -160,22 +196,28 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     }
   }
 
+  /**
+   * Compress and send the entire server out logs to response observer.
+   *
+   * @param dremioLogPath    the Dremio logs directory path
+   * @param responseObserver the observable log of Dremio files
+   */
   private void getServerOut(Path dremioLogPath, StreamObserver<Chunk> responseObserver) {
     // write the entire server out to response
     compressAPlainTextToResponseObserver(dremioLogPath, "server.out", responseObserver);
   }
 
   /**
-   * Scan a file and select lines for the day(s) that overlap with [startLong, endLong].
-   * Write the content to gzipFile
-   * @param files a list of files in order
-   * @param gzipFile
-   * @param startLong
-   * @param endLong
+   * Selects lines of a file for the days that overlap with left and right bound date intervals and writes the content to a gzipFile.
+   *
+   * @param files     a list of files
+   * @param gzipFile  the gzip file to write the content
+   * @param startLong the left bound date
+   * @param endLong   the right bound date
    */
   static void filterFilesContentByDayAndCompress(File[] files,
-                                                  File gzipFile,
-                                                  long startLong, long endLong) {
+    File gzipFile,
+    long startLong, long endLong) {
 
     final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     final LocalDate start = new DateTime(startLong).toLocalDate();
@@ -226,6 +268,14 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     }
   }
 
+  /**
+   *  Compresses a file from a plain text file path to a gzip file.
+   *
+   * @param plainFilePath   the file path from the text to be compressed
+   * @param outDir          the directory of the compressed file
+   * @param outputFilename  the file name of the compressed file
+   * @return                a gzip file compressed
+   */
   static File compressAPlainText(Path plainFilePath, Path outDir, String outputFilename) {
 
     Path outputGzipPath = outDir.resolve(outputFilename);
@@ -244,6 +294,12 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     return outputGzipPath.toFile();
   }
 
+  /**
+   * Writes a log file in a given observer.
+   *
+   * @param file              the file log to be written
+   * @param responseObserver  the observable log of Dremio files
+   */
   private static void writeAFileToResponseObserver(File file, StreamObserver<Chunk> responseObserver) {
     try (BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(file))) {
 
@@ -261,8 +317,15 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
     }
   }
 
+  /**
+   * Compresses a file from a plain text file path to a given observer.
+   *
+   * @param inputDir         the text directory path to be compressed
+   * @param inputFileName    the text file name to be compressed
+   * @param responseObserver the observer to receive the compressed file
+   */
   private void compressAPlainTextToResponseObserver(Path inputDir, String inputFileName,
-                                                    StreamObserver<Chunk> responseObserver) {
+    StreamObserver<Chunk> responseObserver) {
 
     final Path tempSupportDir = Paths.get(sabotContextProvider.get().getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
     final Path inputLogPath = inputDir.resolve(inputFileName);
@@ -277,6 +340,13 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
 
   }
 
+  /**
+   * Copies a file InputStream content to an OutputStream object.
+   *
+   * @param input  the input file to be transformed
+   * @param output the OutputStream object
+   * @throws IOException If any exceptions or errors occurs
+   */
   private static void copyFromInputStreamToOutStream(InputStream input, OutputStream output) throws IOException {
     byte[] buf = new byte[BUFFER_SIZE];
     int len;

@@ -149,17 +149,17 @@ public class BasicSupportService implements SupportService {
   private SendEndpointCreator<ClusterIdentityRequest, ClusterIdentityResponse> getClusterIdentityEndpointCreator; // used on server and client side
 
   public BasicSupportService(
-      DACConfig config,
-      Provider<LegacyKVStoreProvider> kvStoreProvider,
-      Provider<JobsService> jobsService,
-      Provider<UserService> userService,
-      Provider<ClusterCoordinator> clusterCoordinatorProvider,
-      Provider<OptionManager> optionManagerProvider,
-      Provider<NamespaceService> namespaceServiceProvider,
-      Provider<CatalogService> catalogServiceProvider,
-      Provider<FabricService> fabricServiceProvider,
-      BufferAllocator allocator
-      ) {
+    DACConfig config,
+    Provider<LegacyKVStoreProvider> kvStoreProvider,
+    Provider<JobsService> jobsService,
+    Provider<UserService> userService,
+    Provider<ClusterCoordinator> clusterCoordinatorProvider,
+    Provider<OptionManager> optionManagerProvider,
+    Provider<NamespaceService> namespaceServiceProvider,
+    Provider<CatalogService> catalogServiceProvider,
+    Provider<FabricService> fabricServiceProvider,
+    BufferAllocator allocator
+  ) {
     this.kvStoreProvider = kvStoreProvider;
     this.jobsService = jobsService;
     this.userService = userService;
@@ -172,16 +172,24 @@ public class BasicSupportService implements SupportService {
     this.config = config;
   }
 
+  /**
+   * Acquires the current cluster identity.
+   * <p>
+   * The cluster identity is used to identify that a executor node and a
+   * master node are at the same cluster.
+   *
+   * @return the acquired cluster ID.
+   */
   @Override
-  public ClusterIdentity getClusterId(){
+  public ClusterIdentity getClusterId() {
     return identity;
   }
 
   /**
-   * Retrieve a config store entry
+   * Gets a configuration entry.
    *
-   * @param key
-   * @return
+   * @param key a key associated with the configuration value
+   * @return    the configuration value associated with the given key
    */
   @Override
   public ConfigurationEntry getConfigurationEntry(String key) {
@@ -189,10 +197,10 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Sets a config store entry
+   * Sets a configuration entry.
    *
-   * @param key
-   * @param entry
+   * @param key   a key associated with the configuration entry
+   * @param entry the configuration entry to be set
    */
   @Override
   public void setConfigurationEntry(String key, ConfigurationEntry entry) {
@@ -200,7 +208,7 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * Store DremioEdition in Configuration Store
+   * Stores the current DremioEdition (Marketplace, Enterprise or Community) in the Configuration Store.
    */
   protected void storeDremioEdition() {
     try {
@@ -214,25 +222,32 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * tries to store identity in the KVStore, in case another server already stored it, retrieves the stored identity
-   * @param identity identity we want to store
-   * @return identity stored in the KVStore
+   * Registers a cluster identity in the current Configuration KVStore.
+   * <p>
+   * The cluster identity is used to identify that a executor node
+   * and a master node are at the same cluster.
+   * <p>
+   * In case another server already have stored it, retrieves the stored identity.
+   *
+   * @param identity the cluster identity to be stored
+   * @return         the cluster identity stored in the Configuration KVStore
+   * @throws IllegalStateException If failed to retrieve or create the cluster identity
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
     storeDremioEdition();
-    try{
+    try {
       ConfigurationEntry entry = new ConfigurationEntry();
       entry.setType(CLUSTER_IDENTITY);
       entry.setValue(convertClusterIdentityToByteString(identity));
 
       store.put(CLUSTER_ID, entry);
       logger.info("New Cluster Identifier Generated: {}", identity.getIdentity());
-    } catch(ConcurrentModificationException ex) {
+    } catch (ConcurrentModificationException ex) {
       // someone else inserted the new cluster identifier before we were able to.
       ConfigurationEntry entry = store.get(CLUSTER_ID);
       ProtostuffIOUtil.mergeFrom(entry.getValue().toByteArray(), identity, ClusterIdentity.getSchema());
 
-      if(identity == null){
+      if (identity == null) {
         throw new IllegalStateException("Failed to retrieve or create cluster identity but identity is also not available.", ex);
       }
     }
@@ -240,6 +255,16 @@ public class BasicSupportService implements SupportService {
     return identity;
   }
 
+  /**
+   * Acquires the current cluster identity by a RPC request.
+   * <p> 
+   * The RPC request returns all the metadata necessary
+   * to build the cluster identity, such as its version and ID itself.
+   *
+   * @return the acquired cluster ID
+   * @throws RpcException If it was unable to fetch the cluster identity by the RPC request
+   * @throws Exception    If any other exception occurs
+   */
   private ClusterIdentity getClusterIdentityFromRPC() throws Exception {
     final ClusterIdentityRequest.Builder requestBuilder = ClusterIdentityRequest.newBuilder();
     final ClusterIdentityResponse response;
@@ -286,11 +311,30 @@ public class BasicSupportService implements SupportService {
     return id;
   }
 
+  /**
+   * Acquires the current cluster identity from a given KVStore.
+   * <p> 
+   * The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param provider the KVStore to acquire the cluster identity
+   * @return         the cluster identity, or null if it failed to get the cluster ID
+   */
   public static Optional<ClusterIdentity> getClusterIdentity(LegacyKVStoreProvider provider) {
     ConfigurationStore store = new ConfigurationStore(provider);
     return getClusterIdentityFromStore(store, provider);
   }
 
+  /**
+   * Acquires the current cluster identity from a given Configuration Store.
+   * <p> 
+   * The cluster identity is used to identify
+   * that a executor node and a master node are at the same cluster.
+   *
+   * @param store    the configuration store to get the identity
+   * @param provider a KVStore that provided the configuration store
+   * @return         the cluster identity acquired
+   */
   private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
 
@@ -309,6 +353,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Migrates an old support store cluster identity to the new store.
+   *
+   * @param provider a key-value store provider to be migrated
+   * @return         the migrated cluster identity
+   */
   private static Optional<ClusterIdentity> upgradeToNewSupportStore(LegacyKVStoreProvider provider) {
     final LegacyKVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
     ClusterIdentity clusterIdentity = oldSupportStore.get(CLUSTER_ID);
@@ -361,6 +411,12 @@ public class BasicSupportService implements SupportService {
     }
   }
 
+  /**
+   * Updates a cluster identity's configuration entry.
+   *
+   * @param provider the KVStore to acquire the identity's support store
+   * @param identity the cluster identity to be updated
+   */
   public static void updateClusterIdentity(LegacyKVStoreProvider provider, ClusterIdentity identity) {
     final LegacyKVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
 
@@ -376,12 +432,27 @@ public class BasicSupportService implements SupportService {
     supportStore.put(CLUSTER_ID, entry);
   }
 
+  /**
+   * Converts a cluster identity object to a ByteString object.
+   * <p> 
+   * The ByteString will be used to register
+   * the value of a configuration entry.
+   *
+   * @param identity the cluster identity to be converted
+   * @return         the cluster identity in ByteString format
+   */
   private static ByteString convertClusterIdentityToByteString(ClusterIdentity identity) {
     final LinkedBuffer buffer = LinkedBuffer.allocate();
     byte[] bytes = ProtostuffIOUtil.toByteArray(identity, ClusterIdentity.getSchema(), buffer);
     return ByteString.copyFrom(bytes);
   }
 
+  /**
+   * Registers a endpoint to retrieve the cluster identities.
+   * <p> 
+   * Used by {@link BasicSupportService#getClusterIdentityFromRPC}
+   * to get the cluster's identity.
+   */
   private void registerClusterIdentityEndpoint() {
 
     final ProtocolBuilder builder = ProtocolBuilder.builder()
@@ -392,7 +463,7 @@ public class BasicSupportService implements SupportService {
 
     this.getClusterIdentityEndpointCreator = builder.register(TYPE_SUPPORT_CLUSTERID,
       new AbstractReceiveHandler<ClusterIdentityRequest, ClusterIdentityResponse>(
-          ClusterIdentityRequest.getDefaultInstance(), ClusterIdentityResponse.getDefaultInstance()) {
+        ClusterIdentityRequest.getDefaultInstance(), ClusterIdentityResponse.getDefaultInstance()) {
         @Override
         public SentResponseMessage<ClusterIdentityResponse> handle(ClusterIdentityRequest getIdRequest, ArrowBuf dBody) {
 
@@ -423,6 +494,12 @@ public class BasicSupportService implements SupportService {
     builder.register(fabricServiceProvider.get());
   }
 
+  /**
+   * Starts a support service's metadata. Define the cluster identity and its requirements, such and its RPC endpoint
+   * and a support file path.
+   *
+   * @throws Exception If any exception occurs while trying to get the cluster identity from its RPC endpoint
+   */
   @Override
   public void start() throws Exception {
     registerClusterIdentityEndpoint();
@@ -455,9 +532,21 @@ public class BasicSupportService implements SupportService {
     supportPath = new File(supportPathURI).toPath();
   }
 
+  /**
+   * Downloads a support request as a zip file.
+   * <p> 
+   * The support request file will contain the request's metadata,
+   * such as its submission ID and a summary of the Job executed.
+   *
+   * @param request the request to have its metadata downloaded
+   * @return        an object with the downloaded file's metadata
+   * @throws UserNotFoundException If it couldn't find the user's profile
+   * @throws IOException           If any exception occurs while trying to create the downloaded file
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   @Override
   public DownloadDataResponse downloadSupportRequest(SupportRequest request)
-      throws UserNotFoundException, IOException, JobNotFoundException {
+    throws UserNotFoundException, IOException, JobNotFoundException {
     Pointer<User> config = new Pointer<>();
     Pointer<Boolean> outIncludesLogs = new Pointer<>();
     Pointer<String> outSubmissionId = new Pointer<>();
@@ -466,20 +555,21 @@ public class BasicSupportService implements SupportService {
     return new DownloadDataResponse(Files.newInputStream(path), outSubmissionId.value + ".zip", size);
   }
 
-  public OptionManager getOptions(){
+  public OptionManager getOptions() {
     return optionManagerProvider.get();
   }
 
   /**
-   * Build a support zip file and upload it to s3.
-   * @param userId
-   * @param jobId
-   * @return
-   * @throws IOException
-   * @throws UserNotFoundException
+   * Builds a support zip file and upload it to s3.
+   *
+   * @param userId the user ID that requested support
+   * @param jobId  the Job ID executed by the support request
+   * @return       the built support response
+   * @throws IOException           If any exception occurs while building the zip file
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
    */
   @Override
-  public SupportResponse uploadSupportRequest(String userId, JobId jobId) throws UserNotFoundException {
+  public SupportResponse uploadSupportRequest(String userId, JobId jobId) throws UserNotFoundException, IOException {
 
     Pointer<User> outUserConfig = new Pointer<>();
     Pointer<Boolean> outIncludesLogs = new Pointer<>(false);
@@ -507,8 +597,8 @@ public class BasicSupportService implements SupportService {
         } else {
           final Client client = ClientBuilder.newClient();
           target = client.target(getOptions().getOption(SUPPORT_UPLOAD_BASE))
-              .path(this.getClusterId().getIdentity())
-              .path(submissionId + ".zip");
+            .path(this.getClusterId().getIdentity())
+            .path(submissionId + ".zip");
 
           response = target.request().put(Entity.entity(new FileInputStream(path.toString()), MediaType.ZIP.toString()));
 
@@ -519,19 +609,31 @@ public class BasicSupportService implements SupportService {
             return new SupportResponse(false, false, "Unable to upload diagnostics, available locally at: " + path.toString());
           }
         }
-      }catch(Exception ex){
+      } catch (Exception ex) {
         logger.error("Failure while uploading file.", ex);
         return new SupportResponse(false, false, "Unable to upload diagnostics, available locally at: " + path.toString());
       }
-    } catch (Exception ex){
+    } catch (Exception ex) {
       logger.error("Failure while generating support submission.", ex);
     }
     return new SupportResponse(false, false, null);
   }
 
+  /**
+   * Generates a support request output zip file.
+   *
+   * @param request         the support request executed
+   * @param outIncludesLogs a flag with indicates if the output file should include the job logs
+   * @param outUserConfig   an object with the user's metadata
+   * @param outSubmissionId an object to hold the support request submission ID
+   * @return                an object that hold the output file path
+   * @throws IOException           If any exception occurs while building the zip file
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   private Path generateSupportRequest(SupportRequest request, Pointer<Boolean> outIncludesLogs,
                                       Pointer<User> outUserConfig, Pointer<String> outSubmissionId)
-      throws IOException, UserNotFoundException, JobNotFoundException {
+    throws IOException, UserNotFoundException, JobNotFoundException {
     final String submissionId = UUID.randomUUID().toString();
     outSubmissionId.value = submissionId;
 
@@ -541,18 +643,18 @@ public class BasicSupportService implements SupportService {
     User config = outUserConfig.value;
 
     // inner try to close file once written.
-    try(
-        FileOutputStream fos = new FileOutputStream(path.toFile());
-        BufferedOutputStream dest = new BufferedOutputStream(fos);
-        ZipOutputStream zip = new ZipOutputStream(dest);
-        ) {
+    try (
+      FileOutputStream fos = new FileOutputStream(path.toFile());
+      BufferedOutputStream dest = new BufferedOutputStream(fos);
+      ZipOutputStream zip = new ZipOutputStream(dest);
+    ) {
 
       zip.putNextEntry(new ZipEntry("header.json"));
       recordHeader(zip, request, config, submissionId);
 
       final JobSummary jobSummary = getJobSummary(request, config);
 
-      for(int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts() ; attemptIndex++) {
+      for (int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts(); attemptIndex++) {
         zip.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attemptIndex)));
         QueryProfile profile = recordProfile(zip, request, attemptIndex);
 
@@ -574,6 +676,14 @@ public class BasicSupportService implements SupportService {
     return path;
   }
 
+  /**
+   * Acquires a summary of a job execution, such as the maximum number of attempts to execute it.
+   *
+   * @param supportRequest the support request that generated the job
+   * @param config         an object with the user that requested support metadata, such as its name
+   * @return               an object with the founded job execution summary
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected JobSummary getJobSummary(SupportRequest supportRequest, User config) throws JobNotFoundException {
     final JobSummaryRequest request = JobSummaryRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
@@ -582,6 +692,14 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobSummary(request);
   }
 
+  /**
+   * Acquires the details of a job execution, such as the results of the attempts to execute it.
+   *
+   * @param supportRequest the support request that generated the job
+   * @param user           an object with the user that requested support metadata, such as its name
+   * @return               an object with the founded job execution details
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected JobDetails getJobDetails(SupportRequest supportRequest, User user) throws JobNotFoundException {
     final JobDetailsRequest request = JobDetailsRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
@@ -591,8 +709,20 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getJobDetails(request);
   }
 
+  /**
+   * Registers a support request's header in a zip file.
+   *
+   * @param output         an output stream where the header will be written
+   * @param supportRequest an object with the support request's metadata
+   * @param user           an object with the user that requested support metadata, such as its name and UUID
+   * @param submissionId   an identify for the support request
+   * @return               a flag which indicates if the header was successfully registered
+   * @throws UserNotFoundException If it couldn't find the user profile that requested support
+   * @throws IOException           If any exception occurs while writing the header at the output stream
+   * @throws JobNotFoundException  If it couldn't find the Job for the request
+   */
   private boolean recordHeader(OutputStream output, SupportRequest supportRequest, User user, String submissionId)
-      throws UserNotFoundException, IOException, JobNotFoundException {
+    throws UserNotFoundException, IOException, JobNotFoundException {
 
     SupportHeader header = new SupportHeader();
 
@@ -601,11 +731,11 @@ public class BasicSupportService implements SupportService {
     header.setJob(JobsProtoUtil.getLastAttempt(getJobDetails(supportRequest, user)));
 
     Submission submission = new Submission()
-        .setSubmissionId(submissionId)
-        .setDate(System.currentTimeMillis())
-        .setEmail(user.getEmail())
-        .setFirst(user.getFirstName())
-        .setLast(user.getLastName());
+      .setSubmissionId(submissionId)
+      .setDate(System.currentTimeMillis())
+      .setEmail(user.getEmail())
+      .setFirst(user.getFirstName())
+      .setLast(user.getLastName());
 
     header.setSubmission(submission);
 
@@ -616,6 +746,14 @@ public class BasicSupportService implements SupportService {
     return true;
   }
 
+  /**
+   * Acquires a support request query profile.
+   *
+   * @param supportRequest the profile's support request
+   * @param attempt        the number of attempts that was already tried to execute the current job
+   * @return               an object with the query profile's metadata
+   * @throws JobNotFoundException If it couldn't find the Job for the request
+   */
   protected QueryProfile getProfile(SupportRequest supportRequest, int attempt) throws JobNotFoundException {
     QueryProfileRequest request = QueryProfileRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(supportRequest.getJobId()))
@@ -625,12 +763,35 @@ public class BasicSupportService implements SupportService {
     return jobsService.get().getProfile(request);
   }
 
+  /**
+   * Retrieves a profile based on a support request and writes it as JSON to a file.
+   *
+   * @param out            a connection to the zip file where the JSON file will be written
+   * @param supportRequest the support request containing the User ID and Job ID
+   * @param attempt        the number of performed attempts to retrieve the support request profile
+   * @return               the retrieved support request profile
+   * @throws IOException          If an error occurs during serialization
+   * @throws JobNotFoundException If it doesn't find the job related to the support request
+   */
   private QueryProfile recordProfile(OutputStream out, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
     QueryProfile profile = getProfile(supportRequest, attempt);
     ProtobufUtils.writeAsJSONTo(out, profile);
     return profile;
   }
 
+  /**
+   * Retrieves a profile based on a support request and writes it as JSON to a file.
+   * <p> 
+   * It uses a Job ID generated based on the query ID.
+   *
+   * @param out            a connection to the zip file where the JSON file will be written
+   * @param supportRequest the support request containing the User ID and Job ID
+   * @param attempt        the number of performed attempts to retrieve the support request profile
+   * @param id             the Job ID generated for the support request based on the query ID
+   * @return               the retrieved support request profile
+   * @throws IOException          If an error occurs during serialization
+   * @throws JobNotFoundException If it doesn't find the job related to the support request
+   */
   private QueryProfile recordProfile(OutputStream out, JobId id, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
     QueryProfileRequest request = QueryProfileRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(id))
@@ -642,8 +803,19 @@ public class BasicSupportService implements SupportService {
     return profile;
   }
 
+  /**
+   * Creates a log file containing the information of a failed query.
+   *
+   * @param output       a connection to the zip file where the JSON file containing the log information will be written
+   * @param userId       the User ID from the support request
+   * @param start        the time when the query processing started
+   * @param end          the time when the query processing ended
+   * @param id           the Job ID from the support request
+   * @param submissionId the Submission ID from the support request
+   * @return             returns a flag indicating if the log was successfully recorded
+   */
   private boolean recordLog(OutputStream output, String userId, long start, long end, JobId id, String submissionId) {
-    try{
+    try {
       final String startTime = JodaDateUtility.formatTimeStampMilli.print(start - PRE_TIME_BUFFER_MS);
       final String endTime = JodaDateUtility.formatTimeStampMilli.print(end + POST_TIME_BUFFER_MS);
 
@@ -681,33 +853,41 @@ public class BasicSupportService implements SupportService {
 
   }
 
-  private ClusterInfo getClusterInfo(){
+  /**
+   * Retrieves a cluster information such as its identity, version, sources list, nodes list and edition.
+   * <p> 
+   * Used when recording a support request header to save the cluster current
+   * state along with other header information.
+   *
+   * @return a cluster information object containing the cluster metadata (e.g. version, identity)
+   */
+  private ClusterInfo getClusterInfo() {
     SoftwareVersion version = new SoftwareVersion().setVersion(DremioVersionInfo.getVersion());
 
     List<Source> sources = new ArrayList<>();
     final NamespaceService ns = namespaceServiceProvider.get();
-    for(SourceConfig source : ns.getSources()){
+    for (SourceConfig source : ns.getSources()) {
       String type = source.getType() == null ? source.getLegacySourceTypeEnum().name() : source.getType();
       sources.add(new Source().setName(source.getName()).setType(type));
     }
     List<Node> nodes = new ArrayList<>();
-    for(NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.EXECUTOR).getAvailableEndpoints()){
+    for (NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.EXECUTOR).getAvailableEndpoints()) {
       nodes.add(new Node().setName(ep.getAddress()).setRole("executor"));
     }
 
-    for(NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints()){
+    for (NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints()) {
       nodes.add(new Node().setName(ep.getAddress()).setRole("coordinator"));
     }
 
     return new ClusterInfo()
-        .setIdentity(identity)
-        .setVersion(version)
-        .setSourceList(sources)
-        .setNodeList(nodes)
-        .setJavaVmVersion(System.getProperty("java.vm.version"))
-        .setJreVersion(System.getProperty("java.specification.version"))
-        .setEdition(getEditionInfo())
-        ;
+      .setIdentity(identity)
+      .setVersion(version)
+      .setSourceList(sources)
+      .setNodeList(nodes)
+      .setJavaVmVersion(System.getProperty("java.vm.version"))
+      .setJreVersion(System.getProperty("java.specification.version"))
+      .setEdition(getEditionInfo())
+      ;
   }
 
   @Override
@@ -715,13 +895,17 @@ public class BasicSupportService implements SupportService {
   }
 
   /**
-   * @return the current edition that's running. Other editions should override this value
+   * Gets the current edition running. Returns "community" as default, other editions (marketplace or enterprise) should override it.
+   *
+   * @return the current edition running
    */
-  public String getEditionInfo() { return "community"; }
+  public String getEditionInfo() {
+    return "community";
+  }
 
   // this query should be improved once we support converting from ISO8660 time format.
   private static final String LOG_QUERY =
-      "CREATE TABLE " + SqlUtils.quoteIdentifier(LOCAL_STORAGE_PLUGIN)+ ".%s \n" +
+    "CREATE TABLE " + SqlUtils.quoteIdentifier(LOCAL_STORAGE_PLUGIN) + ".%s \n" +
       "  STORE AS (type => 'json', prettyPrint => false) \n" +
       "  WITH SINGLE WRITER\n" +
       "  AS\n" +
@@ -733,7 +917,7 @@ public class BasicSupportService implements SupportService {
       "    cast(\n" +
       "      substr(" + SqlUtils.quoteIdentifier("timestamp") + ",\n" +
       "        0,\n" +
-      "        length("+ SqlUtils.quoteIdentifier("timestamp") +") - 4\n" +
+      "        length(" + SqlUtils.quoteIdentifier("timestamp") + ") - 4\n" +
       "      ) as timestamp\n" +
       "  ) between timestamp'%s' and timestamp'%s'\n" +
       "    AND \n" +
@@ -742,4 +926,4 @@ public class BasicSupportService implements SupportService {
       "  OR\n" +
       "  thread like '%s'\n" +
       "";
- }
+}
