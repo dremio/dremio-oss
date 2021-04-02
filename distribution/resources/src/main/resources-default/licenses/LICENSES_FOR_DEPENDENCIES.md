@@ -102,13 +102,13 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
-|Arrow Format                                                |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
-|Arrow Memory Core                                           |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
-|Arrow Memory Netty                                          |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
-|Arrow Vectors                                               |3.0.0-20210225085553-dacbd01b9e-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Format                                                |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Memory Core                                           |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Memory Netty                                          |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Vectors                                               |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -155,8 +155,8 @@
 |brcast                                                      |3.0.1               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202101020531550866-5383404|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202101020531550866-5383404|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202103172325080800-52cfc7c|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202103172325080800-52cfc7c|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
@@ -223,12 +223,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |14.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |14.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |14.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |14.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |14.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |14.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |15.0.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |15.0.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |15.0.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |15.0.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |15.0.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |15.0.0              |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -315,7 +315,7 @@
 |HTrace Core4                                                |4.0.1-incubating    |Apache 2.0          |
 |HTrace Core4                                                |4.1.0-incubating    |Apache 2.0          |
 |HTrace Core4                                                |4.2.0-incubating    |Apache 2.0          |
-|HttpClient                                                  |4.5.5               |Apache 2.0          |
+|HttpClient                                                  |4.5.13              |Apache 2.0          |
 |humanable                                                   |0.0.2               |MIT                 |
 |husl                                                        |5.0.3               |MIT                 |
 |hyphenate-style-name                                        |1.0.2               |BSD-3-Clause        |
@@ -350,20 +350,20 @@
 |J2ObjC Annotations                                          |1.3                 |Apache 2.0          |
 |Jackson 2 extensions to the Google HTTP Client Library for Java.|1.31.0              |Apache 2.0          |
 |Jackson Datatype Protobuf                                   |0.9.10-jackson2.9-proto2|Apache 2.0          |
-|Jackson datatype: Guava                                     |2.10.2              |Apache 2.0          |
-|Jackson Datatype: JSR310                                    |2.10.2              |Apache 2.0          |
-|Jackson module: Afterburner                                 |2.10.2              |Apache 2.0          |
-|Jackson-annotations                                         |2.10.2              |Apache 2.0          |
-|Jackson-core                                                |2.10.2              |Apache 2.0          |
-|jackson-databind                                            |2.10.2              |Apache 2.0          |
-|Jackson-dataformat-CBOR                                     |2.10.2              |Apache 2.0          |
-|Jackson-dataformat-Smile                                    |2.10.2              |Apache 2.0          |
-|Jackson-dataformat-XML                                      |2.10.2              |Apache 2.0          |
-|Jackson-dataformat-YAML                                     |2.10.2              |Apache 2.0          |
-|Jackson-JAXRS-base                                          |2.10.2              |Apache 2.0          |
-|Jackson-JAXRS-JSON                                          |2.10.2              |Apache 2.0          |
-|Jackson-module-JAXB-annotations                             |2.10.2              |Apache 2.0          |
-|jackson-module-jsonSchema                                   |2.10.2              |Apache 2.0          |
+|Jackson datatype: Guava                                     |2.11.4              |Apache 2.0          |
+|Jackson Datatype: JSR310                                    |2.11.4              |Apache 2.0          |
+|Jackson module: Afterburner                                 |2.11.4              |Apache 2.0          |
+|Jackson-annotations                                         |2.11.4              |Apache 2.0          |
+|Jackson-core                                                |2.11.4              |Apache 2.0          |
+|jackson-databind                                            |2.11.4              |Apache 2.0          |
+|Jackson-dataformat-CBOR                                     |2.11.4              |Apache 2.0          |
+|Jackson-dataformat-Smile                                    |2.11.4              |Apache 2.0          |
+|Jackson-dataformat-XML                                      |2.11.4              |Apache 2.0          |
+|Jackson-dataformat-YAML                                     |2.11.4              |Apache 2.0          |
+|Jackson-JAXRS-base                                          |2.11.4              |Apache 2.0          |
+|Jackson-JAXRS-JSON                                          |2.11.4              |Apache 2.0          |
+|Jackson-module-JAXB-annotations                             |2.11.4              |Apache 2.0          |
+|jackson-module-jsonSchema                                   |2.11.4              |Apache 2.0          |
 |Jaeger Client                                               |1.1.0               |Apache 2.0          |
 |Jaeger Core                                                 |1.1.0               |Apache 2.0          |
 |Jaeger Thrift                                               |1.1.0               |Apache 2.0          |
@@ -627,6 +627,7 @@
 |Prometheus Java Simpleclient                                |0.7.0               |Apache 2.0          |
 |Prometheus Java Simpleclient Common                         |0.7.0               |Apache 2.0          |
 |Prometheus Java Simpleclient Dropwizard                     |0.7.0               |Apache 2.0          |
+|Prometheus Java Simpleclient Hotspot                        |0.7.0               |Apache 2.0          |
 |Prometheus Java Simpleclient Servlet                        |0.7.0               |Apache 2.0          |
 |promise                                                     |7.3.1               |MIT                 |
 |prop-types                                                  |15.5.8              |BSD-3-Clause        |
@@ -729,7 +730,7 @@
 |safe-buffer                                                 |5.1.1               |MIT                 |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
-|Scala Library                                               |2.10.1              |BSD 3-clause        |
+|Scala Library                                               |2.10.7              |BSD 3-clause        |
 |scheduler                                                   |0.12.0              |MIT                 |
 |scheduler                                                   |0.19.1              |MIT                 |
 |semver                                                      |5.4.1               |ISC                 |
@@ -745,7 +746,7 @@
 |SLF4J API Module                                            |1.7.28              |MIT                 |
 |Slugify - Core                                              |2.1.7               |Apache 2.0          |
 |SnakeYAML                                                   |1.15                |Apache 2.0          |
-|SnakeYAML                                                   |1.24                |Apache 2.0          |
+|SnakeYAML                                                   |1.26                |Apache 2.0          |
 |Snappy for Java                                             |1.1.4               |Apache 2.0          |
 |software.amazon.ion:ion-java                                |1.0.2               |Apache 2.0          |
 |source-map                                                  |0.5.6               |BSD-3-Clause        |

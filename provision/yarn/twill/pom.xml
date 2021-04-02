@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -35,6 +35,39 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>13.0.1</version>
+    </dependency>
+
+    <!-- Add scala-library and kafka as dependencies here. kafka depends on scala-library.
+     To avoid the security vulnerability described in DX-27903, the version of scala-libary
+     has to be >= 2.10.7. Dremio doesn't depend on kafka anymore, only twill package
+     depends on kafka. -->
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>2.10.7</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka_2.10</artifactId>
+      <version>0.8.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.sun.jdmk</groupId>
+          <artifactId>jmxtools</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun.jmx</groupId>
+          <artifactId>jmxri</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j</artifactId>
+          <groupId>log4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>slf4j-simple</artifactId>
+          <groupId>org.slf4j</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <!-- YarnUtils in Twill explicitly loads LogsCLI class (to determine version). LogsCLI imports classes
      available in this artifact. There should be no class loading conflicts with glassfish's jersey-client
@@ -49,13 +82,6 @@
           <artifactId>jersey-core</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <!-- org.apache.kafka is explicitly needed for YARN since twill
-    is excluded through dependencyManagement which would have otherwise
-    provided kafka as a transitive dependency. -->
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_2.10</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.twill</groupId>

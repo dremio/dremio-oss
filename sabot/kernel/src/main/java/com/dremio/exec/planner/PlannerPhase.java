@@ -99,6 +99,7 @@ import com.dremio.exec.planner.logical.MergeProjectRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.ProjectRule;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
+import com.dremio.exec.planner.logical.PushJoinFilterIntoProjectRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenIntoScanRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenPastProjectRule;
 import com.dremio.exec.planner.logical.PushProjectIntoScanRule;
@@ -325,7 +326,8 @@ public enum PlannerPhase {
 
       builder
         .add(JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE)
-        .add(MergeProjectRule.LOGICAL_INSTANCE);
+        .add(MergeProjectRule.LOGICAL_INSTANCE)
+        .add(PushJoinFilterIntoProjectRule.INSTANCE);
 
 
       // Check if multi-join optimization has been enabled
@@ -800,6 +802,7 @@ public enum PlannerPhase {
    */
   public static final String PLAN_CONVERTED_SCAN = "Convert Scan";
   public static final String PLAN_VALIDATED = "Validation";
+  public static final String PLAN_CACHE_USED = "Plan Cache Used";
   public static final String PLAN_CONVERTED_TO_REL = "Convert To Rel";
   public static final String PLAN_FIND_MATERIALIZATIONS = "Find Materializations";
   public static final String PLAN_NORMALIZED = "Normalization";

@@ -206,6 +206,9 @@ public class TestIndexBasedPruning extends DremioTest {
 
     @Override
     public NormalizedPartitionInfo getNormalizedPartitionInfo() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public boolean checkPartitionChunkMetadataConsistency() { return true; }
   }
 
   /**

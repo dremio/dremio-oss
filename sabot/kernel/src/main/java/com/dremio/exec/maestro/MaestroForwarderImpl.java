@@ -111,7 +111,14 @@ public class MaestroForwarderImpl implements MaestroForwarder {
         public void onNext(JobResultsResponse value) { ackit(sender); }
 
         @Override
-        public void onError(Throwable t) { ackit(sender); }
+        public void onError(Throwable t) {
+          try {
+            ackit(sender);
+          } catch (IllegalStateException e) {
+            // if the "sender" has illegal state, then no point of sending ack. So ignore the exception.
+            logger.debug("Exception raised while acking onError for JobResultsResponse: {}", e);
+          }
+        }
 
         @Override
         public void onCompleted() { ackit(sender); }

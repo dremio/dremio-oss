@@ -36,6 +36,7 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.coordinator.ClusterCoordinator;
 
 /**
@@ -62,9 +63,10 @@ public class QueryTestUtil {
    * @throws RpcException if there is a problem setting up the client
    */
   public static DremioClient createClient(final SabotConfig config, final ClusterCoordinator clusterCoordinator,
-      final int maxWidth, final Properties props) throws RpcException, OutOfMemoryException {
+      final int maxWidth, Properties props) throws RpcException, OutOfMemoryException {
     final DremioClient dremioClient = new DremioClient(config, clusterCoordinator);
-    dremioClient.connect(props);
+
+    dremioClient.connect(checkAndAddAnonymousUser(props));
 
     final List<QueryDataBatch> results = dremioClient.runQuery(
         QueryType.SQL, String.format("alter session set %1$s%2$s%1$s = %3$d",
@@ -75,6 +77,24 @@ public class QueryTestUtil {
 
     return dremioClient;
   }
+
+  /**
+   * Checks if a user is present, and if not adds an anonymous user to the given properties.
+   * @param props The properties to check for a user.
+   * @return Properties guaranteed to have either a user, or an anonymous user.
+   */
+  public static Properties checkAndAddAnonymousUser(Properties props) {
+    if (null == props) {
+      props = new Properties() {{
+        put(UserSession.USER, "anonymous");
+      }};
+    } else if (null == props.getProperty(UserSession.USER)) {
+      // Detect a null username and replace with anonymous to ensure tests that don't specify username work.
+      props.put(UserSession.USER, "anonymous");
+    }
+    return props;
+  }
+
   /**
    * Create a DremioClient that can be used to query a dremio cluster.
    * The only distinction between this function and createClient is that

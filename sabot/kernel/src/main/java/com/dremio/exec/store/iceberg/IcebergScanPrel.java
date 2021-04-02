@@ -40,6 +40,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
@@ -173,7 +174,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     // Manifest scan phase
     TableFunctionConfig manifestScanTableFunctionConfig =  TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, manifestFileReaderColumns, manifestFileReaderSchema, null);
 
-    TableFunctionPrel manifestScanTF = new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), manifestSplitsExchange, tableMetadata,
+    TableFunctionPrel manifestScanTF = new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), manifestSplitsExchange, tableMetadata,
       ImmutableList.copyOf(manifestFileReaderColumns), manifestScanTableFunctionConfig, getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, getCluster()));
 
     RelNode input2 = manifestScanTF;
@@ -191,7 +192,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     // Parquet scan phase
     TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getParquetScanTableFunctionConfig(
       tableMetadata, getConditions(), getProjectedColumns(), arrowCachingEnabled);
-    return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), parquetSplitsExchange, tableMetadata,
+    return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), parquetSplitsExchange, tableMetadata,
       ImmutableList.copyOf(getProjectedColumns()), parquetScanTableFunctionConfig, getRowType());
   }
 
@@ -213,6 +214,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return pw;
   }
 
+  private RexNode getFilterWithIsNullCond(RexNode cond, RexBuilder builder, RelNode input) {
+    // checking for isNull with any one of the min/max col is sufficient
+    int colIdx = getUsedIndices.apply(cond).stream().findFirst().get();
+    RexNode isNullCond = builder.makeCall(SqlStdOperatorTable.IS_NULL, builder.makeInputRef(input, colIdx));
+    return RexUtil.flatten(builder, builder.makeCall(SqlStdOperatorTable.OR, isNullCond, cond));
+  }
+
   public RexNode getManifestListFilter(RexBuilder builder, RelNode input) {
     if (pruneCondition == null) {
       return null;
@@ -221,7 +229,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     if (partitionRange == null) {
       return null;
     }
-    return pruneCondition.getPartitionRange().accept(new MinMaxRewriter(builder, getRowType(), input));
+    return getFilterWithIsNullCond(pruneCondition.getPartitionRange().accept(new MinMaxRewriter(builder, getRowType(), input)),
+      builder, input);
   }
 
   public RexNode getManifestFileFilter(RexBuilder builder, RelNode input) {
@@ -232,13 +241,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     RexNode nonPartitionRange = pruneCondition.getNonPartitionRange();
     RelDataType rowType = getRowType();
     if (nonPartitionRange != null) {
-      filters.add(nonPartitionRange.accept(new MinMaxRewriter(builder, rowType, input)));
+      filters.add(getFilterWithIsNullCond(nonPartitionRange.accept(new MinMaxRewriter(builder, rowType, input)), builder, input));
     }
     RexNode partitionExpression = pruneCondition.getPartitionExpression();
     if (partitionExpression != null) {
       filters.add(partitionExpression.accept(new ExpressionInputRewriter(builder, rowType, input, "_val")));
     }
-    return filters.size() == 0 ? null : (filters.size()  == 1 ? filters.get(0) : builder.makeCall(SqlStdOperatorTable.AND, filters));
+    return filters.size() == 0 ? null : (filters.size()  == 1 ? filters.get(0) : RexUtil.flatten(builder, builder.makeCall(SqlStdOperatorTable.AND, filters)));
   }
 
 
@@ -248,6 +257,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     }
 
     List<SchemaPath> usedColumns = getUsedIndices.apply(cond).stream().map(projectedColumns::get).collect(Collectors.toList());
+    // TODO only add _min, _max columns which are used
     usedColumns.forEach(c -> {
       List<String> nameSegments = c.getNameSegments();
       Preconditions.checkArgument(nameSegments.size() == 1);

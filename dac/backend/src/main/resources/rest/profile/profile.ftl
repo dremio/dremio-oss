@@ -367,6 +367,31 @@
             </#list>
           </p>
 
+
+          <#assign reflectionHints = model.getAccelerationDetails().getHintsForLayoutId(layout.layoutId) >
+          <#if reflectionHints?? >
+          </p> Matching Hints:
+            <ul>
+              <#list reflectionHints as reflectionHint>
+                <li>
+                <#switch reflectionHint.explanationType>
+                  <#case "DISJOINT_FILTER">
+                    Disjoint Filter ${reflectionHint.filter}
+                    <#break>
+                  <#case "FIELD_MISSING">
+                    Missing Field ${reflectionHint.columnName}
+                  <#break>
+                  <#case "FILTER_OVER_SPECIFIED">
+                    Filter Over Specified ${reflectionHint.filter}
+                  <#break>
+                </#switch>
+                </li>
+              </#list>
+
+            </ul>
+          </#if>
+          </p>
+
           <p>Replacement Plans:
             <#list layout.getSubstitutionsList() as substitution>
               <#if substitution?has_content >
@@ -439,6 +464,9 @@
     <dd>${model.getCommandPoolWaitMillis()}</dd>
     <dt>Total Query Time:</dt>
     <dd>${model.getTotalTime()}</dd>
+    <#if model.getPlanCacheUsed() != 0 >
+      <dt>Cached plan was used</dt>
+    </#if>
   </dl>
 
   <h3>State Durations</h3>

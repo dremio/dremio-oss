@@ -215,7 +215,6 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
           .forEach(field -> builder.add(new RelDataTypeFieldImpl(field.getName(), i.getAndIncrement(),
             CalciteArrowHelper.toCalciteType(field, typeFactory, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()))));
       }
-
     } else {
       // Schema for DeltaLakeScan for removed paths
       typeList.add(typeFactory.createSqlType(SqlTypeName.VARCHAR));
@@ -315,7 +314,8 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
       }
       return cols;
     } else {
-      return Collections.singletonList(SchemaPath.getSimplePath(DELTA_FIELD_REMOVE));
+      // Not projecting complete `remove` so RecordReader can adjust when internal structure has differences.
+      return Collections.singletonList(SchemaPath.getCompoundPath(DELTA_FIELD_REMOVE, SCHEMA_PATH));
     }
   }
 }

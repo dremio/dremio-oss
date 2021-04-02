@@ -41,6 +41,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecTest;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -85,14 +86,7 @@ public class TestSpoolingBuffer extends ExecTest {
     }).when(queue).put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
-    final SchedulerService schedulerService = mock(SchedulerService.class);
-    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
-    new Provider<SchedulerService>() {
-      @Override
-      public SchedulerService get() {
-        return schedulerService;
-      }
-    });
+    final SpillService spillService = setupSpillService(config);
 
     try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
       SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
@@ -143,14 +137,7 @@ public class TestSpoolingBuffer extends ExecTest {
     }).when(queue).put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
-    final SchedulerService schedulerService = mock(SchedulerService.class);
-    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
-      new Provider<SchedulerService>() {
-        @Override
-        public SchedulerService get() {
-          return schedulerService;
-        }
-      });
+    final SpillService spillService = setupSpillService(config);
 
     try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
          SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
@@ -217,14 +204,7 @@ public class TestSpoolingBuffer extends ExecTest {
     }).when(queue).put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
-    final SchedulerService schedulerService = mock(SchedulerService.class);
-    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
-      new Provider<SchedulerService>() {
-        @Override
-        public SchedulerService get() {
-          return schedulerService;
-        }
-      });
+    final SpillService spillService = setupSpillService(config);
 
     try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
       SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
@@ -258,5 +238,26 @@ public class TestSpoolingBuffer extends ExecTest {
   private void checkBatch(RawFragmentBatch checkBatch, int batchIdx) {
     assertEquals(batchAllocateSize, checkBatch.getBody().capacity());
     assertEquals(batchIdx, checkBatch.getBody().getInt(0));
+  }
+
+  private SpillService setupSpillService(SabotConfig config) throws Exception {
+    final SchedulerService schedulerService = mock(SchedulerService.class);
+    final CoordinationProtos.NodeEndpoint endpoint = CoordinationProtos.NodeEndpoint.newBuilder()
+      .setAddress("localhost").setFabricPort(1834).build();
+
+    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
+      new Provider<SchedulerService>() {
+        @Override
+        public SchedulerService get() {
+          return schedulerService;
+        }
+      }, new Provider<CoordinationProtos.NodeEndpoint>() {
+      @Override
+      public CoordinationProtos.NodeEndpoint get() {
+        return endpoint;
+      }
+    }, null);
+    spillService.start();
+    return spillService;
   }
 }

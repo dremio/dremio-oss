@@ -15,7 +15,7 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import Immutable, { List } from 'immutable';
 import { Column, Table, Cell } from 'fixed-data-table-2';
 import classNames from 'classnames';
 import { AutoSizer } from 'react-virtualized';
@@ -33,10 +33,16 @@ const cellType = PropTypes.node;
 export default class TableViewer extends Component {
 
   static propTypes = {
-    tableData: ImmutablePropTypes.listOf(PropTypes.shape({
-      data: PropTypes.oneOfType([PropTypes.objectOf(cellType), PropTypes.arrayOf(cellType)]).isRequired,
-      rowClassName: PropTypes.string
-    })),
+    tableData: PropTypes.oneOfType([
+      ImmutablePropTypes.listOf(PropTypes.shape({
+        data: PropTypes.oneOfType([PropTypes.objectOf(cellType), PropTypes.arrayOf(cellType)]).isRequired,
+        rowClassName: PropTypes.string
+      })),
+      PropTypes.arrayOf(PropTypes.shape({
+        data: PropTypes.oneOfType([PropTypes.objectOf(cellType), PropTypes.arrayOf(cellType)]).isRequired,
+        rowClassName: PropTypes.string
+      }))
+    ]),
     className: PropTypes.string,
     rowHeight: PropTypes.number,
     columns: PropTypes.arrayOf(
@@ -84,8 +90,10 @@ export default class TableViewer extends Component {
     const {
       tableData
     } = this.props;
-
-    return tableData.get(rowIndex).rowClassName;
+    if (List.isList(tableData)) {
+      return tableData.get(rowIndex).rowClassName;
+    }
+    return tableData[rowIndex].rowClassName;
   };
 
   renderCell = label => (/* cellProps */ {
@@ -96,10 +104,10 @@ export default class TableViewer extends Component {
     const {
       tableData
     } = this.props;
-
+    const currentTableData = List.isList(tableData) ? tableData.get(rowIndex) : tableData[rowIndex];
     return (<Cell>
       <span data-qa={label}>
-        {tableData.get(rowIndex).data[columnKey]}
+        {currentTableData.data[columnKey]}
       </span>
     </Cell>);
   };
@@ -118,6 +126,7 @@ export default class TableViewer extends Component {
             } = this.props;
 
             const tableColumns = columns.map(this.getColumn);
+            const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
 
             return (
               <Table
@@ -125,7 +134,7 @@ export default class TableViewer extends Component {
                 headerHeight={30}
                 width={width}
                 height={height}
-                rowsCount={tableData.size}
+                rowsCount={tableSize}
                 className={classNames([tableViewerCls, className])}
                 rowClassNameGetter={this.getRowClassName}
                 {...tableProps}>

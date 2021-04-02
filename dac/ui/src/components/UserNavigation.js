@@ -15,20 +15,16 @@
  */
 import { Component } from 'react';
 import classNames from 'classnames';
-import { Link } from 'react-router';
+import { Link, withRouter } from 'react-router';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 
 @Radium
-export default class UserNavigation extends Component {
-
-  static contextTypes = {
-    location: PropTypes.object.isRequired
-  };
-
+export class UserNavigation extends Component {
   static propTypes = {
     sections: PropTypes.arrayOf(PropTypes.object),
-    title: PropTypes.string
+    title: PropTypes.string,
+    location: PropTypes.object.isRequired
   };
 
   static getFlatMenuItemsList(sections) {
@@ -38,13 +34,13 @@ export default class UserNavigation extends Component {
   }
 
   getSelectedItem() {
-    const { location } = this.context;
+    const { location } = this.props;
     const items = UserNavigation.getFlatMenuItemsList(this.props.sections);
     return items.find(item => location.pathname === item.url);
   }
 
   renderMenuItems(menuItems) {
-    const { location } = this.context;
+    const { location } = this.props;
     const linkStyles = styles.linkItem;
     return menuItems.map((item, i) => {
       const className = classNames('left-item', {'selected': location.pathname === item.url});
@@ -59,6 +55,23 @@ export default class UserNavigation extends Component {
     });
   }
 
+  renderMenuHeader = (section) => {
+    if (!section.url) {
+      return <h4 style={styles.menuTitle}>{section.title}</h4>;
+    }
+    const { location } = this.props;
+    const className = classNames('left-item', {'selected': location.pathname === section.url});
+
+    return (
+      <Link
+        className={className}
+        style={styles.linkHeader}
+        to={section.url}>
+        <h4>{section.title}</h4>
+      </Link>
+    );
+  }
+
   render() {
     return (
       <div className='left-menu' style={styles.leftMenu} data-qa='left-menu'>
@@ -67,10 +80,10 @@ export default class UserNavigation extends Component {
         <ul>
           {this.props.sections.map((section, sectionIndex) => (
             <li key={`left-nav-section-${sectionIndex}`} data-qa={`left-nav-section-${sectionIndex}`} style={styles.section}>
-              <h4 style={styles.menuTitle}>{section.title}</h4>
-              <ul>
+              {this.renderMenuHeader(section)}
+              { section.items && <ul>
                 {this.renderMenuItems(section.items)}
-              </ul>
+              </ul> }
             </li>
           ))}
         </ul>
@@ -96,6 +109,13 @@ const styles = {
     textDecoration: 'none',
     borderRadius: 2
   },
+  linkHeader: {
+    display: 'block',
+    color: '#333333',
+    padding: '5px 0px',
+    textDecoration: 'none',
+    borderRadius: 2
+  },
   section: {
     marginBottom: 10
   },
@@ -103,3 +123,5 @@ const styles = {
     margin: '0 0 10px'
   }
 };
+
+export default withRouter(UserNavigation);

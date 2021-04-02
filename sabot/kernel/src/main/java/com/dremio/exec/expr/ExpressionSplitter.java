@@ -110,7 +110,7 @@ public class ExpressionSplitter implements AutoCloseable {
 
   public ExpressionSplitter(OperatorContext context, VectorAccessible incoming,
                             ExpressionEvaluationOptions options, boolean isDecimalV2Enabled) {
-    this(context, incoming, options, new GandivaPushdownSieve(isDecimalV2Enabled),
+    this(context, incoming, options, new GandivaPushdownSieve(isDecimalV2Enabled, options),
       ExpressionSplitter.DEFAULT_TMP_OUTPUT_NAME, true);
   }
 

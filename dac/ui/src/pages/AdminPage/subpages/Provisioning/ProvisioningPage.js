@@ -18,6 +18,7 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import { injectIntl } from 'react-intl';
 
 import {
   loadProvision, removeProvision,
@@ -38,7 +39,7 @@ import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
 import { page, pageContent } from '@app/uiTheme/radium/general';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
 import { SingleEngineView } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineView';
-import { SingleEngineHeader } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader';
+import SingleEngineHeader from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader';
 import ProvisioningPageMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/ProvisioningPageMixin';
 import ClusterListView from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
 import { getRemoveFunction, getLoadProvisionFunction, getExtraFunctions } from '@inject/pages/AdminPage/subpages/Provisioning/ProvisioningPageUtils';
@@ -59,7 +60,8 @@ export class ProvisioningPage extends Component {
     openAdjustWorkersModal: PropTypes.func,
     showConfirmationDialog: PropTypes.func,
     addNotification: PropTypes.func,
-    editProvision: PropTypes.func
+    editProvision: PropTypes.func,
+    intl: PropTypes.object
   };
 
   state = {
@@ -81,11 +83,15 @@ export class ProvisioningPage extends Component {
   }
 
   removeProvision = (entity) => {
+    const { state: { selectedEngineId }, unselectEngine } = this;
     const removeFunction = getRemoveFunction(this.props);
     const loadFunction = getLoadProvisionFunction(this.props);
     ApiUtils.attachFormSubmitHandlers(
       removeFunction(entity.get('id'), VIEW_ID)
     ).then(() => {
+      if (selectedEngineId) {
+        unselectEngine();
+      }
       loadFunction(null, VIEW_ID);
     }).catch(e => {
       const message = e &&  e._error && e._error.message;
@@ -95,10 +101,14 @@ export class ProvisioningPage extends Component {
   };
 
   handleRemoveProvision = (entity) => {
+    const { intl: { formatMessage } } = this.props;
+    const text = formatMessage({id: 'Admin.Engine.DeleteEngine.Confirmation'});
+    const title = formatMessage({id: 'Admin.Engine.Remove.Title'});
+    const confirmText = formatMessage({id: 'Admin.Engine.Remove'});
     this.props.showConfirmationDialog({
-      title: la('Remove Engine'),
-      text: la('Are you sure you want to remove this engine?'),
-      confirmText: la('Remove'),
+      title,
+      text,
+      confirmText,
       confirm: () => this.removeProvision(entity)
     });
   };
@@ -214,6 +224,9 @@ export class ProvisioningPage extends Component {
         unselectEngine={this.unselectEngine}
         handleEdit={this.handleEditProvision}
         handleStartStop={this.handleChangeProvisionState}
+        removeProvision={this.handleRemoveProvision}
+        showConfirmationDialog={this.props.showConfirmationDialog}
+        {...getExtraFunctions(this.props)}
       /> :
       <Header
         titleStyle={{fontSize: 20}}
@@ -283,7 +296,7 @@ export default connect(mapStateToProps, {
   addNotification,
   editProvision,
   ...extraProvisingPageMapDispatchToProps
-})(ProvisioningPage);
+})(injectIntl(ProvisioningPage));
 
 const styles = {
   baseContent: {

@@ -20,6 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -30,6 +33,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.dremio.common.VM;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import io.netty.buffer.ByteBufAllocator;
@@ -89,6 +94,7 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
   }
 
   private KeyManagerFactory newKeyManagerFactory() throws GeneralSecurityException, IOException {
+    //noinspection ObjectEquality
     if (sslConfig.getKeyStorePath() == SSLConfig.UNSPECIFIED) {
       return null;
     }
@@ -108,31 +114,45 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
   }
 
   private TrustManagerFactory newTrustManagerFactory() throws GeneralSecurityException, IOException {
-    final KeyStore trustStore;
-    if (sslConfig.getTrustStorePath() == SSLConfig.UNSPECIFIED) {
-      // uses JDK default
-      // see https://docs.oracle.com/javase/1.5.0/docs/guide/security/jsse/JSSERefGuide.html#X509TrustManager
-      trustStore = null;
+    if (sslConfig.disablePeerVerification()) {
+      return InsecureTrustManagerFactory.INSTANCE;
+    }
+
+    final CompositeTrustManagerFactory.Builder builder = CompositeTrustManagerFactory.newBuilder();
+    if (sslConfig.useDefaultTrustStore()) {
+      builder.addDefaultTrustStore();
     } else {
-      trustStore = KeyStore.getInstance(sslConfig.getTrustStoreType());
-      try (InputStream stream = new FileInputStream(sslConfig.getTrustStorePath())) {
-        trustStore.load(stream, sslConfig.getTrustStorePassword().toCharArray());
+      final KeyStore mainTrustStore = KeyStore.getInstance(sslConfig.getTrustStoreType());
+      try (InputStream stream = !Strings.isNullOrEmpty(sslConfig.getTrustStorePath()) ?
+           new FileInputStream(sslConfig.getTrustStorePath()) : null) {
+        mainTrustStore.load(stream, sslConfig.getTrustStorePassword().toCharArray());
+      }
+      builder.addTrustStore(mainTrustStore);
+    }
+
+    if (sslConfig.useSystemTrustStore()) {
+      if (VM.isWindowsHost()) {
+        tryAddTrustStoreType(builder, "Windows-ROOT");
+        tryAddTrustStoreType(builder, "Windows-MY");
+      } else if (VM.isMacOSHost()) {
+        tryAddTrustStoreType(builder, "KeychainStore");
       }
     }
+    return builder.build();
+  }
 
-    final TrustManagerFactory factory;
-    if (sslConfig.disablePeerVerification()) {
-      factory = InsecureTrustManagerFactory.INSTANCE;
-    } else {
-      factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+  private static void tryAddTrustStoreType(CompositeTrustManagerFactory.Builder builder, String trustStoreType) {
+    try {
+      final KeyStore trustStore = KeyStore.getInstance(trustStoreType);
+      trustStore.load(null, null);
+      builder.addTrustStore(trustStore);
+    } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
+      logger.warn("Unable to add trust store of type {}. Ignoring certificates.", trustStoreType, e);
     }
-
-    factory.init(trustStore);
-    return factory;
   }
 
   @Override
-  public SslContextBuilder newServerContextBuilder() throws SSLException {
+  public SslContextBuilder newServerContextBuilder() {
     return SslContextBuilder.forServer(keyManagerFactory)
       .trustManager(trustManagerFactory)
       .clientAuth(sslConfig.disablePeerVerification() ? ClientAuth.OPTIONAL : ClientAuth.REQUIRE)
@@ -149,16 +169,16 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
     final SSLEngine engine = sslContext.newEngine(allocator, peerHost, peerPort);
     try {
       engine.setEnableSessionCreation(true);
-    } catch (UnsupportedOperationException ignored) {
+    } catch (UnsupportedOperationException ex) {
       // see ReferenceCountedOpenSslEngine#setEnableSessionCreation
-      logger.trace("Session creation not enabled", ignored);
+      logger.trace("Session creation not enabled", ex);
     }
 
     return engine;
   }
 
   @Override
-  public SslContextBuilder newClientContextBuilder() throws SSLException {
+  public SslContextBuilder newClientContextBuilder() {
     return SslContextBuilder.forClient()
       .keyManager(keyManagerFactory)
       .trustManager(trustManagerFactory)
@@ -185,9 +205,9 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
 
     try {
       engine.setEnableSessionCreation(true);
-    } catch (UnsupportedOperationException ignored) {
+    } catch (UnsupportedOperationException ex) {
       // see ReferenceCountedOpenSslEngine#setEnableSessionCreation
-      logger.trace("Session creation not enabled", ignored);
+      logger.trace("Session creation not enabled", ex);
     }
 
     return engine;

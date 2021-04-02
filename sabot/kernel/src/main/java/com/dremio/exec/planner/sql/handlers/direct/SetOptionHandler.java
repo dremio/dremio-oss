@@ -30,6 +30,7 @@ import org.apache.calcite.util.NlsString;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -100,7 +101,11 @@ public class SetOptionHandler extends SimpleDirectHandler {
       }
     }
 
-
+    //with option changes, invalidate all cache entries;
+    //also make sure the option is not to modify plan cache itself
+    if (!name.equalsIgnoreCase(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName())) {
+      context.getPlanCache().getCachePlans().invalidateAll();
+    }
     return Collections.singletonList(SimpleCommandResult.successful("%s updated.", name));
   }
 

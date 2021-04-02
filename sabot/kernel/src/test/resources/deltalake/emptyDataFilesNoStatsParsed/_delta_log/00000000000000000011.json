@@ -1,0 +1,9 @@
+{"eommitInfo":{"timestamp":1611139529301,"userId":"2451949484430686","userName":"ext.fran.medjurecan@allianzgi.com","operation":"MERGE","operationParameters":{"predicate":"(currency_d.`currency_key` = initial_values.`currency_key`)"},"notebook":{"notebookId":"3224287800499697"},"clusterId":"0803-080626-yip177","readVersion":10,"isolationLevel":"WriteSerializable","isBlindAppend":false,"operationMetrics":{"numTargetRowsCopied":"0","numTargetRowsDeleted":"345","numTargetFilesAdded":"1","numTargetRowsInserted":"0","numTargetRowsUpdated":"0","numOutputRows":"0","numSourceRows":"7","numTargetFilesRemoved":"7"}}}
+{"remove":{"path":"part-00000-1845e12c-2d51-412a-93ae-15f4df5547a9-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"remove":{"path":"part-00000-3ef9151d-0490-4e0d-aa84-1b8c87e1e266-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"remove":{"path":"part-00000-6e846194-ba92-4dc4-908a-1863b83fdaec-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"remove":{"path":"part-00000-8702146b-179b-489d-9042-1ad487e7bc19-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"remove":{"path":"part-00000-a2fc3375-0147-474b-86c0-6f0795230e46-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"remove":{"path":"part-00000-b2638819-351b-4a0e-babe-2fdfed8f121b-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"remove":{"path":"part-00000-c936a763-f4e7-465a-a9d0-d3a1eaa4f477-c000.snappy.parquet","deletionTimestamp":1600067807374,"dataChange":true}}
+{"add":{"path":"part-00000-cb2ed694-c591-4e3f-accd-38427ac97c59-c000.snappy.parquet","partitionValues":{},"size":738,"modificationTime":1611139529000,"dataChange":true,"stats":"{\"numRecords\":0,\"minValues\":{},\"maxValues\":{},\"nullCount\":{}}"}}

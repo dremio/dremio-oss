@@ -562,6 +562,43 @@ public class ValueListFilterTest {
         }
     }
 
+    @Test
+    public void testCreateCopy() throws Exception {
+        try (ValueListFilterBuilder builder = new ValueListFilterBuilder(testAllocator, 100, (byte) 4, false);
+             RollbackCloseable closer = new RollbackCloseable();
+             ArrowBuf keyBuf = testAllocator.buffer(4)) {
+            builder.setup();
+            List<Integer> insertedVals = new ArrayList<>(randomIntegers(100));
+            insertedVals.forEach(val -> builder.insert(writeKey(keyBuf, val)));
+            builder.insertNull();
+            builder.setName(TEST_NAME);
+            builder.setFieldName(TEST_NAME);
+            builder.setFieldType(Types.MinorType.INT);
+
+            ValueListFilter valueListFilter = builder.build();
+            closer.add(valueListFilter);
+
+            ValueListFilter copyValueListFilter = valueListFilter.createCopy(testAllocator);
+            closer.add(copyValueListFilter);
+            ArrowBuf elements = copyValueListFilter.valOnlyBuf();
+
+            assertEquals(insertedVals.size(), copyValueListFilter.getValueCount());
+            List<Integer> storedVals = new ArrayList<>(copyValueListFilter.getValueCount());
+            IntStream.range(0, copyValueListFilter.getValueCount()).forEach(i -> storedVals.add(elements.getInt(i * 4)));
+
+            Collections.sort(insertedVals); // expect unique sorted
+            assertEquals(insertedVals, storedVals);
+            assertTrue(copyValueListFilter.isContainsNull());
+
+            assertEquals(valueListFilter.getFieldType(), copyValueListFilter.getFieldType());
+            assertEquals(valueListFilter.getName(), copyValueListFilter.getName());
+            assertEquals(valueListFilter.getFieldName(), copyValueListFilter.getFieldName());
+            assertEquals(valueListFilter.getSizeInBytes(), copyValueListFilter.getSizeInBytes());
+            assertEquals(valueListFilter.getBlockSize(), copyValueListFilter.getBlockSize());
+            assertEquals(valueListFilter.isBoolField(), copyValueListFilter.isBoolField());
+        }
+    }
+
     @SafeVarargs
     private final ValueListFilter toValListFilterLong(Set<Long>... vals) throws Exception {
         Set<Long> allValues = Arrays.stream(vals).flatMap(Set::stream).collect(Collectors.toSet());

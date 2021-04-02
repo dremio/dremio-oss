@@ -1,7 +1,7 @@
 {
   "App.AboutHeading": "About Dremio",
   "App.Admin": "Admin",
-  "App.Copyright": "Copyright © 2017-2019 Dremio Corporation",
+  "App.Copyright": "Copyright © 2017-2021 Dremio Corporation",
   "App.Build": "Build",
   "App.Edition": "Edition",
   "App.BuildTime": "Build Time",
@@ -48,6 +48,7 @@
   "Common.Functions": "Functions",
   "Common.LearnMore": "Learn more…",
   "Common.Done": "Done",
+  "Common.Delete": "Delete",
   "Common.Retry": "Retry",
   "Common.Disclosed": "Disclosed",
   "Common.Undisclosed": "Undisclosed",
@@ -371,5 +372,8 @@
   "Message.ApiErr.Load.Dataset": "Failed to load dataset with error: {err}",
   "Message.Show.More": "Show more",
   "Message.Show.Less": "Show less",
-  "Setting.Organization.Setting": "Organization Settings"
+  "Setting.Organization.Setting": "Organization Settings",
+  "Admin.Engine.DeleteEngine.Confirmation": "Are you sure you want to delete this engine?",
+  "Admin.Engine.Remove": "Remove",
+  "Admin.Engine.Remove.Title": "Remove Engine"
 }

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -792,11 +792,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.calcite</groupId>
-      <artifactId>calcite-core</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <version>${project.version}</version>
@@ -880,6 +875,14 @@
         <exclusion>
           <groupId>org.apache.hive</groupId>
           <artifactId>hive-llap-tez</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.calcite</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.calcite.avatica</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

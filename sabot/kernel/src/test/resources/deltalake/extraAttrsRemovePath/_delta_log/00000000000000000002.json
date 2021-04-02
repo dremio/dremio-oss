@@ -1,0 +1,3 @@
+{"commitInfo":{"timestamp":1612872225420,"operation":"DELETE","operationParameters":{"predicate":"[\"(spark_catalog.default.CASES.`fname` = 'Salman')\"]"},"readVersion":2,"isBlindAppend":false,"operationMetrics":{"numRemovedFiles":"1","numDeletedRows":"1","numAddedFiles":"1","numCopiedRows":"2"}}}
+{"remove":{"path":"part-00000-1b0e76d3-52d9-4ede-bf15-052be2af663d-c000.snappy.parquet","deletionTimestamp":1612872225418,"dataChange":true,"extendedFileMetadata":true,"partitionValues":{},"size":1279}}
+{"add":{"path":"part-00000-5ba7fe9c-b05b-4f25-9c55-b9cca19eb865-c000.snappy.parquet","partitionValues":{},"size":1279,"modificationTime":1612872225000,"dataChange":true}}

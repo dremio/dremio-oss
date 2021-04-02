@@ -18,35 +18,38 @@ package com.dremio.exec.planner.physical.visitor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelColumnOrigin;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.mapping.Mapping;
+import org.apache.calcite.util.mapping.MappingType;
+import org.apache.calcite.util.mapping.Mappings;
 
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.physical.AggPrelBase;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
-import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.LeafPrel;
-import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
-import com.dremio.exec.planner.physical.SortPrel;
-import com.dremio.exec.planner.physical.StreamAggPrel;
-import com.dremio.exec.planner.physical.TopNPrel;
-import com.dremio.exec.planner.physical.WindowPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterEntry;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.google.common.collect.ImmutableList;
 
 /**
  * This visitor does two major things:
@@ -106,7 +109,8 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
     }
 
     if ((joinRelType == JoinRelType.LEFT && !hashJoinPrel.isSwapped())
-        || (joinRelType == JoinRelType.RIGHT && hashJoinPrel.isSwapped())) {
+        || (joinRelType == JoinRelType.RIGHT && hashJoinPrel.isSwapped())
+        || joinRelType == JoinRelType.FULL) {
       return null;
     }
 
@@ -114,7 +118,6 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
     final RelNode currentBuild;
     final List<Integer> probeKeys;
     final List<Integer> buildKeys;
-    final RelMetadataQuery relMetadataQuery = hashJoinPrel.getCluster().getMetadataQuery();
 
     //identify probe sie and build side prel tree
     if (hashJoinPrel.isSwapped()) {
@@ -144,37 +147,26 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
       Integer buildKey = keyPair.right;
       String buildFieldName = rightFields.get(buildKey);
 
-      //avoid runtime filter if the join column is not original column
-      final RelColumnOrigin probeColumnOrigin = relMetadataQuery.getColumnOrigin(currentProbe, probeKey);
-      if (null == probeColumnOrigin) {
-        //this includes column is derived
-        continue;
-      }
-
       //This also avoids the left field of the join condition with a function call.
       if (!(currentProbe instanceof Prel)) {
         return null;
       }
-      ScanPrelBase scanPrel = ((Prel) currentProbe).accept(new FindScanVisitor(), probeKey);
-      if (scanPrel != null) {
-        //if contains block node on path from join to scan, we may not push down runtime filter
-        if(hasBlockNode((Prel) currentProbe, scanPrel)) {
-          return null;
-        }
-
-        String leftFieldName = probeColumnOrigin.getOriginTable().getRowType().getFieldNames().get(probeColumnOrigin.getOriginColumnOrdinal());
-        PrelSequencer.OpId opId = prelOpIdMap.get(scanPrel);
-        int probeScanMajorFragmentId = opId.getFragmentId();
-        int probeScanOperatorId = opId.getAsSingleInt();
-        RuntimeFilterEntry runtimeFilterEntry = new RuntimeFilterEntry(leftFieldName, buildFieldName, probeScanMajorFragmentId, probeScanOperatorId);
-        if (isPartitionColumn(scanPrel, leftFieldName)) {
-          partitionColumns.add(runtimeFilterEntry);
-        } else {
-          nonPartitionColumns.add(runtimeFilterEntry);
-        }
-      } else {
-        return null;
-      }
+      List<ColumnOriginScan> columnOrigins = ((Prel) currentProbe).accept(new FindScanVisitor(), probeKey);
+      columnOrigins.stream()
+        .filter(Objects::nonNull)
+        .forEach(columnOrigin -> {
+          Prel scanPrel = columnOrigin.getScan();
+          String leftFieldName = columnOrigin.getField();
+          PrelSequencer.OpId opId = prelOpIdMap.get(scanPrel);
+          int probeScanMajorFragmentId = opId.getFragmentId();
+          int probeScanOperatorId = opId.getAsSingleInt();
+          RuntimeFilterEntry runtimeFilterEntry = new RuntimeFilterEntry(leftFieldName, buildFieldName, probeScanMajorFragmentId, probeScanOperatorId);
+          if (isPartitionColumn(scanPrel, leftFieldName)) {
+            partitionColumns.add(runtimeFilterEntry);
+          } else {
+            nonPartitionColumns.add(runtimeFilterEntry);
+          }
+      });
     }
     if(!partitionColumns.isEmpty() || !nonPartitionColumns.isEmpty()) {
       return new RuntimeFilterInfo.Builder()
@@ -188,54 +180,113 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
 
   }
 
-  private static class FindScanVisitor extends BasePrelVisitor<ScanPrelBase,Integer,RuntimeException> {
+  private static class ColumnOriginScan extends Pair<Prel,String> {
+
+    /**
+     * Creates a Pair.
+     *
+     * @param left  left value
+     * @param right right value
+     */
+    public ColumnOriginScan(Prel left, String right) {
+      super(left, right);
+    }
+
+    static ColumnOriginScan of(Prel scan, String field) {
+      return new ColumnOriginScan(scan, field);
+    }
+
+    Prel getScan() {
+      return getKey();
+    }
+
+    String getField() {
+      return getValue();
+    }
+  }
+
+  private static class FindScanVisitor extends BasePrelVisitor<List<ColumnOriginScan>,Integer,RuntimeException> {
     @Override
-    public ScanPrelBase visitPrel(Prel prel, Integer idx) {
+    public List<ColumnOriginScan> visitPrel(Prel prel, Integer idx) {
       if (prel instanceof FilterPrel || prel instanceof SelectionVectorRemoverPrel) {
         if (prel.getInput(0) instanceof Prel) {
           return ((Prel) prel.getInput(0)).accept(this, idx);
         }
       }
-      return null;
+      if (prel instanceof AggPrelBase) {
+        return visitAggregate(((AggPrelBase) prel), idx);
+      }
+      if (prel instanceof UnionPrel) {
+        return visitUnion(((UnionPrel) prel), idx);
+      }
+      return ImmutableList.of();
+    }
+
+    private List<ColumnOriginScan> visitAggregate(AggPrelBase agg, Integer idx) {
+      if (idx < agg.getGroupCount()) {
+        if (!(agg.getInput() instanceof Prel)) {
+          return ImmutableList.of();
+        }
+        Mapping m = Mappings.create(MappingType.PARTIAL_FUNCTION,
+          agg.getInput().getRowType().getFieldCount(), agg.getRowType().getFieldCount());
+
+        int i = 0;
+        for (int j : agg.getGroupSet()) {
+          m.set(j, i++);
+        }
+        return ((Prel) agg.getInput()).accept(this, m.getTarget(idx));
+      }
+      return ImmutableList.of();
+    }
+
+    private List<ColumnOriginScan> visitUnion(UnionPrel union, Integer idx) {
+      ImmutableList.Builder<ColumnOriginScan> builder = ImmutableList.builder();
+      for (Prel child : union) {
+        builder.addAll(child.accept(this, idx));
+      }
+      return builder.build();
     }
 
     @Override
-    public ScanPrelBase visitProject(ProjectPrel prel, Integer idx) {
+    public List<ColumnOriginScan> visitProject(ProjectPrel prel, Integer idx) {
       if (!(prel.getChildExps().get(idx) instanceof RexInputRef)) {
-        return null;
+        return ImmutableList.of();
       }
       RexInputRef ref = (RexInputRef) prel.getChildExps().get(idx);
       if (prel.getInput(0) instanceof Prel) {
         return ((Prel) prel.getInput(0)).accept(this, ref.getIndex());
       }
-      return null;
+      return ImmutableList.of();
     }
 
     @Override
-    public ScanPrelBase visitExchange(ExchangePrel exchange, Integer idx) {
+    public List<ColumnOriginScan> visitExchange(ExchangePrel exchange, Integer idx) {
       if (exchange.getInput() instanceof Prel) {
         return ((Prel) exchange.getInput()).accept(this, idx);
       }
-      return null;
+      return ImmutableList.of();
     }
 
     @Override
-    public ScanPrelBase visitLeaf(LeafPrel prel, Integer idx) {
+    public List<ColumnOriginScan> visitLeaf(LeafPrel prel, Integer idx) {
       if (prel instanceof ScanPrelBase) {
-        return (ScanPrelBase) prel;
+        return ImmutableList.of(ColumnOriginScan.of((ScanPrelBase) prel, prel.getRowType().getFieldNames().get(idx)));
       }
-      return null;
+      return ImmutableList.of();
     }
 
     @Override
-    public ScanPrelBase visitJoin(JoinPrel join, Integer idx) {
-      if (join instanceof NestedLoopJoinPrel) {
-        return null;
+    public List<ColumnOriginScan> visitJoin(JoinPrel join, Integer outputIndex) {
+      int idx;
+      if (join.getProjectedFields() == null) {
+        idx = outputIndex;
+      } else {
+        idx = join.getProjectedFields().asList().get(outputIndex);
       }
       if (idx < join.getLeft().getRowType().getFieldCount()) {
         if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT) {
           if (!(join.getLeft() instanceof Prel)) {
-            return null;
+            return ImmutableList.of();
           }
           Prel left = (Prel) join.getLeft();
           return left.accept(this, idx);
@@ -244,15 +295,22 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
         if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.RIGHT) {
           int newIdx = idx - join.getLeft().getRowType().getFieldCount();
           if (!(join.getRight() instanceof Prel)) {
-            return null;
+            return ImmutableList.of();
           }
           Prel right = (Prel) join.getRight();
           return right.accept(this, newIdx);
         }
       }
-      return null;
+      return ImmutableList.of();
     }
 
+    @Override
+    public List<ColumnOriginScan> visitTableFunction(TableFunctionPrel prel, Integer idx) {
+      if (prel.isDataScan()) {
+        return ImmutableList.of(ColumnOriginScan.of(prel, prel.getRowType().getFieldNames().get(idx))); // End here. Operators below this point are possibly dealing with manifests.
+      }
+      return ImmutableList.of();
+    }
   }
 
   private ExchangePrel findExchangePrel(RelNode rightRelNode) {
@@ -272,68 +330,15 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
     }
   }
 
-  private boolean isPartitionColumn(ScanPrelBase scanPrel, String fieldName) {
-    ReadDefinition readDefinition = scanPrel.getTableMetadata().getDatasetConfig().getReadDefinition();
+  private boolean isPartitionColumn(Prel scanPrel, String fieldName) {
+    Preconditions.checkArgument(scanPrel instanceof ScanRelBase || scanPrel instanceof TableFunctionPrel,
+            "Incorrect data scan prel {}", scanPrel.getClass().getName());
+    TableMetadata tableMetadata = (scanPrel instanceof ScanRelBase) ? ((ScanRelBase) scanPrel).getTableMetadata() : ((TableFunctionPrel) scanPrel).getTableMetadata();
+    ReadDefinition readDefinition = tableMetadata.getDatasetConfig().getReadDefinition();
     if (readDefinition.getPartitionColumnsList() == null) {
       return false;
     }
     return !readDefinition.getPartitionColumnsList().isEmpty() && readDefinition.getPartitionColumnsList().contains(fieldName);
   }
 
-  private boolean hasBlockNode(Prel startNode, Prel endNode) {
-    BlockNodeVisitor blockNodeVisitor = new BlockNodeVisitor();
-    startNode.accept(blockNodeVisitor, endNode);
-    return blockNodeVisitor.isEncounteredBlockNode();
-  }
-
-  private static class BlockNodeVisitor extends BasePrelVisitor<Void, Prel, RuntimeException> {
-
-    private boolean encounteredBlockNode;
-
-    @Override
-    public Void visitPrel(Prel prel, Prel endValue) throws RuntimeException {
-      if (prel == endValue) {
-        return null;
-      }
-
-      Prel currentPrel = prel;
-      if (currentPrel == null) {
-        return null;
-      }
-
-      if (currentPrel instanceof WindowPrel) {
-        encounteredBlockNode = true;
-        return null;
-      }
-
-      if (currentPrel instanceof StreamAggPrel) {
-        encounteredBlockNode = true;
-        return null;
-      }
-
-      if (currentPrel instanceof HashAggPrel) {
-        encounteredBlockNode = true;
-        return null;
-      }
-
-      if (currentPrel instanceof SortPrel) {
-        encounteredBlockNode = true;
-        return null;
-      }
-
-      if (currentPrel instanceof TopNPrel) {
-        encounteredBlockNode = true;
-        return null;
-      }
-
-      for (Prel subPrel : currentPrel) {
-        visitPrel(subPrel, endValue);
-      }
-      return null;
-    }
-
-    public boolean isEncounteredBlockNode() {
-      return encounteredBlockNode;
-    }
-  }
 }

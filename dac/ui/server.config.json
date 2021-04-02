@@ -6,6 +6,6 @@
     }, {
       "patterns": ["/api*", "/static"], "ws": true
     }],
-  "apiOrigin": "http://localhost:9047",
-  "atlantisApi": "http://dcs-aws-autodaas-1900-ns"
+  "apiOrigin": "http://automaster.drem.io:9047",
+  "atlantisApi": "http://dcs-aws-autodaas-1934-ns"
 }

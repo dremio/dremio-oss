@@ -47,7 +47,7 @@ import com.google.common.collect.Lists;
 
 public class PushFilterPastProjectRule extends RelOptRule {
 
-  public final static RelOptRule INSTANCE = new PushFilterPastProjectRule(
+  public final static PushFilterPastProjectRule INSTANCE = new PushFilterPastProjectRule(
       FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
 
   public final static RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
@@ -152,6 +152,25 @@ public class PushFilterPastProjectRule extends RelOptRule {
     Filter filterRel = call.rel(0);
     Project projRel = call.rel(1);
 
+    RelNode rewrittenNode = rewrite(filterRel, projRel);
+    if (filterRel != rewrittenNode) {
+      call.transformTo(rewrittenNode);
+    }
+  }
+
+  /**
+   * Rewrites a FP to either FPF, PF, FP, P, F, or _
+   *   * FPF if only part of the filter can be pushed down
+   *   * FP when no filters can be pushed down(Reference to filter rel is returned)
+   *   * PF if all the filter can be pushed down
+   *   * F when a trivial project is encountered
+   *   * P when the filters is trivial
+   *   * _ when the filter and project are trivial
+   * @param filterRel
+   * @param projRel
+   * @return Returns filterRel if unable to rewrite, otherwise will return the rewritten node
+   */
+  public RelNode rewrite(Filter filterRel, Project projRel) {
     // get a conjunctions of the filter condition. For each conjunction, if it refers to ITEM or FLATTEN expression
     // then we could not pushed down. Otherwise, it's qualified to be pushed down.
     final List<RexNode> predList = RelOptUtil.conjunctions(filterRel.getCondition());
@@ -171,7 +190,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
     final RexNode qualifedPred = RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), qualifiedPredList, true);
 
     if (qualifedPred == null) {
-      return;
+      return filterRel;
     }
 
     // convert the filter to one that references the child of the project
@@ -186,7 +205,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
     final RexNode unqualifiedPred = RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), unqualifiedPredList, true);
 
     if (unqualifiedPred == null) {
-      call.transformTo(relBuilder.build());
+      return relBuilder.build();
     } else {
       // if there are filters not qualified to be pushed down, then we have to put those filters on top of
       // the new Project operator.
@@ -195,8 +214,9 @@ public class PushFilterPastProjectRule extends RelOptRule {
       //    Project
       //     \
       //      Filter  -- qualified filters
-      relBuilder.filter(unqualifiedPred);
-      call.transformTo(relBuilder.build());
+      return relBuilder
+        .filter(unqualifiedPred)
+        .build();
     }
   }
 

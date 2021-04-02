@@ -346,7 +346,7 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
   }
 
   @Override
-  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
     try {
       if (CollectionUtils.isEmpty(fieldNames)) {
         return Optional.empty();

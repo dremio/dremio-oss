@@ -50,6 +50,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.iceberg.types.Types;
 import org.apache.parquet.Preconditions;
 
+import com.dremio.cache.AuthorizationCacheException;
+import com.dremio.cache.AuthorizationCacheService;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -111,6 +113,7 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.iceberg.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.IcebergOperation;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.util.FSHealthChecker;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -157,7 +160,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 /**
  * Storage plugin for file system
  */
-public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin, SupportsReadSignature {
+public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin, SupportsReadSignature, AuthorizationCacheService {
   /**
    * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to create new copies
    * of {@link Configuration} objects.
@@ -229,6 +232,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   private List<FormatMatcher> dropFileMatchers;
   private CompressionCodecFactory codecFactory;
   private boolean supportsIcebergTables;
+  protected FSHealthChecker fsHealthChecker;
 
   public FileSystemPlugin(final C config, final SabotContext context, final String name, Provider<StoragePluginId> idProvider) {
     this.name = name;
@@ -340,6 +344,24 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return userName;
   }
 
+  public void clear(String userOrGroup) throws AuthorizationCacheException {
+    try {
+      hadoopFS.invalidate(userOrGroup);
+    } catch (Exception e) {
+      logger.debug(e.getMessage());
+      throw new AuthorizationCacheException(String.format("Encountered an issue invalidating authorization cached for '%s'", userOrGroup));
+    }
+  }
+
+  public void clear() throws AuthorizationCacheException {
+    try {
+      hadoopFS.invalidateAll();
+    } catch (Exception e) {
+      logger.debug(e.getMessage());
+      throw new AuthorizationCacheException("Encountered an issue invalidating all authorizations cached");
+    }
+  }
+
   public Iterable<String> getSubPartitions(List<String> table,
                                            List<String> partitionColumns,
                                            List<String> partitionValues,
@@ -372,7 +394,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       return SourceState.GOOD;
     }
     try {
-      systemUserFS.access(config.getPath(), ImmutableSet.of(AccessMode.READ));
+      fsHealthChecker.healthCheck(config.getPath(), ImmutableSet.of(AccessMode.READ));
     } catch (AccessControlException ace) {
       logger.debug("Falling back to listing of source to check health", ace);
       try {
@@ -384,6 +406,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       return SourceState.badState("", e);
     }
     return SourceState.GOOD;
+  }
+
+  protected void healthCheck(Path path, final Set<AccessMode> mode) throws IOException {
+    systemUserFS.access(path, mode);
   }
 
   @Override
@@ -620,6 +646,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     // NOTE: Add fallback format matcher if given in the configuration. Make sure fileMatchers is an order-preserving list.
     this.systemUserFS = createFS(SYSTEM_USERNAME);
     dropFileMatchers = matchers.subList(0, matchers.size());
+    this.fsHealthChecker = FSHealthChecker.getInstance(config.getPath(), config.getConnection(), getFsConf()).orElse((p,m) -> healthCheck(p, m));
 
     createIfNecessary();
   }

@@ -54,6 +54,7 @@ import com.dremio.exec.proto.UserBitShared.SubstitutionProfile;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.work.foreman.ExecutionPlan;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
@@ -89,6 +90,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   private volatile ByteString accelerationDetails;
   private byte[] serializedPlan;
+
+  private int numPlanCacheUses = 0;
 
   public PlanCaptureAttemptObserver(final boolean verbose, final boolean includeDatasetProfiles,
                                     final FunctionImplementationRegistry funcRegistry,
@@ -266,6 +269,19 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       .setDurationMillis(millisTaken)
       .setPlan("")
       .build());
+  }
+
+  @Override
+  public void planCacheUsed( int count) {
+    planPhases.add(PlanPhaseProfile.newBuilder()
+      .setPhaseName(PlannerPhase.PLAN_CACHE_USED)
+      .setPlan(String.format("Cached Plan is used for the query, the cached plan entry has been used %d times", count))
+      .build());
+    numPlanCacheUses = count;
+  }
+
+  public int getNumPlanCacheUses() {
+    return numPlanCacheUses;
   }
 
   @Override
@@ -464,6 +480,11 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       .setPhaseName("Fragment Activate RPCs")
       .setDurationMillis(millisTaken)
       .build());
+  }
+
+  @Override
+  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+    detailsPopulator.addReflectionHints(reflectionExplanationsAndQueryDistance);
   }
 
   public String getText() {

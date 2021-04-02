@@ -16,18 +16,22 @@
 package com.dremio.exec.catalog;
 
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 
 import javax.inject.Provider;
@@ -92,13 +96,15 @@ public class TestPluginsManager {
   private SabotContext sabotContext;
   private SchedulerService schedulerService;
   private ModifiableSchedulerService modifiableSchedulerService;
+  private NamespaceService mockNamespaceService;
+  private List<Cancellable> scheduledTasks = new ArrayList<>();
 
   @Before
   public void setup() throws Exception {
     storeProvider =
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
-    final NamespaceService mockNamespaceService = mock(NamespaceService.class);
+    mockNamespaceService = mock(NamespaceService.class);
     when(mockNamespaceService.getAllDatasets(Mockito.anyObject())).thenReturn(Collections.emptyList());
 
     final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
@@ -151,7 +157,13 @@ public class TestPluginsManager {
 
     PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
     modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
-      option, optionManager);
+      option, optionManager) {
+      public Cancellable schedule(Schedule schedule, Runnable task) {
+        Cancellable wakeupTask = super.schedule(schedule, task);
+        scheduledTasks.add(wakeupTask);
+        return wakeupTask;
+      }
+    };
 
     plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, dremioConfig,
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
@@ -289,5 +301,28 @@ public class TestPluginsManager {
     }
 
     assertTrue(threw);
+  }
+
+  @Test
+  public void testCreateSource() throws Exception {
+    final SourceConfig newConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName("TEST")
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(false).toBytesString());
+
+    boolean userExceptionOccured = false;
+    try {
+      doThrow(UserException.validationError().message("Already Exists %s", "").buildSilently())
+        .when(mockNamespaceService)
+        .addOrUpdateSource(newConfig.getKey(), newConfig);
+      scheduledTasks.clear();
+      ManagedStoragePlugin plugin = plugins.create(newConfig, "testuser");
+    } catch(UserException e) {
+      userExceptionOccured = true;
+    }
+    assertEquals(scheduledTasks.size(), 1);
+    assertTrue(scheduledTasks.get(0).isCancelled());
+    assertTrue(userExceptionOccured);
   }
 }

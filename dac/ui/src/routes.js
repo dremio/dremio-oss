@@ -27,7 +27,6 @@ import {
 import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from '@inject/pages/AdminPage/subpages/Roles';
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
-import Projects from '@inject/pages/SettingPage/subpages/projects/Projects';
 import Queues from '@inject/pages/AdminPage/subpages/WLM/Queues';
 import QAssignments from '@inject/pages/AdminPage/subpages/WLM/QAssignments';
 import EulaPage from '@inject/pages/EulaPage/EulaPage';
@@ -39,8 +38,8 @@ import { LOGIN_PATH, SIGNUP_PATH, SSO_LANDING_PATH } from '@app/sagas/loginLogou
 import { lazy } from '@app/components/Lazy';
 import Activation from '@inject/pages/AdminPage/subpages/Activation';
 import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
-import SettingPage from '@inject/pages/SettingPage/SettingPage';
-import SettingModals from '@inject/pages/SettingPage/SettingModals';
+
+import additionalRoutes from '@inject/additionalRoutes';
 
 import App from './containers/App';
 
@@ -146,14 +145,6 @@ export default dispatch => (
           </Route>
         </Route>
       </Route>
-      <Route component={UserIsAdmin(SettingModals)}>
-        <Route component={Page}>
-          <Route path='/setting' component={SettingPage} >
-            <IndexRedirect to='/setting/projects' />
-            <Route path='/setting/projects' component={Projects} />
-          </Route>
-        </Route>
-      </Route>
       <Route component={UserIsAdmin(AdminModals)}>
         <Route component={Page}>
           <Route path='/admin' component={AdminPage} >
@@ -188,6 +179,7 @@ export default dispatch => (
           <Route path='/sources/external/list' component={AllSources} />
         </Route>
       </Route>
+      {additionalRoutes}
       <Route component={MainMasterPage}>
         {
           getExploreRoute({

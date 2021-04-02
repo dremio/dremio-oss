@@ -31,12 +31,13 @@ public class TestContextFunctions extends PlanTestBase {
 
   @Test
   public void userUDFForAnonymousConnection() throws Exception {
-    updateClient("");
+    final String user = "anonymous";
+    updateClient(user);
     testBuilder()
         .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("user", "session_user", "system_user", "query_user")
-        .baselineValues("anonymous", "anonymous", "anonymous", "anonymous")
+        .baselineValues(user, user, user, user)
         .go();
   }
 

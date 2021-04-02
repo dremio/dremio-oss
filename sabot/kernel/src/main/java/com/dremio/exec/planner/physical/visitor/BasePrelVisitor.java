@@ -21,6 +21,8 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
 public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> implements PrelVisitor<RETURN, EXTRA, EXCEP> {
@@ -52,6 +54,16 @@ public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> implements 
 
   @Override
   public RETURN visitWriter(WriterPrel prel, EXTRA value) throws EXCEP {
+    return visitPrel(prel, value);
+  }
+
+  @Override
+  public RETURN visitTableFunction(TableFunctionPrel prel, EXTRA value) throws EXCEP {
+    return visitPrel(prel, value);
+  }
+
+  @Override
+  public RETURN visitWriterCommitter(WriterCommitterPrel prel, EXTRA value) throws EXCEP {
     return visitPrel(prel, value);
   }
 

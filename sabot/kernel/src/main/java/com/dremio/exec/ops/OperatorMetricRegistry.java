@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.ops;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -40,6 +44,7 @@ import com.dremio.sabot.op.sender.partition.PartitionSenderOperator;
 import com.dremio.sabot.op.sender.roundrobin.RoundRobinOperator;
 import com.dremio.sabot.op.sender.single.SingleSenderOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
+import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
 
 /**
@@ -50,6 +55,7 @@ public class OperatorMetricRegistry {
 
   private static final CoreOperatorTypeMetricsMap CORE_OPERATOR_TYPE_METRICS_MAP;
   private static final String[][] OPERATOR_METRICS_NAMES = new String[CoreOperatorType.values().length][];
+  public static final int DEFAULT_CORE_OPERATOR_SUBTYPE = 0;
 
   static {
     final CoreOperatorTypeMetricsMap.Builder builder = getMapBuilder();
@@ -71,23 +77,36 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.PROJECT_VALUE, ProjectorStats.Metric.class);
     register(builder, CoreOperatorType.FILTER_VALUE, FilterStats.Metric.class);
     register(builder, CoreOperatorType.NESTED_LOOP_JOIN_VALUE, NLJEOperator.Metric.class);
-    register(builder, CoreOperatorType.TABLE_FUNCTION_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.TABLE_FUNCTION_VALUE, Arrays.asList(ScanOperator.Metric.class, TableFunctionOperator.Metric.class));
+    register(builder, CoreOperatorType.DELTALAKE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 
   private static void register(CoreOperatorTypeMetricsMap.Builder builder, final Integer operatorType, final Class<? extends MetricDef> metricDef) {
     final MetricDef[] enumConstants = metricDef.getEnumConstants();
+    populateMetricsInMap(builder, operatorType, Arrays.asList(enumConstants));
+  }
+
+  private static void register(CoreOperatorTypeMetricsMap.Builder builder, final Integer operatorType, final List< Class<? extends MetricDef>> metricsDef) {
+    final ArrayList<MetricDef> enumConstants = new ArrayList<>();
+    for (Class<? extends MetricDef> def: metricsDef) {
+      Collections.addAll(enumConstants, def.getEnumConstants());
+    }
+    populateMetricsInMap(builder, operatorType, enumConstants);
+  }
+
+  private static void populateMetricsInMap(CoreOperatorTypeMetricsMap.Builder builder, final Integer operatorType, List<MetricDef> enumConstants) {
     MetricsDef.Builder metricsDefBuilder = builder.getMetricsDefBuilder(operatorType);
     if (enumConstants == null) {
       return;
     }
-    final String[] names = new String[enumConstants.length];
-    for (int i = 0; i < enumConstants.length; i++) {
+    final String[] names = new String[enumConstants.size()];
+    for (int i = 0; i < enumConstants.size(); i++) {
       metricsDefBuilder.addMetricDef(UserBitShared.MetricDef.newBuilder()
-        .setId(enumConstants[i].metricId())
-        .setName(enumConstants[i].name()).build()
+        .setId(enumConstants.get(i).metricId())
+        .setName(enumConstants.get(i).name()).build()
       );
-      names[i] = enumConstants[i].name();
+      names[i] = enumConstants.get(i).name();
     }
     OPERATOR_METRICS_NAMES[operatorType] = names;
     builder.setMetricsDef(operatorType, metricsDefBuilder.build());

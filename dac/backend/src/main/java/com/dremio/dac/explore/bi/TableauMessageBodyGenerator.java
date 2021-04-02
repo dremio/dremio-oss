@@ -179,15 +179,11 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
   private final boolean customizationEnabled;
-  private final TableauExportType exportType;
 
   @Inject
   public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager) {
     super(endpoint, optionManager);
     this.customizationEnabled = MoreObjects.firstNonNull((Boolean) configuration.getProperty(CUSTOMIZATION_ENABLED), false);
-
-    // The EnumValidator lower-cases the enum for some reason, so we upper case it to match our enum values again.
-    this.exportType = TableauExportType.valueOf(optionManager.getOption(TABLEAU_EXPORT_TYPE).toUpperCase(Locale.ROOT));
   }
 
   @Override
@@ -230,7 +226,8 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     xmlStreamWriter.writeAttribute("version", TABLEAU_VERSION);
 
     if (WebServer.MediaType.APPLICATION_TDS_TYPE.equals(mediaType)) {
-      if (TableauExportType.NATIVE == exportType) {
+      // The EnumValidator lower-cases the enum for some reason, so we upper case it to match our enum values again.
+      if (TableauExportType.NATIVE == TableauExportType.valueOf(getOptionManager().getOption(TABLEAU_EXPORT_TYPE).toUpperCase(Locale.ROOT))) {
         writeSdkConnection(xmlStreamWriter, datasetConfig, hostname);
       } else {
         writeOdbcConnection(xmlStreamWriter, datasetConfig, hostname);

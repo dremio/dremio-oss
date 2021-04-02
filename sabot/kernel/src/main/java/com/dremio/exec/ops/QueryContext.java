@@ -46,6 +46,7 @@ import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.DefaultSubstitutionProviderFactory;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
@@ -129,6 +130,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
    * time this is set to true and the close method becomes a no-op.
    */
   private boolean closed = false;
+  private PlanCache planCache;
 
   public QueryContext(
       final UserSession session,
@@ -157,6 +159,19 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       Predicate<DatasetConfig> datasetValidityChecker
   ) {
     this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty());
+  }
+
+  public QueryContext(
+    final UserSession session,
+    final SabotContext sabotContext,
+    QueryId queryId,
+    QueryPriority priority,
+    long maxAllocation,
+    Predicate<DatasetConfig> datasetValidityChecker,
+    PlanCache planCache
+  ) {
+    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty());
+    this.planCache = planCache;
   }
 
   private QueryContext(
@@ -243,6 +258,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
         .stream()
         .flatMap(rf -> rf.getRules(phase, optionManager).stream())
         .collect(Collectors.toList()));
+  }
+
+  public PlanCache getPlanCache() {
+    return planCache;
   }
 
   @Override

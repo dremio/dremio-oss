@@ -135,7 +135,6 @@ public class TestUserResource extends BaseTestServer {
       .buildPut(Entity.json(userInfo)));
   }
 
-
   @Test
   public void testUpdateUser() {
     UserInfoRequest userInfo = new UserInfoRequest(createdUser.getUID().getId(), createdUser.getUserName(),
@@ -187,4 +186,6 @@ public class TestUserResource extends BaseTestServer {
   public void testGetUserByInvalidName() throws Exception {
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(USER_PATH).path("by-name").path("invalid-name")).buildGet());
   }
+
+
 }

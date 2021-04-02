@@ -42,6 +42,7 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 /**
@@ -167,6 +168,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void planCacheUsed(int count) {
+    execute(() -> innerObserver.planCacheUsed(count));
+  }
+
+  @Override
   public void planSerializable(final RelNode serializable) {
     execute(() -> innerObserver.planSerializable(serializable));
   }
@@ -252,6 +258,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
     execute(() -> innerObserver.resourcesScheduled(resourceSchedulingDecisionInfo));
+  }
+
+  @Override
+  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+    execute(() -> innerObserver.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance));
   }
 
   @Override

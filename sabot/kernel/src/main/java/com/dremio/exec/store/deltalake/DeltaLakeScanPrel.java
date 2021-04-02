@@ -231,7 +231,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getParquetScanTableFunctionConfig(
       tableMetadata, getConditions(), getProjectedColumns(), arrowCachingEnabled);
 
-    return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), parquetSplitsExchange, tableMetadata,
+    return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), table, parquetSplitsExchange, tableMetadata,
       ImmutableList.copyOf(getProjectedColumns()), parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
   }
 
@@ -309,6 +309,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     TableFunctionConfig splitGenTableFunctionConfig = TableFunctionUtil.getSplitGenFunctionConfig(tableMetadata, Collections.EMPTY_LIST);
     return new TableFunctionPrel(getCluster(),
             getTraitSet().plus(DistributionTrait.ANY),
+            table,
             notRemovedFilter,
             tableMetadata,
             ImmutableList.of(SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION)),

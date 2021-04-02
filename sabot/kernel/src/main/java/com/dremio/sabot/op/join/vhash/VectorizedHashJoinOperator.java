@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.join.vhash;
 
 import static com.dremio.exec.ExecConstants.ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET;
+import static com.dremio.exec.ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE;
 import static org.apache.arrow.util.Preconditions.checkArgument;
 import static org.apache.arrow.util.Preconditions.checkState;
 
@@ -730,8 +731,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     }
 
     // Add partition column filter - always a single bloomfilter
+    int maxKeySize = (int) context.getOptions().getOption(RUNTIME_FILTER_KEY_MAX_SIZE);
     final Optional<BloomFilter> bloomFilter = table.prepareBloomFilter(probeTarget.getPartitionBuildTableKeys(),
-            config.getRuntimeFilterInfo().isBroadcastJoin());
+            config.getRuntimeFilterInfo().isBroadcastJoin(), maxKeySize);
     closeOnErr.add(bloomFilter.orElse(null));
     if (bloomFilter.isPresent() && !bloomFilter.get().isCrossingMaxFPP()) {
       final CompositeColumnFilter partitionFilter = CompositeColumnFilter.newBuilder()
@@ -889,6 +891,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         filterManager.remove(filterManagerEntry);
       }
     } catch (Exception e) {
+      filterManager.incrementDropCount();
       logger.warn("Error while merging runtime filter piece from " + message.getSendingMinorFragmentId(), e);
     }
   }

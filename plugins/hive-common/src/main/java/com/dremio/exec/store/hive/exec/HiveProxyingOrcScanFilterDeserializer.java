@@ -23,13 +23,13 @@ import com.dremio.exec.store.hive.StoragePluginCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.ResolvableDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.introspect.BasicBeanDescription;
 
 /**
  * Helper class for deserializing an OrcScanFilter that delegates to a OrcScanFilter
@@ -58,7 +58,7 @@ public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveP
     final Class<? extends HiveProxiedOrcScanFilter> scanClazz = plugin.getOrcScanFilterClass();
 
     final JavaType scanType = deserializationContext.getTypeFactory().constructType(scanClazz);
-    final BasicBeanDescription description = deserializationContext.getConfig().introspect(scanType);
+    final BeanDescription description = deserializationContext.getConfig().introspect(scanType);
     final JsonDeserializer<Object> orcScanFilterDeserializer = deserializationContext.getFactory().createBeanDeserializer(
       deserializationContext, scanType, description);
 

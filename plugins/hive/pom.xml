@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -286,10 +286,6 @@
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-contrib</artifactId>
       <version>${hive.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.calcite</groupId>
-      <artifactId>calcite-core</artifactId>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>

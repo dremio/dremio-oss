@@ -38,6 +38,7 @@ import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SchemaChangeExceptionContext;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -104,7 +105,8 @@ public class Foreman {
   private final OptionProvider config;
   private final QueryObserver observer;
   private final ReAttemptHandler attemptHandler;
-  private final Cache<Long, PreparedPlan> plans;
+  private final Cache<Long, PreparedPlan> preparedPlans;
+  private final PlanCache planCache;
   protected final MaestroService maestroService;
   protected final JobTelemetryClient jobTelemetryClient;
   private RuleBasedEngineSelector ruleBasedEngineSelector;
@@ -127,7 +129,8 @@ public class Foreman {
     final UserRequest request,
     final OptionProvider config,
     final ReAttemptHandler attemptHandler,
-    Cache<Long, PreparedPlan> plans,
+    Cache<Long, PreparedPlan> preparedPlans,
+    PlanCache planCache,
     final MaestroService maestroService,
     final JobTelemetryClient jobTelemetryClient,
     final RuleBasedEngineSelector ruleBasedEngineSelector) {
@@ -142,7 +145,8 @@ public class Foreman {
     this.config = config;
     this.observer = observer;
     this.attemptHandler = attemptHandler;
-    this.plans = plans;
+    this.preparedPlans = preparedPlans;
+    this.planCache = planCache;
     this.maestroService = maestroService;
     this.jobTelemetryClient = jobTelemetryClient;
     this.ruleBasedEngineSelector = ruleBasedEngineSelector;
@@ -172,7 +176,7 @@ public class Foreman {
       }
 
       attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
-        optionProvider, plans, datasetValidityChecker, commandPool);
+        optionProvider, preparedPlans, planCache, datasetValidityChecker, commandPool);
 
     } catch (Throwable t) {
       UserException uex = UserException.systemError(t).addContext("Failure while submitting the Query").build(logger);
@@ -214,11 +218,11 @@ public class Foreman {
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
       AttemptObserver observer, UserSession session, OptionProvider options,
-      Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker,
-      CommandPool commandPool) {
+      Cache<Long, PreparedPlan> preparedPlans, PlanCache planCache,
+      Predicate<DatasetConfig> datasetValidityChecker, CommandPool commandPool) {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
-        queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
-    return new AttemptManager(context, attemptId, queryRequest, observer, options, plans,
+        queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker, planCache);
+    return new AttemptManager(context, attemptId, queryRequest, observer, options, preparedPlans,
       queryContext, commandPool, maestroService, jobTelemetryClient, ruleBasedEngineSelector,
       queryRequest.runInSameThread());
   }

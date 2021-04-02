@@ -711,8 +711,11 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
    * Base context class used for DremioRelToSqlConverter.
    */
   public abstract class DremioContext extends SqlImplementor.Context {
+    private boolean stripNumericCastFromInputRef;
+
     protected DremioContext(int fieldCount) {
       super(fieldCount);
+      this.stripNumericCastFromInputRef = false;
     }
 
     /**
@@ -831,7 +834,14 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
 
         case INPUT_REF: {
           SqlNode expr = super.toSql(program, rex);
-          if (expr.getKind() == SqlKind.IDENTIFIER) {
+          if (stripNumericCastFromInputRef && (expr.getKind() == SqlKind.CAST)) {
+            final SqlNode operand = ((SqlBasicCall)expr).getOperands()[0];
+            if (shouldAddExplicitCast(operand)) {
+              // If an explicit cast would have been added for this node, then ignore it since this is a case where it
+              // should not have been present.
+              return operand;
+            }
+          } else if (expr.getKind() == SqlKind.IDENTIFIER) {
             expr = addCastIfNeeded((SqlIdentifier) expr, rex.getType());
           }
           return expr;
@@ -850,10 +860,29 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         }
 
         final RexCall originalCall = (RexCall) rex;
-        final CallTransformer transformer = getDialect().getCallTransformer(originalCall);
-        final Supplier<SqlNode> originalNodeSupplier = transformer.getAlternateCall(
-          () -> super.toSql(program, rex), this, program, originalCall);
-        return getDialect().decorateSqlNode(rex, originalNodeSupplier);
+        final boolean originalStripNumericCastFromInputRef = this.stripNumericCastFromInputRef;
+        try {
+          switch (originalCall.getOperator().getKind()) {
+            case EQUALS:
+            case GREATER_THAN_OR_EQUAL:
+            case LESS_THAN_OR_EQUAL:
+            case LESS_THAN:
+            case GREATER_THAN:
+            case NOT_EQUALS:
+              // Strip any explicit casts from column references that Dremio needed to add to numeric columns that
+              // would have been injected into SELECT lists. shouldAddExplicitCast will determine if an explicit cast
+              // would be added, but we only want them in the SELECT list so strip them if they show up in comparisons.
+              this.stripNumericCastFromInputRef = true;
+              break;
+          }
+
+          final CallTransformer transformer = getDialect().getCallTransformer(originalCall);
+          final Supplier<SqlNode> originalNodeSupplier = transformer.getAlternateCall(
+            () -> super.toSql(program, rex), this, program, originalCall);
+          return getDialect().decorateSqlNode(rex, originalNodeSupplier);
+        } finally {
+          this.stripNumericCastFromInputRef = originalStripNumericCastFromInputRef;
+        }
       }
 
       return super.toSql(program, rex);
@@ -1336,13 +1365,17 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
     }
 
     private List<SqlNode> addJoinChildSelectNodes(SqlNode node, Set<String> usedNames) {
+      return addJoinChildSelectNodes(node, usedNames, false);
+    }
+
+    private List<SqlNode> addJoinChildSelectNodes(SqlNode node, Set<String> usedNames, boolean shouldUniquify) {
       final SqlNode childNode = (node.getKind() == SqlKind.AS) ? ((SqlBasicCall) node).getOperands()[0] : node;
 
       if (childNode.getKind() == SqlKind.JOIN) {
         final SqlJoin join = (SqlJoin)childNode;
         // Delegate to the children of the join to get the node list.
-        final List<SqlNode> leftList = addJoinChildSelectNodes(join.getLeft(), usedNames);
-        final List<SqlNode> rightList = addJoinChildSelectNodes(join.getRight(), usedNames);
+        final List<SqlNode> leftList = addJoinChildSelectNodes(join.getLeft(), usedNames, true);
+        final List<SqlNode> rightList = addJoinChildSelectNodes(join.getRight(), usedNames, true);
         if (leftList == null || rightList == null) {
           // Not possible to get the nodes of one or the other child, abandon the effort.
           return null;
@@ -1371,8 +1404,8 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         }
         final List<String> names = (tableAlias != null) ? ImmutableList.of(tableAlias, colAlias) : ImmutableList.of(colAlias);
 
-        if (n.getKind() == SqlKind.IDENTIFIER) {
-          // Ensure we have unique names being used.
+        if (n.getKind() == SqlKind.IDENTIFIER || (!usedNames.add(colAlias) && shouldUniquify)) {
+          // Ensure the column name is unique.
           final String alias = SqlValidatorUtil.uniquify(colAlias, usedNames, SqlValidatorUtil.EXPR_SUGGESTER);
 
           selectList.add(SqlStdOperatorTable.AS.createCall(
@@ -1384,8 +1417,6 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         } else {
           selectList.add(n);
         }
-
-        usedNames.add(colAlias);
       });
 
       return selectList;
@@ -1430,6 +1461,10 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
 
   protected SqlNode addCastIfNeeded(SqlIdentifier expr, RelDataType type) {
     return expr;
+  }
+
+  protected boolean shouldAddExplicitCast(SqlNode node) {
+    return false;
   }
 
   protected static boolean isApproximateNumeric(RelDataType type) {

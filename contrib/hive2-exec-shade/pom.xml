@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -32,48 +32,6 @@
   <properties>
     <hive.version>${plugin.hive2.hive.version}</hive.version>
   </properties>
-
-  <!-- Need to overwrite dependency management for calcite
-       because it is shaded in Hive anyway -->
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.apache.calcite</groupId>
-        <artifactId>calcite-core</artifactId>
-        <version>1.2.0-incubating</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.jgrapht</groupId>
-            <artifactId>jgrapht-jdk1.5</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <profiles>
    <!-- Main (non-mapr) build requires a shimloader fix to support Hadoop 3
@@ -225,6 +183,14 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-yarn-registry</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.calcite</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.calcite.avatica</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <!-- Overwrite thrift version packaged with hive-exec -->
@@ -280,8 +246,6 @@
                   <include>org.apache.avro:avro</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
-                  <include>org.apache.calcite:calcite-core</include>
-                  <include>org.apache.calcite:calcite-avatica</include>
                 </includes>
                 <excludes>
                   <exclude>com.google.protobuf:protobuf-java</exclude>
@@ -303,21 +267,6 @@
                     <exclude>org/apache/hadoop/hive/llap/**</exclude>
                     <!-- Exclude Thrift version packaged inside hive-exec -->
                     <exclude>org/apache/thrift/**</exclude>
-                  </excludes>
-                </filter>
-                <filter>
-                  <artifact>org.apache.calcite:calcite-core</artifact>
-                  <excludes>
-                    <exclude>codegen/**</exclude>
-                    <exclude>org-apache-calcite-jdbc.properties</exclude>
-                    <exclude>META-INF/services/java.sql.Driver</exclude>
-                  </excludes>
-                </filter>
-                <filter>
-                  <artifact>org.apache.calcite:calcite-avatica</artifact>
-                  <excludes>
-                    <exclude>**/*.proto</exclude>
-                    <exclude>META-INF/services/java.sql.Driver</exclude>
                   </excludes>
                 </filter>
               </filters>
@@ -349,10 +298,6 @@
                 <relocation>
                   <pattern>org.apache.commons.codec.</pattern>
                   <shadedPattern>hive.org.apache.commons.codec.</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.calcite.</pattern>
-                  <shadedPattern>hive.org.apache.calcite.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons.lang3.</pattern>

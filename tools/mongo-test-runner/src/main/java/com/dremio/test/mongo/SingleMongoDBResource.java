@@ -23,8 +23,7 @@ import java.util.concurrent.TimeoutException;
 
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
-import de.flapdoodle.embed.mongo.config.IMongodConfig;
-import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
+import de.flapdoodle.embed.mongo.config.MongodConfig;
 import de.flapdoodle.embed.mongo.distribution.IFeatureAwareVersion;
 
 /**
@@ -45,7 +44,7 @@ class SingleMongoDBResource extends AbstractMongoDBResource {
     for (int i = 0; i < maxRetries; i++) {
       final ExecutorService executor = Executors.newSingleThreadExecutor();
       try {
-        final IMongodConfig config = new MongodConfigBuilder()
+        final MongodConfig config = MongodConfig.builder()
           .version(getVersion())
           .build();
         executable = Environment.prepareMongod(config);

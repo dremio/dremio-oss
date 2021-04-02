@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.store;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -35,11 +37,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.dfs.implicit.TwosComplementValuePair;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.DecimalUtils;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -78,6 +82,8 @@ public class TestRuntimeFilterEvaluator {
       // create mocks
       OpProfileDef prof = new OpProfileDef(1, 1, 1);
       final OperatorStats stats = new OperatorStats(prof, testAllocator);
+      final OptionManager options = mock(OptionManager.class);
+      when(options.getOption(ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE)).thenReturn(32L);
 
       List<NameValuePair<?>> pairs = new ArrayList<>();
       for (NameValuePair<?> nameValuePair : nameValuePairs) {
@@ -94,7 +100,7 @@ public class TestRuntimeFilterEvaluator {
       RuntimeFilter runtimeFilter = new RuntimeFilter(partitionColumnFilter, null, "");
 
       // bloomfilter contains the key, can't skip the partition
-      RuntimeFilterEvaluator filterEvaluator = new RuntimeFilterEvaluator(testAllocator, stats, runtimeFilter);
+      RuntimeFilterEvaluator filterEvaluator = new RuntimeFilterEvaluator(testAllocator, stats, options, runtimeFilter);
       Assert.assertFalse(filterEvaluator.canBeSkipped(null, nameValuePairs));
       Assert.assertEquals(0L, stats.getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
 

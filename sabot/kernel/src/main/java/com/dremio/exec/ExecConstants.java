@@ -469,6 +469,9 @@ public interface ExecConstants {
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
+  BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", false);
+  PositiveLongValidator SLICING_THREAD_MIGRATION_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.migration_multiple", Long.MAX_VALUE, 20);
+  PositiveLongValidator SLICING_THREAD_SPINDOWN_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.spindown_multiple", Long.MAX_VALUE, 100);
 
   // warning threshold for spilling
   PositiveLongValidator SPILL_IO_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.spill.warn_max_runtime", Long.MAX_VALUE, 3000);
@@ -498,6 +501,7 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET =  new BooleanValidator("exec.non_partitioned_parquet.enable_runtime_filter", false); // in beta right now
   RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE =  new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
+  RangeLongValidator RUNTIME_FILTER_KEY_MAX_SIZE =  new RangeLongValidator("exec.runtime_filter.max_key_size", 32, 1_024, 128);
 
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
@@ -513,4 +517,5 @@ public interface ExecConstants {
 
   // Use this as a factor to scale the rowcount estimation of number of rows in a data file
   DoubleValidator DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR = new RangeDoubleValidator("store.delta.rowcount_estimation_factor", 0.8d, 2.0d, 1.25d);
+  StringValidator DISABLED_GANDIVA_FUNCTIONS = new StringValidator("exec.disabled.gandiva-functions", "");
 }

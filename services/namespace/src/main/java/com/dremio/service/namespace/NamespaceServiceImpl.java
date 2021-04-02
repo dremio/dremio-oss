@@ -104,11 +104,11 @@ import com.google.protobuf.ByteString;
  */
 public class NamespaceServiceImpl implements NamespaceService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NamespaceServiceImpl.class);
-
   public static final String DAC_NAMESPACE = "dac-namespace";
   // NOTE: the name of the partition chunks store needs to stay "metadata-dataset-splits" for backwards compatibility.
   public static final String PARTITION_CHUNKS = "metadata-dataset-splits";
   public static final String MULTI_SPLITS = "metadata-multi-splits";
+  private static final int LOG_BATCH = 99;
 
   private final LegacyIndexedStore<String, NameSpaceContainer> namespace;
   private final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
@@ -208,7 +208,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy) {
+  public int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy, boolean datasetMetadataConsistencyValidate) {
     final Map<String, SourceConfig> sourceConfigs = new HashMap<>();
     final List<Range<PartitionChunkId>> ranges = new ArrayList<>();
 
@@ -274,6 +274,10 @@ public class NamespaceServiceImpl implements NamespaceService {
         // but it has to be at least positive
         ranges.add(versionRange);
 
+        if (datasetMetadataConsistencyValidate) {
+          logger.info("Deleting splitOrphans dataset {} with valid version {}.", dataset.getFullPathList(), versionRange);
+        }
+
         continue;
 
       default:
@@ -293,6 +297,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     // javadoc), which should be just after the corresponding dataset range as ranges items
     // are sorted based on their lower endpoint.
     int elementCount = 0;
+    int count = 0;
+    final StringBuilder sb = new StringBuilder();
     for (Map.Entry<PartitionChunkId, PartitionChunk> e : partitionChunkStore.find()) {
       PartitionChunkId id = e.getKey();
       final int item = Collections.binarySearch(ranges, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
@@ -305,12 +311,28 @@ public class NamespaceServiceImpl implements NamespaceService {
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
       if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
-        logger.debug("Deleting partition chunk associated with key {} from the partition chunk store.", e.getKey());
+        if (datasetMetadataConsistencyValidate) {
+          if (count > LOG_BATCH) {
+            logger.info("Deleting partition chunk associated with keys {}.", sb);
+            sb.delete(0, sb.length());
+            count = 0;
+          }
+          sb.append(id.toString()).append(" ");
+          count++;
+        } else {
+          logger.debug("Deleting partition chunk associated with key {} from the partition chunk store.", e.getKey());
+        }
         partitionChunkStore.delete(e.getKey());
         ++elementCount;
       }
     }
 
+    if (datasetMetadataConsistencyValidate && (count > 0)) {
+      logger.info("Deleting partition chunk associated with keys {}.", sb);
+    }
+
+    sb.delete(0, sb.length());
+    count = 0;
     for (Map.Entry<PartitionChunkId, MultiSplit> e : multiSplitStore.find()) {
       PartitionChunkId id = e.getKey();
       final int item = Collections.binarySearch(ranges, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
@@ -323,9 +345,25 @@ public class NamespaceServiceImpl implements NamespaceService {
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
       if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
-        logger.debug("Deleting multi split associated with key {} from the multi split store.", e.getKey());
+        if (datasetMetadataConsistencyValidate) {
+          if (count > LOG_BATCH) {
+            logger.info("Deleting multi splits associated with keys {}.", sb);
+            sb.delete(0, sb.length());
+            count = 0;
+          }
+          sb.append(id.toString()).append(" ");
+          count++;
+          if (partitionChunkStore.contains(id)) {
+            logger.warn("MultiSplit being deleted, but PartitionChunk exists for id {}.", id.getSplitId());
+          }
+        } else {
+          logger.debug("Deleting multi split associated with key {} from the multi split store.", e.getKey());
+        }
         multiSplitStore.delete(e.getKey());
       }
+    }
+    if (datasetMetadataConsistencyValidate && (count > 0)) {
+      logger.info("Deleting multi splits associated with keys {}.", sb);
     }
 
     return elementCount;
@@ -391,19 +429,6 @@ public class NamespaceServiceImpl implements NamespaceService {
       return false;
     }
 
-    NameSpaceContainerVersionExtractor extractor = new NameSpaceContainerVersionExtractor();
-    // let's make sure we aren't dealing with a concurrent update before we try to check other
-    // conditions. A concurrent update should throw that exception rather than the user exceptions
-    // thrown later in this check. Note, this duplicates the version check operation that is done
-    // inside the kvstore.
-    final String newVersion = extractor.getTag(newOrUpdatedEntity.getContainer());
-    final String oldVersion = extractor.getTag(existingContainer);
-    if(!Objects.equals(newVersion, oldVersion)) {
-      final String expectedAction = newVersion == null ? "create" : "update version " + newVersion;
-      final String previousValueDesc = oldVersion == null ? "no previous version" : "previous version " + oldVersion;
-      throw new ConcurrentModificationException(format("tried to %s, found %s", expectedAction, previousValueDesc));
-    }
-
     if (
       // make sure the type of the existing entity and new entity are the same
       newOrUpdatedEntity.getContainer().getType() != existingContainer.getType() ||
@@ -413,6 +438,16 @@ public class NamespaceServiceImpl implements NamespaceService {
         .message("There already exists an entity of type [%s] at given path [%s]",
           existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath())
         .build(logger);
+    }
+
+    NameSpaceContainerVersionExtractor extractor = new NameSpaceContainerVersionExtractor();
+    // Note, this duplicates the version check operation that is done inside the kvstore.
+    final String newVersion = extractor.getTag(newOrUpdatedEntity.getContainer());
+    final String oldVersion = extractor.getTag(existingContainer);
+    if(!Objects.equals(newVersion, oldVersion)) {
+      final String expectedAction = newVersion == null ? "create" : "update version " + newVersion;
+      final String previousValueDesc = oldVersion == null ? "no previous version" : "previous version " + oldVersion;
+      throw new ConcurrentModificationException(format("tried to %s, found %s", expectedAction, previousValueDesc));
     }
 
     // make sure the id remains the same
@@ -502,8 +537,9 @@ public class NamespaceServiceImpl implements NamespaceService {
     private long accumulatedRecordCount;
     private List<DatasetSplit> accumulatedSplits;
     private int totalNumSplits;
+    private boolean datasetMetadataConsistencyValidate;
 
-    DatasetMetadataSaverImpl(NamespaceKey datasetPath, EntityId datasetId, long nextDatasetVersion, SplitCompression splitCompression, long maxSinglePartitionChunks) {
+    DatasetMetadataSaverImpl(NamespaceKey datasetPath, EntityId datasetId, long nextDatasetVersion, SplitCompression splitCompression, long maxSinglePartitionChunks, boolean datasetMetadataConsistencyValidate) {
       this.datasetPath = datasetPath;
       this.datasetId = datasetId;
       this.nextDatasetVersion = nextDatasetVersion;
@@ -514,6 +550,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       this.totalNumSplits = 0;
       this.partitionChunkWithSingleSplitCount = 0;
       this.maxSinglePartitionChunks = maxSinglePartitionChunks;
+      this.datasetMetadataConsistencyValidate = datasetMetadataConsistencyValidate;
       resetSplitAccumulation();
     }
 
@@ -647,8 +684,14 @@ public class NamespaceServiceImpl implements NamespaceService {
           isClosed = true;
           break;
         } catch (ConcurrentModificationException cme) {
+          if (datasetMetadataConsistencyValidate) {
+            logger.info("Dataset saver hit CME with datasetId {} fullPath {} opportunisticSave {}.", datasetConfig.getId(), datasetConfig.getFullPathList(), opportunisticSave);
+          }
           if (opportunisticSave) {
             throw cme;
+          }
+          if (datasetMetadataConsistencyValidate) {
+            logger.info("Dataset {} saver hit CME with opportunisticSave false, nextDatasetVersion {}.", datasetConfig.getId(), nextDatasetVersion);
           }
           // Get dataset config again
           final DatasetConfig existingDatasetConfig = NamespaceServiceImpl.this.getDataset(datasetPath);
@@ -657,6 +700,9 @@ public class NamespaceServiceImpl implements NamespaceService {
             // Only delete splits if strictly newer. If splitVersions are equals, we
             // could end up delete the splits of the existing dataset (see DX-12232)
             existingDatasetConfig.getReadDefinition().getSplitVersion() > nextDatasetVersion) {
+            if (datasetMetadataConsistencyValidate) {
+              logger.info("Dataset saver hit CME with datasetId {} with existing splitVersion {}, numSplits {}.", datasetConfig.getId(), existingDatasetConfig.getReadDefinition().getSplitVersion(), existingDatasetConfig.getTotalNumSplits());
+            }
             deleteSplits(createdPartitionChunks);
             // copy splitVersion and other details from existingConfig
             datasetConfig.getReadDefinition().setSplitVersion(existingDatasetConfig.getReadDefinition().getSplitVersion());
@@ -667,6 +713,12 @@ public class NamespaceServiceImpl implements NamespaceService {
           }
           // try again if read definition is not set or splits are not up-to-date.
           datasetConfig.setTag(existingDatasetConfig.getTag());
+        }
+      }
+      if (datasetMetadataConsistencyValidate) {
+        LegacyFindByRange<PartitionChunkId> filter = PartitionChunkId.getSplitsRange(datasetConfig.getId(), datasetConfig.getReadDefinition().getSplitVersion());
+        for (PartitionChunkMetadata partitionChunkMetadata : findSplits(filter)) {
+          partitionChunkMetadata.checkPartitionChunkMetadataConsistency();
         }
       }
     }
@@ -680,8 +732,8 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks) {
-    return new DatasetMetadataSaverImpl(datasetPath, datasetId, System.currentTimeMillis(), splitCompression, maxSinglePartitionChunks);
+  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks, boolean datasetMetadataConsistencyValidate) {
+    return new DatasetMetadataSaverImpl(datasetPath, datasetId, System.currentTimeMillis(), splitCompression, maxSinglePartitionChunks, datasetMetadataConsistencyValidate);
   }
 
   /**

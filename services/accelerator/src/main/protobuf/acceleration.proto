@@ -22,6 +22,7 @@ import "acceleration-intent.proto";
 import "reflection-materialization.proto";
 import "dataset.proto";
 import "UserBitShared.proto";
+import "query-reflection.proto";
 
 option java_package = "com.dremio.service.accelerator.proto";
 option optimize_for = SPEED;
@@ -56,9 +57,13 @@ message ReflectionRelationship {
     optional LayoutType reflection_type = 5;
     optional LayoutDescriptor reflection = 6;
     optional bool snowflake = 7 [default = false];
+    optional double query_distance = 8 [default = nan];
+    repeated ReflectionExplanation reflection_explanation = 9;
 }
+
 
 message AccelerationDetails {
   repeated ReflectionRelationship reflectionRelationships = 1;
   repeated string error = 2;
 }
+

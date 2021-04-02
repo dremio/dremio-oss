@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.exec.ExecConstants.READ_COLUMN_INDEXES;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELERATOR_STORAGEPLUGIN_NAME;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -340,6 +341,9 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
         }
         try {
           expandBlockSplit(sortedBlockSplitsIterator.next());
+        } catch (FileNotFoundException fnfe) {
+          logger.error("One or more of the referred data files are absent.", fnfe);
+          throw new RuntimeException(String.format("One or more of the referred data files are absent [%s].", fnfe.getMessage()), fnfe);
         } catch (IOException e) {
           throw new RuntimeException("Failed to read row groups from block split", e);
         }
@@ -395,7 +399,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
     if (runtimeFilter.getPartitionColumnFilter() != null) {
       final RuntimeFilterEvaluator filterEvaluator =
-              new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), runtimeFilter);
+              new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
       this.runtimeFilterEvaluators.add(filterEvaluator);
       logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
     }
@@ -464,6 +468,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       isFirstRowGroup = false;
     }
     if (fromRowGroupBasedSplit) {
+      context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, 1);
       if (splitAndPartitionInfoIterator.hasNext()) {
         currentSplitInfo = splitAndPartitionInfoIterator.next();
       } else {
@@ -529,6 +534,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
     MutableParquetMetadata footer = safelyGetFooter();
     populateRowGroupNums.accept(footer);
+    context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
 
     List<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitAttrs = new LinkedList<>();
     for (int rowGroupNum : rowGroupNums) {

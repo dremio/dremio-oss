@@ -222,7 +222,6 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
         return Comparator
                 .comparing(DeltaLogSnapshot::getVersionId)
                 .thenComparing(DeltaLogSnapshot::containsCheckpoint)
-                .thenComparing(DeltaLogSnapshot::getTimestamp)
                 .compare(this, that);
     }
   }

@@ -280,7 +280,7 @@ public class Clean {
     AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
     AdminLogger.log("Completed. Deleted {} orphans.",
-      service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY));
+      service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY, true));
   }
 
   private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {

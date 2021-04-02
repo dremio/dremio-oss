@@ -27,6 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -59,6 +61,7 @@ import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
+import com.sun.tools.javac.util.List;
 
 /**
  * Test Reflection Manager
@@ -322,7 +325,7 @@ public class TestReflectionManager {
     when(subject.materializationStore.getDeletableEntriesModifiedBefore(anyLong(), anyInt())).thenReturn(emptyList());
 
     when(subject.namespaceService.findDatasetByUUID(dataSetId)).thenReturn(datasetConfig);
-
+    when(subject.materializationStore.getAllMaterializations()).thenReturn(emptyList());
     when(subject.optionManager.getOption(ReflectionOptions.NO_DEPENDENCY_REFRESH_PERIOD_SECONDS)).thenReturn(5555L);
 
     when(subject.reflectionStore.get(reflectionId)).thenReturn(reflectionEntry);
@@ -391,6 +394,7 @@ public class TestReflectionManager {
     when(subject.materializationStore.getAllExpiredWhen(anyLong())).thenReturn(emptyList());
     when(subject.materializationStore.getDeletableEntriesModifiedBefore(anyLong(), anyInt())).thenReturn(emptyList());
     when(subject.materializationStore.getAllDone(reflectionId)).thenReturn(singletonList(materialization));
+    when(subject.materializationStore.getAllMaterializations()).thenReturn(emptyList());
 
     when(subject.namespaceService.findDatasetByUUID(dataSetId)).thenReturn(datasetConfig);
 
@@ -429,9 +433,72 @@ public class TestReflectionManager {
     assertEquals(reflectionGoalHash, reflectionEntry.getReflectionGoalHash());
     assertEquals(true, reflectionEntry.getArrowCachingEnabled());
     assertEquals(false, materialization.getArrowCachingEnabled());
-    assertEquals(0 , reflectionEntry.getNumFailures().intValue());
+    assertEquals(0, reflectionEntry.getNumFailures().intValue());
     assertEquals(ReflectionState.REFRESHING, reflectionEntry.getState());
     assertEquals(MaterializationState.DEPRECATED, materialization.getState());
+  }
+
+  // Checking if the deleteMaterializationOrphans removes Orphan(materialization which does not have the corresponding parent entry in reflectionStore)
+  @Test
+  public void testSyncDoesPurgeOrphans() {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+
+    Materialization materialization1 = new Materialization()
+      .setId(materializationId)
+      .setReflectionId(reflectionId)
+      .setArrowCachingEnabled(false).setReflectionGoalVersion("test").setState(MaterializationState.DONE);
+
+    Materialization materialization2 = new Materialization()
+      .setId(materializationId)
+      .setReflectionId(reflectionId)
+      .setArrowCachingEnabled(false).setReflectionGoalVersion("test").setState(MaterializationState.DEPRECATED).setModifiedAt(0L);
+
+    Materialization materialization3 = new Materialization()
+      .setId(materializationId)
+      .setReflectionId(reflectionId)
+      .setArrowCachingEnabled(false).setReflectionGoalVersion("test").setState(MaterializationState.DELETED);
+
+
+    Subject subject = new Subject();
+
+    when(subject.optionManager.getOption(ReflectionOptions.MATERIALIZATION_ORPHAN_REFRESH)).thenReturn(0L);
+    when(subject.optionManager.getOption(ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD)).thenReturn(0L);
+
+    when(subject.userStore.getAllNotDeleted()).thenReturn(emptyList());
+    when(subject.externalReflectionStore.getExternalReflections()).thenReturn(emptyList());
+    when(subject.reflectionStore.find()).thenReturn(emptyList());
+    when(subject.userStore.getDeletedBefore(anyLong())).thenReturn(emptyList());
+    when(subject.userStore.getModifiedOrCreatedSince(anyLong())).thenReturn(emptyList());
+
+
+    // Used only by orphan purger
+    when(subject.materializationStore.getAllMaterializations()).thenReturn(new ArrayList<>(List.of(materialization1,materialization2,materialization3)));
+
+    when(subject.materializationStore.getDeletableEntriesModifiedBefore(anyLong(), anyInt())).thenReturn(emptyList());
+    when(subject.materializationStore.getAllExpiredWhen(anyLong())).thenReturn(emptyList());
+    when(subject.materializationStore.getRefreshesExclusivelyOwnedBy(materialization1)).thenReturn(Mockito.mock(Collection.class));
+    when(subject.materializationStore.getRefreshesExclusivelyOwnedBy(materialization2)).thenReturn(Mockito.mock(Collection.class));
+    when(subject.materializationStore.getRefreshesExclusivelyOwnedBy(materialization3)).thenReturn(Mockito.mock(Collection.class));
+
+
+    assertEquals(MaterializationState.DONE, materialization1.getState());
+    assertEquals(MaterializationState.DEPRECATED, materialization2.getState());
+    assertEquals(MaterializationState.DELETED, materialization3.getState());
+
+    // Test
+    subject.reflectionManager.sync();
+
+    // ASSERT
+    verify(subject.materializationStore).getAllMaterializations();
+    verify(subject.materializationStore,times(3)).getRefreshesExclusivelyOwnedBy(any());
+    verify(subject.materializationStore,times(3)).save(any(Materialization.class));
+    verify(subject.reflectionStore, times(1)).find();
+    verify(subject.reflectionStore, times(3)).contains(reflectionId);
+    verifyNoMoreInteractions(subject.reflectionStore);
+    assertEquals(MaterializationState.DELETED, materialization1.getState());
+    assertEquals(MaterializationState.DELETED, materialization2.getState());
+    assertEquals(MaterializationState.DELETED, materialization3.getState());
   }
 }
 

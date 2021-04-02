@@ -449,6 +449,10 @@ public class ProfileWrapper {
     return sb.append("}").toString();
   }
 
+  public int getPlanCacheUsed() {
+    return profile.getNumPlanCacheUsed();
+  }
+
   public Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>> getDatasetGroupedLayoutList() {
     Map<DatasetPath, List<UserBitShared.LayoutMaterializedViewProfile>> map = Maps.newHashMap();
 

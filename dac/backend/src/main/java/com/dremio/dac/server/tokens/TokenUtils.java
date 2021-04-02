@@ -17,7 +17,10 @@ package com.dremio.dac.server.tokens;
 
 import java.text.ParseException;
 
+import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.container.ContainerRequestContext;
+
+import org.apache.http.HttpHeaders;
 
 /**
  * Utility methods for tokens.
@@ -25,7 +28,7 @@ import javax.ws.rs.container.ContainerRequestContext;
 public final class TokenUtils {
 
   public static final String AUTH_HEADER_PREFIX = "_dremio";
-  public static final String BEARER_TOKEN_PREFIX = "Bearer";
+  private static final String BEARER_TOKEN_PREFIX = "bearer";
   public static final String TOKEN_QUERY_PARAM = ".token";
   private static final String TOKEN_QUERY_CONTEXT_KEY = "TemporaryToken";
 
@@ -43,21 +46,38 @@ public final class TokenUtils {
   }
 
   /**
-   * Get bearer token from auth header.
+   * Get auth token from request context. Only the first value is considered,
+   * other values are simply ignored.
+   * @param context request-specific information
+   * @return token string. Return null if authorization header is not present.
    */
-  public static String getBearerTokenFromAuthHeader(final String authHeader)
-      throws ParseException {
-    if (authHeader != null
-        && authHeader.matches("(.*)" + BEARER_TOKEN_PREFIX + "(.*)")) {
-      final String[] splitToken = authHeader.split(" ", 2);
-      if (splitToken.length != 2) {
-        throw new ParseException("Invalid token. ", splitToken.length);
-      }
-
-      return splitToken[1];
+  public static String getAuthHeaderToken(ContainerRequestContext context) {
+    final String authHeader = context.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+    if (authHeader == null) {
+      return null;
     }
 
-    throw new ParseException("Bearer token must be provided.", 0);
+    return authHeader.startsWith(AUTH_HEADER_PREFIX)? authHeader.substring(AUTH_HEADER_PREFIX.length()).trim() : authHeader.trim();
+  }
+
+  /**
+   * Get bearer token from authHeader.
+   * @param authHeader authorization header value
+   * @return token string
+   * @throws NotAuthorizedException if token does not exist
+   * @throws ParseException if authHeader is not null and not a bearer token, caller
+   * will catch this exception and fall back to non-DCS token validation.
+   */
+  public static String getBearerTokenFromAuthHeader(final String authHeader)
+    throws NotAuthorizedException, ParseException {
+    if (authHeader == null) {
+      throw new NotAuthorizedException("Unauthorized.");
+    }
+    String[] splitToken = authHeader.split(" +");
+    if (splitToken.length == 2 && splitToken[0].equalsIgnoreCase(BEARER_TOKEN_PREFIX)) {
+      return splitToken[1];
+    }
+    throw new ParseException("Invalid bearer token.", 0);
   }
 
   private TokenUtils() {

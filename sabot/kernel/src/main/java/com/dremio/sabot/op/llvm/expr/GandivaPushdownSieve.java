@@ -41,6 +41,7 @@ import com.dremio.common.expression.ValueExpressions.LongExpression;
 import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.expr.CodeGenContext;
+import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.expr.ExpressionSplitHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
@@ -64,6 +65,7 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
   private final boolean isDecimalV2Enabled;
   private Set<FunctionSignature> supportedFunctions = null;
+  private final Set<String> blacklistedFunctions;
 
   static final Set<FunctionSignature> functionsToHide = Sets.newHashSet();
 
@@ -77,8 +79,9 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
     functionsToHide.remove(signature);
   }
 
-  public GandivaPushdownSieve(boolean isDecimalV2Enabled) {
+  public GandivaPushdownSieve(boolean isDecimalV2Enabled, ExpressionEvaluationOptions options) {
     this.isDecimalV2Enabled = isDecimalV2Enabled;
+    this.blacklistedFunctions = options.blacklistedGandivaFunctions();
   }
 
   public CodeGenContext annotateExpression(BatchSchema batchSchema, CodeGenContext contextExpr) {
@@ -272,6 +275,10 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
     if (!supportedFunctions.contains(functionSignature) || !isSpecificFuntionSupported(holder)) {
       logger.debug("function signature not supported in gandiva : " + functionSignature);
+      return false;
+    }
+    if (blacklistedFunctions.contains(name.toLowerCase())) {
+      logger.debug("function [" + name + "] has been disabled to be executed in gandiva");
       return false;
     }
     return true;

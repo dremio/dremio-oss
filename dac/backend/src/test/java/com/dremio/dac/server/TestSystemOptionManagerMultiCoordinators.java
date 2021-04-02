@@ -23,8 +23,11 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionValue;
 
@@ -35,6 +38,8 @@ import com.dremio.options.OptionValue;
 public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
   private SystemOptionManager somMaster;
   private SystemOptionManager somNonMaster;
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void init() throws Exception {
@@ -49,6 +54,24 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
     somNonMaster = getCurrentDremioDaemon().getBindingProvider().lookup(SystemOptionManager.class);
   }
 
+  private void waitForOptionInNonMaster(final String optionName) throws Exception {
+    while (somNonMaster.getOption(optionName) == null) {
+      Thread.sleep(10);
+    }
+  }
+
+  private void waitForOptionValueInNonMaster(final String optionNam, final long value) throws Exception {
+    while (somNonMaster.getOption("store.plugin.max_metadata_leaf_columns").getNumVal() != value) {
+      Thread.sleep(10);
+    }
+  }
+
+  private void waitForOptionDeletedInNonMaster(final String optionName) throws Exception {
+    while (somNonMaster.getOption(optionName) != null) {
+      Thread.sleep(10);
+    }
+  }
+
   @Test
   public void testOptionMultiCoordinators() throws Exception {
 
@@ -56,13 +79,13 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
     OptionValue ov = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "store.plugin.max_metadata_leaf_columns", 1000);
     somMaster.setOption(ov);
     assertEquals(ov.getNumVal(), somMaster.getOption("store.plugin.max_metadata_leaf_columns").getNumVal());
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionInNonMaster("store.plugin.max_metadata_leaf_columns");
     assertEquals(ov.getNumVal(), somNonMaster.getOption("store.plugin.max_metadata_leaf_columns").getNumVal());
 
     // Set an existing non-default option with default value on Master and then validate the value in both Master and nonMaster
     OptionValue ov1 = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "store.plugin.max_metadata_leaf_columns", 800);
     somMaster.setOption(ov1);
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionValueInNonMaster("store.plugin.max_metadata_leaf_columns", ov1.getNumVal());
     assertEquals(ov1.getNumVal(), somNonMaster.getOption("store.plugin.max_metadata_leaf_columns").getNumVal());
 
 
@@ -70,25 +93,25 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
     ov = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "planner.cross_source_select.disable", true);
     somMaster.setOption(ov);
     assertEquals(ov.getBoolVal(), somMaster.getOption("planner.cross_source_select.disable").getBoolVal());
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionInNonMaster("planner.cross_source_select.disable");
     assertEquals(ov.getBoolVal(), somNonMaster.getOption("planner.cross_source_select.disable").getBoolVal());
 
     // set another option on Master and then validate the value
     ov1 = OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "store.plugin.keep_metadata_on_replace", true);
     somMaster.setOption(ov1);
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionInNonMaster("store.plugin.keep_metadata_on_replace");
     assertEquals(ov1.getBoolVal(), somNonMaster.getOption("store.plugin.keep_metadata_on_replace").getBoolVal());
 
     // delete one option on Master and then validate the deleted one and the non-deleted one
     somMaster.deleteOption("store.plugin.keep_metadata_on_replace", OptionValue.OptionType.SYSTEM);
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionDeletedInNonMaster("store.plugin.keep_metadata_on_replace");
     OptionValue ov2 = somNonMaster.getOption("store.plugin.keep_metadata_on_replace");
     assertNull(ov2);
     assertEquals(ov.getBoolVal(), somNonMaster.getOption("planner.cross_source_select.disable").getBoolVal());
 
     // deleteAll on Master and then validate the deleted one
     somMaster.deleteAllOptions(OptionValue.OptionType.SYSTEM);
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionDeletedInNonMaster("planner.cross_source_select.disable");
     ov2 = somNonMaster.getOption("planner.cross_source_select.disable");
     assertNull(ov2);
 
@@ -97,10 +120,10 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
     ov = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "store.plugin.max_nested_levels", 32);
     somMaster.setOption(ov);
     assertEquals(ov.getNumVal(), somMaster.getOption("store.plugin.max_nested_levels").getNumVal());
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionInNonMaster("store.plugin.max_nested_levels");
     somNonMaster.clearCachedOptionProtoList();
     somNonMaster.populateCache();
-    Thread.sleep(TimeUnit.MILLISECONDS.toMillis(50));
+    waitForOptionInNonMaster("store.plugin.max_nested_levels");
     assertEquals(ov.getNumVal(), somNonMaster.getOption("store.plugin.max_nested_levels").getNumVal());
   }
 

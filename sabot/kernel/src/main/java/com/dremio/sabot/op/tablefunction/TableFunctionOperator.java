@@ -21,8 +21,11 @@ import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.foreman.UnsupportedFunctionException;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
 
@@ -30,6 +33,19 @@ import com.google.common.base.Preconditions;
  * Table function operator
  */
 public class TableFunctionOperator implements SingleInputOperator {
+
+  public enum Metric implements MetricDef {
+
+    NUM_DATA_FILE,
+    NUM_MANIFEST_FILE,
+    PROCESS_TME;
+
+    @Override
+    public int metricId() {
+      return ScanOperator.Metric.values().length + ordinal();
+    }
+  }
+
   private State state = State.NEEDS_SETUP;
   private VectorAccessible input;
   private VectorAccessible output;
@@ -124,6 +140,11 @@ public class TableFunctionOperator implements SingleInputOperator {
   @Override
   public State getState() {
     return state;
+  }
+
+  @Override
+  public void workOnOOB(OutOfBandMessage message) {
+    tableFunction.workOnOOB(message);
   }
 
   @Override

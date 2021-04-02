@@ -162,7 +162,6 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "orcnullstruct")
         .baselineValues("hive.default", "orc_part_test")
         .baselineValues("hive.default", "complex_types_map_support_parquet")
-        .baselineValues("hive.default", "struct_coercion_filter")
       .go();
 
     testBuilder()

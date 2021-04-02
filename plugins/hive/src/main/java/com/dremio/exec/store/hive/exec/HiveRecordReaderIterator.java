@@ -61,7 +61,7 @@ public class HiveRecordReaderIterator implements RecordReaderIterator {
     public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
         if (runtimeFilter.getPartitionColumnFilter() != null) {
             final RuntimeFilterEvaluator filterEvaluator =
-                    new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), runtimeFilter);
+                    new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
             this.runtimeFilterEvaluators.add(filterEvaluator);
             logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
         }

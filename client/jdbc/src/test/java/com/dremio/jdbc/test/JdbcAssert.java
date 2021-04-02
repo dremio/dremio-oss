@@ -39,6 +39,7 @@ import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.jdbc.ConnectionFactory;
 import com.dremio.jdbc.ConnectionInfo;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
@@ -64,6 +65,7 @@ public class JdbcAssert {
    */
   public static Properties getDefaultProperties() {
     final Properties properties = new Properties();
+    properties.put(UserSession.USER, "anonymous");
 
     return properties;
   }

@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 
 import com.dremio.common.expression.SupportedEngines;
@@ -36,10 +40,13 @@ public class ExpressionEvaluationOptions {
   }
 
   private final OptionManager options;
+  private final Set<String> disabledGandivaFunctions;
   private SupportedEngines.CodeGenOption codeGenOption = SupportedEngines.CodeGenOption.DEFAULT;
 
   public ExpressionEvaluationOptions(OptionManager options) {
     this.options = options;
+    String disabledFunctions = options.getOption(ExecConstants.DISABLED_GANDIVA_FUNCTIONS);
+    this.disabledGandivaFunctions = Arrays.stream(disabledFunctions.split(";")).map(String::toLowerCase).map(String::trim).collect(Collectors.toSet());
   }
 
   public void setCodeGenOption(String codeGenOption) {
@@ -67,5 +74,9 @@ public class ExpressionEvaluationOptions {
       clone.setCodeGenOption(SupportedEngines.CodeGenOption.Java.toString());
     }
     return clone;
+  }
+
+  public Set<String> blacklistedGandivaFunctions() {
+    return disabledGandivaFunctions;
   }
 }

@@ -154,7 +154,7 @@ public class ExpressionTreeMaterializer {
     switch (codeGenOption) {
       case Gandiva:
       case GandivaOnly:
-        return annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled());
+        return annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled(), options);
       case Java:
       default:
         return contextTree;
@@ -164,8 +164,9 @@ public class ExpressionTreeMaterializer {
   private static LogicalExpression annotateGandivaExecution(SupportedEngines.CodeGenOption codeGenOption,
                                                             BatchSchema schema,
                                                             CodeGenContext expr,
-                                                            boolean isDecimalV2Enabled) {
-    GandivaPushdownSieve gandivaPushdownSieve = new GandivaPushdownSieve(isDecimalV2Enabled);
+                                                            boolean isDecimalV2Enabled,
+                                                            ExpressionEvaluationOptions options) {
+    GandivaPushdownSieve gandivaPushdownSieve = new GandivaPushdownSieve(isDecimalV2Enabled, options);
     LogicalExpression modifiedExpression = gandivaPushdownSieve.annotateExpression(schema, expr);
 
     // Return the expression always

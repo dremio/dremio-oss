@@ -178,7 +178,14 @@ public abstract class JoinRelBase extends Join {
       remainingFilterCost = planner.getCostFactory().makeZeroCost();
     } else {
       // Similar to FilterRelBase
-      double inputRows = Math.max(mq.getRowCount(getLeft()), mq.getRowCount(getRight()));
+      double inputRows;
+      if (joinType == JoinRelType.INNER) {
+        // This only works for inner joins, where we separate the filter in physical planning and apply it after the join.
+        inputRows = Math.max(mq.getRowCount(getLeft()), mq.getRowCount(getRight()));
+      } else {
+        // For other join types, we apply the filter inside the join, the input rows should be the cartesian product of both sides.
+        inputRows = mq.getRowCount(getLeft()) * mq.getRowCount(getRight());
+      }
       double compNum = inputRows;
       double rowCompNum = this.getRowType().getFieldCount() * inputRows ;
 

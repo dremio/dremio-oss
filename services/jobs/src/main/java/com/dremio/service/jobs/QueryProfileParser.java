@@ -502,6 +502,10 @@ class QueryProfileParser {
                 setScanStats(operatorType, operatorProfile, majorFragment);
               }
               break;
+            case DELTALAKE_SUB_SCAN:
+              setScanStats(operatorType, operatorProfile, majorFragment);
+              setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              break;
             default:
               break;
           }

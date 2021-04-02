@@ -208,6 +208,7 @@ class AttemptProfileTracker {
       builder.setTotalFragments(capturer.getNumFragments());
       builder.setAccelerationProfile(capturer.getAccelerationProfile());
       builder.addAllDatasetProfile(capturer.getDatasets());
+      builder.setNumPlanCacheUsed(capturer.getNumPlanCacheUses());
 
       final String planText = capturer.getText();
       if (planText != null) {

@@ -135,8 +135,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public int deleteSplitOrphans(SplitOrphansRetentionPolicy arg0) {
-    return runner.doSafe(() -> delegate.deleteSplitOrphans(arg0));
+  public int deleteSplitOrphans(SplitOrphansRetentionPolicy arg0, boolean arg1) {
+    return runner.doSafe(() -> delegate.deleteSplitOrphans(arg0, arg1));
   }
 
   @Override
@@ -285,8 +285,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2, long arg3) {
-    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2, arg3));
+  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2, long arg3, boolean arg4) {
+    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2, arg3, arg4));
     return new DatasetMetadataSaver() {
 
       @Override

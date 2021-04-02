@@ -342,7 +342,7 @@ public class TestSourceMetadataManager {
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
-    when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong()))
+    when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong(), anyBoolean()))
         .thenReturn(saver);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
@@ -431,7 +431,7 @@ public class TestSourceMetadataManager {
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
-    when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong()))
+    when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong(), anyBoolean()))
       .thenReturn(saver);
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);

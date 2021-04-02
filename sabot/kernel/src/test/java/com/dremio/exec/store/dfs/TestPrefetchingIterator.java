@@ -625,6 +625,7 @@ public class TestPrefetchingIterator {
     when(optionManager.getOption(PREFETCH_READER)).thenReturn(prefetch);
     when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
+    when(optionManager.getOption(ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE)).thenReturn(32L);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
     when(fileSystemPlugin.createFS(anyString(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);

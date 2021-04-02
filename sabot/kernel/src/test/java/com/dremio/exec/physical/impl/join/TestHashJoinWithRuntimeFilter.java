@@ -100,6 +100,67 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
   }
 
   @Test
+  public void testWithUnion() throws Exception {
+    String unionCTE = String.format("select * from %s union all select * from %s", NATION, NATION);
+    String sql = String.format("with nations as (%s)\n"
+      + "SELECT nations.N_NAME, count(*) FROM\n"
+      + "nations \n"
+      + "JOIN\n"
+      + "%s regions \n"
+      + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+      + " where nations.n_NATIONKEY > 1 \n"
+      + "group by nations.N_NAME", unionCTE, REGION);
+    String include =  "runtimeFilter.*03.*04";
+    testPlanMatchingPatterns(sql, new String[]{include});
+  }
+
+  @Test
+  public void testWithUnionDifferentTables() throws Exception {
+    String unionCTE = String.format("select n_name, n_nationkey, n_regionkey from %s union all select r_name, r_regionkey, r_regionkey as n_regionkey from %s", NATION, REGION);
+    String sql = String.format("with nations as (%s)\n"
+      + "SELECT nations.N_NAME, count(*) FROM\n"
+      + "nations \n"
+      + "JOIN\n"
+      + "%s regions \n"
+      + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+      + " where nations.n_NATIONKEY > 1 \n"
+      + "group by nations.N_NAME", unionCTE, REGION);
+    String include =  "runtimeFilter.*03.*04";
+    testPlanMatchingPatterns(sql, new String[]{include});
+  }
+  @Test
+  public void testWithAggregate() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String aggCTE = String.format("select distinct n_nationkey, n_regionkey, n_name from %s", NATION);
+      String sql = String.format("with nations as (%s)\n"
+        + "SELECT nations.N_NAME, count(*) FROM\n"
+        + "nations \n"
+        + "JOIN\n"
+        + "%s regions \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + "group by nations.N_NAME", aggCTE, REGION);
+      String include = "runtimeFilter.*03\\-04";
+      testPlanMatchingPatterns(sql, new String[]{include});
+    }
+  }
+
+  @Test
+  public void testWithNLJ() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String nljCTE = String.format("select r_name, n_name, n_regionkey from %s left join %s on n_regionkey = r_regionkey and n_name > r_name ", NATION, REGION);
+      String sql = String.format("with nations as (%s)\n"
+        + "SELECT nations.N_NAME, count(*) FROM\n"
+        + "nations \n"
+        + "JOIN\n"
+        + "%s regions \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + "group by nations.N_NAME", nljCTE, REGION);
+      String include = "runtimeFilter.*02\\-09";
+      testPlanMatchingPatterns(sql, new String[]{include});
+    }
+  }
+
+  @Test
   public void test3wayJoinWithLeftJoin() throws Exception {
     try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
       String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
@@ -145,6 +206,23 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
         + "%s nations2\n"
         + " on nations.N_NATIONKEY = nations2.N_NATIONKEY\n"
         + "group by nations.N_NAME", REGION, NATION, NATION);
+      String includedString = "runtimeFilter";
+      testPlanMatchingPatterns(sql, new String[]{includedString});
+    }
+  }
+
+  @Test
+  public void test3wayJoinWithStreamingAgg() throws Exception {
+    try (AutoCloseable with1 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false); AutoCloseable with2 = withOption(PlannerSettings.HASH_JOIN_SWAP, false)) {
+      String sql = String.format("SELECT nations.N_NAME, r_regionkey, count(*) FROM\n"
+        + "(select sum(r_regionkey) r_regionkey from %s) regions \n"
+        + "RIGHT JOIN\n"
+        + "%s nations \n"
+        + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+        + " JOIN\n"
+        + "%s nations2\n"
+        + " on nations.N_NATIONKEY = nations2.N_NATIONKEY\n"
+        + "group by nations.N_NAME, r_regionkey", REGION, NATION, NATION);
       String includedString = "runtimeFilter";
       testPlanMatchingPatterns(sql, new String[]{includedString});
     }

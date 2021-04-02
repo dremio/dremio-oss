@@ -18,4 +18,6 @@
  * Dummy module that does nothing.  It is used when trying to inject something (using @inject in the path) that
  * does not exist.
  */
-module.exports = () => null;
+module.exports = () => {
+  return null;
+};

@@ -41,6 +41,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.CompositeColumnFilter;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -53,6 +54,7 @@ import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -370,6 +372,10 @@ public class TestHiveRecordReaderIterator {
 
         OperatorContext ctx = mock(OperatorContext.class);
         when(ctx.getStats()).thenReturn(stats);
+
+        OptionManager options = mock(OptionManager.class);
+        when(options.getOption(ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE)).thenReturn(32L);
+        when(ctx.getOptions()).thenReturn(options);
 
         when(ctx.getAllocator()).thenReturn(testAllocator);
         return ctx;

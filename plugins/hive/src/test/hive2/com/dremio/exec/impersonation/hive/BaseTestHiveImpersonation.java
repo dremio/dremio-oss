@@ -18,7 +18,6 @@ package com.dremio.exec.impersonation.hive;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 
-import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
+import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.impersonation.BaseTestImpersonation;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
@@ -68,11 +68,7 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
     hiveConf = new HiveConf();
 
     // Configure metastore persistence db location on local filesystem
-    final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true",  getTempDir("metastore_db"));
-    // Set login timeout to 60 seconds
-    DriverManager.setLoginTimeout(60);
-    // Create the database for metastore in derby
-    DriverManager.getConnection(dbUrl);
+    final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", HiveTestBase.createDerbyDB("metastore_db"));
     hiveConf.set(ConfVars.METASTORECONNECTURLKEY.varname, dbUrl);
 
     hiveConf.set(ConfVars.SCRATCHDIR.varname, "file:///" + getTempDir("scratch_dir"));

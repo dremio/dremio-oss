@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
@@ -30,6 +31,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.options.Options;
@@ -48,18 +50,19 @@ public class TableFunctionPrel extends SinglePrel{
   protected final TableMetadata tableMetadata;
   private final ImmutableList<SchemaPath> projectedColumns;
   private final TableFunctionConfig functionConfig;
+  private final RelOptTable table;
   final Function<RelMetadataQuery, Double> estimateRowCountFn;
 
-  public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child,
+  public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
                            ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
                            RelDataType rowType) {
-    this(cluster, traits, child, tableMetadata, projectedColumns, functionConfig, rowType,
+    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
             mq -> TableFunctionPrel.defaultEstimateRowCount(functionConfig, mq));
   }
 
-  public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child,
+  public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
                            ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
@@ -71,6 +74,7 @@ public class TableFunctionPrel extends SinglePrel{
     this.functionConfig = functionConfig;
     this.rowType = rowType;
     this.estimateRowCountFn = estimateRowCountFn;
+    this.table = table;
   }
 
 
@@ -91,7 +95,7 @@ public class TableFunctionPrel extends SinglePrel{
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new TableFunctionPrel(getCluster(), traitSet, sole(inputs), tableMetadata, projectedColumns,
+    return new TableFunctionPrel(getCluster(), traitSet, table, sole(inputs), tableMetadata, projectedColumns,
             functionConfig, rowType, estimateRowCountFn);
   }
 
@@ -122,5 +126,23 @@ public class TableFunctionPrel extends SinglePrel{
     }
 
     return 1;
+  }
+
+  @Override
+  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
+    return logicalVisitor.visitTableFunction(this, value);
+  }
+
+  @Override
+  public RelOptTable getTable() {
+    return table;
+  }
+
+  public boolean isDataScan() {
+    return TableFunctionConfig.FunctionType.PARQUET_DATA_SCAN.equals(functionConfig.getType());
+  }
+
+  public TableMetadata getTableMetadata() {
+    return tableMetadata;
   }
 }

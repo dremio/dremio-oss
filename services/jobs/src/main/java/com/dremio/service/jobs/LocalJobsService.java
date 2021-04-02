@@ -163,10 +163,10 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.LocalUserUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.Pointer;
 import com.dremio.service.Service;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.conduit.client.ConduitProvider;
@@ -1215,11 +1215,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
     private QueryListener(Job job, UserResponseHandler connection, SessionOptionManager sessionOptionManager) {
       this.job = job;
-      externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
+      this.externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
       this.responseHandler = Preconditions.checkNotNull(connection, "handler cannot be null");
       this.eventObserver = null;
       this.planTransformationListener = null;
-      isInternal = false;
+      this.isInternal = false;
       this.job.setIsInternal(false);
       setupJobData();
       this.sessionOptionManager = sessionOptionManager;
@@ -1869,6 +1869,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         externalListenerManager.queryProgressed(JobsServiceUtil.toJobSummary(job));
       }
     }
+
+    @Override
+    public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+      detailsPopulator.addReflectionHints(reflectionExplanationsAndQueryDistance);
+    }
   }
 
   private boolean isTerminal(AttemptEvent.State state) {
@@ -1960,17 +1965,13 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
     // Check if the profile for given attempt already exists. Even if the job is not done, it is possible that
     // profile exists for previous attempts
-    final Pointer<QueryProfile> queryProfile = new Pointer<>();
     try {
-      queryProfile.value = jobTelemetryServiceStub.getQueryProfile(
+      return jobTelemetryServiceStub.getQueryProfile(
         GetQueryProfileRequest.newBuilder()
           .setQueryId(attemptId.toQueryId())
           .build()
       ).getProfile();
-    } catch (StatusRuntimeException ex) {
-    }
-    if (queryProfile.value != null) {
-      return queryProfile.value;
+    } catch (StatusRuntimeException ignored) {
     }
 
     final NodeEndpoint endpoint = job.getJobAttempt().getEndpoint();

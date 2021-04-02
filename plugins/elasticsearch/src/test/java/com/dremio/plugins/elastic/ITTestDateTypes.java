@@ -20,17 +20,21 @@ import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.plugins.elastic.DateFormats.FormatterAndType;
 import com.google.common.collect.ImmutableMap;
 
@@ -48,6 +52,9 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
   private FormatterAndType formatter;
   private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME));
   private static Level originalLogLevel;
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void initLogLevel() {

@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>14.0.0-202103011714040666-9a0c2e10</version>
+  <version>15.0.0-202103312106020527-0be9c719</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>3.0.0-20210225085553-dacbd01b9e-dremio</arrow.version>
+    <arrow.version>4.0.0-20210303080849-4e6380d754-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202101020531550866-5383404</calcite.version>
+    <calcite.version>1.16.0-202103172325080800-52cfc7c</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -97,7 +97,7 @@
 
 
     <hsqldb.version>2.3.1</hsqldb.version>
-    <jackson.version>2.10.2</jackson.version>
+    <jackson.version>2.11.4</jackson.version>
     <jersey.version>2.30</jersey.version>
     <jetty.version>9.4.26.v20200117</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
@@ -978,7 +978,7 @@ limitations under the License.
         <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
-          <version>5.3.2</version>
+          <version>6.1.0</version>
           <dependencies>
             <dependency>
               <groupId>com.dremio.tools</groupId>
@@ -1517,7 +1517,7 @@ limitations under the License.
       <dependency>
         <groupId>de.flapdoodle.embed</groupId>
         <artifactId>de.flapdoodle.embed.mongo</artifactId>
-        <version>2.2.0</version>
+        <version>3.0.0</version>
       </dependency>
       <dependency>
         <groupId>org.mariadb.jdbc</groupId>
@@ -1586,6 +1586,11 @@ limitations under the License.
       <dependency>
         <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_dropwizard</artifactId>
+        <version>${simpleclient.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_hotspot</artifactId>
         <version>${simpleclient.version}</version>
       </dependency>
       <dependency>
@@ -1846,7 +1851,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.5</version>
+        <version>4.5.13</version>
       </dependency>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
@@ -3070,29 +3075,6 @@ limitations under the License.
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure-datalake</artifactId>
         <version>${hadoop.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.kafka</groupId>
-        <artifactId>kafka_2.10</artifactId>
-        <version>0.8.0</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.sun.jdmk</groupId>
-            <artifactId>jmxtools</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.sun.jmx</groupId>
-            <artifactId>jmxri</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>slf4j-simple</artifactId>
-            <groupId>org.slf4j</groupId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <!-- azure-data-lake-store-sdk is used by hadoop-azure in apache hadoop,
           upgrade it to a new version in which some bugs were fixed-->

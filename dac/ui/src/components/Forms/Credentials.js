@@ -75,7 +75,7 @@ function validate(values, elementConfig) {
 }
 
 // credentials is not configurable via container_selection
-const FIELDS = [AUTHENTICATION_TYPE_FIELD, USER_NAME_FIELD, PASSWORD_FIELD, KERBEROS_FIELD];
+const FIELDS = [AUTHENTICATION_TYPE_FIELD, USER_NAME_FIELD, PASSWORD_FIELD];
 
 export default class Credentials extends Component {
 

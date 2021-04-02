@@ -73,6 +73,7 @@ export default class TextField extends Component {
       className,
       initialFocus, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
       placeholder,
+      disabled,
       ...props
     } = this.props;
 
@@ -80,6 +81,7 @@ export default class TextField extends Component {
       <input
         ref='input'
         {...props}
+        disabled={disabled}
         placeholder={props.disabled ? '' : placeholder}
         defaultValue={this.props.default}
         className={classNames(['field', textInput, className])}

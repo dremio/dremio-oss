@@ -20,9 +20,17 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.TableMetadata;
 
+/**
+ * Methods required for filter pushdown
+ */
 public interface FilterableScan extends RelNode {
+  ScanFilter getFilter();
   FilterableScan applyFilter(ScanFilter scanFilter);
   FilterableScan cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns);
+  TableMetadata getTableMetadata();
+  BatchSchema getBatchSchema();
 }

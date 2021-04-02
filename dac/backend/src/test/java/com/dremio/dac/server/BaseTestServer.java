@@ -1090,4 +1090,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
       setSystemOption(PlannerSettings.ENABLE_DELTALAKE.getOptionName(),
         PlannerSettings.ENABLE_DELTALAKE.getDefault().getBoolVal().toString());
   }
+
+  protected static AutoCloseable withSystemOption(String optionName, String optionValue) {
+    setSystemOption(optionName, optionValue);
+    return () -> resetSystemOption(optionName);
+  }
 }

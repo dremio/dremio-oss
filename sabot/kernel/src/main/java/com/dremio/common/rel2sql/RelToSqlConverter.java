@@ -618,7 +618,7 @@ public class RelToSqlConverter extends SqlImplementor
     selectList.add(node);
   }
 
-  private void parseCorrelTable(RelNode relNode, Result x) {
+  protected void parseCorrelTable(RelNode relNode, Result x) {
     for (CorrelationId id : relNode.getVariablesSet()) {
       correlTableMap.put(id, x.qualifiedContext());
     }

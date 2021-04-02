@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.tablefunction;
 
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 
 /**
  * Table function interface
@@ -48,4 +49,12 @@ public interface TableFunction extends AutoCloseable{
    * Stop processing current input row
    */
   void closeRow() throws Exception;
+
+  /**
+   * Handles OOB coming over to the TableFunctionOperator
+   * @param message
+   */
+  default void workOnOOB(OutOfBandMessage message) {
+    // Do nothing
+  }
 }

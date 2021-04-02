@@ -41,6 +41,8 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
+import com.dremio.exec.planner.CachedPlan;
+import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
@@ -82,8 +84,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.Weigher;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
@@ -102,6 +107,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   // Not making this a system/session option as we initialize this in the beginning of the node start and
   // changing system/session option is not going to have any effect.
   private static final String PREPARE_HANDLE_TIMEOUT_MS = "dremio.prepare.handle.timeout_ms";
+  private static final String PLAN_CACHE_TIMEOUT_S = "dremio.plan.cache.timeout_s";
 
   // send profile updates to the job-telemetry-service for all active queries at this
   // interval.
@@ -115,6 +121,19 @@ public class ForemenWorkManager implements Service, SafeExit {
           .softValues()
           .expireAfterWrite(Long.getLong(PREPARE_HANDLE_TIMEOUT_MS, 60_000L), TimeUnit.MILLISECONDS)
           .build();
+
+  // cache for physical plans.
+  private final Cache<Long, CachedPlan> cachedPlans = CacheBuilder.newBuilder()
+    .maximumWeight(10000)
+    .weigher((Weigher<Long, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEsitimatedSize())
+    // plan caches are memory intensive. If there is memory pressure,
+    // let GC release them as last resort before running OOM.
+    .softValues()
+    //set default cache life for one day after access
+    .expireAfterAccess(Long.getLong(PLAN_CACHE_TIMEOUT_S, 864_000L), TimeUnit.SECONDS)
+    .build();
+
+  private final PlanCache planCache = new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
 
   // single map of currently running queries, mapped by their external ids.
   private final ConcurrentMap<ExternalId, ManagedForeman> externalIdToForeman = Maps.newConcurrentMap();
@@ -184,6 +203,10 @@ public class ForemenWorkManager implements Service, SafeExit {
     return localQueryExecutor;
   }
 
+  public PlanCache getPlanCacheHandle() {
+    return planCache;
+  }
+
   @Override
   public void start() throws Exception {
     Metrics.newGauge(Metrics.join("jobs","active"), () -> externalIdToForeman.size());
@@ -226,7 +249,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
     final Foreman foreman = newForeman(pool, commandPool.get(), delegate, externalId, observer, session, request,
-            config, attemptHandler, preparedHandles);
+            config, attemptHandler, preparedHandles, planCache);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
@@ -235,9 +258,10 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   protected Foreman newForeman(Executor executor, CommandPool commandPool, CompletionListener listener, ExternalId externalId,
                                QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
-                               ReAttemptHandler attemptHandler, Cache<Long, PreparedPlan> plans) {
+                               ReAttemptHandler attemptHandler, Cache<Long, PreparedPlan> preparedPlans,
+                               PlanCache planCache) {
     return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
-            attemptHandler, plans, maestroService.get(), jobTelemetryClient.get(), ruleBasedEngineSelector.get());
+            attemptHandler, preparedPlans, planCache, maestroService.get(), jobTelemetryClient.get(), ruleBasedEngineSelector.get());
   }
 
   /**
@@ -470,6 +494,64 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
   }
 
+  @VisibleForTesting // package-protected for testing purposes. Don't make it public.
+  void submitWork(ExternalId externalId,
+                  UserSession session,
+                  UserResponseHandler responseHandler,
+                  UserRequest request,
+                  TerminationListenerRegistry registry,
+                  Executor executor) {
+    commandPool.get().<Void>submit(CommandPool.Priority.HIGH,
+      ExternalIdHelper.toString(externalId) + ":work-submission",
+      (waitInMillis) -> submitWorkCommand(externalId, session, responseHandler, request, registry, executor, waitInMillis),
+      request.runInSameThread())
+      .whenComplete((o, e)-> {
+        if (e != null) {
+          QueryProfile profile = foremenTool.getProfile(externalId).isPresent() ?
+            foremenTool.getProfile(externalId).get() : null;
+          UserException exception = UserException.resourceError()
+            .message(e.getMessage() + ". Root cause: " + Throwables.getRootCause(e).getMessage())
+            .buildSilently();
+          UserResult result = new UserResult(null,
+            ExternalIdHelper.toQueryId(externalId),
+            UserBitShared.QueryResult.QueryState.FAILED,
+            profile,
+            exception,
+            null,
+            false);
+          responseHandler.completed(result);
+        }
+      });
+  }
+
+  @VisibleForTesting // package-protected for testing purposes. Don't make it public.
+  Void submitWorkCommand(ExternalId externalId,
+                         UserSession session,
+                         UserResponseHandler responseHandler,
+                         UserRequest request,
+                         TerminationListenerRegistry registry,
+                         Executor executor,
+                         Long waitInMillis) {
+    if (!canAcceptWork()) {
+      throw UserException.resourceError()
+        .message(UserException.QUERY_REJECTED_MSG)
+        .buildSilently();
+    }
+
+    if (waitInMillis > CommandPool.WARN_DELAY_MS) {
+      logger.warn("Work submission {} waited too long in the command pool: wait was {}ms",
+        ExternalIdHelper.toString(externalId), waitInMillis);
+    }
+    session.incrementQueryCount();
+    final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
+      externalId, session, responseHandler);
+    final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
+    final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
+    submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
+    return null;
+  }
+
+
   /**
    * Worker for queries coming from user layer.
    */
@@ -488,44 +570,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     @Override
     public void submitWork(ExternalId externalId, UserSession session,
                            UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry) {
-      commandPool.get().<Void>submit(CommandPool.Priority.HIGH,
-              ExternalIdHelper.toString(externalId) + ":work-submission",
-              (waitInMillis) -> {
-                if (!canAcceptWork()) {
-                  throw UserException.resourceError()
-                          .message(UserException.QUERY_REJECTED_MSG)
-                          .buildSilently();
-                }
-
-                if (waitInMillis > CommandPool.WARN_DELAY_MS) {
-                  logger.warn("Work submission {} waited too long in the command pool: wait was {}ms",
-                          ExternalIdHelper.toString(externalId), waitInMillis);
-                }
-                session.incrementQueryCount();
-                final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
-                        externalId, session, responseHandler);
-                final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
-                final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
-                submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
-                return null;
-              }, request.runInSameThread())
-      .whenComplete((o, e)-> {
-        if (e != null) {
-          QueryProfile profile = foremenTool.getProfile(externalId).isPresent() ?
-            foremenTool.getProfile(externalId).get() : null;
-          UserException exception = UserException.resourceError()
-                                                 .message(e.getMessage() + ". Root cause: " + Throwables.getRootCause(e).getMessage())
-                                                 .buildSilently();
-          UserResult result = new UserResult(null,
-            ExternalIdHelper.toQueryId(externalId),
-            UserBitShared.QueryResult.QueryState.FAILED,
-            profile,
-            exception,
-            null,
-            false);
-          responseHandler.completed(result);
-       }
-      });
+      ForemenWorkManager.this.submitWork(externalId, session, responseHandler, request, registry, executor);
     }
 
     @Override

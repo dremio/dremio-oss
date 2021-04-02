@@ -23,7 +23,9 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -34,15 +36,18 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.AbstractTableFunction;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.collect.ImmutableList;
@@ -53,19 +58,23 @@ import com.google.common.collect.Maps;
  */
 public class ParquetScanTableFunction extends AbstractTableFunction {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetScanTableFunction.class);
+
   protected final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
+  protected RecordReader currentRecordReader;
+
   private ScanOperator.ScanMutator mutator;
   private MutatorSchemaChangeCallBack callBack = new MutatorSchemaChangeCallBack();
-  FragmentExecutionContext fec;
-  OpProps props;
-  VarBinaryVector inputSplits;
+  private FragmentExecutionContext fec;
+  private OpProps props;
+  private VarBinaryVector inputSplits;
   private int batchSize;
   private int currentRow;
-  ParquetSplitReaderCreatorIterator splitReaderCreatorIterator;
-  RecordReaderIterator recordReaderIterator;
-  protected RecordReader currentRecordReader;
-  BatchSchema schema;
-  List<SchemaPath> selectedColumns;
+  private ParquetSplitReaderCreatorIterator splitReaderCreatorIterator;
+  private RecordReaderIterator recordReaderIterator;
+  private BatchSchema schema;
+  private List<SchemaPath> selectedColumns;
+  private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
+
   public ParquetScanTableFunction(FragmentExecutionContext fec,
                                   OperatorContext context,
                                   OpProps props,
@@ -133,6 +142,7 @@ public class ParquetScanTableFunction extends AbstractTableFunction {
     try {
       stats.startSetup();
       currentRecordReader = recordReaderIterator.next();
+      this.runtimeFilters.forEach(currentRecordReader::addRuntimeFilter);
       checkNotNull(currentRecordReader).setup(mutator);
     } catch (Exception e) {
       ScanOperator.handleExceptionDuringScan(e, functionConfig.getFunctionContext().getReferencedTables(), logger);
@@ -173,9 +183,46 @@ public class ParquetScanTableFunction extends AbstractTableFunction {
   }
 
   @Override
+  public void workOnOOB(OutOfBandMessage message) {
+    final String senderInfo = String.format("Frag %d:%d, OpId %d", message.getSendingMajorFragmentId(),
+            message.getSendingMinorFragmentId(), message.getSendingOperatorId());
+    if (message.getBuffers()==null || message.getBuffers().length!=1) {
+      logger.warn("Empty runtime filter received from {}", senderInfo);
+      return;
+    }
+    ArrowBuf msgBuf = message.getIfSingleBuffer().get();
+
+    logger.info("Filter received from {}", senderInfo);
+    try {
+      // scan operator handles the OOB message that it gets from the join operator
+      final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, context.getStats());
+
+      boolean isAlreadyPresent = this.runtimeFilters.stream().anyMatch(r -> r.isOnSameColumns(filter));
+      if (isAlreadyPresent) {
+        logger.debug("Skipping enforcement because filter is already present {}", filter);
+        AutoCloseables.close(filter);
+      } else {
+        logger.debug("Adding filter to the record readers {}", filter);
+        this.splitReaderCreatorIterator.addRuntimeFilter(filter);
+        this.runtimeFilters.add(filter);
+        Optional.ofNullable(currentRecordReader).ifPresent(c -> c.addRuntimeFilter(filter));
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_RUNTIME_FILTERS, 1);
+      }
+    } catch (Exception e) {
+      logger.warn("Error while merging runtime filter piece from " + message.getSendingMajorFragmentId() + ":"
+              + message.getSendingMinorFragmentId(), e);
+    }
+  }
+
+  @Override
   public void close() throws Exception {
-    super.close();
-    AutoCloseables.close(currentRecordReader, recordReaderIterator);
+    final List<AutoCloseable> closeables = new ArrayList<>(runtimeFilters.size() + 3);
+    closeables.add(() -> super.close());
+    closeables.add(currentRecordReader);
+    closeables.add(recordReaderIterator);
+    closeables.addAll(runtimeFilters);
+    AutoCloseables.close(closeables);
     currentRecordReader = null;
     recordReaderIterator = null;
     this.context.getStats().setReadIOStats();

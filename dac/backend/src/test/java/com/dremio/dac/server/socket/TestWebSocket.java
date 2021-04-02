@@ -46,8 +46,10 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.dac.explore.model.CreateFromSQL;
@@ -68,10 +70,14 @@ import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
+import ch.qos.logback.classic.Level;
+
 /**
  * Testing web socket.
  */
 public class TestWebSocket extends BaseTestServer {
+  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static Level originalLogLevel;
 
   private WebSocketClient client = new WebSocketClient();
   private TestSocket socket;
@@ -83,6 +89,17 @@ public class TestWebSocket extends BaseTestServer {
       "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t3(id) on t2.id = t3.id \n" +
       "join (VALUES 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1) AS t4(id) on t3.id = t4.id \n" +
       "WHERE t1.id <> 1";
+
+  @BeforeClass
+  public static void initLogLevel() {
+    originalLogLevel = rootLogger.getLevel();
+    rootLogger.setLevel(Level.DEBUG);
+  }
+
+  @AfterClass
+  public static void restoreLogLevel() {
+    rootLogger.setLevel(originalLogLevel);
+  }
 
   @Before
   public void setup() throws Exception {

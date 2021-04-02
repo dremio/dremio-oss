@@ -15,6 +15,9 @@
  */
 package com.dremio.dac.server;
 
+import java.util.List;
+import java.util.Map;
+
 import javax.annotation.Priority;
 import javax.inject.Inject;
 import javax.ws.rs.NotAuthorizedException;
@@ -22,7 +25,6 @@ import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ResourceInfo;
-import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
 
@@ -65,41 +67,40 @@ public class DACAuthFilter implements ContainerRequestFilter {
 
   /**
    * If temporary access resource:
-   *   1. get token from query param. if not present fallback to header
-   *   2. validate temp token
-   * If not a temporary resource or temporary token validation failed:
-   *   1. get token from auth header
-   *   2. validate token
-   * @param requestContext
+   *   1. get temp token from query param and validate temp token
+   *   2. if not present fallback to header, then try validate temp token. If fails, fall back to validate token
+   * If not a temporary resource:
+   *   1. get token from auth header and validate token
+   * @param requestContext request-specific information
    * @return UserName
    * @throws NotAuthorizedException if validation fails
    */
   protected UserName getUserNameFromToken(ContainerRequestContext requestContext) throws NotAuthorizedException {
     final UserName userName;
-
     try {
       TokenDetails tokenDetails;
-
-      if (resourceInfo.getResourceMethod().isAnnotationPresent(TemporaryAccess.class)) {
+      final String uriPath = requestContext.getUriInfo().getRequestUri().getPath();
+      final Map<String, List<String>> queryParams = requestContext.getUriInfo().getQueryParameters();
+      if (resourceInfo.getResourceMethod() != null && resourceInfo.getResourceMethod().isAnnotationPresent(TemporaryAccess.class)) {
         String temporaryToken = TokenUtils.getTemporaryToken(requestContext);
         if (temporaryToken != null) {
           tokenDetails = tokenManager.validateTemporaryToken(
             temporaryToken,
-            requestContext.getUriInfo().getRequestUri().getPath(),
-            requestContext.getUriInfo().getQueryParameters());
+            uriPath,
+            queryParams);
         } else {
-          temporaryToken = TokenUtils.getToken(requestContext.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+          temporaryToken = TokenUtils.getAuthHeaderToken(requestContext);
           try {
             tokenDetails = tokenManager.validateTemporaryToken(
               temporaryToken,
-              requestContext.getUriInfo().getRequestUri().getPath(),
-              requestContext.getUriInfo().getQueryParameters());
+              uriPath,
+              queryParams);
           } catch (IllegalArgumentException e) {
             tokenDetails = tokenManager.validateToken(temporaryToken);
           }
         }
       } else {
-        String token = TokenUtils.getToken(requestContext.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+        String token = TokenUtils.getAuthHeaderToken(requestContext);
         tokenDetails = tokenManager.validateToken(token);
       }
 

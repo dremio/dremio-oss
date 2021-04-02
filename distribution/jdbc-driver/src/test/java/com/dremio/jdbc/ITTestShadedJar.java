@@ -29,6 +29,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -85,7 +86,10 @@ public class ITTestShadedJar {
    */
   private Connection createConnection() throws Exception {
     // print class path for debugging
-    return driver.connect(jdbcURL, null);
+    final Properties props = new Properties() {{
+      put("user", "anonymous");
+    }};
+    return driver.connect(jdbcURL, props);
   }
 
   @Test

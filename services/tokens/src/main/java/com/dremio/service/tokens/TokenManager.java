@@ -65,7 +65,8 @@ public interface TokenManager extends Service {
    * @param path incoming REST API url path
    * @param queryParams incoming REST API url query parameters
    * @return token details
-   * @throws IllegalArgumentException if the token is invalid or expired
+   * @throws IllegalArgumentException if the token is expired OR not a temporary
+   *                                  token OR request URLs not match
    */
   TokenDetails validateTemporaryToken(String token,
                                       String path,

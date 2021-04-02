@@ -32,7 +32,7 @@ import com.dremio.ssl.SSLConfig;
  */
 public class SSLConfigTest {
 
-  private static void checkDefaults(SSLConfig sslConfig) {
+  private static void checkDefaultsForClient(SSLConfig sslConfig) {
     assertEquals(KeyStore.getDefaultType(), sslConfig.getKeyStoreType());
     assertEquals(SSLConfig.UNSPECIFIED, sslConfig.getKeyStorePath());
     assertEquals(SSLConfig.UNSPECIFIED, sslConfig.getKeyStorePassword());
@@ -44,20 +44,28 @@ public class SSLConfigTest {
 
     assertFalse(sslConfig.disablePeerVerification());
     assertFalse(sslConfig.disableHostVerification());
+
+    assertTrue(sslConfig.useSystemTrustStore());
   }
 
   @Test
-  public void checkDefaults() {
-    final SSLConfig sslConfig = SSLConfig.newBuilder().build();
+  public void checkDefaultsForClient() {
+    final SSLConfig sslConfig = SSLConfig.newBuilderForClient().build();
 
-    checkDefaults(sslConfig);
+    checkDefaultsForClient(sslConfig);
+  }
+
+  @Test
+  public void checkDefaultsForServer() {
+    final SSLConfig sslConfig = SSLConfig.newBuilderForServer().build();
+    assertFalse(sslConfig.useSystemTrustStore());
   }
 
   @Test
   public void checkKeyPassword() {
     {
       final String implicit = "implicit";
-      final SSLConfig config = SSLConfig.newBuilder()
+      final SSLConfig config = SSLConfig.newBuilderForClient()
           .setKeyStorePassword(implicit)
           .build();
 
@@ -67,7 +75,7 @@ public class SSLConfigTest {
 
     {
       final String explicit = "explicit";
-      final SSLConfig config = SSLConfig.newBuilder()
+      final SSLConfig config = SSLConfig.newBuilderForClient()
           .setKeyPassword(explicit)
           .build();
 
@@ -99,7 +107,8 @@ public class SSLConfigTest {
       );
 
       assertTrue(config.isPresent());
-      checkDefaults(config.get());
+      assertTrue(config.get().useSystemTrustStore());
+      checkDefaultsForClient(config.get());
     }
 
     {
@@ -123,6 +132,7 @@ public class SSLConfigTest {
             setProperty(SSLConfig.TRUST_STORE_PATH, path);
             setProperty(SSLConfig.TRUST_STORE_PASSWORD, password);
             setProperty(SSLConfig.DISABLE_CERT_VERIFICATION, "true");
+            setProperty(SSLConfig.USE_SYSTEM_TRUST_STORE, "true");
           }}
       );
 
@@ -131,6 +141,7 @@ public class SSLConfigTest {
       assertEquals(password, config.get().getTrustStorePassword());
       assertTrue(config.get().disablePeerVerification());
       assertFalse(config.get().disableHostVerification());
+      assertTrue(config.get().useSystemTrustStore());
     }
 
     {
@@ -142,6 +153,7 @@ public class SSLConfigTest {
             setProperty("tRustSTore", path);
             setProperty("TRUSTSTOREPASSWORD", password);
             setProperty("disablehostverification", "true");
+            setProperty("useSystemTrustStore", "false");
           }}
       );
 
@@ -150,6 +162,7 @@ public class SSLConfigTest {
       assertEquals(password, config.get().getTrustStorePassword());
       assertFalse(config.get().disablePeerVerification());
       assertTrue(config.get().disableHostVerification());
+      assertFalse(config.get().useSystemTrustStore());
     }
   }
 }

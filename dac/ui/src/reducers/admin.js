@@ -19,7 +19,7 @@ import * as ActionTypes from 'actions/admin';
 import adminMapper from 'utils/mappers/adminMapper';
 import { LOAD_ACCELERATIONS_SUCCESS, DELETE_ACCELERATION_SUCCESS } from 'actions/resources/acceleration';
 
-const initialState = Immutable.fromJS({
+export const initialState = Immutable.fromJS({
   accelerations: [],
   sourceNodesList: {
     nodes: [],

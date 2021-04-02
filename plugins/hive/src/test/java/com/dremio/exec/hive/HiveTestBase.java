@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.hive;
 
+import java.sql.DriverManager;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +37,7 @@ import com.dremio.exec.store.hive.HiveTestDataGenerator;
  */
 @RunWith(GuavaPatcherRunner.class)
 public class HiveTestBase extends PlanTestBase {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestBase.class);
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
 
@@ -59,5 +61,29 @@ public class HiveTestBase extends PlanTestBase {
       dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
       dataGenerator.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
     }
+  }
+
+  public static String createDerbyDB(String hiveMetastorePath) throws InterruptedException {
+    String dbDir = "";
+    String dbUrl;
+    final int maxRetries = 10;
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", dbDir = getTempDir(hiveMetastorePath));
+        // Set login timeout to 60 seconds
+        DriverManager.setLoginTimeout(60);
+        // Create the database for metastore in derby
+        DriverManager.getConnection(dbUrl);
+        logger.info("Create derby db successfully.");
+        break;
+      } catch (Exception e) {
+        if (i == maxRetries -1) {
+          throw new RuntimeException(String.format("Failed to create derby db after %d retries.", maxRetries), e);
+        }
+        logger.info("Failed to create derby db, will retry after 10 seconds.", e);
+        Thread.sleep(10_000);
+      }
+    }
+    return dbDir;
   }
 }

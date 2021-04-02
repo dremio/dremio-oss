@@ -113,4 +113,35 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
     materializedDatasetSplits = datasetSplits.build();
     return materializedDatasetSplits;
   }
+
+  @Override
+  public boolean checkPartitionChunkMetadataConsistency() {
+    PartitionChunk partitionChunk = getPartitionChunk();
+    if (!partitionChunk.hasDatasetSplit()) {
+      MultiSplit multiSplit = multiSplitSupplier.get();
+      if (multiSplit == null) {
+        logger.warn("Dataset Metadata Consistency Validation: MultiSplit does not exist when it should, partitionID {}, split key {}, split count {}, partition values {}, hasSplitCount {}.",
+          partitionChunkId,
+          partitionChunk.getSplitKey(),
+          partitionChunk.getSplitCount(),
+          partitionChunk.getPartitionValuesList(),
+          partitionChunk.hasSplitCount());
+        return false;
+      }
+    } else {
+      MultiSplit multiSplit = multiSplitSupplier.get();
+      if (multiSplit != null) {
+        logger.warn("Dataset Metadata Consistency Validation: MultiSplit exists when it should not, partitionID {}, split key {}, split count {}, partition values {}, hasSplitCount {}, multiSplit key {}, multiSplit count {}.",
+          partitionChunkId,
+          partitionChunk.getSplitKey(),
+          partitionChunk.getSplitCount(),
+          partitionChunk.getPartitionValuesList(),
+          partitionChunk.hasSplitCount(),
+          multiSplit.getMultiSplitKey(),
+          multiSplit.getSplitCount());
+        return false;
+      }
+    }
+    return true;
+  }
 }

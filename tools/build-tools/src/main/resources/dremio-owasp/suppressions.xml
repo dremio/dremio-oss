@@ -158,6 +158,20 @@
     <cve>CVE-2020-14062</cve>
     <cve>CVE-2020-14195</cve>
   </suppress>
+  <suppress>
+   <notes><![CDATA[
+     vulnerability is part of calcite-core, not calcite-avatica (but no CPE for calcite-avatica yet)
+   ]]></notes>
+   <packageUrl regex="true">^pkg:maven/org\.apache\.calcite\.avatica/avatica.*@.*$</packageUrl>
+   <cve>CVE-2020-13955</cve>
+  </suppress>
+  <suppress>
+   <notes><![CDATA[
+     vulnerability is part of calcite-core, not calcite-avatica (but no CPE for calcite-avatica yet)
+   ]]></notes>
+   <packageUrl regex="true">^pkg:maven/org\.apache\.calcite/calcite-avatica.*@.*$</packageUrl>
+   <cve>CVE-2020-13955</cve>
+  </suppress>
 
   <!-- Avro -->
   <suppress>
@@ -321,6 +335,13 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.apache\.hbase/hbase\-annotations@.*$</packageUrl>
     <cpe>cpe:/a:apache:hadoop</cpe>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      incorrectly identified as apache http server
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.hbase/hbase\-server@.*$</packageUrl>
+    <cpe>cpe:/a:apache:http_server</cpe>
   </suppress>
   <suppress>
     <notes><![CDATA[
@@ -522,6 +543,13 @@
   </suppress>
 
   <!-- Jetty -->
+  <suppress>
+    <notes><![CDATA[
+      inccorectly identified as mortbay jetty (vs eclipse jetty)
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.eclipse\.jetty.*$</packageUrl>
+    <cpe>cpe:/a:mortbay_jetty:jetty</cpe>
+  </suppress>
   <suppress>
     <notes><![CDATA[
       file name: jetty-util-6.1.26.jar
@@ -747,6 +775,15 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/net\.openhft/affinity@.*$</packageUrl>
     <cpe>cpe:/a:thread_project:thread</cpe>
+  </suppress>
+
+  <!-- OpenTracing -->
+  <suppress>
+     <notes><![CDATA[
+     incorrectly identified as grpc
+     ]]></notes>
+     <packageUrl regex="true">^pkg:maven/io\.opentracing\.contrib/opentracing\-grpc@.*$</packageUrl>
+     <cpe>cpe:/a:grpc:grpc</cpe>
   </suppress>
 
   <!-- Parquet -->

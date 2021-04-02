@@ -130,14 +130,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
             @Override
             public CloseableResource<AmazonS3> load(S3ClientKey clientKey) throws Exception {
               logger.debug("Opening S3 client connection for {}", clientKey);
-              DefaultS3ClientFactory clientFactory = new DefaultS3ClientFactory();
-              clientFactory.setConf(clientKey.s3Config);
-              final AWSCredentialProviderList credentialsProvider = S3AUtils.createAWSCredentialProviderSet(S3_URI, clientKey.s3Config);
-              final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, "", credentialsProvider);
-              final AutoCloseable closeableCredProvider = (credentialsProvider instanceof AutoCloseable) ? credentialsProvider: () -> {};
-              final Consumer<AmazonS3> closeFunc = s3 -> AutoCloseables.close(RuntimeException.class, () -> s3.shutdown(), closeableCredProvider);
-              final CloseableResource<AmazonS3> closeableS3 = new CloseableResource<>(s3Client, closeFunc);
-              return closeableS3;
+              return createS3V1Client(clientKey.s3Config);
             }
           });
 
@@ -158,6 +151,17 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         }
         return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName()).equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
       });
+
+  public static CloseableResource<AmazonS3> createS3V1Client(Configuration s3Config) throws IOException {
+    DefaultS3ClientFactory clientFactory = new DefaultS3ClientFactory();
+    clientFactory.setConf(s3Config);
+    final AWSCredentialProviderList credentialsProvider = S3AUtils.createAWSCredentialProviderSet(S3_URI, s3Config);
+    final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, "", credentialsProvider);
+    final AutoCloseable closeableCredProvider = (credentialsProvider instanceof AutoCloseable) ? credentialsProvider: () -> {};
+    final Consumer<AmazonS3> closeFunc = s3 -> AutoCloseables.close(RuntimeException.class, () -> s3.shutdown(), closeableCredProvider);
+    final CloseableResource<AmazonS3> closeableS3 = new CloseableResource<>(s3Client, closeFunc);
+    return closeableS3;
+  }
 
   @Override
   protected void setup(Configuration conf) throws IOException {

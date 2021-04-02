@@ -17,12 +17,16 @@ package com.dremio.dac.model.job.acceleration;
 
 import static com.dremio.dac.model.job.acceleration.UiMapper.toUI;
 
+import java.util.List;
+
 import com.dremio.dac.proto.model.acceleration.LayoutApiDescriptor;
 import com.dremio.dac.resource.ApiIntentMessageMapper;
+import com.dremio.sabot.kernel.proto.ReflectionExplanation;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 
 /**
  * UI wrapper for {@link ReflectionRelationship}
@@ -34,6 +38,8 @@ public class ReflectionRelationshipUI {
   private final AccelerationSettingsUI accelerationSettings;
   private final LayoutApiDescriptor reflection;
   private final boolean snowflake;
+  private final double hintScore;
+  private final List<ReflectionExplanationUI> reflectionHints;
 
   @JsonCreator
   ReflectionRelationshipUI(
@@ -42,13 +48,17 @@ public class ReflectionRelationshipUI {
     @JsonProperty("dataset") DatasetDetailsUI dataset,
     @JsonProperty("accelerationSettings") AccelerationSettingsUI accelerationSettings,
     @JsonProperty("reflection") LayoutApiDescriptor reflection,
-    @JsonProperty("snowflake") boolean snowflake) {
+    @JsonProperty("snowflake") boolean snowflake,
+    @JsonProperty("hintScore") double hintScore,
+    @JsonProperty("reflectionHints") List<ReflectionExplanationUI> reflectionHints) {
     this.relationship = relationship;
     this.materialization = materialization;
     this.dataset = dataset;
     this.accelerationSettings = accelerationSettings;
     this.reflection = reflection;
     this.snowflake = snowflake;
+    this.hintScore = hintScore;
+    this.reflectionHints = reflectionHints;
   }
 
   ReflectionRelationshipUI(ReflectionRelationship reflectionRelationship) {
@@ -57,8 +67,12 @@ public class ReflectionRelationshipUI {
       toUI(reflectionRelationship.getDataset()),
       toUI(reflectionRelationship.getAccelerationSettings()),
       ApiIntentMessageMapper.toApiMessage(reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()),
-      reflectionRelationship.getSnowflake());
+      reflectionRelationship.getSnowflake(),
+      reflectionRelationship.getQueryDistance(),
+      transformList(reflectionRelationship.getReflectionExplanationList()));
   }
+
+
 
   public SubstitutionState getRelationship() {
     return relationship;
@@ -82,5 +96,24 @@ public class ReflectionRelationshipUI {
 
   public boolean isSnowflake() {
     return snowflake;
+  }
+
+  public double getHintScore() {
+    return hintScore;
+  }
+
+  public List<ReflectionExplanationUI> getReflectionHints() {
+    return reflectionHints;
+  }
+
+  private static List<ReflectionExplanationUI> transformList(List<ReflectionExplanation> reflectionHints){
+    if(null == reflectionHints){
+      return null;
+    }
+    ImmutableList.Builder<ReflectionExplanationUI> results = ImmutableList.builder();
+    for (ReflectionExplanation rh: reflectionHints){
+      results.add(toUI(rh));
+    }
+    return results.build();
   }
 }

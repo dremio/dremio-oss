@@ -86,6 +86,7 @@ public class LoadingCacheWithExpiry<K, V extends MayExpire> extends ForwardingLo
 
   @Override
   public void close() throws Exception {
+    inner.invalidateAll();
     AutoCloseables.close(scheduler);
   }
 }

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
   <artifactId>dremio-services-telemetry-api</artifactId>
   <name>Services - Telemetry - API</name>
@@ -44,6 +44,10 @@
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_dropwizard</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_hotspot</artifactId>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>

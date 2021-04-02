@@ -69,6 +69,7 @@ export default class FilterSelectMenuWrapper extends PureComponent {
         items={items}
         label={label}
         name={menuType}
+        alwaysShowLabel
       />
     );
   }

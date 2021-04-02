@@ -21,7 +21,7 @@ import { get } from 'lodash';
 import { LOGOUT_USER_START, NO_USERS_ERROR } from 'actions/account';
 import developmentOptions from 'dyn-load/reducers/developmentOptions';
 import account from '@inject/reducers/account';
-import admin from 'dyn-load/reducers/admin';
+import admin from '@inject/reducers/admin';
 import init from '@app/reducers/init';
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';

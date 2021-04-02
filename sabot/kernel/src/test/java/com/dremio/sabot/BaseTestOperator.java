@@ -376,6 +376,7 @@ public class BaseTestOperator extends ExecTest {
       final SpillService spillService = new SpillServiceImpl(dremioConfig, new SpillServiceOptionsImpl(() -> options),
         () -> schedulerService
       );
+      spillService.start();
       final FragmentHandle handle = FragmentHandle.newBuilder()
         .setQueryId(new AttemptId().toQueryId())
         .setMinorFragmentId(0)

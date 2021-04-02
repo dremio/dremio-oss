@@ -21,7 +21,7 @@ import DocumentTitle from 'react-document-title';
 import { page } from 'uiTheme/radium/general';
 import config from 'dyn-load/utils/config';
 
-import getSectionsConfig from 'dyn-load/pages/AdminPage/navSections';
+import getSectionsConfig from '@inject/pages/AdminPage/navSections';
 
 import AdminPageView from './AdminPageView';
 

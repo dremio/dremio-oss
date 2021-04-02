@@ -53,4 +53,8 @@ public class LegacyPartitionChunkMetadata extends AbstractPartitionChunkMetadata
     // each legacy partition chunk represent(ed) a single split
     return 1;
   }
+
+  @Override
+  public boolean checkPartitionChunkMetadataConsistency() { return true; }
+
 }

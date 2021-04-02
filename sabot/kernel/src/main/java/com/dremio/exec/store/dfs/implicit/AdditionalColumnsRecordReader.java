@@ -109,7 +109,7 @@ public class AdditionalColumnsRecordReader implements RecordReader {
     if (skipPartition || runtimeFilter.getPartitionColumnFilter() == null) {
       return;
     }
-    final RuntimeFilterEvaluator evaluator = new RuntimeFilterEvaluator(allocator, context.getStats(), runtimeFilter);
+    final RuntimeFilterEvaluator evaluator = new RuntimeFilterEvaluator(allocator, context.getStats(), context.getOptions(), runtimeFilter);
     if (evaluator.canBeSkipped(splitAndPartitionInfo, nameValuePairs)) {
       skipPartition = true;
     }

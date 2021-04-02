@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -725,6 +725,21 @@
             </protoModule>
             <protoModule>
               <source>src/main/protobuf/updateid.proto</source>
+              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+              <options>
+                <property>
+                  <name>generate_field_map</name>
+                  <value>true</value>
+                </property>
+                <property>
+                  <name>builder_pattern</name>
+                  <value>true</value>
+                </property>
+              </options>
+            </protoModule>
+            <protoModule>
+              <source>src/main/protobuf/query-reflection.proto</source>
               <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
               <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
               <options>

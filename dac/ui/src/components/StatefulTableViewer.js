@@ -15,7 +15,7 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import Immutable, { List } from 'immutable';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import TableViewer from 'components/TableViewer';
@@ -28,7 +28,10 @@ export default class StatefulTableViewer extends Component {
   static propTypes = {
     virtualized: PropTypes.bool,
     viewState: PropTypes.instanceOf(Immutable.Map),
-    tableData: PropTypes.instanceOf(Immutable.List),
+    tableData: PropTypes.oneOfType([
+      PropTypes.instanceOf(Immutable.List),
+      PropTypes.array
+    ]),
     noDataText: PropTypes.string,
     rowHeight: PropTypes.number
     // extra props passed along to underlying Table impl
@@ -49,8 +52,9 @@ export default class StatefulTableViewer extends Component {
       tableData: data,
       ...passAlongProps
     };
+    const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
     const tableViewer = virtualized ? <VirtualizedTableViewer {...tableProps}/> : <TableViewer {...tableProps}/>;
-    if (!(viewState && viewState.get('isInProgress')) && tableData.size === 0) {
+    if (!(viewState && viewState.get('isInProgress')) && tableSize === 0) {
       // here we skip showing empty virtualized table header because of IE11 issues with flex box
       // in this particular case grid for react-virtualized computed with wrong offsetWidth
       const emptyTableViewer = (browserUtils.getPlatform().name === 'IE' && virtualized) ? null : tableViewer;

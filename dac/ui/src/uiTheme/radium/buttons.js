@@ -44,6 +44,14 @@ export const primary = {
   }
 };
 
+export const danger = {
+  ...button,
+  color: '#E46363',
+  backgroundColor: '#FEEAEA',
+  border: 'none'
+};
+
+
 export const disabled = { // todo: DRY with text field
   ...button,
   color: '#B2B2B2',

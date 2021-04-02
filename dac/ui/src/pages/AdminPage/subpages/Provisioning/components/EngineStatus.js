@@ -15,7 +15,7 @@
  */
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import {CLUSTER_STATE, CLUSTER_STATE_ICON} from '@app/constants/provisioningPage/provisioningConstants';
+import {CLUSTER_STATE, CLUSTER_STATE_ICON} from '@inject/constants/provisioningPage/provisioningConstants';
 import Art from '@app/components/Art';
 
 const unknownStateIcon = CLUSTER_STATE_ICON[CLUSTER_STATE.unknown];

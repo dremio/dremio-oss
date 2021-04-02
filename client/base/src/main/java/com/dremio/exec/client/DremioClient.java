@@ -94,7 +94,6 @@ import com.dremio.service.coordinator.ServiceSet;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -124,6 +123,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
           .add(SSLConfig.DISABLE_CERT_VERIFICATION.toLowerCase(Locale.ROOT))
           .add(SSLConfig.DISABLE_HOST_VERIFICATION.toLowerCase(Locale.ROOT))
           .add(SSLConfig.ENABLE_SSL.toLowerCase(Locale.ROOT))
+          .add(SSLConfig.USE_SYSTEM_TRUST_STORE.toLowerCase(Locale.ROOT))
           .build();
 
   // A wrapper class which ignore calls to close()
@@ -538,12 +538,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * Helper method to generate the UserCredentials message from the properties.
    */
   private UserBitShared.UserCredentials getUserCredentials() {
-    // If username is not propagated as one of the properties
-    String userName = "anonymous";
+    String userName = "";
 
     if (props != null) {
       for (Property property: props.getPropertiesList()) {
-        if (property.getKey().equalsIgnoreCase("user") && !Strings.isNullOrEmpty(property.getValue())) {
+        if (property.getKey().equalsIgnoreCase("user")) {
           userName = property.getValue();
           break;
         }

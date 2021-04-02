@@ -39,6 +39,7 @@ export default class FieldWithError extends Component {
     style: PropTypes.object,
     labelStyle: PropTypes.object,
     labelClass: PropTypes.string,
+    labelEndChildren: PropTypes.node,
     children: PropTypes.node.isRequired,
     name: PropTypes.string,
     hoverHelpText: PropTypes.string,
@@ -90,7 +91,7 @@ export default class FieldWithError extends Component {
   }
 
   renderLabel() {
-    const {label, hoverHelpText, labelClass, labelTooltip} = this.props;
+    const {label, hoverHelpText, labelClass, labelTooltip, labelEndChildren } = this.props;
     const {overLabel} = this.state;
 
     const hoverHelp = hoverHelpText ? <HoverHelp content={hoverHelpText} /> : null;
@@ -98,7 +99,7 @@ export default class FieldWithError extends Component {
     // todo: <label> is not correctly associated with the input here (i.e. it is broken and doing nothing)
     // todo: hoverHelp should not be inside the <label>
     return (label &&
-    <div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
       <label
         className={classNames({
           [labelClass]: !!labelClass
@@ -114,6 +115,7 @@ export default class FieldWithError extends Component {
         </div>
         {hoverHelp}
       </label>
+      {labelEndChildren}
       <Tooltip
         container={this}
         target={() => overLabel && labelTooltip ? this.refs.labelTarget : null}

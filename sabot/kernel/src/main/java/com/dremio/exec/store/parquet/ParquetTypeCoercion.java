@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
+import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.List;
 import static org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID.Struct;
 
@@ -40,7 +42,13 @@ public class ParquetTypeCoercion implements TypeCoercion {
 
   @Override
   public TypeProtos.MajorType getType(Field field) {
-    return MajorTypeHelper.getMajorTypeForField(field);
+    TypeProtos.MajorType majorType = MajorTypeHelper.getMajorTypeForField(field);
+    if (majorType.getMinorType().equals(VARCHAR) || majorType.getMinorType().equals(VARBINARY)) {
+      if (majorType.getWidth() == 0) {
+        majorType = majorType.toBuilder().setWidth(majorType.getPrecision()).build();
+      }
+    }
+    return majorType;
   }
 
   @Override

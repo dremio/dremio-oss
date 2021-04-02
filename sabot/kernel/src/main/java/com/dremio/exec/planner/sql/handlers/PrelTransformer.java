@@ -466,7 +466,8 @@ public class PrelTransformer {
       int matchLimit = (int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT);
       hepPgmBldr.addMatchLimit(matchLimit);
 
-      MatchCountListener matchCountListener = new MatchCountListener(relNodeCount, rulesCount, matchLimit);
+      MatchCountListener matchCountListener = new MatchCountListener(relNodeCount, rulesCount, matchLimit,
+        plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER));
 
       hepPgmBldr.addMatchOrder(plannerType.getMatchOrder());
       if(plannerType.isCombineRules()) {
@@ -503,10 +504,7 @@ public class PrelTransformer {
         RelNode relNode = hepPlanner.findBestExp();
         if (log) {
           logger.debug("Phase: {}", phase);
-          logger.debug("RelNodes count: {}", matchCountListener.getRelNodeCount());
-          logger.debug("Rules count: {}", matchCountListener.getRulesCount());
-          logger.debug("Match limit: {}", matchCountListener.getMatchLimit());
-          logger.debug("Match count: {}", matchCountListener.getMatchCount());
+          logger.debug(matchCountListener.toString());
         }
         return relNode;
       };
@@ -541,7 +539,12 @@ public class PrelTransformer {
       planner = volcanoPlanner;
       toPlan = () -> {
         try {
-          return program.run(volcanoPlanner, input, toTraits, ImmutableList.of(), ImmutableList.of());
+          RelNode relNode = program.run(volcanoPlanner, input, toTraits, ImmutableList.of(), ImmutableList.of());
+          if (log) {
+            logger.debug("Phase: {}", phase);
+            logger.debug(volcanoPlanner.getMatchCountListener().toString());
+          }
+          return relNode;
         } finally {
           substitutions.setEnabled(false);
         }

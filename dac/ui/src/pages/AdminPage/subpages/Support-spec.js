@@ -19,6 +19,7 @@ import { ApiError } from 'redux-api-middleware/lib/errors';
 
 import { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
 import { RESERVED as INTERNAL_SUPPORT_RESERVED } from '@app/pages/AdminPage/subpages/InternalSupportEmail';
+import { RESERVED as SUPPORT_ACCESS_RESERVED } from '@inject/pages/AdminPage/subpages/SupportAccess';
 
 import {Support, RESERVED} from './Support';
 import { LABELS } from './settingsConfig';
@@ -234,6 +235,6 @@ describe('Support', () => {
 
 describe('RESERVED', () => {
   it('should include only email and analyze tools fields', () => {
-    expect(RESERVED.size).to.equal(ANALYZE_TOOLS_RESERVED.length + INTERNAL_SUPPORT_RESERVED.length);
+    expect(RESERVED.size).to.equal(ANALYZE_TOOLS_RESERVED.length + INTERNAL_SUPPORT_RESERVED.length + (SUPPORT_ACCESS_RESERVED || []).length);
   });
 });

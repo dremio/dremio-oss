@@ -20,6 +20,7 @@ import static com.dremio.exec.ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS;
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_FILE_SIZE;
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_NUMBER_FILES;
 import static com.dremio.service.reflection.ReflectionOptions.ENABLE_COMPACTION;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_ORPHAN_REFRESH;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_NUM_ENTRIES;
 import static com.dremio.service.reflection.ReflectionUtils.computeDataPartitions;
@@ -109,7 +110,7 @@ import com.google.common.collect.Iterables;
  */
 public class ReflectionManager implements Runnable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionManager.class);
-  private static final long START_WAIT_MILLIS = 5*60*1000;
+  private static final long START_WAIT_MILLIS = 5 * 60 * 1000;
 
   /**
    * Callback that allows async handlers to wake up the manager once they are done.
@@ -125,7 +126,6 @@ public class ReflectionManager implements Runnable {
    * this constant defines protects against skipping those entries.
    */
   private static final long WAKEUP_OVERLAP_MS = 60_000;
-
   private final SabotContext sabotContext;
   private final JobsService jobsService;
   private final NamespaceService namespaceService;
@@ -139,13 +139,13 @@ public class ReflectionManager implements Runnable {
   private final Set<ReflectionId> reflectionsToUpdate;
   private final WakeUpCallback wakeUpCallback;
   private final Supplier<ExpansionHelper> expansionHelper;
-  private volatile Path accelerationBasePath;
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
-  private RefreshStartHandler refreshStartHandler;
-
+  private final RefreshStartHandler refreshStartHandler;
+  private volatile Path accelerationBasePath;
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
+  private long lastOrphanCheckTime;
 
   ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService,
                     OptionManager optionManager, ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
@@ -190,16 +190,16 @@ public class ReflectionManager implements Runnable {
   }
 
   @VisibleForTesting
-  void sync(){
+  void sync() {
     long lastWakeupTime = System.currentTimeMillis();
     final long previousLastWakeupTime = lastWakeupTime - WAKEUP_OVERLAP_MS;
     // updating the store's lastWakeupTime here. This ensures that if we're failing we don't do a denial of service attack
     // this assumes we properly handle exceptions for each goal/entry independently and we don't exit the loop before we
     // go through all entities otherwise we may "skip" handling some entities in case of failures
     final long deletionGracePeriod = optionManager.getOption(REFLECTION_DELETION_GRACE_PERIOD) * 1000;
+    final long orphanThreshold = System.currentTimeMillis() - optionManager.getOption(MATERIALIZATION_ORPHAN_REFRESH) * 1000;
     final long deletionThreshold = System.currentTimeMillis() - deletionGracePeriod;
     final int numEntriesToDelete = (int) optionManager.getOption(REFLECTION_DELETION_NUM_ENTRIES);
-
     handleReflectionsToUpdate();
     handleDeletedDatasets();
     handleGoals(previousLastWakeupTime);
@@ -207,7 +207,43 @@ public class ReflectionManager implements Runnable {
     deleteDeprecatedMaterializations(deletionThreshold, numEntriesToDelete);
     deprecateMaterializations();
     deleteDeprecatedGoals(deletionThreshold);
+    deleteMaterializationOrphans(orphanThreshold, deletionThreshold);
     this.lastWakeupTime = lastWakeupTime;
+  }
+
+
+  private void deleteOrphanMaterialization(Materialization materialization) {
+    logger.debug("Orphan materialization {}  for deletion", getId(materialization));
+    try {
+      deleteMaterialization(materialization);
+    } catch (Exception e) {
+      logger.warn("Couldn't delete Orphan materialization {}", getId(materialization), e);
+    }
+  }
+
+
+  private void deleteMaterializationOrphans(long orphanThreshold, long depreciateDeletionThreshold) {
+
+    if (orphanThreshold <= this.lastOrphanCheckTime) {
+      return;
+    }
+
+    Iterable<Materialization> materializations = materializationStore.getAllMaterializations();
+    for (Materialization materialization : materializations) {
+      final ReflectionId rId = materialization.getReflectionId();
+      if (rId == null || !reflectionStore.contains(rId) || reflectionStore.get(rId) == null) {
+        // remove this orphan materialization
+        if (materialization.getState() == MaterializationState.DEPRECATED) {
+          if (materialization.getModifiedAt() <= depreciateDeletionThreshold) {
+            deleteOrphanMaterialization(materialization);
+          }
+        } else {
+          deleteOrphanMaterialization(materialization);
+        }
+      }
+    }
+
+    this.lastOrphanCheckTime = System.currentTimeMillis();
   }
 
   /**
@@ -235,7 +271,7 @@ public class ReflectionManager implements Runnable {
   /**
    * 4th pass: remove any deleted goal that's due
    *
-   * @param deletionThreshold thrshold after which deprecated reflection goals are deleted
+   * @param deletionThreshold threshold after which deprecated reflection goals are deleted
    */
   private void deleteDeprecatedGoals(long deletionThreshold) {
     Iterable<ReflectionGoal> goalsDueForDeletion = userStore.getDeletedBefore(deletionThreshold);
@@ -261,7 +297,7 @@ public class ReflectionManager implements Runnable {
    * 3rd pass: go through the materialization store
    *
    * @param deletionThreshold threshold time after which deprecated materialization are deleted
-   * @param numEntries number of entries that should be deleted now
+   * @param numEntries        number of entries that should be deleted now
    */
   private void deleteDeprecatedMaterializations(long deletionThreshold, int numEntries) {
     Iterable<Materialization> materializations = materializationStore.getDeletableEntriesModifiedBefore(deletionThreshold, numEntries);
@@ -305,6 +341,7 @@ public class ReflectionManager implements Runnable {
     for (ExternalReflection externalReflection : externalReflections) {
       handleDatasetDeletionForExternalReflection(externalReflection);
     }
+
   }
 
   /**
@@ -406,7 +443,7 @@ public class ReflectionManager implements Runnable {
         try {
           logger.debug("job {} for materialization {} completed successfully", job.getJobId().getId(), getId(m));
           handleSuccessfulJob(entry, m, job);
-        } catch (Exception e){
+        } catch (Exception e) {
           m.setState(MaterializationState.FAILED)
             .setFailure(new Failure().setMessage("Unexpected error occurred during job " + job.getJobId().getId()));
           materializationStore.save(m);
@@ -499,6 +536,8 @@ public class ReflectionManager implements Runnable {
     }
   }
 
+
+
   private void handleDatasetDeletionForExternalReflection(ExternalReflection externalReflection) {
     if (namespaceService.findDatasetByUUID(externalReflection.getQueryDatasetId()) == null
       || namespaceService.findDatasetByUUID(externalReflection.getTargetDatasetId()) == null) {
@@ -510,13 +549,13 @@ public class ReflectionManager implements Runnable {
   void handleGoal(ReflectionGoal goal) {
     final ReflectionEntry entry = reflectionStore.get(goal.getId());
     if (entry == null) {
-      // no corresponding reflection, goal has been created or enabled
+      // no corresponding reflection, goal has  been created or enabled
       if (goal.getState() == ReflectionGoalState.ENABLED) { // we still need to make sure user didn't create a disabled goal
         reflectionStore.save(create(goal));
       }
     } else if (reflectionGoalChecker.isEqual(goal, entry)) {
       return; //no changes, do nothing
-    } else if(reflectionGoalChecker.checkHash(goal, entry)){
+    } else if (reflectionGoalChecker.checkHash(goal, entry)) {
       // Check if entries need to update meta data that is not used in the materialization
       updateThatHasChangedEntry(goal, entry);
 
@@ -591,7 +630,7 @@ public class ReflectionManager implements Runnable {
             .build())
           .setSqlQuery(SqlQuery.newBuilder()
             .setSql(query)
-            .addAllContext(Collections.<String>emptyList())
+            .addAllContext(Collections.emptyList())
             .setUsername(SYSTEM_USERNAME)
             .build())
           .setQueryType(QueryType.ACCELERATOR_DROP)
@@ -656,10 +695,10 @@ public class ReflectionManager implements Runnable {
       // even though the following method can block if the job's foreman is on a different node, it's not a problem here
       // as we always submit reflection jobs on the same node as the manager
       jobsService.cancel(CancelJobRequest.newBuilder()
-          .setUsername(SYSTEM_USERNAME)
-          .setJobId(JobsProtoUtil.toBuf(entry.getRefreshJobId()))
-          .setReason("Query cancelled by Reflection Manager. Reflection configuration is stale")
-          .build());
+        .setUsername(SYSTEM_USERNAME)
+        .setJobId(JobsProtoUtil.toBuf(entry.getRefreshJobId()))
+        .setReason("Query cancelled by Reflection Manager. Reflection configuration is stale")
+        .build());
     } catch (JobException e) {
       logger.warn("Failed to cancel refresh job updated reflection {}", getId(entry), e);
     }
@@ -876,7 +915,7 @@ public class ReflectionManager implements Runnable {
 
     logger.debug("Reflection {} refresh wrote {} files with a median size of {} bytes", getId(entry), numFiles, medianFileSize);
     return numFiles > optionManager.getOption(COMPACTION_TRIGGER_NUMBER_FILES)
-      && medianFileSize < optionManager.getOption(COMPACTION_TRIGGER_FILE_SIZE)*1024*1024;
+      && medianFileSize < optionManager.getOption(COMPACTION_TRIGGER_FILE_SIZE) * 1024 * 1024;
   }
 
   private void metadataRefreshJobSucceeded(ReflectionEntry entry, Materialization materialization) {

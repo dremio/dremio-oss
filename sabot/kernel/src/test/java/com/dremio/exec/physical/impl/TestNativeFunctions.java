@@ -878,6 +878,29 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void testCastBoolToVarchar() throws Exception {
+    testFunctions(new Object[][]{
+      {"castVARCHAR(c0, c1)", true, 2, "tr"},
+      {"castVARCHAR(c0, c1)", true, 7, "true"},
+      {"castVARCHAR(c0, c1)", false, 4, "fals"},
+      {"castVARCHAR(c0, c1)", false, 5, "false"},
+    });
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testCastBoolToVarcharNegativeLength() throws Exception {
+    try {
+      testFunctions(new Object[][]{
+        {"castVARCHAR(c0, c1)", true, -2, ""},
+      });
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getCause().getCause().getMessage()
+      .contains("Output buffer length can't be negative"));
+      throw re;
+    }
+  }
+
+  @Test
   public void testSplitPart() throws Exception {
     testFunctions(new Object[][]{
       { "split_part(c0, c1, c2)", "abc~@~def~@~ghi", "~@~", 1, "abc"},
@@ -1083,5 +1106,14 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"castFLOAT8(c0)", "3.4", 3.4},
       {"castFLOAT8(c0)", "-2.1", -2.1},
     });
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testDisableGandivaFunctions() throws Exception {
+    try(AutoCloseable o = with(ExecConstants.DISABLED_GANDIVA_FUNCTIONS, "add;subtract")) {
+      testFunctionsCompiledOnly(new Object[][] {
+        {"add(c0, 1)", 1, 2}
+      });
+    }
   }
 }

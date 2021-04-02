@@ -147,6 +147,11 @@ public class LocalSyncableFileSystem extends FileSystem {
     throw new FileNotFoundException(localizedPath);
   }
 
+  @Override
+  public String getScheme() {
+    return "file";
+  }
+
   /**
    * Ability to write directly from arrow buf.
    */

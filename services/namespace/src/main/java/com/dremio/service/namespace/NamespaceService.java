@@ -22,6 +22,8 @@ import java.util.Map;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.EntityId;
@@ -35,6 +37,7 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 /**
  * Namespace operations from DAC
  */
+@Options
 public interface NamespaceService {
 
   /**
@@ -47,6 +50,9 @@ public interface NamespaceService {
 
   // never expire  = Monday, September 1, 3017 9:38:18 PM
   long INFINITE_REFRESH_PERIOD = 33061210698000L ;
+
+  TypeValidators.BooleanValidator DATASET_METADATA_CONSISTENCY_VALIDATE = new TypeValidators.BooleanValidator("store.dataset.metadata_consistency.validate", false);
+
   /**
    * Factory to create namespace service for a given user
    */
@@ -83,7 +89,7 @@ public interface NamespaceService {
    * @param maxSinglePartitionChunks maximum number of single split partition chunks allowed to be saved together
    * @return                         dataset metadata saver
    */
-  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks);
+  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks, boolean datasetMetadataConsistencyValidate);
 
   //// GET
   boolean exists(NamespaceKey key, Type type);
@@ -222,7 +228,7 @@ public interface NamespaceService {
    * dataset is initially getting setup, or query errors
    * @return The number of splits deleted.
    */
-  int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy);
+  int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy, boolean datasetMetadataConsistencyValidate);
 
   /**
    * Delete given splits

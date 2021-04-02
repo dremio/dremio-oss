@@ -225,6 +225,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator REUSE_PREPARE_HANDLES = new BooleanValidator("planner.reuse_prepare_statement_handles", false);
 
   public static final BooleanValidator VERBOSE_PROFILE = new BooleanValidator("planner.verbose_profile", false);
+  public static final BooleanValidator VERBOSE_RULE_MATCH_LISTENER = new BooleanValidator("planner.verbose_rule_match_listener", false);
 
   public static final BooleanValidator INCLUDE_DATASET_PROFILE = new BooleanValidator("planner.include_dataset_profile", true);
 
@@ -286,6 +287,11 @@ public class PlannerSettings implements Context{
    */
   public static final PositiveLongValidator QUERY_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.query_max_split_limit", Integer.MAX_VALUE, 300_000);
   public static final PositiveLongValidator DATASET_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.dataset_max_split_limit", Integer.MAX_VALUE, 300_000);
+
+  /**
+   * Options to enable/disable plan cache and set plan cache policy
+   */
+  public static final BooleanValidator QUERY_PLAN_CACHE_ENABLED = new BooleanValidator("planner.query_plan_cache_enabled", false);
 
   private final SabotConfig sabotConfig;
   private final ExecutionControls executionControls;
@@ -417,6 +423,10 @@ public class PlannerSettings implements Context{
 
   public boolean isRelPlanningEnabled() {
     return options.getOption(RELATIONAL_PLANNING);
+  }
+
+  public boolean isPlanCacheEnabled() {
+    return options.getOption(QUERY_PLAN_CACHE_ENABLED);
   }
 
   /**

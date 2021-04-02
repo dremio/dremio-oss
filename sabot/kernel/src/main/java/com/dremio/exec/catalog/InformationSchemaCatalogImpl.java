@@ -164,10 +164,6 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
           sb.append("*");
           break;
 
-        case '_':
-          sb.append("?");
-          break;
-
         // ESCAPE * if it occurs
         case '*':
           sb.append("\\*");

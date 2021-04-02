@@ -26,6 +26,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -71,6 +72,9 @@ public class RuntimeFilterManagerTest {
 
         RuntimeFilter frMinor1Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), EMPTY_LIST);
         BloomFilter bf = mockedBloom();
+        BloomFilter copyBf = mockedBloom();
+        when(bf.createCopy(eq(allocator))).thenReturn(copyBf);
+
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(frMinor1Target1, Optional.of(bf), EMPTY_LIST, 1);
         assertFalse(entry1.isComplete());
         assertEquals(Sets.newHashSet(2, 3), entry1.getRemainingMinorFragments());
@@ -87,8 +91,8 @@ public class RuntimeFilterManagerTest {
         assertFalse(entry1.isDropped());
         assertEquals(entry1, entry3);
 
-        verify(bf, times(2)).merge(any(BloomFilter.class));
-        verify(bf, times(2)).isCrossingMaxFPP();
+        verify(copyBf, times(2)).merge(any(BloomFilter.class));
+        verify(copyBf, times(2)).isCrossingMaxFPP();
     }
 
     @Test
@@ -156,7 +160,10 @@ public class RuntimeFilterManagerTest {
 
         RuntimeFilter frMinor1Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), Lists.newArrayList("col3", "col4"));
         BloomFilter bf = mockedBloom();
-        when(bf.getNumBitsSet()).thenReturn(10L);
+        BloomFilter copyBf = mockedBloom();
+        when(bf.createCopy(eq(allocator))).thenReturn(copyBf);
+
+        when(copyBf.getNumBitsSet()).thenReturn(10L);
         ValueListFilter vA1 = newValListFilter("col3", Lists.newArrayList(4, 1, 3, 2));
         ValueListFilter vA2 = newValListFilter("col4", Lists.newArrayList(11, 12, 13, 14));
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(frMinor1Target1, Optional.of(bf), Lists.newArrayList(vA1, vA2), 1);
@@ -178,8 +185,8 @@ public class RuntimeFilterManagerTest {
         assertFalse(entry1.isDropped());
         assertEquals(entry1, entry3);
 
-        verify(bf, times(2)).merge(any(BloomFilter.class));
-        verify(bf, times(2)).isCrossingMaxFPP();
+        verify(copyBf, times(2)).merge(any(BloomFilter.class));
+        verify(copyBf, times(2)).isCrossingMaxFPP();
         ValueListFilter vR1 = entry1.getNonPartitionColFilter("col3");
         List<Integer> expectedVR1 = Lists.newArrayList(1, 2, 3, 4, 5, 6, 8, 9);
         assertEquals(expectedVR1.size(), vR1.getValueCount());
@@ -208,10 +215,14 @@ public class RuntimeFilterManagerTest {
         RuntimeFilterManager filterManager = new RuntimeFilterManager(allocator, MAX_VALS, Sets.newHashSet(1, 2));
 
         BloomFilter bf1 = mockedBloom();
+        BloomFilter copyBf1 = mockedBloom();
+        when(bf1.createCopy(eq(allocator))).thenReturn(copyBf1);
         RuntimeFilter frMinor1Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("colT1"), EMPTY_LIST);
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(frMinor1Target1, Optional.of(bf1), EMPTY_LIST, 1);
 
         BloomFilter bf2 = mockedBloom();
+        BloomFilter copyBf2 = mockedBloom();
+        when(bf2.createCopy(eq(allocator))).thenReturn(copyBf2);
         RuntimeFilter frMinor1Target2 = newFilter(opId2, majorFragment2, Lists.newArrayList("colT2"), EMPTY_LIST);
         RuntimeFilterManagerEntry entry2 = filterManager.coalesce(frMinor1Target2, Optional.of(bf2), EMPTY_LIST, 1);
         assertNotEquals(entry1, entry2);
@@ -229,11 +240,11 @@ public class RuntimeFilterManagerTest {
         assertTrue(entry2.isComplete());
         assertFalse(entry2.isDropped());
 
-        verify(bf1, times(1)).merge(any(BloomFilter.class));
-        verify(bf1, times(1)).isCrossingMaxFPP();
+        verify(copyBf1, times(1)).merge(any(BloomFilter.class));
+        verify(copyBf1, times(1)).isCrossingMaxFPP();
 
-        verify(bf2, times(1)).merge(any(BloomFilter.class));
-        verify(bf2, times(1)).isCrossingMaxFPP();
+        verify(copyBf2, times(1)).merge(any(BloomFilter.class));
+        verify(copyBf2, times(1)).isCrossingMaxFPP();
     }
 
     @Test
@@ -242,12 +253,15 @@ public class RuntimeFilterManagerTest {
 
         RuntimeFilter frMinor1Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), Lists.newArrayList("col3", "col4"));
         BloomFilter bf = mockedBloom();
+        BloomFilter copyBf = mockedBloom();
+        when(bf.createCopy(eq(allocator))).thenReturn(copyBf);
+
         ValueListFilter vA1 = newValListFilter("col3", Lists.newArrayList(4, 1, 3, 2));
         ValueListFilter vA2 = newValListFilter("col4", Lists.newArrayList(11, 12, 13, 14));
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(frMinor1Target1, Optional.of(bf), Lists.newArrayList(vA1, vA2), 1);
         assertFalse(entry1.isComplete());
         assertEquals(Sets.newHashSet(2, 3), entry1.getRemainingMinorFragments());
-        when(bf.isCrossingMaxFPP()).thenReturn(true);
+        when(copyBf.isCrossingMaxFPP()).thenReturn(true);
 
         RuntimeFilter frMinor2Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), Lists.newArrayList("col3", "col4"));
         ValueListFilter vB1 = newValListFilter("col3", Lists.newArrayList(6, 4, 5, 3));
@@ -272,12 +286,15 @@ public class RuntimeFilterManagerTest {
 
         RuntimeFilter frMinor1Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), Lists.newArrayList("col3", "col4"));
         BloomFilter bf = mockedBloom();
+        BloomFilter copyBf = mockedBloom();
+        when(bf.createCopy(eq(allocator))).thenReturn(copyBf);
+
         ValueListFilter vA1 = newValListFilter("col3", Lists.newArrayList(4, 1, 3, 2));
         ValueListFilter vA2 = newValListFilter("col4", Lists.newArrayList(11, 12, 13, 14));
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(frMinor1Target1, Optional.of(bf), Lists.newArrayList(vA1, vA2), 1);
         assertFalse(entry1.isComplete());
         assertEquals(Sets.newHashSet(2, 3), entry1.getRemainingMinorFragments());
-        when(bf.isCrossingMaxFPP()).thenReturn(true);
+        when(copyBf.isCrossingMaxFPP()).thenReturn(true);
 
         RuntimeFilter frMinor2Target1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), Lists.newArrayList("col3", "col4"));
         ValueListFilter vB1 = newValListFilter("col3", Lists.newArrayList(6, 4, 5, 3));
@@ -312,7 +329,10 @@ public class RuntimeFilterManagerTest {
 
         RuntimeFilter filter1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), EMPTY_LIST);
         BloomFilter bf = mockedBloom();
-        when(bf.isCrossingMaxFPP()).thenReturn(true);
+        BloomFilter copyBf = mockedBloom();
+        when(bf.createCopy(eq(allocator))).thenReturn(copyBf);
+
+        when(copyBf.isCrossingMaxFPP()).thenReturn(true);
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(filter1, Optional.of(bf), EMPTY_LIST, 1);
 
         RuntimeFilter filter2 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), EMPTY_LIST);
@@ -320,26 +340,28 @@ public class RuntimeFilterManagerTest {
 
         assertTrue(entry1.isDropped());
         assertEquals(entry1, entry2);
-        verify(bf, times(1)).isCrossingMaxFPP();
+        verify(copyBf, times(1)).isCrossingMaxFPP();
         filterManager.remove(entry1);
         assertEquals(1, filterManager.getFilterDropCount());
     }
 
     @Test
-    public void testDropFilterDueToMergeFailure() throws Exception {
+    public void testDropFilterDueToMergeFailure() {
         RuntimeFilterManager filterManager = new RuntimeFilterManager(allocator, MAX_VALS, Sets.newHashSet(1, 2, 3));
-
         RuntimeFilter filter1 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), EMPTY_LIST);
         BloomFilter bf = mockedBloom();
-        doThrow(new IllegalArgumentException("Incompatible BloomFilter, different hashing technique.")).when(bf).merge(any(BloomFilter.class));
+        BloomFilter copyBf = mockedBloom();
+        when(bf.createCopy(eq(allocator))).thenReturn(copyBf);
+
+        doThrow(new IllegalArgumentException("Incompatible BloomFilter, different hashing technique.")).when(copyBf).merge(any(BloomFilter.class));
         RuntimeFilterManagerEntry entry1 = filterManager.coalesce(filter1, Optional.of(bf), EMPTY_LIST, 1);
 
         RuntimeFilter filter2 = newFilter(opId1, majorFragment1, Lists.newArrayList("col1", "col2"), EMPTY_LIST);
-        RuntimeFilterManagerEntry entry2 = filterManager.coalesce(filter2, Optional.of(mockedBloom()),EMPTY_LIST,  2);
+        RuntimeFilterManagerEntry entry2 = filterManager.coalesce(filter2, Optional.of(mockedBloom()), EMPTY_LIST, 2);
 
         assertTrue(entry1.isDropped());
         assertEquals(entry1, entry2);
-        verify(bf, times(1)).merge(any(BloomFilter.class));
+        verify(copyBf, times(1)).merge(any(BloomFilter.class));
         filterManager.remove(entry1);
         assertEquals(1, filterManager.getFilterDropCount());
     }

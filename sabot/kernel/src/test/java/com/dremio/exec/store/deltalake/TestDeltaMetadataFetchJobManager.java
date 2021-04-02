@@ -193,5 +193,22 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
     assertEquals(manager.getBatchesRead(), 1);
   }
 
+  @Test
+  public void testMetadataFetchJobConcurrency() {
+    //Setting thread pool size to a low value to ensure that if there are more than
+    //2 tasks they are queued and not dropped.
+    DeltaMetadataFetchPool.POOL_SIZE = 2;
+
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 22L);
+    manager.setBatchSize(10);
+
+    List<DeltaLogSnapshot> snapshotList = manager.getListOfSnapshots();
+
+    List<Long> expectedVersions = Arrays.asList(22L, 21L, 20L, 19L, 18L, 17L, 16L, 15L, 14L, 13L);
+    List<Long> actualVersions = snapshotList.stream().map(x -> x.getVersionId()).collect(Collectors.toList());
+
+    assertEquals(expectedVersions, actualVersions);
+    assertEquals(manager.getBatchesRead(), 1);
+  }
 
 }

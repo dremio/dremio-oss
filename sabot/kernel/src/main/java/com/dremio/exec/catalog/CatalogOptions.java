@@ -33,8 +33,8 @@ public final class CatalogOptions {
   // Maximum time to wait when creating a storage plugin before failing.
   public static final LongValidator STORAGE_PLUGIN_CREATE_MAX = new PositiveLongValidator("store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 
-  // Maximum time to wait when creating a storage plugin before failing.
-  public static final LongValidator STARTUP_WAIT_MAX = new PositiveLongValidator("store.start.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(15));
+  // Maximum time to wait when starting/creating storage plugin during startup before failing.
+  public static final LongValidator STARTUP_WAIT_MAX = new PositiveLongValidator("store.start.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 
   // When metadata impacting configuration parameter is changed, if old metadata should be kept
   public static final BooleanValidator STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE =

@@ -216,6 +216,7 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
                                       EasySubScan subScanConfig) throws ExecutionSetupException {
     if (splitAttributes.getPath().endsWith("json")) {
       JSONRecordReader jsonRecordReader = new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns);
+      jsonRecordReader.resetSpecialSchemaOptions();
 
       if (readingAddLogsOfPartitionedDataset(subScanConfig, columns)) {
         return new DeltaLogCommitJsonRecordReader(context, jsonRecordReader);

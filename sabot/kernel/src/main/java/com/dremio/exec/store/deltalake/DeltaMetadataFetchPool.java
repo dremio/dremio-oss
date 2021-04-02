@@ -16,20 +16,23 @@
 
 package com.dremio.exec.store.deltalake;
 
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Singleton thread pool used by {@link DeltaMetadataFetchJobManager} to run different {@link DeltaMetadataFetchJob} instances in parallel.
  */
 
 public class DeltaMetadataFetchPool {
+  @VisibleForTesting
+  static Integer POOL_SIZE = 40;
 
   private static class LazyThreadPoolHolder {
-    static final ThreadPoolExecutor THREAD_POOL = new ThreadPoolExecutor(0, 40, 1, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), new NamedThreadFactory("delta-metadata-fetch"));
+    static final ThreadPoolExecutor THREAD_POOL = new ThreadPoolExecutor(0, POOL_SIZE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("delta-metadata-fetch"));
   }
 
   public static ThreadPoolExecutor getPool() {

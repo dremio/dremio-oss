@@ -17,6 +17,7 @@ package com.dremio.sabot.op.receiver;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
@@ -88,6 +89,11 @@ public class TestAbstractDataCollector extends DremioTest {
                                                                return schedulerService;
                                                              }
                                                            });
+    try {
+      spillService.start();
+    } catch (Exception e) {
+      fail("Unable to start spill service");
+    }
     try {
       AbstractDataCollector dataCollector = new AbstractDataCollector(resourceGroup, true,
         collector, 10240, allocator, config, handle, workQueue, tunnelProvider, spillService, endpointsIndex) {

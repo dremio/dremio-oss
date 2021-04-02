@@ -566,7 +566,8 @@ class DatasetManager {
     }
 
     SplitCompression splitCompression = SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
-    try (DatasetMetadataSaver saver = userNamespace.newDatasetMetadataSaver(key, nsConfig.getId(), splitCompression, optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX))) {
+    try (DatasetMetadataSaver saver = userNamespace.newDatasetMetadataSaver(key, nsConfig.getId(), splitCompression,
+      optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX), optionManager.getOption(NamespaceService.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
       final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
           options.asListPartitionChunkOptions(nsConfig));
 

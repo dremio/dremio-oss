@@ -20,11 +20,13 @@ import java.util.Optional;
 import java.util.Properties;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 
 /**
  * SSL configuration.
  *
- * Use the static factory methods, {@link #newBuilder} or {@link #of}, to create instances.
+ * Use the static factory methods, {@link #newBuilderForClient()}, {@link #newBuilderForServer()}
+ * or {@link #of}, to create instances.
  */
 public class SSLConfig {
 
@@ -35,6 +37,7 @@ public class SSLConfig {
   public static final String TRUST_STORE_PASSWORD = "trustStorePassword";
   public static final String DISABLE_CERT_VERIFICATION = "disableCertificateVerification";
   public static final String DISABLE_HOST_VERIFICATION = "disableHostVerification";
+  public static final String USE_SYSTEM_TRUST_STORE = "useSystemTrustStore";
 
   // if set to this value, default behavior is employed
   @VisibleForTesting
@@ -56,28 +59,21 @@ public class SSLConfig {
 
   private final boolean disableHostVerification;
 
+  private final boolean useSystemTrustStore;
+
   // TODO(DX-12921): add other frequently used parameters (e.g. certificate alias)
 
-  private SSLConfig(
-      String keyStoreType,
-      String keyStorePath,
-      String keyStorePassword,
-      String keyPassword,
-      String trustStoreType,
-      String trustStorePath,
-      String trustStorePassword,
-      boolean disablePeerVerification,
-      boolean disableHostVerification
-  ) {
-    this.keyStoreType = keyStoreType;
-    this.keyStorePath = keyStorePath;
-    this.keyStorePassword = keyStorePassword;
-    this.keyPassword = keyPassword;
-    this.trustStoreType = trustStoreType;
-    this.trustStorePath = trustStorePath;
-    this.trustStorePassword = trustStorePassword;
-    this.disablePeerVerification = disablePeerVerification;
-    this.disableHostVerification = disableHostVerification;
+  private SSLConfig(Builder builder) {
+    this.keyStoreType = builder.keyStoreType;
+    this.keyStorePath = builder.keyStorePath;
+    this.keyStorePassword = builder.keyStorePassword;
+    this.keyPassword = builder.keyPassword == null ? builder.keyStorePassword : builder.keyPassword;
+    this.trustStoreType = builder.trustStoreType;
+    this.trustStorePath = builder.trustStorePath;
+    this.trustStorePassword = builder.trustStorePassword;
+    this.disablePeerVerification = builder.disablePeerVerification;
+    this.disableHostVerification = builder.disableHostVerification;
+    this.useSystemTrustStore = builder.useSystemTrustStore;
   }
 
   public String getKeyStoreType() {
@@ -96,8 +92,16 @@ public class SSLConfig {
     return keyPassword;
   }
 
+  public boolean useDefaultTrustStore() {
+    return Strings.isNullOrEmpty(trustStoreType) &&
+      Strings.isNullOrEmpty(trustStorePath);
+  }
+
   public String getTrustStoreType() {
-    return trustStoreType;
+    if (!Strings.isNullOrEmpty(trustStoreType)) {
+      return trustStoreType;
+    }
+    return KeyStore.getDefaultType();
   }
 
   public String getTrustStorePath() {
@@ -116,6 +120,10 @@ public class SSLConfig {
     return disableHostVerification;
   }
 
+  public boolean useSystemTrustStore() {
+    return useSystemTrustStore;
+  }
+
   public static class Builder {
 
     private String keyStoreType = KeyStore.getDefaultType();
@@ -125,7 +133,7 @@ public class SSLConfig {
     private String keyStorePassword = UNSPECIFIED;
     private String keyPassword = null; // defaults to 'keyStorePassword'
 
-    private String trustStoreType = KeyStore.getDefaultType();
+    private String trustStoreType = UNSPECIFIED;
     private String trustStorePath = UNSPECIFIED;
     // From https://docs.oracle.com/javase/6/docs/technotes/guides/security/jsse/JSSERefGuide.html
     // If there is no truststore password specified, it is assumed to be "".
@@ -133,6 +141,8 @@ public class SSLConfig {
 
     private boolean disablePeerVerification = false;
     private boolean disableHostVerification = false;
+
+    private boolean useSystemTrustStore = false;
 
     private Builder() {
     }
@@ -237,31 +247,44 @@ public class SSLConfig {
     }
 
     /**
+     * Use the system trust store if trustStoreType is not specified.
+     * Only permitted for clients.
+     * Defaults to {@code false for servers, true for clients}.
+     *
+     * @param enable whether to enable
+     * @return this builder
+     */
+    public Builder useSystemTrustStore(boolean enable) {
+      useSystemTrustStore = enable;
+      return this;
+    }
+
+    /**
      * Build a new {@link SSLConfig} instance based on the parameters.
      *
      * @return SSL config
      */
     public SSLConfig build() {
-      return new SSLConfig(
-          keyStoreType,
-          keyStorePath,
-          keyStorePassword,
-          keyPassword == null ? keyStorePassword : keyPassword,
-          trustStoreType,
-          trustStorePath,
-          trustStorePassword,
-          disablePeerVerification,
-          disableHostVerification);
+      return new SSLConfig(this);
     }
   }
 
   /**
-   * Static factory method.
+   * Static factory method for server SSL configurations.
    *
    * @return new builder
    */
-  public static Builder newBuilder() {
-    return new Builder();
+  public static Builder newBuilderForServer() {
+    return new Builder().useSystemTrustStore(false);
+  }
+
+  /**
+   * Static factory method for server SSL configurations.
+   *
+   * @return new builder
+   */
+  public static Builder newBuilderForClient() {
+    return new Builder().useSystemTrustStore(true);
   }
 
   /**
@@ -282,7 +305,7 @@ public class SSLConfig {
     final Optional<Boolean> enabledOption = getBooleanProperty(canonicalProperties, ENABLE_SSL);
     return enabledOption.filter(Boolean::booleanValue)
         .map(ignored -> {
-          final SSLConfig.Builder builder = SSLConfig.newBuilder();
+          final SSLConfig.Builder builder = SSLConfig.newBuilderForClient();
           getStringProperty(canonicalProperties, TRUST_STORE_TYPE)
               .ifPresent(builder::setTrustStoreType);
           getStringProperty(canonicalProperties, TRUST_STORE_PATH)
@@ -293,6 +316,8 @@ public class SSLConfig {
               .ifPresent(builder::setDisablePeerVerification);
           getBooleanProperty(canonicalProperties, DISABLE_HOST_VERIFICATION)
               .ifPresent(builder::setDisableHostVerification);
+          getBooleanProperty(canonicalProperties, USE_SYSTEM_TRUST_STORE)
+              .ifPresent(builder::useSystemTrustStore);
           return builder.build();
         });
   }

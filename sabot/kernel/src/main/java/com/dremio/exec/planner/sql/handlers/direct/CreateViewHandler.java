@@ -21,14 +21,13 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.Schema;
-import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
-import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -53,7 +52,7 @@ public class CreateViewHandler extends SimpleDirectHandler {
       final String newViewName = createView.getName();
 
       // Store the viewSql as view def SqlNode is modified as part of the resolving the new table definition below.
-      final String viewSql = createView.getQuery().toSqlString(new SqlDialect(SqlDialect.CALCITE.getDatabaseProduct(), SqlDialect.CALCITE.getDatabaseProduct().name(), ParserConfig.QUOTING.string)).getSql();
+      final String viewSql = createView.getQuery().toSqlString(CalciteSqlDialect.DEFAULT).getSql();
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, createView.getQuery());
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();

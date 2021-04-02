@@ -24,13 +24,13 @@ import com.dremio.exec.store.hive.StoragePluginCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.ResolvableDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.introspect.BasicBeanDescription;
 
 /**
  * Helper class for deserializing a SubScan that delegates to a SubScan
@@ -65,7 +65,7 @@ public class HiveProxyingSubScanDeserializer extends StdDeserializer<HiveProxyin
   private <T> T deserialize(JsonParser jsonParser, DeserializationContext context, JsonNode node,
                             Class<? extends T> clazz) throws IOException, JsonProcessingException {
     final JavaType javaType = context.getTypeFactory().constructType(clazz);
-    final BasicBeanDescription description = context.getConfig().introspect(javaType);
+    final BeanDescription description = context.getConfig().introspect(javaType);
     final JsonDeserializer<Object> deserializer = context.getFactory().createBeanDeserializer(
       context, javaType, description);
     if (deserializer instanceof ResolvableDeserializer) {

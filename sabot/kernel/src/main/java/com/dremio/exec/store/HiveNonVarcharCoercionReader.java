@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store;
 
+import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
+import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -85,7 +88,7 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
   protected void addExpression(Field field, FieldReference inputRef) {
     TypeProtos.MajorType majorType = typeCoercion.getType(field);
     LogicalExpression cast;
-    if (majorType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) || majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) {
+    if (inputRef.getCompleteType().isText() && (majorType.getMinorType().equals(VARCHAR) || majorType.getMinorType().equals(VARBINARY))) {
       cast = inputRef;
     } else if (majorType.getMinorType().equals(TypeProtos.MinorType.DECIMAL)) {
       cast = new CastExpressionWithOverflow(inputRef, majorType);

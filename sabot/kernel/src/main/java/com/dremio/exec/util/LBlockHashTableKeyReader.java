@@ -20,6 +20,7 @@ import static org.apache.arrow.util.Preconditions.checkArgument;
 import static org.apache.arrow.util.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -318,7 +319,7 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
         private void sliceKeyLenToFitInMaxSize() {
             // Take slices of keys so total key fits in 16 bytes
             final Map<String, Integer> keySizes = keyReader.keyPositions.stream()
-                    .collect(Collectors.toMap(KeyPosition::getKey, KeyPosition::getAllocatedLength));
+                    .collect(Collectors.toMap(KeyPosition::getKey, KeyPosition::getAllocatedLength, (x, y) -> y, LinkedHashMap::new));
             final KeyFairSliceCalculator fairSliceCalculator = new KeyFairSliceCalculator(keySizes, maxKeySize);
             keyReader.keyPositions.stream().forEach(k -> k.setAllocatedLength(fairSliceCalculator.getKeySlice(k.getKey())));
             keyReader.keyBufSize = fairSliceCalculator.getTotalSize();

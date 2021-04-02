@@ -39,6 +39,7 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public abstract class AbstractAttemptObserver implements AttemptObserver {
@@ -95,10 +96,8 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization,
-                              List<RelNode> substitutions,
-                              RelNode target,
-                              long millisTaken, boolean defaultReflection) {
+  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions,
+    RelNode target, long millisTaken, boolean defaultReflection) {
   }
 
   @Override
@@ -188,5 +187,9 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
 
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
+  }
+
+  @Override
+  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
   }
 }

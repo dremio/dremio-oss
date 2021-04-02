@@ -22,15 +22,21 @@ import static org.apache.arrow.util.Preconditions.checkState;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.vector.types.Types;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.sabot.op.common.ht2.Copier;
+
+import io.netty.util.internal.PlatformDependent;
 
 /**
  * Used for runtime filtering at joins. Contains list of unique and sorted join key values
  */
 public class ValueListFilter implements AutoCloseable {
+    private static final Logger logger = LoggerFactory.getLogger(ValueListFilter.class);
     public static final int META_SIZE = 33;
 
     private ArrowBuf fullBuffer;
@@ -332,5 +338,22 @@ public class ValueListFilter implements AutoCloseable {
      */
     public void retainRef() {
         this.buf().retain();
+    }
+
+    public ValueListFilter createCopy(BufferAllocator allocator) {
+        try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
+            ArrowBuf nonPColFilterBuf = this.buf();
+            ArrowBuf nonPColFilterBufCopy = allocator.buffer(nonPColFilterBuf.capacity());
+            rollbackCloseable.add(nonPColFilterBufCopy);
+            PlatformDependent.copyMemory(nonPColFilterBuf.memoryAddress(), nonPColFilterBufCopy.memoryAddress(), nonPColFilterBuf.capacity());
+            ValueListFilter vCopy = new ValueListFilter(nonPColFilterBufCopy);
+            vCopy.initializeMetaFromBuffer();
+            vCopy.setFieldName(this.getFieldName());
+            rollbackCloseable.commit();
+            return vCopy;
+        } catch (Exception e) {
+            logger.error("Error while create a copy of the ValueListFilter " + this.getFieldName(), e);
+            throw new RuntimeException(e);
+        }
     }
 }

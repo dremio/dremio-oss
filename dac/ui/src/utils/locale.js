@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import IntlMessageFormat from 'intl-messageformat';
-import enStrings from 'dyn-load/locales/en.json';
+import enStrings from '@inject/locales/en.json';
 
 export function getLocale() {
   // todo: write code to actually handle multiple options

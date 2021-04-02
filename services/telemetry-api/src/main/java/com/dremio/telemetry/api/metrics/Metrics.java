@@ -54,6 +54,7 @@ import com.google.common.collect.ImmutableMap;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
 import io.prometheus.client.exporter.MetricsServlet;
+import io.prometheus.client.hotspot.StandardExports;
 
 /**
  * Dremio main metrics class
@@ -97,6 +98,7 @@ public final class Metrics {
     public static Servlet createMetricsServlet() {
       CollectorRegistry registry = new CollectorRegistry();
       registry.register(new DropwizardExports(RegistryHolder.REGISTRY));
+      registry.register(new StandardExports());
       return new MetricsServlet(registry);
     }
   }

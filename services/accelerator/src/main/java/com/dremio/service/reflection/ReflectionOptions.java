@@ -34,6 +34,8 @@ public interface ReflectionOptions {
   PositiveLongValidator REFLECTION_DELETION_GRACE_PERIOD = new PositiveLongValidator("reflection.deletion.grace_seconds", Long.MAX_VALUE, TimeUnit.HOURS.toSeconds(4));
   // how many entries should be deleted every time the reflection manager wakes up
   PositiveLongValidator REFLECTION_DELETION_NUM_ENTRIES = new PositiveLongValidator("reflection.deletion.num_entries", Long.MAX_VALUE, 5);
+  // how often should the materialization zombie check be done
+  PositiveLongValidator MATERIALIZATION_ORPHAN_REFRESH = new PositiveLongValidator("materialization.orphan.refresh_seconds", Long.MAX_VALUE, TimeUnit.HOURS.toSeconds(4));
   BooleanValidator MATERIALIZATION_CACHE_ENABLED = new BooleanValidator("dremio.materialization.cache.enabled", true);
   // how often should the materialization cache be refreshed
   PositiveLongValidator MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS = new PositiveLongValidator("reflection.materialization.cache.refresh.delay_millis", Long.MAX_VALUE, TimeUnit.SECONDS.toMillis(30));
@@ -55,7 +57,7 @@ public interface ReflectionOptions {
   // at least how many files there should be to trigger compaction
   PositiveLongValidator COMPACTION_TRIGGER_NUMBER_FILES = new PositiveLongValidator("reflection.compaction.trigger.num_files", Long.MAX_VALUE, 1);
   // Compaction will be triggered if the median file size is less than or equal to this parameter
-  PositiveLongValidator COMPACTION_TRIGGER_FILE_SIZE = new PositiveLongValidator("reflection.compaction.trigger.file_size_mb", Long.MAX_VALUE/(1024*1024), 16);
+  PositiveLongValidator COMPACTION_TRIGGER_FILE_SIZE = new PositiveLongValidator("reflection.compaction.trigger.file_size_mb", Long.MAX_VALUE / (1024 * 1024), 16);
   // Enable caching of reflection whose dist storage is in cloud ( S3, AzureDataLake, AzureFileSystem)
   BooleanValidator CLOUD_CACHING_ENABLED = new BooleanValidator("reflection.cloud.cache.enabled", true);
   // If disabled, only vds schema and expanded sql definition will be considered when deciding to do an incremental refresh

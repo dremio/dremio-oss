@@ -54,6 +54,7 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -259,6 +260,7 @@ public class TestParquetSplitReaderCreatorIterator {
     FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
     OperatorContext context = mock(OperatorContext.class);
     ParquetSubScan config = mock(ParquetSubScan.class);
+    OperatorStats operatorStats = mock(OperatorStats.class);
 
     SabotConfig sabotConfig = mock(SabotConfig.class);
     InputStreamProviderFactory inputStreamProviderFactory = mock(InputStreamProviderFactory.class);
@@ -276,6 +278,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(PREFETCH_READER)).thenReturn(prefetch);
     when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
+    when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
     when(fileSystemPlugin.createFS(anyString(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);

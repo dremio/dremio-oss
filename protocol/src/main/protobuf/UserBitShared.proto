@@ -345,6 +345,7 @@ message QueryProfile {
   optional int64 command_pool_wait_millis = 36;
   optional bytes serialized_plan = 37;
   repeated AttemptEvent state_list = 38;
+  optional int32 num_plan_cache_used = 39;
 }
 
 message AttemptEvent {

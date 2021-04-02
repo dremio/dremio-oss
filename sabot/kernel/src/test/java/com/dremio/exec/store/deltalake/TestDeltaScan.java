@@ -54,6 +54,10 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/testDataset", java.nio.file.Paths.get(testRootPath + "/testDataset"));
     copyFromJar("deltalake/JsonDataset", java.nio.file.Paths.get(testRootPath + "/JsonDataset"));
     copyFromJar("deltalake/lastCheckpointDataset", java.nio.file.Paths.get(testRootPath + "/lastCheckpointDataset"));
+    copyFromJar("deltalake/emptyDataFilesNoStatsParsed", java.nio.file.Paths.get(testRootPath + "/emptyDataFilesNoStatsParsed"));
+    copyFromJar("deltalake/extraAttrsRemovePath", java.nio.file.Paths.get(testRootPath + "/extraAttrsRemovePath"));
+    copyFromJar("deltalake/multibatchCheckpointWithRemove", java.nio.file.Paths.get(testRootPath + "/multibatchCheckpointWithRemove"));
+
   }
 
   @After
@@ -137,16 +141,36 @@ public class TestDeltaScan extends BaseTestQuery {
   @Test
   public void testDeltalakeJsonDatasetSelect() throws Exception {
     try (AutoCloseable c = enableDeltaLake()) {
-      final String sql = "SELECT id, new_cases FROM dfs.tmp.deltalake.JsonDataset limit 3";
-      testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("id","new_cases")
-        .baselineValues(71L, "45.0")
-        .baselineValues(72L, "150.0")
-        .baselineValues(73L, "116.0")
-        .unOrdered().go();
+      testDeltalakeJsonCommitsDataset();
     }
+  }
+
+  @Test
+  public void testDeltalakeJsonReadNumbersAsDoubleOptionEnabled() throws Exception {
+    try (AutoCloseable c = enableDeltaLake();
+         AutoCloseable c2 = enableJsonReadNumbersAsDouble()) {
+      testDeltalakeJsonCommitsDataset();
+    }
+  }
+
+  @Test
+  public void testDeltalakeJsonReadAllAsTextEnabled() throws Exception {
+    try (AutoCloseable c = enableDeltaLake();
+         AutoCloseable c2 = enableJsonAllStrings()) {
+      testDeltalakeJsonCommitsDataset();
+    }
+  }
+
+  private void testDeltalakeJsonCommitsDataset() throws Exception {
+    final String sql = "SELECT id, new_cases FROM dfs.tmp.deltalake.JsonDataset limit 3";
+    testBuilder()
+            .sqlQuery(sql)
+            .unOrdered()
+            .baselineColumns("id","new_cases")
+            .baselineValues(71L, "45.0")
+            .baselineValues(72L, "150.0")
+            .baselineValues(73L, "116.0")
+            .unOrdered().go();
   }
 
   @Test
@@ -173,6 +197,57 @@ public class TestDeltaScan extends BaseTestQuery {
         .baselineValues(11L, "1027.0")
         .baselineValues(54L, "1050.0")
         .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testDeltaLakeEmptyDataFilesNoStatsParsed() throws Exception {
+    /*
+     * 1. The data files within the dataset doesn't even have a rowgroup written.
+     * 2. The checkpoint parquet contains "stats" but doesn't contain "stats_parsed" field.
+     */
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT * FROM dfs.tmp.deltalake.emptyDataFilesNoStatsParsed";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("id", "total_cases")
+              .expectsEmptyResultSet()
+              .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testDeltaLakeRemoveEntryExtraAttrs() throws Exception {
+    /*
+     * "remove" contains extra attributes such as extendedFileMetadata,partitionValues,size. Dremio should run irrespective
+     * of any unrecognizable attributes
+     */
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT count(*) as cnt FROM dfs.tmp.deltalake.extraAttrsRemovePath";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(2L)
+              .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testMultiBatchCheckpointWithRemoveEntries() throws Exception {
+    /*
+     * The dataset contains only a checkpoint reference, containing 700 add paths, which cross batch size 500, followed
+     * by 500 remove paths and metaData and protocolVersion only in the end.
+     */
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT intcol, longcol FROM dfs.tmp.deltalake.multibatchCheckpointWithRemove limit 1";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("intcol", "longcol")
+              .baselineValues(6097811, 6097811L)
+              .unOrdered().go();
     }
   }
 }

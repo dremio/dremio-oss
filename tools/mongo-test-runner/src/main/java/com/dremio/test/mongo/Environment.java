@@ -26,8 +26,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.slf4j.LoggerFactory;
-
 import com.google.common.io.BaseEncoding;
 
 import de.flapdoodle.embed.mongo.Command;
@@ -37,13 +35,13 @@ import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongosExecutable;
 import de.flapdoodle.embed.mongo.MongosProcess;
-import de.flapdoodle.embed.mongo.config.IMongoImportConfig;
-import de.flapdoodle.embed.mongo.config.IMongodConfig;
-import de.flapdoodle.embed.mongo.config.IMongosConfig;
-import de.flapdoodle.embed.mongo.config.RuntimeConfigBuilder;
-import de.flapdoodle.embed.process.config.IRuntimeConfig;
+import de.flapdoodle.embed.mongo.config.MongoImportConfig;
+import de.flapdoodle.embed.mongo.config.MongodConfig;
+import de.flapdoodle.embed.mongo.config.MongosConfig;
+import de.flapdoodle.embed.process.config.RuntimeConfig;
+import de.flapdoodle.embed.process.config.io.ProcessOutput;
 import de.flapdoodle.embed.process.distribution.Distribution;
-import de.flapdoodle.embed.process.extract.IExtractedFileSet;
+import de.flapdoodle.embed.process.extract.ExtractedFileSet;
 import de.flapdoodle.embed.process.runtime.Starter;
 
 /**
@@ -74,13 +72,13 @@ final class Environment implements Closeable{
   private final Path tempDirectory ;
 
   // Create custom starters to that pid can be customized and different for each execution (while executable name stays the same)
-  private final Starter<IMongodConfig,MongodExecutable,MongodProcess> mongodStarter = new Starter<IMongodConfig,MongodExecutable,MongodProcess>(newRuntimeConfig(Command.MongoD)) {
+  private final Starter<MongodConfig,MongodExecutable,MongodProcess> mongodStarter = new Starter<MongodConfig,MongodExecutable,MongodProcess>(newRuntimeConfig(Command.MongoD)) {
     @Override
-    protected MongodExecutable newExecutable(IMongodConfig config, Distribution distribution, IRuntimeConfig runtime,
-        IExtractedFileSet exe) {
+    protected MongodExecutable newExecutable(MongodConfig config, Distribution distribution, RuntimeConfig runtime,
+        ExtractedFileSet exe) {
       return new MongodExecutable(distribution, config, runtime, exe) {
         @Override
-        protected MongodProcess start(Distribution distribution, IMongodConfig config, IRuntimeConfig runtime) throws java.io.IOException {
+        protected MongodProcess start(Distribution distribution, MongodConfig config, RuntimeConfig runtime) throws java.io.IOException {
           return new MongodProcess(distribution, config, runtime, this) {
             @Override
             protected java.io.File pidFile(java.io.File executeableFile) {
@@ -93,13 +91,13 @@ final class Environment implements Closeable{
     }
   };
 
-  private final Starter<IMongosConfig,MongosExecutable,MongosProcess> mongosStarter = new Starter<IMongosConfig,MongosExecutable,MongosProcess>(newRuntimeConfig(Command.MongoS)) {
+  private final Starter<MongosConfig,MongosExecutable,MongosProcess> mongosStarter = new Starter<MongosConfig,MongosExecutable,MongosProcess>(newRuntimeConfig(Command.MongoS)) {
     @Override
-    protected MongosExecutable newExecutable(IMongosConfig config, Distribution distribution, IRuntimeConfig runtime,
-        IExtractedFileSet exe) {
+    protected MongosExecutable newExecutable(MongosConfig config, Distribution distribution, RuntimeConfig runtime,
+        ExtractedFileSet exe) {
       return new MongosExecutable(distribution, config, runtime, exe) {
         @Override
-        protected MongosProcess start(Distribution distribution, IMongosConfig config, IRuntimeConfig runtime) throws java.io.IOException {
+        protected MongosProcess start(Distribution distribution, MongosConfig config, RuntimeConfig runtime) throws java.io.IOException {
           return new MongosProcess(distribution, config, runtime, this) {
             @Override
             protected java.io.File pidFile(java.io.File executeableFile) {
@@ -112,13 +110,13 @@ final class Environment implements Closeable{
     }
   };
 
-  private final Starter<IMongoImportConfig,MongoImportExecutable,MongoImportProcess> mongoImportStarter = new Starter<IMongoImportConfig,MongoImportExecutable,MongoImportProcess>(newToolRuntimeConfig(Command.MongoImport)) {
+  private final Starter<MongoImportConfig,MongoImportExecutable,MongoImportProcess> mongoImportStarter = new Starter<MongoImportConfig,MongoImportExecutable,MongoImportProcess>(newToolRuntimeConfig(Command.MongoImport)) {
     @Override
-    protected MongoImportExecutable newExecutable(IMongoImportConfig config, Distribution distribution, IRuntimeConfig runtime,
-        IExtractedFileSet exe) {
+    protected MongoImportExecutable newExecutable(MongoImportConfig config, Distribution distribution, RuntimeConfig runtime,
+        ExtractedFileSet exe) {
       return new MongoImportExecutable(distribution, config, runtime, exe) {
         @Override
-        protected MongoImportProcess start(Distribution distribution, IMongoImportConfig config, IRuntimeConfig runtime) throws java.io.IOException {
+        protected MongoImportProcess start(Distribution distribution, MongoImportConfig config, RuntimeConfig runtime) throws java.io.IOException {
           return new MongoImportProcess(distribution, config, runtime, this) {
             @Override
             protected java.io.File pidFile(java.io.File executeableFile) {
@@ -135,33 +133,33 @@ final class Environment implements Closeable{
     tempDirectory = Files.createTempDirectory("mongotest-");
   }
 
-  static MongodExecutable prepareMongod(IMongodConfig config) {
+  static MongodExecutable prepareMongod(MongodConfig config) {
     return INSTANCE.mongodStarter.prepare(config);
   }
 
-  static MongosExecutable prepareMongos(IMongosConfig config) {
+  static MongosExecutable prepareMongos(MongosConfig config) {
     return INSTANCE.mongosStarter.prepare(config);
   }
 
-  static MongoImportExecutable prepareMongoImport(IMongoImportConfig config) {
+  static MongoImportExecutable prepareMongoImport(MongoImportConfig config) {
     return INSTANCE.mongoImportStarter.prepare(config);
   }
 
-  private final IRuntimeConfig newRuntimeConfig(Command command) {
+  private final RuntimeConfig newRuntimeConfig(Command command) {
     return newRuntimeConfig(command, true);
   }
 
-  private final IRuntimeConfig newToolRuntimeConfig(Command command) {
+  private final RuntimeConfig newToolRuntimeConfig(Command command) {
     return newRuntimeConfig(command, false);
   }
 
-  private final IRuntimeConfig newRuntimeConfig(Command command, boolean daemonProcess) {
+  private final RuntimeConfig newRuntimeConfig(Command command, boolean daemonProcess) {
     final StaticArtifactStore artifactStore = StaticArtifactStore.forCommand(command);
     resources.add(artifactStore);
-    return new RuntimeConfigBuilder()
-        .defaultsWithLogger(command, LoggerFactory.getLogger(MongoDBResource.class))
+    return RuntimeConfig.builder()
+        .processOutput(ProcessOutput.getDefaultInstanceSilent())
         .artifactStore(artifactStore)
-        .daemonProcess(daemonProcess)
+        .isDaemonProcess(daemonProcess)
         .build();
   }
 

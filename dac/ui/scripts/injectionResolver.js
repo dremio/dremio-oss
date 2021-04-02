@@ -95,7 +95,7 @@ class InjectionResolver {
     Module.prototype.require = function(module) {
       if (module.startsWith(alias)) {
         try {
-          return originalRequire.call(this, module.replace(alias, '@dyn-load/'));
+          return originalRequire.call(this, module.replace(alias, 'dyn-load/'));
         } catch (e) {
           // ignored
         }

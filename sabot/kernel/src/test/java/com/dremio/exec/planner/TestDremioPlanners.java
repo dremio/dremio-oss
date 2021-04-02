@@ -58,8 +58,9 @@ public class TestDremioPlanners {
       super(cluster, cluster.traitSetOf(Convention.NONE));
     }
 
-    @Override public RelOptCost computeSelfCost(RelOptPlanner planner,
-        RelMetadataQuery mq) {
+    @Override
+    public RelOptCost computeSelfCost(RelOptPlanner planner,
+                                      RelMetadataQuery mq) {
       return planner.getCostFactory().makeInfiniteCost();
     }
 
@@ -67,8 +68,8 @@ public class TestDremioPlanners {
     protected RelDataType deriveRowType() {
       final RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
       return new RelDataTypeFactory.Builder(getCluster().getTypeFactory())
-          .add("none", typeFactory.createJavaType(Void.TYPE))
-          .build();
+        .add("none", typeFactory.createJavaType(Void.TYPE))
+        .build();
     }
 
     @Override
@@ -103,13 +104,23 @@ public class TestDremioPlanners {
 
     OptionValue plannerTimeout = OptionValue.createLong(OptionType.QUERY, "planner.timeout_per_phase_ms", timeoutMillis);
     OptionValue plannerMaxNodes = OptionValue.createLong(OptionType.QUERY, "planner.max_nodes_per_plan", maxNodes);
+    OptionValue hepMatchLimit = OptionValue.createLong(OptionType.QUERY,
+      PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getOptionName(), PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getDefault().getNumVal());
+    OptionValue verboseRuleMatch = OptionValue.createBoolean(OptionType.QUERY,
+      PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getOptionName(), PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getDefault().getBoolVal());
 
     OptionList optionList = new OptionList();
     optionList.add(plannerTimeout);
     optionList.add(plannerMaxNodes);
+    optionList.add(hepMatchLimit);
+    optionList.add(verboseRuleMatch);
 
     when(optionManager.getOption("planner.timeout_per_phase_ms")).thenReturn(plannerTimeout);
     when(optionManager.getOption("planner.max_nodes_per_plan")).thenReturn(plannerMaxNodes);
+    when(optionManager.getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getOptionName()))
+      .thenReturn(PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getDefault());
+    when(optionManager.getOption(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getOptionName()))
+      .thenReturn(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getDefault());
     when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
 
     return new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, null);
@@ -120,7 +131,7 @@ public class TestDremioPlanners {
 
     HepProgramBuilder builder = new HepProgramBuilder();
     builder.addRuleInstance(new LoopRule());
-    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL, new MatchCountListener(0, 0, 0));
+    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL, new MatchCountListener(0, 0, 0, false));
 
     checkCancelFlag(planner);
   }
@@ -129,7 +140,8 @@ public class TestDremioPlanners {
   @Test
   public void checkThrowOnMaxNodes() throws Exception {
 
-    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(60_000, 10), a -> {}, null);
+    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(60_000, 10), a -> {
+    }, null);
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LoopRule());
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
@@ -142,7 +154,8 @@ public class TestDremioPlanners {
   @Test
   public void testVolcanoPlannerCancelFlag() {
 
-    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(100, 25_000), a -> {}, null);
+    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(100, 25_000), a -> {
+    }, null);
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LoopRule());
 

@@ -32,6 +32,7 @@ import javax.inject.Provider;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.common.concurrent.CloseableThreadPool;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.concurrent.Runnables;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStore;
@@ -167,7 +168,18 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     }
 
     ManagedStoragePlugin plugin = newPlugin(config);
-    plugin.createSource(config, userName, attributes);
+    try {
+      plugin.createSource(config, userName, attributes);
+    } catch(UserException e) {
+      //The creation of Source can fail due to various reasons.
+      //In case of failure, we need to cleanup the in-memory state of the source. Hence closing the plugin.
+      try {
+        plugin.close();
+      } catch (Exception ex) {
+        e.addSuppressed(ex);
+      }
+      throw e;
+    }
 
     // use concurrency features of concurrent hash map to avoid locking.
     ManagedStoragePlugin existing = plugins.putIfAbsent(c(config.getName()), plugin);
@@ -184,7 +196,6 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     } catch (Exception ex) {
       e.addSuppressed(ex);
     }
-
     throw e;
   }
 

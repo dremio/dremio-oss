@@ -16,8 +16,8 @@
 package com.dremio.test.mongo;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Throwables;
@@ -28,35 +28,25 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
 import de.flapdoodle.embed.mongo.Command;
-import de.flapdoodle.embed.mongo.config.ExtractedArtifactStoreBuilder;
+import de.flapdoodle.embed.mongo.config.Defaults;
 import de.flapdoodle.embed.process.distribution.Distribution;
-import de.flapdoodle.embed.process.extract.IExtractedFileSet;
-import de.flapdoodle.embed.process.extract.ImmutableExtractedFileSet;
+import de.flapdoodle.embed.process.extract.ExtractedFileSet;
 import de.flapdoodle.embed.process.store.IArtifactStore;
 
 final class StaticArtifactStore implements IArtifactStore, Closeable {
-  private static final IExtractedFileSet SENTINEL = new ImmutableExtractedFileSet.Builder()
-      .baseDir(new File("/dev/null"))
-      .executable(new File("/dev/null"))
-      .build();
-
-
   /*
    * use of cache to serialize requests for the same distribution
    */
-  private final LoadingCache<Distribution, IExtractedFileSet> distributions = CacheBuilder.newBuilder()
-      .removalListener(new RemovalListener<Distribution, IExtractedFileSet>() {
+  private final LoadingCache<Distribution, Optional<ExtractedFileSet>> distributions = CacheBuilder.newBuilder()
+      .removalListener(new RemovalListener<Distribution, Optional<ExtractedFileSet>>() {
         @Override
-        public void onRemoval(RemovalNotification<Distribution, IExtractedFileSet> notification) {
-          store.removeFileSet(notification.getKey(), notification.getValue());
+        public void onRemoval(RemovalNotification<Distribution, Optional<ExtractedFileSet>> notification) {
+          store.removeFileSet(notification.getKey(), notification.getValue().get());
         }
       })
-      .build(new CacheLoader<Distribution, IExtractedFileSet>() {
+      .build(new CacheLoader<Distribution, Optional<ExtractedFileSet>>() {
        @Override
-        public IExtractedFileSet load(Distribution key) throws IOException {
-         if (!store.checkDistribution(key)) {
-           return SENTINEL;
-         }
+        public Optional<ExtractedFileSet> load(Distribution key) throws IOException {
          return store.extractFileSet(key);
         }
       });
@@ -68,31 +58,26 @@ final class StaticArtifactStore implements IArtifactStore, Closeable {
   }
 
   public static StaticArtifactStore forCommand(Command command) {
-    IArtifactStore store = new ExtractedArtifactStoreBuilder().defaults(command).build();
+    IArtifactStore store = Defaults.extractedArtifactStoreFor(command);
 
     return new StaticArtifactStore(store);
   }
 
   @Override
-  public boolean checkDistribution(Distribution distribution) throws IOException {
-    return getFileSet(distribution) != SENTINEL;
-  }
-
-  @Override
-  public IExtractedFileSet extractFileSet(Distribution distribution) throws IOException {
-    IExtractedFileSet fileSet = getFileSet(distribution);
-    if (fileSet == SENTINEL) {
+  public Optional<ExtractedFileSet> extractFileSet(Distribution distribution) throws IOException {
+    Optional<ExtractedFileSet> fileSet = getFileSet(distribution);
+    if (!fileSet.isPresent()) {
       throw new IllegalArgumentException("No file set found for distribution " + distribution);
     }
     return fileSet;
   }
 
   @Override
-  public void removeFileSet(Distribution distribution, IExtractedFileSet files) {
+  public void removeFileSet(Distribution distribution, ExtractedFileSet files) {
     // do nothing
   }
 
-  private IExtractedFileSet getFileSet(Distribution distribution) throws IOException {
+  private Optional<ExtractedFileSet> getFileSet(Distribution distribution) throws IOException {
     try {
       return distributions.get(distribution);
     } catch (ExecutionException e) {

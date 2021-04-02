@@ -35,6 +35,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -58,7 +59,11 @@ import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.catalog.CachingCatalog;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DelegatingCatalog;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
@@ -75,6 +80,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
+import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -85,6 +91,8 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.MaterializationCache.CacheException;
 import com.dremio.service.reflection.MaterializationCache.CacheHelper;
@@ -167,6 +175,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final Provider<CatalogService> catalogService;
   private final Provider<SabotContext> sabotContext;
   private final Provider<ReflectionStatusService> reflectionStatusService;
+  private final Provider<ForemenWorkManager> foremenWorkManagerProvider;
   private final ReflectionSettings reflectionSettings;
   private final ExecutorService executorService;
   private final BufferAllocator allocator;
@@ -196,6 +205,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   /** dummy QueryContext used to create the SqlConverter, must be closed or we'll leak a ChildAllocator */
   private final Supplier<QueryContext> queryContext;
   private final Supplier<ExpansionHelper> expansionHelper;
+  private final Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper;
 
   private final ReflectionValidator validator;
 
@@ -212,6 +222,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     final Provider<SabotContext> sabotContext,
     Provider<ReflectionStatusService> reflectionStatusService,
     ExecutorService executorService,
+    Provider<ForemenWorkManager> foremenWorkManagerProvider,
     boolean isMaster,
     BufferAllocator allocator) {
     this.schedulerService = Preconditions.checkNotNull(schedulerService, "scheduler service required");
@@ -220,6 +231,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "acceleration plugin required");
     this.reflectionStatusService = Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.executorService = Preconditions.checkNotNull(executorService, "executor service required");
+    this.foremenWorkManagerProvider = Preconditions.checkNotNull(foremenWorkManagerProvider,"foremenworkmanager service required");
     this.namespaceService = new Provider<NamespaceService>() {
       @Override
       public NamespaceService get() {
@@ -250,6 +262,13 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       @Override
       public ExpansionHelper get() {
         return new ExpansionHelper(queryContext.get());
+      }
+    };
+
+    this.planCacheInvalidationHelper = new Supplier<PlanCacheInvalidationHelper>() {
+      @Override
+      public PlanCacheInvalidationHelper get() {
+        return new PlanCacheInvalidationHelper(queryContext.get());
       }
     };
 
@@ -492,6 +511,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     goal.setId(reflectionId);
 
     userStore.save(goal);
+
+    invalidateReflectionAssociatedPlanCache(goal.getDatasetId());
+
     logger.debug("create reflection goal {} (named {})", reflectionId.getId(), goal.getName());
     wakeupManager("reflection goal created");
     return reflectionId;
@@ -752,6 +774,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   @Override
   public void remove(ReflectionGoal goal) {
     update(goal.setState(ReflectionGoalState.DELETED));
+    invalidateReflectionAssociatedPlanCache(goal.getDatasetId());
   }
 
   @Override
@@ -803,6 +826,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     request.setRequestedAt(Math.max(System.currentTimeMillis(), request.getRequestedAt()));
     requestsStore.save(datasetId, request);
     wakeupManager("refresh request for dataset " + datasetId);
+    invalidateReflectionAssociatedPlanCache(datasetId);
   }
 
   @Override
@@ -1178,6 +1202,65 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     @Override
     public void close() {
       AutoCloseables.closeNoChecked(context);
+    }
+  }
+
+  /**
+   * Plan cache helper that takes care of releasing the query context when closed.
+   * Caller must close the helper when done using the converter
+   */
+  public static class PlanCacheInvalidationHelper implements AutoCloseable {
+    private final QueryContext context;
+    private final boolean isPlanCacheEnabled;
+    private final Catalog catalog;
+
+    PlanCacheInvalidationHelper(QueryContext context) {
+      this.context = Preconditions.checkNotNull(context, "query context required");
+      isPlanCacheEnabled = context.getPlannerSettings().isPlanCacheEnabled();
+      catalog = context.getCatalog();
+    }
+
+    public boolean isPlanCacheEnabled() {
+      return isPlanCacheEnabled;
+    }
+
+    public Catalog getCatalog() {
+      return catalog;
+    }
+
+    @Override
+    public void close() {
+      AutoCloseables.closeNoChecked(context);
+    }
+  }
+
+  private void invalidateReflectionAssociatedPlanCache(String datasetId) {
+    try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
+      PlanCache planCache = foremenWorkManagerProvider.get().getPlanCacheHandle();
+      if (!helper.isPlanCacheEnabled() || planCache == null) {
+        return;
+      }
+      Catalog catalog = helper.getCatalog();
+      if (catalog instanceof DelegatingCatalog || catalog instanceof CachingCatalog) {
+        Queue<DatasetConfig> configQueue = new LinkedList<>();
+        configQueue.add(catalog.getTable(datasetId).getDatasetConfig());
+        while (!configQueue.isEmpty()) {
+          DatasetConfig config = configQueue.remove();
+          if (config.getType() == DatasetType.PHYSICAL_DATASET || config.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE) {
+            PhysicalDataset dataset = config.getPhysicalDataset();
+            planCache.invalidateCacheOnDataset(dataset);
+          } else if (config.getType() == DatasetType.VIRTUAL_DATASET && config.getVirtualDataset().getParentsList() != null) {
+            for (ParentDataset parent : config.getVirtualDataset().getParentsList()){
+              try {
+                NamespaceKey namespaceKey = new NamespaceKey(parent.getDatasetPathList());
+                configQueue.add(namespaceService.get().getDataset(namespaceKey));
+              } catch (NamespaceException ex) {
+                throw Throwables.propagate(ex);
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

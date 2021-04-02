@@ -21,6 +21,8 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
 
@@ -30,9 +32,11 @@ public interface PrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
   public RETURN visitExchange(ExchangePrel prel, EXTRA value) throws EXCEP;
   public RETURN visitScreen(ScreenPrel prel, EXTRA value) throws EXCEP;
   public RETURN visitWriter(WriterPrel prel, EXTRA value) throws EXCEP;
+  public RETURN visitWriterCommitter(WriterCommitterPrel prel, EXTRA value) throws EXCEP;
   public RETURN visitLeaf(LeafPrel prel, EXTRA value) throws EXCEP;
   public RETURN visitJoin(JoinPrel prel, EXTRA value) throws EXCEP;
   public RETURN visitProject(ProjectPrel prel, EXTRA value) throws EXCEP;
+  public RETURN visitTableFunction(TableFunctionPrel prel, EXTRA value) throws EXCEP;
 
   public RETURN visitPrel(Prel prel, EXTRA value) throws EXCEP;
 

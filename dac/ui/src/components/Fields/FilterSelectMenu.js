@@ -56,6 +56,7 @@ export default class FilterSelectMenu extends PureComponent {
     label: PropTypes.string,
     searchPlaceholder: PropTypes.string,
 
+    alwaysShowLabel: PropTypes.bool,
     preventSelectedLabel: PropTypes.bool,
     noSearch: PropTypes.bool,
     selectedToTop: PropTypes.bool,
@@ -179,7 +180,7 @@ export default class FilterSelectMenu extends PureComponent {
   renderSelectedLabel() { // todo: better loc
     const selectedItems = !this.props.selectedValues.size
       ? `: ${this.props.intl.formatMessage({ id: 'Common.All' })}`
-      : this.getSelectedItems().map(item => item.label).join(', ');
+      : (this.props.alwaysShowLabel ? ': ' : '') + this.getSelectedItems().map(item => item.label).join(', ');
     return !this.props.preventSelectedLabel
       ? (
         <EllipsedText className='filter-select-label' style={styles.infoLabel} text={selectedItems}/>
@@ -206,7 +207,7 @@ export default class FilterSelectMenu extends PureComponent {
       <SelectView
         content={
           <Fragment>
-            {(this.props.preventSelectedLabel || !this.props.selectedValues.size) && <span>{label}</span>}
+            {(this.props.preventSelectedLabel || !this.props.selectedValues.size || this.props.alwaysShowLabel) && <span>{label}</span>}
             {this.renderSelectedLabel()}
           </Fragment>
         }

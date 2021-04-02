@@ -41,12 +41,14 @@ import org.apache.calcite.util.BuiltInMethod;
 
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.JdbcRelBase;
+import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.physical.CustomPrel;
 import com.dremio.exec.planner.physical.DictionaryLookupPrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPrel;
 import com.google.common.base.MoreObjects;
@@ -117,6 +119,42 @@ public class RelMdColumnOrigins implements MetadataHandler<BuiltInMetadata.Colum
     return mq.getColumnOrigins(selectionVectorRemoverPrel.getInput(), iOutputColumn);
   }
 
+  public Set<RelColumnOrigin> getColumnOrigins(JoinRelBase join, RelMetadataQuery mq, int iOutputColumn) {
+    int idx;
+    if (join.getProjectedFields() != null) {
+      idx = join.getProjectedFields().asList().get(iOutputColumn);
+    } else {
+      idx = iOutputColumn;
+    }
+    return getOriginsForJoin(join, mq, idx);
+  }
+
+  /**
+   * copied from calcite's {@link org.apache.calcite.rel.metadata.RelMdColumnOrigins}
+   */
+  private Set<RelColumnOrigin> getOriginsForJoin(JoinRelBase join, RelMetadataQuery mq, int iOutputColumn) {
+    int nLeftColumns = join.getLeft().getRowType().getFieldList().size();
+    Set<RelColumnOrigin> set;
+    boolean derived = false;
+    if (iOutputColumn < nLeftColumns) {
+      set = mq.getColumnOrigins(join.getLeft(), iOutputColumn);
+      if (join.getJoinType().generatesNullsOnLeft()) {
+        derived = true;
+      }
+    } else {
+      set = mq.getColumnOrigins(join.getRight(), iOutputColumn - nLeftColumns);
+      if (join.getJoinType().generatesNullsOnRight()) {
+        derived = true;
+      }
+    }
+    if (derived) {
+      // nulls are generated due to outer join; that counts
+      // as derivation
+      set = createDerivedColumnOrigins(set);
+    }
+    return set;
+  }
+
   @SuppressWarnings("unused") // Called through reflection
   public Set<RelColumnOrigin> getColumnOrigins(LogicalWindow window, RelMetadataQuery mq, int iOutputColumn) {
     final RelNode inputRel = window.getInput();
@@ -169,6 +207,29 @@ public class RelMdColumnOrigins implements MetadataHandler<BuiltInMetadata.Colum
   }
 
   public Set<RelColumnOrigin> getColumnOrigins(TableScan tableScan, RelMetadataQuery mq, int iOutputColumn) {
+    final Set<RelColumnOrigin> set = new HashSet<>();
+    RelOptTable table = tableScan.getTable();
+    if (table == null) {
+      return null;
+    }
+
+    if (table.getRowType() != tableScan.getRowType()) {
+      String columnName = tableScan.getRowType().getFieldNames().get(iOutputColumn);
+      int newOutputColumn = 0;
+      for (String tableCol : table.getRowType().getFieldNames()) {
+        if (tableCol.equals(columnName)) {
+          set.add(new RelColumnOrigin(table, newOutputColumn, false));
+          return set;
+        }
+        newOutputColumn++;
+      }
+    } else {
+      set.add(new RelColumnOrigin(table, iOutputColumn, false));
+    }
+    return set;
+  }
+
+  public Set<RelColumnOrigin> getColumnOrigins(TableFunctionPrel tableScan, RelMetadataQuery mq, int iOutputColumn) {
     final Set<RelColumnOrigin> set = new HashSet<>();
     RelOptTable table = tableScan.getTable();
     if (table == null) {

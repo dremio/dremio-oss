@@ -27,6 +27,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.service.cache.AuthorizationCacheException;
+import com.dremio.exec.service.cache.AuthorizationCacheService;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.base.Strings;
@@ -37,13 +39,13 @@ import com.google.common.cache.LoadingCache;
 /**
  * Utilities for impersonation purpose.
  */
-public final class ImpersonationUtil {
+public final class ImpersonationUtil implements AuthorizationCacheService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ImpersonationUtil.class);
 
   private static final LoadingCache<Key, UserGroupInformation> CACHE = CacheBuilder.newBuilder()
       .maximumSize(100)
       .expireAfterAccess(60, TimeUnit.MINUTES)
-      .build(new CacheLoader<Key, UserGroupInformation>() {
+      .build(new CacheLoader<Key, UserGroupInformation>(){
         @Override
         public UserGroupInformation load(Key key) throws Exception {
           return UserGroupInformation.createProxyUser(key.proxyUserName, key.loginUser);
@@ -73,7 +75,6 @@ public final class ImpersonationUtil {
       return Objects.equals(this.proxyUserName,  that.proxyUserName)
           && Objects.equals(this.loginUser, that.loginUser);
     }
-
 
   }
 
@@ -118,10 +119,38 @@ public final class ImpersonationUtil {
   }
 
   /**
-   * Return the name of the user who is running the SabotNode.
+   * Invalidate all proxy users {@link org.apache.hadoop.security.UserGroupInformation}.
    *
-   * @return SabotNode process user.
+   * @return
    */
+  public static void deleteAllAuthorizationCache() throws AuthorizationCacheException {
+    CACHE.invalidateAll();
+  }
+
+  /**
+   * Invalidate the proxy user {@link org.apache.hadoop.security.UserGroupInformation} for the given user name.  If
+   * username is empty/null it throws a IllegalArgumentException.
+   *
+   * @param proxyUserName Proxy user name (must be valid)
+   * @return
+   */
+  public static void deleteAuthorizationCache(String proxyUserName) throws AuthorizationCacheException {
+    if (Strings.isNullOrEmpty(proxyUserName)) {
+      throw new AuthorizationCacheException("Invalid value for proxy user name");
+    }
+    try {
+      CACHE.invalidate(new Key(proxyUserName, UserGroupInformation.getLoginUser()));
+    } catch (IOException ex) {
+      logger.debug(ex.getMessage());
+      throw new AuthorizationCacheException(ex.getMessage());
+    }
+  }
+
+    /**
+     * Return the name of the user who is running the SabotNode.
+     *
+     * @return SabotNode process user.
+     */
   public static String getProcessUserName() {
     return getProcessUserUGI().getUserName();
   }

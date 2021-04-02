@@ -25,7 +25,8 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 
 import de.flapdoodle.embed.mongo.MongoImportExecutable;
-import de.flapdoodle.embed.mongo.config.MongoImportConfigBuilder;
+import de.flapdoodle.embed.mongo.config.ImmutableMongoImportConfig;
+import de.flapdoodle.embed.mongo.config.MongoImportConfig;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.distribution.IFeatureAwareVersion;
 import de.flapdoodle.embed.process.runtime.Network;
@@ -66,11 +67,11 @@ class AbstractMongoDBResource extends ExternalResource implements MongoDBResourc
   public void importData(String dbname, String collection, String file, ImportFormat format, ImportOption... options) throws IOException {
     int p = port.orElseThrow(() -> new IllegalStateException("Trying to access client before server has been started"));
 
-    MongoImportConfigBuilder builder = new MongoImportConfigBuilder()
+    ImmutableMongoImportConfig.Builder builder = MongoImportConfig.builder()
         .version(version)
         .net(new Net(p, Network.localhostIsIPv6()))
-        .db(dbname)
-        .collection(collection)
+        .databaseName(dbname)
+        .collectionName(collection)
         .importFile(file)
         .type(format.name().toLowerCase(Locale.ROOT));
 
@@ -88,18 +89,18 @@ class AbstractMongoDBResource extends ExternalResource implements MongoDBResourc
   }
 
 
-  private static void setOption(MongoImportConfigBuilder builder, ImportOptions option) {
+  private static void setOption(ImmutableMongoImportConfig.Builder builder, ImportOptions option) {
     switch(option) {
     case JSON_ARRAY:
-      builder.jsonArray(true);
+      builder.isJsonArray(true);
       break;
 
     case DROP_COLLECTION:
-      builder.dropCollection(true);
+      builder.isDropCollection(true);
       break;
 
     case UPSERT_DOCUMENTS:
-      builder.upsert(true);
+      builder.isUpsertDocuments(true);
       break;
 
     default:

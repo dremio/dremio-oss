@@ -15,10 +15,15 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.model.job.acceleration.ReflectionExplanationUI;
+import com.dremio.dac.model.job.acceleration.UiMapper;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.google.common.collect.FluentIterable;
@@ -38,14 +43,6 @@ public class AccelerationWrapper {
     relationshipMap = computeRelationships(details);
   }
 
-  private static Map<String, ReflectionRelationship> computeRelationships(AccelerationDetails details) {
-    if (details.getReflectionRelationshipsList() == null) {
-      return ImmutableMap.of();
-    }
-    return FluentIterable.from(details.getReflectionRelationshipsList())
-      .uniqueIndex(input -> input.getReflection().getId().getId());
-  }
-
   public String getReflectionDatasetPath(String layoutId) {
     try {
       return PathUtils.constructFullPath(relationshipMap.get(layoutId).getDataset().getPathList());
@@ -59,6 +56,17 @@ public class AccelerationWrapper {
     return relationshipMap.get(layoutId).getMaterialization().getRefreshChainStartTime();
   }
 
+  public List<ReflectionExplanationUI> getHintsForLayoutId(String layoutId) {
+    ReflectionRelationship relationship = relationshipMap.getOrDefault(layoutId, null);
+    if(null == relationship || null == relationship.getReflectionExplanationList()){
+      return Collections.emptyList();
+    }
+    return relationship.getReflectionExplanationList().stream()
+        .filter(Objects::nonNull)
+        .map(UiMapper::toUI)
+        .collect(Collectors.toList());
+  }
+
   public boolean hasRelationship(String layoutId) {
     return relationshipMap.containsKey(layoutId);
   }
@@ -70,5 +78,13 @@ public class AccelerationWrapper {
   public boolean hasErrors() {
     final List<String> errors = accelerationDetails.getErrorList();
     return errors != null && !errors.isEmpty();
+  }
+
+  private static Map<String, ReflectionRelationship> computeRelationships(AccelerationDetails details) {
+    if (details.getReflectionRelationshipsList() == null) {
+      return ImmutableMap.of();
+    }
+    return FluentIterable.from(details.getReflectionRelationshipsList())
+      .uniqueIndex(input -> input.getReflection().getId().getId());
   }
 }

@@ -21,6 +21,7 @@ import java.util.Set;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphValue;
 import com.dremio.common.graph.GraphVisitor;
+import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -88,7 +89,10 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
   public int getOperatorType();
 
   @JsonIgnore
-  default int getOperatorSubType() { return 0;}
+  default int getOperatorSubType() {
+    // 0 is reserved. And it is a default core operator's subtype.
+    return OperatorMetricRegistry.DEFAULT_CORE_OPERATOR_SUBTYPE;
+  }
 
   /**
    * Other major fragments, this operator will be interested in sending messages to.

@@ -15,6 +15,10 @@
  */
 package com.dremio.dac.model.job.acceleration;
 
+import com.dremio.sabot.kernel.proto.DisjointFilterExplanation;
+import com.dremio.sabot.kernel.proto.FieldMissingExplanation;
+import com.dremio.sabot.kernel.proto.FilterOverSpecifiedExplanation;
+import com.dremio.sabot.kernel.proto.ReflectionExplanation;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.DatasetDetails;
 import com.dremio.service.accelerator.proto.MaterializationDetails;
@@ -51,6 +55,28 @@ public class UiMapper {
       return null;
     }
     return new ReflectionRelationshipUI(relationship);
+  }
+
+  public static ReflectionExplanationUI toUI(ReflectionExplanation reflectionExplanation){
+    if (reflectionExplanation == null) {
+      return null;
+    }
+    switch (reflectionExplanation.getExplanation()) {
+      case DISJOINT_FILTER:
+        DisjointFilterExplanation disjointFilter = reflectionExplanation.getDisjointFilter();
+        return new ReflectionExplanationUI.DisjointFilter(disjointFilter.getFilter());
+      case FIELD_MISSING:
+        FieldMissingExplanation fieldMissingExplanation = reflectionExplanation.getFieldMissing();
+        return new ReflectionExplanationUI.FieldMissing(
+            fieldMissingExplanation.getColumnName(),
+            fieldMissingExplanation.getColumnIndex());
+      case FILTER_OVER_SPECIFIED:
+        FilterOverSpecifiedExplanation filterOverSpecifiedExplanation =
+          reflectionExplanation.getFilterOverSpecified();
+        return new ReflectionExplanationUI.FilterOverSpecified(filterOverSpecifiedExplanation.getFilter());
+      default:
+        return null;
+    }
   }
 
   public static AccelerationDetailsUI toUI(AccelerationDetails accelerationDetails) {

@@ -22,6 +22,7 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 
 /**
  * populates AccelerationDetails as a serialized byte array
@@ -50,6 +51,8 @@ public interface AccelerationDetailsPopulator {
    */
   void planAccelerated(SubstitutionInfo info);
 
+  void addReflectionHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance);
+
   void attemptCompleted(QueryProfile profile);
 
   byte[] computeAcceleration();
@@ -65,6 +68,10 @@ public interface AccelerationDetailsPopulator {
 
     @Override
     public void planAccelerated(SubstitutionInfo info) {
+    }
+
+    @Override
+    public void addReflectionHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     }
 
     @Override

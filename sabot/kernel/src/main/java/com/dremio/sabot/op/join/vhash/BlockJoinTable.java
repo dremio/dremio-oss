@@ -121,8 +121,8 @@ public class BlockJoinTable implements JoinTable {
    * @return
    */
   @Override
-  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
-    return table.prepareBloomFilter(fieldNames, sizeDynamically);
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
+    return table.prepareBloomFilter(fieldNames, sizeDynamically, maxKeySize);
   }
 
   @Override

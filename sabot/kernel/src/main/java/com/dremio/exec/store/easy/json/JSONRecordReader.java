@@ -47,8 +47,8 @@ public class JSONRecordReader extends AbstractRecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JSONRecordReader.class);
 
   private final OperatorContext context;
-  private final boolean enableAllTextMode;
-  private final boolean readNumbersAsDouble;
+  private boolean enableAllTextMode;
+  private boolean readNumbersAsDouble;
 
   // Data we're consuming
   private final Path fsPath;
@@ -127,6 +127,11 @@ public class JSONRecordReader extends AbstractRecordReader {
     final OptionManager options = operatorContext.getOptions();
     this.enableAllTextMode = embeddedContent == null && options.getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR);
     this.readNumbersAsDouble = embeddedContent == null && options.getOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR);
+  }
+
+  public void resetSpecialSchemaOptions() {
+    this.enableAllTextMode = false;
+    this.readNumbersAsDouble = false;
   }
 
   @Override

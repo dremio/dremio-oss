@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
+import com.dremio.options.OptionManager;
 import com.dremio.service.Service;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
@@ -48,14 +49,17 @@ public class SplitOrphansCleanerService implements Service {
 
   private final Provider<SchedulerService> scheduler;
   private final Provider<NamespaceService.Factory> namespaceServiceFactory;
+  private final OptionManager optionManager;
 
   private volatile Cancellable cleanerTask;
 
   @Inject
   public SplitOrphansCleanerService(Provider<SchedulerService> schedulerService,
-      Provider<NamespaceService.Factory> namespaceServiceFactory) {
+                                    Provider<NamespaceService.Factory> namespaceServiceFactory,
+                                    Provider<OptionManager> optionManagerProvider) {
     this.scheduler = schedulerService;
     this.namespaceServiceFactory = namespaceServiceFactory;
+    this.optionManager = optionManagerProvider.get();
   }
 
   @Override
@@ -73,7 +77,8 @@ public class SplitOrphansCleanerService implements Service {
       .releaseOwnershipAfter(splitOrphansReleaseLeadershipHour, TimeUnit.MILLISECONDS)
       .build(), () -> {
           logger.info("Search for expired dataset splits");
-          final int expired = namespaceService.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS);
+          final int expired = namespaceService.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS,
+            optionManager.getOption(NamespaceService.DATASET_METADATA_CONSISTENCY_VALIDATE));
           logger.info("Deleted {} expired/orphan dataset splits", expired);
         });
   }

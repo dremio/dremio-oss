@@ -26,6 +26,7 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADAT
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_PROTOCOL;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_REMOVE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.PROTOCOL_MIN_READER_VERSION;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STATS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.STATS_PARSED_NUM_RECORDS;
 
 import java.io.FileNotFoundException;
@@ -35,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -76,6 +78,8 @@ import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -91,12 +95,15 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
     SchemaPath.getSimplePath(DELTA_FIELD_METADATA),
     SchemaPath.getSimplePath(DELTA_FIELD_PROTOCOL));
   private static final int BATCH_SIZE = 500;
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private MutableParquetMetadata parquetMetadata;
   private long maxFooterLen;
   private StructVector protocolVector;
   private VarCharVector schemaStringVector;
   private ListVector partitionColsVector;
   private StructVector addVector;
+  private StructVector metaDataVector;
   private long netFilesAdded;
   private long estimatedNetBytesAdded;
   private long estimatedNetRecordsAdded;
@@ -122,6 +129,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       context.getOptionManager(), BATCH_SIZE); SampleMutator mutator = new SampleMutator(allocator)
     ) {
       this.parquetMetadata = readCheckpointParquetFooter(fs, fileAttributes.getPath(), fileAttributes.size());
+      Preconditions.checkState(parquetMetadata.getBlocks().size() > 0, "Illegal Deltalake checkpoint parquet file with no row groups");
       final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(
         new Configuration(), new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0);
 
@@ -158,11 +166,13 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
               batchesRead++;
               prepareValueVectors(mutator);
               numFilesReadToEstimateRowCount += estimateStats(fs, rootFolder, recordCount);
-              protocolVersionFound = assertMinReaderVersion();
-              schemaFound = findSchemaAndPartitionCols();
+              protocolVersionFound = protocolVersionFound || assertMinReaderVersion();
+              schemaFound = schemaFound || findSchemaAndPartitionCols();
               if(protocolVersionFound && schemaFound) {
                 break;
               }
+              // reset vectors as they'll be reused in next batch
+              resetVectors();
             }
           } catch (Exception e) {
             logger.error("IOException occurred while reading deltalake table", e);
@@ -195,17 +205,22 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
     }
   }
 
+  private void resetVectors() {
+    addVector.reset();
+    protocolVector.reset();
+    metaDataVector.reset();
+  }
+
   private MutableParquetMetadata readCheckpointParquetFooter(FileSystem fs, Path filePath, long fileSize) throws Exception {
     try (SingleStreamProvider singleStreamProvider = new SingleStreamProvider(fs, filePath, fileSize, maxFooterLen, false, null, null, false)) {
       final MutableParquetMetadata footer = singleStreamProvider.getFooter();
-      Preconditions.checkState(footer.getBlocks().size() > 0, "Illegal Deltalake checkpoint parquet file with no row groups");
       return footer;
     }
   }
 
   private void prepareValueVectors(SampleMutator mutator) {
     protocolVector = (StructVector) mutator.getVector(DELTA_FIELD_PROTOCOL);
-    final StructVector metaDataVector = (StructVector) mutator.getVector(DELTA_FIELD_METADATA);
+    metaDataVector = (StructVector) mutator.getVector(DELTA_FIELD_METADATA);
     schemaStringVector = (VarCharVector) metaDataVector.getChild(DELTA_FIELD_METADATA_SCHEMA_STRING);
     partitionColsVector = (ListVector) metaDataVector.getChild(DELTA_FIELD_METADATA_PARTITION_COLS);
     addVector = (StructVector) mutator.getVector(DELTA_FIELD_ADD);
@@ -225,7 +240,6 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   }
 
   private boolean findSchemaAndPartitionCols() {
-    //TODO: verify if metadata is always present in the second row
     boolean schemaFound = false;
     for (int i = 0; i < BATCH_SIZE; ++i) {
       if (!schemaStringVector.isNull(i)) {
@@ -265,6 +279,8 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
     int numFilesRead = 0;
     BigIntVector sizeVector = (BigIntVector) addVector.getChild(DELTA_FIELD_ADD_SIZE);
     StructVector statsStruct = (StructVector) addVector.getChild(DELTA_FIELD_ADD_STATS_PARSED);
+    VarCharVector statsJson = (VarCharVector) addVector.getChild(SCHEMA_STATS);
+
     BigIntVector numRecordsVector = null;
     if (statsStruct != null) {
       numRecordsVector = (BigIntVector) (statsStruct.getChild(STATS_PARSED_NUM_RECORDS));
@@ -275,10 +291,20 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       if (!addVector.isNull(i)) {
         numFilesRead++;
         netBytesAdded += sizeVector.get(i);
-
+        boolean statsNotFound = true;
         if ((numRecordsVector != null) && !numRecordsVector.isNull(i)) {
           netRecordsAdded += numRecordsVector.get(i);
-        } else if (rootFolder != null) {
+          statsNotFound = false;
+        } else if (statsJson != null && !statsJson.isNull(i)) {
+          JsonNode statsJsonNode = OBJECT_MAPPER.readTree(statsJson.get(i));
+          JsonNode numRecordsNode = statsJsonNode.get(STATS_PARSED_NUM_RECORDS);
+          statsNotFound = numRecordsNode == null;
+          if (!statsNotFound) {
+            netRecordsAdded += numRecordsNode.asInt();
+          }
+        }
+
+        if (rootFolder != null && statsNotFound) {
           // numRecords is not available
           long fileSize = sizeVector.get(i);
           Path fullFilePath = rootFolder.resolve(new String(pathVector.get(i), StandardCharsets.UTF_8));
@@ -358,5 +384,21 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       return DatasetSplit.of(
         Collections.EMPTY_LIST, x.getTotalByteSize(), x.getRowCount(), splitExtended::writeTo);
     }).collect(Collectors.toList());
+  }
+
+  private static JsonNode findNode(JsonNode node, String... paths) {
+    for (String path : paths) {
+      if (node==null) {
+        return node;
+      }
+      node = node.get(path);
+    }
+    return node;
+  }
+
+  // get an optional value
+  private static <T> T get(JsonNode node, T defaultVal, Function<JsonNode, T> typeFunc, String... paths) {
+    node = findNode(node, paths);
+    return (node==null) ? defaultVal:typeFunc.apply(node);
   }
 }

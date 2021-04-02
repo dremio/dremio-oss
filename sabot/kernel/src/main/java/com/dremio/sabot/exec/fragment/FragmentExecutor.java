@@ -258,14 +258,6 @@ public class FragmentExecutor {
         return;
       }
 
-      final Runnable work = workQueue.poll();
-      if (work != null) {
-        // we don't know how long it will take to process one work unit, we rely on the scheduler to execute
-        // this fragment again if it didn't run long enough
-        work.run();
-        return;
-      }
-
       // setup the execution if it isn't setup.
       if(!isSetup){
         stats.setupStarted();
@@ -275,6 +267,16 @@ public class FragmentExecutor {
           stats.setupEnded();
         }
         // exit since we just did setup which could be a non-trivial amount of work. Allow the scheduler to decide whether we should continue.
+        return;
+      }
+
+      // workQueue might contain OOBMessages, which should be held and processed after the setup.
+      // This piece should always execute after the setup is done.
+      final Runnable work = workQueue.poll();
+      if (work != null) {
+        // we don't know how long it will take to process one work unit, we rely on the scheduler to execute
+        // this fragment again if it didn't run long enough
+        work.run();
         return;
       }
 
@@ -362,7 +364,14 @@ public class FragmentExecutor {
     return statusReporter.getStatus(FragmentState.RUNNING);
   }
 
-  private void setupExecution() throws Exception{
+  @VisibleForTesting
+  // TO BE USED ONLY BY TEST CLASSES
+  void overrideIsSetup(boolean isSetupIn) {
+    isSetup = isSetupIn;
+  }
+
+  @VisibleForTesting
+  void setupExecution() throws Exception{
     final PlanFragmentMajor major = fragment.getMajor();
     final PlanFragmentMinor minor = fragment.getMinor();
 
@@ -536,7 +545,8 @@ public class FragmentExecutor {
     }
   }
 
-  private void transitionToRunning() {
+  @VisibleForTesting
+  void transitionToRunning() {
     switch(state){
     case FAILED:
     case CANCELLED:
@@ -700,6 +710,17 @@ public class FragmentExecutor {
       return fragment.getHandle();
     }
 
+    @VisibleForTesting
+    // TO BE USED ONLY FROM TEST CLASSES
+    void overrideIsSetup(boolean isSetupIn) {
+      isSetup = isSetupIn;
+    }
+
+    @VisibleForTesting
+    // TO BE USED ONLY FROM TEST CLASSES
+    void overridePipeline(Pipeline inPipeline) {
+      pipeline = inPipeline;
+    }
   }
 
   /**

@@ -438,9 +438,9 @@ public class LBlockHashTableKeyReaderTest {
                   validity |= ((keysToFeed2.get(i) == null) ? 0 : 1) << 1;
                   validity |= ((keysToFeed3.get(i) == null) ? 0 : 1);
                     byte[] expectedKey = prepareSlicedKey((byte) validity,
-                            keysToFeed3.get(i) != null ? keysToFeed3.get(i).getBytes(StandardCharsets.UTF_8) : new byte[11], 11,
+                            keysToFeed3.get(i) != null ? keysToFeed3.get(i).getBytes(StandardCharsets.UTF_8) : new byte[10], 10,
                             keysToFeed2.get(i) != null ? keysToFeed2.get(i).getBytes(StandardCharsets.UTF_8) : new byte[10], 10,
-                            keysToFeed1.get(i) != null ? keysToFeed1.get(i).getBytes(StandardCharsets.UTF_8) : new byte[10], 10, 32);
+                            keysToFeed1.get(i) != null ? keysToFeed1.get(i).getBytes(StandardCharsets.UTF_8) : new byte[11], 11, 32);
                     assertTrue("Key mismatched", Arrays.equals(expectedKey, keyBytes));
                 }
                 assertFalse("Reader has more keys than expected", reader.loadNextKey());
@@ -557,9 +557,9 @@ public class LBlockHashTableKeyReaderTest {
                     validity |= ((stringKeysToFeed1.get(i) == null) ? 0 : 1) << 4;
                     validity |= ((longKeysToFeed.get(i) == null) ? 0 : 1) << 5;
                     expectedKey[0] = (byte) validity;
-                    System.arraycopy((stringKeysToFeed2.get(i) != null ? stringKeysToFeed2.get(i).getBytes(StandardCharsets.UTF_8) : new byte[10]), 0, expectedKey, 1, 10);
-                    System.arraycopy(intKeysToFeed.get(i) != null ? ByteArrayUtil.toByta(intKeysToFeed.get(i)) : new byte[4], 0, expectedKey, 11, 4);
-                    System.arraycopy(stringKeysToFeed1.get(i) != null ? stringKeysToFeed1.get(i).getBytes(StandardCharsets.UTF_8) : new byte[9], 0, expectedKey, 15, 9);
+                    System.arraycopy((stringKeysToFeed2.get(i) != null ? stringKeysToFeed2.get(i).getBytes(StandardCharsets.UTF_8) : new byte[9]), 0, expectedKey, 1, 9);
+                    System.arraycopy(intKeysToFeed.get(i) != null ? ByteArrayUtil.toByta(intKeysToFeed.get(i)) : new byte[4], 0, expectedKey, 10, 4);
+                    System.arraycopy(stringKeysToFeed1.get(i) != null ? stringKeysToFeed1.get(i).getBytes(StandardCharsets.UTF_8) : new byte[10], 0, expectedKey, 14, 10);
                     System.arraycopy(longKeysToFeed.get(i) != null ? ByteArrayUtil.toByta(longKeysToFeed.get(i)) : new byte[8], 0, expectedKey, 24, 8);
 
                     assertTrue("Key mismatched", Arrays.equals(expectedKey, keyBytes));
@@ -641,6 +641,7 @@ public class LBlockHashTableKeyReaderTest {
         LBlockHashTableKeyReader.Builder builder = new LBlockHashTableKeyReader.Builder()
                 .setBufferAllocator(allocator)
                 .setPivot(pivot)
+                .setMaxKeySize(32)
                 .setFieldsToRead(fieldNames)
                 .setTotalNumOfRecords(numOfKeys)
                 .setSetVarFieldLenInFirstByte(setVarFieldLenInFirstByte)

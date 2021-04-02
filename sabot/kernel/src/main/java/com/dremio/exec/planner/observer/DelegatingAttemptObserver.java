@@ -39,6 +39,7 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public class DelegatingAttemptObserver implements AttemptObserver {
@@ -135,8 +136,10 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
-    observer.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection);
+  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions,
+    RelNode target, long millisTaken, boolean defaultReflection) {
+    observer.planSubstituted(materialization, substitutions, target, millisTaken,
+      defaultReflection);
   }
 
   @Override
@@ -218,5 +221,10 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void tablesCollected(Iterable<DremioTable> tables) {
     observer.tablesCollected(tables);
+  }
+
+  @Override
+  public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+    observer.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance);
   }
 }

@@ -142,7 +142,7 @@ public class AttemptManager implements Runnable {
   private final QueryContext queryContext;
   private final SabotContext sabotContext;
   private final MaestroService maestroService;
-  private final Cache<Long, PreparedPlan> plans;
+  private final Cache<Long, PreparedPlan> preparedPlans;
   private volatile QueryState state;
   private volatile boolean clientCancelled;
 
@@ -168,26 +168,26 @@ public class AttemptManager implements Runnable {
    * @param queryRequest the query to execute
    */
   public AttemptManager(
-      final SabotContext sabotContext,
-      final AttemptId attemptId,
-      final UserRequest queryRequest,
-      final AttemptObserver observer,
-      final OptionProvider options,
-      final Cache<Long, PreparedPlan> plans,
-      final QueryContext queryContext,
-      final CommandPool commandPool,
-      final MaestroService maestroService,
-      final JobTelemetryClient jobTelemetryClient,
-      final RuleBasedEngineSelector ruleBasedEngineSelector,
-      final boolean runInSameThread
-      ) {
+    final SabotContext sabotContext,
+    final AttemptId attemptId,
+    final UserRequest queryRequest,
+    final AttemptObserver observer,
+    final OptionProvider options,
+    final Cache<Long, PreparedPlan> preparedPlans,
+    final QueryContext queryContext,
+    final CommandPool commandPool,
+    final MaestroService maestroService,
+    final JobTelemetryClient jobTelemetryClient,
+    final RuleBasedEngineSelector ruleBasedEngineSelector,
+    final boolean runInSameThread
+  ) {
     this.sabotContext = sabotContext;
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
     this.ruleBasedEngineSelector = ruleBasedEngineSelector;
     this.queryIdString = QueryIdHelper.getQueryId(queryId);
     this.queryRequest = queryRequest;
-    this.plans = plans;
+    this.preparedPlans = preparedPlans;
     this.queryContext = queryContext;
     this.commandPool = commandPool;
     this.maestroService = maestroService;
@@ -474,7 +474,7 @@ public class AttemptManager implements Runnable {
 
   protected CommandCreator newCommandCreator(QueryContext queryContext, AttemptObserver observer, Pointer<QueryId> prepareId) {
     return new CommandCreator(this.sabotContext, queryContext, queryRequest,
-      observer, plans, prepareId, attemptId.getAttemptNum());
+      observer, preparedPlans, prepareId, attemptId.getAttemptNum());
   }
 
   /**
@@ -592,107 +592,116 @@ public class AttemptManager implements Runnable {
         return;
       }
       Preconditions.checkState(resultState != null);
-
+      final Thread currentThread = Thread.currentThread();
+      final String originalName = currentThread.getName();
       try {
-        injector.injectChecked(queryContext.getExecutionControls(), "commit-failure", UnsupportedOperationException.class);
+        // rename the thread we're using for debugging purposes
+        currentThread.setName(queryIdString + ":foreman");
 
-        if (resultState == QueryState.COMPLETED) {
-          committer.ifPresent(x -> x.run());
+        try {
+          injector.injectChecked(queryContext.getExecutionControls(), "commit-failure", UnsupportedOperationException.class);
+
+          if (resultState == QueryState.COMPLETED) {
+            committer.ifPresent(x -> x.run());
+          }
+        } catch (Exception e) {
+          addException(e);
+          logger.warn("Exception during commit after attempt completion", resultException);
+          recordNewState(QueryState.FAILED);
+          foremanResult.setForceFailure(e);
         }
-      } catch (Exception e) {
-        addException(e);
-        logger.warn("Exception during commit after attempt completion", resultException);
-        recordNewState(QueryState.FAILED);
-        foremanResult.setForceFailure(e);
-      }
 
-      // to track how long the query takes
-      profileTracker.markEndTime();
+        // to track how long the query takes
+        profileTracker.markEndTime();
 
-      if(queryRequest.getDescription() != null) {
-        LONG_QUERIES.update(profileTracker.getTime(),
-          () -> queryRequest.getDescription());
-      }
-      logger.debug(queryIdString + ": cleaning up.");
-      injector.injectPause(queryContext.getExecutionControls(), "foreman-cleanup", logger);
-
-      suppressingClose(queryContext);
-
-      /*
-       * We do our best to write the latest state, but even that could fail. If it does, we can't write
-       * the (possibly newly failing) state, so we continue on anyway.
-       *
-       * We only need to do this if the resultState differs from the last recorded state
-       */
-      if (resultState != state) {
-        recordNewState(resultState);
-      }
-      observer.beginState(AttemptObserver.toEvent(convertTerminalToAttemptState(resultState)));
-
-      UserException uex;
-      if (resultException != null) {
-        uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
-      } else {
-        uex = null;
-      }
-
-      /*
-       * If sending the result fails, we don't really have any way to modify the result we tried to send;
-       * it is possible it got sent but the result came from a later part of the code path. It is also
-       * possible the connection has gone away, so this is irrelevant because there's nowhere to
-       * send anything to.
-       */
-
-      try {
-        // send whatever result we ended up with
-        injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_TAIL_PROFLE_ERROR);
-        profileTracker.sendTailProfile(uex);
-      } catch (Exception e) {
-        logger.warn("Exception sending tail profile. Setting query state to failed", resultException);
-        addException(e);
-        recordNewState(QueryState.FAILED);
-        resultState = QueryState.FAILED;
-        if (uex == null) {
-          uex = UserException.systemError(resultException)
-            .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
-            .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+        if (queryRequest.getDescription() != null) {
+          LONG_QUERIES.update(profileTracker.getTime(),
+            () -> queryRequest.getDescription());
         }
-      }
+        logger.debug(queryIdString + ": cleaning up.");
+        injector.injectPause(queryContext.getExecutionControls(), "foreman-cleanup", logger);
 
-      UserBitShared.QueryProfile queryProfile = null;
-      try {
-        injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_GET_FULL_PROFLE_ERROR);
-        queryProfile = profileTracker.getFullProfile();
-      } catch (Exception e) {
-        logger.warn("Exception while getting full profile. Setting query state to failed", e);
-        addException(e);
-        recordNewState(QueryState.FAILED);
-        resultState = QueryState.FAILED;
-        if (uex == null) {
-          uex = UserException.systemError(resultException)
-            .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
-            .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+        suppressingClose(queryContext);
+
+        /*
+         * We do our best to write the latest state, but even that could fail. If it does, we can't write
+         * the (possibly newly failing) state, so we continue on anyway.
+         *
+         * We only need to do this if the resultState differs from the last recorded state
+         */
+        if (resultState != state) {
+          recordNewState(resultState);
         }
-        // As full profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
-        // to use in query result.
-        queryProfile = profileTracker.getPlanningProfile();
-      }
+        observer.beginState(AttemptObserver.toEvent(convertTerminalToAttemptState(resultState)));
 
-      try {
-        final UserResult result = new UserResult(extraResultData, queryId, resultState,
-          queryProfile, uex, profileTracker.getCancelReason(), clientCancelled);
-        observer.attemptCompletion(result);
-      } catch(final Exception e) {
-        addException(e);
-        logger.warn("Exception sending result to client", resultException);
-      }
+        UserException uex;
+        if (resultException != null) {
+          uex = UserException.systemError(resultException).addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+        } else {
+          uex = null;
+        }
 
-      try {
-        command.close();
-      } catch (final Exception e) {
-        logger.error("Exception while invoking 'close' on command {}", command, e);
+        /*
+         * If sending the result fails, we don't really have any way to modify the result we tried to send;
+         * it is possible it got sent but the result came from a later part of the code path. It is also
+         * possible the connection has gone away, so this is irrelevant because there's nowhere to
+         * send anything to.
+         */
+
+        try {
+          // send whatever result we ended up with
+          injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_TAIL_PROFLE_ERROR);
+          profileTracker.sendTailProfile(uex);
+        } catch (Exception e) {
+          logger.warn("Exception sending tail profile. Setting query state to failed", resultException);
+          addException(e);
+          recordNewState(QueryState.FAILED);
+          resultState = QueryState.FAILED;
+          if (uex == null) {
+            uex = UserException.systemError(resultException)
+              .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
+              .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+          }
+        }
+
+        UserBitShared.QueryProfile queryProfile = null;
+        try {
+          injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_GET_FULL_PROFLE_ERROR);
+          queryProfile = profileTracker.getFullProfile();
+        } catch (Exception e) {
+          logger.warn("Exception while getting full profile. Setting query state to failed", e);
+          addException(e);
+          recordNewState(QueryState.FAILED);
+          resultState = QueryState.FAILED;
+          if (uex == null) {
+            uex = UserException.systemError(resultException)
+              .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
+              .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+          }
+          // As full profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
+          // to use in query result.
+          queryProfile = profileTracker.getPlanningProfile();
+        }
+
+        try {
+          final UserResult result = new UserResult(extraResultData, queryId, resultState,
+            queryProfile, uex, profileTracker.getCancelReason(), clientCancelled);
+          observer.attemptCompletion(result);
+        } catch (final Exception e) {
+          addException(e);
+          logger.warn("Exception sending result to client", resultException);
+        }
+
+        try {
+          command.close();
+        } catch (final Exception e) {
+          logger.error("Exception while invoking 'close' on command {}", command, e);
+        } finally {
+          isClosed = true;
+        }
       } finally {
-        isClosed = true;
+        // restore the thread's original name
+        currentThread.setName(originalName);
       }
     }
   }
@@ -838,8 +847,8 @@ public class AttemptManager implements Runnable {
       case FAILED:
         logger
           .warn(
-            "Dropping request to move to {} state as query is already at {} state (which is terminal).",
-            newState, state);
+            "Dropping request to move to {} state as query {} is already at {} state (which is terminal).",
+            newState, queryIdString, state);
         return;
     }
 

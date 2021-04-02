@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent } from 'react';
+import { injectIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Header from '@app/pages/AdminPage/components/Header';
@@ -26,12 +27,13 @@ import SingleEngineHeaderMixin from 'dyn-load/pages/AdminPage/subpages/Provision
 export const VIEW_ID = 'EngineHeader';
 
 @SingleEngineHeaderMixin
-export class SingleEngineHeader extends PureComponent {
+class SingleEngineHeader extends PureComponent {
   static propTypes = {
     engine: PropTypes.instanceOf(Immutable.Map),
     unselectEngine: PropTypes.func,
     handleEdit: PropTypes.func,
-    handleStartStop: PropTypes.func
+    handleStartStop: PropTypes.func,
+    intl: PropTypes.object
   };
 
   onStartStop = () => {
@@ -76,6 +78,8 @@ export class SingleEngineHeader extends PureComponent {
     );
   }
 }
+
+export default injectIntl(SingleEngineHeader);
 
 const styles = {
   lefChildren: {

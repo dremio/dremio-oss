@@ -34,6 +34,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.test.AllocatorRule;
 
 import io.netty.buffer.ByteBuf;
@@ -148,6 +149,27 @@ public class BloomFilterTest {
             allInsertedKeys.stream().map(k -> writeKey(keyBuf, k)).forEach(key -> assertTrue(bloomFilter1.mightContain(key, 4)));
 
             assertTrue("Merged filter should have more bits set.", mergedNumBitsSet > initialNumBitsSet);
+        }
+    }
+
+    @Test
+    public void testCreateCopy() throws Exception {
+        // Create two keysets and two filters from each one respectively. Merged bloomfilter should match all entries from merged keyset.
+        try (final ArrowBuf keyBuf = bfTestAllocator.buffer(4);
+             final BloomFilter bloomFilter1 = new BloomFilter(bfTestAllocator, TEST_NAME, 544);
+             final AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
+            bloomFilter1.setup();
+            Set<Integer> keySet1 = randomIntegers(100);
+            putAllIntKeys(bloomFilter1, keyBuf, keySet1);
+
+            BloomFilter copyFilter = bloomFilter1.createCopy(bfTestAllocator);
+            closer.add(copyFilter);
+            keySet1.stream().map(k -> writeKey(keyBuf, k)).forEach(key -> assertTrue(copyFilter.mightContain(key, 4)));
+
+            assertEquals(bloomFilter1.getName(), copyFilter.getName());
+            assertEquals(0, Double.compare(bloomFilter1.getExpectedFPP(), copyFilter.getExpectedFPP()));
+            assertEquals(bloomFilter1.getNumBitsSet(), copyFilter.getNumBitsSet());
+            assertEquals(bloomFilter1.getSizeInBytes(), copyFilter.getSizeInBytes());
         }
     }
 

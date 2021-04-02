@@ -26,23 +26,31 @@ export class CopyButton extends Component {
     text: PropTypes.string.isRequired,
     title: PropTypes.string,
     style: PropTypes.object,
-    addNotification: PropTypes.func.isRequired
+    addNotification: PropTypes.func.isRequired,
+    iconVersion: PropTypes.number,
+    showCopiedContent: PropTypes.bool
   };
 
   static defaultProps = {
-    title: 'Copy Path' // TODO: loc
+    title: 'Copy Path', // TODO: loc
+    showCopiedContent: true
   };
 
   handleCopy = () => {
-    const message = <span>Copied <i>{this.props.text}</i>.</span>; // TODO: loc
+    const { showCopiedContent } = this.props;
+    const message = (
+      <span>
+        Copied {showCopiedContent && <i>{this.props.text}</i>}.
+      </span>
+    ); // TODO: loc
     this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
   };
 
   render() {
-    const {text, title, style } = this.props;
+    const {text, title, style, iconVersion } = this.props;
     return (
       <CopyToClipboard text={text} onCopy={this.handleCopy}>
-        <CopyButtonIcon title={title} style={style} />
+        <CopyButtonIcon title={title} style={style} version={iconVersion}/>
       </CopyToClipboard>
     );
   }

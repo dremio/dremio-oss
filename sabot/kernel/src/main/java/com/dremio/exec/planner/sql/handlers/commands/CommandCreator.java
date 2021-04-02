@@ -118,23 +118,23 @@ public class CommandCreator {
   private final UserRequest request;
   private final AttemptObserver observer;
   private final SabotContext dbContext;
-  private final Cache<Long, PreparedPlan> plans;
+  private final Cache<Long, PreparedPlan> preparedPlans;
   private final int attemptNumber;
   private final Pointer<QueryId> prepareId;
 
   public CommandCreator(
-      SabotContext dbContext,
-      QueryContext context,
-      UserRequest request,
-      AttemptObserver observer,
-      Cache<Long, PreparedPlan> plans,
-      Pointer<QueryId> prepareId,
-      int attemptNumber) {
+    SabotContext dbContext,
+    QueryContext context,
+    UserRequest request,
+    AttemptObserver observer,
+    Cache<Long, PreparedPlan> preparedPlans,
+    Pointer<QueryId> prepareId,
+    int attemptNumber) {
     this.context = context;
     this.request = request;
     this.observer = observer;
     this.dbContext = dbContext;
-    this.plans = plans;
+    this.preparedPlans = preparedPlans;
     this.prepareId = prepareId;
     this.attemptNumber = attemptNumber;
   }
@@ -199,10 +199,10 @@ public class CommandCreator {
             if(attemptNumber == 0){
 
               final long handle = preparedStatement.getHandle();
-              PreparedPlan plan = plans.getIfPresent(handle);
+              PreparedPlan plan = preparedPlans.getIfPresent(handle);
               if(plan != null){
                 if (!context.getOptions().getOption(REUSE_PREPARE_HANDLES)) {
-                  plans.invalidate(handle);
+                  preparedPlans.invalidate(handle);
                 }
 
                 // we need to verify that client provided valid handle.
@@ -431,9 +431,9 @@ public class CommandCreator {
     public CommandRunner<?> create(SqlToPlanHandler handler, SqlHandlerConfig config){
       switch (prepareMetadataType) {
         case USER_RPC:
-          return new HandlerToPreparePlan(context, sqlNode, handler, plans, sql, observer, config);
+          return new HandlerToPreparePlan(context, sqlNode, handler, preparedPlans, sql, observer, config);
         case ARROW:
-          return new HandlerToPrepareArrowPlan(context, sqlNode, handler, plans, sql, observer, config);
+          return new HandlerToPrepareArrowPlan(context, sqlNode, handler, preparedPlans, sql, observer, config);
         case NONE:
         default:
           return new HandlerToExec(observer, sql, sqlNode, handler, config);

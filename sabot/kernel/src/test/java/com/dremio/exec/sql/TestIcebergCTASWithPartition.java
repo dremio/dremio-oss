@@ -312,4 +312,5 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
       assertEquals(columnValueCount.getCount(), 1);
     }
   }
+
 }

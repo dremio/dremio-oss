@@ -738,6 +738,20 @@ public class BaseTestQuery extends ExecTest {
         PlannerSettings.ENABLE_DELTALAKE.getDefault().getBoolVal().toString());
   }
 
+  protected static AutoCloseable enableJsonReadNumbersAsDouble() {
+    setSystemOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE, "true");
+    return () ->
+            setSystemOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE,
+                    ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableJsonAllStrings() {
+    setSystemOption(ExecConstants.JSON_ALL_TEXT_MODE, "true");
+    return () ->
+            setSystemOption(ExecConstants.JSON_ALL_TEXT_MODE,
+                    ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR.getDefault().getBoolVal().toString());
+  }
+
   protected static AutoCloseable disableExchanges() {
     setSystemOption(PlannerSettings.EXCHANGE, "true");
     return () ->

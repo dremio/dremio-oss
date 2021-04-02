@@ -40,10 +40,12 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
@@ -72,6 +74,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
   private NamespaceService namespaceService;
   private LegacyIndexedStore<String, NameSpaceContainer> namespaceStore;
   private LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore;
+  private LegacyKVStore<PartitionChunkId, PartitionProtobuf.MultiSplit> multiSplitStore;
 
   private long now;
 
@@ -84,6 +87,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
     namespaceService = new NamespaceServiceImpl(kvstore);
     namespaceStore = kvstore.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
     partitionChunksStore = kvstore.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
+    multiSplitStore = kvstore.getStore(NamespaceServiceImpl.MultiSplitStoreCreator.class);
 
     now = System.currentTimeMillis();
 
@@ -127,7 +131,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
   @Test
   public void testKeepCurrentVersion() throws Exception {
-    namespaceService.deleteSplitOrphans(KEEP_CURRENT_VERSION_ONLY);
+    namespaceService.deleteSplitOrphans(KEEP_CURRENT_VERSION_ONLY, true);
     assertThat(
         namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
         is(10 + 20 + 100 + 1000 + 100));
@@ -154,7 +158,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
   @Test
   public void testKeepValidSplits() throws Exception {
-    namespaceService.deleteSplitOrphans(SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS);
+    namespaceService.deleteSplitOrphans(SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS, true);
     assertThat(
         namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
         is(10 + 20 + 24 * 100 + 1000 + 24 * 100));
@@ -219,7 +223,14 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
     final DatasetConfig datasetConfig = saveDataset(path, type, config -> config.setReadDefinition(readDefinition));
     generatePartitionChunks(splitVersion, count)
-        .forEach(split -> partitionChunksStore.put(PartitionChunkId.of(datasetConfig, split, splitVersion), split));
+        .forEach(split -> { partitionChunksStore.put(PartitionChunkId.of(datasetConfig, split, splitVersion), split);
+          multiSplitStore.put(PartitionChunkId.of(datasetConfig, split, splitVersion), createMultiSplit(split.getSplitKey())); });
+  }
+
+  private PartitionProtobuf.MultiSplit createMultiSplit(String splitKey) {
+    return PartitionProtobuf.MultiSplit.newBuilder()
+      .setMultiSplitKey(splitKey)
+      .build();
   }
 
   public void saveVirtualDataset(List<String> path) throws NamespaceException {

@@ -71,6 +71,8 @@ public interface Prel extends RelNode, Iterable<Prel>{
     return getCluster().getMetadataQuery().getRowCount(this);
   }
 
+  default int getEstimatedSize() { return 1;};
+
   //
   // DRILL-3011
   // Prel copy(RelTraitSet paramRelTraitSet, List<RelNode> paramList);

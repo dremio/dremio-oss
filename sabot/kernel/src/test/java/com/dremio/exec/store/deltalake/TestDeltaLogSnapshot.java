@@ -40,8 +40,11 @@ public class TestDeltaLogSnapshot {
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
         DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI())));
+        snapshot0.setVersionId(0);
         DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI())));
+        snapshot1.setVersionId(1);
         DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI())));
+        snapshot2.setVersionId(2);
 
         DeltaLogSnapshot snapshot00 = snapshot0.clone();
         snapshot00.merge(snapshot1);
@@ -69,8 +72,11 @@ public class TestDeltaLogSnapshot {
         final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
         DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
         DeltaLogSnapshot snapshot0 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test2_init.json").toURI())));
+        snapshot0.setVersionId(0);
         DeltaLogSnapshot snapshot1 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_3.json").toURI())));
+        snapshot1.setVersionId(1);
         DeltaLogSnapshot snapshot2 = jsonReader.parseMetadata(null, null, fs, fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile("/deltalake/test1_4.json").toURI())));
+        snapshot2.setVersionId(2);
 
         assertTrue(snapshot0.compareTo(snapshot2) < 0);
         assertTrue(snapshot1.compareTo(snapshot2) < 0);

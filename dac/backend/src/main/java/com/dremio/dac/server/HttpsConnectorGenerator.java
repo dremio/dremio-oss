@@ -37,6 +37,7 @@ import com.dremio.exec.rpc.ssl.SSLConfigurator;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 
 /**
  * Helper class that generates an {@link ServerConnector} with SSL.
@@ -75,10 +76,10 @@ public class HttpsConnectorGenerator {
     }
 
     KeyStore trustStore = null;
-    //noinspection StringEquality
-    if (sslConfig.getTrustStorePath() != SSLConfig.UNSPECIFIED) {
+    if (!sslConfig.useDefaultTrustStore()) {
       trustStore = KeyStore.getInstance(sslConfig.getTrustStoreType());
-      try (InputStream stream = Files.newInputStream(Paths.get(sslConfig.getTrustStorePath()))) {
+      try (InputStream stream = !Strings.isNullOrEmpty(sslConfig.getTrustStorePath()) ?
+        Files.newInputStream(Paths.get(sslConfig.getTrustStorePath())) : null) {
         trustStore.load(stream, sslConfig.getTrustStorePassword().toCharArray());
       }
     }

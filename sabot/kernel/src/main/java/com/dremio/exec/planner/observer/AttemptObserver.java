@@ -39,6 +39,7 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public interface AttemptObserver {
@@ -75,6 +76,11 @@ public interface AttemptObserver {
    * @param millisTaken
    */
   void planValidated(RelDataType rowType, SqlNode node, long millisTaken);
+
+  /**
+   * Printing a message to indicate the plan cache is used.
+   */
+  default void planCacheUsed(int count) {};
 
   /**
    * Plan that is serializable, just before convertible scans are converted
@@ -270,6 +276,8 @@ public interface AttemptObserver {
    * @param resourceSchedulingDecisionInfo
    */
   void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo);
+
+  void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance);
 
   static AttemptEvent toEvent(AttemptEvent.State state) {
     return AttemptEvent.newBuilder()

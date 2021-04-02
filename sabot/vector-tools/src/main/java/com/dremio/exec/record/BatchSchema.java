@@ -722,7 +722,9 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   public java.util.Optional<Field> findFieldIgnoreCase(String fieldName) {
-    return this.getFields().stream().filter(field -> field.getName().toUpperCase().equals(fieldName.toUpperCase())).findFirst();
+    return this.getFields().stream()
+      .filter(field -> field.getName().equalsIgnoreCase(fieldName))
+      .findFirst();
   }
 
   /**

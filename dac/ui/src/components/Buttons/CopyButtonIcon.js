@@ -25,17 +25,22 @@ export default class CopyButtonIcon extends PureComponent {
     style: PropTypes.object,
     onClick: PropTypes.func,
     disabled: PropTypes.bool,
-    showSpinner: PropTypes.bool
+    showSpinner: PropTypes.bool,
+    version: PropTypes.number
+  };
+
+  static defaultProps = {
+    version: 1
   };
 
   render() {
-    const { title, style, onClick, disabled, showSpinner } = this.props;
+    const { title, style, onClick, disabled, showSpinner, version } = this.props;
     const clickHandler = disabled ? undefined : onClick;
-
+    const iconSrc = version === 2 ? 'copy.svg' : 'Clipboard.svg';
     return (
       <span title={title} aria-label={title} style={{...styles.wrap, ...style}} >
         <Art
-          src='Clipboard.svg'
+          src={iconSrc}
           onClick={clickHandler}
           alt={title}
           className='copy-button'

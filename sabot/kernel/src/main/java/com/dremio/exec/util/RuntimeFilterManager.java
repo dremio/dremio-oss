@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,12 +72,12 @@ public class RuntimeFilterManager implements AutoCloseable {
         if (filterEntry.isPresent()) {
             return merge(filter, partitionColFilter, nonPartitionColFilters, filterEntry.get(), minorFragmentId);
         } else {
-            // Retain the buffers as these will be kept as a base entry
-            partitionColFilter.map(BloomFilter::getDataBuffer).ifPresent(ArrowBuf::retain);
-            nonPartitionColFilters.stream().map(ValueListFilter::buf).forEach(ArrowBuf::retain);
-
-            RuntimeFilterManagerEntry newEntry = new RuntimeFilterManagerEntry(filter, allMinorFragments,
-                    partitionColFilter, nonPartitionColFilters);
+            // Make a copy and refer it as base to merge into.
+            final Optional<BloomFilter> partitionColFilterCopy = partitionColFilter.map(f -> f.createCopy(allocator));
+            final List<ValueListFilter> nonPartitionColFiltersCopy = nonPartitionColFilters.stream()
+                    .map(v -> v.createCopy(allocator)).collect(Collectors.toList());
+            final RuntimeFilterManagerEntry newEntry = new RuntimeFilterManagerEntry(filter, allMinorFragments,
+                    partitionColFilterCopy, nonPartitionColFiltersCopy);
             newEntry.remainingMinorFragments.remove(minorFragmentId);
             logger.debug("New filter entry created. remaining fragments {}", newEntry.remainingMinorFragments);
             filterEntries.add(newEntry);

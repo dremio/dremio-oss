@@ -55,9 +55,10 @@ public interface JoinTable extends AutoCloseable {
    * the consumer. Instead, they get an empty optional.
    * @param fieldNames
    * @param sizeDynamically Size the filter according to the number of entries in table.
+   * @param maxKeySize Max key width
    * @return
    */
-  default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+  default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
     return Optional.empty();
   }
 

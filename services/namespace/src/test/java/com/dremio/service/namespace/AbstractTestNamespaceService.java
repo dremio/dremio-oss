@@ -632,8 +632,11 @@ public abstract class AbstractTestNamespaceService {
   public void insertingDifferentEntityTypesAtSamePath() throws Exception {
     NamespaceTestUtils.addSpace(namespaceService, "a");
 
-    thrown.expect(ConcurrentModificationException.class);
-    NamespaceTestUtils.addSource(namespaceService, "a");
+    try {
+      NamespaceTestUtils.addSource(namespaceService, "a");
+    } catch(UserException ex) {
+      assertTrue(ex.getMessage().contains("There already exists an entity of type [SPACE] at given path [a]"));
+    }
 
     NamespaceTestUtils.addFolder(namespaceService, "a.foo");
 
@@ -737,7 +740,7 @@ public abstract class AbstractTestNamespaceService {
     // Checking that orphan splits get cleaned
     SearchQuery searchQuery = SearchQueryUtils.newTermQuery(DatasetSplitIndexKeys.DATASET_ID, datasetConfig.getId().getId());
     int count = namespaceService.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(searchQuery));
-    int deleted = namespaceService.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY);
+    int deleted = namespaceService.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY, false);
     int newCount = namespaceService.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(searchQuery));
 
     // Only 10 splits should be left in the kvstore for that dataset

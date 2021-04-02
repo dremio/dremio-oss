@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
-import org.apache.parquet.format.SchemaElement;
+import com.dremio.common.expression.CompleteType;
 
 /**
  * Class to override creation of filters for reading Parquet files
@@ -23,11 +23,13 @@ import org.apache.parquet.format.SchemaElement;
 public class ParquetFilterCreator {
   public static final ParquetFilterCreator DEFAULT = new ParquetFilterCreator();
 
-  public ParquetFilterIface getParquetFilter(ParquetFilterCondition filterCondition, SchemaDerivationHelper schemaHelper, String filteredColumn, SchemaElement filterColumnfileSchemaType) {
+  public ParquetFilterIface getParquetFilter(ParquetFilterCondition filterCondition, CompleteType tableColumnType,
+                                             String filteredColumn, CompleteType fileColumnType) {
     return filterCondition.getFilter();
   }
 
-  public ParquetFilterIface rewriteIfNecessary(ParquetFilterIface filter, SchemaDerivationHelper schemaHelper, String filteredColumn, SchemaElement filterColumnfileSchemaType) {
+  public ParquetFilterIface rewriteIfNecessary(ParquetFilterIface filter, CompleteType tableColumnType,
+                                               String filteredColumn, CompleteType fileColumnType) {
     return filter;
   }
 

@@ -18,7 +18,7 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { AutoSizer, Column, Table } from 'react-virtualized';
 import classNames from 'classnames';
-import Immutable from 'immutable';
+import Immutable, { List } from 'immutable';
 
 import { humanSorter, getSortValue } from '@app/utils/sort';
 import { virtualizedRow } from './VirtualizedTableViewer.less';
@@ -38,7 +38,10 @@ const DEFERRED_SPEED_THRESHOLD = 5;
 @Radium
 export default class VirtualizedTableViewer extends Component {
   static propTypes = {
-    tableData: PropTypes.instanceOf(Immutable.List),
+    tableData: PropTypes.oneOfType([
+      PropTypes.instanceOf(Immutable.List),
+      PropTypes.array
+    ]),
     className: PropTypes.string,
     columns: PropTypes.array,
     defaultSortBy: PropTypes.string,
@@ -85,6 +88,28 @@ export default class VirtualizedTableViewer extends Component {
     this.lastSpeed = speed;
   };
 
+  getSortedTableData = () => {
+    const { tableData } = this.props;
+    const { sortBy, sortDirection } = this.state;
+    if (List.isList(tableData)) {
+      return sortBy ?
+        tableData
+          .sortBy(item => getSortValue(item, sortBy, sortDirection), humanSorter)
+          .update(table =>
+            sortDirection === SortDirection.DESC ? table.reverse() : table
+          ) :
+        tableData;
+    }
+    if (sortBy) {
+      const sortedData = [...tableData] // keeping the order of the original list intact
+        .sort((val1, val2) => {
+          return humanSorter(getSortValue(val1, sortBy, sortDirection), getSortValue(val2, sortBy, sortDirection));
+        });
+      return sortDirection === SortDirection.DESC ? sortedData.reverse() : sortedData;
+    }
+    return tableData;
+  }
+
   renderHeader = ({ label, dataKey, sortBy, sortDirection },
     /* column */ { style, infoContent, headerStyle }) => {
     const isSorted = sortBy === dataKey;
@@ -112,20 +137,16 @@ export default class VirtualizedTableViewer extends Component {
     return <DeferredRenderer defer={isScrolling} render={() => rowData.data[column].node()}/>;
   }
 
+  getRow = (sortedTableData, index) => {
+    return List.isList(sortedTableData) ? sortedTableData.get(index) : sortedTableData[index];
+  }
+
   render() {
     const { tableData, columns, style, resetScrollTop, ...tableProps } = this.props;
     const { sortBy, sortDirection } = this.state;
-
-    const sortedTableData = sortBy
-      ? tableData
-        .sortBy(item => getSortValue(item, sortBy, sortDirection), humanSorter)
-        .update(table =>
-          sortDirection === SortDirection.DESC
-            ? table.reverse()
-            : table
-        )
-      : tableData;
-    const isEmpty = tableData.size === 0;
+    const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
+    const sortedTableData = this.getSortedTableData();
+    const isEmpty = tableSize === 0;
     const baseStyle = isEmpty ? { height: HEADER_HEIGHT } : { height: '100%' };
     return (
       <div style={[styles.base, baseStyle, style]}>
@@ -137,10 +158,10 @@ export default class VirtualizedTableViewer extends Component {
                 scrollTop={resetScrollTop ? 0 : undefined} // it's needed for https://dremio.atlassian.net/browse/DX-7140
                 onScroll={this.handleScroll}
                 headerHeight={HEADER_HEIGHT}
-                rowCount={tableData.size}
-                rowClassName={({index}) => this.rowClassName(sortedTableData.get(index), index)}
+                rowCount={tableSize}
+                rowClassName={({index}) => this.rowClassName(this.getRow(sortedTableData, index), index)}
                 rowHeight={ROW_HEIGHT}
-                rowGetter={({index}) => sortedTableData.get(index)}
+                rowGetter={({index}) => this.getRow(sortedTableData, index)}
                 sortDirection={sortDirection}
                 sortBy={sortBy}
                 height={tableHeight}

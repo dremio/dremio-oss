@@ -44,4 +44,6 @@ public interface PartitionChunkMetadata {
   Iterable<PartitionProtobuf.Affinity> getAffinities();
 
   NormalizedPartitionInfo getNormalizedPartitionInfo();
+
+  boolean checkPartitionChunkMetadataConsistency();
 }

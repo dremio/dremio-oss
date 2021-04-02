@@ -1270,7 +1270,7 @@ public final class LBlockHashTable implements AutoCloseable {
    * @param sizeDynamically Size the filter according to the number of entries in table.
    * @return
    */
-  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
     if (CollectionUtils.isEmpty(fieldNames)) {
       return Optional.empty();
     }
@@ -1282,7 +1282,9 @@ public final class LBlockHashTable implements AutoCloseable {
 
     final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
     try (RollbackCloseable closeOnError = new RollbackCloseable();
-         LBlockHashTableKeyReader keyReader = getKeyReaderBuilder(fieldNames).build()) {
+         LBlockHashTableKeyReader keyReader = getKeyReaderBuilder(fieldNames)
+                 .setMaxKeySize(maxKeySize)
+                 .build()) {
       closeOnError.add(bloomFilter);
       bloomFilter.setup();
       final ArrowBuf keyHolder = keyReader.getKeyHolder();

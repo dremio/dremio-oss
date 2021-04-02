@@ -16,7 +16,6 @@
 
 package com.dremio.exec.util;
 
-import static java.util.Map.Entry.comparingByKey;
 import static java.util.Map.Entry.comparingByValue;
 import static org.apache.arrow.util.Preconditions.checkArgument;
 
@@ -34,7 +33,6 @@ import java.util.Map;
  */
 public class KeyFairSliceCalculator {
     private static final Comparator<Map.Entry<String, Integer>> VALUE_COMPARATOR = comparingByValue();
-    private static final Comparator<Map.Entry<String, Integer>> VALUE_FIRST_COMPARATOR = VALUE_COMPARATOR.thenComparing(comparingByKey()); // order by values, then order by keys
 
     // Map of key names and respective target slice size of the key.
     private Map<String, Integer> keySlices = new HashMap();
@@ -63,7 +61,7 @@ public class KeyFairSliceCalculator {
 
         checkArgument(numValueBytes >= numNonBooleanKeys,"Not possible to fit %d keys (%d boolean) in %d bytes", numKeys, numBooleanKeys, maxTotalSize);
 
-        Collections.sort(listKeySizes, VALUE_FIRST_COMPARATOR);
+        Collections.sort(listKeySizes, VALUE_COMPARATOR); // Assuming Collections.sort will maintain original order when values are equal
 
         int perKeyAllocation = numNonBooleanKeys == 0 ? 0 : numValueBytes / numNonBooleanKeys;
         int remainder = numNonBooleanKeys == 0 ? numValueBytes : numValueBytes % numNonBooleanKeys;

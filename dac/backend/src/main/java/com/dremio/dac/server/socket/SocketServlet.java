@@ -140,7 +140,7 @@ public class SocketServlet extends WebSocketServlet {
 
     @OnWebSocketMessage
     public void onText(Session session, String message) {
-      logger.debug("socket message received.", message);
+      logger.debug("socket message received: {}.", message);
       try {
         SocketMessage wrapper = reader.readValue(message);
         Payload msg = wrapper.getPayload();

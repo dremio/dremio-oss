@@ -23,6 +23,7 @@ import java.util.List;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.QueryTestUtil;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.UserBitShared.RecordBatchDef;
@@ -83,6 +84,6 @@ public class TestComplexToJson extends BaseTestQuery {
   private void setup() throws Exception {
     client = new DremioClient(config, clusterCoordinator);
     client.setSupportComplexTypes(false);
-    client.connect();
+    client.connect(QueryTestUtil.checkAndAddAnonymousUser(null));
   }
 }

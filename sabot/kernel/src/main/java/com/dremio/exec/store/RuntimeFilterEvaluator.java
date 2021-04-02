@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.store;
 
+import static com.dremio.exec.ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE;
+
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +36,7 @@ import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.KeyFairSliceCalculator;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.collect.Sets;
@@ -45,13 +49,16 @@ public class RuntimeFilterEvaluator {
     private final BufferAllocator allocator;
     private final RuntimeFilter runtimeFilter;
     private final OperatorStats stats;
+    private final int maxKeySize;
 
     public RuntimeFilterEvaluator(final BufferAllocator allocator,
                                   final OperatorStats stats,
+                                  final OptionManager options,
                                   final RuntimeFilter runtimeFilter) {
         this.runtimeFilter = runtimeFilter;
         this.allocator = allocator;
         this.stats = stats;
+        this.maxKeySize = (int) options.getOption(RUNTIME_FILTER_KEY_MAX_SIZE);
     }
 
     public boolean canBeSkipped(final SplitAndPartitionInfo split, final List<NameValuePair<?>> partitionValues) {
@@ -81,7 +88,7 @@ public class RuntimeFilterEvaluator {
             return true;
         }
 
-        try (BloomFilterKeyBuilder keyBuilder = new BloomFilterKeyBuilder(partitionValuesToCheck, allocator)) {
+        try (BloomFilterKeyBuilder keyBuilder = new BloomFilterKeyBuilder(partitionValuesToCheck, allocator, maxKeySize)) {
             BloomFilter bloomFilter = partitionColumnFilter.getBloomFilter();
             if (!bloomFilter.mightContain(keyBuilder.getKey(), keyBuilder.getTotalSize())) {
                 stats.addLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED, 1);
@@ -118,14 +125,13 @@ public class RuntimeFilterEvaluator {
      * The key should be created with the same logic as in the join side.
      */
     private static class BloomFilterKeyBuilder implements AutoCloseable {
-        private static final int MAX_KEY_SIZE = 32;
-
         private ArrowBuf keyBuf;
         private int totalSize;
 
-        private BloomFilterKeyBuilder(List<NameValuePair<?>> nameValuePairs, BufferAllocator allocator) {
-            Map<String, Integer> keySizes = nameValuePairs.stream().collect(Collectors.toMap(NameValuePair::getName, NameValuePair::getValueTypeSize));
-            final KeyFairSliceCalculator keyFairSliceCalculator = new KeyFairSliceCalculator(keySizes, MAX_KEY_SIZE);
+        private BloomFilterKeyBuilder(List<NameValuePair<?>> nameValuePairs, BufferAllocator allocator, int keyMaxSize) {
+            Map<String, Integer> keySizes = nameValuePairs.stream().collect(Collectors
+                    .toMap(NameValuePair::getName, NameValuePair::getValueTypeSize, (x, y) -> y, LinkedHashMap::new));
+            final KeyFairSliceCalculator keyFairSliceCalculator = new KeyFairSliceCalculator(keySizes, keyMaxSize);
             keySizes = nameValuePairs.stream().collect(Collectors.toMap(NameValuePair::getName, pair -> keyFairSliceCalculator.getKeySlice(pair.getName())));
             this.totalSize = keyFairSliceCalculator.getTotalSize();
 

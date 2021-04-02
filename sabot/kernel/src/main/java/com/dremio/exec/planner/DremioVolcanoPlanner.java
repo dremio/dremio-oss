@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.MulticastRelOptListener;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
@@ -54,7 +55,8 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   private RelNode originalRoot;
   private PlannerPhase phase;
-  private MaxNodesListener listener;
+  private final MaxNodesListener maxNodesListener;
+  private final MatchCountListener matchCountListener;
   private final ExecutionControls executionControls;
   private final PlannerSettings plannerSettings;
 
@@ -65,7 +67,15 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
     this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = null;
-    this.listener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
+    this.maxNodesListener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
+    this.matchCountListener = new MatchCountListener((int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT),
+      plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER));
+    // A hacky way to add listeners to first multicast listener and register that listener to the Volcano planner.
+    // The Volcano planner currently only supports a single listener. Need to update that to use the multi class
+    // listener from its super class AbstractRelOptPlanner.
+    MulticastRelOptListener listener = new MulticastRelOptListener();
+    listener.addListener(maxNodesListener);
+    listener.addListener(matchCountListener);
     addListener(listener);
   }
 
@@ -90,7 +100,8 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   public RelNode findBestExp() {
     try {
       cancelFlag.reset();
-      listener.reset();
+      maxNodesListener.reset();
+      matchCountListener.reset();
       return super.findBestExp();
     } catch(RuntimeException ex) {
       // if the planner is hiding a UserException, bubble it's message to the top.
@@ -172,5 +183,9 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   @Override
   public void registerMetadataProviders(List<RelMetadataProvider> list) {
     // Do nothing - in practice, prevent VolcanoRelMetadataProvider to be registered
+  }
+
+  public MatchCountListener getMatchCountListener() {
+    return matchCountListener;
   }
 }

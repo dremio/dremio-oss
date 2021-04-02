@@ -331,6 +331,22 @@ public class CompleteType {
     return type.getTypeID() == ArrowTypeID.Utf8;
   }
 
+  public boolean isInt() {
+    return equals(INT);
+  }
+
+  public boolean isBigInt() {
+    return equals(BIGINT);
+  }
+
+  public boolean isFloat() {
+    return equals(FLOAT);
+  }
+
+  public boolean isDouble() {
+    return equals(DOUBLE);
+  }
+
   public boolean isNumeric() {
     switch(type.getTypeID()){
       case Decimal:

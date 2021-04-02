@@ -29,6 +29,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.fn.impl.HashValPair;
 import com.dremio.common.expression.fn.impl.MurmurHash3;
 
@@ -258,28 +259,22 @@ public class BloomFilter implements AutoCloseable {
      * @param that
      */
     public void merge(BloomFilter that) {
-        synchronized (this.getDataBuffer()) {
-            /*
-             * The base filter could be shared across different slicing threads on the same node.
-             * Each slicing thread could attempt merge in parallel. Hence, putting up synchronized to avoid consistency issues.
-             */
-            checkArgument(this!=that, "Can't merge with the same BloomFilter object.");
-            checkArgument(this.numHashFunctions==that.numHashFunctions, "Incompatible BloomFilter, different hashing technique.");
-            checkArgument(this.sizeInBits==that.sizeInBits, "Incompatible BloomFilter, different sizes (%s, %s).", this.sizeInBytes, that.sizeInBytes);
+        checkArgument(this!=that, "Can't merge with the same BloomFilter object.");
+        checkArgument(this.numHashFunctions==that.numHashFunctions, "Incompatible BloomFilter, different hashing technique.");
+        checkArgument(this.sizeInBits==that.sizeInBits, "Incompatible BloomFilter, different sizes (%s, %s).", this.sizeInBytes, that.sizeInBytes);
 
-            final long thisMemPos = this.dataBuffer.memoryAddress();
-            final long thatMemPos = that.dataBuffer.memoryAddress();
-            long numBitsSet = getNumBitsSet();
-            for (long bytePos = 0; bytePos < sizeInBytes; bytePos += 8) {
-                long thisBits = PlatformDependent.getLong(thisMemPos + bytePos);
-                long thatBits = PlatformDependent.getLong(thatMemPos + bytePos);
-                long mergedBits = thisBits | thatBits;
+        final long thisMemPos = this.dataBuffer.memoryAddress();
+        final long thatMemPos = that.dataBuffer.memoryAddress();
+        long numBitsSet = getNumBitsSet();
+        for (long bytePos = 0; bytePos < sizeInBytes; bytePos += 8) {
+            long thisBits = PlatformDependent.getLong(thisMemPos + bytePos);
+            long thatBits = PlatformDependent.getLong(thatMemPos + bytePos);
+            long mergedBits = thisBits | thatBits;
 
-                PlatformDependent.putLong(thisMemPos + bytePos, mergedBits);
-                numBitsSet += (Long.bitCount(mergedBits) - Long.bitCount(thisBits)); // add newly set bits to the count.
-            }
-            setNumBitsSet(numBitsSet);
+            PlatformDependent.putLong(thisMemPos + bytePos, mergedBits);
+            numBitsSet += (Long.bitCount(mergedBits) - Long.bitCount(thisBits)); // add newly set bits to the count.
         }
+        setNumBitsSet(numBitsSet);
     }
 
     @VisibleForTesting
@@ -346,6 +341,21 @@ public class BloomFilter implements AutoCloseable {
                 ", numBitsSet=" + getNumBitsSet() +
                 ", expectedFpp=" + getExpectedFPP() +
                 '}';
+    }
+
+    public BloomFilter createCopy(BufferAllocator allocator) {
+        try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
+            ArrowBuf pColFilterData = this.getDataBuffer();
+            ArrowBuf pColFilterDataCopy = allocator.buffer(pColFilterData.capacity());
+            rollbackCloseable.add(pColFilterDataCopy); // close on exception
+            PlatformDependent.copyMemory(pColFilterData.memoryAddress(), pColFilterDataCopy.memoryAddress(), pColFilterData.capacity());
+            BloomFilter copyBloomFilter = BloomFilter.prepareFrom(pColFilterDataCopy);
+            rollbackCloseable.commit();
+            return copyBloomFilter;
+        } catch (Exception e) {
+            logger.error("Error while creating a copy of the bloom filter " + this.name, e);
+            throw new RuntimeException(e);
+        }
     }
 
     /**

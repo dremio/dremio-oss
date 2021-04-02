@@ -22,12 +22,12 @@
   <parent>
     <artifactId>dremio-services-jobresults</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>14.0.0-202103011714040666-9a0c2e10</version>
+    <version>15.0.0-202103312106020527-0be9c719</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>dremio-services-jobresults-client</artifactId>
-  <version>14.0.0-202103011714040666-9a0c2e10</version>
+  <version>15.0.0-202103312106020527-0be9c719</version>
   <name>Services - JobResults - Client</name>
 
   <packaging>jar</packaging>

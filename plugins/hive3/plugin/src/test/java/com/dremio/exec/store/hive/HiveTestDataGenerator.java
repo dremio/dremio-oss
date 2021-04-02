@@ -25,7 +25,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Date;
-import java.sql.DriverManager;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,9 +38,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.hadoop.hive.metastore.MetaStoreTestUtils;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
-import org.apache.hadoop.hive.metastore.security.HadoopThriftAuthBridge;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.ql.session.SessionState;
@@ -52,6 +49,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.impersonation.hive.BaseTestHiveImpersonation;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
@@ -87,34 +85,25 @@ public class HiveTestDataGenerator {
   }
 
   private HiveTestDataGenerator(Map<String, String> config) throws Exception {
-    String root = getTempDir("");
-    this.dbDir = root + "metastore_db";
-
-    // metastore helper will create wh in a subdirectory
-    String whDirBase = root + "warehouse";
-    new File(whDirBase).mkdirs();
+    this.whDir =  getTempDir("warehouse");
 
     Configuration conf = MetastoreConf.newMetastoreConf();
 
+    // Configure metastore persistence db location on local filesystem
+    this.dbDir = HiveTestBase.createDerbyDB("metastore_db");
+    final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", this.dbDir);
     // Force creating schemas. Note that JDO creates schema on demand
     MetastoreConf.setBoolVar(conf, MetastoreConf.ConfVars.SCHEMA_VERIFICATION, false);
     MetastoreConf.setBoolVar(conf, MetastoreConf.ConfVars.AUTO_CREATE_ALL, true);
     // Disable direct SQL as it might cause not all schemas to be created
     MetastoreConf.setBoolVar(conf, MetastoreConf.ConfVars.TRY_DIRECT_SQL, false);
-    MetastoreConf.setVar(conf, MetastoreConf.ConfVars.WAREHOUSE, whDirBase);
-    // Configure metastore persistence db location on local filesystem
-    final String dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", dbDir);
-    // Set login timeout to 60 seconds
-    DriverManager.setLoginTimeout(60);
-    // Create the database for metastore in derby
-    DriverManager.getConnection(dbUrl);
+    MetastoreConf.setVar(conf, MetastoreConf.ConfVars.WAREHOUSE, this.whDir);
     MetastoreConf.setVar(conf, MetastoreConf.ConfVars.CONNECT_URL_KEY, dbUrl);
     HiveConf.setVar(conf, ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
     if (config != null) {
       config.forEach(conf::set);
     }
 
-    this.whDir = MetastoreConf.getVar(conf, MetastoreConf.ConfVars.WAREHOUSE);
     final int maxRetries = 10;
     for (int i = 0; i < maxRetries; i++) {
       try {
@@ -602,8 +591,6 @@ public class HiveTestDataGenerator {
 
       // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
       createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
-
-      createParquetStructWithCoercionTestTable(hiveDriver);
     }
   }
 
@@ -2086,26 +2073,5 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.9)");
     executeQuery(hiveDriver, "alter table orc_part_test change col1 col1 decimal(5,3)");
     executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.987)");
-  }
-
-  private void createParquetStructWithCoercionTestTable(final Driver hiveDriver) throws Exception {
-    final File structDir = new File(BaseTestQuery.getTempDir("struct_coercion_filter"));
-    structDir.mkdirs();
-    final URL structUrl = Resources.getResource("multifieldstruct.parquet");
-    if (structUrl == null) {
-      throw new IOException(String.format("Unable to find path %s.", "multifieldstruct.parquet"));
-    }
-
-    // parquet file schema:
-    // f0 struct<f1: int, f2: float, f3: decimal (10, 5), f4: string>, f1 int
-    final File structFile = new File(structDir, "multifieldstruct.parquet");
-    structFile.deleteOnExit();
-    structDir.deleteOnExit();
-    Files.write(Paths.get(structFile.toURI()), Resources.toByteArray(structUrl));
-
-    final String structExtraFieldTest = "create external table struct_coercion_filter(" +
-      "f0 struct<f1:bigint, f2:double, f3: decimal(7, 2), f4: varchar(2)>, f1 bigint) " +
-      "stored as parquet location '" + structFile.getParent() + "'";
-    executeQuery(hiveDriver, structExtraFieldTest);
   }
 }
