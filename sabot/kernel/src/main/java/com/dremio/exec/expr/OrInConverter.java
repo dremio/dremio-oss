@@ -33,7 +33,8 @@ import com.google.common.collect.Lists;
 public class OrInConverter {
   static final List<CompleteType> supportedTypes = Lists.newArrayList(
     CompleteType.BIGINT, CompleteType.INT, CompleteType.DATE, CompleteType.TIME,
-    CompleteType.TIMESTAMP, CompleteType.VARCHAR, CompleteType.VARBINARY
+    CompleteType.TIMESTAMP, CompleteType.VARCHAR, CompleteType.VARBINARY,
+    CompleteType.DECIMAL, CompleteType.FLOAT, CompleteType.DOUBLE
   );
 
   public static List<LogicalExpression> optimizeMultiOrs(List<LogicalExpression> expressions, Set<LogicalExpression> constants, int minConversionSizeForNonVarchars,

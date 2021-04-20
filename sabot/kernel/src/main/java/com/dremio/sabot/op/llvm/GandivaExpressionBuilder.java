@@ -15,11 +15,14 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.dremio.exec.expr.Function;
 import org.apache.arrow.gandiva.expression.Condition;
 import org.apache.arrow.gandiva.expression.ExpressionTree;
 import org.apache.arrow.gandiva.expression.TreeBuilder;
@@ -209,7 +212,8 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
               IntExpression expr = (IntExpression) logicalExpression;
               longValues.add(Long.valueOf(expr.getInt()));
             } else if (!(logicalExpression instanceof TypedNullConstant)) {
-              throw new UnsupportedOperationException("Supports only int or null in IN expression" +
+              throw new UnsupportedOperationException("Supports only int, decimal," +
+                " float, double or null in IN expression" +
                 ".");
             }
           }
@@ -227,6 +231,62 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
           }
         }
         return TreeBuilder.makeInExpressionString(TreeBuilder.makeField(field), stringValues);
+      }else if(CompleteType.DECIMAL.equals(constantType)){
+        Set<BigDecimal> decimalValues = Sets.newHashSet();
+        for (LogicalExpression constant: in.getConstants()){
+          if (constant instanceof DecimalExpression){
+            decimalValues.add(((DecimalExpression) constant).getDecimal());
+          } else if (constant instanceof FunctionHolderExpression){
+            LogicalExpression val = ((FunctionHolderExpression) constant).args.get(0);
+            if (val instanceof DecimalExpression){
+              DecimalExpression expr = (DecimalExpression) val;
+              decimalValues.add(expr.getDecimal());
+            }else if (!(val instanceof TypedNullConstant)) {
+              throw new UnsupportedOperationException("Supports only int, decimal, float, " +
+                "double or null in IN expression" +
+                ".");
+            }
+          }
+        }
+        Integer precision = decimalValues.stream().findFirst().get().precision();
+        Integer scale = decimalValues.stream().findFirst().get().scale();
+        return TreeBuilder.makeInExpressionDecimal(TreeBuilder.makeField(field), decimalValues, precision, scale);
+      }else if(CompleteType.FLOAT.equals(constantType)){
+        Set<Float> floatValues = Sets.newHashSet();
+        for (LogicalExpression constant: in.getConstants()){
+          if (constant instanceof FloatExpression){
+            floatValues.add(((FloatExpression) constant).getFloat());
+          } else if (constant instanceof FunctionHolderExpression){
+            LogicalExpression val = ((FunctionHolderExpression) constant).args.get(0);
+            if (val instanceof FloatExpression){
+              FloatExpression expr = (FloatExpression) val;
+              floatValues.add(expr.getFloat());
+            }else if (!(val instanceof TypedNullConstant)) {
+              throw new UnsupportedOperationException("Supports only int, decimal, float," +
+                " double or null in IN expression" +
+                ".");
+            }
+          }
+        }
+        return TreeBuilder.makeInExpressionFloat(TreeBuilder.makeField(field), floatValues);
+      }else if(CompleteType.DOUBLE.equals(constantType)){
+        Set<Double> doubleValues = Sets.newHashSet();
+        for (LogicalExpression constant: in.getConstants()){
+          if (constant instanceof DoubleExpression){
+            doubleValues.add(((DoubleExpression) constant).getDouble());
+          } else if (constant instanceof FunctionHolderExpression){
+            LogicalExpression val = ((FunctionHolderExpression) constant).args.get(0);
+            if (val instanceof DoubleExpression){
+              DoubleExpression expr = (DoubleExpression) val;
+              doubleValues.add(expr.getDouble());
+            }else if (!(val instanceof TypedNullConstant)) {
+              throw new UnsupportedOperationException("Supports only int, decimal, float," +
+                " double or null in IN expression" +
+                ".");
+            }
+          }
+        }
+        return TreeBuilder.makeInExpressionDouble(TreeBuilder.makeField(field), doubleValues);
       }else {
         // Should not reach here since the or-in conversion happens only for valid types
         throw new UnsupportedOperationException("In not supported in Gandiva. Was trying to create an in expression of " +
