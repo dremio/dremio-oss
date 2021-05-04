@@ -155,6 +155,10 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
         this.netBytesAdded += that.netBytesAdded;
         this.totalFileEntries += that.totalFileEntries;
         this.isCheckpoint = this.isCheckpoint || that.isCheckpoint;
+        if (this.schema != null && that.schema != null && !this.partitionColumns.equals(that.partitionColumns)) {
+            throw new IllegalStateException("Different partitions detected across the commits." +
+                    " Dremio doesn't support scan on a repartitioned table.");
+        }
         if (this.schema == null || (this.compareTo(that) < 0 && that.schema != null)){
             this.schema = that.schema;
             this.partitionColumns = that.partitionColumns;

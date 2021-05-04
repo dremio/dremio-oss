@@ -50,6 +50,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
+import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -247,6 +248,13 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
       getConfig().isInternal());
     return formatPlugin.getDatasetAccessor(DatasetType.PHYSICAL_DATASET_HOME_FILE, oldConfig, fs,
       fileSelectionWithoutDir, this, datasetPath, updateKey.build(), maxLeafColumns);
+  }
+
+  protected FileProtobuf.FileSystemCachedEntity fromFileAttributes(FileAttributes attributes) {
+    return FileProtobuf.FileSystemCachedEntity.newBuilder()
+            .setPath(attributes.getPath().toString())
+            .setLastModificationTime(attributes.lastModifiedTime().toMillis())
+            .build();
   }
 
   private static List<String> relativePath(List<String> tableSchemaPath, Path rootPath) {

@@ -16,9 +16,7 @@
 package com.dremio.exec.vector.accessor.sql;
 
 import java.sql.Time;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.LocalTime;
 import java.time.temporal.ChronoField;
 import java.util.List;
 import java.util.Objects;
@@ -34,11 +32,7 @@ public class TimePrintMillis extends Time {
   // Millis of the date time object.
   private final int millisOfSecond;
 
-  public TimePrintMillis(long time) {
-    this(LocalDateTime.ofInstant(Instant.ofEpochMilli(time), ZoneOffset.UTC));
-  }
-
-  public TimePrintMillis(LocalDateTime time) {
+  public TimePrintMillis(LocalTime time) {
     super(time.getHour(), time.getMinute(), time.getSecond());
     millisOfSecond = time.get(ChronoField.MILLI_OF_SECOND);
   }

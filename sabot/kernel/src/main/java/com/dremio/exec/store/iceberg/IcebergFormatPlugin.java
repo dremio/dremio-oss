@@ -31,9 +31,11 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.exec.store.dfs.FileSelectionProcessor;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.dfs.LayeredPluginFileSelectionProcessor;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
@@ -112,6 +114,11 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     } else {
       return new EmptyRecordReader();
     }
+  }
+
+  @Override
+  public FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
+    return new LayeredPluginFileSelectionProcessor(fs, fileSelection);
   }
 
   @Override

@@ -16,74 +16,63 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY_VALUE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PATH;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_VALUE;
 import static org.apache.parquet.hadoop.ParquetFileWriter.MAGIC;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.utils.ProtostuffUtil;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.exec.store.dfs.FileSelectionProcessor;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.dfs.LayeredPluginFileSelectionProcessor;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
+import com.dremio.exec.store.dfs.easy.EasyScanOperatorCreator;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.exec.store.easy.json.JSONRecordReader;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.exec.store.parquet.BulkInputStream;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
-import com.dremio.exec.store.parquet.ParquetSplitReaderCreatorIterator;
-import com.dremio.exec.store.parquet.ParquetSubScan;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.store.parquet.Streams;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
-import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-import com.dremio.service.namespace.file.proto.FileConfig;
-import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
 
 public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfig> {
@@ -96,7 +85,7 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
   private final DeltaLakeFormatMatcher formatMatcher;
   private final DeltaLakeFormatConfig config;
   private FormatPlugin dataFormatPlugin;
-  private final boolean isLayered;
+
 
   public DeltaLakeFormatPlugin(String name, SabotContext context, DeltaLakeFormatConfig formatConfig, FileSystemPlugin<?> fsPlugin) {
     super(name, context, formatConfig, true, false, false, IS_COMPRESSIBLE, formatConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
@@ -106,8 +95,6 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
     this.formatMatcher = new DeltaLakeFormatMatcher(this);
     this.dataFormatPlugin = new ParquetFormatPlugin(name, context,
             new ParquetFormatConfig(), fsPlugin);
-    boolean useDeltaExecution = context.getOptionManager().getOption(PlannerSettings.ENABLE_DELTALAKE);
-    isLayered = !useDeltaExecution;
   }
 
   @Override
@@ -167,6 +154,11 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
     }
   }
 
+  @Override
+  public FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
+    return new LayeredPluginFileSelectionProcessor(fs, fileSelection);
+  }
+
   @VisibleForTesting
   static boolean isParquet(FileSystem fs, FileAttributes attributes) {
     long fileLen = attributes.size();
@@ -207,38 +199,13 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context,
-                                      FileSystem dfs,
-                                      SplitAndPartitionInfo split,
-                                      EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
-                                      List<SchemaPath> columns,
-                                      FragmentExecutionContext fec,
-                                      EasySubScan subScanConfig) throws ExecutionSetupException {
-    if (splitAttributes.getPath().endsWith("json")) {
-      JSONRecordReader jsonRecordReader = new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns);
-      jsonRecordReader.resetSpecialSchemaOptions();
-
-      if (readingAddLogsOfPartitionedDataset(subScanConfig, columns)) {
-        return new DeltaLogCommitJsonRecordReader(context, jsonRecordReader);
-      } else {
-        return jsonRecordReader;
-      }
-
-    } else if (splitAttributes.getPath().endsWith("parquet")) {
-      return getParquetRecordReader(context, split, splitAttributes, fec, subScanConfig, columns);
-    } else {
-      throw new ExecutionSetupException("Invalid split file type. Expected json | parquet. Path - " + splitAttributes.getPath());
-    }
-  }
-
-  @Override
   public boolean supportsRead() {
     return true;
   }
 
   @Override
   public boolean isLayered() {
-    return this.isLayered;
+    return true;
   }
 
   @Override
@@ -256,93 +223,73 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
     return false;
   }
 
-  private RecordReader getParquetRecordReader(OperatorContext context,
-                                              SplitAndPartitionInfo split,
-                                              EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
-                                              FragmentExecutionContext fec,
-                                              EasySubScan subScanConfig,
-                                              List<SchemaPath> columns) throws ExecutionSetupException {
-    // TODO: Set and use row group based parquet splits.
-    final boolean isArrowCachingEnabled = context.getOptions().getOption(ExecConstants.ENABLE_BOOSTING);
-    boolean addWithPartitionCols = readingAddLogsOfPartitionedDataset(subScanConfig, columns);
-    final ParquetSubScan parquetSubScan = toParquetScanConfig(subScanConfig, isArrowCachingEnabled, addWithPartitionCols);
+  @Override
+  protected RecordReaderIterator getRecordReaderIterator(FileSystem fs, OperatorContext opCtx,
+                                                      List<SchemaPath> innerFields, EasySubScan easyScanConfig,
+                                                      List<EasyScanOperatorCreator.SplitAndExtended> workList) {
+    final DeltaCheckpointParquetSplitReaderCreator parquetSplitReaderCreator = new DeltaCheckpointParquetSplitReaderCreator(fs, opCtx, easyScanConfig);
+    final Stream<RecordReader> readers = workList.stream().map(input -> {
+              try {
+                final EasyProtobuf.EasyDatasetSplitXAttr easyXAttr = input.getExtended();
+                final Path inputFilePath = Path.of(easyXAttr.getPath());
 
-    final ParquetSplitReaderCreatorIterator splitIt = new ParquetSplitReaderCreatorIterator(fec, context, parquetSubScan, false);
-    splitIt.setIgnoreSchemaLearning(true);
-    final SplitAndPartitionInfo parquetSplit = toParquetSplit(split, splitAttributes);
-    final RecordReaderIterator recordReaderIterator = splitIt.getReaders(ImmutableList.of(parquetSplit));
-    Preconditions.checkState(recordReaderIterator.hasNext(), "Error while initialising parquet RecordReader for " + splitAttributes.getPath());
-    RecordReader parquetReader = recordReaderIterator.next();
+                if (!fs.supportsPath(inputFilePath)) {
+                  throw UserException.invalidMetadataError()
+                          .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), input.getExtended().getPath()))
+                          .addContext("File", input.getExtended().getPath())
+                          .setAdditionalExceptionContext(
+                                  new InvalidMetadataErrorContext(
+                                          ImmutableList.copyOf(easyScanConfig.getReferencedTables())))
+                          .build(logger);
+                }
 
-    if (addWithPartitionCols) {
-      final List<Field> partitionCols = subScanConfig.getPartitionColumns().stream()
-        .map(c -> subScanConfig.getFullSchema().findField(c)).collect(Collectors.toList());
-      return new DeltaLogCheckpointParquetRecordReader(context, parquetReader, partitionCols, parquetSubScan);
-    } else {
-      return parquetReader;
-    }
+                final boolean addWithPartitionCols = readingAddLogsOfPartitionedDataset(easyScanConfig, innerFields);
+                if (easyXAttr.getPath().endsWith("json")) {
+                  return getCommitJsonRecordReader(fs, opCtx, easyScanConfig, addWithPartitionCols, easyXAttr, innerFields);
+                } else {
+                  return parquetSplitReaderCreator.getParquetRecordReader(input, addWithPartitionCols);
+                }
+              } catch (ExecutionSetupException e) {
+                if (e.getCause() instanceof FileNotFoundException) {
+                  throw UserException.invalidMetadataError(e.getCause())
+                          .addContext("File not found")
+                          .addContext("File", input.getExtended().getPath())
+                          .setAdditionalExceptionContext(
+                                  new InvalidMetadataErrorContext(
+                                          ImmutableList.copyOf(easyScanConfig.getReferencedTables())))
+                          .build(logger);
+                } else {
+                  throw new RuntimeException(e);
+                }
+              }
+            });
+    return RecordReaderIterator.from(readers.iterator());
   }
 
-  private SplitAndPartitionInfo toParquetSplit(final SplitAndPartitionInfo split, EasyProtobuf.EasyDatasetSplitXAttr easyXAttr) {
-    final ParquetProtobuf.ParquetBlockBasedSplitXAttr.Builder parquetXAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
-            .setPath(easyXAttr.getPath())
-            .setLength(easyXAttr.getLength())
-            .setStart(easyXAttr.getStart())
-            .setFileLength(easyXAttr.getUpdateKey().getLength())
-            .setLastModificationTime(easyXAttr.getUpdateKey().getLastModificationTime());
-    final PartitionProtobuf.NormalizedDatasetSplitInfo splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo
-            .newBuilder(split.getDatasetSplitInfo())
-            .setExtendedProperty(parquetXAttr.build().toByteString())
-            .build();
-
-    return new SplitAndPartitionInfo(split.getPartitionInfo(), splitInfo);
-  }
-
-  private ParquetSubScan toParquetScanConfig(final EasySubScan easyConfig,
-                                             final boolean arrowCachingEnabled, boolean addWithPartitionCols) {
-    // Checkpoint parquet should be scanned as a regular PARQUET instead of DELTA type
-    final FileConfig formatSettings = ProtostuffUtil.copy(easyConfig.getFileConfig());
-    formatSettings.setType(FileType.PARQUET);
-    List<SchemaPath> columns = new ArrayList<>(easyConfig.getColumns());
-    BatchSchema fullSchema = easyConfig.getFullSchema().clone();
+  private RecordReader getCommitJsonRecordReader(FileSystem fs, OperatorContext opCtx, EasySubScan easyScanConfig,
+                                                 boolean addWithPartitionCols, EasyProtobuf.EasyDatasetSplitXAttr easyXAttr,
+                                                 List<SchemaPath> innerFields) {
     if (addWithPartitionCols) {
-      Field addField = fullSchema.findField(DELTA_FIELD_ADD);
-      Field addFieldCopy = new Field(addField.getName(), addField.getFieldType(), addField.getChildren());
-      List<Field> children = addFieldCopy.getChildren();
-      children.removeIf(f -> f.getName().equals(SCHEMA_PARTITION_VALUES)); // struct
+      final List<Field> partitionCols = easyScanConfig.getPartitionColumns().stream()
+              .map(c -> easyScanConfig.getFullSchema().findField(c)).collect(Collectors.toList());
+      // Replace actual partition col fields instead of projecting all columns. When a table is repartitioned on different
+      // column, we don't want old commit log json to promote incorrect partition cols.
+      final SchemaPath partitionValuesPath = SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES);
+      final SchemaPath partitionValuesParsedPath = SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES_PARSED);
+      final List<SchemaPath> projectedCols = new ArrayList<>(innerFields);
+      projectedCols.removeIf(p -> p.equals(partitionValuesPath) || p.equals(partitionValuesParsedPath));
+      partitionCols.forEach(p -> projectedCols.add(partitionValuesPath.getChild(p.getName())));
 
-      final Field partitionKey = Field.nullablePrimitive(SCHEMA_KEY, new ArrowType.Utf8());
-      final Field partitionVal = Field.nullablePrimitive(SCHEMA_VALUE, new ArrowType.Utf8());
-      final Field partitionEntry = new Field("$data$", FieldType.nullable(new ArrowType.Struct()), ImmutableList.of(partitionKey, partitionVal));
-      final Field partitionKeyVal = new Field(SCHEMA_KEY_VALUE, FieldType.nullable(new ArrowType.List()), ImmutableList.of(partitionEntry));
-      final Field partitionValues = new Field(SCHEMA_PARTITION_VALUES, FieldType.nullable(new ArrowType.Struct()), ImmutableList.of(partitionKeyVal)); // Map type is currently not supported
-      children.add(partitionValues); // map
+      final JSONRecordReader jsonRecordReader = new JSONRecordReader(opCtx, easyXAttr.getPath(),
+              getFsPlugin().getCompressionCodecFactory(), fs, innerFields);
+      jsonRecordReader.resetSpecialSchemaOptions();
 
-      List<Field> newFields = new ArrayList<>(fullSchema.getFields());
-      newFields.removeIf(f -> f.getName().equals(DELTA_FIELD_ADD));
-      newFields.add(addFieldCopy);
-
-      fullSchema = new BatchSchema(newFields);
-
+      return new DeltaLogCommitJsonRecordReader(opCtx, jsonRecordReader, partitionCols);
     } else {
-      // remove partition fields in projected columns
-      columns.removeIf(s -> s.equals(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES)) ||
-        s.equals(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES_PARSED)));
+      final JSONRecordReader jsonRecordReader = new JSONRecordReader(opCtx, easyXAttr.getPath(),
+              getFsPlugin().getCompressionCodecFactory(), fs, innerFields);
+      jsonRecordReader.resetSpecialSchemaOptions();
+      return jsonRecordReader;
     }
-
-    final ParquetSubScan parquetConfig = new ParquetSubScan(
-            easyConfig.getProps(),
-            formatSettings,
-            Collections.emptyList(), // initialise with no splits to avoid redundant footer read.
-            fullSchema,
-            ImmutableList.of(easyConfig.getTableSchemaPath()),
-            Collections.emptyList(),
-            easyConfig.getPluginId(),
-            columns,
-            easyConfig.getPartitionColumns(),
-            Collections.emptyList(),
-            easyConfig.getExtendedProperty(),
-            arrowCachingEnabled);
-    return parquetConfig;
   }
 }

@@ -22,8 +22,8 @@ public abstract class NativeProjectEvaluator implements AutoCloseable {
 
   public abstract void evaluate(int recordCount) throws Exception;
 
-  public static NativeProjectorBuilder builder(VectorAccessible input, FunctionContext functionContext) {
-    return new NativeProjectorBuilder(input, functionContext);
+  public static NativeProjectorBuilder builder(VectorAccessible input, FunctionContext functionContext, boolean targetHostCPU) {
+    return new NativeProjectorBuilder(input, functionContext, targetHostCPU);
   }
 
 

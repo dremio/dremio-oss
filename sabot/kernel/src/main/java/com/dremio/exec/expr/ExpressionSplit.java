@@ -108,8 +108,9 @@ public class ExpressionSplit implements Closeable {
     this.dependsOnSplits.addAll(helper.getNamesOfDependencies());
     this.transfersIn.addAll(helper.getTransfersIn());
     this.numExtraIfExprs = numExtraIfExprs;
-    this.optimize = executionEngine.equals(SupportedEngines.Engine.GANDIVA) && expression.accept(new ExpressionWorkEstimator(), null) < operatorContext.getOptions()
-      .getOption(ExecConstants.EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD);
+    this.optimize = operatorContext.getOptions().getOption(ExecConstants.GANDIVA_OPTIMIZE)
+      && (executionEngine.equals(SupportedEngines.Engine.GANDIVA) && expression.accept(new ExpressionWorkEstimator(), null) < operatorContext.getOptions()
+      .getOption(ExecConstants.EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD));
   }
 
   public String toString() {

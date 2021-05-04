@@ -16,12 +16,18 @@
 
 package com.dremio.exec.store.deltalake;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.function.BiConsumer;
+import java.util.stream.IntStream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,7 +52,7 @@ public class TestDeltaScan extends BaseTestQuery {
     fs = FileSystem.get(conf);
     Path p = new Path(testRootPath);
 
-    if(fs.exists(p)) {
+    if (fs.exists(p)) {
       fs.delete(p, true);
     }
 
@@ -58,10 +64,14 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/extraAttrsRemovePath", java.nio.file.Paths.get(testRootPath + "/extraAttrsRemovePath"));
     copyFromJar("deltalake/multibatchCheckpointWithRemove", java.nio.file.Paths.get(testRootPath + "/multibatchCheckpointWithRemove"));
 
+    copyFromJar("deltalake/multi_partitioned_remove_only_checkpoint", java.nio.file.Paths.get(testRootPath + "/multi_partitioned_remove_only_checkpoint"));
+    copyFromJar("deltalake/repartitioned", java.nio.file.Paths.get(testRootPath + "/repartitioned"));
+    copyFromJar("deltalake/schema_change_partition", java.nio.file.Paths.get(testRootPath + "/schema_change_partition"));
+
   }
 
   @After
-  public void cleanup()  throws Exception {
+  public void cleanup() throws Exception {
     Path p = new Path(testRootPath);
     fs.delete(p, true);
   }
@@ -78,7 +88,7 @@ public class TestDeltaScan extends BaseTestQuery {
     URI resource = Resources.getResource(sourceElement).toURI();
     java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
     Files.walk(srcDir)
-      .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
+            .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
   }
 
   @Test
@@ -86,13 +96,13 @@ public class TestDeltaScan extends BaseTestQuery {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "select count(*) as cnt from dfs.tmp.deltalake.testDataset";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(499L)
-        .unOrdered()
-        .build()
-        .run();
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(499L)
+              .unOrdered()
+              .build()
+              .run();
     }
   }
 
@@ -101,12 +111,12 @@ public class TestDeltaScan extends BaseTestQuery {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "SELECT id, iso_code, continent FROM dfs.tmp.deltalake.testDataset order by id limit 2;";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("id", "iso_code", "continent")
-        .baselineValues(1L, "AFG", "Asia")
-        .baselineValues(2L, "AFG", "Asia")
-        .unOrdered().go();
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("id", "iso_code", "continent")
+              .baselineValues(1L, "AFG", "Asia")
+              .baselineValues(2L, "AFG", "Asia")
+              .unOrdered().go();
     }
   }
 
@@ -115,13 +125,13 @@ public class TestDeltaScan extends BaseTestQuery {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "SELECT SUM(cast(new_cases as DECIMAL)) as cases FROM dfs.tmp.deltalake.testDataset group by continent;";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cases")
-        .baselineValues(new BigDecimal(45140))
-        .baselineValues(new BigDecimal(23433))
-        .baselineValues(new BigDecimal(25674))
-        .unOrdered().go();
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cases")
+              .baselineValues(new BigDecimal(45140))
+              .baselineValues(new BigDecimal(23433))
+              .baselineValues(new BigDecimal(25674))
+              .unOrdered().go();
     }
   }
 
@@ -130,11 +140,11 @@ public class TestDeltaScan extends BaseTestQuery {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "SELECT count(*) as cnt FROM dfs.tmp.deltalake.JsonDataset;";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(89L)
-        .unOrdered().go();
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(89L)
+              .unOrdered().go();
     }
   }
 
@@ -166,7 +176,7 @@ public class TestDeltaScan extends BaseTestQuery {
     testBuilder()
             .sqlQuery(sql)
             .unOrdered()
-            .baselineColumns("id","new_cases")
+            .baselineColumns("id", "new_cases")
             .baselineValues(71L, "45.0")
             .baselineValues(72L, "150.0")
             .baselineValues(73L, "116.0")
@@ -178,11 +188,11 @@ public class TestDeltaScan extends BaseTestQuery {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "SELECT count(*) as cnt FROM dfs.tmp.deltalake.lastCheckpointDataset";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("cnt")
-        .baselineValues(109L)
-        .unOrdered().go();
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(109L)
+              .unOrdered().go();
     }
   }
 
@@ -191,12 +201,12 @@ public class TestDeltaScan extends BaseTestQuery {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "SELECT id, total_cases FROM dfs.tmp.deltalake.lastCheckpointDataset order by total_cases limit 2";
       testBuilder()
-        .sqlQuery(sql)
-        .unOrdered()
-        .baselineColumns("id", "total_cases")
-        .baselineValues(11L, "1027.0")
-        .baselineValues(54L, "1050.0")
-        .unOrdered().go();
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("id", "total_cases")
+              .baselineValues(11L, "1027.0")
+              .baselineValues(54L, "1050.0")
+              .unOrdered().go();
     }
   }
 
@@ -247,6 +257,92 @@ public class TestDeltaScan extends BaseTestQuery {
               .unOrdered()
               .baselineColumns("intcol", "longcol")
               .baselineValues(6097811, 6097811L)
+              .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testMultiRGCheckpointParquet() throws Exception {
+    /*
+     * The dataset contains a checkpoint with multiple rowgroups. The data files referenced include added as well as
+     * remove entries.
+     * Since number of entries referenced from the checkpoint parquet are large, this test-case duplicates the same
+     * data file.
+     */
+    // setup
+    final String deltaDirectory = testRootPath + "/testMultiRGCheckpointParquetDeltaDataset";
+    final String deltaLogDirectory = deltaDirectory + "/_delta_log";
+    fs.mkdirs(new Path(deltaLogDirectory));
+
+    final BiConsumer<String, String> cp = (src, dest) -> {
+      try {
+        final String srcBase = "deltalake/checkpoint_multi_rowgroups_with_remove/";
+        final java.nio.file.Path srcPath = Paths.get(Resources.getResource(srcBase + src).toURI());
+        Files.copy(srcPath, Paths.get(dest));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+
+    cp.accept("checkpoint_multi_rg.parquet", deltaLogDirectory + "/00000000000000000010.checkpoint.parquet");
+    cp.accept("_last_checkpoint", deltaLogDirectory + "/_last_checkpoint");
+    IntStream.range(0, 700).forEach(i -> cp.accept("datafile.parquet", deltaDirectory + "/testme" + i + ".parquet"));
+
+    // promote and execute
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT count(*) as cnt FROM dfs.tmp.deltalake.testMultiRGCheckpointParquetDeltaDataset";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(7000L)
+              .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testMultiPartitionedCheckpointNoAddValsNoParsed() throws Exception {
+    /*
+     * Checkpoint contains only remove, metaData and protocol entries. No add entries.
+     * Dataset is partitioned, using partitionValues field to read - no partitionValues_parsed.
+     */
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT * FROM dfs.tmp.deltalake.multi_partitioned_remove_only_checkpoint";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("col1", "pcol1", "pcol2")
+              .expectsEmptyResultSet()
+              .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testRepartitionedOnceAfterCheckpoint() throws Exception {
+    // Partition columns are different in checkpoint and in later commit log json.
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT count(*) as cnt FROM dfs.tmp.deltalake.repartitioned";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(10L)
+              .unOrdered().go();
+      fail("Expected to fail");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Different partitions detected across the commits. Dremio doesn't support scan on a repartitioned table."));
+    }
+  }
+
+  @Test
+  public void testDatasetWithPartitionAndSchemaChange() throws Exception {
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT count(*) cnt FROM dfs.tmp.deltalake.schema_change_partition";
+      testBuilder()
+              .sqlQuery(sql)
+              .unOrdered()
+              .baselineColumns("cnt")
+              .baselineValues(2L)
               .unOrdered().go();
     }
   }

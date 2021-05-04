@@ -470,7 +470,7 @@ public interface ExecConstants {
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
   BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", false);
-  PositiveLongValidator SLICING_THREAD_MIGRATION_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.migration_multiple", Long.MAX_VALUE, 20);
+  PositiveLongValidator SLICING_THREAD_MIGRATION_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.migration_multiple", Long.MAX_VALUE, 50);
   PositiveLongValidator SLICING_THREAD_SPINDOWN_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.spindown_multiple", Long.MAX_VALUE, 100);
 
   // warning threshold for spilling
@@ -518,4 +518,6 @@ public interface ExecConstants {
   // Use this as a factor to scale the rowcount estimation of number of rows in a data file
   DoubleValidator DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR = new RangeDoubleValidator("store.delta.rowcount_estimation_factor", 0.8d, 2.0d, 1.25d);
   StringValidator DISABLED_GANDIVA_FUNCTIONS = new StringValidator("exec.disabled.gandiva-functions", "");
+  BooleanValidator GANDIVA_TARGET_HOST_CPU = new BooleanValidator("exec.gandiva.target_host_cpu", true);
+  BooleanValidator GANDIVA_OPTIMIZE = new BooleanValidator("exec.gandiva.optimize_ir", true);
 }

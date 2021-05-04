@@ -231,7 +231,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
       private List<FileSystemStub> filesystems = new ArrayList<>();
     }
 
-    @JsonIgnoreProperties(value = { "etag", "lastModified" })
+    @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonAutoDetect
     public static class FileSystemStub {
       @JsonProperty("name")

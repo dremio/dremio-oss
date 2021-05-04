@@ -23,8 +23,8 @@ import com.dremio.common.types.Types;
 import com.google.common.base.Preconditions;
 
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.TimeZone;
 
@@ -71,10 +71,12 @@ public class TimeStampMilliAccessor extends AbstractSqlAccessor {
       return null;
     }
 
-    // The Arrow datetime values are already in UTC, so adjust to the timezone of the calendar passed in to
-    // ensure the reported value is correct according to the JDBC spec.
-    final LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(ac.get(index)), tz.toZoneId());
-    return new Timestamp(date.getYear() - 1900, date.getMonthValue() - 1, date.getDayOfMonth(),
-      date.getHour(), date.getMinute(), date.getSecond(), date.getNano());
+    LocalDateTime ldt = ac.getObject(index);
+    if (tz != defaultTimeZone) {
+      final long arrowMillis = ac.get(index);
+      ldt = ldt.minus(tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis), ChronoUnit.MILLIS);
+    }
+
+    return Timestamp.valueOf(ldt);
   }
 }

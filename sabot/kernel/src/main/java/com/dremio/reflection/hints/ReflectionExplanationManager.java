@@ -15,8 +15,12 @@
  */
 package com.dremio.reflection.hints;
 
+import static com.dremio.reflection.hints.ExplanationUtil.disjointFilterExplanation;
+import static com.dremio.reflection.hints.ExplanationUtil.fieldMissingExplanation;
+import static com.dremio.reflection.hints.ExplanationUtil.filterOverSpecified;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -30,11 +34,7 @@ import com.dremio.reflection.hints.features.FieldMissingFeature;
 import com.dremio.reflection.hints.features.FilterDisjointFeature;
 import com.dremio.reflection.hints.features.HintFeature;
 import com.dremio.reflection.hints.features.MaterializationFilterOverSpecifiedFeature;
-import com.dremio.sabot.kernel.proto.DisjointFilterExplanation;
-import com.dremio.sabot.kernel.proto.FieldMissingExplanation;
-import com.dremio.sabot.kernel.proto.FilterOverSpecifiedExplanation;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
-import com.dremio.sabot.kernel.proto.ReflectionExplanationType;
 
 public class ReflectionExplanationManager {
   public static final int MAX_REFLECTIONS_TO_DISPLAY_TO_SHOW = 5;
@@ -74,46 +74,46 @@ public class ReflectionExplanationManager {
 
   private ReflectionExplanation featureToExplanation(HintFeature hintFeature) {
     if(hintFeature instanceof FieldMissingFeature){
-      return new ReflectionExplanation()
-          .setExplanation(ReflectionExplanationType.FIELD_MISSING)
-          .setFieldMissing(fieldMissingToDisplayHintMessage((FieldMissingFeature) hintFeature));
+      return fieldMissingToDisplayHintMessage((FieldMissingFeature) hintFeature);
     } else if(hintFeature instanceof MaterializationFilterOverSpecifiedFeature) {
-      return new ReflectionExplanation()
-          .setExplanation(ReflectionExplanationType.FILTER_OVER_SPECIFIED)
-          .setFilterOverSpecified(featureToExplanation((MaterializationFilterOverSpecifiedFeature)hintFeature));
+      return featureToExplanation((MaterializationFilterOverSpecifiedFeature)hintFeature);
     } else if(hintFeature instanceof FilterDisjointFeature) {
-      return new ReflectionExplanation()
-          .setExplanation(ReflectionExplanationType.DISJOINT_FILTER)
-          .setDisjointFilter(clauseToDisplayHintMessage((FilterDisjointFeature) hintFeature));
+      return clauseToDisplayHintMessage((FilterDisjointFeature) hintFeature);
     } else {
       throw new RuntimeException("Unknown Type" + hintFeature.getClass());
     }
   }
 
-  private DisjointFilterExplanation clauseToDisplayHintMessage(FilterDisjointFeature filterDisjointFeature) {
-    return new DisjointFilterExplanation()
-        .setFilter(filterDisjointFeature.getMaterializationFilter().toString());
+  private ReflectionExplanation clauseToDisplayHintMessage(FilterDisjointFeature filterDisjointFeature) {
+    return disjointFilterExplanation(filterDisjointFeature.getMaterializationFilter().toString());
   }
 
-  private FieldMissingExplanation fieldMissingToDisplayHintMessage(FieldMissingFeature fieldMissingFeature){
+  private ReflectionExplanation fieldMissingToDisplayHintMessage(FieldMissingFeature fieldMissingFeature){
     try {
       RelMetadataQuery metadataQuery = fieldMissingFeature.getUserQueryNode().getCluster().getMetadataQuery();
-      RelColumnOrigin columnOrigin = metadataQuery.getColumnOrigin(fieldMissingFeature.getUserQueryNode(), fieldMissingFeature.getIndex());
-      return new FieldMissingExplanation()
-        .setColumnName(columnOrigin.toString())
-        .setColumnIndex(fieldMissingFeature.getIndex());
+      RelColumnOrigin columnOrigin = metadataQuery.getColumnOrigin(
+          fieldMissingFeature.getUserQueryNode(),
+          fieldMissingFeature.getIndex());
+      if (null != columnOrigin) {
+        return fieldMissingExplanation(columnOrigin.toString(), fieldMissingFeature.getIndex());
+      }
+      List<String> names = fieldMissingFeature.getUserQueryNode().getRowType().getFieldNames();
+      if(names.size() > fieldMissingFeature.getIndex()) {
+        return fieldMissingExplanation(names.get(fieldMissingFeature.getIndex()), fieldMissingFeature.getIndex());
+      } else {
+        return fieldMissingExplanation(fieldMissingFeature.getName(), fieldMissingFeature.getIndex());
+      }
     } catch (Exception ex) {
       LOGGER.warn("Failed to create display data",  ex);
-      return new FieldMissingExplanation()
-        .setColumnName(fieldMissingFeature.getName())
-        .setColumnIndex(fieldMissingFeature.getIndex());
+      return fieldMissingExplanation(
+          fieldMissingFeature.getName(),
+          fieldMissingFeature.getIndex());
     }
   }
 
-  private FilterOverSpecifiedExplanation featureToExplanation(
+  private ReflectionExplanation featureToExplanation(
       MaterializationFilterOverSpecifiedFeature materializationFilterOverSpecified) {
-    return new FilterOverSpecifiedExplanation()
-        .setFilter(materializationFilterOverSpecified.getMaterializationFilter().toString());
+    return filterOverSpecified(materializationFilterOverSpecified.getMaterializationFilter().toString());
   }
 
   private boolean nonZeroDistance(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {

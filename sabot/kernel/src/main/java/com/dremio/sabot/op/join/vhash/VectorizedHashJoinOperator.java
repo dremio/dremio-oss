@@ -804,7 +804,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
             continue;
           }
 
-          logger.debug("Sending filter from {} to {}", context.getFragmentHandle().getMinorFragmentId(), targetMinorFragments);
+          // Operator ID int is transformed as follows - (fragmentId << 16) + opId;
+          logger.debug("Sending filter from {}:{} to {}", context.getFragmentHandle().getMinorFragmentId(),
+                  config.getProps().getOperatorId(),
+                  targetMinorFragments);
           final OutOfBandMessage message = new OutOfBandMessage(
                   context.getFragmentHandle().getQueryId(),
                   context.getFragmentHandle().getMajorFragmentId(),

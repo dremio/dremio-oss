@@ -30,6 +30,7 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorAccessibleComplexWriter;
@@ -107,7 +108,7 @@ class SplitStageExecutor implements AutoCloseable {
     this.preferredEngine = preferredExecType;
     this.hasOriginalExpression = false;
     this.nativeFilter = null;
-    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext());
+    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU));
     this.cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     this.splitsForPreferredCodeGen = this.preferredEngine ==
       SupportedEngines.Engine.GANDIVA? gandivaSplits : javaSplits;
@@ -242,7 +243,7 @@ class SplitStageExecutor implements AutoCloseable {
       logger.trace("Setting up filter for split in Gandiva {}", finalSplit.toString());
       gandivaCodeGenWatch.start();
       nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(),
-        context.getFunctionContext(), finalSplit.getOptimize());
+        context.getFunctionContext(), finalSplit.getOptimize(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU));
       gandivaCodeGenWatch.stop();
       this.filterFunction = new NativeTimedFilter(nativeFilter);
       return;

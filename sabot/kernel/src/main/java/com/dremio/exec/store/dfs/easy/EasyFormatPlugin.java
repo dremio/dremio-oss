@@ -41,6 +41,7 @@ import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.easy.EasyFormatDatasetAccessor;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -187,6 +188,11 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   public abstract int getReaderOperatorType();
   public abstract int getWriterOperatorType();
 
+  protected RecordReaderIterator getRecordReaderIterator(FileSystem fs, OperatorContext opCtx,
+                                                      List<SchemaPath> innerFields, EasySubScan easyScanConfig,
+                                                      List<EasyScanOperatorCreator.SplitAndExtended> workList) {
+    return null;
+  }
   @Override
   public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystem fs,
       FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
@@ -203,5 +209,4 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
     final long estRowCount = data / 100;
     return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, estRowCount, estRowCount, data);
   }
-
 }

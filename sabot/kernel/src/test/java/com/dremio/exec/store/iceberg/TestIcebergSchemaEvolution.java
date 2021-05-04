@@ -17,18 +17,17 @@ package com.dremio.exec.store.iceberg;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.joda.time.LocalDateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.io.file.Path;
@@ -59,6 +58,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testColumnRenamePrimitive() throws Exception {
     final String primitive_column_rename_test = "primitive_column_rename_test";
     try (AutoCloseable c = enableIcebergTables()) {
+      DateTimeFormatter dateFormatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").withZone(DateTimeZone.UTC);
+      DateTimeFormatter dateTimeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS").withZone(DateTimeZone.UTC);
+      DateTimeFormatter timeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("HH24:MI:SS").withZone(DateTimeZone.UTC);
       String createCommandSql = "create table " + TEMP_SCHEMA + "." + primitive_column_rename_test +
         " (col1 boolean, col2 int, col3 bigint, col4 float, col5 double, " +
         "col6 decimal(15,3), col7 date, col8 time, col9 timestamp, col10 varchar)";
@@ -91,15 +93,15 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10")
         .baselineValues(true, new Integer(1), new Long(1),
           new Float("1.0"), new Double("1.0"), new BigDecimal("1.000"),
-          new LocalDateTime(Date.valueOf("2019-12-25").getTime()),
-          new LocalDateTime(Time.valueOf("12:00:00").getTime()),
-          new LocalDateTime(Timestamp.valueOf("2019-12-25 12:00:00").getTime()),
+          dateFormatter.parseLocalDateTime("2019-12-25"),
+          timeFormatter.parseLocalDateTime("12:00:00"),
+          dateTimeFormatter.parseLocalDateTime("2019-12-25 12:00:00"),
           "abc")
         .baselineValues(false, new Integer(2), new Long(2),
           new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          new LocalDateTime(Date.valueOf("2019-12-26").getTime()),
-          new LocalDateTime(Time.valueOf("13:00:00").getTime()),
-          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime()),
+          dateFormatter.parseLocalDateTime("2019-12-26"),
+          timeFormatter.parseLocalDateTime("13:00:00"),
+          dateTimeFormatter.parseLocalDateTime("2019-12-26 13:00:00"),
           "def")
         .build()
         .run();
@@ -133,27 +135,27 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineColumns("col10", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col11")
         .baselineValues(true, new Integer(1), new Long(1),
           new Float("1.0"), new Double("1.0"), new BigDecimal("1.000"),
-          new LocalDateTime(Date.valueOf("2019-12-25").getTime()),
-          new LocalDateTime(Time.valueOf("12:00:00").getTime()),
-          new LocalDateTime(Timestamp.valueOf("2019-12-25 12:00:00").getTime()),
+          dateFormatter.parseLocalDateTime("2019-12-25"),
+          timeFormatter.parseLocalDateTime("12:00:00"),
+          dateTimeFormatter.parseLocalDateTime("2019-12-25 12:00:00"),
           "abc")
         .baselineValues(false, new Integer(2), new Long(2),
           new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          new LocalDateTime(Date.valueOf("2019-12-26").getTime()),
-          new LocalDateTime(Time.valueOf("13:00:00").getTime()),
-          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime()),
+          dateFormatter.parseLocalDateTime("2019-12-26"),
+          timeFormatter.parseLocalDateTime("13:00:00"),
+          dateTimeFormatter.parseLocalDateTime("2019-12-26 13:00:00"),
           "def")
         .baselineValues(false, new Integer(2), new Long(2),
           new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          new LocalDateTime(Date.valueOf("2019-12-26").getTime()),
-          new LocalDateTime(Time.valueOf("13:00:00").getTime()),
-          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime()),
+          dateFormatter.parseLocalDateTime("2019-12-26"),
+          timeFormatter.parseLocalDateTime("13:00:00"),
+          dateTimeFormatter.parseLocalDateTime("2019-12-26 13:00:00"),
           "def")
         .baselineValues(false, new Integer(3), new Long(3),
           new Float("3.0"), new Double("3.0"), new BigDecimal("3.000"),
-          new LocalDateTime(Date.valueOf("2019-12-27").getTime()),
-          new LocalDateTime(Time.valueOf("14:00:00").getTime()),
-          new LocalDateTime(Timestamp.valueOf("2019-12-27 14:00:00").getTime()),
+          dateFormatter.parseLocalDateTime("2019-12-27"),
+          timeFormatter.parseLocalDateTime("14:00:00"),
+          dateTimeFormatter.parseLocalDateTime("2019-12-27 14:00:00"),
           "ghi")
         .build()
         .run();

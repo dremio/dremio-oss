@@ -1,0 +1,25 @@
+{
+  "filesystems": [
+    {
+      "DefaultEncryptionScope": "$account-encryption-key",
+      "DenyEncryptionScopeOverride": "false",
+      "etag": "0x8D79F99287F8565",
+      "lastModified": "Thu, 23 Jan 2020 00:14:05 GMT",
+      "name": "page1container1"
+    },
+    {
+      "DefaultEncryptionScope": "$account-encryption-key",
+      "DenyEncryptionScopeOverride": "false",
+      "etag": "0x8D742A10325E958",
+      "lastModified": "Thu, 26 Sep 2019 16:46:00 GMT",
+      "name": "page1container2"
+    },
+    {
+      "DefaultEncryptionScope": "$account-encryption-key",
+      "DenyEncryptionScopeOverride": "false",
+      "etag": "0x8D742A10653D528",
+      "lastModified": "Thu, 26 Sep 2019 16:46:05 GMT",
+      "name": "page1container3"
+    }
+  ]
+}

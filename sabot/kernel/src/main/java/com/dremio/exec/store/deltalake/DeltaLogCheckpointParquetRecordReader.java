@@ -16,7 +16,6 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY_VALUE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED;
@@ -27,14 +26,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.apache.arrow.vector.util.TransferPair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -62,6 +65,7 @@ import com.google.common.base.Preconditions;
  * Wrapper reader to read partition values
  */
 public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
+  private static final Logger logger = LoggerFactory.getLogger(DeltaLogCheckpointParquetRecordReader.class);
 
   protected final RecordReader delegate;
   protected final OperatorContext context;
@@ -72,6 +76,7 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
   private final List<TransferPair> transferPairs = new ArrayList<>();
   private ScanOperator.ScanMutator outputMutator;
   private final Map<String, Integer> partitionColumnIndexMap = new HashMap<>();
+  private final Set<String> partitionColNames;
 
   public DeltaLogCheckpointParquetRecordReader(OperatorContext context, RecordReader parquetReader,
                                                List<Field> partitionCols, ParquetSubScan parquetSubScan) {
@@ -80,6 +85,7 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
     this.delegate = parquetReader;
     this.partitionCols = partitionCols;
     this.scanConfig = parquetSubScan;
+    this.partitionColNames = partitionCols.stream().map(Field::getName).collect(Collectors.toSet());
   }
 
   @Override
@@ -141,10 +147,6 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
       IfExpression.IfCondition parsedPartitionValueIsNotNull = new IfExpression.IfCondition(
         new FunctionCall("isnotnull", Collections.singletonList(parsedPartitionValue)), parsedPartitionValue);
 
-      // if (isnotnull(partitionValueInParsedField))
-      //      return partitionValueInParsedField
-      // else
-      //      return cast(partitionValueInMapField as <targettype>)
       IfExpression ifEx = IfExpression.newBuilder()
         .setIfCondition(parsedPartitionValueIsNotNull)
         .setElse(cast)
@@ -161,6 +163,10 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
     transferPairs.forEach(TransferPair::transfer);
     if (projector == null) {
       createPartitionColumnIndexMap(count);
+      if (partitionColumnIndexMap.isEmpty()) {
+        logger.debug("No valid record found in the delta batch for this checkpoint parquet.");
+        return 0;
+      }
       this.createAndSetupProjector();
     }
     projector.eval(count);
@@ -168,18 +174,27 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
   }
 
   private void createPartitionColumnIndexMap(int count) {
-    StructVector partitionValuesStruct = ((StructVector) innerReaderOutput.getVector(DELTA_FIELD_ADD))
+    final StructVector partitionValuesStruct = ((StructVector) innerReaderOutput.getVector(DELTA_FIELD_ADD))
       .addOrGetStruct(SCHEMA_PARTITION_VALUES);
-    VarCharVector partitionColumnsVector = (VarCharVector) ((StructVector) ((ListVector) partitionValuesStruct.getChild(SCHEMA_KEY_VALUE))
-      .getDataVector()).getChild(SCHEMA_KEY);
 
-    for(int i = 0; i < count; i++) {
-      Preconditions.checkArgument(!partitionColumnsVector.isNull(i), "Unexpected partition column");
-      String partCol = new String(partitionColumnsVector.get(i));
-      if (partitionColumnIndexMap.containsKey(partCol)) {
-        break;
-      } else {
-        partitionColumnIndexMap.put(partCol, i);
+    for (int i = 0; i < count; i++) {
+      if (!partitionValuesStruct.isNull(i)) {
+        final JsonStringHashMap partitionValues = (JsonStringHashMap) partitionValuesStruct.getObject(i);
+        final JsonStringArrayList keyValuePairs = (JsonStringArrayList) partitionValues.get("key_value");
+        for (int k = 0; k < keyValuePairs.size(); k++) {
+          final JsonStringHashMap keyValuePair = (JsonStringHashMap) keyValuePairs.get(k);
+          final String partColName = keyValuePair.get("key").toString();
+          partitionColumnIndexMap.put(partColName, k);
+        }
+        if (partitionColumnIndexMap.keySet().equals(this.partitionColNames)) {
+          break;
+        } else {
+          logger.info("Partition columns in the schema are different from the ones in the checkpoint [{}, {}]." +
+                  " The table was repartitioned after the checkpoint, hence the checkpoint parquet read can be skipped.",
+                  partitionColumnIndexMap.keySet(), partitionColNames);
+          partitionColumnIndexMap.clear();
+          return;
+        }
       }
     }
   }

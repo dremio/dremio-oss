@@ -50,6 +50,7 @@
 |Apache Hadoop YARN API                                      |2.7.0-mapr-1803     |Apache 2.0          |
 |Apache Hadoop YARN Common                                   |2.7.0-mapr-1803-dremio-20190717|Apache 2.0          |
 |Apache Hadoop YARN Server Common                            |2.7.0-mapr-1803     |Apache 2.0          |
+|Apache HttpClient Mime                                      |4.5.3               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.9               |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.9.0               |Apache 2.0          |
@@ -71,6 +72,7 @@
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
+|Apache Solr Solrj                                           |5.5.4               |Apache 2.0          |
 |Apache Thrift                                               |0.13.0              |Apache 2.0          |
 |Apache Twill Apache Hadoop YARN library                     |0.11.0-201706241649560687-1b32fe4e|Apache 2.0          |
 |Apache Twill API                                            |0.11.0-201706241649560687-1b32fe4e|Apache 2.0          |
@@ -86,13 +88,13 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
-|Arrow Format                                                |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
-|Arrow Memory Core                                           |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
-|Arrow Memory Netty                                          |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
-|Arrow Vectors                                               |4.0.0-20210303080849-4e6380d754-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
+|Arrow Format                                                |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
+|Arrow Memory Core                                           |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
+|Arrow Memory Netty                                          |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
+|Arrow Vectors                                               |4.0.0-20210408013758-103afaedd6-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -173,6 +175,7 @@
 |Curator Service Discovery                                   |4.2.0               |Apache 2.0          |
 |curvesapi                                                   |1.06                |BSD 3-clause        |
 |d3                                                          |3.5.17              |BSD-3-Clause        |
+|Data Mapper For Jackson                                     |1.9.13              |Apache 2.0          |
 |debounce                                                    |1.2.0               |MIT                 |
 |deep-diff                                                   |0.3.4               |MIT                 |
 |deep-equal                                                  |1.0.1               |MIT                 |
@@ -190,12 +193,13 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |15.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |15.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |15.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |15.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |15.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |15.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |15.4.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |15.4.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |15.4.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |15.4.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |15.4.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |15.4.0              |Dremio Free Software License 1.0|
+|EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -259,6 +263,7 @@
 |Gson                                                        |2.8.5               |Apache 2.0          |
 |Guava InternalFutureFailureAccess and InternalFutures       |1.0.1               |Apache 2.0          |
 |Guava ListenableFuture Only                                 |9999.0-empty-to-avoid-conflict-with-guava|Apache 2.0          |
+|Guava: Google Core Libraries for Java                       |20.0                |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |28.1-jre            |Apache 2.0          |
 |gud                                                         |1.0.0               |MIT                 |
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
@@ -313,6 +318,7 @@
 |isobject                                                    |3.0.1               |MIT                 |
 |isomorphic-fetch                                            |2.2.1               |MIT                 |
 |J2ObjC Annotations                                          |1.3                 |Apache 2.0          |
+|Jackson                                                     |1.9.13              |Apache 2.0          |
 |Jackson 2 extensions to the Google HTTP Client Library for Java.|1.31.0              |Apache 2.0          |
 |Jackson Datatype Protobuf                                   |0.9.10-jackson2.9-proto2|Apache 2.0          |
 |Jackson datatype: Guava                                     |2.11.4              |Apache 2.0          |
@@ -346,14 +352,17 @@
 |JavaBeans Activation Framework (JAF)                        |1.1                 |CDDL 1.0            |
 |JavaMail API                                                |1.6.1               |CDDL 1.1            |
 |Javassist                                                   |3.19.0-GA           |Apache 2.0          |
+|Javax Persistence                                           |2.1.0               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
 |Javax WS RS API                                             |2.0.1               |GPL v2 w/ CPE       |
 |javax.annotation API                                        |1.3.2               |GPL v2 w/ CPE       |
 |javax.inject                                                |1                   |Apache 2.0          |
+|JAX RS Provider For JSON Content Type                       |1.9.13              |Apache 2.0          |
 |JAXB API bundle for GlassFish V3                            |2.2.2               |GPL v2 w/ CPE       |
 |JBoss Logging 3                                             |3.3.2.Final         |Apache 2.0          |
 |JCL 1.1.1 implemented over SLF4J                            |1.7.28              |MIT                 |
 |JCommander                                                  |1.71-1499290832-ab3e8cf|Apache 2.0          |
 |JDK Tools                                                   |1.8                 |                    |
+|Jersey Bundle                                               |1.19.3              |CDDL 1.1            |
 |Jersey Client                                               |1.9                 |CDDL 1.1            |
 |Jersey Ext Entity Filtering                                 |2.30                |CDDL 1.1            |
 |Jersey Guice                                                |1.9                 |CDDL 1.1            |
@@ -500,6 +509,7 @@
 |Nimbus JOSE+JWT                                             |8.8                 |Apache 2.0          |
 |Nimbus LangTag                                              |1.5                 |Apache 2.0          |
 |node-fetch                                                  |1.7.3               |MIT                 |
+|Noggit                                                      |0.6                 |Apache 2.0          |
 |normalize-scroll-left                                       |0.1.2               |MIT                 |
 |normalizr                                                   |2.3.1               |MIT                 |
 |nth-check                                                   |1.0.1               |BSD-2-Clause        |
@@ -718,6 +728,7 @@
 |Xalan Java Serializer                                       |2.7.2               |Apache 2.0          |
 |Xerces2-j                                                   |2.12.0              |Apache 2.0          |
 |XML Commons External Components XML APIs                    |1.4.01              |Apache 2.0          |
+|Xml Compatibility Extensions For Jackson                    |1.9.13              |Apache 2.0          |
 |XmlBeans                                                    |3.1.0               |Apache 2.0          |
 |xmlenc Library                                              |0.52                |BSD 2-clause        |
 |ZkClient                                                    |0.10                |Apache 2.0          |

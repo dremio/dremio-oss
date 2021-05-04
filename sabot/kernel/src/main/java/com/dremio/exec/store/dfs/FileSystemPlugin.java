@@ -517,11 +517,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     try {
       List<String> parentSchemaPath = new ArrayList<>(fullPath.subList(0, fullPath.size() - 1));
       FileSystem fs = createFS(user);
-      FileSelection fileSelection = FileSelection.create(fs, fullPath);
+      FileSelection fileSelection = FileSelection.createNotExpanded(fs, fullPath);
       String tableName = datasetPath.getName();
 
       if (fileSelection == null) {
-        fileSelection = FileSelection.createWithFullSchema(fs, PathUtils.toFSPathString(parentSchemaPath), tableName);
+        fileSelection = FileSelection.createWithFullSchemaNotExpanded(fs, PathUtils.toFSPathString(parentSchemaPath), tableName);
         if (fileSelection == null) {
           return null; // no table found
         } else {
@@ -531,39 +531,25 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         }
       }
 
-      final boolean hasDirectories = fileSelection.containsDirectories();
-      final FileAttributes rootAttributes = fs.getFileAttributes(Path.of(fileSelection.getSelectionRoot()));
 
-      // Get subdirectories under file selection before pruning directories
-      final FileUpdateKey.Builder updateKeyBuilder = FileUpdateKey.newBuilder();
-      if (rootAttributes.isDirectory()) {
-        // first entity is always a root
-        updateKeyBuilder.addCachedEntities(fromFileAttributes(rootAttributes));
-      }
-
-      for (FileAttributes dirAttributes: fileSelection.getAllDirectories()) {
-        updateKeyBuilder.addCachedEntities(fromFileAttributes(dirAttributes));
-      }
-      final FileUpdateKey updateKey = updateKeyBuilder.build();
-
-      // Expand selection by copying it first used to check extensions of files in directory.
-      final FileSelection fileSelectionWithoutDir =  hasDirectories? new FileSelection(fileSelection).minusDirectories(): fileSelection;
-      if(fileSelectionWithoutDir == null || fileSelectionWithoutDir.isEmpty()){
-        // no files in the found directory, not a table.
-        return null;
-      }
-
-      FileDatasetHandle.checkMaxFiles(datasetPath.getName(), fileSelectionWithoutDir.getFileAttributesList().size(), getContext(),
-        getConfig().isInternal());
       FileDatasetHandle datasetAccessor = null;
-      if (formatPluginConfig != null) {
 
+      if (formatPluginConfig != null) {
         FormatPlugin formatPlugin = formatCreator.getFormatPluginByConfig(formatPluginConfig);
         if(formatPlugin == null){
           formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
         }
-        DatasetType type = fs.isDirectory(Path.of(fileSelectionWithoutDir.getSelectionRoot())) ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
-        datasetAccessor = formatPlugin.getDatasetAccessor(type, oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
+        FileSelectionProcessor fileSelectionProcessor = formatPlugin.getFileSelectionProcessor(fs, fileSelection);
+
+        FileSelection normalizedFileSelection = fileSelectionProcessor.normalizeForPlugin(fileSelection);
+        final FileUpdateKey updateKey = fileSelectionProcessor.generateUpdateKey();
+        if (fileSelection.isExpanded() && fileSelection.isEmpty()) {
+          return null;
+        }
+        fileSelectionProcessor.assertCompatibleFileCount(getContext(), getConfig().isInternal());
+
+        DatasetType type = fs.isDirectory(Path.of(normalizedFileSelection.getSelectionRoot())) ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+        datasetAccessor = formatPlugin.getDatasetAccessor(type, oldConfig, fs, normalizedFileSelection, this, datasetPath,
             updateKey, retrievalOptions.maxMetadataLeafColumns());
       }
 
@@ -571,10 +557,21 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
           retrievalOptions.autoPromote()) {
         for (final FormatMatcher matcher : matchers) {
           try {
+            final FileSelectionProcessor fileSelectionProcessor = matcher.getFormatPlugin().getFileSelectionProcessor(fs, fileSelection);
+            fileSelectionProcessor.expandIfNecessary();
+            if (fileSelection.isExpanded() && fileSelection.isEmpty()) {
+              return null;
+            }
             if (matcher.matches(fs, fileSelection, codecFactory)) {
-              DatasetType type = fs.isDirectory(Path.of(fileSelectionWithoutDir.getSelectionRoot())) ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+              final DatasetType type = fs.isDirectory(Path.of(fileSelection.getSelectionRoot()))
+                      ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+
+              final FileSelection normalizedFileSelection = fileSelectionProcessor.normalizeForPlugin(fileSelection);
+              final FileUpdateKey updateKey = fileSelectionProcessor.generateUpdateKey();
+              fileSelectionProcessor.assertCompatibleFileCount(getContext(), getConfig().isInternal());
+
               datasetAccessor = matcher.getFormatPlugin()
-                  .getDatasetAccessor(type, oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
+                  .getDatasetAccessor(type, oldConfig, fs, normalizedFileSelection, this, datasetPath,
                       updateKey, retrievalOptions.maxMetadataLeafColumns());
               if (datasetAccessor != null) {
                 break;
@@ -694,13 +691,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       plugin = formatCreator.newFormatPlugin(config);
     }
     return plugin;
-  }
-
-  protected FileSystemCachedEntity fromFileAttributes(FileAttributes attributes){
-    return FileSystemCachedEntity.newBuilder()
-        .setPath(attributes.getPath().toString())
-        .setLastModificationTime(attributes.lastModifiedTime().toMillis())
-        .build();
   }
 
   @Override

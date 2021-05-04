@@ -18,6 +18,7 @@ package com.dremio.sabot.op.llvm;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.arrow.gandiva.evaluator.ConfigurationBuilder;
 import org.apache.arrow.gandiva.evaluator.Filter;
 import org.apache.arrow.gandiva.evaluator.SelectionVector;
 import org.apache.arrow.gandiva.evaluator.SelectionVectorInt16;
@@ -56,16 +57,20 @@ public class NativeFilter implements AutoCloseable {
    * @param selectionVector - the output selection vector
    * @param functionContext
    * @param optimize - should optimize the llvm build
+   * @param targetHostCPU - should generate target cpu specific instructions
    * @return instance of Native Filter.
    * @throws GandivaException when we fail to make the gandiva filter
    */
   static public NativeFilter build(LogicalExpression expr, VectorAccessible input,
                                    SelectionVector2 selectionVector, FunctionContext functionContext,
-                                   boolean optimize) throws GandivaException {
+                                   boolean optimize, boolean targetHostCPU) throws GandivaException {
     Set referencedFields = Sets.newHashSet();
     Condition condition = GandivaExpressionBuilder.serializeExprToCondition(input, expr, referencedFields, functionContext);
     VectorSchemaRoot root = GandivaUtils.getSchemaRoot(input, referencedFields);
-    Filter filter = Filter.make(root.getSchema(), condition, optimize);
+    ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
+      .withOptimize(optimize)
+      .withTargetCPU(targetHostCPU);
+    Filter filter = Filter.make(root.getSchema(), condition, configOptions);
     return new NativeFilter(filter, root, selectionVector);
   }
 

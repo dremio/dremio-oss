@@ -41,10 +41,12 @@ public class NativeProjectorBuilder {
   private List<ValueVector> allocationVectorsForNoOpt = new ArrayList<>();
   private final VectorAccessible incoming;
   private final FunctionContext functionContext;
+  private final boolean targetHostCPU;
 
-  public NativeProjectorBuilder(VectorAccessible incoming, FunctionContext functionContext) {
+  public NativeProjectorBuilder(VectorAccessible incoming, FunctionContext functionContext, Boolean targetHostCPU) {
     this.incoming = incoming;
     this.functionContext = functionContext;
+    this.targetHostCPU = targetHostCPU;
   }
 
   /**
@@ -63,8 +65,8 @@ public class NativeProjectorBuilder {
       return NO_OP;
     }
 
-    final NativeProjector projectorWithOpt = new NativeProjector(incoming, incomingSchema, functionContext, true);
-    final NativeProjector projectorWithNoOpt = new NativeProjector(incoming, incomingSchema, functionContext, false);
+    final NativeProjector projectorWithOpt = new NativeProjector(incoming, incomingSchema, functionContext, true, targetHostCPU);
+    final NativeProjector projectorWithNoOpt = new NativeProjector(incoming, incomingSchema, functionContext, false, targetHostCPU);
     for (ExprPairing e : exprs) {
       if (e.optimize) {
         projectorWithOpt.add(e.expr, e.outputVector);

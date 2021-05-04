@@ -19,19 +19,21 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.FieldReference;
+import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionCallFactory;
+import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.NamedExpression;
@@ -55,10 +57,12 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
   protected final RecordReader delegate;
   protected final OperatorContext context;
   private ScanOperator.ScanMutator outputMutator;
+  private final List<Field> partitionCols;
 
-  public DeltaLogCommitJsonRecordReader(OperatorContext context, RecordReader delegate) {
+  public DeltaLogCommitJsonRecordReader(OperatorContext context, RecordReader delegate, List<Field> partitionCols) {
     this.context = context;
     this.delegate = delegate;
+    this.partitionCols = partitionCols;
   }
 
   @Override
@@ -83,11 +87,8 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
 
   private List<NamedExpression> exprsToReadPartitionValues() {
     List<NamedExpression> exprs = new ArrayList<>();
-    StructVector addVector = (StructVector) outputMutator.getVector(DeltaConstants.DELTA_FIELD_ADD);
-    StructVector partitionValuesParsed = (StructVector) addVector.getChildVectorWithOrdinal(DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED).vector;
 
-    for (Field field : partitionValuesParsed.getField().getChildren()) {
-
+    for (Field field : partitionCols) {
       final SchemaPath inputRef = // add.partitionValues.[columnName]
         SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES, field.getName());
 
@@ -103,7 +104,15 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
       } else {
         cast = FunctionCallFactory.createCast(targetType, inputRef);
       }
-      exprs.add(new NamedExpression(cast, outputRef));
+      IfExpression.IfCondition parsedPartitionValueIsNotNull = new IfExpression.IfCondition(
+              new FunctionCall("isnotnull", Collections.singletonList(inputRef)), inputRef);
+
+      IfExpression ifEx = IfExpression.newBuilder()
+              .setIfCondition(parsedPartitionValueIsNotNull)
+              .setElse(cast)
+              .build();
+
+      exprs.add(new NamedExpression(ifEx, outputRef));
     }
     return exprs;
   }

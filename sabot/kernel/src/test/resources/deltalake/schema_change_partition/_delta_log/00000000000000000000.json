@@ -1,0 +1,3 @@
+{"commitInfo":{"timestamp":1618401359339,"operation":"CREATE TABLE","operationParameters":{"isManaged":"true","description":null,"partitionBy":"[\"PCOL1\"]","properties":"{}"},"isBlindAppend":true,"operationMetrics":{}}}
+{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}
+{"metaData":{"id":"baa8c034-b5e5-4e6e-b65f-8d1ee62f9159","format":{"provider":"parquet","options":{}},"schemaString":"{\"type\":\"struct\",\"fields\":[{\"name\":\"COL1\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"COL2\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"PCOL1\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}}]}","partitionColumns":["PCOL1"],"configuration":{},"createdTime":1618401359317}}

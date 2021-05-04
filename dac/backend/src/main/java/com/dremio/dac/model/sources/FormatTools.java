@@ -181,7 +181,7 @@ public class FormatTools {
     try {
       attributes = fs.getFileAttributes(path);
       if (attributes.isDirectory()) {
-        FileFormat fileFormat = plugin.findLayeredFormatMatch(fs, FileSelection.create(fs, path));
+        FileFormat fileFormat = plugin.findLayeredFormatMatch(fs, FileSelection.createNotExpanded(fs, path));
         if (fileFormat != null) {
           return asLayerFormat(key, fileFormat);
         }

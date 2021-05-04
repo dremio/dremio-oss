@@ -354,30 +354,34 @@ public class ScanOperator implements ProducerOperator {
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
-    final String senderInfo = String.format("Frag %d:%d, OpId %d", message.getSendingMajorFragmentId(),
-            message.getSendingMinorFragmentId(), message.getSendingOperatorId());
+    final String senderInfo = String.format("Frag %d, OpId %d", message.getSendingMajorFragmentId(), message.getSendingOperatorId());
     if (message.getBuffers()==null || message.getBuffers().length!=1) {
       logger.warn("Empty runtime filter received from {}", senderInfo);
       return;
     }
-    ArrowBuf msgBuf = message.getIfSingleBuffer().get();
 
-    logger.info("Filter received from {}", senderInfo);
-    try {
+    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
+      // Operator ID int is transformed as follows - (fragmentId << 16) + opId;
+      logger.info("Filter received from {} minor fragment {} into op {}", senderInfo, message.getSendingMinorFragmentId(),
+              config.getProps().getOperatorId());
       // scan operator handles the OOB message that it gets from the join operator
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, context.getStats());
 
-      boolean isAlreadyPresent = this.runtimeFilters.stream().anyMatch(r -> r.isOnSameColumns(filter));
+      final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, context.getStats());
+      rollbackCloseable.add(filter);
+
+      boolean isAlreadyPresent = this.runtimeFilters.stream()
+              .anyMatch(r -> r.getSenderInfo().equals(filter.getSenderInfo()) && r.isOnSameColumns(filter));
       if (isAlreadyPresent) {
         logger.debug("Skipping enforcement because filter is already present {}", filter);
-        AutoCloseables.close(filter);
       } else {
         logger.debug("Adding filter to the record readers {}, current reader {}.", filter, this.currentReader.getClass().getName());
         this.runtimeFilters.add(filter);
         this.currentReader.addRuntimeFilter(filter);
         this.readers.addRuntimeFilter(filter);
         context.getStats().addLongStat(Metric.NUM_RUNTIME_FILTERS, 1);
+        rollbackCloseable.commit();
       }
     } catch (Exception e) {
       logger.warn("Error while merging runtime filter piece from " + message.getSendingMajorFragmentId() + ":"

@@ -16,12 +16,10 @@
 package com.dremio.exec.vector.accessor;
 
 import java.sql.Time;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
+import java.time.LocalTime;
 import java.util.Calendar;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.TimeMilliVector;
 
@@ -34,6 +32,7 @@ import com.google.common.base.Preconditions;
 public class TimeMilliAccessor extends AbstractSqlAccessor {
 
   private static final MajorType TYPE = Types.optional(MinorType.TIME);
+  private static final long DAY_MS = TimeUnit.DAYS.toMillis(1);
 
   private final TimeZone defaultTimeZone;
   private final TimeMilliVector ac;
@@ -74,9 +73,19 @@ public class TimeMilliAccessor extends AbstractSqlAccessor {
       return null;
     }
 
-    // The Arrow datetime values are already in UTC, so adjust to the timezone of the calendar passed in to
-    // ensure the reported value is correct according to the JDBC spec.
-    final LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(ac.get(index)), tz.toZoneId());
-    return new TimePrintMillis(date);
+    // Ensure that the timezones are offset correctly.
+    long arrowMillis = ac.get(index);
+    if (tz != defaultTimeZone) {
+      arrowMillis -= tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis);
+    }
+
+    // ofNanoOfDay only accepts positive values within a day, so adjust to ensure this range.
+    if (arrowMillis > DAY_MS) {
+      arrowMillis %= DAY_MS;
+    } else if (arrowMillis < 0) {
+      arrowMillis -= ((arrowMillis / DAY_MS) - 1) * DAY_MS;
+    }
+
+    return new TimePrintMillis(LocalTime.ofNanoOfDay(TimeUnit.MILLISECONDS.toNanos(arrowMillis)));
   }
 }

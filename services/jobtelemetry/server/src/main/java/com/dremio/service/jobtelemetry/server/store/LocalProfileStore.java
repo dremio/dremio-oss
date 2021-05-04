@@ -58,9 +58,13 @@ public class LocalProfileStore implements ProfileStore {
     new HashMap<>();
   private LegacyKVStore<AttemptId, UserBitShared.QueryProfile> fullProfileStore;
 
-  // to ensure we don't save sub-profiles after a query has terminated.
+  // To ensure we don't create sub-profiles after a query has terminated,
+  // as in DX-30198, where we have seen queries take more than 5 minutes to cancel.
+  // To be on the safe side and prevent memory leaks, retaining deleted Query ID's
+  // for 10 minutes after last access.
+
   private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds = CacheBuilder.newBuilder()
-    .expireAfterWrite(5, TimeUnit.MINUTES)
+    .expireAfterAccess(10, TimeUnit.MINUTES)
     .build();
 
   public LocalProfileStore(LegacyKVStoreProvider kvStoreProvider) {

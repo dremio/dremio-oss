@@ -75,6 +75,8 @@ public interface TaskManager<T extends Task> extends GroupManager<T> {
 
     boolean isActive();
 
+    boolean isMarkedMigratable();
+
     void markInactive();
 
     void markActive();
@@ -82,6 +84,10 @@ public interface TaskManager<T extends Task> extends GroupManager<T> {
     void migrateAllTasks(int dstThread);
 
     void markFree(int threadNumber);
+
+    void markMigratable(int threadNumber);
+
+    void resetMigratable(int threadNumber);
   }
 
   /**

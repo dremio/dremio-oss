@@ -16,8 +16,11 @@
 package com.dremio.reflection.hints;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
+import com.google.common.collect.ImmutableList;
 
 public class ReflectionExplanationsAndQueryDistance implements Comparable<ReflectionExplanationsAndQueryDistance> {
   final String reflectionId;
@@ -25,8 +28,13 @@ public class ReflectionExplanationsAndQueryDistance implements Comparable<Reflec
   List<ReflectionExplanation> displayHintMessageList;
 
   public ReflectionExplanationsAndQueryDistance(String reflectionId, double queryDistance) {
+    this(reflectionId, queryDistance, ImmutableList.of());
+  }
+
+  public ReflectionExplanationsAndQueryDistance(String reflectionId, double queryDistance, List<ReflectionExplanation> displayHintMessageList) {
     this.reflectionId = reflectionId;
     this.queryDistance = queryDistance;
+    this.displayHintMessageList = displayHintMessageList;
   }
 
   public String getReflectionId() {
@@ -48,5 +56,36 @@ public class ReflectionExplanationsAndQueryDistance implements Comparable<Reflec
       return scoreComp;
     }
     return this.reflectionId.compareTo(that.reflectionId);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    } else if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ReflectionExplanationsAndQueryDistance that = (ReflectionExplanationsAndQueryDistance) o;
+    return Double.compare(that.queryDistance, queryDistance) == 0
+        && reflectionId.equals(that.reflectionId)
+        && displayHintMessageList.equals(that.displayHintMessageList);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(reflectionId, queryDistance, displayHintMessageList);
+  }
+
+  @Override
+  public String toString() {
+    return ""
+        + "ReflectionExplanationsAndQueryDistance{"
+        + "reflectionId='" + reflectionId + '\''
+        + ", queryDistance=" + queryDistance
+        + ", displayHintMessageList={\n\t"
+        + displayHintMessageList.stream()
+            .map(ExplanationUtil::toString)
+            .collect(Collectors.joining("\n\t"))
+        + "\n}}";
   }
 }

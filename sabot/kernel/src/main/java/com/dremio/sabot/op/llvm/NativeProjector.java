@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.arrow.gandiva.evaluator.ConfigurationBuilder;
 import org.apache.arrow.gandiva.evaluator.Projector;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.gandiva.expression.ExpressionTree;
@@ -44,14 +45,16 @@ public class NativeProjector implements AutoCloseable {
   private final FunctionContext functionContext;
   private final Set<Field> referencedFields;
   private final boolean optimize;
+  private final boolean targetHostCPU;
 
-  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize) {
+  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize, boolean targetHostCPU) {
     this.incoming = incoming;
     this.schema = schema;
     this.functionContext = functionContext;
     // preserve order of insertion
     referencedFields = Sets.newLinkedHashSet();
     this.optimize = optimize;
+    this.targetHostCPU = targetHostCPU;
   }
 
   public void add(LogicalExpression expr, FieldVector outputVector) {
@@ -62,7 +65,10 @@ public class NativeProjector implements AutoCloseable {
 
   public void build() throws GandivaException {
     root = GandivaUtils.getSchemaRoot(incoming, referencedFields);
-    projector = Projector.make(root.getSchema(), columnExprList, optimize);
+    ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
+      .withOptimize(optimize)
+      .withTargetCPU(targetHostCPU);
+    projector = Projector.make(root.getSchema(), columnExprList, configOptions);
   }
 
   public void execute(int recordCount, List<ValueVector> outVectors) throws Exception {

@@ -29,8 +29,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -41,6 +43,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.proto.ExecProtos.CompositeColumnFilter;
 import com.dremio.exec.proto.ExecProtos.RuntimeFilter;
@@ -80,47 +83,78 @@ public class ScanOperatorTest {
     @Test
     public void testWorkOnOOBRuntimeFilter() {
         try {
-            // Send 3 messages, two are redundant filters coming from different sending minor fragments.
-            // Finally, we expect two runtime filters to be added.
+            // Send 6 messages. 1/2 are independent filters, 3 is dup of 1 from a different minor frag and should be dropped, 4 comes from
+            // a different sender but filter structure is similar to 2/3, 5 comes from same sender as 4 but has one extra column.
+            // 6th comes from same sender as 4 but with one less non-partition column.
 
-            int buildMinorFragment1 = 2;
-            int buildMinorFragment2 = 1;
+            // Finally, we expect four runtime filters to be added.
+
+            int sendingMajorFragment1 = 11;
+            int sendingMajorFragment2 = 12;
+
+            int sendingMinorFragment1 = 2;
+            int sendingMinorFragment2 = 1;
+
+            int sendingOp1 = 101;
+            int sendingOp2 = 102;
+            int sendingOp3 = 103;
+
             ArrowBuf bloomFilterBuf = testAllocator.buffer(64);
             bloomFilterBuf.setZero(0, bloomFilterBuf.capacity());
             List<String> m1PtCols = Lists.newArrayList("pCol1", "pCol2");
+            List<String> m2PtCols = Lists.newArrayList("pCol3", "pCol4");
+            List<String> m5PtCols = new ArrayList<>(m2PtCols);
+            m5PtCols.add("pCol5"); //Extra partition col, so this won't be considered as a duplicate.
+
             ValueListFilter m1Vlf1 = utils.prepareNewValueListFilter("npCol1", false, 1, 2, 3);
             ValueListFilter m1Vlf2 = utils.prepareNewValueListFilter("npCol2", false, 11, 12, 13);
+            ValueListFilter m2Vlf1 = utils.prepareNewValueListBooleanFilter("npCol3", false, false, true);
+            ValueListFilter m2Vlf2 = utils.prepareNewValueListBooleanFilter("npCol4", true, true, false);
 
             // START: re-use for other messages
             m1Vlf1.buf().retain(); // msg3
             m1Vlf2.buf().retain(); // msg3
-            bloomFilterBuf.retain(2); // msg2, msg3
+            bloomFilterBuf.retain(5); // msg2, msg3, msg4, msg5, msg6
+            m2Vlf1.buf().retain(3); // re-used by msg4, msg5, msg6
+            m2Vlf2.buf().retain(2); // re-used by msg4, msg5
             // END
-            OutOfBandMessage msg1 = utils.newOOB(buildMinorFragment1, m1PtCols, bloomFilterBuf, m1Vlf1, m1Vlf2);
-
             RecordReader mockReader = mock(RecordReader.class);
-            ScanOperator scanOp = new ScanOperator(mock(SubScan.class), getMockContext(), RecordReaderIterator.from(mockReader), null, null, null);
+            ScanOperator scanOp = new ScanOperator(getConfig(), getMockContext(), RecordReaderIterator.from(mockReader), null, null, null);
 
+            OutOfBandMessage msg1 = utils.newOOB(sendingMajorFragment1, sendingOp1, sendingMinorFragment1, m1PtCols, bloomFilterBuf, m1Vlf1, m1Vlf2);
             scanOp.workOnOOB(msg1);
             Arrays.stream(msg1.getBuffers()).forEach(ArrowBuf::release);
             assertEquals(1, scanOp.getRuntimeFilters().size());
             ArgumentCaptor<com.dremio.exec.store.RuntimeFilter> addedFilter = ArgumentCaptor.forClass(com.dremio.exec.store.RuntimeFilter.class);
 
-            List<String> m2PtCols = Lists.newArrayList("pCol3", "pCol4");
-            ValueListFilter m2Vlf1 = utils.prepareNewValueListBooleanFilter("npCol3", false, false, true);
-            ValueListFilter m2Vlf2 = utils.prepareNewValueListBooleanFilter("npCol4", true, true, false);
-
-            OutOfBandMessage msg2 = utils.newOOB(buildMinorFragment2, m2PtCols, bloomFilterBuf, m2Vlf1, m2Vlf2);
+            OutOfBandMessage msg2 = utils.newOOB(sendingMajorFragment2, sendingOp2, sendingMinorFragment1, m2PtCols, bloomFilterBuf, m2Vlf1, m2Vlf2);
             scanOp.workOnOOB(msg2);
             Arrays.stream(msg2.getBuffers()).forEach(ArrowBuf::release);
             assertEquals(2, scanOp.getRuntimeFilters().size());
 
-            OutOfBandMessage msg3 = utils.newOOB(buildMinorFragment1, m1PtCols, bloomFilterBuf, m1Vlf1, m1Vlf2);
+            OutOfBandMessage msg3 = utils.newOOB(sendingMajorFragment1, sendingOp1, sendingMinorFragment2, m1PtCols, bloomFilterBuf, m1Vlf1, m1Vlf2);
             scanOp.workOnOOB(msg3); // should get skipped
             Arrays.stream(msg3.getBuffers()).forEach(ArrowBuf::release);
             assertEquals(2, scanOp.getRuntimeFilters().size());
 
-            verify(mockReader, times(2)).addRuntimeFilter(addedFilter.capture());
+            OutOfBandMessage msg4 = utils.newOOB(sendingMajorFragment2, sendingOp3, sendingMinorFragment1, m2PtCols, bloomFilterBuf, m2Vlf1, m2Vlf2);
+            scanOp.workOnOOB(msg4); // shouldn't be considered as duplicate because of different sending operator.
+            Arrays.stream(msg4.getBuffers()).forEach(ArrowBuf::release);
+            assertEquals(3, scanOp.getRuntimeFilters().size());
+
+            OutOfBandMessage msg5 = utils.newOOB(sendingMajorFragment2, sendingOp3, sendingMinorFragment1, m5PtCols, bloomFilterBuf, m2Vlf1, m2Vlf2);
+            scanOp.workOnOOB(msg5);
+            Arrays.stream(msg5.getBuffers()).forEach(ArrowBuf::release);
+            assertEquals(4, scanOp.getRuntimeFilters().size());
+
+            // With one less non partition col filter - m2vlf2
+            OutOfBandMessage msg6 = utils.newOOB(sendingMajorFragment2, sendingOp3, sendingMinorFragment1, m2PtCols, bloomFilterBuf, m2Vlf1);
+            scanOp.workOnOOB(msg6);
+            Arrays.stream(msg6.getBuffers()).forEach(ArrowBuf::release);
+            assertEquals(5, scanOp.getRuntimeFilters().size());
+
+            verify(mockReader, times(5)).addRuntimeFilter(addedFilter.capture());
+
             com.dremio.exec.store.RuntimeFilter filter1 = addedFilter.getAllValues().get(0);
             assertEquals(Lists.newArrayList("pCol1", "pCol2"), filter1.getPartitionColumnFilter().getColumnsList());
             assertEquals("BLOOM_FILTER", filter1.getPartitionColumnFilter().getFilterType().name());
@@ -133,7 +167,6 @@ public class ScanOperatorTest {
             assertEquals("VALUE_LIST", filter1.getNonPartitionColumnFilters().get(1).getFilterType().name());
 
             com.dremio.exec.store.RuntimeFilter filter2 = addedFilter.getAllValues().get(1);
-            assertEquals(Lists.newArrayList("pCol3", "pCol4"), filter2.getPartitionColumnFilter().getColumnsList());
             assertEquals(Lists.newArrayList("pCol3", "pCol4"), filter2.getPartitionColumnFilter().getColumnsList());
             assertEquals("BLOOM_FILTER", filter2.getPartitionColumnFilter().getFilterType().name());
             assertEquals(2, filter2.getNonPartitionColumnFilters().size());
@@ -153,6 +186,21 @@ public class ScanOperatorTest {
             assertFalse(col2Filter.isContainsTrue());
             assertTrue(col2Filter.isBoolField());
 
+            com.dremio.exec.store.RuntimeFilter filter3 = addedFilter.getAllValues().get(2);
+            assertEquals(Lists.newArrayList("pCol3", "pCol4"), filter3.getPartitionColumnFilter().getColumnsList());
+            List<String> f3NonPartitionCols = filter3.getNonPartitionColumnFilters().stream().map(f -> f.getColumnsList().get(0)).collect(Collectors.toList());
+            assertEquals(Lists.newArrayList("npCol3", "npCol4"), f3NonPartitionCols);
+
+            com.dremio.exec.store.RuntimeFilter filter4 = addedFilter.getAllValues().get(3);
+            assertEquals(Lists.newArrayList("pCol3", "pCol4", "pCol5"), filter4.getPartitionColumnFilter().getColumnsList());
+            List<String> f4NonPartitionCols = filter4.getNonPartitionColumnFilters().stream().map(f -> f.getColumnsList().get(0)).collect(Collectors.toList());
+            assertEquals(Lists.newArrayList("npCol3", "npCol4"), f4NonPartitionCols);
+
+            com.dremio.exec.store.RuntimeFilter filter5 = addedFilter.getAllValues().get(4);
+            assertEquals(Lists.newArrayList("pCol3", "pCol4"), filter5.getPartitionColumnFilter().getColumnsList());
+            List<String> f5NonPartitionCols = filter5.getNonPartitionColumnFilters().stream().map(f -> f.getColumnsList().get(0)).collect(Collectors.toList());
+            assertEquals(Lists.newArrayList("npCol3"), f5NonPartitionCols);
+
             AutoCloseables.close(scanOp.getRuntimeFilters());
         } catch (Exception e) {
             e.printStackTrace();
@@ -168,7 +216,7 @@ public class ScanOperatorTest {
             RuntimeFilter filter1 = newRuntimeFilter(512, "col1", "col2"); // mismatched size
             OutOfBandMessage msg1 = newOOBMessage(filter1, oobMessageBuf, buildMajorFragment1, buildMinorFragment1);
             RecordReader mockReader = mock(RecordReader.class);
-            ScanOperator scanOp = new ScanOperator(mock(SubScan.class), getMockContext(), RecordReaderIterator.from(mockReader), null, null, null);
+            ScanOperator scanOp = new ScanOperator(getConfig(), getMockContext(), RecordReaderIterator.from(mockReader), null, null, null);
             scanOp.workOnOOB(msg1);
             Arrays.stream(msg1.getBuffers()).forEach(ArrowBuf::release);
             verify(mockReader, never()).addRuntimeFilter(any(com.dremio.exec.store.RuntimeFilter.class));
@@ -200,6 +248,14 @@ public class ScanOperatorTest {
                 new OutOfBandMessage.Payload(filter),
                 bufs,
                 false);
+    }
+
+    private SubScan getConfig() {
+        SubScan config = mock(SubScan.class);
+        OpProps props = mock(OpProps.class);
+        when(props.getOperatorId()).thenReturn(123);
+        when(config.getProps()).thenReturn(props);
+        return config;
     }
 
     private RuntimeFilter newRuntimeFilter(int sizeBytes, String... cols) {

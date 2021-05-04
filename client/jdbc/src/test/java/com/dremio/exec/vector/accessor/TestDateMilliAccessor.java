@@ -20,7 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.TimeZone;
 
@@ -31,8 +30,8 @@ import org.junit.Test;
 
 public class TestDateMilliAccessor {
 
-  public static final long NON_NULL_VALUE = 89683200000L; // 1972-11-04
-  public static final long DST_VALUE = 1558999993123L; // 2019-05-27 16:33:13.123
+  private static final Date NON_NULL_VALUE = new Date(72, 10, 4);
+  private static final Date DST_VALUE = new Date(119, 4, 27);
   private static final Calendar PST_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("PST"));
   private static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 
@@ -43,8 +42,8 @@ public class TestDateMilliAccessor {
   public void setUp() {
     valueVector = new DateMilliVector("t", new RootAllocator());
     valueVector.allocateNew(3);
-    valueVector.set(0, NON_NULL_VALUE);
-    valueVector.set(1, DST_VALUE);
+    valueVector.set(0, 89683200000L);
+    valueVector.set(1, 1558915200000L);
     valueVector.setNull(2);
 
     accessor = new DateMilliAccessor(valueVector, UTC_CALENDAR.getTimeZone());
@@ -60,7 +59,7 @@ public class TestDateMilliAccessor {
 
   @Test
   public void testGetObject() throws Exception {
-    assertEquals(new Date(72, 10, 4), accessor.getObject(0));
+    assertEquals(NON_NULL_VALUE, accessor.getObject(0));
   }
 
   @Test(expected=NullPointerException.class)
@@ -75,10 +74,11 @@ public class TestDateMilliAccessor {
 
   @Test
   public void testGetDate() throws Exception {
-    assertEquals(new Date(72, 10, 3), accessor.getDate(0, PST_CALENDAR));
-    assertEquals(new Date(72, 10, 4), accessor.getDate(0, UTC_CALENDAR));
-
-    assertEquals(new Date(119, 4, 27), accessor.getDate(1, PST_CALENDAR));
-    assertEquals(new Date(119, 4, 27), accessor.getDate(1, UTC_CALENDAR));
+    assertEquals(new Date(NON_NULL_VALUE.getTime() - PST_CALENDAR.getTimeZone().getOffset(NON_NULL_VALUE.getTime())),
+      accessor.getDate(0, PST_CALENDAR));
+    assertEquals(NON_NULL_VALUE, accessor.getDate(0, UTC_CALENDAR));
+    assertEquals(new Date(DST_VALUE.getTime() - PST_CALENDAR.getTimeZone().getOffset(DST_VALUE.getTime())).getTime(),
+      accessor.getDate(1, PST_CALENDAR).getTime());
+    assertEquals(DST_VALUE, accessor.getDate(1, UTC_CALENDAR));
   }
 }

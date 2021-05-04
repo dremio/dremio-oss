@@ -33,6 +33,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -77,6 +78,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
+import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -374,16 +376,23 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       .setLastModificationTime(0) // using 0 as the mtime to signify that these splits are immutable
       .build();
 
-    return parquetMetadata.getBlocks().stream().map(x -> {
+    int rowGrpIdx=0;
+    final List<DatasetSplit> datasetSplits = new ArrayList<>(parquetMetadata.getBlocks().size());
+    for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+      final DeltaLakeProtobuf.DeltaCommitLogSplitXAttr deltaExtended = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr
+              .newBuilder().setRowGroupIndex(rowGrpIdx).build();
+      rowGrpIdx++;
       final EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
-        .setPath(fileAttributes.getPath().toString())
-        .setStart(x.getStartingPos())
-        .setLength(x.getTotalByteSize())
-        .setUpdateKey(fileProto)
-        .build();
-      return DatasetSplit.of(
-        Collections.EMPTY_LIST, x.getTotalByteSize(), x.getRowCount(), splitExtended::writeTo);
-    }).collect(Collectors.toList());
+              .setPath(fileAttributes.getPath().toString())
+              .setStart(blockMetaData.getStartingPos())
+              .setLength(blockMetaData.getCompressedSize())
+              .setUpdateKey(fileProto)
+              .setExtendedProperty(deltaExtended.toByteString())
+              .build();
+      datasetSplits.add(DatasetSplit.of(Collections.EMPTY_LIST, blockMetaData.getCompressedSize(),
+              blockMetaData.getRowCount(), splitExtended::writeTo));
+    }
+    return datasetSplits;
   }
 
   private static JsonNode findNode(JsonNode node, String... paths) {

@@ -34,3 +34,7 @@ message DeltaLakeDatasetXAttr {
   optional int64 sizeBytes = 6; // Total size in bytes of t he parquet data files
   optional int64 numCommitJsonDataFileCount = 7; // Number of data files mentioned only in commit jsons (not in checkpoint)
 }
+
+message DeltaCommitLogSplitXAttr {
+  optional int32 rowGroupIndex = 1; // Identifies the position of the rowgroup.
+}

@@ -31,6 +31,7 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
@@ -52,7 +53,7 @@ public class TestDeltaLogCommitJsonReader {
         assertEquals(0L, snapshot.getNetBytesAdded());
         assertEquals(DremioCost.LARGE_FILE_COUNT, snapshot.getNetFilesAdded());
         assertEquals(DremioCost.LARGE_ROW_COUNT, snapshot.getNetOutputRows());
-        assertTrue(snapshot.getPartitionColumns().isEmpty());
+        assertEquals(ImmutableList.of("ws_sold_date_sk"), snapshot.getPartitionColumns());
         assertEquals(1609775409819L, snapshot.getTimestamp());
         assertTrue(snapshot.isMissingRequiredValues());
     }
@@ -118,7 +119,7 @@ public class TestDeltaLogCommitJsonReader {
         assertEquals(1208L, snapshot.getNetBytesAdded());
         assertEquals(1L, snapshot.getNetFilesAdded());
         assertEquals(0L, snapshot.getNetOutputRows());
-        assertTrue(snapshot.getPartitionColumns().isEmpty());
+        assertEquals(ImmutableList.of("ws_sold_date_sk"), snapshot.getPartitionColumns());
         assertEquals(1609775409819L, snapshot.getTimestamp());
     }
 

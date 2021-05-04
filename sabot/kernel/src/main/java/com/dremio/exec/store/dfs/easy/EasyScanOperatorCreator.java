@@ -76,7 +76,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
     }
   };
 
-  private static class SplitAndExtended {
+  public static class SplitAndExtended {
     private final SplitAndPartitionInfo split;
     private final EasyDatasetSplitXAttr extended;
     public SplitAndExtended(SplitAndPartitionInfo split) {
@@ -126,46 +126,50 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
     final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(context, config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
     final List<SchemaPath> innerFields = selectAllColumns ? ImmutableList.of(ColumnUtils.STAR_COLUMN) : readerConfig.getInnerColumns();
 
-    FluentIterable<RecordReader> readers =
-        FluentIterable.from(workList)
-            .transform(
-                new Function<SplitAndExtended, RecordReader>() {
-                  @Override
-                  public RecordReader apply(SplitAndExtended input) {
-                    try {
-                      // If a file source scheme has changed, then trigger a refresh to update the metadata.
-                      if (!fs.supportsPath(Path.of(input.getExtended().getPath()))) {
-                        throw UserException.invalidMetadataError()
-                          .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), input.getExtended().getPath()))
-                          .addContext("File", input.getExtended().getPath())
-                          .setAdditionalExceptionContext(
-                            new InvalidMetadataErrorContext(
-                              ImmutableList.copyOf(config.getReferencedTables())))
-                          .build(logger);
-                      }
+    RecordReaderIterator readerIterator = formatPlugin.getRecordReaderIterator(fs, context, innerFields, config, workList);
+    if (readerIterator == null) {
+      FluentIterable<RecordReader> readers =
+              FluentIterable.from(workList)
+                      .transform(
+                              new Function<SplitAndExtended, RecordReader>() {
+                                @Override
+                                public RecordReader apply(SplitAndExtended input) {
+                                  try {
+                                    // If a file source scheme has changed, then trigger a refresh to update the metadata.
+                                    if (!fs.supportsPath(Path.of(input.getExtended().getPath()))) {
+                                      throw UserException.invalidMetadataError()
+                                              .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), input.getExtended().getPath()))
+                                              .addContext("File", input.getExtended().getPath())
+                                              .setAdditionalExceptionContext(
+                                                      new InvalidMetadataErrorContext(
+                                                              ImmutableList.copyOf(config.getReferencedTables())))
+                                              .build(logger);
+                                    }
 
-                      RecordReader inner =
-                          formatPlugin.getRecordReader(
-                              context, fs, input.getSplit(), input.getExtended(), innerFields, fragmentExecContext, config);
-                      return readerConfig.wrapIfNecessary(
-                          context.getAllocator(), inner, input.getSplit());
-                    } catch (ExecutionSetupException e) {
-                      if (e.getCause() instanceof FileNotFoundException) {
-                        throw UserException.invalidMetadataError(e.getCause())
-                            .addContext("File not found")
-                            .addContext("File", input.getExtended().getPath())
-                            .setAdditionalExceptionContext(
-                                new InvalidMetadataErrorContext(
-                                    ImmutableList.copyOf(config.getReferencedTables())))
-                            .build(logger);
-                      } else {
-                        throw new RuntimeException(e);
-                      }
-                    }
-                  }
-                });
+                                    RecordReader inner =
+                                            formatPlugin.getRecordReader(
+                                                    context, fs, input.getSplit(), input.getExtended(), innerFields, fragmentExecContext, config);
+                                    return readerConfig.wrapIfNecessary(
+                                            context.getAllocator(), inner, input.getSplit());
+                                  } catch (ExecutionSetupException e) {
+                                    if (e.getCause() instanceof FileNotFoundException) {
+                                      throw UserException.invalidMetadataError(e.getCause())
+                                              .addContext("File not found")
+                                              .addContext("File", input.getExtended().getPath())
+                                              .setAdditionalExceptionContext(
+                                                      new InvalidMetadataErrorContext(
+                                                              ImmutableList.copyOf(config.getReferencedTables())))
+                                              .build(logger);
+                                    } else {
+                                      throw new RuntimeException(e);
+                                    }
+                                  }
+                                }
+                              });
+      readerIterator = RecordReaderIterator.from(readers.iterator());
+    }
 
-    return new ScanOperator(config, context, RecordReaderIterator.from(readers.iterator()));
+    return new ScanOperator(config, context, readerIterator);
   }
 
   /**

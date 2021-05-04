@@ -19,8 +19,6 @@ import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.util.List;
@@ -53,27 +51,31 @@ public class FileSelection {
   public static final String PATH_SEPARATOR = System.getProperty("file.separator");
   private static final String WILD_CARD = "*";
 
-  private final ImmutableList<FileAttributes> fileAttributesList;
+  private ImmutableList<FileAttributes> fileAttributesList;
   private final String selectionRoot;
+  private final Path originalRootPath;
 
   private enum StatusType {
     NO_DIRS,             // no directories in this selection
     HAS_DIRS,            // directories were found in the selection
-    EXPANDED             // whether this selection has been expanded to files
+    EXPANDED,            // whether this selection has been expanded to files
+    NOT_EXPANDED         // selection will only have selectionRoot info and no information about sub-dir/subfiles
   }
 
-  private final StatusType dirStatus;
+  private StatusType dirStatus;
 
   /**
    * Creates a {@link FileSelection selection} out of given file statuses/files and selection root.
-   *
-   * @param statuses  list of file statuses
-   * @param selectionRoot  root path for selections
+   * @param status
+   * @param fileAttributesList
+   * @param selectionRoot
+   * @param originalRootPath
    */
-  private FileSelection(StatusType status, final ImmutableList<FileAttributes> fileAttributesList, final String selectionRoot) {
+  private FileSelection(StatusType status, final ImmutableList<FileAttributes> fileAttributesList, final String selectionRoot, final Path originalRootPath) {
     this.fileAttributesList = Preconditions.checkNotNull(fileAttributesList);
     this.selectionRoot = Preconditions.checkNotNull(selectionRoot);
     this.dirStatus = status;
+    this.originalRootPath = originalRootPath;
   }
 
   public boolean isEmpty() {
@@ -87,6 +89,7 @@ public class FileSelection {
     Preconditions.checkNotNull(selection, "selection cannot be null");
     this.fileAttributesList = selection.fileAttributesList;
     this.selectionRoot = selection.selectionRoot;
+    this.originalRootPath = selection.originalRootPath;
     this.dirStatus = selection.dirStatus;
   }
 
@@ -128,10 +131,6 @@ public class FileSelection {
     return fileSel;
   }
 
-  public FileAttributes getFirstPath() throws IOException {
-    return getFileAttributesList().get(0);
-  }
-
   public int getMaxDepth(FileAttributes rootStatus) {
     final int selectionDepth = rootStatus.getPath().depth();
 
@@ -150,8 +149,21 @@ public class FileSelection {
     return dirStatus == StatusType.EXPANDED;
   }
 
+  public boolean isNotExpanded() {
+    return dirStatus == StatusType.NOT_EXPANDED;
+  }
+
+  public boolean isNoDirs() { return dirStatus == StatusType.NO_DIRS;}
+
   public static FileSelection create(FileAttributes fileAttributes) throws IOException {
-    return new FileSelection(StatusType.EXPANDED, ImmutableList.of(fileAttributes), fileAttributes.getPath().toString());
+    return new FileSelection(StatusType.EXPANDED, ImmutableList.of(fileAttributes), fileAttributes.getPath().toString(), fileAttributes.getPath());
+  }
+
+  public void expand(FileSystem fs) throws IOException {
+    if(dirStatus == StatusType.NOT_EXPANDED) {
+      this.fileAttributesList = generateListOfFileAttributes(fs, originalRootPath);
+      this.dirStatus = StatusType.EXPANDED;
+    }
   }
 
   public static Path getPathBasedOnFullPath(List<String> fullPath) {
@@ -168,35 +180,42 @@ public class FileSelection {
     return create(fs, getPathBasedOnFullPath(fullPath));
   }
 
+  public static FileSelection createNotExpanded(final FileSystem fs, final List<String> fullPath) throws IOException {
+    return createNotExpanded(fs, getPathBasedOnFullPath(fullPath));
+  }
+
   // Check if path is actually a full schema path
   public static FileSelection createWithFullSchema(final FileSystem fs, final String parent, final String fullSchemaPath) throws IOException {
     final Path combined = Path.mergePaths(Path.of(parent), PathUtils.toFSPath(fullSchemaPath));
     return create(fs, combined);
   }
 
+  public static FileSelection createWithFullSchemaNotExpanded(final FileSystem fs, final String parent, final String fullSchemaPath) throws IOException {
+    final Path combined = Path.mergePaths(Path.of(parent), PathUtils.toFSPath(fullSchemaPath));
+    return createNotExpanded(fs, combined);
+  }
+
   public static FileSelection create(final FileSystem fs, Path combined) throws IOException {
     Stopwatch timer = Stopwatch.createStarted();
-
-    // NFS filesystems has delay before files written by executor shows up in the coordinator.
-    // For NFS, fs.exists() will force a refresh if the directory is not found
-    // No action is taken if it returns false as the code path already handles the Exception case
-    fs.exists(combined);
-
-    final ImmutableList<FileAttributes> fileAttributes;
-    try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
-      fileAttributes = ImmutableList.copyOf(stream);
-    } catch (DirectoryIteratorException e) {
-      throw e.getCause();
-    }
-
-    logger.trace("Returned files are: {}", fileAttributes);
-    if (fileAttributes == null || fileAttributes.isEmpty()) {
+    final ImmutableList<FileAttributes> fileAttributes = generateListOfFileAttributes(fs, combined);
+    if (fileAttributes.isEmpty()) {
       return null;
     }
-
     final FileSelection fileSel = createFromExpanded(fileAttributes, combined.toURI().getPath());
     logger.debug("FileSelection.create() took {} ms ", timer.elapsed(TimeUnit.MILLISECONDS));
     return fileSel;
+  }
+
+  public static FileSelection createNotExpanded(final FileSystem fs, Path root) throws IOException {
+    if (root == null || root.toString().isEmpty()) {
+      throw new IllegalArgumentException("Selection root is null or empty" + root);
+    }
+    final Path rootPath = handleWildCard(root.toString());
+    if (!fs.exists(rootPath)) {
+      return null;
+    }
+    final String selectionRoot = Path.withoutSchemeAndAuthority(rootPath).toString();
+    return new FileSelection(StatusType.NOT_EXPANDED, ImmutableList.of(), selectionRoot, root);
   }
 
   public static FileSelection createFromExpanded(final ImmutableList<FileAttributes> fileAttributes, final String root) {
@@ -206,7 +225,8 @@ public class FileSelection {
   /**
    * Creates a {@link FileSelection selection} with the given file statuses and selection root.
    *
-   * @param statuses  list of file statuses
+   * @param status  status
+   * @param fileAttributes list of file attributes
    * @param root  root path for selections
    *
    * @return  null if creation of {@link FileSelection} fails with an {@link IllegalArgumentException}
@@ -214,24 +234,13 @@ public class FileSelection {
    *
    */
   private static FileSelection create(StatusType status, final ImmutableList<FileAttributes> fileAttributes, final String root) {
-    if (fileAttributes == null || fileAttributes.isEmpty()) {
-      return null;
-    }
-
-    final String selectionRoot;
     if (Strings.isNullOrEmpty(root)) {
       throw new IllegalArgumentException("Selection root is null or empty" + root);
     }
+    final Path originalRootPath = Path.of(root);
     final Path rootPath = handleWildCard(root);
-    final URI uri = fileAttributes.get(0).getPath().toURI();
-    final Path path;
-    try {
-      path = Path.of(new URI(uri.getScheme(), uri.getAuthority(), rootPath.toURI().getPath(), null, null));
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
-    }
-    selectionRoot = Path.withoutSchemeAndAuthority(path).toString();
-    return new FileSelection(status, fileAttributes, selectionRoot);
+    String selectionRoot = Path.withoutSchemeAndAuthority(rootPath).toString();
+    return new FileSelection(status, fileAttributes, selectionRoot, originalRootPath);
   }
 
   private static Path handleWildCard(final String root) {
@@ -275,5 +284,22 @@ public class FileSelection {
       }
     }
     return extensions;
+  }
+
+  private static ImmutableList<FileAttributes> generateListOfFileAttributes(FileSystem fs, Path combined) throws IOException {
+    // NFS filesystems has delay before files written by executor shows up in the coordinator.
+    // For NFS, fs.exists() will force a refresh if the directory is not found
+    // No action is taken if it returns false as the code path already handles the Exception case
+    fs.exists(combined);
+
+    ImmutableList<FileAttributes> fileAttributes;
+    try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
+      fileAttributes = ImmutableList.copyOf(stream);
+    } catch (DirectoryIteratorException e) {
+      throw e.getCause();
+    }
+
+    logger.trace("Returned files are: {}", fileAttributes);
+    return fileAttributes;
   }
 }

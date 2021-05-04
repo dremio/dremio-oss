@@ -76,4 +76,8 @@ public interface FormatPlugin {
    * Get a record reader specifically for the purposes of previews.
    */
   public RecordReader getRecordReader(final OperatorContext context, final FileSystem dfs, final FileAttributes attributes) throws ExecutionSetupException;
+
+  default FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
+    return new DefaultFileSelectionProcessor(fs, fileSelection);
+  }
 }

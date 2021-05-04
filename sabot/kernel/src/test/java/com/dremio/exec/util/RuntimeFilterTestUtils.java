@@ -39,7 +39,7 @@ public class RuntimeFilterTestUtils {
         this.testAllocator = testAllocator;
     }
 
-    public OutOfBandMessage newOOB(int sendingMinorFragment, List<String> partitionCols,
+    public OutOfBandMessage newOOB(int sendingMajorFragment, int sendingOperator, int sendingMinorFragment, List<String> partitionCols,
                                    ArrowBuf bloomFilterBuf, ValueListFilter... nonPartitionColFilters) {
         List<Integer> allFragments = Lists.newArrayList(1, 2, 3, 4);
         allFragments.removeIf(val -> val==sendingMinorFragment);
@@ -72,8 +72,10 @@ public class RuntimeFilterTestUtils {
             }
         }
         ArrowBuf mergedBuf = getMergedBuf(bufsToMerge);
-        OutOfBandMessage msg = new OutOfBandMessage(null, 1, allFragments, 101, 1, sendingMinorFragment,
-                101, new OutOfBandMessage.Payload(runtimeFilter.build()), new ArrowBuf[]{mergedBuf}, true);
+        final int targetMajorFragment = 1;
+        final int targetOperator = 1001;
+        OutOfBandMessage msg = new OutOfBandMessage(null, targetMajorFragment, allFragments, targetOperator, sendingMajorFragment, sendingMinorFragment,
+                sendingOperator, new OutOfBandMessage.Payload(runtimeFilter.build()), new ArrowBuf[]{mergedBuf}, true);
         msg.getBuffers()[0].close(); // Compensate for retain in this constructor
         return msg;
     }

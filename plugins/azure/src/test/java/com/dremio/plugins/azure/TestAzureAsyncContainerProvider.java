@@ -248,6 +248,80 @@ public class TestAzureAsyncContainerProvider {
     verify(client, times(1)).executeRequest(any(Request.class));
   }
 
+  @Test
+  public void testListContainersExtraAttrs() throws IOException, ExecutionException, InterruptedException {
+    AsyncHttpClient client = mock(AsyncHttpClient.class);
+    Response response = mock(Response.class);
+    when(response.getHeader(any(String.class))).thenReturn("");
+    HttpResponseStatus status = mock(HttpResponseStatus.class);
+    when(status.getStatusCode()).thenReturn(206);
+
+    byte[] dfsCoreResponseBodyBytesPage1 = readStaticResponse("dfs-core-container-response-extra-attrs.json");
+    RandomBytesResponseDispatcher dfsCoreResponseDispatcherPage1 = new RandomBytesResponseDispatcher(dfsCoreResponseBodyBytesPage1);
+
+    byte[] dfsCoreResponseBodyBytesPage2 = readStaticResponse("dfs-core-container-response-page2.json");
+    RandomBytesResponseDispatcher dfsCoreResponseDispatcherPage2 = new RandomBytesResponseDispatcher(dfsCoreResponseBodyBytesPage2);
+
+    byte[] dfsCoreEmptyResponseBytes = readStaticResponse("dfs-core-container-empty.json");
+    RandomBytesResponseDispatcher dfsCoreEmptyResponseDispatcher = new RandomBytesResponseDispatcher(dfsCoreEmptyResponseBytes);
+
+    CompletableFuture<Response> future = CompletableFuture.completedFuture(response);
+    ListenableFuture<Response> resFuture = mock(ListenableFuture.class);
+    when(resFuture.toCompletableFuture()).thenReturn(future);
+    when(resFuture.get()).thenReturn(response);
+
+    when(client.executeRequest(any(Request.class), any(AsyncCompletionHandler.class))).then(invocationOnMock -> {
+      Request req = invocationOnMock.getArgument(0, Request.class);
+      AsyncCompletionHandler handler = invocationOnMock.getArgument(1, AsyncCompletionHandler.class);
+
+      assertTrue(req.getUrl().startsWith("https://azurestoragev2hier.dfs.core.windows.net"));
+      assertNotNull(req.getHeaders().get("Date"));
+      assertNotNull(req.getHeaders().get("x-ms-client-request-id"));
+      assertEquals("2019-07-07", req.getHeaders().get("x-ms-version")); // edit only if you're upgrading client
+      assertEquals("Bearer testtoken", req.getHeaders().get("Authorization"));
+      List<NameValuePair> queryParams = URLEncodedUtils.parse(new URI(req.getUrl()), StandardCharsets.UTF_8);
+      String continuationKey = queryParams.stream()
+              .filter(param -> param.getName().equalsIgnoreCase("continuation")).findAny()
+              .map(NameValuePair::getValue).orElse("");
+
+      // Return empty response if continuation key is not present. Return data in continuation call.
+      // This is to ensure that the plugin makes another call when there's no data but continuation key present.
+      if ("page1container1".equals(continuationKey)) {
+        when(response.getHeader("x-ms-continuation")).thenReturn("page2container1");
+        while (dfsCoreResponseDispatcherPage1.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreResponseDispatcherPage1.getNextBodyPart());
+        }
+      } else if ("page2container1".equals(continuationKey)) {
+        when(response.getHeader("x-ms-continuation")).thenReturn("");
+        while (dfsCoreResponseDispatcherPage2.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreResponseDispatcherPage2.getNextBodyPart());
+        }
+      } else {
+        when(response.getHeader("x-ms-continuation")).thenReturn("page1container1");
+        while (dfsCoreEmptyResponseDispatcher.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreEmptyResponseDispatcher.getNextBodyPart());
+        }
+      }
+
+      handler.onStatusReceived(status);
+      handler.onCompleted(response);
+      return resFuture;
+    });
+
+    AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
+    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
+            client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+
+    List<String> receivedContainers = containerProvider.getContainerCreators()
+            .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)
+            .map(AzureStorageFileSystem.ContainerCreatorImpl::getName)
+            .collect(Collectors.toList());
+
+    List<String> expectedContainers = Arrays.asList("page1container1", "page1container2", "page1container3", "page2container1", "page2container2", "page2container3");
+    assertEquals(expectedContainers, receivedContainers);
+  }
+
   private byte[] readStaticResponse(String fileName) throws IOException {
     // response is big, hence kept in a separate file within test/resources folder
     try (InputStream is = this.getClass().getClassLoader().getResourceAsStream(fileName)) {

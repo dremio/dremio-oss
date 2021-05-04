@@ -106,6 +106,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testDateWithTimezoneChange() throws Exception {
     // Test result with changing time zones.
     TimeZone currentTZ = TimeZone.getDefault();
+    reset();
 
     try {
       TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
@@ -114,6 +115,9 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
           " TO_DATE('21/01/00', 'DD/MM/YY', 1), TO_DATE('DEC 25, 1999', 'MON DD, YYYY', 1) FROM (VALUES(1))")
         .returns("EXPR$0=2009-07-06; EXPR$1=2017-12-16; EXPR$2=2000-01-21; EXPR$3=1999-12-25");
 
+      // The underlying Connection is cached unless we reset, which is needed to pick up the new timezone.
+      reset();
+
       TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
       JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("SELECT TO_DATE('2009-07-06', 'YYYY-MM-DD', 1), TO_DATE('12.16.17', 'MM.DD.YY', 1)," +
@@ -121,6 +125,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
         .returns("EXPR$0=2009-07-06; EXPR$1=2017-12-16; EXPR$2=2000-01-21; EXPR$3=1999-12-25");
     } finally {
       TimeZone.setDefault(currentTZ);
+      reset();
     }
   }
 
@@ -137,6 +142,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testTimeWithTimezoneChange() throws Exception {
     // Test result with changing time zones.
     TimeZone currentTZ = TimeZone.getDefault();
+    reset();
 
     try {
       TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
@@ -145,6 +151,9 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
           " TO_TIME('16:20', 'HH24:MI', 1), TO_TIME('16:30:59', 'HH24:MI:SS', 1)  FROM (VALUES(1))")
         .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59");
 
+      // The underlying Connection is cached unless we reset, which is needed to pick up the new timezone.
+      reset();
+
       TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
       JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("SELECT TO_TIME('09:15', 'HH:MI', 1)," +
@@ -152,6 +161,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
         .returns("EXPR$0=09:15:00; EXPR$1=16:20:00; EXPR$2=16:30:59");
     } finally {
       TimeZone.setDefault(currentTZ);
+      reset();
     }
   }
 
@@ -168,6 +178,7 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   public void testTimestampWithTimezoneChange() throws Exception {
     // Test result with changing time zones.
     TimeZone currentTZ = TimeZone.getDefault();
+    reset();
 
     try {
       TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
@@ -175,12 +186,16 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
         .sql("SELECT TO_TIMESTAMP('2014-05-10 01:59:10', 'YYYY-MM-DD HH24:MI:SS', 1) FROM (VALUES(1))")
         .returns("EXPR$0=2014-05-10 01:59:10.0");
 
+      // The underlying Connection is cached unless we reset, which is needed to pick up the new timezone.
+      reset();
+
       TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
       JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql("SELECT TO_TIMESTAMP('2014-05-10 01:59:10', 'YYYY-MM-DD HH24:MI:SS', 1) FROM (VALUES(1))")
         .returns("EXPR$0=2014-05-10 01:59:10.0");
     } finally {
       TimeZone.setDefault(currentTZ);
+      reset();
     }
   }
 

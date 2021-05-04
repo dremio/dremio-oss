@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>15.0.0-202103312106020527-0be9c719</version>
+  <version>15.5.0-202105040508160960-dddd4dca</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>4.0.0-20210303080849-4e6380d754-dremio</arrow.version>
+    <arrow.version>4.0.0-20210408013758-103afaedd6-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
     <calcite.version>1.16.0-202103172325080800-52cfc7c</calcite.version>
     <derby.version>10.14.2.0</derby.version>

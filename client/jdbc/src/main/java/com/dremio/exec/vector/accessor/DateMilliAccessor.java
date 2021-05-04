@@ -16,9 +16,8 @@
 package com.dremio.exec.vector.accessor;
 
 import java.sql.Date;
-import java.time.Instant;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.TimeZone;
@@ -73,9 +72,12 @@ public class DateMilliAccessor extends AbstractSqlAccessor {
       return null;
     }
 
-    // The Arrow datetime values are already in UTC, so adjust to the timezone of the calendar passed in to
-    // ensure the reported value is correct according to the JDBC spec.
-    final LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(ac.get(index)), tz.toZoneId());
-    return new Date(date.getYear() - 1900, date.getMonthValue() - 1, date.getDayOfMonth());
+    LocalDateTime ldt = ac.getObject(index);
+    if (tz != defaultTimeZone) {
+      final long arrowMillis = ac.get(index);
+      ldt = ldt.minus(tz.getOffset(arrowMillis) - defaultTimeZone.getOffset(arrowMillis), ChronoUnit.MILLIS);
+    }
+
+    return new Date(Timestamp.valueOf(ldt).getTime());
   }
 }

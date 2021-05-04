@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNull;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.TimeStampMilliVector;
@@ -31,8 +30,8 @@ import org.junit.Test;
 
 public class TestTimeStampMilliAccessor {
 
-  public static final long NON_NULL_VALUE = 89723408957L; // 1972-11-04 11:10:08.957
-  public static final long DST_VALUE = 1558999993123L; // 2019-05-27 23:33:13.123
+  private static final Timestamp NON_NULL_VALUE = new Timestamp(72, 10, 4, 11, 10, 8, 957000000);
+  private static final Timestamp DST_VALUE = new Timestamp(119, 4, 27, 23, 33, 13, 123000000);
   private static final Calendar PST_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("PST"));
   private static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 
@@ -43,8 +42,8 @@ public class TestTimeStampMilliAccessor {
   public void setUp() {
     valueVector = new TimeStampMilliVector("t", new RootAllocator());
     valueVector.allocateNew(3);
-    valueVector.set(0, NON_NULL_VALUE);
-    valueVector.set(1, DST_VALUE);
+    valueVector.set(0, 89723408957L);
+    valueVector.set(1, 1558999993123L);
     valueVector.setNull(2);
 
     accessor = new TimeStampMilliAccessor(valueVector, UTC_CALENDAR.getTimeZone());
@@ -60,9 +59,7 @@ public class TestTimeStampMilliAccessor {
 
   @Test
   public void testGetObject() throws Exception {
-    assertEquals(
-      new Timestamp(72, 10, 4, 11, 10, 8, (int)TimeUnit.MILLISECONDS.toNanos(957)),
-      accessor.getObject(0));
+    assertEquals(NON_NULL_VALUE, accessor.getObject(0));
   }
 
   @Test(expected=NullPointerException.class)
@@ -77,18 +74,9 @@ public class TestTimeStampMilliAccessor {
 
   @Test
   public void testGetTimestamp() throws Exception {
-    assertEquals(
-      new Timestamp(72, 10, 4, 3, 10, 8, (int)TimeUnit.MILLISECONDS.toNanos(957)),
-      accessor.getTimestamp(0, PST_CALENDAR));
-    assertEquals(
-      new Timestamp(72, 10, 4, 11, 10, 8, (int)TimeUnit.MILLISECONDS.toNanos(957)),
-      accessor.getTimestamp(0, UTC_CALENDAR));
-
-    assertEquals(
-      new Timestamp(119, 4, 27, 16, 33, 13, (int)TimeUnit.MILLISECONDS.toNanos(123)),
-      accessor.getTimestamp(1, PST_CALENDAR));
-    assertEquals(
-      new Timestamp(119, 4, 27, 23, 33, 13, (int)TimeUnit.MILLISECONDS.toNanos(123)),
-      accessor.getTimestamp(1, UTC_CALENDAR));
+    assertEquals(new Timestamp(72, 10, 4, 19, 10, 8, 957000000), accessor.getTimestamp(0, PST_CALENDAR));
+    assertEquals(NON_NULL_VALUE, accessor.getTimestamp(0, UTC_CALENDAR));
+    assertEquals(new Timestamp(119, 4, 28, 6, 33, 13, 123000000), accessor.getTimestamp(1, PST_CALENDAR));
+    assertEquals(DST_VALUE, accessor.getTimestamp(1, UTC_CALENDAR));
   }
 }

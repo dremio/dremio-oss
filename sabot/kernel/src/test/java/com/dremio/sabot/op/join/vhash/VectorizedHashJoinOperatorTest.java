@@ -371,9 +371,9 @@ public class VectorizedHashJoinOperatorTest {
         AutoCloseables.close(valueListFilter1, valueListFilter2); // sendFilterToMergePoints is expected to close; mocked here.
         // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
 
-        OutOfBandMessage oobMsg2 = utils.newOOB(2, Collections.EMPTY_LIST, null, valueListFilter3, valueListFilter4);
-        OutOfBandMessage oobMsg3 = utils.newOOB(3, Collections.EMPTY_LIST, null, valueListFilter5, valueListFilter6);
-        OutOfBandMessage oobMsg4 = utils.newOOB(4, Collections.EMPTY_LIST, null, valueListFilter7, valueListFilter8);
+        OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, Collections.EMPTY_LIST, null, valueListFilter3, valueListFilter4);
+        OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, Collections.EMPTY_LIST, null, valueListFilter5, valueListFilter6);
+        OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, Collections.EMPTY_LIST, null, valueListFilter7, valueListFilter8);
 
         joinOp.workOnOOB(oobMsg2);
         joinOp.workOnOOB(oobMsg3);
@@ -444,9 +444,9 @@ public class VectorizedHashJoinOperatorTest {
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
             recvBuffer.retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
             joinOp.workOnOOB(oobMsg2);
             joinOp.workOnOOB(oobMsg3);
@@ -520,9 +520,9 @@ public class VectorizedHashJoinOperatorTest {
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
             recvBuffer.retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
             joinOp.workOnOOB(oobMsg2);
             joinOp.workOnOOB(oobMsg3);
@@ -595,9 +595,9 @@ public class VectorizedHashJoinOperatorTest {
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
             recvBuffer.retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
             joinOp.workOnOOB(oobMsg2);
             joinOp.workOnOOB(oobMsg3);
@@ -666,9 +666,9 @@ public class VectorizedHashJoinOperatorTest {
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
             recvBuffer.retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
             joinOp.workOnOOB(oobMsg2);
             joinOp.workOnOOB(oobMsg3);
@@ -755,9 +755,9 @@ public class VectorizedHashJoinOperatorTest {
             joinOp.setTable(joinTable);
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
             recvBuffer.retain(3);
-            OutOfBandMessage oobMsg2 = utils.newOOB(2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
-            OutOfBandMessage oobMsg3 = utils.newOOB(3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
-            OutOfBandMessage oobMsg4 = utils.newOOB(4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
+            OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
+            OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
+            OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
 
             joinOp.workOnOOB(oobMsg2);
             joinOp.workOnOOB(oobMsg3);
