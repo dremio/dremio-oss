@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.lang.annotation.Annotation;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
@@ -118,6 +119,14 @@ public class HiveMetadataUtils {
   private static final Long ONE = Long.valueOf(1l);
   private static final int INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM = 16;
   private static final Joiner PARTITION_FIELD_SPLIT_KEY_JOINER = Joiner.on("__");
+
+  private static boolean shouldUseFileSplitsFromInputFormat(InputFormat<?, ?> inputFormat)
+  {
+    return Arrays.stream(inputFormat.getClass().getAnnotations())
+      .map(Annotation::annotationType)
+      .map(Class::getSimpleName)
+      .anyMatch(name -> name.equals("UseFileSplitsFromInputFormat"));
+  }
 
   public static class SchemaComponents {
     private final String tableName;
@@ -913,7 +922,7 @@ public class HiveMetadataUtils {
     try {
       // Parquet logic in hive-3.1.1 does not check recursively by default.
       job.set(FileInputFormat.INPUT_DIR_RECURSIVE, "true");
-      if (isParquetFormat(format)) {
+      if (isParquetFormat(format) && !shouldUseFileSplitsFromInputFormat(format)) {
         inputSplits = new ParquetInputFormat().getSplits(job, 1);
       } else {
         inputSplits = format.getSplits(job, 1);

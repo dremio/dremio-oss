@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.lang.annotation.Annotation;
 
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -118,6 +119,14 @@ public class HiveMetadataUtils {
   private static final Long ONE = Long.valueOf(1l);
   private static final int INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM = 16;
   private static final Joiner PARTITION_FIELD_SPLIT_KEY_JOINER = Joiner.on("__");
+
+  private static boolean shouldUseFileSplitsFromInputFormat(InputFormat<?, ?> inputFormat)
+  {
+    return Arrays.stream(inputFormat.getClass().getAnnotations())
+      .map(Annotation::annotationType)
+      .map(Class::getSimpleName)
+      .anyMatch(name -> name.equals("UseFileSplitsFromInputFormat"));
+  }
 
   public static class SchemaComponents {
     private final String tableName;
@@ -394,7 +403,6 @@ public class HiveMetadataUtils {
                                                final int maxNestedLevels,
                                                final boolean includeComplexParquetColumns,
                                                final HiveConf hiveConf) throws ConnectorException {
-
     try {
       final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
 
@@ -912,7 +920,7 @@ public class HiveMetadataUtils {
   private static List<InputSplit> getInputSplits(final InputFormat<?, ?> format, final JobConf job) {
     InputSplit[] inputSplits;
     try {
-      if (isParquetFormat(format)) {
+      if (isParquetFormat(format) && !shouldUseFileSplitsFromInputFormat(format)) {
         inputSplits = new ParquetInputFormat().getSplits(job, 1);
       } else {
         inputSplits = format.getSplits(job, 1);
