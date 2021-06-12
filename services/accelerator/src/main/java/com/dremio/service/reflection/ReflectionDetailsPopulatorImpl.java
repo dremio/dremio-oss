@@ -26,7 +26,6 @@ import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
-import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
@@ -81,8 +80,6 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   private final AccelerationDetails details = new AccelerationDetails();
   private final Map<String, ReflectionState> consideredReflections = Maps.newHashMap();
 
-  private Prel prel;
-  private QueryProfile profile;
   private List<String> substitutionErrors = Collections.emptyList();
 
   ReflectionDetailsPopulatorImpl(NamespaceService namespace, ReflectionService reflections) {
@@ -123,6 +120,10 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   }
 
   @Override
+  public void attemptCompleted(QueryProfile profile) {
+  }
+
+  @Override
   public void substitutionFailures(Iterable<String> errors) {
     if (errors != null) {
       substitutionErrors = Lists.newArrayList(errors);
@@ -148,11 +149,6 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
     final NamespaceKey datasetKey = new NamespaceKey(config.getFullPathList());
     // not all datasets have acceleration settings
     return isPhysicalDataset(config.getType()) ? reflectionSettings.getReflectionSettings(datasetKey) : null;
-  }
-
-  @Override
-  public void attemptCompleted(QueryProfile profile) {
-    this.profile = profile;
   }
 
   @Override

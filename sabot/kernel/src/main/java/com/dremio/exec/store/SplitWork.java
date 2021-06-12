@@ -36,10 +36,10 @@ import com.google.common.net.HostAndPort;
 public class SplitWork implements CompleteWork {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWork.class);
 
-  private final PartitionChunkMetadata partitionChunk;
-  private final DatasetSplit datasetSplit;
-  private final ExecutionNodeMap nodeMap;
-  private final DistributionAffinity affinityType;
+  final PartitionChunkMetadata partitionChunk;
+  final DatasetSplit datasetSplit;
+  final ExecutionNodeMap nodeMap;
+  final DistributionAffinity affinityType;
 
   public SplitWork(PartitionChunkMetadata partitionChunk, DatasetSplit datasetSplit, ExecutionNodeMap nodeMap, DistributionAffinity affinityType) {
     super();

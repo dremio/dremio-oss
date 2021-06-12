@@ -18,20 +18,35 @@ package com.dremio.exec.planner.fragment;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.exec.physical.EndpointAffinity;
+import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.store.SplitWork;
+import com.dremio.exec.store.SplitWorkWithRuntimeAffinity;
+import com.dremio.exec.store.schedule.CompleteWork;
+import com.dremio.exec.store.schedule.TestAssignmentCreatorForC3;
+import com.dremio.exec.util.rhash.RendezvousPageHasher;
+import com.dremio.service.namespace.LegacyPartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.protobuf.ByteString;
 
 /**
  * To test SoftAffinityFragmentParallelizer
@@ -39,6 +54,8 @@ import com.google.common.collect.ImmutableSet;
 public class TestSoftAffinityFragmentParallelizer {
 
   // Create a set of test endpoints
+  private static final CoordinationProtos.NodeEndpoint N0_EP1 = newNodeEndpoint("node0", 30010);
+  private static final CoordinationProtos.NodeEndpoint N0_EP2 = newNodeEndpoint("node0", 30011);
   private static final CoordinationProtos.NodeEndpoint N1_EP1 = newNodeEndpoint("node1", 30010);
   private static final CoordinationProtos.NodeEndpoint N1_EP2 = newNodeEndpoint("node1", 30011);
   private static final CoordinationProtos.NodeEndpoint N2_EP1 = newNodeEndpoint("node2", 30010);
@@ -46,6 +63,18 @@ public class TestSoftAffinityFragmentParallelizer {
   private static final CoordinationProtos.NodeEndpoint N3_EP1 = newNodeEndpoint("node3", 30010);
   private static final CoordinationProtos.NodeEndpoint N3_EP2 = newNodeEndpoint("node3", 30011);
   private static final CoordinationProtos.NodeEndpoint N4_EP2 = newNodeEndpoint("node4", 30011);
+
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S110 = new TestAssignmentCreatorForC3.TestSplitInfo("S110", 1000, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1}, "path1");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S111 = new TestAssignmentCreatorForC3.TestSplitInfo("S111", 9992, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path2");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S112 = new TestAssignmentCreatorForC3.TestSplitInfo("S112", 9990, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path3");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S113 = new TestAssignmentCreatorForC3.TestSplitInfo("S113", 9980, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path4");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S114 = new TestAssignmentCreatorForC3.TestSplitInfo("S114", 9800, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path5");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S115 = new TestAssignmentCreatorForC3.TestSplitInfo("S115", 9778, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path6");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S116 = new TestAssignmentCreatorForC3.TestSplitInfo("S116", 9776, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path7");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S117 = new TestAssignmentCreatorForC3.TestSplitInfo("S117", 9774, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path8");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S118 = new TestAssignmentCreatorForC3.TestSplitInfo("S118", 9770, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path9");
+  private static final TestAssignmentCreatorForC3.TestSplitInfo S119 = new TestAssignmentCreatorForC3.TestSplitInfo("S119", 9700, new CoordinationProtos.NodeEndpoint[] {N0_EP1, N1_EP1},"path10");
+
 
   private static final CoordinationProtos.NodeEndpoint newNodeEndpoint(String address, int port) {
     return CoordinationProtos.NodeEndpoint.newBuilder().setAddress(address).setFabricPort(port).build();
@@ -218,6 +247,87 @@ public class TestSoftAffinityFragmentParallelizer {
     assertTrue("one or more executors " + EndpointHelper.getMinimalString(endpoints) +
         " selected from outside the engine " + EndpointHelper.getMinimalString(endpointsInSelectedEngine),
       ImmutableSet.copyOf(endpointsInSelectedEngine).containsAll(endpoints));
+  }
+
+  private List<CoordinationProtos.NodeEndpoint> getNodes(int totalNodes) {
+    List<CoordinationProtos.NodeEndpoint> allEndpoints = new ArrayList<>();
+    for (int i = 0; i < totalNodes; ++i) {
+      allEndpoints.add(CoordinationProtos.NodeEndpoint.newBuilder()
+              .setAddress("node" + i)
+              .setFabricPort(30010)
+              .build());
+    }
+
+    return allEndpoints;
+  }
+
+  private final Wrapper newParquetWrapper(double cost, int minWidth, int maxWidth, TestAssignmentCreatorForC3.TestSplitInfo[] splits) {
+    PhysicalOperator root = Mockito.mock(PhysicalOperator.class);
+    Fragment fragment = Mockito.mock(Fragment.class);
+    when(fragment.getRoot()).thenReturn(root);
+    final Wrapper fragmentWrapper = new Wrapper(fragment, 1);
+    final Stats stats = fragmentWrapper.getStats();
+    stats.addCost(cost);
+    stats.addMinWidth(minWidth);
+    stats.addMaxWidth(maxWidth);
+
+    List<SplitWorkWithRuntimeAffinity> splitWorks = new ArrayList<>();
+    for(TestAssignmentCreatorForC3.TestSplitInfo testWork2 : splits) {
+      PartitionProtobuf.PartitionChunk partitionChunk = PartitionProtobuf.PartitionChunk.newBuilder().build();
+      PartitionProtobuf.DatasetSplit.Builder dataSplit = PartitionProtobuf.DatasetSplit.newBuilder();
+      dataSplit.setSize(testWork2.getSizeInBytes()).setSplitExtendedProperty(ByteString.copyFromUtf8(testWork2.getPath()));
+      ExecutionNodeMap executionNodeMap = new ExecutionNodeMap(Arrays.asList(testWork2.getNodeEndpoints()));
+      SplitWorkWithRuntimeAffinity splitWork = new SplitWorkWithRuntimeAffinity(new LegacyPartitionChunkMetadata(partitionChunk), dataSplit.build(),
+              executionNodeMap, DistributionAffinity.SOFT);
+      splitWorks.add(splitWork);
+    }
+
+    GroupScan groupScan = Mockito.mock(GroupScan.class);
+    when(groupScan.getDistributionAffinity()).thenReturn(DistributionAffinity.SOFT);
+    stats.addSplits(groupScan, ImmutableList.<CompleteWork>copyOf(splitWorks));
+
+    return fragmentWrapper;
+  }
+
+  @Test
+  public void testParallelizeFragmentNoAffinity() throws Exception {
+    List<CoordinationProtos.NodeEndpoint> endpoints = getNodes(2);
+    TestAssignmentCreatorForC3.TestSplitInfo[] inputPaths = new TestAssignmentCreatorForC3.TestSplitInfo[] {S110, S111, S112, S113, S114};
+    Wrapper wrapper = newParquetWrapper(200, 5, 5, inputPaths);
+
+    Map<String, CoordinationProtos.NodeEndpoint> affinityMap = computeAffinity(endpoints, wrapper.getStats().getSplitMap().values());
+
+    ParallelizationParameters params = newParameters(3, 1000,
+            1000, 0.2D, false);
+
+    SoftAffinityFragmentParallelizer.INSTANCE.parallelizeFragment(wrapper, params, endpoints);
+    Map<Integer, Collection<CompleteWork>> workAssignedMap =
+            wrapper.getSplitSets().get(wrapper.getStats().getSplitMap().keySet().iterator().next()).asMap();
+    for(Integer fragmentIndex : workAssignedMap.keySet()) {
+      CoordinationProtos.NodeEndpoint assignedEndpoint = wrapper.getAssignedEndpoint(fragmentIndex);
+      for(CompleteWork completeWork : workAssignedMap.get(fragmentIndex)) {
+        System.out.println("Index " + fragmentIndex + " address " + assignedEndpoint.getAddress() + " Path " +
+                (((SplitWork)completeWork).getDatasetSplit().getSplitExtendedProperty()).toStringUtf8());
+        Assert.assertEquals(assignedEndpoint, affinityMap.get(((SplitWork)completeWork).getDatasetSplit().getSplitExtendedProperty().toStringUtf8()));
+      }
+    }
+  }
+
+  private Map<String, CoordinationProtos.NodeEndpoint> computeAffinity(List<CoordinationProtos.NodeEndpoint> endpoints, Collection<List<CompleteWork>> values) {
+    Map<String, CoordinationProtos.NodeEndpoint> affinityMap = new HashMap<>();
+
+    RendezvousPageHasher hasher = new RendezvousPageHasher(endpoints);
+
+    for(List<CompleteWork> works : values) {
+      for(CompleteWork work : works) {
+        SplitWork splitWork = (SplitWork) work;
+        CoordinationProtos.NodeEndpoint nodeEndpoint = hasher.getEndpoints(splitWork.getDatasetSplit().getSplitExtendedProperty().toStringUtf8()
+                , splitWork.getDatasetSplit().getSize())[0];
+        System.out.println(" path " + splitWork.getDatasetSplit().getSplitExtendedProperty().toStringUtf8() + " node " + nodeEndpoint.getAddress());
+        affinityMap.put(splitWork.getDatasetSplit().getSplitExtendedProperty().toStringUtf8(), nodeEndpoint);
+      }
+    }
+    return affinityMap;
   }
 
   @Test

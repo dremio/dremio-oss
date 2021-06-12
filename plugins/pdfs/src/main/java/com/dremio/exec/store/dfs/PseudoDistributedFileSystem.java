@@ -54,8 +54,10 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.util.Progressable;
 
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.exec.hadoop.PathCanonicalizer;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.services.fabric.ProtocolNotRegisteredException;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -921,7 +923,13 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
         boolean taskResult;
         try {
           taskResult = task.get();
-        } catch(ExecutionException e) {
+        } catch (ExecutionException e) {
+          if (ErrorHelper.findWrappedCause(e, ProtocolNotRegisteredException.class) != null) {
+            // If ProtocolNotRegistered with Fabric is the error,
+            // treat it as the node not being a part of the cluster and
+            // ignore the exception.
+            continue;
+          }
           Throwables.propagateIfPossible(e.getCause(), IOException.class);
           throw new RuntimeException(e);
         } catch(InterruptedException e) {
@@ -1067,12 +1075,16 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       long maxAccessTime = Long.MIN_VALUE;
       for(Future<FileStatus> f : futures) {
         try {
-            fileStatus = f.get();
-            maxModificationTime = Math.max(maxModificationTime, fileStatus.getModificationTime());
-            maxAccessTime = Math.max(maxAccessTime, fileStatus.getAccessTime());
-        } catch(ExecutionException e) {
+          fileStatus = f.get();
+          maxModificationTime = Math.max(maxModificationTime, fileStatus.getModificationTime());
+          maxAccessTime = Math.max(maxAccessTime, fileStatus.getAccessTime());
+        } catch (ExecutionException e) {
           if (e.getCause() instanceof FileNotFoundException) {
             // ignore
+            continue;
+          } else if (ErrorHelper.findWrappedCause(e, ProtocolNotRegisteredException.class) != null) {
+            // If protocol hasn't yet been registered with target Fabric,
+            // treat it on par with FileNotFound, ignore the exception and continue
             continue;
           }
           Throwables.propagateIfPossible(e.getCause(), IOException.class);

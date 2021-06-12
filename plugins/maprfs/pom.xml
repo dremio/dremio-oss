@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>15.5.0-202105040508160960-dddd4dca</version>
+    <version>15.7.0-202106112202490252-2fb62d31</version>
   </parent>
 
   <artifactId>dremio-maprfs-plugin</artifactId>

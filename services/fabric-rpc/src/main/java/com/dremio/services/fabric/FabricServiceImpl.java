@@ -35,6 +35,7 @@ import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.ssl.SSLEngineFactory;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.MessageLite;
 
 import io.netty.channel.EventLoopGroup;
@@ -101,6 +102,7 @@ public class FabricServiceImpl implements FabricService {
   @Override
   public FabricRunnerFactory getProtocol(int id) {
     FabricProtocol protocol = handler.getProtocol(id);
+    Preconditions.checkNotNull(protocol);
     return new RunnerFactory(protocol);
   }
 

@@ -45,8 +45,11 @@ import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerNotFoundException;
@@ -56,6 +59,9 @@ import com.google.common.io.ByteStreams;
  * Tests for AzureAsyncContainerProvider
  */
 public class TestAzureAsyncContainerProvider {
+
+  @Rule
+  public final ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testListContainers() throws IOException, ExecutionException, InterruptedException {
@@ -193,6 +199,26 @@ public class TestAzureAsyncContainerProvider {
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
       client, "azurestoragev2hier", authTokenProvider, parentClass, true);
     containerProvider.assertContainerExists("container");
+  }
+
+  @Test
+  public void testWhiteListValidation() throws IOException, ExecutionException, InterruptedException {
+    AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
+    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AsyncHttpClient client = mock(AsyncHttpClient.class);
+    Response response = mock(Response.class);
+    when(response.getHeader(any(String.class))).thenReturn("");
+    when(response.getStatusCode()).thenReturn(404);
+    ListenableFuture<Response> future = mock(ListenableFuture.class);
+    when(future.get()).thenReturn(response);
+    when(client.executeRequest(any(Request.class))).thenReturn(future);
+
+    AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
+      client, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"});
+
+    thrown.expect(UserException.class);
+    thrown.expectMessage("Failure while validating existence of container tempContainer. Error Unable to find container tempContainer - [404 null]");
+    containerProvider.verfiyContainersExist();
   }
 
   @Test

@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -664,7 +665,7 @@ public class DACDaemonModule implements DACModule {
     registry.bind(PDFSService.class, new PDFSService(
         registry.provider(FabricService.class),
         selfEndpoint,
-        executorsProvider,
+        isCoordinator ? executorsProvider : () -> Collections.singleton(selfEndpoint.get()),
         bootstrapRegistry.lookup(Tracer.class),
         sabotConfig,
         bootstrap.getAllocator(),

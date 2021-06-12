@@ -333,6 +333,12 @@
    > `<=` [com.dremio.dac.model.job.JobFilterItems](#class-comdremiodacmodeljobjobfilteritems)   
 
 
+## Resource defined by class com.dremio.dac.resource.KVStoreReportResource
+
+ - GET /kvstore/report?store={java.util.List<java.lang.String>}   
+   > `<=` javax.ws.rs.core.Response   
+
+
 ## Resource defined by class com.dremio.dac.resource.LogInLogOutResource
 
  - DELETE /login   
@@ -1936,6 +1942,7 @@
           ],
           type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
+        hintScore: 1.0,
         materialization: {
           id: "abc",
           refreshChainStartTime: 1,
@@ -2003,6 +2010,12 @@
           totalByteSize: 1,
           type: "RAW" | "AGGREGATION" | "EXTERNAL",
         },
+        reflectionHints: [
+          {
+            explanationType: "abc",
+          },
+          ...
+        ],
         relationship: "CONSIDERED" | "MATCHED" | "CHOSEN",
         snowflake: true | false,
       },

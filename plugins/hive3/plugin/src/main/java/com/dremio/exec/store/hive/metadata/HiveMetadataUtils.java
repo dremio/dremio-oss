@@ -19,6 +19,7 @@ import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.annotation.Annotation;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URI;
@@ -913,7 +914,7 @@ public class HiveMetadataUtils {
     try {
       // Parquet logic in hive-3.1.1 does not check recursively by default.
       job.set(FileInputFormat.INPUT_DIR_RECURSIVE, "true");
-      if (isParquetFormat(format)) {
+      if (isParquetFormat(format) && !shouldUseFileSplitsFromInputFormat(format)) {
         inputSplits = new ParquetInputFormat().getSplits(job, 1);
       } else {
         inputSplits = format.getSplits(job, 1);
@@ -927,6 +928,14 @@ public class HiveMetadataUtils {
     } else {
       return Arrays.asList(inputSplits);
     }
+  }
+
+  private static boolean shouldUseFileSplitsFromInputFormat(InputFormat<?, ?> inputFormat)
+  {
+    return Arrays.stream(inputFormat.getClass().getAnnotations())
+            .map(Annotation::annotationType)
+            .map(Class::getSimpleName)
+            .anyMatch(name -> name.equals("UseFileSplitsFromInputFormat"));
   }
 
   private static boolean isParquetFormat(InputFormat<?, ?> format) {

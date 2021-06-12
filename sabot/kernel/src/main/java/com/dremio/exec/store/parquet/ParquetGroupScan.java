@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,12 +26,14 @@ import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.physical.base.AbstractGroupScan;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
+import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
+import com.dremio.exec.store.SplitWorkWithRuntimeAffinity;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
@@ -47,6 +50,7 @@ public class ParquetGroupScan extends AbstractGroupScan {
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
   private final boolean arrowCachingEnabled;
+  private boolean c3RuntimeAffinity;
 
   public ParquetGroupScan(
     OpProps props,
@@ -55,12 +59,14 @@ public class ParquetGroupScan extends AbstractGroupScan {
     ParquetScanFilter filter,
     List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
     RelDataType cachedRelDataType,
-    boolean arrowCachingEnabled) {
+    boolean arrowCachingEnabled,
+    boolean c3RuntimeAffinity) {
     super(props, dataset, columns);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = cachedRelDataType;
     this.arrowCachingEnabled = arrowCachingEnabled;
+    this.c3RuntimeAffinity = c3RuntimeAffinity;
   }
 
   @Override
@@ -123,6 +129,16 @@ public class ParquetGroupScan extends AbstractGroupScan {
   @Override
   public int getOperatorType() {
     return CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE;
+  }
+
+  @Override
+  public Iterator<SplitWork> getSplits(ExecutionNodeMap nodeMap) {
+    if (c3RuntimeAffinity) {
+      return SplitWorkWithRuntimeAffinity.transform(dataset.getSplits(), nodeMap, getDistributionAffinity());
+    } else {
+      return super.getSplits(nodeMap);
+    }
+
   }
 
 }

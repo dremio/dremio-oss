@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.plugins.azure;
 
-import java.io.IOException;
-import java.util.stream.Stream;
+package com.dremio.services.fabric;
 
-import com.dremio.plugins.util.ContainerFileSystem.ContainerCreator;
+/**
+ * Exception to be thrown if the protocol is not yet registered.
+ */
+public class ProtocolNotRegisteredException extends Exception {
+  private static final String EXCEPTIONMESSAGE = "Protocol not registered with Fabric";
+  public ProtocolNotRegisteredException() {super(EXCEPTIONMESSAGE);}
 
-interface ContainerProvider {
-
-  Stream<ContainerCreator> getContainerCreators() throws IOException;
-
-  default void assertContainerExists(final String containerName) {
+  public String getExceptionMessage() {
+    return EXCEPTIONMESSAGE;
   }
 
-  default void verfiyContainersExist() throws IOException {
-
-  }
 }
+

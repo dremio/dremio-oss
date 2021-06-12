@@ -55,6 +55,12 @@ class FabricMessageHandler {
     final int protocolId = message.getProtocolId();
     FabricProtocol protocol = getProtocol(protocolId);
 
+    if (protocol == null) {
+      ProtocolNotRegisteredException protocolNotRegisteredException =
+        new ProtocolNotRegisteredException();
+      throw new RpcException(protocolNotRegisteredException.getExceptionMessage(), protocolNotRegisteredException);
+    }
+
     if (dBody != null) {
       final ArrowBuf buf = ((NettyArrowBuf) dBody).arrowBuf();
       BufferAllocator allocator = protocol.getAllocator();
@@ -126,9 +132,8 @@ class FabricMessageHandler {
     sync.incrementAndGet();
   }
 
-  public FabricProtocol getProtocol(int protocolId){
+  public FabricProtocol getProtocol(int protocolId) {
     FabricProtocol protocol = protocols[protocolId];
-    Preconditions.checkNotNull(protocol, "Unknown protocol " + protocolId);
     return protocol;
   }
 

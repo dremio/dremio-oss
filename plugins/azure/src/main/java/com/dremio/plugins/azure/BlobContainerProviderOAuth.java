@@ -34,8 +34,15 @@ public class BlobContainerProviderOAuth extends BlobContainerProvider {
   private AzureOAuthTokenProvider tokenProvider;
 
   public BlobContainerProviderOAuth(AzureStorageFileSystem parent, String connection, String account,
+                                    AzureOAuthTokenProvider tokenGenerator, String[] containers) throws Exception {
+    super(parent, account, connection, new StorageCredentialsToken(account, tokenGenerator.getToken()), true, containers);
+    this.tokenProvider = tokenGenerator;
+  }
+
+
+  public BlobContainerProviderOAuth(AzureStorageFileSystem parent, String connection, String account,
                                     AzureOAuthTokenProvider tokenGenerator) throws Exception {
-    super(parent, account, connection, new StorageCredentialsToken(account, tokenGenerator.getToken()), true);
+    super(parent, account, connection, new StorageCredentialsToken(account, tokenGenerator.getToken()), true, null);
     this.tokenProvider = tokenGenerator;
   }
 

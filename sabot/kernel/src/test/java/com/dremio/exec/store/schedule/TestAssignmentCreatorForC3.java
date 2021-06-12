@@ -18,6 +18,8 @@ package com.dremio.exec.store.schedule;
 import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -28,12 +30,19 @@ import org.junit.Test;
 
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.EndpointAffinity;
+import com.dremio.exec.planner.fragment.DistributionAffinity;
+import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.store.SplitWorkWithRuntimeAffinity;
+import com.dremio.exec.util.rhash.RendezvousPageHasher;
+import com.dremio.service.namespace.LegacyPartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.net.HostAndPort;
+import com.google.protobuf.ByteString;
 
 /**
  * Tests for split assignments for cloud cache
@@ -94,6 +103,18 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
   private static final TestHardAssignmentCreator.TestWork S19 = newWork("S19", 9372, newAffinity(ENDPOINT4_2, 8600), newAffinity(ENDPOINT3_2, 5800), newAffinity(ENDPOINT2_2, 2400));
   private static final TestHardAssignmentCreator.TestWork S20 = newWork("S20", 9370, newAffinity(ENDPOINT5_2, 8770), newAffinity(ENDPOINT4_2, 7000), newAffinity(ENDPOINT3_2, 3000));
 
+  // splits with no affinity. These can get assigned randomly
+  private static final TestSplitInfo S110 = newSplitWork("S110", 10000, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, ":/qa1.dremio.com/tpcds_1000/household_demographics/000000_0%10%04%18��%03%20%00*G%0A:/qa1.dremio.com/tpcds_1000/household_demographics/000000_0%10�����.%18��%032%11%0A%0Chd_dep_count%10�82%15%0A%10hd_vehicle_count%10�82%0F%0A%0Ahd_demo_sk%10�82%16%0A%11hd_income_band_sk%10�8");
+  private static final TestSplitInfo S111 = newSplitWork("S111", 9992, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path2");
+  private static final TestSplitInfo S112 = newSplitWork("S112", 9990, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path3");
+  private static final TestSplitInfo S113 = newSplitWork("S113", 9980, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path4");
+  private static final TestSplitInfo S114 = newSplitWork("S114", 9800, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path5");
+  private static final TestSplitInfo S115 = newSplitWork("S115", 9778, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path6");
+  private static final TestSplitInfo S116 = newSplitWork("S116", 9776, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path7");
+  private static final TestSplitInfo S117 = newSplitWork("S117", 9774, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path8");
+  private static final TestSplitInfo S118 = newSplitWork("S118", 9770, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path9");
+  private static final TestSplitInfo S119 = newSplitWork("S119", 9700, new CoordinationProtos.NodeEndpoint[] {ENDPOINT1_1}, "path10");
+
   // splits with only one affinity. These can get assigned randomly
   private static final TestHardAssignmentCreator.TestWork S101 = newWork("S101", 10000, newAffinity(ENDPOINT1_1, 10000));
   private static final TestHardAssignmentCreator.TestWork S102 = newWork("S102", 9900, newAffinity(ENDPOINT1_1, 9000));
@@ -120,6 +141,41 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
   private static final TestHardAssignmentCreator.TestWork Instance_S19 = cloneInstanceWork(S19);
   private static final TestHardAssignmentCreator.TestWork Instance_S20 = cloneInstanceWork(S20);
 
+  public static class TestSplitInfo {
+    private final String id;
+    private final long sizeInBytes;
+    private CoordinationProtos.NodeEndpoint[] nodeEndpoints;
+    private String path;
+
+    public TestSplitInfo(String id, long sizeInBytes, CoordinationProtos.NodeEndpoint[] nodeEndpoints, String path) {
+      this.id = id;
+      this.sizeInBytes = sizeInBytes;
+      this.nodeEndpoints = nodeEndpoints;
+      this.path = path;
+    }
+
+    public long getSizeInBytes() {
+      return sizeInBytes;
+    }
+
+    public CoordinationProtos.NodeEndpoint[] getNodeEndpoints() {
+      return nodeEndpoints;
+    }
+
+    public void setNodeEndpoints(CoordinationProtos.NodeEndpoint[] nodeEndpoints) {
+      this.nodeEndpoints = nodeEndpoints;
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    public String getId() {
+      return id;
+    }
+  }
+
+
   private static EndpointAffinity newAffinity(CoordinationProtos.NodeEndpoint endpoint, double affinity) {
     return new EndpointAffinity(endpoint, affinity);
   }
@@ -136,6 +192,10 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
 
     String name = "Instance_" + work.getId();
     return new TestHardAssignmentCreator.TestWork(name, work.getTotalBytes(), affinityList);
+  }
+
+  private static TestSplitInfo newSplitWork(String id, long sizeInBytes, CoordinationProtos.NodeEndpoint[] nodeEndpoints, String path) {
+    return new TestSplitInfo(id, sizeInBytes, nodeEndpoints, path);
   }
 
   private static TestHardAssignmentCreator.TestWork newWork(String id, long sizeInBytes, EndpointAffinity... affinityList) {
@@ -162,11 +222,42 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
     }
   }
 
+  void verifyMappingsWithNoAffinity(List<CoordinationProtos.NodeEndpoint> endpoints, Multimap<Integer, SplitWorkWithRuntimeAffinity> mappings, Map<String, String> expectedMappings) {
+    boolean isInstanceAffinity = false;
+    Map<Integer, String> fragmentIdToHostnameMap = Maps.newHashMap();
+    int fragmentId = 0;
+    for(CoordinationProtos.NodeEndpoint endpoint : endpoints) {
+      fragmentIdToHostnameMap.put(fragmentId, getHostname(endpoint, isInstanceAffinity));
+      fragmentId++;
+    }
+
+    for(Integer id : mappings.keySet()) {
+      String hostname = fragmentIdToHostnameMap.get(id);
+      for(SplitWorkWithRuntimeAffinity split : mappings.get(id)) {
+        // This split is assigned to fragmentId id
+        String splitId = split.getDatasetSplit().getSplitExtendedProperty().toStringUtf8();
+        String expValue = expectedMappings.get(splitId);
+        Assert.assertTrue("Split " + splitId + " should be assigned to " + expValue + " was assigned to " + hostname, expValue.equalsIgnoreCase(hostname));
+      }
+    }
+  }
+
   void assignAndVerifySplits(List<CoordinationProtos.NodeEndpoint> endpoints, List<TestHardAssignmentCreator.TestWork> splits, Map<String, String> expectedMappings) throws Exception {
     verifyMappings(
       endpoints,
       AssignmentCreator2.getMappings(endpoints, splits, 1.5),
       expectedMappings);
+  }
+
+  void assignAndVerifySplitsWithoutAffinity(List<CoordinationProtos.NodeEndpoint> endpoints, List<SplitWorkWithRuntimeAffinity> splits, Map<String, String> expectedMappings) throws Exception {
+    try {
+      verifyMappingsWithNoAffinity(
+              endpoints,
+              AssignmentCreator2.getMappings(endpoints, splits, 1.5),
+              expectedMappings);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   String getHostname(CoordinationProtos.NodeEndpoint endpoint, boolean isInstanceAffinity) {
@@ -199,6 +290,27 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
     return results;
   }
 
+  Map<String, String> assignSplitWithRendezvousHashing(List<SplitWorkWithRuntimeAffinity> splits, List<TestSplitInfo> testSplitInfoList) {
+    Map<String, String> results = Maps.newHashMap();
+
+    Map<String, List<CoordinationProtos.NodeEndpoint>> workToNodeMap = new HashMap<>();
+    for(TestSplitInfo testSplitInfo : testSplitInfoList) {
+      workToNodeMap.put(testSplitInfo.getPath(), Arrays.asList(testSplitInfo.getNodeEndpoints()));
+    }
+    for(SplitWorkWithRuntimeAffinity split : splits) {
+      RendezvousPageHasher hasher = new RendezvousPageHasher(workToNodeMap.get(
+              split.getDatasetSplit().getSplitExtendedProperty().toStringUtf8()));
+
+      CoordinationProtos.NodeEndpoint nodeEndpoint = hasher.getEndpoints(split.getDatasetSplit().getSplitExtendedProperty().toStringUtf8()
+              , split.getDatasetSplit().getSize())[0];
+      String hostname = getHostname(nodeEndpoint, false);
+      Assert.assertTrue(hostname != null);
+      results.put(split.getDatasetSplit().getSplitExtendedProperty().toStringUtf8(), hostname);
+    }
+
+    return results;
+  }
+
   @Test
   public void testNoSplits() {
     List<TestHardAssignmentCreator.TestWork> splits = new ArrayList<>();
@@ -214,6 +326,27 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
       ENDPOINTS,
       splits,
       assignSplitToHighestAffinity(splits));
+  }
+
+  @Test
+  public void testAllSplitsNoAffinity() throws Exception {
+    List<SplitWorkWithRuntimeAffinity> splits = new ArrayList<>();
+
+    List<TestSplitInfo> testSplitInfoList = asList(S110, S111, S112, S113, S114, S115, S116, S117, S118, S119);
+    for(TestSplitInfo testSplitInfo : testSplitInfoList) {
+      final PartitionProtobuf.PartitionChunk partitionChunk = PartitionProtobuf.PartitionChunk.newBuilder().build();
+      final PartitionProtobuf.DatasetSplit.Builder dataSplit = PartitionProtobuf.DatasetSplit.newBuilder();
+      dataSplit.setSize(testSplitInfo.getSizeInBytes()).setSplitExtendedProperty(ByteString.copyFromUtf8(testSplitInfo.getPath()));
+      ExecutionNodeMap executionNodeMap = new ExecutionNodeMap(Arrays.asList(testSplitInfo.getNodeEndpoints()));
+      SplitWorkWithRuntimeAffinity splitWork = new SplitWorkWithRuntimeAffinity(new LegacyPartitionChunkMetadata(partitionChunk), dataSplit.build(),
+              executionNodeMap, DistributionAffinity.SOFT);
+      splits.add(splitWork);
+    }
+
+    assignAndVerifySplitsWithoutAffinity(
+            ENDPOINTS,
+            splits,
+            assignSplitWithRendezvousHashing(splits, testSplitInfoList));
   }
 
   @Test
