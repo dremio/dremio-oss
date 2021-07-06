@@ -26,7 +26,8 @@ export default class TabsNavigationItem extends Component {
     onClick: PropTypes.func,
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     style: PropTypes.object,
-    children: PropTypes.node
+    children: PropTypes.node,
+    className: PropTypes.string
   };
   getStylesForTab(tabName) {
     const { activeTab, style: styleParam } = this.props;
@@ -40,12 +41,12 @@ export default class TabsNavigationItem extends Component {
     return style;
   }
   render() {
-    const { item, onClick, activeTab, children } = this.props;
+    const { item, onClick, activeTab, children, className } = this.props;
     const tabName = item.get('name');
     const key = `tab-${tabName}`;
     return (
       <div
-        className={classNames({'tab-link': true, 'active': activeTab === tabName})}
+        className={classNames({'tab-link': true, 'active': activeTab === tabName}, className)}
         style={this.getStylesForTab(tabName)}
         key={key}
         onClick={onClick}

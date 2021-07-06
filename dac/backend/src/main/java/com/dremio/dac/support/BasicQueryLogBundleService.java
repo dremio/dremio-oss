@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.lang.reflect.Constructor;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -56,6 +55,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.joda.time.DateTimeZone;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
 import com.dremio.dac.service.support.CoordinatorLogServiceGrpc;
 import com.dremio.dac.service.support.CoordinatorLogServiceGrpc.CoordinatorLogServiceBlockingStub;
@@ -87,6 +87,11 @@ import com.dremio.service.users.UserNotFoundException;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.AbstractModule;
+import com.google.inject.ConfigurationException;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.ProvisionException;
 
 import io.grpc.ManagedChannel;
 
@@ -114,7 +119,8 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
     1,
     r -> new Thread(r, "support-bundle-producer"));
 
-  public BasicQueryLogBundleService(ScanResult scanResult,
+  public BasicQueryLogBundleService(DremioConfig config,
+                          ScanResult scanResult,
                           Provider<SabotContext> sabotContextProvider,
                           Provider<ClusterCoordinator> clusterCoordinatorProvider,
                           Provider<ProjectOptionManager> projectOptionManagerProvider,
@@ -123,14 +129,13 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
                           Provider<ProvisioningService> provisioningServiceProvider,
                           Provider<ConduitProvider> conduitProvider,
                           Provider<Collection<NodeEndpoint>> coordinatorEndpoints) {
-    super();
     this.sabotContextProvider = sabotContextProvider;
     this.clusterCoordinatorProvider = clusterCoordinatorProvider;
     this.projectOptionManagerProvider = projectOptionManagerProvider;
     this.supportServiceProvider = supportServiceProvider;
     this.jobsServiceProvider = jobsServiceProvider;
     this.provisioningServiceProvider = provisioningServiceProvider;
-    this.containerLogProvider = () -> buildContainersLogs(scanResult);
+    this.containerLogProvider = () -> buildContainersLogs(config, scanResult);
 
     this.conduitProviderProvider = conduitProvider;
     this.coordinatorEndpointsProvider = coordinatorEndpoints;
@@ -152,17 +157,23 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
    * @param scanResult
    * @return
    */
-  static Map<ClusterType, ExecutorLogsProvider> buildContainersLogs(ScanResult scanResult) {
+  static Map<ClusterType, ExecutorLogsProvider> buildContainersLogs(DremioConfig config, ScanResult scanResult) {
     Set<Class<? extends ExecutorLogsProvider>> logClasses =
       scanResult.getImplementations(ExecutorLogsProvider.class);
     Map<ClusterType, ExecutorLogsProvider> executorLogsProviders = new HashMap<>();
 
+    // Local injector to instantiate ExecutorLogsProvider instances
+    final Injector injector = Guice.createInjector(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(ScanResult.class).toInstance(scanResult);
+        bind(DremioConfig.class).toInstance(config);      }
+    });
     for (Class<? extends ExecutorLogsProvider> logClass : logClasses) {
       try {
-        Constructor<? extends ExecutorLogsProvider> ctor = logClass.getConstructor();
-        ExecutorLogsProvider executorLogsProvider = ctor.newInstance();
+        ExecutorLogsProvider executorLogsProvider = injector.getInstance(logClass);
         executorLogsProviders.put(executorLogsProvider.getType(), executorLogsProvider);
-      } catch (ReflectiveOperationException e) {
+      } catch (ConfigurationException | ProvisionException e) {
         logger.error("Unable to create instance of {} class", logClass.getName(), e);
       }
     }

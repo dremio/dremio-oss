@@ -13,19 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { Link } from 'react-router';
 import Radium from 'radium';
 
 import invariant from 'invariant';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
 import * as buttonStyles from 'uiTheme/radium/buttons';
 
-@pureRender
-export default class LinkButton extends Component {
+export default class LinkButton extends PureComponent {
 
   static propTypes = {
     buttonStyle: PropTypes.string,

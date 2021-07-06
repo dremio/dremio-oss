@@ -27,6 +27,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
@@ -44,7 +45,11 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
   @Tag(2)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  @JsonIgnore
   public boolean allowCreateDrop;
+
+  @Tag(3)
+  public List<Property> propertyList;
 
   @Override
   public Path getPath() {
@@ -58,7 +63,7 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
 
   @Override
   public List<Property> getProperties() {
-    return ImmutableList.of();
+    return propertyList == null ? ImmutableList.of() : propertyList;
   }
 
   @Override
@@ -68,12 +73,12 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+    return SchemaMutability.USER_TABLE;
   }
 
   @Override
   public FileSystemPlugin<NASConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
+    return new NASFileSystem(this, context, name, pluginIdProvider);
   }
 
 

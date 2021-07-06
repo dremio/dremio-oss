@@ -73,7 +73,8 @@ export default class TableViewer extends Component {
     renderer,
     align = cellAlignment.left,
     flexGrow = 0,
-    width = 20
+    width = 20,
+    fixed = false
   }, columnIndex) => {
     return (<Column
       key={key === undefined ? columnIndex : key}
@@ -81,8 +82,10 @@ export default class TableViewer extends Component {
       width={width}
       columnKey={key}
       align={align}
+      style={{borderRight: '#ccc', background: 'inherit'}}
       header={renderer ? renderer(label) : <Cell>{label}</Cell>}
       cell={this.renderCell(label)}
+      fixed={fixed}
     />);
   };
 

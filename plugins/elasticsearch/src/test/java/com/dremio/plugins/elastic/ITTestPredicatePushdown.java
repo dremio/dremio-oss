@@ -91,8 +91,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
+      "            ],\n" + disableCoordOrBlank +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -106,8 +105,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
+      "      ],\n" + disableCoordOrBlank +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -211,8 +209,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
+      "            ],\n" + disableCoordOrBlank +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -226,8 +223,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
+      "      ],\n" + disableCoordOrBlank +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -335,8 +331,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
+      "            ],\n" + disableCoordOrBlank +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -350,8 +345,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
+      "      ],\n" + disableCoordOrBlank +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -476,8 +470,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
+      "            ],\n" + disableCoordOrBlank +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -491,8 +484,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
+      "      ],\n" + disableCoordOrBlank +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -604,8 +596,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        "      ],\n" + disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -650,8 +641,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            }\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
+      "      ],\n" + disableCoordOrBlank +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -702,8 +692,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            }\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
+      "      ],\n" + disableCoordOrBlank +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -834,8 +823,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "            }\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        "      ],\n" + disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +

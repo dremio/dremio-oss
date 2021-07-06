@@ -170,6 +170,13 @@ public class ElasticTestActions {
       context.addContext(target);
       return target.request().buildPut(Entity.json(mapping));
     }
+
+    @Override
+    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
+      WebTarget target = initial.path(index).path("_mapping").path(type).queryParam("include_type_name", true);
+      context.addContext(target);
+      return target.request().buildPut(Entity.json(mapping));
+    }
   }
 
   public static class Bulk extends ElasticAction {

@@ -17,9 +17,6 @@ package com.dremio.exec.planner;
 
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.MulticastRelOptListener;
@@ -27,7 +24,6 @@ import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.runtime.CalciteException;
 
@@ -64,7 +60,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     super(costFactory, context);
     this.substitutionProvider = substitutionProvider;
     plannerSettings = context.unwrap(PlannerSettings.class);
-    this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+    this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS());
     this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = null;
     this.maxNodesListener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
@@ -178,11 +174,6 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       originalRoot = rel;
     }
     super.setRoot(rel);
-  }
-
-  @Override
-  public void registerMetadataProviders(List<RelMetadataProvider> list) {
-    // Do nothing - in practice, prevent VolcanoRelMetadataProvider to be registered
   }
 
   public MatchCountListener getMatchCountListener() {

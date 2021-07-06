@@ -1564,4 +1564,13 @@ public class TestFunctionsQuery extends BaseTestQuery {
       .go();
   }
 
+  @Test
+  public void testGandivaSHAFunctions() throws Exception {
+    String query = "SELECT hashSHA256(full_name) FROM cp.\"employee.json\"";
+    test(query);
+
+    query = "SELECT hashSHA1(full_name) FROM cp.\"employee.json\"";
+    test(query);
+  }
+
 }

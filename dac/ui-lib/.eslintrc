@@ -1,0 +1,183 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended"
+  ],
+  "plugins": [
+    "react", "import"
+  ],
+
+  "env": {
+    "browser": true,
+    "node": true,
+    "es6": true,
+    "jest": true
+  },
+  "parser": "babel-eslint",
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 2018,
+    "ecmaFeatures": {
+      "jsx": true,
+      "experimentalObjectRestSpread": true,
+      "legacyDecorators": true
+    }
+  },
+
+  "rules":{
+    "no-prototype-builtins": "off",
+    "no-debugger": "warn",
+    "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
+    "react/prop-types": ["error", { "ignore": [], "customValidators": [] }],
+    "react/sort-comp": ["off", { // disabled because it's not ready for class properties. also, chris finds it generally annoying ;)
+      "order": [
+        "static-methods",
+        "displayName",
+        "propTypes",
+        "contextTypes",
+        "childContextTypes",
+        "mixins",
+        "statics",
+        "defaultProps",
+        "constructor",
+        "getDefaultProps",
+        "state",
+        "getInitialState",
+        "getChildContext",
+        "componentWillMount",
+        "componentDidMount",
+        "componentWillReceiveProps",
+        "shouldComponentUpdate",
+        "componentWillUpdate",
+        "componentDidUpdate",
+        "componentWillUnmount",
+        "/^load.+$/",
+        "/^on.+$/",
+        "/^(get|set)(?!(InitialState$|DefaultProps$|ChildContext$)).+$/",
+        "everything-else",
+        "/^render.+$/",
+        "render"
+      ]
+    }],
+    "react/jsx-uses-vars": "error",
+    "react/no-is-mounted": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-did-mount-set-state": "error",
+    "react/no-did-update-set-state": "error",
+    "react/jsx-no-duplicate-props": ["off", { "ignoreCase": false }],
+    "react/jsx-max-props-per-line": ["off", { "maximum": 1 }],
+    "react/jsx-indent-props": "off",
+    "react/jsx-indent": ["warn", 2],
+    "react/jsx-curly-spacing": ["off", "never", { "allowMultiline": true }],
+    "react/jsx-boolean-value": ["error", "never"],
+    "react/jsx-no-comment-textnodes": "error",
+    "comma-dangle": "error",
+    "no-negated-in-lhs": "error",
+    "block-scoped-var": "error",
+    "complexity": ["error", 40],
+    "default-case": "error",
+    "dot-notation": "error",
+    "eqeqeq": "error",
+    "no-alert": "error",
+    "no-caller": "error",
+    "no-labels": "off",
+    "no-eq-null": "error",
+    "no-eval": "error",
+    "no-extend-native": "error",
+    "no-extra-bind": "error",
+    "no-extra-label": "error",
+    "no-floating-decimal": "error",
+    "no-implied-eval": "error",
+    "no-iterator": "error",
+    "no-lone-blocks": "error",
+    "no-multi-str": "error",
+    "no-native-reassign": "error",
+    "no-new-func": "error",
+    "no-new-wrappers": "error",
+    "no-new": "error",
+    "no-octal-escape": "error",
+    "no-proto": "error",
+    "no-script-url": "error",
+    "no-self-compare": "error",
+    "no-sequences": "error",
+    "no-useless-call": "error",
+    "no-with": "error",
+    "radix": "error",
+    "wrap-iife": "error",
+    "yoda": "error",
+    "no-catch-shadow": "error",
+    "no-label-var": "error",
+    "no-shadow-restricted-names": "error",
+    "no-shadow": "error",
+    "no-undef-init": "error",
+    "no-unused-vars": ["error", { "args": "none", "ignoreRestSiblings": true }],
+    "callback-return": "error",
+    "no-mixed-requires": "error",
+    "no-path-concat": "error",
+    "no-sync": "error",
+    "brace-style": "error",
+    "camelcase": ["error", {"properties": "always"}],
+    "comma-spacing": ["error", {"before": false, "after": true}],
+    "consistent-this": ["error", "self"],
+    "eol-last": "error",
+    "func-style": ["off", "declaration"],
+    "indent": ["warn", 2],
+    "max-nested-callbacks": ["error", 6],
+    "new-cap": "off",
+    "new-parens": "error",
+    "no-array-constructor": "error",
+    "no-lonely-if": "error",
+    "no-nested-ternary": "error",
+    "no-new-object": "error",
+    "object-curly-spacing": ["error", "always"],
+    "object-shorthand": "error",
+    "no-spaced-func": "error",
+    "no-trailing-spaces": "error",
+    "no-unneeded-ternary": "error",
+    "quotes": ["error", "single", "avoid-escape"],
+    "semi-spacing": ["error", {"before": false, "after": true}],
+    "semi": ["error", "always"],
+    "space-before-blocks": ["error", "always"],
+    "space-before-function-paren": ["error", {
+      "anonymous": "never",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
+    "space-infix-ops": "error",
+    "space-unary-ops": ["error", { "words": true, "nonwords": false }],
+    "arrow-spacing": "error",
+    "constructor-super": "error",
+    "no-var": "error",
+    "prefer-const": ["error", {"destructuring": "all"}],
+    "prefer-spread": "error",
+    "require-yield": "error",
+    "max-params": ["error", 6],
+    "no-bitwise": "error",
+    "id-match": ["error", "^[a-zA-Z_$]+[a-zA-Z0-9_]*$", {"properties": false}],
+    "linebreak-style": ["error", "unix"],
+    "curly": ["error", "multi-line", "consistent"],
+    "import/export": "error",
+    "import/order": ["error", {
+      "groups": ["builtin", "external", "internal", "parent", "sibling", "index"]
+    }],
+    "no-restricted-properties": ["error", {
+      "object": "Object",
+      "property": "assign",
+      "message": "Please use object spread {...} instead."
+    }],
+    "jsx-quotes": ["error", "prefer-single"],
+    "no-restricted-globals": ["error",
+      "encodeURI", // if you think you want this, you probably want encodeURIComponent instead
+      "location" // usually want react router location instead
+    ],
+    "keyword-spacing": ["error", { "before": true, "after": true }]
+  },
+  "settings": {
+    "react": {
+      "version": "17.0.0"
+    }
+  },
+  "globals":{
+    "expect": false
+  }
+}

@@ -141,6 +141,7 @@ import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.JobResultInfoProvider;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
@@ -188,6 +189,7 @@ import com.dremio.service.job.ReflectionJobProfileRequest;
 import com.dremio.service.job.ReflectionJobSummaryRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SearchReflectionJobsRequest;
+import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.VersionedDatasetPath;
@@ -239,13 +241,14 @@ import com.google.protobuf.util.Timestamps;
 
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import io.opentelemetry.api.trace.Span;
 import io.protostuff.ByteString;
 
 
 /**
  * Submit and monitor jobs from DAC.
  */
-public class LocalJobsService implements Service, JobResultInfoProvider {
+public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJobRunner {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
   private static final Logger QUERY_LOGGER = LoggerFactory.getLogger("query.logger");
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(LocalJobsService.class);
@@ -760,6 +763,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             .buildSilently();
         }
 
+        Span.current().setAttribute("jobId", jobId.getId());
         startJob(externalId, jobRequest, collatingObserver, planTransformationListener);
         logger.debug("Submitted new job. Id: {} Type: {} Sql: {}", jobId.getId(), jobRequest.getQueryType(),
           jobRequest.getSqlQuery());
@@ -792,6 +796,61 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
   void submitJob(SubmitJobRequest jobRequest, StreamObserver<JobEvent> eventObserver) {
     submitJob(jobRequest, eventObserver, PlanTransformationListener.NO_OP);
+  }
+
+  static class QueryAsJobStreamObserver implements StreamObserver<JobEvent> {
+    private final CountDownLatch latch;
+    private Throwable exception;
+
+    public QueryAsJobStreamObserver() {
+      this.latch = new CountDownLatch(1);
+    }
+
+    @Override
+    public void onNext(JobEvent jobEvent) {
+      // Ignore
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+      exception = throwable;
+      latch.countDown();
+    }
+
+    @Override
+    public void onCompleted() {
+      latch.countDown();
+    }
+
+    public void waitForCompletion() throws InterruptedException {
+      latch.await();
+    }
+
+    public Throwable getException() {
+      return exception;
+    }
+  }
+
+  @Override
+  public void runQueryAsJob(String query, String userName) {
+    final SubmitJobRequest jobRequest = SubmitJobRequest.newBuilder()
+      .setQueryType(com.dremio.service.job.QueryType.UNKNOWN)
+      .setSqlQuery(SqlQuery.newBuilder().setSql(query))
+      .setUsername(userName)
+      .setRunInSameThread(true)
+      .build();
+
+    final QueryAsJobStreamObserver streamObserver = new QueryAsJobStreamObserver();
+    submitJob(jobRequest, streamObserver, PlanTransformationListener.NO_OP);
+
+    try {
+      streamObserver.waitForCompletion();
+      if (streamObserver.getException() != null) {
+        throw new IllegalStateException(streamObserver.getException());
+      }
+    } catch (InterruptedException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   Job getJob(GetJobRequest request) throws JobNotFoundException {
@@ -1525,7 +1584,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     private final AccelerationDetailsPopulator detailsPopulator;
     private final ExternalListenerManager externalListenerManager;
     private JoinPreAnalyzer joinPreAnalyzer;
-    private volatile QueryMetadata queryMetadata = null;
 
     JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator,
                       JobEventCollatingObserver eventObserver, PlanTransformationListener planTransformationListener,
@@ -1663,7 +1721,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
           .setQueueId(resourceSchedulingDecisionInfo.getQueueId())
           .setResourceSchedulingStart(resourceSchedulingDecisionInfo.getSchedulingStartTimeMs())
           .setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs())
-          .setQueryCost(resourceSchedulingDecisionInfo.getResourceSchedulingProperties().getQueryCost());
+          .setQueryCost(resourceSchedulingDecisionInfo.getResourceSchedulingProperties().getQueryCost())
+          .setEngineName(resourceSchedulingDecisionInfo.getEngineName());
         storeJob(job);
       }
     }
@@ -1684,6 +1743,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             }
             jobInfo.getResourceSchedulingInfo().setQueueName(profile.getResourceSchedulingProfile().getQueueName());
             jobInfo.getResourceSchedulingInfo().setQueueId(profile.getResourceSchedulingProfile().getQueueId());
+            jobInfo.getResourceSchedulingInfo().setEngineName(profile.getResourceSchedulingProfile().getEngineName());
           }
           job.getJobAttempt().setStats(profileParser.getJobStats());
           job.getJobAttempt().setDetails(profileParser.getJobDetails());
@@ -1747,7 +1807,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         eventObserver.onQueryMetadata(JobEvent.newBuilder()
             .setQueryMetadata(JobsProtoUtil.toBuf(metadata))
             .build());
-        queryMetadata = metadata;
         externalListenerManager.metadataAvailable(JobsProtoUtil.toBuf(metadata));
       }catch(Exception ex){
         exception.addException(ex);
@@ -1895,6 +1954,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         }
         jobInfo.getResourceSchedulingInfo().setQueueName(profile.getResourceSchedulingProfile().getQueueName());
         jobInfo.getResourceSchedulingInfo().setQueueId(profile.getResourceSchedulingProfile().getQueueId());
+        jobInfo.getResourceSchedulingInfo().setEngineName(profile.getResourceSchedulingProfile().getEngineName());
       }
       switch (state) {
       case FAILED:

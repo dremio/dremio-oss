@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.proto.UserBitShared.MeasureColumn;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
+import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -46,6 +47,7 @@ public class MaterializationDescriptor {
   private final List<String> partition;
   private final IncrementalUpdateSettings incrementalUpdateSettings;
   private final JoinDependencyProperties joinDependencyProperties;
+  private final CatalogService catalogService;
 
   public MaterializationDescriptor(
       final ReflectionInfo reflection,
@@ -60,7 +62,8 @@ public class MaterializationDescriptor {
       final IncrementalUpdateSettings incrementalUpdateSettings,
       final JoinDependencyProperties joinDependencyProperties,
       Long strippedPlanHash,
-      Integer stripVersion) {
+      Integer stripVersion,
+      final CatalogService catalogService) {
     this.reflection = Preconditions.checkNotNull(reflection, "reflection info required");
     this.materializationId = Preconditions.checkNotNull(materializationId, "materialization id is required");
     this.version = version;
@@ -74,6 +77,7 @@ public class MaterializationDescriptor {
     this.joinDependencyProperties = joinDependencyProperties;
     this.strippedPlanHash = strippedPlanHash;
     this.stripVersion = Optional.ofNullable(stripVersion).orElse(strippedPlanHash == null ? 0 : 1);
+    this.catalogService = catalogService;
   }
 
   public ReflectionType getReflectionType() {
@@ -152,7 +156,7 @@ public class MaterializationDescriptor {
   }
 
   public DremioMaterialization getMaterializationFor(SqlConverter converter) {
-    final MaterializationExpander expander = MaterializationExpander.of(converter);
+    final MaterializationExpander expander = MaterializationExpander.of(converter, catalogService);
     return expander.expand(this);
   }
 

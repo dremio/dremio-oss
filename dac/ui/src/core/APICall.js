@@ -91,9 +91,10 @@ export default class APICall {
     if (this._fullPath) {
       url = this._fullPath;
     } else if (this._path) {
-      url = this._path.map((path) => {
+      url = this._path.map((path, index, array) => {
         // handle already encoded paths - mainly from api links on the server.
-        return encodeURIComponent(decodeURIComponent(path));
+        const decodedPath = path.match(/^[A-Z][A-Z0-9]*$/i) === null && array[0] === 'resourcetree';
+        return decodedPath ? encodeURIComponent(path) : encodeURIComponent(decodeURIComponent(path));
       }).join('/');
     }
 

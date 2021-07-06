@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -50,6 +50,31 @@
 
   <dependencies>
     <!-- Those dependencies will be part of the bundle -->
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>gcs-connector</artifactId>
+      <version>hadoop3-2.1.6</version>
+      <classifier>shaded</classifier>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.oauth-client</groupId>
+            <artifactId>google-oauth-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.flogger</groupId>
+            <artifactId>flogger-log4j-backend</artifactId>
+          </exclusion>
+        </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <version>1.88.0</version>
+    </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
@@ -1353,6 +1378,7 @@
                     <exclude>**/Hive2StoragePluginConfig.java</exclude>
                     <exclude>**/hive2</exclude>
                     <exclude>**/HiveStoragePluginTest.java</exclude>
+                    <exclude>**/TestHive2MetadataUtils.java</exclude>
                   </excludes>
                 </resource>
               </resources>

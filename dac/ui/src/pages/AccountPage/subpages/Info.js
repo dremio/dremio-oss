@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import PropTypes from 'prop-types';
 import config from 'dyn-load/utils/config';
 import EditUserForm from '@app/pages/AdminPage/components/forms/EditUserForm';
 import { modalFormProps } from '@app/components/Forms';
-import Header from '@app/pages/AdminPage/components/Header';
+import SettingHeader from '@app/components/SettingHeader';
 
 import './Info.less';
-
 
 export class Info extends Component {
   static propTypes = {
@@ -39,9 +38,7 @@ export class Info extends Component {
     const addProps = modalFormProps(this.props);
     return (
       <div className='account-info-form'>
-        <Header style={styles.header}>
-          {la('General Information')}
-        </Header>
+        <SettingHeader title='Account.GeneralInformation' />
         <EditUserForm
           userId={userId}
           {...addProps}
@@ -65,9 +62,3 @@ function mapStateToProps(state) {
 }
 
 export default connect(mapStateToProps)(Info);
-
-const styles = {
-  header: {
-    marginBottom: 30
-  }
-};

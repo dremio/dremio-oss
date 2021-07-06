@@ -16,6 +16,7 @@
 package com.dremio.exec.store.easy.excel;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -24,15 +25,18 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.EasyCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
+import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
+import com.google.common.collect.Iterables;
 
 /**
  * {@link EasyFormatPlugin} implementation for reading Excel files.
@@ -62,11 +66,17 @@ public class ExcelFormatPlugin extends EasyFormatPlugin<ExcelFormatPluginConfig>
     checkExcelFileSize(path, dfs);
     final ExcelFormatPluginConfig excelFormatConfig = (ExcelFormatPluginConfig) formatConfig;
     return new ExcelRecordReader(
-        context,
-        dfs,
-        path,
-        excelFormatConfig,
-        columns);
+      context,
+      dfs,
+      path,
+      excelFormatConfig,
+      columns);
+  }
+
+  @Override
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, EasySubScan config) throws ExecutionSetupException {
+    RecordReader inner = getRecordReader(context, dfs, splitAttributes, columns);
+    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), Collections.emptyList());
   }
 
   /**

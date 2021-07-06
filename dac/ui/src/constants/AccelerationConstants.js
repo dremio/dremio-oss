@@ -28,7 +28,7 @@ export const measureTypeLabels = {
   MAX: 'MAX',
   SUM: 'SUM',
   COUNT: 'COUNT',
-  APPROX_COUNT_DISTINCT: 'Approximate distinct count'
+  APPROX_COUNT_DISTINCT: 'APPROX_COUNT_DISTINCT'
 };
 
 export const cellTypesWithNoSum = [

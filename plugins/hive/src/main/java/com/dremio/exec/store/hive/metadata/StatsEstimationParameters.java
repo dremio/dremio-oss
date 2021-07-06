@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import com.dremio.exec.store.hive.HiveSettings;
+
 /**
  * Set of parameters controlling the process of estimating records in a hive table/partition
  */
@@ -22,16 +24,20 @@ public class StatsEstimationParameters {
   private final boolean useMetastoreStats;
   private final int listSizeEstimate;
   private final int varFieldSizeEstimate;
+  private final HiveSettings hiveSettings;
 
   /**
    * @param useMetastoreStats    Whether to use stats in metastore or estimate based on filesize/filetype/record size
    * @param listSizeEstimate     Estimated number of elements in a list data type columns
    * @param varFieldSizeEstimate Estimated size of variable width columns
+   * @param hiveSettings         hiveSettings to check additional settings where needed
    */
-  public StatsEstimationParameters(final boolean useMetastoreStats, final int listSizeEstimate, final int varFieldSizeEstimate) {
+  public StatsEstimationParameters(final boolean useMetastoreStats, final int listSizeEstimate,
+                                   final int varFieldSizeEstimate, final HiveSettings hiveSettings) {
     this.useMetastoreStats = useMetastoreStats;
     this.listSizeEstimate = listSizeEstimate;
     this.varFieldSizeEstimate = varFieldSizeEstimate;
+    this.hiveSettings = hiveSettings;
   }
 
   public boolean useMetastoreStats() {
@@ -45,4 +51,6 @@ public class StatsEstimationParameters {
   public int getVarFieldSizeEstimate() {
     return varFieldSizeEstimate;
   }
+
+  public HiveSettings getHiveSettings() { return hiveSettings; }
 }

@@ -34,6 +34,7 @@ import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.protostuff.Tag;
 
@@ -67,6 +68,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @Tag(6)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  @JsonIgnore
   public boolean allowCreateDrop;
 
   @Tag(7)
@@ -119,6 +121,10 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @DisplayMetadata(label = "Enable file status check")
   public boolean enableFileStatusCheck = true;
 
+  @Tag(19)
+  @DisplayMetadata(label = "AWS Profile")
+  public String awsProfile;
+
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new S3StoragePlugin(this, context, name, pluginIdProvider);
@@ -141,7 +147,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+    return SchemaMutability.USER_TABLE;
   }
 
   @Override

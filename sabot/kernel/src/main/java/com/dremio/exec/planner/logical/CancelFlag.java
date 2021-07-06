@@ -23,14 +23,12 @@ import com.google.common.base.Stopwatch;
 
 public class CancelFlag extends org.apache.calcite.util.CancelFlag {
 
-  private final Stopwatch watch = Stopwatch.createStarted();
+  final Stopwatch watch = Stopwatch.createUnstarted();
   private final long timeout;
-  private final TimeUnit timeUnit;
 
-  public CancelFlag(long timeout, TimeUnit timeUnit) {
+  public CancelFlag(long timeout) {
     super(new AtomicBoolean());
     this.timeout = timeout;
-    this.timeUnit = timeUnit;
   }
 
   /**
@@ -43,7 +41,7 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
   }
 
   public long getTimeoutInSecs() {
-    final long inSecs = timeUnit.toSeconds(timeout);
+    final long inSecs = TimeUnit.MILLISECONDS.toSeconds(timeout);
     if (inSecs < 0) {
       // round it to 1 second.
       return 1;
@@ -53,7 +51,7 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
 
   @Override
   public boolean isCancelRequested() {
-    if(!VM.isDebugEnabled() && watch.elapsed(timeUnit) > timeout) {
+    if(!VM.isDebugEnabled() && watch.elapsed(TimeUnit.MILLISECONDS) > timeout) {
       return true;
     }
 

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 import { expect } from 'chai';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils.js';
-import { API_URL_V2 } from '@app/constants/Api.js';
 
 import * as Actions from './jobs.js';
 
@@ -54,7 +52,7 @@ describe('graph actions', () => {
 //   });
 // });
 
-
+/*
 describe('showReflectionJobProfile', () => {
   it('modifies the url properly', () => {
     const profileUrl = '/profiles/234ec562-1fe6-7ee1-b3c4-a74e57720300?attempt=0';
@@ -76,4 +74,4 @@ describe('showReflectionJobProfile', () => {
 
     localStorageUtils.getAuthToken.restore();
   });
-});
+});*/

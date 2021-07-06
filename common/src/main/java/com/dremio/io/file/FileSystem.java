@@ -90,7 +90,7 @@ public interface FileSystem extends Closeable {
   /**
    * Sets permission for file designated by path {@code f}
    *
-   * @param f the file to update permission
+   * @param p the file to update permission
    * @param permissions the new set of permissions
    * @throws FileNotFoundException if file doesn't exist
    * @throws IOException if an error occurs when accessing file information
@@ -146,9 +146,20 @@ public interface FileSystem extends Closeable {
   DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter) throws FileNotFoundException, IOException;
 
   /**
+   * Lists content of directory designated by {@code f}
+   *
+   * @param f the directory path
+   * @param recursive recursive list files of subdirectories
+   * @return a list of file attributes for each files
+   * @throws FileNotFoundException if the directory does not exist
+   * @throws IOException if an error occurs during listing
+   */
+  DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException;
+
+  /**
    * Lists content of directory designated by glob pattern {@code p}
    *
-   * @param the glob pattern
+   * @param pattern the glob pattern
    * @param filter a filter to filter out directory entries from the result
    * @return a list of file attributes for each entry in the directory
    * @throws FileNotFoundException if the directory does not exist
@@ -280,6 +291,12 @@ public interface FileSystem extends Closeable {
    * @return {@code true} if MapR, {@code false} otherwise
    */
   boolean isMapRfs();
+
+  /**
+   * Checks if the filesystem supports block-based affinities
+   * @return {@code true} if it supports block-based affinities, {@code false} otherwise
+   */
+  boolean supportsBlockAffinity();
 
   boolean supportsPath(Path path);
 

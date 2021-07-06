@@ -44,12 +44,14 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.easy.json.JsonProcessor;
+import com.dremio.exec.store.easy.json.reader.BaseJsonProcessor;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.dremio.plugins.elastic.ElasticActions.DeleteScroll;
 import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticActions.SearchScroll;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.dremio.plugins.elastic.ElasticVersionBehaviorProvider;
 import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
@@ -101,21 +103,22 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private long totalCount;
   private String scrollId;
   private VectorContainerWriter complexWriter;
-  private ElasticsearchJsonReader jsonReader;
+  private BaseJsonProcessor jsonReader;
   private State state = State.INIT;
+  private final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider;
 
   public ElasticsearchRecordReader(
-      ElasticsearchStoragePlugin plugin,
-      List<String> tableSchemaPath,
-      ElasticTableXattr tableAttributes,
-      OperatorContext context,
-      ElasticsearchScanSpec spec,
-      boolean useElasticProjection,
-      SplitAndPartitionInfo split,
-      ElasticConnection connection,
-      List<SchemaPath> columns,
-      FieldReadDefinition readDefinition,
-      ElasticsearchConf config) throws InvalidProtocolBufferException {
+    ElasticsearchStoragePlugin plugin,
+    List<String> tableSchemaPath,
+    ElasticTableXattr tableAttributes,
+    OperatorContext context,
+    ElasticsearchScanSpec spec,
+    boolean useElasticProjection,
+    SplitAndPartitionInfo split,
+    ElasticConnection connection,
+    List<SchemaPath> columns,
+    FieldReadDefinition readDefinition,
+    ElasticsearchConf config) throws InvalidProtocolBufferException {
     super(context, columns);
     this.plugin = plugin;
     this.tableAttributes = tableAttributes;
@@ -130,8 +133,14 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     this.config = config;
     this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
-    this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
-    this.metaIDSelected = config.isShowIdColumn() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
+    this.elasticVersionBehaviorProvider = new ElasticVersionBehaviorProvider(this.connection.getESVersionInCluster());
+    if(elasticVersionBehaviorProvider.isEnable7vFeatures()) {
+      this.metaUIDSelected = false;
+      this.metaIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery();
+    } else {
+      this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
+      this.metaIDSelected = config.isShowIdColumn() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
+    }
     this.metaTypeSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.TYPE)) || isStarQuery();
     this.metaIndexSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.INDEX)) || isStarQuery();
 
@@ -144,29 +153,25 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   public void setup(OutputMutator output) throws ExecutionSetupException {
     complexWriter = new VectorContainerWriter(output);
     if (getColumns().isEmpty()) {
-      jsonReader = new CountingElasticsearchJsonReader(
-          context.getManagedBuffer(),
-          ImmutableList.copyOf(getColumns()),
-          resource,
-          readDefinition,
-          usingElasticProjection,
-          metaUIDSelected,
-          metaIDSelected,
-          metaTypeSelected,
-          metaIndexSelected
-      );
+      jsonReader = elasticVersionBehaviorProvider.createCountingElasticSearchReader(context.getManagedBuffer(),
+        ImmutableList.copyOf(getColumns()),
+        resource,
+        readDefinition,
+        usingElasticProjection,
+        metaUIDSelected,
+        metaIDSelected,
+        metaTypeSelected,
+        metaIndexSelected);
     } else {
-      jsonReader = new ElasticsearchJsonReader(
-          context.getManagedBuffer(),
-          ImmutableList.copyOf(getColumns()),
-          resource,
-          readDefinition,
-          usingElasticProjection,
-          metaUIDSelected,
-          metaIDSelected,
-          metaTypeSelected,
-          metaIndexSelected
-      );
+      jsonReader = elasticVersionBehaviorProvider.createElasticSearchReader(context.getManagedBuffer(),
+        ImmutableList.copyOf(getColumns()),
+        resource,
+        readDefinition,
+        usingElasticProjection,
+        metaUIDSelected,
+        metaIDSelected,
+        metaTypeSelected,
+        metaIndexSelected);
     }
   }
 
@@ -179,15 +184,18 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     assert state == State.INIT;
     int searchSize = config.getScrollSize();
     int fetch = spec.getFetch();
-    if (fetch >= 0 &&  fetch < searchSize) {
+    if (fetch >= 0 && fetch < searchSize) {
       searchSize = fetch;
     }
 
-    final Search<byte[]> search = new SearchBytes()
-        .setQuery(query)
-        .setResource(resource)
-        .setParameter("scroll", config.getScrollTimeoutFormatted())
-        .setParameter("size", Integer.toString(searchSize));
+    final Search<byte[]> search;
+    final String newQuery;
+    newQuery = elasticVersionBehaviorProvider.processElasticSearchQuery(query);
+    search = new SearchBytes()
+      .setQuery(newQuery)
+      .setResource(resource)
+      .setParameter("scroll", config.getScrollTimeoutFormatted())
+      .setParameter("size", Integer.toString(searchSize));
 
     if (splitAttributes != null) {
       search.setParameter("preference", "_shards:" + splitAttributes.getShard());
@@ -199,14 +207,14 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
     final byte[] bytes;
     try {
-      bytes = connection.execute(search);
+      bytes = elasticVersionBehaviorProvider.getSearchBytes(connection, search);
     } catch (UserException e) {
       if (e.getErrorType() == ErrorType.INVALID_DATASET_METADATA) {
         logger.trace("failed with invalid metadata, ", e);
         throw UserException.invalidMetadataError()
-            .setAdditionalExceptionContext(
-                new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
-            .build(logger);
+          .setAdditionalExceptionContext(
+            new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
+          .build(logger);
       }
 
       throw e;
@@ -214,7 +222,10 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
     try {
       jsonReader.setSource(bytes);
-      Pair<String, Long> scrollIdAndTotalSize = jsonReader.getScrollAndTotalSizeThenSeekToHits();
+
+      Pair<String, Long> scrollIdAndTotalSize;
+      scrollIdAndTotalSize = jsonReader.getScrollAndTotalSizeThenSeekToHits();
+
       scrollId = scrollIdAndTotalSize.getKey();
       totalSize = scrollIdAndTotalSize.getValue();
     } catch (IOException e) {
@@ -240,8 +251,8 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         stats.startWait();
       }
       SearchScroll searchScroll = new SearchScroll()
-          .setScrollId(scrollId)
-          .setScrollTimeout(config.getScrollTimeoutFormatted());
+        .setScrollId(scrollId)
+        .setScrollTimeout(config.getScrollTimeoutFormatted());
       return connection.execute(searchScroll);
     } finally {
       if (stats != null) {
@@ -257,7 +268,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       return 0;
     }
 
-    if(state == State.INIT){
+    if (state == State.INIT) {
       getFirstPage();
     }
 
@@ -293,9 +304,9 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         pageCount++;
 
         // if we're calling an ES server many times and isn't getting us the number of messages we expect, we should terminate the query to avoid a DOS attack
-        boolean badStreamBreak = pageCount > STREAM_COUNT_BREAK_MULTIPLIER * numRowsPerBatch/(1.0*spec.getFetch()) && pageCount > 5;
+        boolean badStreamBreak = pageCount > STREAM_COUNT_BREAK_MULTIPLIER * numRowsPerBatch / (1.0 * spec.getFetch()) && pageCount > 5;
 
-        if(!badStreamBreak){
+        if (!badStreamBreak) {
           jsonReader.setSource(bytes);
           scrollId = jsonReader.getScrollAndTotalSizeThenSeekToHits().getKey();
           continue;
@@ -327,7 +338,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
       }
 
-      if(count > 0){
+      if (count > 0) {
         print(complexWriter.getStructVector(), count);
       }
     } catch (Exception e) {
@@ -335,20 +346,20 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     }
     jsonReader.ensureAtLeastOneField(complexWriter);
     complexWriter.setValueCount(count);
-    try{
+    try {
       print(complexWriter.getStructVector(), count);
-    }catch(Exception ex){
+    } catch (Exception ex) {
       throw Throwables.propagate(ex);
     }
     return count;
   }
 
-  private void print(NonNullableStructVector structVector, int count) throws JsonGenerationException, IOException{
-    if(PRINT_OUTPUT){
+  private void print(NonNullableStructVector structVector, int count) throws JsonGenerationException, IOException {
+    if (PRINT_OUTPUT) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       JsonWriter jsonWriter = new JsonWriter(baos, true, false);
       FieldReader reader = new SingleStructReaderImpl(structVector);
-      for(int index = 0; index < count; index++){
+      for (int index = 0; index < count; index++) {
         reader.setPosition(index);
         jsonWriter.write(reader);
       }
@@ -359,7 +370,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
   @Override
   public synchronized void close() throws Exception {
-    if(state == State.CLOSED){
+    if (state == State.CLOSED) {
       return;
     }
 

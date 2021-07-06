@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -33,9 +32,8 @@ function validate(values) {
   return applyValidators(values, [isRequired('expression'), isRequired('newFieldName')]);
 }
 
-@PureRender
 @Radium
-class CalculatedFieldContent extends Component {
+class CalculatedFieldContent extends PureComponent {
 
   static propTypes = {
     columnName: PropTypes.string,

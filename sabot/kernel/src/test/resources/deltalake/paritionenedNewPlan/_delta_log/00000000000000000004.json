@@ -1,0 +1,2 @@
+{"commitInfo":{"timestamp":1618768947016,"operation":"WRITE","operationParameters":{"mode":"Append","partitionBy":"[\"continent\"]"},"readVersion":3,"isBlindAppend":true,"operationMetrics":{"numFiles":"1","numOutputBytes":"12267","numOutputRows":"10"}}}
+{"add":{"path":"continent=South%20America/part-00000-44b6dd9b-c71c-4d18-b91f-ee712f7a3b0c.c000.snappy.parquet","partitionValues":{"continent":"South America"},"size":12267,"modificationTime":1618768947000,"dataChange":true}}

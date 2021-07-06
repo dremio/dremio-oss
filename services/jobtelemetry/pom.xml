@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <artifactId>dremio-services-jobtelemetry</artifactId>

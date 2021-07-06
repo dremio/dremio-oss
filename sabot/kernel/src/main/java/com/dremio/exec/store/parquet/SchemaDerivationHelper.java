@@ -89,7 +89,7 @@ public class SchemaDerivationHelper {
    *
    * @return returns true if reader is capable of handling mixed decimals
    */
-  public boolean isAllowMixedDecimals() {
+  public boolean allowMixedDecimals() {
     return this.allowMixedDecimals;
   }
 

@@ -85,6 +85,7 @@ public class TestBuilder {
   private List<Map<String, Object>> baselineRecords;
 
   private int expectedNumBatches = DremioTestWrapper.EXPECTED_BATCH_COUNT_NOT_SET;
+  private Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap;
 
   public TestBuilder(BufferAllocator allocator) {
     this.allocator = allocator;
@@ -94,7 +95,7 @@ public class TestBuilder {
   public TestBuilder(BufferAllocator allocator, Object query, UserBitShared.QueryType queryType, Boolean ordered,
                      boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                      String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                     int expectedNumBatches) {
+                     int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap) {
     this(allocator);
     if (ordered == null) {
       throw new RuntimeException("Ordering not set, when using a baseline file or query you must explicitly call the ordered() or unOrdered() method on the " + this.getClass().getSimpleName());
@@ -108,6 +109,7 @@ public class TestBuilder {
     this.testOptionSettingQueries = testOptionSettingQueries;
     this.highPerformanceComparison = highPerformanceComparison;
     this.expectedNumBatches = expectedNumBatches;
+    this.baselineValuesForTDigestMap = baselineValuesForTDigestMap;
   }
 
   protected TestBuilder reset() {
@@ -118,6 +120,7 @@ public class TestBuilder {
     testOptionSettingQueries = "";
     baselineOptionSettingQueries = "";
     baselineRecords = null;
+    baselineValuesForTDigestMap = null;
     return this;
   }
 
@@ -126,7 +129,7 @@ public class TestBuilder {
       throw new Exception("High performance comparison only available for ordered checks, to enforce this restriction, ordered() must be called first.");
     }
     return new DremioTestWrapper(this, allocator, query, queryType, baselineOptionSettingQueries, testOptionSettingQueries,
-        getValidationQueryType(), ordered, highPerformanceComparison, baselineRecords, expectedNumBatches);
+      getValidationQueryType(), ordered, highPerformanceComparison, baselineRecords, expectedNumBatches, baselineValuesForTDigestMap);
   }
 
   public List<Pair<SchemaPath, MajorType>> getExpectedSchema() {
@@ -246,14 +249,14 @@ public class TestBuilder {
 
   public JSONTestBuilder jsonBaselineFile(String filePath) {
     return new JSONTestBuilder(filePath, allocator, query, queryType, ordered, approximateEquality,
-        baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
-        expectedNumBatches);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
+      expectedNumBatches, baselineValuesForTDigestMap);
   }
 
   public CSVTestBuilder csvBaselineFile(String filePath) {
     return new CSVTestBuilder(filePath, allocator, query, queryType, ordered, approximateEquality,
-        baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
-        expectedNumBatches);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
+      expectedNumBatches, baselineValuesForTDigestMap);
   }
 
   public SchemaTestBuilder schemaBaseLine(List<Pair<SchemaPath, MajorType>> expectedSchema) {
@@ -261,12 +264,12 @@ public class TestBuilder {
     assert baselineColumns == null : "The column information should be captured in expected schema, not baselineColumns";
 
     return new SchemaTestBuilder(
-        allocator,
-        query,
-        queryType,
-        baselineOptionSettingQueries,
-        testOptionSettingQueries,
-        expectedSchema);
+      allocator,
+      query,
+      queryType,
+      baselineOptionSettingQueries,
+      testOptionSettingQueries,
+      expectedSchema);
   }
 
   public TestBuilder baselineTypes(Map<SchemaPath, MajorType> baselineTypeMap) {
@@ -333,6 +336,12 @@ public class TestBuilder {
     return this;
   }
 
+  public TestBuilder baselineTolerancesForTDigest(Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap) {
+    this.baselineValuesForTDigestMap = baselineValuesForTDigestMap;
+    return this;
+  }
+
+
   /**
    * This can be used in cases where we want to avoid issues with the assumptions made by the test framework.
    * Most of the methods for verification in the framework run drill queries to generate the read baseline files or
@@ -383,7 +392,7 @@ public class TestBuilder {
   // provide a SQL query to validate against
   public BaselineQueryTestBuilder sqlBaselineQuery(Object baselineQuery) {
     return new BaselineQueryTestBuilder(baselineQuery, UserBitShared.QueryType.SQL, allocator, query, queryType, ordered, approximateEquality,
-        baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap);
   }
 
   public BaselineQueryTestBuilder sqlBaselineQuery(String query, String ...replacements) {
@@ -394,7 +403,7 @@ public class TestBuilder {
   public BaselineQueryTestBuilder sqlBaselineQueryFromFile(String baselineQueryFilename) throws IOException {
     String baselineQuery = BaseTestQuery.getFile(baselineQueryFilename);
     return new BaselineQueryTestBuilder(baselineQuery, UserBitShared.QueryType.SQL, allocator, query, queryType, ordered, approximateEquality,
-        baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap);
   }
 
   // as physical plans are verbose, this is the only option provided for specifying them, we should enforce
@@ -402,7 +411,7 @@ public class TestBuilder {
   public BaselineQueryTestBuilder physicalPlanBaselineQueryFromFile(String baselinePhysicalPlanPath) throws IOException {
     String baselineQuery = BaseTestQuery.getFile(baselinePhysicalPlanPath);
     return new BaselineQueryTestBuilder(baselineQuery, UserBitShared.QueryType.PHYSICAL, allocator, query, queryType, ordered, approximateEquality,
-        baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap);
   }
 
   private String getDecimalPrecisionScaleInfo(MajorType type) {
@@ -433,9 +442,9 @@ public class TestBuilder {
     CSVTestBuilder(String baselineFile, BufferAllocator allocator, Object query, UserBitShared.QueryType queryType, Boolean ordered,
                    boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                    String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                   int expectedNumBatches) {
+                   int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances) {
       super(allocator, query, queryType, ordered, approximateEquality, baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries,
-          highPerformanceComparison, expectedNumBatches);
+        highPerformanceComparison, expectedNumBatches, baselineTolerances);
       this.baselineFilePath = baselineFile;
     }
 
@@ -503,11 +512,11 @@ public class TestBuilder {
         // set default cast size for varchar, the cast function will take the lesser of this passed value and the
         // length of the incoming data when choosing the length for the outgoing data
         if (majorType.getMinorType() == MinorType.VARCHAR ||
-            majorType.getMinorType() == MinorType.VARBINARY) {
+          majorType.getMinorType() == MinorType.VARBINARY) {
           precision = "(65000)";
         }
         aliasedExpectedColumns[i] = "cast(" + aliasedExpectedColumns[i] + " as " +
-            getNameOfMinorType(majorType.getMinorType()) + precision +  " ) " + baselineColumns[i].replace('`', '"');
+          getNameOfMinorType(majorType.getMinorType()) + precision + " ) " + baselineColumns[i].replace('`', '"');
       }
       String query = "select " + Joiner.on(", ").join(aliasedExpectedColumns) + " from cp.\"" + baselineFilePath + "\"";
       return query;
@@ -521,9 +530,10 @@ public class TestBuilder {
 
   public class SchemaTestBuilder extends TestBuilder {
     private List<Pair<SchemaPath, MajorType>> expectedSchema;
+
     SchemaTestBuilder(BufferAllocator allocator, Object query, UserBitShared.QueryType queryType,
-        String baselineOptionSettingQueries, String testOptionSettingQueries, List<Pair<SchemaPath, MajorType>> expectedSchema) {
-      super(allocator, query, queryType, false, false, null, baselineOptionSettingQueries, testOptionSettingQueries, false, -1);
+                      String baselineOptionSettingQueries, String testOptionSettingQueries, List<Pair<SchemaPath, MajorType>> expectedSchema) {
+      super(allocator, query, queryType, false, false, null, baselineOptionSettingQueries, testOptionSettingQueries, false, -1, null);
       expectsEmptyResultSet();
       this.expectedSchema = expectedSchema;
     }
@@ -565,18 +575,18 @@ public class TestBuilder {
     JSONTestBuilder(String baselineFile, BufferAllocator allocator, Object query, UserBitShared.QueryType queryType, Boolean ordered,
                     boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                     String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                    int expectedNumBatches) {
+                    int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances) {
       super(allocator, query, queryType, ordered, approximateEquality, baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries,
-          highPerformanceComparison, expectedNumBatches);
+        highPerformanceComparison, expectedNumBatches, baselineTolerances);
       this.baselineFilePath = baselineFile;
-      this.baselineColumns = new String[] {"*"};
+      this.baselineColumns = new String[]{"*"};
     }
 
     @Override
     String getValidationQuery() {
       return "select "
-          + Joiner.on(", ").join(Iterables.transform(Arrays.asList(baselineColumns), column -> column.replace('`', '"')))
-          + " from cp.\"" + baselineFilePath + "\"";
+        + Joiner.on(", ").join(Iterables.transform(Arrays.asList(baselineColumns), column -> column.replace('`', '"')))
+        + " from cp.\"" + baselineFilePath + "\"";
     }
 
     @Override
@@ -598,9 +608,9 @@ public class TestBuilder {
                              Object query, UserBitShared.QueryType queryType, Boolean ordered,
                              boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                              String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                             int expectedNumBatches) {
+                             int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances) {
       super(allocator, query, queryType, ordered, approximateEquality, baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries,
-          highPerformanceComparison, expectedNumBatches);
+        highPerformanceComparison, expectedNumBatches, baselineTolerances);
       this.baselineQuery = baselineQuery;
       this.baselineQueryType = baselineQueryType;
     }
@@ -662,52 +672,52 @@ public class TestBuilder {
 
   public static String getNameOfMinorType(final MinorType type) {
     switch (type) {
-    case BIT:
-      return "bool";
-    case TINYINT:
-      return "tinyint";
-    case UINT1:
-      return "uint1";
-    case SMALLINT:
-      return "smallint";
-    case UINT2:
-      return "uint2";
-    case INT:
-      return "int";
-    case UINT4:
-      return "uint4";
-    case BIGINT:
-      return "bigint";
-    case UINT8:
-      return "uint8";
-    case FLOAT4:
-      return "float";
-    case FLOAT8:
-      return "double";
-    case DECIMAL9:
-      return "decimal";
-    case DECIMAL18:
-      return "decimal";
-    case DECIMAL28SPARSE:
-      return "decimal";
-    case DECIMAL38SPARSE:
-      return "decimal";
-    case VARCHAR:
-      return "varchar";
-    case VAR16CHAR:
-      return "utf16";
-    case DATE:
-      return "date";
-    case TIME:
-      return "time";
-    case TIMESTAMP:
-      return "timestamp";
-    case VARBINARY:
-      return "binary";
-    case LATE:
-      throw new AssertionError("The late type should never appear in execution or an SQL query, so it does not have a name to refer to it.");
-    default:
-      throw new AssertionError("Unrecognized type " + type);
+      case BIT:
+        return "bool";
+      case TINYINT:
+        return "tinyint";
+      case UINT1:
+        return "uint1";
+      case SMALLINT:
+        return "smallint";
+      case UINT2:
+        return "uint2";
+      case INT:
+        return "int";
+      case UINT4:
+        return "uint4";
+      case BIGINT:
+        return "bigint";
+      case UINT8:
+        return "uint8";
+      case FLOAT4:
+        return "float";
+      case FLOAT8:
+        return "double";
+      case DECIMAL9:
+        return "decimal";
+      case DECIMAL18:
+        return "decimal";
+      case DECIMAL28SPARSE:
+        return "decimal";
+      case DECIMAL38SPARSE:
+        return "decimal";
+      case VARCHAR:
+        return "varchar";
+      case VAR16CHAR:
+        return "utf16";
+      case DATE:
+        return "date";
+      case TIME:
+        return "time";
+      case TIMESTAMP:
+        return "timestamp";
+      case VARBINARY:
+        return "binary";
+      case LATE:
+        throw new AssertionError("The late type should never appear in execution or an SQL query, so it does not have a name to refer to it.");
+      default:
+        throw new AssertionError("Unrecognized type " + type);
     }
   }
 }

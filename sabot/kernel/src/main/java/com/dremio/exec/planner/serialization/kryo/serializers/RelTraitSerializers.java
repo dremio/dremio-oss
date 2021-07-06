@@ -31,6 +31,7 @@ import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelDistributions;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -301,6 +302,7 @@ public final class RelTraitSerializers {
       return traitSet;
     }
 
+    @SuppressForbidden
     public Field getField(final String fieldName) throws NoSuchFieldException {
       final Field field = RelTraitSet.class.getDeclaredField(fieldName);
       field.setAccessible(true);

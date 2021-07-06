@@ -27,7 +27,7 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
-import com.dremio.exec.store.iceberg.IcebergTableOperations;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -51,7 +51,7 @@ public class DropColumnHandler extends SimpleDirectHandler {
 
     NamespaceKey path = catalog.resolveSingle(sqlDropColumn.getTable());
 
-    Optional<SimpleCommandResult> validate = IcebergTableOperations.checkTableExistenceAndMutability(catalog, config,
+    Optional<SimpleCommandResult> validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config,
         path, false);
     if (validate.isPresent()) {
       return Collections.singletonList(validate.get());

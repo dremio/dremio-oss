@@ -17,11 +17,7 @@ package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
-import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
-import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
-import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_ENABLE_SUBSTITUTION;
-import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_DELAY_MILLIS;
-import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODIC_WAKEUP_ONLY;
+import static com.dremio.service.reflection.ReflectionOptions.*;
 import static com.dremio.service.reflection.ReflectionUtils.computeDatasetHash;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
@@ -92,7 +88,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.MaterializationCache.CacheException;
 import com.dremio.service.reflection.MaterializationCache.CacheHelper;
@@ -157,9 +152,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
     @Override
     public MaterializationDescriptor getMaterializationDescriptor(ReflectionGoal reflectionGoal,
-        ReflectionEntry reflectionEntry, Materialization materialization, double originalCost) {
+        ReflectionEntry reflectionEntry, Materialization materialization, double originalCost, CatalogService catalogService) {
       return ReflectionUtils.getMaterializationDescriptor(reflectionGoal, reflectionEntry, materialization,
-          originalCost);
+          originalCost, catalogService);
     }
   };
 
@@ -194,6 +189,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private DependencyManager dependencyManager;
   private MaterializationCache materializationCache;
   private WakeupHandler wakeupHandler;
+  private boolean isMasterLessEnabled;
 
   private final CacheViewer cacheViewer = new CacheViewer() {
     @Override
@@ -238,7 +234,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         return sabotContext.get().getNamespaceService(SYSTEM_USERNAME);
       }
     };
-    this.reflectionSettings = new ReflectionSettings(namespaceService, storeProvider);
+    this.reflectionSettings = new ReflectionSettingsImpl(namespaceService, storeProvider);
     this.isMaster = isMaster;
     this.allocator = allocator.newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
 
@@ -286,9 +282,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   @Override
   public void start() {
     this.materializationDescriptorProvider = new MaterializationDescriptorProviderImpl();
+    this.isMasterLessEnabled = sabotContext.get().getDremioConfig().isMasterlessEnabled();
 
     // populate the materialization cache
-    materializationCache = new MaterializationCache(cacheHelper, namespaceService.get(), reflectionStatusService.get());
+    materializationCache = new MaterializationCache(cacheHelper, namespaceService.get(), reflectionStatusService.get(), catalogService.get());
     if (isCacheEnabled()) {
       // refresh the cache in-thread before any query gets planned
       materializationCache.refresh();
@@ -309,19 +306,13 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
     // only start the managers on the master node
     if (isMaster) {
-      if (sabotContext.get().getDremioConfig().isMasterlessEnabled()) {
+      if (isMasterLessEnabled) {
         final CountDownLatch wasRun = new CountDownLatch(1);
+        // run once if it becomes a master
+        // no clean-up; node can become a leader later
         final Cancellable task = schedulerService.get()
         .schedule(scheduleForRunningOnceAt(Instant.now(),
-          LOCAL_TASK_LEADER_NAME, () -> {
-              // set to null
-              // this is needed if we encounter lost ZK connection
-              // and we bounce back and force
-              logger.info("Reflections cleanup");
-              wakeupHandler = null;
-              dependencyManager = null;
-          }),
-          () -> {
+          LOCAL_TASK_LEADER_NAME), () -> {
             masterInit();
             wasRun.countDown();
           });
@@ -337,15 +328,19 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         // if it is masterful mode just init
         masterInit();
       }
-       // sends a wakeup event every reflection_manager_refresh_delay
-      schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis(), LOCAL_TASK_LEADER_NAME),
+      // sends a wakeup event every reflection_manager_refresh_delay
+      // does not relinquish
+      // important to use schedule once and reschedule since option value might
+      // change dynamically
+      schedulerService.get().schedule(scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + getRefreshTimeInMillis()), LOCAL_TASK_LEADER_NAME),
         new Runnable() {
           @Override
           public void run() {
             logger.debug("periodic refresh");
             wakeupManager("periodic refresh", true);
-            schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis(), LOCAL_TASK_LEADER_NAME), this);
+            schedulerService.get().schedule(scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + getRefreshTimeInMillis()), LOCAL_TASK_LEADER_NAME), this);
           }
+
         }
       );
     }
@@ -401,7 +396,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         jobsService.get(),
         materializationStore,
         this::wakeupManager
-      )
+      ),
+      catalogService.get()
     );
 
     wakeupHandler = new WakeupHandler(executorService, reflectionManager);
@@ -442,8 +438,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return dependencyManager.getExcludedReflectionsProvider();
   }
 
-  private Instant getNextRefreshTimeInMillis() {
-    return ofEpochMilli(System.currentTimeMillis() + getOptionManager().getOption(REFLECTION_MANAGER_REFRESH_DELAY_MILLIS));
+  private long getRefreshTimeInMillis() {
+    return getOptionManager().getOption(REFLECTION_MANAGER_REFRESH_DELAY_MILLIS);
   }
 
   @VisibleForTesting
@@ -546,7 +542,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         .setTargetDatasetHash(computeDatasetHash(targetDatasetConfig, namespaceService.get(), true));
 
       // check that we are able to get a MaterializationDescriptor before storing it
-      MaterializationDescriptor descriptor = ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get());
+      MaterializationDescriptor descriptor = ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get(), catalogService.get());
       if (descriptor == null) {
         throw UserException.validationError().message("Failed to validate external reflection " + name).build(logger);
       }
@@ -768,6 +764,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     Optional<ReflectionGoal> goal = getGoal(id);
     if(goal.isPresent() && goal.get().getState() != ReflectionGoalState.DELETED) {
       update(goal.get().setState(ReflectionGoalState.DELETED));
+      invalidateReflectionAssociatedPlanCache(goal.get().getDatasetId());
     }
   }
 
@@ -868,7 +865,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   private Future<?> wakeupManager(String reason, boolean periodic) {
-    final boolean periodicWakeupOnly = getOptionManager().getOption(REFLECTION_PERIODIC_WAKEUP_ONLY);
+    // in master-less mode, periodic wake-ups occur only on task leader. Ad-hoc wake-ups can occur on any coordinator,
+    // and can cause result in concurrent modification exceptions, when updating kvstore - so, disable them.
+    final boolean periodicWakeupOnly = getOptionManager().getOption(REFLECTION_PERIODIC_WAKEUP_ONLY) ||
+      isMasterLessEnabled;
     if (wakeupHandler != null && (!periodicWakeupOnly || periodic)) {
       return wakeupHandler.handle(reason);
     }
@@ -891,7 +891,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         goal,
         entry,
         materialization,
-        metrics.getOriginalCost());
+        metrics.getOriginalCost(),
+        catalogService.get());
   }
 
   private final class MaterializationDescriptorProviderImpl implements MaterializationDescriptorProvider {
@@ -942,7 +943,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
             @Override
             public MaterializationDescriptor apply(ExternalReflection externalReflection) {
               try {
-                return ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get());
+                return ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get(), catalogService.get());
               } catch (Exception e) {
                 logger.debug("failed to get MaterializationDescriptor for external reflection {}", externalReflection.getName());
                 return null;
@@ -1073,7 +1074,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     @Override
     public MaterializationDescriptor getDescriptor(ExternalReflection externalReflection) throws CacheException {
       try {
-        return ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get());
+        return ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get(), catalogService.get());
       } catch (NamespaceException e) {
         throw new CacheException("Unable to get descriptor for " + externalReflection.getName());
       }
@@ -1086,7 +1087,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       if (expanded == null) {
         return null;
       }
-      return new CachedMaterializationDescriptor(descriptor, expanded);
+      return new CachedMaterializationDescriptor(descriptor, expanded, catalogService.get());
     }
 
     @Override
@@ -1192,7 +1193,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         context.getCatalog(),
         context.getSubstitutionProviderFactory(),
         context.getConfig(),
-        context.getScanResult());
+        context.getScanResult(),
+        context.getRelMetadataQuerySupplier());
     }
 
     public SqlConverter getConverter() {
@@ -1246,14 +1248,15 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         configQueue.add(catalog.getTable(datasetId).getDatasetConfig());
         while (!configQueue.isEmpty()) {
           DatasetConfig config = configQueue.remove();
-          if (config.getType() == DatasetType.PHYSICAL_DATASET || config.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE) {
-            PhysicalDataset dataset = config.getPhysicalDataset();
-            planCache.invalidateCacheOnDataset(dataset);
+          if (config.getType().getNumber() > 1) {    //physical dataset types
+            planCache.invalidateCacheOnDataset(config.getId().getId());
           } else if (config.getType() == DatasetType.VIRTUAL_DATASET && config.getVirtualDataset().getParentsList() != null) {
             for (ParentDataset parent : config.getVirtualDataset().getParentsList()){
               try {
-                NamespaceKey namespaceKey = new NamespaceKey(parent.getDatasetPathList());
-                configQueue.add(namespaceService.get().getDataset(namespaceKey));
+                int size = parent.getDatasetPathList().size();
+                if( !(size > 1 && parent.getDatasetPathList().get(size-1).equalsIgnoreCase("external_query"))) {
+                  configQueue.add(namespaceService.get().getDataset(new NamespaceKey(parent.getDatasetPathList())));
+                }
               } catch (NamespaceException ex) {
                 throw Throwables.propagate(ex);
               }

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,7 +34,6 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.logging.log4j.util.TriConsumer;
 import org.junit.Test;
 
@@ -41,16 +41,15 @@ import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
-import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.deltalake.DeltaConstants;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
@@ -89,8 +88,9 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             incoming.buildSchema();
 
             VectorAccessible outgoing = tableFunction.setup(incoming);
-            VarBinaryVector outgoingSplits = getSplitVec(outgoing);
-            closer.add(outgoingSplits);
+            closer.addAll(outgoing);
+
+            VarBinaryVector outgoingSplits = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
 
             tableFunction.startRow(0);
             assertEquals(1, tableFunction.processRow(0, 5));
@@ -142,8 +142,9 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             incoming.buildSchema();
 
             VectorAccessible outgoing = tableFunction.setup(incoming);
-            VarBinaryVector outgoingSplits = getSplitVec(outgoing);
-            closer.add(outgoingSplits);
+            closer.addAll(outgoing);
+
+            VarBinaryVector outgoingSplits = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
 
             tableFunction.startRow(0); // expected to produce 2 batches
             // Batch 1
@@ -191,17 +192,12 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
         }
     }
 
-    private VarBinaryVector getSplitVec(VectorAccessible vectorWrappers) {
-        TypedFieldId typedFieldId = vectorWrappers.getSchema().getFieldId(SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION));
-        Field field = vectorWrappers.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
-        return (VarBinaryVector) vectorWrappers.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
-    }
-
     private TableFunctionConfig getConfig(List<String> partitionCol) {
         TableFunctionContext functionContext = mock(TableFunctionContext.class);
         when(functionContext.getPartitionColumns()).thenReturn(partitionCol);
-        when(functionContext.getFullSchema()).thenReturn(RecordReader.SPLIT_GEN_SCAN_SCHEMA);
-        when(functionContext.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION)));
+        when(functionContext.getFullSchema()).thenReturn(RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA);
+        List<SchemaPath> expectedColumns = Arrays.asList(SchemaPath.getSimplePath(RecordReader.SPLIT_IDENTITY), SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION), SchemaPath.getSimplePath(RecordReader.COL_IDS));
+        when(functionContext.getColumns()).thenReturn(expectedColumns);
         FileConfig fc = new FileConfig();
         fc.setLocation("/test");
         when(functionContext.getFormatSettings()).thenReturn(fc);

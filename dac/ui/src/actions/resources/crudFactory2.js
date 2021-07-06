@@ -26,7 +26,6 @@ function extractEntities(data) {
   const response = {
     entities: {}
   };
-
   if ('type' in data) {
     // assume a single object
     response.entities[data.entityType] = {[data.id]: data};
@@ -45,6 +44,13 @@ function extractEntities(data) {
 
           response.entities[type][item.id] = item;
         }
+      }
+    } else if (typeof entity === 'boolean') { //This'll put the canAlterReflections value within the reflections object, in case there are no reflections yet. It allows for new users to make reflections.
+      if (response.entities.reflection === undefined) {
+        response.entities.reflection = {};
+        response.entities.reflection[0] = {
+          canAlter: entity
+        };
       }
     }
   }
@@ -124,7 +130,6 @@ export default (entityName, extras) => {
           ...call.mock
         }
       };
-
       return req;
     };
   };
@@ -134,7 +139,6 @@ export default (entityName, extras) => {
     calls[call.toLowerCase()] = apiCallFactory(call);
   }
   calls.getList = apiCallFactory('GET_LIST');
-
   if (extras) {
     for (const name of Object.keys(extras)) {
       const extra = extras[name];

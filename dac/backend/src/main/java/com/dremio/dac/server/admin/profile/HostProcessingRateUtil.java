@@ -45,6 +45,9 @@ public class HostProcessingRateUtil {
    * @return
    */
   public static BigDecimal computeRecordProcessingRate(BigInteger maxRecords, BigInteger processNanos) {
+    if (BigInteger.ZERO.equals(maxRecords) || BigInteger.ZERO.equals(processNanos)) {
+      return BigDecimal.ZERO;
+    }
     return new BigDecimal(maxRecords)
               .multiply(BigDecimal.valueOf(1_000_000_000))
               .divide(new BigDecimal(processNanos), MathContext.DECIMAL32);

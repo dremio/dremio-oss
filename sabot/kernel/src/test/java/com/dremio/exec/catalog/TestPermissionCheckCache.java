@@ -119,4 +119,21 @@ public class TestPermissionCheckCache {
 
     assertEquals(1, checks.getPermissionsCache().size());
   }
+
+  @Test
+  public void testNeverCachePermissionsAnnotation() throws Exception {
+    String username = "ensureNotCached";
+    NamespaceKey key = new NamespaceKey(Lists.newArrayList("what"));
+
+    // can't use mocks here since mockito will lose annotations
+    StoragePlugin plugin = mock(StoragePlugin.class);
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+      .thenReturn(true, false);
+
+    SourceConfig sourceConfig = new SourceConfig();
+    sourceConfig.setType("ESYS");
+    PermissionCheckCache checks = new PermissionCheckCache(() -> plugin, () -> 10_000L, 1000);
+    assertTrue(checks.hasAccess(username, key, null, new MetadataStatsCollector(), sourceConfig));
+    assertNull(checks.getPermissionsCache().getIfPresent(new PermissionCheckCache.Key(username, key)));
+  }
 }

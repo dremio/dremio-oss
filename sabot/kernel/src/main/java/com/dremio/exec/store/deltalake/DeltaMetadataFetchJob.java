@@ -107,7 +107,7 @@ public class DeltaMetadataFetchJob implements Supplier {
 
   public DeltaLogSnapshot readAndSetVersion(FileAttributes fileAttrs, FileType type) throws IOException {
     DeltaLogReader reader = DeltaLogReader.getInstance(type);
-    DeltaLogSnapshot snapshot =  reader.parseMetadata(rootFolder, context, fs, fileAttrs);
+    DeltaLogSnapshot snapshot =  reader.parseMetadata(rootFolder, context, fs, fileAttrs, version);
     snapshot.setVersionId(version);
     snapshot.setFileAttrs(fileAttrs);
     return snapshot;

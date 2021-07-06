@@ -24,7 +24,11 @@ describe('CombinedActionMenu', () => {
 
   beforeEach(() => {
     minimalProps = {
-      dataset: Immutable.fromJS({}),
+      dataset: Immutable.fromJS({
+        permissions: {
+          canSelect: true
+        }
+      }),
       closeMenu: () => {
       },
       intl: {formatMessage: () => 'msg'}
@@ -34,6 +38,6 @@ describe('CombinedActionMenu', () => {
   });
 
   it('should render download selection header w/o jobProgress', () => {
-    expect(instance.renderDownloadSectionHeader()).to.be.defined;
+    expect(instance.renderDownloadSectionHeader()).to.not.be.undefined;
   });
 });

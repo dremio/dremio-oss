@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -24,7 +24,8 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.util.Closeable;
-import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
@@ -43,15 +44,17 @@ import com.google.common.collect.Lists;
 class ScanWithDremioReader {
 
   static RecordReaderIterator createReaders(
-      final HiveConf hiveConf,
-      final BaseHiveStoragePlugin hiveStoragePlugin,
-      final FragmentExecutionContext fragmentExecContext,
-      final OperatorContext context,
-      final HiveProxyingSubScan config,
-      final HiveTableXattr tableXattr,
-      final CompositeReaderConfig compositeReader,
-      final UserGroupInformation readerUGI,
-      List<SplitAndPartitionInfo> splits) {
+    final HiveConf hiveConf,
+    final BaseHiveStoragePlugin hiveStoragePlugin,
+    final FragmentExecutionContext fragmentExecContext,
+    final OperatorContext context,
+    final HiveTableXattr tableXattr,
+    final CompositeReaderConfig compositeReader,
+    final UserGroupInformation readerUGI,
+    final ScanFilter scanFilter,
+    final BatchSchema fullSchema,
+    final Collection<List<String>> referencedTables,
+    final List<SplitAndPartitionInfo> splits) {
 
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
@@ -70,12 +73,14 @@ class ScanWithDremioReader {
       return new HiveParquetSplitReaderIterator(
               jobConf,
               context,
-              config,
               sortedSplits,
               readerUGI,
               compositeReader,
               hiveStoragePlugin,
-              tableXattr);
+              tableXattr,
+              scanFilter,
+              fullSchema,
+              referencedTables);
     } catch (final Exception e) {
       throw Throwables.propagate(e);
     }

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 import { KEEP_ONLY_TYPES } from '@app/constants/columnTypeGroups';
@@ -23,8 +22,7 @@ import ColumnMenuItem from '@app/components/Menus/ExplorePage/ColumnMenus/Column
 
 
 @Radium
-@pureRender
-export default class OtherGroup extends Component {
+export default class OtherGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
     columnType: PropTypes.string

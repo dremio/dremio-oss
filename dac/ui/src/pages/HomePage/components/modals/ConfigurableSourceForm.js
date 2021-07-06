@@ -23,10 +23,17 @@ import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import FormTab from 'components/Forms/FormTab';
 
 import NavPanel from 'components/Nav/NavPanel';
-
+import { getFormTabs } from '@inject/pages/HomePage/components/modals/utils';
 import { sourceFormWrapper } from 'uiTheme/less/forms.less';
 import { scrollRightContainerWithHeader } from 'uiTheme/less/layout.less';
 
+const SOURCE_FIELDS = [
+  'id',
+  'name',
+  'description',
+  'allowCrossSourceSelection',
+  'disableMetadataValidityCheck'
+];
 
 class ConfigurableSourceForm extends Component {
 
@@ -40,7 +47,9 @@ class ConfigurableSourceForm extends Component {
     editing: PropTypes.bool,
     fields: PropTypes.object,
     sourceFormConfig: PropTypes.object,
-    footerChildren: PropTypes.node
+    footerChildren: PropTypes.node,
+    EntityType: PropTypes.string,
+    permissions: PropTypes.object
   };
 
   getChildContext() {
@@ -50,10 +59,25 @@ class ConfigurableSourceForm extends Component {
   render() {
     const {
       fields, handleSubmit, onFormSubmit, sourceFormConfig,
-      handleChangeTab, navTabs, selectedTabName, footerChildren
+      handleChangeTab, navTabs, selectedTabName, footerChildren, permissions
     } = this.props;
-    const tabConfig = sourceFormConfig.form.findTabByName(selectedTabName)
+
+    const {
+      tabs:customTabs,
+      tabSelected
+    } = getFormTabs(navTabs, fields, permissions, selectedTabName);
+
+    const tabConfig = sourceFormConfig.form.findTabByName(tabSelected)
       || sourceFormConfig.form.getDefaultTab();
+
+    const finalTabs = permissions && customTabs.filter(t => {
+      switch (t) {
+      case 'Privileges':
+        return permissions.get('canEditAccessControlList') ? t : null;
+      default:
+        return t;
+      }
+    });
 
     return (
       <ModalForm {...modalFormProps(this.props)}
@@ -63,12 +87,17 @@ class ConfigurableSourceForm extends Component {
         <div className={sourceFormWrapper} data-qa='configurable-source-form'>
           {sourceFormConfig.form.getTabs().length > 1 &&
           <NavPanel
+            showSingleTab
             changeTab={handleChangeTab}
             activeTab={tabConfig.getName()}
-            tabs={navTabs}/>}
+            tabs={finalTabs ? finalTabs : customTabs}/>}
           <div className={scrollRightContainerWithHeader}>
             <FormBody>
-              {tabConfig && <FormTab fields={fields} tabConfig={tabConfig} formConfig={sourceFormConfig}/>}
+              {
+                tabConfig &&
+                <FormTab fields={fields} tabConfig={tabConfig} formConfig={sourceFormConfig}
+                  EntityType={this.props.EntityType} accessControlId={this.props.fields.id.initialValue} />
+              }
             </FormBody>
           </div>
         </div>
@@ -98,7 +127,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
     this.wrappedComponent = connectComplexForm({
       form: 'source',
       onSubmitFail: this.handleSyncValidationFailure,
-      fields: ['id', 'name', 'description', 'allowCrossSourceSelection']
+      fields: SOURCE_FIELDS
     }, [], mapStateToProps, null)(ConfigurableSourceForm);
   }
 

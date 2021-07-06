@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
 
 import { page } from 'uiTheme/radium/general';
-import config from 'dyn-load/utils/config';
+import config from '@inject/utils/config';
 
 import getSectionsConfig from '@inject/pages/AdminPage/navSections';
+import AdminMixin from 'dyn-load/pages/AdminPage/AdminMixin.js';
 
 import AdminPageView from './AdminPageView';
 
-@pureRender
-class AdminPage extends Component {
+@AdminMixin
+class AdminPage extends PureComponent {
 
   static propTypes = {
     location: PropTypes.object.isRequired,
@@ -44,14 +44,14 @@ class AdminPage extends Component {
     getSectionsConfig(config).then((sections) => {
       this.setState({sections});
     }).catch((e) => {
-      console.error('failed to load section config', e);
+      this.handleMenuCatchBlock(e);
     });
   }
 
   render() {
     const { routeParams, location, children } = this.props;
     return (
-      <DocumentTitle title={la('Admin')}>
+      <DocumentTitle title={la('Settings')}>
         <AdminPageView
           routeParams={routeParams}
           sections={this.state.sections}

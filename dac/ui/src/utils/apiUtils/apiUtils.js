@@ -20,6 +20,8 @@ import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import APICall from '@app/core/APICall';
 import ApiCallMixin from '@inject/utils/apiUtils/ApiUtilsMixin';
 
+import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
+
 /**
  * Error names from api middleware.
  * see {@link https://github.com/agraboso/redux-api-middleware}
@@ -31,6 +33,7 @@ export const ApiMiddlewareErrors = {
   RequestError: 'RequestError',
   ApiError: 'ApiError'
 };
+
 @ApiCallMixin
 class ApiUtils {
   isApiError(error) {
@@ -111,7 +114,6 @@ class ApiUtils {
 
   fetch = (endpoint, options = {}, version = 3) => {
     const apiVersion = this.getAPIVersion(version, options.customOptions);
-    const params = this.getParams(version);
 
     const headers = new Headers({
       'Content-Type': 'application/json',
@@ -132,10 +134,6 @@ class ApiUtils {
       customOptions, // eslint-disable-line @typescript-eslint/no-unused-vars
       ...fetchOptions
     } = options;
-
-    if (params) {
-      url += `?${params}`;
-    }
 
     return fetch(url, {...fetchOptions, headers})
       .then(response => response.ok ? response : Promise.reject(response));
@@ -167,10 +165,17 @@ class ApiUtils {
   // error response may contain moreInfo or errorMessage field, that should be used for error message
   async getErrorMessage(prefix, response) {
     if (!response || !response.json) return prefix;
-
-    const err = await response.json();
-    const errText = err && (err.moreInfo || err.errorMessage) || '';
-    return errText.length ? `${prefix}: ${errText}` : `${prefix}.`;
+    try {
+      const err = await response.json();
+      const errText = err && (err.moreInfo || err.errorMessage) || '';
+      if (prefix && prefix !== '') {
+        return errText.length ? `${prefix}: ${errText}` : `${prefix}.`;
+      } else {
+        return errText;
+      }
+    } catch {
+      return DEFAULT_ERR_MSG;
+    }
   }
 }
 

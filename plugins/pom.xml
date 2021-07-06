@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>
@@ -42,6 +42,7 @@
     <module>hive-common</module>
     <module>hive</module>
     <module>hive2</module>
+    <module>common</module>
   </modules>
 
   <profiles>
@@ -58,6 +59,7 @@
         <module>s3</module>
         <module>hive3</module>
         <module>awsglue</module>
+        <module>gcs</module>
       </modules>
     </profile>
     <profile>

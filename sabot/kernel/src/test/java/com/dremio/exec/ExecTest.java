@@ -30,6 +30,7 @@ import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -45,6 +46,8 @@ import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
@@ -144,6 +147,9 @@ public class ExecTest extends DremioTest {
     when(context.getAllocator()).thenReturn(allocator);
     when(context.getExecutionControls()).thenReturn(executionControls);
     when(context.getMaterializationProvider()).thenReturn(Mockito.mock(MaterializationDescriptorProvider.class));
+    when(context.getStatisticsService()).thenReturn(Mockito.mock(StatisticsService.class));
+    when(context.getStatisticsAdministrationFactory()).thenReturn(Mockito.mock(StatisticsAdministrationService.Factory.class));
+    when(context.getRelMetadataQuerySupplier()).thenReturn(DremioRelMetadataQuery.QUERY_SUPPLIER);
     return context;
   }
 

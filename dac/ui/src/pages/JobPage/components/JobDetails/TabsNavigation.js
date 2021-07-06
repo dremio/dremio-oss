@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 
@@ -24,8 +23,7 @@ import TabsNavigationItem from './TabsNavigationItem';
 
 @injectIntl
 @Radium
-@PureRender
-export default class TabsNavigation extends Component {
+export default class TabsNavigation extends PureComponent {
   static propTypes = {
     activeTab: PropTypes.string.isRequired,
     changeTab: PropTypes.func,

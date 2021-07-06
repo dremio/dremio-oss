@@ -41,9 +41,19 @@ public class ExcelFormatPluginConfig implements FormatPluginConfig {
   public boolean hasMergedCells;
   public boolean xls; /** true if we are reading .xls, false if it's .xlsx */
 
+  public ExcelFormatPluginConfig(boolean isXls) {
+    this.xls = isXls;
+  }
+
+  public ExcelFormatPluginConfig() {}
+
   @JsonIgnore
   public List<String> getExtensions() {
-    return EXTENSIONS;
+    if(xls) {
+      return ImmutableList.of("xls");
+    } else {
+      return ImmutableList.of("xlsx");
+    }
   }
 
   @Override

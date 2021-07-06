@@ -20,7 +20,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -28,11 +30,17 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor.RexNodeBasedHashExpressionCreatorHelper;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -66,6 +74,7 @@ public class HashPrelUtil {
   // the hash based operators make use of 4 bytes of hash value, not 8 bytes (for reduced memory use).
   public static final String HASH32_FUNCTION_NAME = "hash32";
   public static final String DREMIO_SPLIT_DISTRIBUTE_HASH_FUNCTION_NAME = "dremioSplitDistribute";
+  public static final String DATA_FILE_DISTRIBUTE_HASH_FUNCTION_NAME = "icebergDistributeByPartition";
   private static final String HASH32_DOUBLE_FUNCTION_NAME = "hash32AsDouble";
 
   /**
@@ -172,9 +181,27 @@ public class HashPrelUtil {
     return addColumnprojectPrel;
   }
 
+  public static TableFunctionPrel addSplitAssignTableFunction(Prel input) {
+    RelDataTypeFactory.FieldInfoBuilder fieldInfoBuilder = new RelDataTypeFactory.FieldInfoBuilder(input.getCluster().getTypeFactory());
+    input.getRowType().getFieldList().forEach(f -> fieldInfoBuilder.add(f));
+    RelDataType intType = CalciteArrowHelper.wrap(CompleteType.INT).toCalciteType(input.getCluster().getTypeFactory(), false);
+    fieldInfoBuilder.add(HashPrelUtil.HASH_EXPR_NAME, intType);
+    RelDataType output = fieldInfoBuilder.build();
+
+    BatchSchema outputSchema = CalciteArrowHelper.fromCalciteRowType(output);
+    ImmutableList.Builder<SchemaPath> builder = ImmutableList.builder();
+    for (Field field : outputSchema) {
+      builder.add(SchemaPath.getSimplePath(field.getName()));
+    }
+    ImmutableList<SchemaPath> outputColumns = builder.build();
+    TableFunctionContext tableFunctionContext = new TableFunctionContext(null, outputSchema, null,
+      null, null, null, null, outputColumns, null, null, null, false);
+    TableFunctionConfig tableFunctionConfig = new TableFunctionConfig(TableFunctionConfig.FunctionType.SPLIT_ASSIGNMENT, true, tableFunctionContext);
+    return new TableFunctionPrel(input.getCluster(), input.getTraitSet(), null, input, null, outputColumns, tableFunctionConfig, output);
+  }
+
   /**
    * Create a distribution hash expression.
-   *
    * @param fields Distribution fields
    * @param rowType Row type
    * @return

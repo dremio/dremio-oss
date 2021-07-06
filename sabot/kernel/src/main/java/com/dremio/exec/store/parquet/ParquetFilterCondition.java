@@ -42,6 +42,8 @@ public class ParquetFilterCondition {
 
   private static final Set<SqlKind> supportedKinds = ImmutableSet.of(SqlKind.INPUT_REF, SqlKind.FIELD_ACCESS);
 
+  @JsonIgnore
+  private final RexNode rexFilter;
   private final SchemaPath path;
   private final ParquetFilterIface filter;
   private final LogicalExpression expr;
@@ -55,9 +57,25 @@ public class ParquetFilterCondition {
     this.filter = filter;
     this.expr = expr;
     this.sort = sort;
+    this.rexFilter = null;
   }
 
-  public LogicalExpression getExpr(){
+
+  public ParquetFilterCondition(SchemaPath path, ParquetFilterIface filter, LogicalExpression expr, int sort, RexNode rexFilter) {
+    super();
+    this.path = path;
+    this.filter = filter;
+    this.expr = expr;
+    this.sort = sort;
+    this.rexFilter = rexFilter;
+  }
+
+  @JsonIgnore
+  public RexNode getRexFilter() {
+    return rexFilter;
+  }
+
+  public LogicalExpression getExpr() {
     return expr;
   }
 
@@ -128,6 +146,7 @@ public class ParquetFilterCondition {
   }
 
   public enum RangeType {OTHER, LOWER_RANGE, UPPER_RANGE}
+
   public static class FilterProperties {
 
     private final RexCall node;
@@ -185,7 +204,7 @@ public class ParquetFilterCondition {
 
     }
 
-    public RangeType getRangeType(){
+    public RangeType getRangeType() {
       return rangeType;
     }
 

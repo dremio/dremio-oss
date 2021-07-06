@@ -42,6 +42,7 @@ public class ServerData {
   private final boolean crossSourceDisabled;
   private final boolean queryBundleUsersEnabled;
   private final long downloadRecordsLimit;
+  private final boolean showMetadataValidityCheckbox;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -64,6 +65,7 @@ public class ServerData {
     this.crossSourceDisabled = builder.crossSourceDisabled;
     this.queryBundleUsersEnabled = builder.queryBundleUsersEnabled;
     this.downloadRecordsLimit = builder.downloadRecordsLimit;
+    this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
   }
 
   public String getServerEnvironment() {
@@ -150,8 +152,13 @@ public class ServerData {
     return crossSourceDisabled;
   }
 
+
   public long getDownloadRecordsLimit() {
     return downloadRecordsLimit;
+  }
+
+  public boolean isShowMetadataValidityCheckbox() {
+    return showMetadataValidityCheckbox;
   }
 
   /**
@@ -178,6 +185,7 @@ public class ServerData {
     private boolean crossSourceDisabled;
     private boolean queryBundleUsersEnabled;
     private long downloadRecordsLimit;
+    private boolean showMetadataValidityCheckbox;
 
     protected Builder() {
     }
@@ -203,6 +211,7 @@ public class ServerData {
       this.crossSourceDisabled = builder.crossSourceDisabled;
       this.queryBundleUsersEnabled = builder.queryBundleUsersEnabled;
       this.downloadRecordsLimit = builder.downloadRecordsLimit;
+      this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -302,6 +311,11 @@ public class ServerData {
 
     public Builder setDownloadRecordsLimit(final long downloadRecordsLimit) {
       this.downloadRecordsLimit = downloadRecordsLimit;
+      return this;
+    }
+
+    public Builder setShowMetadataValidityCheckbox(boolean showMetadataValidityCheckbox) {
+      this.showMetadataValidityCheckbox = showMetadataValidityCheckbox;
       return this;
     }
 

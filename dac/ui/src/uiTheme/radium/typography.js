@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 const menlo = 'Menlo, monospace';
-const roboto = 'Roboto, sans-serif';
+const inter = 'Inter var, sans-serif';
 
 export const bodySmall = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#333333'
 };
 
 export const formLabel = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 13,
   color: '#7F8B95',
@@ -34,7 +34,7 @@ export const formLabel = {
 };
 
 export const formDefault = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 13,
   color: '#333333'
@@ -52,7 +52,7 @@ export const formContext = {
 };
 
 export const formPlaceholder = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontStyle: 'italic',
   fontSize: 12,
@@ -81,105 +81,105 @@ export const fixedWidthBold = {
 };
 
 export const unavailable = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 12,
   color: '#BBBBBB'
 };
 
 export const datasetTitle = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 500,
   fontSize: 13,
   color: '#333333'
 };
 
 export const pathLink = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#46B4D5'
 };
 
 export const lightLink = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#81D2EB'
 };
 
 export const pathEnd = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#333333'
 };
 
 export const keyLabel = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#999999'
 };
 
 export const keyValue = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#333333'
 };
 
 export const h2White = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 300,
   fontSize: 18,
   color: '#FFFFFF'
 };
 
 export const h3White = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 300,
   fontSize: 16,
   color: '#FFFFFF'
 };
 
 export const h4White = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 500,
   fontSize: 13,
   color: '#FFFFFF'
 };
 
 export const h5White = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 500,
   fontSize: 12,
   color: '#FFFFFF'
 };
 
 export const bodyWhite = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 12,
   color: '#FFFFFF'
 };
 
 export const bodySmallWhite = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#FFFFFF'
 };
 
 export const metadataWhite = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#DDDDDD'
 };
 
 export const linkLightWhite = {
-  fontFamily: roboto,
+  fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
   color: '#81D2EB'

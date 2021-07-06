@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, Fragment } from 'react';
-import pureRender from 'pure-render-decorator';
+import React, { PureComponent, Fragment } from 'react';
 
 import PropTypes from 'prop-types';
 import { withLocation } from 'containers/dremioLocation';
 import { MODAL_CLOSE_ANIMATION_DURATION } from '@app/components/Modals/Modal';
 
-@pureRender
-class ModalsContainer extends Component {
+class ModalsContainer extends PureComponent {
 
   static contextTypes = {
     router: PropTypes.object.isRequired

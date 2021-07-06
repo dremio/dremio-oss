@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 // todo: FileFormat and AccessControl do not use this. really want a `.modal > h2` stylesheet
 
-@pureRender
 @Radium
-export default class FormTitle extends Component {
+export default class FormTitle extends PureComponent {
   static propTypes = {
     style: PropTypes.object,
     children: PropTypes.node

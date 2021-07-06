@@ -16,9 +16,11 @@
 package com.dremio.exec.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
@@ -36,6 +38,9 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.config.EmptyValues;
 import com.dremio.exec.physical.config.ExternalSort;
+import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.exec.physical.config.HashToRandomExchange;
+import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.physical.config.SingleSender;
 import com.dremio.exec.physical.config.UnorderedReceiver;
 import com.dremio.exec.planner.fragment.Fragment;
@@ -163,8 +168,97 @@ public class TestMemoryAllocationUtilities extends ExecTest {
 
 
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10);
-    assertEquals(3l, es1.getProps().getMemLimit());
-    assertEquals(3l, es2.getProps().getMemLimit());
+    assertEquals(3L, es1.getProps().getMemLimit());
+    assertEquals(3L, es2.getProps().getMemLimit());
+  }
+
+  private OpProps prop(int majorFragmentId, int localOperatorId) {
+    return OpProps.prototype(OpProps.buildOperatorId(majorFragmentId, localOperatorId));
+  }
+
+  @Test
+  public void testConsideredOperators() {
+      /*
+                      HashJoin1-0
+                    /             \
+                   /               \
+           Project1-1             Project1-3
+              |                       |
+          HashToRandomEx1-2     HashToRandomEx1-4
+              |                       |
+           Project2-0              Project3-0
+              |                       |
+           Project2-1               Empty3-1
+              |
+            Empty2-2
+
+       */
+
+    // Fragment 2
+    EmptyValues secondFragmentLeaf  = new EmptyValues(prop(2, 2), BatchSchema.SCHEMA_UNKNOWN_NO_DATA);
+    Project secondFragmentProject1 = new Project(prop(2, 1), secondFragmentLeaf, null);
+    Project secondFragmentProject0 = new Project(prop(2, 0), secondFragmentProject1, null);
+
+    // Fragment 3
+    EmptyValues thirdFragmentLeaf1  = new EmptyValues(prop(3, 1), BatchSchema.SCHEMA_UNKNOWN_NO_DATA);
+    Project thirdFragmentProject0 = new Project(prop(3, 0), thirdFragmentLeaf1, null);
+
+    // Fragment 1
+    HashToRandomExchange hashToRandomExchange2 = new HashToRandomExchange(prop(1, 2),
+      secondFragmentProject0.getProps(), null, null, BatchSchema.SCHEMA_UNKNOWN_NO_DATA, secondFragmentProject1, null);
+    Project firstFragmentProject1 = new Project(prop(1, 1), hashToRandomExchange2, null);
+    HashToRandomExchange hashToRandomExchange4 = new HashToRandomExchange(prop(1, 4),
+      thirdFragmentProject0.getProps(), null, null, BatchSchema.SCHEMA_UNKNOWN_NO_DATA, secondFragmentProject1, null);
+    Project firstFragmentProject3 = new Project(prop(1, 3), hashToRandomExchange4, null);
+    HashJoinPOP hashJoinPOP = new HashJoinPOP(prop(1, 0).cloneWithMemoryExpensive(true), firstFragmentProject1, firstFragmentProject3,
+      null, null, false, null);
+
+    MemoryAllocationUtilities.FindConsideredOperators fco = new MemoryAllocationUtilities.FindConsideredOperators(1);
+    hashJoinPOP.accept(fco, null);
+    List<PhysicalOperator> consideredOperators = fco.getConsideredOperators();
+    List<PhysicalOperator> nonConsideredOperators = fco.getNonConsideredOperators();
+
+    assertEquals(1, consideredOperators.size()); // HashJoin
+    assertTrue(consideredOperators.stream().allMatch(op -> op.getProps().getMajorFragmentId() == 1));
+    assertEquals(1, consideredOperators.stream().map(op -> op.getProps().getLocalOperatorId()).distinct().count());
+
+    assertEquals(4, nonConsideredOperators.size());
+    assertTrue(nonConsideredOperators.stream().allMatch(op -> op.getProps().getMajorFragmentId() == 1));
+    // no operator is visited more than once
+    assertEquals(4, nonConsideredOperators.stream().map(op -> op.getProps().getLocalOperatorId()).distinct().count());
+
+
+    fco = new MemoryAllocationUtilities.FindConsideredOperators(2);
+    secondFragmentProject0.accept(fco, null);
+    consideredOperators = fco.getConsideredOperators();
+    nonConsideredOperators = fco.getNonConsideredOperators();
+
+    assertEquals(0, consideredOperators.size());
+
+    assertEquals(3, nonConsideredOperators.size());
+    assertTrue(nonConsideredOperators.stream().allMatch(op -> op.getProps().getMajorFragmentId() == 2));
+    assertEquals(3, nonConsideredOperators.stream().map(op -> op.getProps().getLocalOperatorId()).distinct().count());
+
+    fco = new MemoryAllocationUtilities.FindConsideredOperators(3);
+    thirdFragmentProject0.accept(fco, null);
+    consideredOperators = fco.getConsideredOperators();
+    nonConsideredOperators = fco.getNonConsideredOperators();
+
+    assertEquals(0, consideredOperators.size());
+
+    assertEquals(2, nonConsideredOperators.size());
+    assertTrue(nonConsideredOperators.stream().allMatch(op -> op.getProps().getMajorFragmentId() == 3));
+    assertEquals(2, nonConsideredOperators.stream().map(op -> op.getProps().getLocalOperatorId()).distinct().count());
+
+
+    // visiting wrong fragment root
+    fco = new MemoryAllocationUtilities.FindConsideredOperators(3);
+    secondFragmentProject0.accept(fco, null); // fco visiting fragment 2 root instead of fragment 3
+    consideredOperators = fco.getConsideredOperators();
+    nonConsideredOperators = fco.getNonConsideredOperators();
+
+    assertEquals(0, consideredOperators.size());
+    assertEquals(0, nonConsideredOperators.size());
   }
 
   private static class ConfigurableOperator extends AbstractSingle {

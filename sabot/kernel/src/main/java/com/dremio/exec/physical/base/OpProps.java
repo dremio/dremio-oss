@@ -160,7 +160,7 @@ public class OpProps {
   public int getLocalOperatorId() { return getLocalOperatorId(operatorId); }
 
   public static int buildOperatorId(int majorFragmentId, int localOperatorId) {
-    return majorFragmentId << 16 + localOperatorId;
+    return (majorFragmentId << 16) + localOperatorId;
   }
 
   public static int getMajorFragmentId(int operatorId) {

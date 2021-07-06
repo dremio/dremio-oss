@@ -24,7 +24,6 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Collections;
-import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SNIHostName;
@@ -82,7 +81,7 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
   private final KeyManagerFactory keyManagerFactory;
   private final TrustManagerFactory trustManagerFactory;
 
-  private SSLEngineFactoryImpl(SSLConfig sslConfig) throws SSLException {
+  SSLEngineFactoryImpl(SSLConfig sslConfig) throws SSLException {
     this.sslConfig = sslConfig;
 
     try {
@@ -211,16 +210,5 @@ public class SSLEngineFactoryImpl implements SSLEngineFactory {
     }
 
     return engine;
-  }
-
-  /**
-   * Creates an instance of this factory.
-   *
-   * @param sslConfig SSL config
-   * @return ssl engine factory
-   * @throws SSLException if creation fails
-   */
-  public static Optional<SSLEngineFactory> create(Optional<SSLConfig> sslConfig) throws SSLException {
-    return sslConfig.isPresent() ? Optional.of(new SSLEngineFactoryImpl(sslConfig.get())) : Optional.empty();
   }
 }

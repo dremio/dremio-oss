@@ -17,19 +17,27 @@
 export default function(config) {
   return Promise.resolve([
     {
-      title: la('Engines'),
+      title: 'Admin.Engines',
+      icon: 'Engines.svg',
       items: [
-        { name: la('Node Activity'), url: '/admin/nodeActivity' },
-        {name: la('Elastic Engines'), url: '/admin/provisioning'},
-        { name: la('Support'), url: '/admin/support' },
-        { name: la('Queue Control'), url: '/admin/advanced' }
+        { name: 'Admin.Engines.NodeActivity', url: '/admin/nodeActivity' },
+        {name: 'Admin.Engines.ElasticEngines', url: '/admin/provisioning'},
+        { name: 'Admin.Engines.Support', url: '/admin/support' },
+        { name: 'Admin.Engines.QueueControl', url: '/admin/advanced' }
       ]
     },
     config.showUserAndUserProperties && {
-      title: la('User Management'),
+      title: 'Admin.UserManagement',
+      icon: 'UserManagement.svg',
       items: [
-        { name: la('Users'), url: '/admin/users' }
+        { name: 'Admin.UserManagement.Users', url: '/admin/users' }
       ]
     }
   ].filter(Boolean));
 }
+
+export const getTitle = () => {
+  return 'Settings';
+};
+
+export const navigationSection = null;

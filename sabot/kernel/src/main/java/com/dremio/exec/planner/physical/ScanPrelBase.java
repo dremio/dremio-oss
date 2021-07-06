@@ -34,6 +34,7 @@ import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -55,6 +56,10 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel {
    */
   public boolean hasFilter() {
     return false;
+  }
+
+  public ScanFilter getFilter() {
+    return null;
   }
 
   @Override

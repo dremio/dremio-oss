@@ -60,7 +60,7 @@ describe('LayoutInfo', () => {
   it('should render override text', () => {
     const props = {...commonProps, overrideTextMessage: 'override'};
     const wrapper = shallow(<LayoutInfo {...props}/>);
-    expect(wrapper.find('ValidityIndicator').length).to.be.empty;
+    expect(wrapper.find('ValidityIndicator').length).to.be.eq(0);
     const message = wrapper.find('[data-qa="message"]');
     expect(message.length).to.be.equal(1);
     expect(message.first().text()).to.be.equal('override');

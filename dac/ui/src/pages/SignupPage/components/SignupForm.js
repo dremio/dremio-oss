@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -38,8 +37,7 @@ import SignupTitle from './SignupTitle';
 export const SIGNUP_FORM_VIEW_ID = 'SIGNUP_FORM_VIEW_ID';
 
 @Radium
-@pureRender
-export class SignupForm extends Component {
+export class SignupForm extends PureComponent {
   static propTypes = {
     createFirstUser: PropTypes.func,
     fields: PropTypes.object,

@@ -56,7 +56,8 @@ describe('ConfirmModal', () => {
     expect(wrapper.find('Modal')).to.have.length(1);
   });
 
-  it('should render ConfirmCancelFooter with common props', () => {
+  //DX-28985
+  xit('should render ConfirmCancelFooter with common props', () => {
     const wrapper = shallow(<ConfirmModal {...commonProps}/>);
     expect(wrapper.find('ConfirmCancelFooter')).to.have.length(1);
   });

@@ -189,7 +189,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(25, tables.size());
+    assertEquals(29, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -201,13 +201,17 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "dependencies", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
+    verifyTable("sys", "membership", iterator.next());
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
+    verifyTable("sys", "privileges", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "refreshes", iterator.next());
+    verifyTable("sys", "roles", iterator.next());
     verifyTable("sys", "services", iterator.next());
     verifyTable("sys", "slicing_threads", iterator.next());
+    verifyTable("sys", "table_statistics", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "timezone_abbrevs", iterator.next());
     verifyTable("sys", "timezone_names", iterator.next());
@@ -240,7 +244,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(24, tables.size());
+    assertEquals(28, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -252,13 +256,17 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "dependencies", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
+    verifyTable("sys", "membership", iterator.next());
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
+    verifyTable("sys", "privileges", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "refreshes", iterator.next());
+    verifyTable("sys", "roles", iterator.next());
     verifyTable("sys", "services", iterator.next());
     verifyTable("sys", "slicing_threads", iterator.next());
+    verifyTable("sys", "table_statistics", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "timezone_abbrevs", iterator.next());
     verifyTable("sys", "timezone_names", iterator.next());
@@ -278,7 +286,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(15, tables.size());
+    assertEquals(16, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -290,6 +298,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
+    verifyTable("sys", "roles", iterator.next());
     verifyTable("sys", "timezone_abbrevs", iterator.next());
     verifyTable("sys", "timezone_names", iterator.next());
     verifyTable("sys", "version", iterator.next());
@@ -324,7 +333,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(215, columns1.size());
+    assertEquals(233, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }

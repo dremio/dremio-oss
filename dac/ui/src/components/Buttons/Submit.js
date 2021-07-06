@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { primary } from 'uiTheme/radium/buttons';
 
-@pureRender
 @Radium
-export default class Submit extends Component {
+export default class Submit extends PureComponent {
 
   static propTypes = {
     onClick: PropTypes.func,

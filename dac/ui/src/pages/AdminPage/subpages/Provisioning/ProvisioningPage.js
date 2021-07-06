@@ -18,7 +18,7 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
+import { injectIntl, FormattedMessage } from 'react-intl';
 
 import {
   loadProvision, removeProvision,
@@ -32,17 +32,21 @@ import { getViewState } from '@app/selectors/resources';
 import { getAllProvisions } from '@app/selectors/provision';
 import { PROVISION_MANAGERS } from 'dyn-load/constants/provisioningPage/provisionManagers';
 import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
-import Header from '@app/pages/AdminPage/components/Header';
+import Art from '@app/components/Art';
+import SettingHeader from '@app/components/SettingHeader';
 import ViewStateWrapper from '@app/components/ViewStateWrapper';
-import Button from '@app/components/Buttons/Button';
-import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
 import { page, pageContent } from '@app/uiTheme/radium/general';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
 import { SingleEngineView } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineView';
 import SingleEngineHeader from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader';
 import ProvisioningPageMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/ProvisioningPageMixin';
 import ClusterListView from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
-import { getRemoveFunction, getLoadProvisionFunction, getExtraFunctions } from '@inject/pages/AdminPage/subpages/Provisioning/ProvisioningPageUtils';
+import {
+  getRemoveFunction,
+  getLoadProvisionFunction,
+  getExtraFunctions,
+  getRemoveConfirmationMsgId
+} from '@inject/pages/AdminPage/subpages/Provisioning/ProvisioningPageUtils';
 
 const VIEW_ID = 'ProvisioningPage';
 const PROVISION_POLL_INTERVAL = 3000;
@@ -102,7 +106,8 @@ export class ProvisioningPage extends Component {
 
   handleRemoveProvision = (entity) => {
     const { intl: { formatMessage } } = this.props;
-    const text = formatMessage({id: 'Admin.Engine.DeleteEngine.Confirmation'});
+    const textId = getRemoveConfirmationMsgId(entity);
+    const text = formatMessage({ id: textId });
     const title = formatMessage({id: 'Admin.Engine.Remove.Title'});
     const confirmText = formatMessage({id: 'Admin.Engine.Remove'});
     this.props.showConfirmationDialog({
@@ -202,22 +207,23 @@ export class ProvisioningPage extends Component {
     if (PROVISION_MANAGERS.length === 1) {
       clusterType = PROVISION_MANAGERS[0].clusterType;
     }
-    this. getProvision(this.props, clusterType, VIEW_ID, pollAgain);
+    this.getProvision(this.props, clusterType, VIEW_ID, pollAgain);
   };
 
   getSelectedEngine = (id) => {
     return id && this.props.provisions.find(engine => engine.get('id') === id);
   };
 
+  renderAddEngineButton = () => (
+    <div data-qa='add-engine-button' className='settingHeader__action' onClick={this.openAddProvisionModal}>
+      <Art src='PlusSolid.svg' alt='+' className='settingPage__icon margin-right'/>
+      <FormattedMessage id='Admin.Engines.ElasticEngines.Add' />
+    </div>
+  )
+
   renderHeader() {
     const { selectedEngineId } = this.state;
     const selectedEngine = this.getSelectedEngine(selectedEngineId);
-    const addNewButton = <Button
-      style={{ width: 100, marginTop: 5}}
-      onClick={this.openAddProvisionModal}
-      type={ButtonTypes.NEXT}
-      text={this.getBtnLabel()}
-    />;
     return (selectedEngineId) ?
       <SingleEngineHeader
         engine={selectedEngine}
@@ -228,10 +234,10 @@ export class ProvisioningPage extends Component {
         showConfirmationDialog={this.props.showConfirmationDialog}
         {...getExtraFunctions(this.props)}
       /> :
-      <Header
+      <SettingHeader
         titleStyle={{fontSize: 20}}
         title={la('Engines')}
-        endChildren={addNewButton}
+        endChildren={this.renderAddEngineButton()}
       />;
   }
 

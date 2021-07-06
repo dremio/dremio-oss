@@ -15,18 +15,18 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.parser.SqlDropTable;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -56,27 +56,19 @@ public class DropTableHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws ValidationException, ForemanSetupException,
   RelConversionException, IOException {
-    SqlDropTable dropTableNode = SqlNodeUtil.unwrap(sqlNode, SqlDropTable.class);
-    NamespaceKey path = catalog.resolveSingle(dropTableNode.getPath());
-    DremioTable table = catalog.getTableNoColumnCount(path);
+    final SqlDropTable dropTableNode = SqlNodeUtil.unwrap(sqlNode, SqlDropTable.class);
+    final NamespaceKey path = catalog.resolveSingle(dropTableNode.getPath());
 
-    if (!dropTableNode.checkTableExistence()) {
-      if(table == null) {
-        throw UserException.validationError()
-          .message("Table [%s] not found.", path)
-          .build(logger);
-      } else if(table.getJdbcTableType() != TableType.TABLE) {
-        throw UserException.validationError()
-            .message("[%s] is not a TABLE", table.getPath())
-            .build(logger);
+    try {
+      catalog.dropTable(path);
+    } catch (UserException e) {
+      if (e.getErrorType() == VALIDATION && dropTableNode.checkTableExistence()) {
+        return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] not found.", path)));
       }
-    } else if(table == null || (table.getJdbcTableType() != TableType.TABLE)) {
-      return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] not found.", path)));
+
+      throw e;
     }
 
-
-    catalog.dropTable(path);
     return Collections.singletonList(SimpleCommandResult.successful("Table [%s] dropped", path));
-
   }
 }

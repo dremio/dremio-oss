@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
 @Radium
-@PureRender
-export default class RunningJobsHeader extends Component {
+export default class RunningJobsHeader extends PureComponent {
   static propTypes = {
     jobCount: PropTypes.number.isRequired
   };

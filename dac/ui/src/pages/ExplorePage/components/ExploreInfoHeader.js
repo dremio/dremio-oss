@@ -396,7 +396,9 @@ export class ExploreInfoHeader extends PureComponent {
   };
 
   renderAnalyzeButton = (name, icon, onclick, iconSize) => {
-    return (<SimpleButton buttonStyle='secondary' onClick={onclick} data-qa={name} style={style.iconButton}>
+    const { dataset } = this.props;
+
+    return (<SimpleButton buttonStyle='secondary' onClick={onclick} data-qa={name} style={style.iconButton} disabled={this.getExtraSaveDisable(dataset)}>
       <Art src={icon} alt={name} title={name} style={{...style.icon, height: iconSize, width: iconSize}}/>
     </SimpleButton> );
   };
@@ -443,6 +445,7 @@ export class ExploreInfoHeader extends PureComponent {
     const { dataset } = this.props;
     const shouldEnableButtons = dataset.get('isNewQuery') || dataset.get('datasetType'); // new query or loaded
     const mustSaveAs = dataset.getIn(['fullPath', 0]) === 'tmp';
+    const isExtraDisabled = this.getExtraSaveDisable(dataset);
 
     return (
       <DropdownMenu
@@ -451,7 +454,7 @@ export class ExploreInfoHeader extends PureComponent {
         disabled={!shouldEnableButtons}
         style={style.noTextButton}
         isButton
-        menu={<SaveMenu action={this.doButtonAction} mustSaveAs={mustSaveAs}/>}
+        menu={<SaveMenu action={this.doButtonAction} mustSaveAs={mustSaveAs} disableBoth={isExtraDisabled}/>}
       />
     );
   };

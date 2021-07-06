@@ -16,6 +16,7 @@
 package com.dremio.common.expression.visitors;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ConvertExpression;
@@ -84,6 +85,18 @@ public class ExpressionValidator implements ExprVisitor<Void, ErrorCollector, Ru
   @Override
   public Void visitInputReference(InputReference e, ErrorCollector value) throws RuntimeException {
     return e.getReference().accept(this, value);
+  }
+
+  @Override
+  public Void visitCaseExpression(CaseExpression caseExpression, ErrorCollector errors) throws RuntimeException {
+    for (CaseExpression.CaseConditionNode condition : caseExpression.caseConditions) {
+      // Confirm that all conditions are required boolean values.
+      final CompleteType conditionType = condition.whenExpr.getCompleteType();
+      if (conditionType.toMinorType() != MinorType.BIT) {
+        errors.addGeneralError("Failure composing Case Expression. All conditions must return a boolean type. Condition was of Type %s.", conditionType);
+      }
+    }
+    return null;
   }
 
   @Override

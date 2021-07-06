@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -554,7 +555,7 @@ public class TestArrowFileReader extends DremioTest {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     Path path = new Path(dateGenFolder.getRoot().getPath());

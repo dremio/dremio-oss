@@ -217,6 +217,11 @@ public class ElasticActions {
       return t.request().header(CONTENT_TYPE, APPLICATION_JSON).build("POST", Entity.json(query));
     }
 
+    @Override
+    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
+      return this.buildRequest(initial, context);
+    }
+
   }
 
   public static class SearchScroll extends ElasticAction2<byte[]> {
@@ -245,6 +250,11 @@ public class ElasticActions {
       WebTarget target = initial.path("_search/scroll");
       context.addContext(target);
       return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildPost(Entity.json(this));
+    }
+
+    @Override
+    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
+      return this.buildRequest(initial, context);
     }
   }
 
@@ -384,6 +394,8 @@ public class ElasticActions {
     }
 
     abstract Invocation buildRequest(WebTarget initial, ContextListener context);
+
+    abstract Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures);
   }
 
   public static class GetClusterMetadata extends ElasticAction2<ClusterMetadata> {
@@ -407,6 +419,11 @@ public class ElasticActions {
 
       context.addContext(target);
       return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet();
+    }
+
+    @Override
+    Invocation buildRequest(WebTarget target, ContextListener context, boolean enable7vFeatures) {
+      return this.buildRequest(target, context);
     }
 
   }

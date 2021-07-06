@@ -37,7 +37,23 @@
   min-height: 25px;
   border-radius: 1px;
   overflow: hidden;
+}
 
+.disabledContent {
+  composes: row-of-inputs from '~@app/uiTheme/less/forms.less';
+  width: 100%;
+  border: 1px solid transparent;
+  cursor: default;
+  border-radius: 1px;
+}
+
+.preventDrag {
+  composes: table-row from '~@app/uiTheme/less/forms.less';
+  composes: disabled-dragged-item from '~@app/uiTheme/less/dnd.less';
+  width: 100%;
+  min-height: 25px;
+  border-radius: 1px;  
+  overflow: hidden;
 }
 
 .column-item {

@@ -35,7 +35,7 @@ import org.apache.arrow.vector.complex.writer.VarCharWriter;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.vector.complex.fn.WorkingBuffer;
-import com.dremio.plugins.elastic.DateFormats.FormatterAndType;
+import com.dremio.plugins.elastic.DateFormats;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
@@ -74,12 +74,12 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.bit(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.bit(), token, parser);
     }
 
@@ -87,13 +87,13 @@ class WriteHolders {
       // TODO JASON - finish other cases
       if (token == JsonToken.VALUE_NUMBER_INT) {
         writer.writeBit(parser.getIntValue() == 1 ? 1 : 0);
-      } else if (token == JsonToken.VALUE_TRUE || token == JsonToken.VALUE_FALSE){
+      } else if (token == JsonToken.VALUE_TRUE || token == JsonToken.VALUE_FALSE) {
         writer.writeBit(parser.getBooleanValue() ? 1 : 0);
       } else if (token == JsonToken.VALUE_STRING) {
         writer.writeBit(ElasticsearchJsonReader.parseElasticBoolean(parser.getValueAsString()) ? 1 : 0);
       } else {
         throw UserException.dataReadError()
-            .message("While reading from elasticsearch, unexpected data type in a boolean column: " + token).build(logger);
+          .message("While reading from elasticsearch, unexpected data type in a boolean column: " + token).build(logger);
       }
 
     }
@@ -109,12 +109,12 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.integer(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.integer(), token, parser);
     }
 
@@ -124,11 +124,11 @@ class WriteHolders {
       } else {
         try {
           writer.writeInt(Integer.parseInt(parser.getValueAsString()));
-        } catch (Exception ex1){
+        } catch (Exception ex1) {
           try {
             // it is possible that we need to coerce a float to an integer.
             writer.writeInt((int) Double.parseDouble(parser.getValueAsString()));
-          } catch (Exception ex2){
+          } catch (Exception ex2) {
             throw ex1;
           }
         }
@@ -145,12 +145,12 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.bigInt(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.bigInt(), token, parser);
     }
 
@@ -160,11 +160,11 @@ class WriteHolders {
       } else {
         try {
           writer.writeBigInt(Long.parseLong(parser.getValueAsString()));
-        } catch (Exception ex1){
+        } catch (Exception ex1) {
           try {
             // it is possible that we need to coerce a float to an integer.
             writer.writeBigInt((long) Double.parseDouble(parser.getValueAsString()));
-          } catch (Exception ex2){
+          } catch (Exception ex2) {
             throw ex1;
           }
         }
@@ -182,12 +182,12 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.float4(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.float4(), token, parser);
     }
 
@@ -209,12 +209,12 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.float8(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.float8(), token, parser);
     }
 
@@ -228,23 +228,23 @@ class WriteHolders {
   }
 
   static class DateWriteHolder implements WriteHolder {
-    private final FormatterAndType[] formatters;
+    private final DateFormats.AbstractFormatterAndType[] formatters;
     private final SchemaPath path;
     private final String name;
 
-    public DateWriteHolder(String name, SchemaPath path, FormatterAndType[] formatters) {
+    public DateWriteHolder(String name, SchemaPath path, DateFormats.AbstractFormatterAndType[] formatters) {
       this.name = name;
       this.formatters = formatters;
       this.path = path;
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.dateMilli(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.dateMilli(), token, parser);
     }
 
@@ -254,23 +254,23 @@ class WriteHolders {
   }
 
   static class TimeWriteHolder implements WriteHolder {
-    private final FormatterAndType[] formatters;
+    private final DateFormats.AbstractFormatterAndType[] formatters;
     private final SchemaPath path;
     private final String name;
 
-    public TimeWriteHolder(String name, SchemaPath path, FormatterAndType[] formatters) {
+    public TimeWriteHolder(String name, SchemaPath path, DateFormats.AbstractFormatterAndType[] formatters) {
       this.name = name;
       this.formatters = formatters;
       this.path = path;
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.timeMilli(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.timeMilli(), token, parser);
     }
 
@@ -290,12 +290,12 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.varChar(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.varChar(), token, parser);
     }
 
@@ -315,15 +315,14 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.varBinary(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.varBinary(), token, parser);
     }
-
 
     public void write(VarBinaryWriter writer, JsonToken token, JsonParser parser) throws IOException {
       byte[] bytes = DatatypeConverter.parseBase64Binary(parser.getText());
@@ -332,43 +331,48 @@ class WriteHolders {
   }
 
   static class TimestampWriteHolder implements WriteHolder {
-    private final FormatterAndType[] formatters;
+    private final DateFormats.AbstractFormatterAndType[] formatters;
     private final SchemaPath path;
     private final String name;
 
-    public TimestampWriteHolder(String name, SchemaPath path, FormatterAndType[] formatters) {
+    public TimestampWriteHolder(String name, SchemaPath path, DateFormats.AbstractFormatterAndType[] formatters) {
       this.name = name;
       this.formatters = formatters;
       this.path = path;
     }
 
     @Override
-    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.timeStampMilli(name), token, parser);
     }
 
     @Override
-    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       write(writer.timeStampMilli(), token, parser);
     }
-
     public void write(TimeStampMilliWriter writer, JsonToken token, JsonParser parser) throws IOException {
       writer.writeTimeStampMilli(getMillis(path, parser.getText(), formatters));
     }
   }
 
-  private static long getMillis(SchemaPath path, String value, FormatterAndType[] formatters){
-    for (FormatterAndType format : formatters) {
+  private static long getMillis(SchemaPath path, String value, DateFormats.AbstractFormatterAndType[] formatters) {
+    for (DateFormats.AbstractFormatterAndType format : formatters) {
       try {
         return format.parseToLong(value);
       } catch (IllegalArgumentException e) {
         logger.debug("Failed to parse date time value {} with format {}", value, format, e);
       }
     }
-    throw UserException.dataReadError()
-      .message("Failed to parse date time value %s in field %s.", value, path.getAsUnescapedPath())
-      .build(logger);
+/*
+Call to generic formatter parsing to handle specific scenarios
+ */
+    try {
+      return DateFormats.AbstractFormatterAndType.getMillisGenericFormatter(value);
+    }
+    catch (Exception e) {
+      throw UserException.dataReadError()
+        .message("Failed to parse date time value %s in field %s.", value, path.getAsUnescapedPath())
+        .build(logger);
+    }
   }
-
-
 }

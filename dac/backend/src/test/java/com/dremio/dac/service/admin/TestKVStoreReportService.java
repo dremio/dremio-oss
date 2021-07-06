@@ -154,8 +154,8 @@ public class TestKVStoreReportService extends BaseTestServer {
     assertFalse("check auto-promotion is disabled", source.getMetadataPolicy().isAutoPromoteDatasets());
 
     doc("browse to the json directory");
-    String id = getFolderIdByName(source.getChildren(), "\"json\"");
-    assertNotNull(id, "Failed to find json directory");
+    String id = getFolderIdByName(source.getChildren(), "json");
+    assertNotNull("Failed to find json directory", id);
 
     doc("load the json dir");
     Folder folder = expectSuccess(
@@ -173,13 +173,13 @@ public class TestKVStoreReportService extends BaseTestServer {
       List<String> path = item.getPath();
       // get the numbers.json file
       if (item.getType() == CatalogItem.CatalogItemType.FILE &&
-        path.get(path.size() - 1).equals("\"numbers.json\"")) {
+        path.get(path.size() - 1).equals("numbers.json")) {
         fileId = item.getId();
         break;
       }
     }
 
-    assertNotNull(fileId, "Failed to find numbers.json file");
+    assertNotNull("Failed to find numbers.json file", fileId);
 
     doc("load the file");
     final com.dremio.dac.api.File file = expectSuccess(

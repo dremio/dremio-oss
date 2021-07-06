@@ -29,6 +29,7 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 
 /**
@@ -142,6 +143,13 @@ public abstract class SplitReaderCreator implements AutoCloseable {
   public void clearLocalFields() {
     this.splitXAttr = null;
     this.inputStreamProvider = null;
+  }
+
+  /**
+   * Sets the iceberg schema field col Ids
+   * @param icebergSchemaFields
+   */
+  public void setIcebergSchemaFields(List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields) {
   }
 
   /**

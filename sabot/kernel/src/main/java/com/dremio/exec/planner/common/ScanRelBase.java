@@ -43,12 +43,10 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.NamespaceException;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
@@ -109,6 +107,13 @@ public abstract class ScanRelBase extends TableScan {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
+    return explainScanRel(pw, tableMetadata, projectedColumns, observedRowcountAdjustment);
+  }
+
+  public static RelWriter explainScanRel(RelWriter pw,
+                                         TableMetadata tableMetadata,
+                                         List<SchemaPath> projectedColumns,
+                                         double observedRowcountAdjustment) {
     pw.item("table", tableMetadata.getName());
     if(projectedColumns != null){
       pw.item("columns", FluentIterable.from(projectedColumns).transform(new Function<SchemaPath, String>(){
@@ -119,7 +124,7 @@ public abstract class ScanRelBase extends TableScan {
         }}).join(Joiner.on(", ")));
     }
 
-    pw.item("splits", getTableMetadata().getSplitCount());
+    pw.item("splits", tableMetadata.getSplitCount());
 
     if(observedRowcountAdjustment != 1.0d){
       pw.item("rowAdjust", observedRowcountAdjustment);
@@ -156,11 +161,7 @@ public abstract class ScanRelBase extends TableScan {
 
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
-    try{
-      return getFilterReduction() * table.getRowCount() * tableMetadata.getSplitRatio() * observedRowcountAdjustment;
-    }catch(NamespaceException ex){
-      throw Throwables.propagate(ex);
-    }
+    return mq.getRowCount(this);
   }
 
   @Override
@@ -176,7 +177,7 @@ public abstract class ScanRelBase extends TableScan {
     return getBatchSchema().maskAndReorder(projectedColumns);
   }
 
-  protected double getFilterReduction(){
+  public double getFilterReduction(){
     return 1.0d;
   }
 
@@ -192,8 +193,8 @@ public abstract class ScanRelBase extends TableScan {
    */
   @Override
   public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq) {
-    final double rowCount = estimateRowCount(mq);
 
+    final double rowCount = (PrelUtil.getPlannerSettings(this.getCluster()).useStatistics()) ? mq.getRowCount(this) : estimateRowCount(mq);
     // If the estimatedCount is actually 0, then make it 1, so that at least, we choose the scan that
     // has fewer columns pushed down since all the cost scales with rowCount.
     final double estimatedRowCount = Math.max(1, rowCount);
@@ -256,7 +257,7 @@ public abstract class ScanRelBase extends TableScan {
     }
   }
 
-  protected static RelDataType getRowTypeFromProjectedColumns(List<SchemaPath> projectedColumns, BatchSchema schema, RelOptCluster cluster) {
+  public static RelDataType getRowTypeFromProjectedColumns(List<SchemaPath> projectedColumns, BatchSchema schema, RelOptCluster cluster) {
     LinkedHashSet<String> firstLevelPaths = new LinkedHashSet<>();
     for(SchemaPath p : projectedColumns){
       firstLevelPaths.add(p.getRootSegment().getNameSegment().getPath());
@@ -273,7 +274,7 @@ public abstract class ScanRelBase extends TableScan {
 
     Preconditions.checkArgument(firstLevelPaths.size() == fields.size(), "Projected column base size %s is not equal to outcome rowtype %s.", firstLevelPaths.size(), fields.size());
 
-    for(String path : firstLevelPaths){
+    for (String path : firstLevelPaths) {
       builder.add(path, fields.get(path));
     }
     return builder.build();

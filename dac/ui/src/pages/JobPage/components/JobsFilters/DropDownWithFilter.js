@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable  from 'immutable';
 
@@ -26,8 +25,7 @@ import './DropDownWithFilter.less';
 // todo: loc
 
 @Radium
-@PureRender
-export default class DropDownWithFilter extends Component {
+export default class DropDownWithFilter extends PureComponent {
 
   static propTypes = {
     availableOptions: PropTypes.instanceOf(Immutable.List).isRequired,

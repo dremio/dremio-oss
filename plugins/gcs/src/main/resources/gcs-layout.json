@@ -1,0 +1,130 @@
+{
+  "sourceType": "GCS",
+  "tags": [
+  ],
+  "metadataRefresh": {
+    "datasetDiscovery": true,
+    "isFileSystemSource": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Google Project Id",
+            "elements": [
+              {
+                "propName": "config.projectId",
+                "size": "full"
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authMode",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "SERVICE_ACCOUNT_KEYS",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.clientEmail",
+                          "size": "full",
+                          "errMsg": "Client Email is required in service account credentials."
+                        },
+                        {
+                          "propName": "config.clientId",
+                          "size": "half",
+                          "errMsg": "Client ID is required in service account credentials."
+                        },
+                        {
+                          "propName": "config.privateKeyId",
+                          "size": "half",
+                          "errMsg": "Private Key ID is required in service account credentials."
+                        },
+                        {
+                          "propName": "config.privateKey",
+                          "uiType": "textarea",
+                          "size": "full",
+                          "errMsg": "Private Key is required in service account credentials."
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "AUTO",
+                    "container": {
+                      "elements": [
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.asyncEnabled"
+              },
+              {
+                "propName": "config.allowCreateDrop"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "propName": "config.bucketWhitelist[]",
+                "uiType": "value_list",
+                "emptyLabel": "No whitelisted buckets added",
+                "addLabel": "Add bucket",
+                "validate": {
+                  "isRequired": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "checkboxController": "asyncEnabled",
+            "elements": [
+              {
+                "propName": "config.cachingEnable"
+              },
+              {
+                "propName": "config.cachePercent"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -46,7 +46,8 @@ export class AccelerationBasic extends Component {
     submit: PropTypes.func,
     onCancel: PropTypes.func,
     loadingRecommendations: PropTypes.bool,
-    skipRecommendations: PropTypes.func
+    skipRecommendations: PropTypes.func,
+    canAlter: PropTypes.any
   };
 
   static contextTypes = {
@@ -61,7 +62,7 @@ export class AccelerationBasic extends Component {
   }
 
   render() {
-    const { fields, location, reflections, dataset, loadingRecommendations, skipRecommendations } = this.props;
+    const { fields, location, reflections, dataset, loadingRecommendations, skipRecommendations, canAlter } = this.props;
 
     if (!fields.rawReflections.length || !fields.aggregationReflections.length) return null; // Form still initializing
 
@@ -110,6 +111,7 @@ export class AccelerationBasic extends Component {
         </div>
         <AccelerationAggregate
           {...modalFormProps(this.props)}
+          canAlter={canAlter}
           dataset={dataset}
           reflection={firstAggLayout}
           fields={fields}

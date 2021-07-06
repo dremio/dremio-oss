@@ -38,6 +38,7 @@ import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
@@ -84,6 +85,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.cache.Weigher;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -122,19 +125,6 @@ public class ForemenWorkManager implements Service, SafeExit {
           .expireAfterWrite(Long.getLong(PREPARE_HANDLE_TIMEOUT_MS, 60_000L), TimeUnit.MILLISECONDS)
           .build();
 
-  // cache for physical plans.
-  private final Cache<Long, CachedPlan> cachedPlans = CacheBuilder.newBuilder()
-    .maximumWeight(10000)
-    .weigher((Weigher<Long, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEsitimatedSize())
-    // plan caches are memory intensive. If there is memory pressure,
-    // let GC release them as last resort before running OOM.
-    .softValues()
-    //set default cache life for one day after access
-    .expireAfterAccess(Long.getLong(PLAN_CACHE_TIMEOUT_S, 864_000L), TimeUnit.SECONDS)
-    .build();
-
-  private final PlanCache planCache = new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
-
   // single map of currently running queries, mapped by their external ids.
   private final ConcurrentMap<ExternalId, ManagedForeman> externalIdToForeman = Maps.newConcurrentMap();
   private final Provider<SabotContext> dbContext;
@@ -154,6 +144,8 @@ public class ForemenWorkManager implements Service, SafeExit {
   private UserWorker userWorker;
   private LocalQueryExecutor localQueryExecutor;
   private final CloseableSchedulerThreadPool profileSender;
+  private Cache<Long, CachedPlan> cachedPlans;
+  private PlanCache planCache;
 
   public ForemenWorkManager(
           final Provider<FabricService> fabric,
@@ -221,6 +213,27 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.localQueryExecutor = new LocalQueryExecutorImpl(dbContext.get().getOptionManager(), pool);
     this.profileSender.scheduleWithFixedDelay(this::sendAllProfiles,
       PROFILE_SEND_INTERVAL_SECONDS, PROFILE_SEND_INTERVAL_SECONDS, TimeUnit.SECONDS);
+
+    // cache for physical plans.
+    cachedPlans = CacheBuilder.newBuilder()
+      .maximumWeight(dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_MAX_ENTRIES))
+      .weigher((Weigher<Long, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEsitimatedSize())
+      // plan caches are memory intensive. If there is memory pressure,
+      // let GC release them as last resort before running OOM.
+      .softValues()
+      .removalListener(
+        new RemovalListener<Long, CachedPlan>() {
+          @Override
+          public void onRemoval(RemovalNotification<Long, CachedPlan> notification) {
+            PlanCache.clearDatasetMapOnCacheGC(notification.getKey());
+          }
+        }
+      )
+      .expireAfterAccess(dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_TIMEOUT_MINUTES), TimeUnit.MINUTES)
+      .build();
+
+    planCache = new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
+
   }
 
   @Override

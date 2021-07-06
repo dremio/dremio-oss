@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Convention;
@@ -42,12 +39,10 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
-import com.dremio.options.OptionList;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
-import com.dremio.options.OptionValue;
-import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.OptionResolver;
 import com.dremio.test.DremioTest;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
 
 /**
  * Tests to check common features of Dremio planners
@@ -99,31 +94,12 @@ public class TestDremioPlanners {
   public final ExpectedException expectedException = ExpectedException.none();
 
   public PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
-    OptionManager optionManager = mock(OptionManager.class);
-    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+    OptionResolver optionResolver = OptionResolverSpecBuilder.build(
+        new OptionResolverSpec()
+            .addOption(PlannerSettings.MAX_NODES_PER_PLAN, maxNodes)
+            .addOption(PlannerSettings.PLANNING_MAX_MILLIS, timeoutMillis));
 
-    OptionValue plannerTimeout = OptionValue.createLong(OptionType.QUERY, "planner.timeout_per_phase_ms", timeoutMillis);
-    OptionValue plannerMaxNodes = OptionValue.createLong(OptionType.QUERY, "planner.max_nodes_per_plan", maxNodes);
-    OptionValue hepMatchLimit = OptionValue.createLong(OptionType.QUERY,
-      PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getOptionName(), PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getDefault().getNumVal());
-    OptionValue verboseRuleMatch = OptionValue.createBoolean(OptionType.QUERY,
-      PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getOptionName(), PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getDefault().getBoolVal());
-
-    OptionList optionList = new OptionList();
-    optionList.add(plannerTimeout);
-    optionList.add(plannerMaxNodes);
-    optionList.add(hepMatchLimit);
-    optionList.add(verboseRuleMatch);
-
-    when(optionManager.getOption("planner.timeout_per_phase_ms")).thenReturn(plannerTimeout);
-    when(optionManager.getOption("planner.max_nodes_per_plan")).thenReturn(plannerMaxNodes);
-    when(optionManager.getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getOptionName()))
-      .thenReturn(PlannerSettings.HEP_PLANNER_MATCH_LIMIT.getDefault());
-    when(optionManager.getOption(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getOptionName()))
-      .thenReturn(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER.getDefault());
-    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
-
-    return new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, null);
+    return new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, null);
   }
 
   @Test

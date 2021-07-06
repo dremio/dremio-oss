@@ -21,6 +21,7 @@ import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.PlanHasher;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
@@ -65,7 +66,8 @@ class RefreshDecisionMaker {
       Iterable<DremioTable> requestedTables,
       RelSerializerFactory serializerFactory,
       boolean strictRefresh,
-      boolean forceFullUpdate) {
+      boolean forceFullUpdate,
+      FunctionImplementationRegistry functionImplementationRegistry) {
 
     final long newSeriesId = System.currentTimeMillis();
 
@@ -95,7 +97,7 @@ class RefreshDecisionMaker {
       decision.setScanPathsList(scanPathsList);
     }
 
-    final LogicalPlanSerializer serializer = serializerFactory.getSerializer(plan.getCluster());
+    final LogicalPlanSerializer serializer = serializerFactory.getSerializer(plan.getCluster(), functionImplementationRegistry);
     decision.setLogicalPlan(ByteString.copyFrom(serializer.serializeToBytes(plan)));
     decision.setLogicalPlanStrippedHash(PlanHasher.hash(strippedPlan));
 

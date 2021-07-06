@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import classNames from 'classnames';
 
+import { DragAreaColumnWithMixin } from '@inject/components/DragComponents/DragAreaColumnMixin.js';
 import { SelectView } from '@app/components/Fields/SelectView';
 import FontIcon from 'components/Icon/FontIcon';
 import { SearchField } from 'components/Fields';
@@ -31,9 +32,10 @@ import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
 import { NOT_SUPPORTED_TYPES } from './DragColumnMenu';
 import DragSource from './DragSource';
 import DragTarget from './DragTarget';
-import { base, content, column as columnCls, columnItem as columnItemCls } from './DragAreaColumn.less';
 
-class DragAreaColumn extends Component {
+import { base, content, column as columnCls, disabledContent, preventDrag as disabledColumnCls, columnItem as columnItemCls } from './DragAreaColumn.less';
+
+export class DragAreaColumn extends Component {
   static propTypes = {
     dragItem: PropTypes.instanceOf(ColumnDragItem),
     field: PropTypes.object,
@@ -52,7 +54,8 @@ class DragAreaColumn extends Component {
     icon: PropTypes.any,
     id: PropTypes.any,
     allColumns: PropTypes.instanceOf(Immutable.List),
-    className: PropTypes.string
+    className: PropTypes.string,
+    preventDrag: PropTypes.any
   };
 
   static defaultProps = {
@@ -168,7 +171,7 @@ class DragAreaColumn extends Component {
   }
 
   renderContent() {
-    const { field, disabled } = this.props;
+    const { field, disabled, preventDrag } = this.props;
     if (disabled) {
       return <div/>;
     }
@@ -176,7 +179,7 @@ class DragAreaColumn extends Component {
     if (this.checkDropPosibility()) {
       return (
         <div
-          className={content}
+          className={preventDrag ? disabledContent : content}
           style={styles.empty}
           key='custom-content'
           onClick={this.showPopover}>
@@ -197,7 +200,7 @@ class DragAreaColumn extends Component {
               placeholder={la('Choose field…')}
             />
           }
-          className={content}
+          className={preventDrag ? disabledContent : content}
           style={styles.empty}
           listWidthSameAsAnchorEl
           listStyle={{marginTop: 2, marginLeft: 0}}
@@ -218,7 +221,7 @@ class DragAreaColumn extends Component {
     const selectedColumn = this.props.allColumns.find(c => c.get('name') === field.value);
 
     return (
-      <div className={content} key='custom-content'>
+      <div className={preventDrag ? disabledContent : content} key='custom-content'>
         <FontIcon type={typeToIconType[selectedColumn.get('type')]} key='custom-type' theme={styles.type}/>
         <EllipsedText style={styles.name} text={field.value} />
       </div>
@@ -226,7 +229,7 @@ class DragAreaColumn extends Component {
   }
 
   render() {
-    const { field, disabled, className } = this.props;
+    const { field, disabled, className, preventDrag } = this.props;
     const columnName = field.value;
     const columnStyle = disabled ? {visibility: 'hidden'} : null;
     const color = this.state.isDragAreaActive ? ACTIVE_DRAG_AREA : '#fff';
@@ -244,7 +247,8 @@ class DragAreaColumn extends Component {
           onDragStart={this.props.onDragStart}
           index={this.props.index}
           onDragEnd={this.props.onDragEnd}
-          id={columnName}>
+          id={columnName}
+          preventDrag={preventDrag}>
           <DragTarget
             onDrop={this.handleDrop}
             dragType={this.props.dragType}
@@ -252,18 +256,13 @@ class DragAreaColumn extends Component {
             index={this.props.index}
             id={columnName}>
             <div style={styles.columnWrap}>
-              <div className={columnCls} style={{ ...dragStyle, ...columnStyle }} key='custom'>
+              <div className={preventDrag ? disabledColumnCls : columnCls} style={{ ...dragStyle, ...columnStyle }} key='custom'>
                 {this.renderContent()}
               </div>
               {
                 this.props.icon
                   ? this.props.icon
-                  : (
-                    <FontIcon
-                      type='CanceledGray'
-                      theme={styles.fontIcon}
-                      onClick={this.handleRemoveColumn}/>
-                  )
+                  : this.renderCancelGreyButtons()
               }
             </div>
           </DragTarget>
@@ -273,7 +272,7 @@ class DragAreaColumn extends Component {
   }
 }
 
-const styles = {
+export const styles = {
   fontIcon: {
     Container: {
       width: 25,
@@ -353,4 +352,4 @@ const styles = {
   }
 };
 
-export default DragAreaColumn;
+export default DragAreaColumnWithMixin(DragAreaColumn);

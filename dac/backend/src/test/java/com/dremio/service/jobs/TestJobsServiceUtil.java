@@ -29,6 +29,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.service.job.DownloadSettings;
@@ -64,6 +65,22 @@ public class TestJobsServiceUtil {
     assertEquals(42, (int) error.getStartColumn());
     assertEquals(13, (int) error.getEndLine());
     assertEquals(57, (int) error.getEndColumn());
+  }
+
+  @Test
+  public void convertExceptionToFailureInfo1() {
+    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
+    String errString = "Failure finding function: grouping(varchar)";
+    ErrorCollectorImpl errorCollector = new ErrorCollectorImpl();
+    errorCollector.addGeneralError(errString);
+    SqlParseException parseException = new SqlParseException(errorCollector.toErrorString(), new SqlParserPos(7, 42, 13, 57), null, null, null);
+    UserException userException = SqlExceptionHelper.planError("SELECT FOO", parseException)
+      .build(logger);
+    String verboseError = userException.getVerboseMessage(false);
+    JobFailureInfo jobFailureInfo = JobsServiceUtil.toFailureInfo(verboseError);
+    assertEquals(JobFailureInfo.Type.PLAN, jobFailureInfo.getType());
+    JobFailureInfo.Error error = jobFailureInfo.getErrorsList().get(0);
+    assertEquals(errString, error.getMessage());
   }
 
   @Test

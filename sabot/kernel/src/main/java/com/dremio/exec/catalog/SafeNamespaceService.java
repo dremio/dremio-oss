@@ -20,7 +20,8 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
@@ -30,12 +31,12 @@ import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -62,12 +63,6 @@ class SafeNamespaceService implements NamespaceService {
   public void addOrUpdateDataset(NamespaceKey arg0, DatasetConfig arg1, NamespaceAttribute... arg2)
       throws NamespaceException {
     runner.doSafe(() -> delegate.addOrUpdateDataset(arg0, arg1, arg2));
-  }
-
-  @Override
-  public void addOrUpdateDataset(NamespaceKey arg0, DatasetConfig arg1, List<PartitionChunk> arg2,
-      NamespaceAttribute... arg3) throws NamespaceException {
-    runner.doSafe(() -> delegate.addOrUpdateDataset(arg0, arg1, arg2, arg3));
   }
 
   @Override
@@ -100,8 +95,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public void deleteDataset(NamespaceKey arg0, String arg1) throws NamespaceException {
-    runner.doSafe(() -> delegate.deleteDataset(arg0, arg1));
+  public void deleteDataset(NamespaceKey arg0, String arg1, NamespaceAttribute... arg2) throws NamespaceException {
+    runner.doSafe(() -> delegate.deleteDataset(arg0, arg1, arg2));
   }
 
   @Override
@@ -200,6 +195,11 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public Iterable<NameSpaceContainer> getAllDescendants(NamespaceKey root) {
+    return runner.doSafe(() -> delegate.getAllDescendants(root));
+  }
+
+  @Override
   public List<Integer> getCounts(SearchQuery... arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getCounts(arg0));
   }
@@ -215,18 +215,23 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public List<NameSpaceContainer> getEntities(List<NamespaceKey> arg0) throws NamespaceException {
+  public List<NameSpaceContainer> getEntities(List<NamespaceKey> arg0) throws NamespaceNotFoundException {
     return runner.doSafe(() -> delegate.getEntities(arg0));
   }
 
   @Override
-  public NameSpaceContainer getEntityById(String arg0) throws NamespaceException {
+  public NameSpaceContainer getEntityById(String arg0) throws NamespaceNotFoundException {
     return runner.doSafe(() -> delegate.getEntityById(arg0));
   }
 
   @Override
-  public String getEntityIdByPath(NamespaceKey arg0) throws NamespaceException {
+  public String getEntityIdByPath(NamespaceKey arg0) throws NamespaceNotFoundException {
     return runner.doSafe(() -> delegate.getEntityIdByPath(arg0));
+  }
+
+  @Override
+  public NameSpaceContainer getEntityByPath(NamespaceKey arg0) throws NamespaceException {
+    return runner.doSafe(() -> delegate.getEntityByPath(arg0));
   }
 
   @Override
@@ -295,8 +300,13 @@ class SafeNamespaceService implements NamespaceService {
       }
 
       @Override
-      public long savePartitionChunks(PartitionChunkListing chunkListing) throws IOException {
-        return runner.doSafe(() -> delegate.savePartitionChunks(chunkListing));
+      public void savePartitionChunk(PartitionChunk arg0) throws IOException {
+        runner.doSafe(() -> delegate.savePartitionChunk(arg0));
+      }
+
+      @Override
+      public void saveDatasetSplit(DatasetSplit arg0) {
+        runner.doSafe(() -> delegate.saveDatasetSplit(arg0));
       }
 
       @Override

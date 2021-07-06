@@ -16,6 +16,7 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.dac.server.JobsServiceTestUtils.toSubmitJobRequest;
+import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 import static com.dremio.exec.testing.ExecutionControls.DEFAULT_CONTROLS;
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_PLAN_PAUSE;
@@ -28,6 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
 
 import java.io.File;
@@ -178,12 +180,16 @@ public class TestJobService extends BaseTestServer {
     while (true) {
       Thread.sleep(100);
       Job job = getJob(jobId);
-      long count =  job.getJobAttempt()
-                       .getStateListList()
-                       .stream()
-                       .map(e->e.getState())
-                       .filter(s->state.equals(s))
-                       .count();
+      final JobAttempt jobAttempt = job.getJobAttempt();
+      long count;
+      synchronized (jobAttempt) {
+        count = jobAttempt
+          .getStateListList()
+          .stream()
+          .map(e -> e.getState())
+          .filter(s -> state.equals(s))
+          .count();
+      }
       if (count == 1) {
         break;
       }
@@ -1130,7 +1136,7 @@ public class TestJobService extends BaseTestServer {
       .setJobId(JobsProtoUtil.toBuf(jobId))
       .build();
     com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(request);
-    assertFalse(JobDetailsUI.of(jobDetails).getResultsAvailable());
+    assertFalse(JobDetailsUI.of(jobDetails, jobDetails.getAttempts(0).getInfo().getUser()).getResultsAvailable());
 
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 30));
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS.getOptionName(), 0));
@@ -1393,6 +1399,45 @@ public class TestJobService extends BaseTestServer {
     } catch (Throwable t) {
       throw new AssertionError(String.format(
         "Got exception of type %s instead of UserRemoteException", t.getClass().getName()));
+    }
+  }
+
+  /**
+   * Test case of Jira DX-31878. If Job Submission fails before jobId is generated,
+   * the job just hangs in getJobID as the exception wasn't getting propagated up the chain.
+   */
+
+  @Test
+  public void testJobSubmitFailure() throws Exception {
+    //Submit 4 queries.
+    setSystemOption(MAX_FOREMEN_PER_COORDINATOR.getOptionName(), "4");
+    String controls = Controls.newBuilder()
+      .addPause(DremioVolcanoPlanner.class, INJECTOR_DURING_PLANNING_PAUSE)
+      .addPause(DremioHepPlanner.class, INJECTOR_DURING_PLANNING_PAUSE)
+      .build();
+    injectPauses(controls);
+    UserBitShared.ExternalId externalId[] = new UserBitShared.ExternalId[4];
+    JobId jobID[] = new JobId[4];
+    for (int i = 0; i < 4; i++) {
+      final String query = String.format("Select 1");
+      jobID[i] = submitAndWaitUntilSubmitted(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(query, com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME))
+          .setQueryType(com.dremio.service.job.proto.QueryType.UI_INTERNAL_RUN)
+          .setDatasetPath(com.dremio.dac.explore.model.DatasetPath.NONE.toNamespaceKey())
+          .build());
+      externalId[i] = ExternalIdHelper.toExternal(QueryIdHelper.getQueryIdFromString(jobID[i].getId()));
+    }
+    SqlQuery query = getQueryFromSQL("SELECT 1");
+    try {
+      submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
+      fail("job should fail");
+    } catch (Exception e) {
+      // expected
+    }
+    for (int i = 0; i< 4; i++) {
+      foremenWorkManager.resume(externalId[i]);
+      JobDataClientUtils.waitForFinalState(jobsService, jobID[i]);
     }
   }
 

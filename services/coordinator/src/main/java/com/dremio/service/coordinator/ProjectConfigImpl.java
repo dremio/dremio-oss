@@ -31,8 +31,9 @@ public class ProjectConfigImpl implements ProjectConfig {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ProjectConfigImpl.class);
 
   private static final String ACCELERATION_PLUGIN_SUB_PATH = "/accelerator";
-  private static final String DOWNLOADS_PLUGIN_SUB_PATH = "/downloads";
+  private static final String UPLOADS_PLUGIN_SUB_PATH = "/uploads";
   private static final String SCRATCH_PLUGIN_SUB_PATH = "/scratch";
+  private static final String METADATA_PLUGIN_SUB_PATH = "/metadata";
 
   private final Provider<DremioConfig> fileProvider;
   private final Provider<ProjectConfigStore> storeProvider;
@@ -53,14 +54,17 @@ public class ProjectConfigImpl implements ProjectConfig {
   }
 
   @Override
-  public DistPathConfig getDownloadsConfig() {
-    return getDistPathConfig(DremioConfig.DOWNLOADS_PATH_STRING, DOWNLOADS_PLUGIN_SUB_PATH);
+  public DistPathConfig getUploadsConfig() {
+    return getDistPathConfig(DremioConfig.UPLOADS_PATH_STRING, UPLOADS_PLUGIN_SUB_PATH);
+  }
+
+  @Override
+  public DistPathConfig getMetadataConfig() {
+    return getDistPathConfig(DremioConfig.METADATA_PATH_STRING, METADATA_PLUGIN_SUB_PATH);
   }
 
   private DistPathConfig getDistPathConfig(String pathString, String subPath) {
     URI path;
-    String accessKey = null;
-    String secretKey = null;
     ProjectConfigStore store = storeProvider.get();
     DataCredentials dataCredentials = null;
     if (store.get() == null || !store.get().hasDistStoreConfig()) {

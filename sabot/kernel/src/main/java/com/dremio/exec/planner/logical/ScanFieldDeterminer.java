@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
@@ -211,5 +212,9 @@ public class ScanFieldDeterminer extends AbstractLogicalVisitor<Void, ScanFieldD
       return paths;
     }
 
+    @Override
+    public Set<SchemaPath> visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+      return visitUnknown(caseExpression, value);
+    }
   }
 }

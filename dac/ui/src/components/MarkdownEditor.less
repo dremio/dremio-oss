@@ -22,6 +22,10 @@
 @_toolbar-content-height: 40px;
 @_toolbar-height: @_toolbar-content-height + @wiki-title-margin; // a default toobar height
 
+.wikiModalHeight {
+  max-height: 743px;
+}
+
 .editor {
   background: white;
 
@@ -81,9 +85,7 @@
       max-width: 100% // fit image to wiki width
     }
   }
-
   // -------------------------------------------
-
   :global {
 
     .editor-toolbar {
@@ -141,6 +143,10 @@
 
       .clear-fix-mixin();
     }
+    
+    .max-width() {
+      max-width: 800px;
+    }
 
     .CodeMirror, .CodeMirror-scroll {
       min-height: 0;
@@ -156,10 +162,6 @@
     .CodeMirror {
       border: @collaboration-border;
       padding: 0; // reset pading in container. Padding would be applied to CodeMirror-lines
-    }
-
-    .max-width() {
-      max-width: 800px;
     }
 
     .editor-preview, .editor-preview-side {

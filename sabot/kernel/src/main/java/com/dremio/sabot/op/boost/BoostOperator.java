@@ -245,11 +245,11 @@ public class BoostOperator extends ScanOperator {
       outputVectorContainer.buildSchema();
 
       RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-      RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f) -> {};
+      RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g) -> {};
       recordWriter.setup(outputVectorContainer, fileWriteListener, byteCountListener);
     }
 
-    void write(int records) throws IOException {
+    void write(int records) throws Exception {
       outputVectorContainer.setRecordCount(records);
       recordWriter.writeBatch(0, records);
     }

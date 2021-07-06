@@ -88,8 +88,8 @@ class PermissionCheckCache {
   public boolean hasAccess(final String username, final NamespaceKey namespaceKey, final DatasetConfig config, final MetadataStatsCollector metadataStatsCollector, final SourceConfig sourceConfig) {
     final Stopwatch permissionCheck = Stopwatch.createStarted();
 
-    // if we are unable to cache, go direct.
-    if (authTtlMs.get() == 0) {
+    // if we are unable to cache, go direct.  Also don't cache system sources checks.
+    if (authTtlMs.get() == 0 || "ESYS".equals(sourceConfig.getType())) {
       boolean hasAccess = checkPlugin(username, namespaceKey, config, sourceConfig);
       permissionCheck.stop();
       metadataStatsCollector.addDatasetStat(namespaceKey.getSchemaPath(), PermissionCheckAccessType.PERMISSION_CACHE_MISS.name(), permissionCheck.elapsed(TimeUnit.MILLISECONDS));

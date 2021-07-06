@@ -15,12 +15,9 @@
  */
 package com.dremio.common.config;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +29,6 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
@@ -41,24 +37,14 @@ import com.typesafe.config.ConfigValue;
 public class SabotConfig extends NestedConfig {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SabotConfig.class);
 
-  private final ImmutableList<String> startupArguments;
-
-
-
-  private SabotConfig(Config config, ImmutableList<String> startupArguments){
-    super(config);
-    this.startupArguments = startupArguments;
-  }
-
   @VisibleForTesting
-  public SabotConfig(Config config, boolean enableServerConfigs) {
+  public SabotConfig(Config config) {
     super(config);
     logger.debug("Setting up SabotConfig object.");
-    logger.trace("Given Config object is:\n{}",
-                 config.root().render(ConfigRenderOptions.defaults()));
-    RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
-    this.startupArguments = ImmutableList.copyOf(bean.getInputArguments());
-    logger.debug("SabotConfig object initialized.");
+    if (logger.isTraceEnabled()) {
+      final String configObject = config.root().render(ConfigRenderOptions.defaults());
+      logger.trace("Given Config object is:\n{}", configObject);
+    }
   }
 
   /**
@@ -135,17 +121,13 @@ public class SabotConfig extends NestedConfig {
     return (T) constructor.newInstance(constructorArgs);
   }
 
-  public List<String> getStartupArguments() {
-    return startupArguments;
-  }
-
   /**
    * Creates a SabotConfig object using the default config file name
    * and with server-specific configuration options enabled.
    * @return The new SabotConfig object.
    */
   public static SabotConfig create() {
-    return create(null, true);
+    return create(null, null);
   }
 
   /**
@@ -155,7 +137,7 @@ public class SabotConfig extends NestedConfig {
    * @return {@link SabotConfig} instance
    */
   public static SabotConfig forClient() {
-    return create(null, false);
+    return create(null, null);
   }
 
 
@@ -188,7 +170,7 @@ public class SabotConfig extends NestedConfig {
    *  @return A merged Config object.
    */
   public static SabotConfig create(String overrideFileResourcePathname) {
-    return create(overrideFileResourcePathname, true);
+    return create(overrideFileResourcePathname, null);
   }
 
   /**
@@ -196,15 +178,7 @@ public class SabotConfig extends NestedConfig {
    */
   @VisibleForTesting
   public static SabotConfig create(Properties testConfigurations) {
-    return create(null, testConfigurations, true);
-  }
-
-  /**
-   * @param overrideFileResourcePathname
-   *          see {@link #create(String)}'s {@code overrideFileResourcePathname}
-   */
-  public static SabotConfig create(String overrideFileResourcePathname, boolean enableServerConfigs) {
-    return create(overrideFileResourcePathname, null, enableServerConfigs);
+    return create(null, testConfigurations);
   }
 
   /**
@@ -213,13 +187,10 @@ public class SabotConfig extends NestedConfig {
    * @param overriderProps
    *          optional property map for further overriding (after override file
    *          is assimilated
-   * @param enableServerConfigs
-   *          whether to enable server-specific configuration options
    * @return
    */
   private static SabotConfig create(String overrideFileResourcePathname,
-                                    final Properties overriderProps,
-                                    final boolean enableServerConfigs) {
+                                    final Properties overriderProps) {
     final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
     if (null == originalClassLoader) {
       // If the context classloader is null, then set it on the thread and restore to null later.
@@ -227,7 +198,7 @@ public class SabotConfig extends NestedConfig {
     }
 
     try {
-      return doCreate(overrideFileResourcePathname, overriderProps, enableServerConfigs);
+      return doCreate(overrideFileResourcePathname, overriderProps);
     } finally {
       // Restore to the original context classloader.
       Thread.currentThread().setContextClassLoader(originalClassLoader);
@@ -240,13 +211,10 @@ public class SabotConfig extends NestedConfig {
    * @param overriderProps
    *          optional property map for further overriding (after override file
    *          is assimilated
-   * @param enableServerConfigs
-   *          whether to enable server-specific configuration options
    * @return
    */
   private static SabotConfig doCreate(String overrideFileResourcePathname,
-                                      Properties overriderProps,
-                                      boolean enableServerConfigs) {
+                                      Properties overriderProps) {
     final StringBuilder logString = new StringBuilder();
     final Stopwatch watch = Stopwatch.createStarted();
     overrideFileResourcePathname =
@@ -305,7 +273,7 @@ public class SabotConfig extends NestedConfig {
     logger.info("Configuration and plugin file(s) identified in {}ms.\n{}",
         watch.elapsed(TimeUnit.MILLISECONDS),
         logString);
-    return new SabotConfig(effectiveConfig.resolve(), enableServerConfigs);
+    return new SabotConfig(effectiveConfig.resolve());
   }
 
   public <T> Class<? extends T> getClassAt(String location, Class<T> clazz) throws SabotConfigurationException {
@@ -355,7 +323,7 @@ public class SabotConfig extends NestedConfig {
 
   @Override
   public SabotConfig withValue(String path, ConfigValue value) {
-    return new SabotConfig(getInnerConfig().withValue(path, value), startupArguments);
+    return new SabotConfig(getInnerConfig().withValue(path, value));
   }
 
   @Override

@@ -34,6 +34,7 @@ public class MappingSet {
   private DirectExpression outgoing;
   private DirectExpression workspace;
   private DirectExpression workspaceIndex;
+  private boolean nullConstant;
 
   public MappingSet(GeneratorMapping mapping) {
     this("inIndex", "outIndex", new GeneratorMapping[] { mapping, mapping });
@@ -76,6 +77,7 @@ public class MappingSet {
 
     this.mappings = Arrays.copyOfRange(mappings, 1, mappings.length);
     this.current = this.mappings[0];
+    this.nullConstant = false;
   }
 
   public void enterConstant() {
@@ -83,9 +85,19 @@ public class MappingSet {
     current = constant;
   }
 
+  public void setNullConstant() {
+    nullConstant = true;
+  }
+
+  public boolean isNullConstant() {
+    return nullConstant;
+  }
+
   public void exitConstant() {
     assert constant == current;
     current = mappings[mappingIndex];
+    // when we are exiting a full constant expression, reset null constant flag
+    this.nullConstant = false;
   }
 
   public boolean isWithinConstant() {
@@ -141,5 +153,4 @@ public class MappingSet {
   public boolean isHashAggMapping() {
     return workspace != null;
   }
-
 }

@@ -94,7 +94,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     SPILLED
   }
 
-  private final BufferAllocator allocator;
+  private final BufferAllocator parentAllocator;
   private final long threshold;
   private final int oppositeId;
   private final int bufferIndex;
@@ -103,6 +103,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private AtomicReference<SpoolingState> spoolingState = new AtomicReference<>(SpoolingState.PAUSE_SPOOLING);
   private volatile long currentBatchesInMemory = 0;
 
+  private BufferAllocator allocator = null;
   private SpillFile spillFile;
   private FSDataOutputStream outputStream;
   private FSDataInputStream inputStream;
@@ -113,11 +114,9 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private SpillService spillService;
 
   public SpoolingRawBatchBuffer(SharedResource resource, final SabotConfig config, FragmentWorkQueue workQueue,
-                                FragmentHandle handle, SpillService spillService, BufferAllocator allocator,
+                                FragmentHandle handle, SpillService spillService, BufferAllocator parentAllocator,
                                 int fragmentCount, int oppositeId, int bufferIndex) {
-    super(resource, config, handle, allocator, fragmentCount);
-    final String name = String.format("%s:spoolingBatchBuffer", QueryIdHelper.getFragmentId(handle));
-    this.allocator = allocator.newChildAllocator(name, ALLOCATOR_INITIAL_RESERVATION, ALLOCATOR_MAX_RESERVATION);
+    super(resource, config, handle, parentAllocator, fragmentCount);
     this.threshold = config.getLong(ExecConstants.SPOOLING_BUFFER_SIZE);
     this.oppositeId = oppositeId;
     this.bufferIndex = bufferIndex;
@@ -126,6 +125,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     this.spillService = spillService;
     this.inputStream = null;
     this.inputStreamLastKnownLen = 0;
+    this.parentAllocator = parentAllocator;
 
     workQueue.put(new Runnable() {
       @Override
@@ -134,6 +134,12 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       }
     });
 
+  }
+
+  @Override
+  public void init() {
+      final String name = String.format("%s:spoolingBatchBuffer", QueryIdHelper.getFragmentId(handle));
+      this.allocator = parentAllocator.newChildAllocator(name, ALLOCATOR_INITIAL_RESERVATION, ALLOCATOR_MAX_RESERVATION);
   }
 
   private void setupOutputStream() {

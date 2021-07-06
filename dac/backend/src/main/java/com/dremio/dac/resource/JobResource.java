@@ -19,6 +19,7 @@ import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.io.IOException;
+import java.security.AccessControlException;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -46,6 +47,7 @@ import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobDetailsUI;
+import com.dremio.dac.model.job.JobSummaryUI;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.BufferAllocatorFactory;
@@ -58,6 +60,7 @@ import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
@@ -71,6 +74,7 @@ import com.dremio.service.jobs.JobWarningException;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.ReflectionJobValidationException;
+import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -87,39 +91,44 @@ public class JobResource extends BaseResourceWithAllocator {
   private final JobsService jobsService;
   private final DatasetVersionMutator datasetService;
   private final SecurityContext securityContext;
+  private final NamespaceService namespace;
+  private final JobId jobId;
 
   @Inject
   public JobResource(
     JobsService jobsService,
     DatasetVersionMutator datasetService,
     @Context SecurityContext securityContext,
-    BufferAllocatorFactory allocatorFactory
-  ) {
+    NamespaceService namespace,
+    BufferAllocatorFactory allocatorFactory,
+    @PathParam("jobId") JobId jobId
+    ) {
     super(allocatorFactory);
     this.jobsService = jobsService;
     this.datasetService = datasetService;
     this.securityContext = securityContext;
+    this.namespace = namespace;
+    this.jobId = jobId;
   }
 
   /**
    * Get job overview.
-   * @param jobId job id
    */
   @GET
   @Produces(APPLICATION_JSON)
-  public JobUI getJob(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
-    return new JobUI(jobsService, new JobId(jobId), securityContext.getUserPrincipal().getName());
+  public JobUI getJob() throws JobResourceNotFoundException {
+    return new JobUI(jobsService, new JobId(jobId.getId()), securityContext.getUserPrincipal().getName());
   }
 
   @POST
   @Path("cancel")
   @Produces(APPLICATION_JSON)
-  public NotificationResponse cancel(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
+  public NotificationResponse cancel() throws JobResourceNotFoundException {
     try {
       final String username = securityContext.getUserPrincipal().getName();
       jobsService.cancel(CancelJobRequest.newBuilder()
           .setUsername(username)
-          .setJobId(JobsProtoUtil.toBuf(new JobId(jobId)))
+          .setJobId(JobsProtoUtil.toBuf(jobId))
           .setReason(String.format("Query cancelled by user '%s'", username))
           .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
@@ -136,11 +145,11 @@ public class JobResource extends BaseResourceWithAllocator {
   @GET
   @Path("/details")
   @Produces(APPLICATION_JSON)
-  public JobDetailsUI getJobDetail(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
+  public JobDetailsUI getJobDetail() throws JobResourceNotFoundException {
     final JobDetails jobDetails;
     try {
       JobDetailsRequest request = JobDetailsRequest.newBuilder()
-          .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId).build())
+          .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId.getId()).build())
           .setUserName(securityContext.getUserPrincipal().getName())
           .setProvideResultInfo(true)
           .build();
@@ -149,7 +158,26 @@ public class JobResource extends BaseResourceWithAllocator {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
-    return JobDetailsUI.of(jobDetails);
+    return JobDetailsUI.of(jobDetails, securityContext.getUserPrincipal().getName());
+  }
+
+  // Get summary of job
+  @GET
+  @Path("/summary")
+  @Produces(APPLICATION_JSON)
+  public JobSummaryUI getJobSummary() throws JobResourceNotFoundException {
+    final JobSummary summary;
+    try {
+      JobSummaryRequest request = JobSummaryRequest.newBuilder()
+        .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId.getId()).build())
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      summary = jobsService.getJobSummary(request);
+    } catch (JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+    }
+
+    return JobSummaryUI.of(summary, namespace);
   }
 
   public static String getPaginationURL(JobId jobId) {
@@ -160,18 +188,21 @@ public class JobResource extends BaseResourceWithAllocator {
   @Path("/data")
   @Produces(APPLICATION_JSON)
   public JobDataFragment getDataForVersion(
-      @PathParam("jobId") JobId jobId,
-      @QueryParam("limit") int limit,
-      @QueryParam("offset") int offset) throws JobResourceNotFoundException {
+    @QueryParam("limit") int limit,
+    @QueryParam("offset") int offset) throws JobResourceNotFoundException {
 
     Preconditions.checkArgument(limit > 0, "Limit should be greater than 0");
     Preconditions.checkArgument(offset >= 0, "Limit should be greater than or equal to 0");
 
     try {
-      jobsService.getJobSummary(JobSummaryRequest.newBuilder()
+      final JobSummary jobSummary = jobsService.getJobSummary(JobSummaryRequest.newBuilder()
         .setJobId(JobsProtoUtil.toBuf(jobId))
         .setUserName(securityContext.getUserPrincipal().getName())
         .build());
+
+      if (!canViewJobResult(jobSummary)) {
+        throw new AccessControlException("Not authorized to access the job results");
+      }
     } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -187,9 +218,8 @@ public class JobResource extends BaseResourceWithAllocator {
   @Path("/r/{rowNum}/c/{columnName}")
   @Produces(APPLICATION_JSON)
   public Object getCellFullValue(
-      @PathParam("jobId") JobId jobId,
-      @PathParam("rowNum") int rowNum,
-      @PathParam("columnName") String columnName) throws JobResourceNotFoundException {
+    @PathParam("rowNum") int rowNum,
+    @PathParam("columnName") String columnName) throws JobResourceNotFoundException {
     Preconditions.checkArgument(rowNum >= 0, "Row number shouldn't be negative");
     Preconditions.checkNotNull(columnName, "Expected a non-null column name");
 
@@ -211,7 +241,6 @@ public class JobResource extends BaseResourceWithAllocator {
   /**
    * Export data for job id as a file
    *
-   * @param previewJobId
    * @param downloadFormat - a format of output file. Also defines a file extension
    * @return
    * @throws IOException
@@ -223,18 +252,16 @@ public class JobResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   @TemporaryAccess
   public Response download(
-    @PathParam("jobId") JobId previewJobId,
     @QueryParam("downloadFormat") DownloadFormat downloadFormat
   ) throws JobResourceNotFoundException, JobNotFoundException {
-    return doDownload(previewJobId, downloadFormat);
+    return doDownload(jobId, downloadFormat);
   }
 
   // Get details of reflection job
   @GET
   @Path("/reflection/{reflectionId}/details")
   @Produces(APPLICATION_JSON)
-  public JobDetailsUI getReflectionJobDetail(@PathParam("jobId") String jobId,
-                                             @PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+  public JobDetailsUI getReflectionJobDetail(@PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
     final JobDetails jobDetails;
 
     if (Strings.isNullOrEmpty(reflectionId)) {
@@ -245,7 +272,7 @@ public class JobResource extends BaseResourceWithAllocator {
 
     try {
       JobDetailsRequest.Builder jobDetailsRequestBuilder = JobDetailsRequest.newBuilder()
-        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(jobId).build())
+        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(jobId.getId()).build())
         .setProvideResultInfo(true)
         .setUserName(securityContext.getUserPrincipal().getName());
 
@@ -261,14 +288,13 @@ public class JobResource extends BaseResourceWithAllocator {
       throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
     }
 
-    return JobDetailsUI.of(jobDetails);
+    return JobDetailsUI.of(jobDetails, securityContext.getUserPrincipal().getName());
   }
 
   @POST
   @Path("/reflection/{reflectionId}/cancel")
   @Produces(APPLICATION_JSON)
-  public NotificationResponse cancelReflectionJob(@PathParam("jobId") String jobId,
-                                                  @PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+  public NotificationResponse cancelReflectionJob(@PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
     if (Strings.isNullOrEmpty(reflectionId)) {
       throw UserException.validationError()
         .message("reflectionId cannot be null or empty")
@@ -281,7 +307,7 @@ public class JobResource extends BaseResourceWithAllocator {
 
       CancelJobRequest cancelJobRequest = CancelJobRequest.newBuilder()
         .setUsername(username)
-        .setJobId(JobsProtoUtil.toBuf(new JobId(jobId)))
+        .setJobId(JobsProtoUtil.toBuf(jobId))
         .setReason(String.format("Query cancelled by user '%s'", username))
         .build();
 
@@ -355,5 +381,9 @@ public class JobResource extends BaseResourceWithAllocator {
 
   protected long getDelay() {
     return 0L;
+  }
+
+  protected boolean canViewJobResult(JobSummary jobSummary) {
+    return true;
   }
 }

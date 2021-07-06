@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
@@ -35,6 +37,7 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
   RuntimeException> {
 
   private boolean expHasComplexField = false;
+  private boolean expHasCase = false;
 
   @Override
   public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression expr, Void
@@ -99,6 +102,30 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
   }
 
   @Override
+  public CodeGenContext visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    boolean isMixedMode = false;
+    List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+    for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+      LogicalExpression whenExpr = conditionNode.whenExpr.accept(this, value);
+      LogicalExpression thenExpr = conditionNode.thenExpr.accept(this, value);
+      CaseExpression.CaseConditionNode newConditionExpression = new CaseExpression.CaseConditionNode(whenExpr, thenExpr);
+      caseConditions.add(newConditionExpression);
+      if (((CodeGenContext) newConditionExpression.whenExpr).isMixedModeExecution() || ((CodeGenContext)
+        newConditionExpression.thenExpr).isMixedModeExecution()) {
+        isMixedMode = true;
+      }
+    }
+    CodeGenContext elseExpr = caseExpression.elseExpr.accept(this, value);
+    CaseExpression result = CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+    CodeGenContext caseExpr = new CodeGenContext(result);
+    if (isMixedMode || elseExpr.isMixedModeExecution()) {
+      caseExpr.markSubExprIsMixed();
+    }
+    expHasCase = true;
+    return caseExpr;
+  }
+
+  @Override
   public CodeGenContext visitUnknown(LogicalExpression expression, Void value) {
 
     if (expression instanceof ValueVectorReadExpression) {
@@ -120,5 +147,9 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
 
   public boolean isExpHasComplexField() {
     return expHasComplexField;
+  }
+
+  public boolean isExpHasCase() {
+    return expHasCase;
   }
 }

@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
+import React, { PureComponent, Component } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
@@ -187,8 +186,7 @@ const DEFAULT_STYLES = {
 // TODO: stop using a "font icon" component to display custom things that aren't in an icon font
 
 @Radium
-@PureRender
-export class FullFontIcon extends Component {
+export class FullFontIcon extends PureComponent {
   static propTypes = {
     onClick: PropTypes.func,
     onMouseLeave: PropTypes.func,
@@ -304,8 +302,7 @@ export default class FontIcon extends Component {
     const defaultIconStyle = iconStyle || {width: 24, height: 24};
     const defaultContainerStyle = containerStyle || {'display': 'inline-block'};
 
-    @PureRender
-    class FastIcon extends Component {
+    class FastIcon extends PureComponent {
       static propTypes = {
         theme: PropTypes.object,
         tooltip: PropTypes.string,

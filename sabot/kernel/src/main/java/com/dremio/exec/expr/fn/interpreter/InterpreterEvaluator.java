@@ -31,7 +31,9 @@ import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -96,6 +98,7 @@ public class InterpreterEvaluator {
       this.functionContext = functionContext;
     }
 
+    @SuppressForbidden
     @Override
     public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holderExpr, VectorAccessible incoming) {
       if (! (holderExpr.getHolder() instanceof SimpleFunctionHolder)) {
@@ -220,6 +223,7 @@ public class InterpreterEvaluator {
     // TODO - review what to do with these (2 functions above)
     //********************************************
 
+    @SuppressForbidden
     @Override
     public ValueHolder visitFunctionHolderExpression(FunctionHolderExpression holderExpr, Integer inIndex) {
       if (! (holderExpr.getHolder() instanceof SimpleFunctionHolder)) {
@@ -343,6 +347,22 @@ public class InterpreterEvaluator {
         default:
           throw new UnsupportedOperationException("No other possible choice. Something is not right");
       }
+    }
+
+    @Override
+    public ValueHolder visitCaseExpression(CaseExpression caseExpression, Integer inIndex) throws RuntimeException {
+      for (CaseExpression.CaseConditionNode condition : caseExpression.caseConditions) {
+        ValueHolder condHolder = condition.whenExpr.accept(this, inIndex);
+
+        Preconditions.checkArgument(condHolder instanceof BitHolder || condHolder instanceof NullableBitHolder,
+          "CaseExpression's condition does not have type of BitHolder or NullableBitHolder.");
+
+        Trivalent flag = isBitOn(condHolder);
+        if (flag == Trivalent.TRUE) {
+          return condition.thenExpr.accept(this, inIndex);
+        }
+      }
+      return caseExpression.elseExpr.accept(this, inIndex);
     }
 
     @Override

@@ -74,9 +74,9 @@ class TableControls extends PureComponent {
     const isDataAvailable = !exploreViewState.get('invalidated')
       && !exploreViewState.get('isFailed')
       && !exploreViewState.get('isInProgress');
-    const version = dataset && dataset.get('datasetVersion') || '';
+    const version = dataset && dataset.get('datasetVersion');
 
-    return (isDataAvailable) ? <ExploreCopyTableButton version={version} style={styles.copy}/> : null;
+    return (isDataAvailable && version) ? <ExploreCopyTableButton version={version} style={styles.copy}/> : null;
   };
 
   renderButton({

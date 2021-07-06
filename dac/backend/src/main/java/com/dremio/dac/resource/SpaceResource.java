@@ -17,6 +17,7 @@ package com.dremio.dac.resource;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
+import java.security.AccessControlException;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 
@@ -106,6 +107,10 @@ public class SpaceResource {
       final Space space = newSpace(config, contents, datasetCount);
 
       return space;
+    } catch (AccessControlException e) {
+      throw UserException.validationError()
+        .message("Access denied to view space contents.")
+        .buildSilently();
     } catch (NamespaceNotFoundException nfe) {
       throw new SpaceNotFoundException(spacePath.getSpaceName().getName(), nfe);
     }

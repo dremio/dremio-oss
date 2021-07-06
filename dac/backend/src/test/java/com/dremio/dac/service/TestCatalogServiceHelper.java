@@ -201,7 +201,7 @@ public class TestCatalogServiceHelper {
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
     when(catalog.getTable(any(String.class))).thenReturn(dremioTable);
 
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(datasetConfig.getId().getId(), ImmutableList.of());
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(datasetConfig.getId().getId(), ImmutableList.of(), ImmutableList.of());
 
     assertTrue(entity.isPresent());
 
@@ -227,7 +227,7 @@ public class TestCatalogServiceHelper {
     // for children listing, we just send the space back to keep it simple
     when(namespaceService.list(new NamespaceKey(spaceConfig.getName()))).thenReturn(Collections.singletonList(namespaceContainer));
 
-    Optional<CatalogEntity> catalogEntityById = catalogServiceHelper.getCatalogEntityById(spaceConfig.getId().getId(), ImmutableList.of());
+    Optional<CatalogEntity> catalogEntityById = catalogServiceHelper.getCatalogEntityById(spaceConfig.getId().getId(), ImmutableList.of(), ImmutableList.of());
 
     assertTrue(catalogEntityById.isPresent());
 

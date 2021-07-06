@@ -122,6 +122,11 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public DremioTable getTableForQuery(NamespaceKey key) {
+    return getIfVisible(key, () -> delegate.getTableForQuery(key));
+  }
+
+  @Override
   public Iterable<DremioTable> getAllRequestedTables() {
     return delegate.getAllRequestedTables();
   }

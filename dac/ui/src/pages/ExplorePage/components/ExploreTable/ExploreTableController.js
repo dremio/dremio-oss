@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -50,8 +49,7 @@ import ExploreCellLargeOverlay from './ExploreCellLargeOverlay';
 import DropdownForSelectedText from './DropdownForSelectedText';
 
 @Radium
-@pureRender
-export class ExploreTableController extends Component {
+export class ExploreTableController extends PureComponent {
   static propTypes = {
     pageType: PropTypes.string,
     dataset: PropTypes.instanceOf(Immutable.Map),

@@ -47,6 +47,11 @@ public final class DremioSqlConformance extends SqlDelegatingConformance {
   }
 
   @Override
+  public boolean isMinusAllowed() {
+    return true;
+  }
+
+  @Override
   public boolean isSortByOrdinal() {
     return true;
   }

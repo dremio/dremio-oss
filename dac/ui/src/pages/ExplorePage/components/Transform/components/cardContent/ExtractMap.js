@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
@@ -23,9 +22,8 @@ import { formLabel } from 'uiTheme/radium/typography';
 
 import TextField from 'components/Fields/TextField';
 
-@pureRender
 @Radium
-export default class ExtractMap extends Component {
+export default class ExtractMap extends PureComponent {
 
   static propTypes = {
     path: PropTypes.object.isRequired

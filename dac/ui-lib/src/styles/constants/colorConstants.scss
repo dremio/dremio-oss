@@ -1,0 +1,67 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+$primary-color: #43B8C8;
+
+$lighter-primary-color: #5EC6D5;
+
+$brand-color: #2A394A;
+
+$mine-shaft: #333;
+
+$border-color: #E5E5E5;
+
+$neutral-color: #F2F2F2;
+
+$lighter-neutral-color: #F9F9F9;
+
+$error-color: #DE4949;
+
+$white: #FFF;
+
+$black: #000;
+
+$boulder: #7C7C7C;
+
+$silver: #CBCBCB;
+
+$sunglo: #E46363;
+
+$bridesmaid: #FEEAEA;
+
+$alto: #DDDDDD;
+
+$silver-chalice: #B2B2B2;
+$iceberg: #E4F2F7;
+
+$aliceBlue: #F5FCFF;
+
+$oslo-gray: #7F8B95;
+
+$disabled-color: $border-color;
+
+$dark-gray: $mine-shaft;
+
+$cinderella: #FCD9D9;
+
+$iceberg: #E4F2F7;
+
+$frost: #EEF7E2;
+
+$serenade: #FFF3E8;
+
+:export {
+  error: $error-color;
+}

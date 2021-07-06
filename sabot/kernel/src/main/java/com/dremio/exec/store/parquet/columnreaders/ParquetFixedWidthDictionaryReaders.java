@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
@@ -192,13 +193,9 @@ public class ParquetFixedWidthDictionaryReaders {
         - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
 
       for (int i = 0; i < recordsReadInThisIteration; i++){
-        try {
-          BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readLong()));
-          DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
-          valueVec.setIndexDefined(valuesReadInCurrentPass + i);
-        } catch ( Exception ex) {
-          throw ex;
-        }
+        BigDecimal bigDecimal = new BigDecimal(BigInteger.valueOf(pageReader.dictionaryValueReader.readLong()));
+        DecimalUtility.writeBigDecimalToArrowBuf(bigDecimal, vectorData, valuesReadInCurrentPass + i, DecimalVector.TYPE_WIDTH);
+        valueVec.setIndexDefined(valuesReadInCurrentPass + i);
       }
     }
   }
@@ -218,11 +215,27 @@ public class ParquetFixedWidthDictionaryReaders {
         - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
 
       for (int i = 0; i < recordsReadInThisIteration; i++){
-        try {
-          valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
-        } catch ( Exception ex) {
-          throw ex;
-        }
+        valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.dictionaryValueReader.readLong());
+      }
+    }
+  }
+
+  static class DictionaryTimeStampMicrosReader extends FixedByteAlignedReader<TimeStampMilliVector> {
+    DictionaryTimeStampMicrosReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
+                              ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeStampMilliVector v,
+                              SchemaElement schemaElement) throws ExecutionSetupException {
+      super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
+    }
+
+    // this method is called by its superclass during a read loop
+    @Override
+    protected void readField(long recordsToReadInThisPass) {
+
+      recordsReadInThisIteration = Math.min(pageReader.currentPageCount
+        - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
+
+      for (int i = 0; i < recordsReadInThisIteration; i++) {
+        valueVec.setSafe(valuesReadInCurrentPass + i, TimeUnit.MICROSECONDS.toMillis(pageReader.dictionaryValueReader.readLong()));
       }
     }
   }

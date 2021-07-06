@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import MultiplierField from './MultiplierField';
 
@@ -27,9 +28,15 @@ const MULTIPLIERS = new Map([ // todo: loc, proper pluralization
 ]);
 
 export default class DurationField extends Component {
-  static propTypes = {}; // pass-thru
+  static propTypes = {
+    multipliers: PropTypes.instanceOf(Map)
+  };
+
+  static defaultProps = {
+    multipliers: MULTIPLIERS
+  };
 
   render() {
-    return <MultiplierField {...this.props} unitMultipliers={MULTIPLIERS} />;
+    return <MultiplierField {...this.props} unitMultipliers={this.props.multipliers} />;
   }
 }

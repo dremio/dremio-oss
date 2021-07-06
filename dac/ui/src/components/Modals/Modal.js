@@ -49,7 +49,9 @@ export default class Modal extends Component {
     className: PropTypes.string,
     classQa: PropTypes.string,
     style: PropTypes.object,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    headerClassName: PropTypes.string,
+    headerEndChildren: PropTypes.node
   };
 
   static defaultProps = {
@@ -60,7 +62,19 @@ export default class Modal extends Component {
 
   render() {
     const {
-      size, isOpen, title, hide, hideCloseButton, onClickCloseButton, className, children, style, classQa, dataQa
+      size,
+      isOpen,
+      title,
+      hide,
+      hideCloseButton,
+      onClickCloseButton,
+      className,
+      children,
+      style,
+      classQa,
+      dataQa,
+      headerClassName,
+      headerEndChildren
     } = this.props;
     const content = {
       ...smallModal.content,
@@ -98,8 +112,16 @@ export default class Modal extends Component {
         closeTimeoutMS={MODAL_CLOSE_ANIMATION_DURATION}
         className={className}
       >
-        {stringTitle ?
-          <ModalHeader title={stringTitle} hide={onClickCloseButton || hide} hideCloseButton={hideCloseButton}/> : null}
+        {stringTitle &&
+          <ModalHeader
+            title={stringTitle}
+            hide={onClickCloseButton || hide}
+            hideCloseButton={hideCloseButton}
+            className={headerClassName}
+            endChildren={headerEndChildren}
+          >
+          </ModalHeader>
+        }
         <div style={modalBody} data-qa={dataQa}>
           {children}
         </div>

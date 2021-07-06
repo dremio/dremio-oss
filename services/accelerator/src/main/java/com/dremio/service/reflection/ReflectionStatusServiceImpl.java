@@ -75,6 +75,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
   private final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider;
   private final Provider<NamespaceService> namespaceService;
+  private final Provider<CatalogService> catalogService;
   private final Provider<CacheViewer> cacheViewer;
 
 
@@ -98,7 +99,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       MaterializationStore materializationStore,
       ExternalReflectionStore externalReflectionStore,
       ReflectionSettings reflectionSettings,
-      ReflectionValidator validator) {
+      ReflectionValidator validator,
+      Provider<CatalogService> catalogService) {
     this.nodeEndpointsProvider = nodeEndpointsProvider;
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
@@ -109,6 +111,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     this.reflectionSettings = Preconditions.checkNotNull(reflectionSettings, "reflection settings required");
 
     this.validator = Preconditions.checkNotNull(validator, "validator required");
+    this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
   }
 
   public ReflectionStatusServiceImpl(
@@ -121,19 +124,15 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     Preconditions.checkNotNull(catalogService, "catalog service required");
     this.nodeEndpointsProvider = nodeEndpointsProvider;
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
-    this.namespaceService = new Provider<NamespaceService>() {
-      @Override
-      public NamespaceService get() {
-        return namespaceServiceProvider.get();
-      }
-    };
+    this.namespaceService = namespaceServiceProvider;
+    this.catalogService = catalogService;
 
     goalsStore = new ReflectionGoalsStore(storeProvider);
     entriesStore = new ReflectionEntriesStore(storeProvider);
     materializationStore = new MaterializationStore(storeProvider);
     externalReflectionStore = new ExternalReflectionStore(storeProvider);
 
-    reflectionSettings = new ReflectionSettings(namespaceService, storeProvider);
+    reflectionSettings = new ReflectionSettingsImpl(namespaceService, storeProvider);
     validator = new ReflectionValidator(catalogService);
   }
 
@@ -258,7 +257,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     // check that we are still able to get a MaterializationDescriptor
     try {
-      if (ReflectionUtils.getMaterializationDescriptor(reflection, namespaceService.get()) == null) {
+      if (ReflectionUtils.getMaterializationDescriptor(reflection, namespaceService.get(), catalogService.get()) == null) {
         return ExternalReflectionStatus.STATUS.INVALID;
       }
     } catch(NamespaceException e) {

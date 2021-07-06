@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlSetOption;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
@@ -40,7 +41,9 @@ import com.dremio.exec.planner.sql.handlers.direct.AccelCreateReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelDropReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelToggleHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AddColumnsHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AlterClearPlanCacheHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableSetOptionHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AnalyzeTableStatisticsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ChangeColumnHandler;
 import com.dremio.exec.planner.sql.handlers.direct.CreateEmptyTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.CreateViewHandler;
@@ -67,10 +70,12 @@ import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
+import com.dremio.exec.planner.sql.parser.SqlAlterClearPlanCache;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
+import com.dremio.exec.planner.sql.parser.SqlAnalyzeTableStatistics;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
@@ -152,19 +157,19 @@ public class CommandCreator {
       injector.injectChecked(context.getExecutionControls(), "run-try-beginning", ForemanException.class);
       switch(request.getType()){
       case GET_CATALOGS:
-        return new MetadataProvider.CatalogsProvider(dbContext.getInformationSchemaServiceBlockingStub(),
+        return new MetadataProvider.CatalogsProvider(dbContext.getConduitInProcessChannelProviderProvider(),
           getParameters(context.getSession(), context.getQueryId()), request.unwrap(GetCatalogsReq.class));
 
       case GET_SCHEMAS:
-        return new MetadataProvider.SchemasProvider(dbContext.getInformationSchemaServiceBlockingStub(),
+        return new MetadataProvider.SchemasProvider(dbContext.getConduitInProcessChannelProviderProvider(),
           getParameters(context.getSession(), context.getQueryId()), request.unwrap(GetSchemasReq.class));
 
       case GET_TABLES:
-        return new MetadataProvider.TablesProvider(dbContext.getInformationSchemaServiceBlockingStub(),
+        return new MetadataProvider.TablesProvider(dbContext.getConduitInProcessChannelProviderProvider(),
           getParameters(context.getSession(), context.getQueryId()), request.unwrap(GetTablesReq.class));
 
       case GET_COLUMNS:
-        return new MetadataProvider.ColumnsProvider(dbContext.getInformationSchemaServiceBlockingStub(),
+        return new MetadataProvider.ColumnsProvider(dbContext.getConduitInProcessChannelProviderProvider(),
           getParameters(context.getSession(), context.getQueryId()), dbContext.getCatalogService(),
           request.unwrap(GetColumnsReq.class));
 
@@ -272,7 +277,8 @@ public class CommandCreator {
           context.getCatalog(),
           context.getSubstitutionProviderFactory(),
           context.getConfig(),
-          context.getScanResult());
+          context.getScanResult(),
+          context.getRelMetadataQuerySupplier());
 
       injector.injectChecked(context.getExecutionControls(), "sql-parsing", ForemanSetupException.class);
       final DremioCatalogReader reader = parser.getCatalogReader();
@@ -353,7 +359,7 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlForgetTable) {
           return direct.create(new ForgetTableHandler(catalog));
         } else if (sqlNode instanceof SqlRefreshTable) {
-          return direct.create(new RefreshTableHandler(catalog));
+          return direct.create(new RefreshTableHandler(catalog, context.getOptions().getOption(CatalogOptions.DMP_METADATA_REFRESH_PARTIAL)));
         } else if (sqlNode instanceof SqlRefreshSourceStatus) {
           return direct.create(new RefreshSourceStatusHandler(catalog));
         } else if (sqlNode instanceof SqlSetApprox) {
@@ -362,6 +368,10 @@ public class CommandCreator {
           return direct.create(new CreateEmptyTableHandler(catalog, config));
         } else if (sqlNode instanceof SqlTruncateTable) {
           return direct.create(new TruncateTableHandler(config));
+        } else if (sqlNode instanceof SqlAlterClearPlanCache) {
+          return direct.create(new AlterClearPlanCacheHandler(context));
+        } else if (sqlNode instanceof SqlAnalyzeTableStatistics) {
+          return direct.create(new AnalyzeTableStatisticsHandler(catalog, config, context.getStatisticsAdministrationFactory()));
         }
 
         // fallthrough

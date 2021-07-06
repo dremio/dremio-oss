@@ -309,6 +309,11 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         }
       }
 
+      if (sqlExpr instanceof SqlLiteral && ((SqlLiteral) sqlExpr).getTypeName() == SqlTypeName.NULL &&
+        !getDialect().supportsNullReturnType()) { // Dialect does not support NULL as a return data type. Add an explicit cast.
+        sqlExpr = SqlStdOperatorTable.CAST.createCall(POS, sqlExpr, getDialect().getCastSpec(ref.getType()));
+      }
+
       addSelect(selectList, sqlExpr, project.getRowType());
     }
 

@@ -44,7 +44,8 @@ class AggregateContent extends Component {
     isDragInProgress: PropTypes.bool,
     style: PropTypes.object,
     dragItem: PropTypes.instanceOf(ColumnDragItem),
-    className: PropTypes.string
+    className: PropTypes.string,
+    canAlter: PropTypes.any
   };
 
   static defaultProps = {
@@ -94,7 +95,7 @@ class AggregateContent extends Component {
     const {
       allColumns, onDrop, fields, dragType, isDragInProgress, dragItem,
       handleDragStart, onDragEnd, canUseFieldAsBothDimensionAndMeasure,
-      className
+      className, canAlter
     } = this.props;
     const commonDragAreaProps = {
       allColumns,
@@ -121,6 +122,7 @@ class AggregateContent extends Component {
             onDragEnd={onDragEnd}
             dragType={dragType}
             name={`${this.props.path} (${la('Current')})`}
+            canAlter={canAlter}
           />
         </div>
         <div className={leftBorder}>
@@ -128,7 +130,9 @@ class AggregateContent extends Component {
             className={classNames(['aggregate-dimension', fullHeight])}
             dragContentCls={contentPadding}
             {...commonDragAreaProps}
-            columnsField={fields.columnsDimensions}/>
+            columnsField={fields.columnsDimensions}
+            canAlter={canAlter}
+          />
         </div>
         <div className={leftBorder}>
           {
@@ -144,7 +148,9 @@ class AggregateContent extends Component {
                 {...commonDragAreaProps}
                 dragOrigin='measures'
                 dragAreaText={MEASURE_DRAG_AREA_TEXT}
-                columnsField={fields.columnsMeasures}/>
+                columnsField={fields.columnsMeasures}
+                canAlter={canAlter}
+              />
           }
         </div>
 

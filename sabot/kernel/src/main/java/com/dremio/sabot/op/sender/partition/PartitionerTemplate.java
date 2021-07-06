@@ -28,6 +28,7 @@ import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.BasePath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.sig.RuntimeOverridden;
@@ -82,6 +83,7 @@ public abstract class PartitionerTemplate implements Partitioner {
     }
   }
 
+  @SuppressForbidden
   public PartitionerTemplate() throws SchemaChangeException {
     try{
       this.innerConstructor = (Constructor<OutgoingRecordBatch>) this.getClass().getDeclaredClasses()[0].getConstructor(

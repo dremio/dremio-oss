@@ -18,6 +18,9 @@ package com.dremio.exec.planner.logical;
 import static com.dremio.exec.expr.fn.impl.ConcatFunctions.CONCAT_MAX_ARGS;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,6 +45,7 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -54,12 +58,12 @@ import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.IfExpression;
-import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.InputReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
@@ -77,7 +81,6 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 /**
  * Utilities for Dremio's planner.
@@ -116,7 +119,7 @@ public class RexToExpr {
   }
 
   public static List<NamedExpression> projectToExpr(ParseContext context, List<Pair<RexNode, String>> projects, RelNode input) {
-    List<NamedExpression> expressions = Lists.newArrayList();
+    List<NamedExpression> expressions = new ArrayList<>();
 
     HashMap<String, String> starColPrefixes = new HashMap<>();
 
@@ -145,7 +148,7 @@ public class RexToExpr {
 
   public static List<NamedExpression> groupSetToExpr(RelNode input, ImmutableBitSet groupSet) {
     final List<String> childFields = input.getRowType().getFieldNames();
-    final List<NamedExpression> keys = Lists.newArrayList();
+    final List<NamedExpression> keys = new ArrayList<>();
 
     for (int group : BitSets.toIter(groupSet)) {
       FieldReference fr = FieldReference.getWithQuotedRef(childFields.get(group));
@@ -158,7 +161,7 @@ public class RexToExpr {
       RelDataType rowType, RelNode input, ImmutableBitSet groupSet, List<AggregateCall> aggCalls) {
     final List<String> fields = rowType.getFieldNames();
     final List<String> childFields = input.getRowType().getFieldNames();
-    final List<NamedExpression> aggExprs = Lists.newArrayList();
+    final List<NamedExpression> aggExprs = new ArrayList<>();
     for (Ord<AggregateCall> aggCall : Ord.zip(aggCalls)) {
       int aggExprOrdinal = groupSet.cardinality() + aggCall.i;
       FieldReference ref = FieldReference.getWithQuotedRef(fields.get(aggExprOrdinal));
@@ -170,7 +173,7 @@ public class RexToExpr {
   }
 
   private static LogicalExpression toExpr(AggregateCall call, List<String> fn) {
-    List<LogicalExpression> args = Lists.newArrayList();
+    List<LogicalExpression> args = new ArrayList<>();
     for (Integer i : call.getArgList()) {
       args.add(FieldReference.getWithQuotedRef(fn.get(i)));
     }
@@ -188,7 +191,10 @@ public class RexToExpr {
     private final RelDataType rowType;
     private final RexBuilder rexBuilder;
     private final boolean throwUserException;
+    private final long caseExpressionsThreshold;
     private final IntFunction<Optional<Integer>> inputFunction;
+
+    private int totalCaseCount;
 
     Visitor(ParseContext context, RelDataType rowType, RexBuilder rexBuilder, boolean throwUserException, IntFunction<Optional<Integer>> inputFunction) {
       super(true);
@@ -197,6 +203,8 @@ public class RexToExpr {
       this.rowType = rowType;
       this.rexBuilder = rexBuilder;
       this.inputFunction = inputFunction;
+      this.caseExpressionsThreshold = context.getPlannerSettings().getCaseExpressionsThreshold();
+      this.totalCaseCount = 0;
     }
 
     @Override
@@ -238,7 +246,7 @@ public class RexToExpr {
           case NOT:
             return FunctionCallFactory.createExpression(call.getOperator().getName().toLowerCase(), arg);
           case MINUS_PREFIX:
-            final List<RexNode> operands = Lists.newArrayList();
+            final List<RexNode> operands = new ArrayList<>();
             operands.add(rexBuilder.makeExactLiteral(new BigDecimal(-1)));
             operands.add(call.getOperands().get(0));
 
@@ -255,20 +263,37 @@ public class RexToExpr {
         case SIMILAR:
           return getFunction(call);
         case CASE:
-          List<LogicalExpression> caseArgs = Lists.newArrayList();
+          if (totalCaseCount == 0) {
+            // do only at top level, to avoid mixed case and if at different nesting levels.
+            totalCaseCount = getNestedCaseCount(call);
+          }
+          List<LogicalExpression> caseArgs = new ArrayList<>();
           for(RexNode r : call.getOperands()){
             caseArgs.add(r.accept(this));
           }
 
-          caseArgs = Lists.reverse(caseArgs);
           // number of arguments are always going to be odd, because
           // Calcite adds "null" for the missing else expression at the end
           assert caseArgs.size()%2 == 1;
-          LogicalExpression elseExpression = caseArgs.get(0);
-          for (int i=1; i<caseArgs.size(); i=i+2) {
-            elseExpression = IfExpression.newBuilder()
-              .setElse(elseExpression)
-              .setIfCondition(new IfCondition(caseArgs.get(i + 1), caseArgs.get(i))).build();
+          final int last = caseArgs.size() - 1;
+          LogicalExpression elseExpression = caseArgs.get(last);
+          if (totalCaseCount > caseExpressionsThreshold) {
+            // for case, process in order to maintain query order
+            List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+            for (int i = 0; i < last; i = i + 2) {
+              caseConditions.add(new CaseExpression.CaseConditionNode(caseArgs.get(i), caseArgs.get(i + 1)));
+            }
+            elseExpression = CaseExpression.newBuilder()
+              .setCaseConditions(caseConditions)
+              .setElseExpr(elseExpression)
+              .build();
+          } else {
+            // for if/else, process in reverse to maintain query order
+            for (int i = last - 1; i > 0; i = i - 2) {
+                elseExpression = IfExpression.newBuilder()
+                  .setElse(elseExpression)
+                  .setIfCondition(new IfExpression.IfCondition(caseArgs.get(i - 1), caseArgs.get(i))).build();
+            }
           }
           return elseExpression;
         }
@@ -291,7 +316,7 @@ public class RexToExpr {
           }
 
           final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
-          switch(literal.getTypeName()){
+          switch(literal.getType().getSqlTypeName()){
           case DECIMAL:
           case INTEGER:
             return left.getChild(((BigDecimal)literal.getValue()).intValue());
@@ -308,7 +333,7 @@ public class RexToExpr {
           if (logExpr instanceof SchemaPath) {
             SchemaPath left = (SchemaPath) logExpr;
             final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
-            switch(literal.getTypeName()) {
+            switch(literal.getType().getSqlTypeName()) {
               case CHAR:
               case VARCHAR:
                 return left.getChild(literal.getValue2().toString());
@@ -351,7 +376,7 @@ public class RexToExpr {
     }
 
     private LogicalExpression doFunction(RexCall call, String funcName) {
-      List<LogicalExpression> args = Lists.newArrayList();
+      List<LogicalExpression> args = new ArrayList<>();
       for(RexNode r : call.getOperands()){
         args.add(r.accept(this));
       }
@@ -360,10 +385,10 @@ public class RexToExpr {
         LogicalExpression func = FunctionCallFactory.createBooleanOperator(funcName, args);
         return func;
       } else {
-        args = Lists.reverse(args);
+        Collections.reverse(args);
         LogicalExpression lastArg = args.get(0);
         for(int i = 1; i < args.size(); i++){
-          lastArg = FunctionCallFactory.createExpression(funcName, Lists.newArrayList(args.get(i), lastArg));
+          lastArg = FunctionCallFactory.createExpression(funcName, Arrays.asList(args.get(i), lastArg));
         }
 
         return lastArg;
@@ -452,8 +477,8 @@ public class RexToExpr {
         isTargetNumber = true;
         break;
       case DECIMAL:
-        if (context.getPlannerSettings().getOptions().
-            getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal() == false ) {
+        if (!context.getPlannerSettings().getOptions().
+            getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE)) {
           throw UserException
               .unsupportedError()
               .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
@@ -572,7 +597,7 @@ public class RexToExpr {
     }
 
     private LogicalExpression getFunction(RexCall call) {
-      List<LogicalExpression> args = Lists.newArrayList();
+      List<LogicalExpression> args = new ArrayList<>();
 
       for(RexNode n : call.getOperands()){
         args.add(n.accept(this));
@@ -589,7 +614,7 @@ public class RexToExpr {
         return handleExtractFunction(args);
       } else if (functionName.equals("trim")) {
         String trimFunc = null;
-        List<LogicalExpression> trimArgs = Lists.newArrayList();
+        List<LogicalExpression> trimArgs = new ArrayList<>();
 
         assert args.get(0) instanceof ValueExpressions.QuotedString;
         switch (((ValueExpressions.QuotedString)args.get(0)).value.toUpperCase()) {
@@ -624,17 +649,15 @@ public class RexToExpr {
           return FunctionCallFactory.createExpression(functionName, concatArgs);
 
         } else if (argsSize > CONCAT_MAX_ARGS) {
-          List<LogicalExpression> concatArgs = Lists.newArrayList();
-
+          List<LogicalExpression> concatArgs = new ArrayList<>(args.subList(0, CONCAT_MAX_ARGS));
           /* stack concat functions on top of each other if we have more than 10 arguments
            * Eg: concat(c1, c2, c3, ..., c10, c11, c12) => concat(concat(c1, c2, ..., c10), c11, c12)
            */
-          concatArgs.addAll(args.subList(0, CONCAT_MAX_ARGS));
 
           LogicalExpression first = FunctionCallFactory.createExpression(functionName, concatArgs);
 
           for (int i = CONCAT_MAX_ARGS; i < argsSize; i = i + (CONCAT_MAX_ARGS -1)) {
-            concatArgs = Lists.newArrayList();
+            concatArgs = new ArrayList<>();
             concatArgs.add(first);
             concatArgs.addAll(args.subList(i, Math.min(argsSize, i + (CONCAT_MAX_ARGS - 1))));
             first = FunctionCallFactory.createExpression(functionName, concatArgs);
@@ -886,6 +909,25 @@ public class RexToExpr {
         throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
       }
     }
+  }
+
+  private static int getNestedCaseCount(RexCall call) {
+    final RexVisitorImpl<Integer> countVisitor = new RexVisitorImpl<Integer>(false) {
+      @Override
+      public Integer visitCall(RexCall call) {
+        if (call.getKind().equals(SqlKind.CASE)) {
+          int topLevelSum = call.getOperands().size();
+          int nestedLevelSum = call.getOperands().stream().mapToInt((r) -> {
+            Integer val = r.accept(this);
+            return (val != null) ? val : 0;
+          }).sum();
+          return topLevelSum + nestedLevelSum;
+        } else {
+          return 0;
+        }
+      }
+    };
+    return call.accept(countVisitor);
   }
 
   private static final TypedNullConstant createNullExpr(MinorType type) {

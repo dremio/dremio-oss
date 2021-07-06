@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -30,9 +29,8 @@ import classNames from 'classnames';
 import { sectionMargin } from '@app/uiTheme/less/layout.less';
 import { fieldsHorizontalSpacing, rowMargin } from '@app/uiTheme/less/forms.less';
 
-@PureRender
 @Radium
-export default class SplitFooter extends Component {
+export default class SplitFooter extends PureComponent {
   static getFields() {
     return ['position', 'index', 'maxFields', ...NewFieldSection.getFields()];
   }

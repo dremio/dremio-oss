@@ -110,49 +110,6 @@ public final class ScheduleUtils {
 
   /**
    * Create a schedule to run a task exactly once at the given time.
-   * for a service with given name and relinquishing leadership
-   * at a given interval
-   *
-   * @param instant the task will run
-   * @param taskName name of the task in the global world
-   * @param number period to release leadership
-   * @param timeUnit time unit to release leadership
-   * @param cleanupListener cleanup listener to clean up upon cancel
-   * @return schedule with the time in millis
-   */
-  public static Schedule scheduleForRunningOnceAt(final Instant instant, final String taskName,
-                                                  long number, TimeUnit timeUnit, final CleanupListener cleanupListener) {
-    return new Schedule() {
-      @Override
-      public TemporalAmount getPeriod() {
-        return null;
-      }
-
-      @Override
-      public Iterator<Instant> iterator() {
-        return Collections.singletonList(instant)
-          .iterator();
-      }
-
-      @Override
-      public String getTaskName() {
-        return taskName;
-      }
-
-      @Override
-      public Long getScheduledOwnershipReleaseInMillis() {
-        return timeUnit.toMillis(number);
-      }
-
-      @Override
-      public CleanupListener getCleanupListener() {
-        return cleanupListener;
-      }
-    };
-  }
-
-  /**
-   * Create a schedule to run a task exactly once at the given time.
    * for a service with given name and never relinquishing leadership
    *
    * @param instant the task will run
@@ -225,6 +182,10 @@ public final class ScheduleUtils {
   /**
    * Create a schedule to run a task exactly once now.
    * for a service with given name and never relinquishing leadership
+   *
+   * The leader election winner runs the task and does not listen for
+   * leader events post that. Other contestants backs off and do not
+   * run the task.
    * @param taskName name of the task in the global world
    * @return schedule with the time in millis
    */
@@ -252,7 +213,7 @@ public final class ScheduleUtils {
       }
 
       @Override
-      public boolean isToRunOnce() {
+      public boolean isToRunExactlyOnce() {
         return true;
       }
     };

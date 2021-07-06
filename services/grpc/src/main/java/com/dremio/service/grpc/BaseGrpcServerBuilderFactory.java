@@ -24,24 +24,27 @@ import com.google.common.collect.Sets;
 import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptor;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.netty.NettyServerBuilder;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.grpc.TracingServerInterceptor;
 
 /**
  * Base class for grpc server builder factory.
  */
-class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
+public class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
 
   private final Tracer tracer;
   private final Set<ServerInterceptor> interceptors;
 
-  BaseGrpcServerBuilderFactory(Tracer tracer) {
+  public BaseGrpcServerBuilderFactory(Tracer tracer) {
     this(new GrpcTracerFacade((TracerFacade) tracer), Sets.newHashSet());
   }
 
-  BaseGrpcServerBuilderFactory(GrpcTracerFacade tracer, Set<ServerInterceptor> interceptors) {
+  public BaseGrpcServerBuilderFactory(GrpcTracerFacade tracer,
+                                      Set<ServerInterceptor> interceptors) {
     this.tracer = tracer;
-    this.interceptors = Sets.newHashSet(interceptors);
+    // preserve order of intereptor addition
+    this.interceptors = Sets.newLinkedHashSet(interceptors);
   }
 
   /**
@@ -57,7 +60,7 @@ class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
    */
   @Override
   public ServerBuilder<?> newServerBuilder(int port) {
-    final ServerBuilder<?> builder = ServerBuilder.forPort(port);
+    final ServerBuilder<?> builder = NettyServerBuilder.forPort(port);
     addInterceptors(builder);
     return builder;
   }
@@ -84,5 +87,13 @@ class BaseGrpcServerBuilderFactory implements GrpcServerBuilderFactory {
     for (ServerInterceptor intercept : interceptors) {
       builder.intercept(intercept);
     }
+  }
+
+  public ServerBuilder<?> newServerBuilderWithNoTracer(int port) {
+    final ServerBuilder<?> builder = NettyServerBuilder.forPort(port);
+    for (ServerInterceptor intercept : interceptors) {
+      builder.intercept(intercept);
+    }
+    return builder;
   }
 }

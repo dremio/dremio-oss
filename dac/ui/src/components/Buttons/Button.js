@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import classNames from 'classnames';
 import Immutable  from 'immutable';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
@@ -43,9 +42,8 @@ const DEFAULT_TEXT_HASH = new Immutable.Map({ // todo: loc
  * Button class that define standard button.
  * If you want to bind clicker to this component just assign this function to onClick property.
  */
-@PureRender
 @Radium
-class Button extends Component {
+class Button extends PureComponent {
 
   static propTypes = {
     className: PropTypes.string,
@@ -277,7 +275,8 @@ const styles = {
 
   primary: {
     backgroundColor: '#43B8C9',
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    borderColor: '#43B8C9'
   },
 
   icon: {

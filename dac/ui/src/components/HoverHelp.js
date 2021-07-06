@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
@@ -22,8 +21,7 @@ import PropTypes from 'prop-types';
 import FontIcon from 'components/Icon/FontIcon';
 import { Tooltip } from 'components/Tooltip';
 
-@pureRender
-export default class HoverHelp extends Component {
+export default class HoverHelp extends PureComponent {
 
   static propTypes = {
     style: PropTypes.object,
@@ -81,8 +79,8 @@ export default class HoverHelp extends Component {
 
 const styles = {
   iconStyle: {
-    width: 19,
-    height: 19,
+    width: 24,
+    height: 24,
     marginLeft: 3,
     marginBottom: -3
   },

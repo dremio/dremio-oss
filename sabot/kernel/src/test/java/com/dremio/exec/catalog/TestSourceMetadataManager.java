@@ -55,6 +55,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
@@ -62,7 +63,9 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
@@ -508,4 +511,62 @@ public class TestSourceMetadataManager {
             .setMaxMetadataLeafColumns(1)
             .build());
   }
+
+  @Test
+  public void disableCheckMetadataValidity() throws Exception {
+    NamespaceService ns = mock(NamespaceService.class);
+    when(ns.getDataset(any()))
+      .thenReturn(null);
+
+    ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
+
+    DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
+    when(sp.getDatasetHandle(any(), any(), any()))
+      .thenReturn(Optional.of(handle));
+    when(sp.listPartitionChunks(any(), any(), any()))
+      .thenReturn(Collections::emptyIterator);
+
+    MetadataPolicy metadataPolicy = new MetadataPolicy();
+    metadataPolicy.setDatasetDefinitionExpireAfterMs(1000L);
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
+      .thenReturn(sp);
+    when(msp.getMetadataPolicy())
+      .thenReturn(metadataPolicy);
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
+
+
+    //noinspection unchecked
+    SourceMetadataManager manager = new SourceMetadataManager(
+      new NamespaceKey("joker"),
+      modifiableSchedulerService,
+      true,
+      mock(LegacyKVStore.class),
+      msp,
+      optionManager,
+      CatalogServiceMonitor.DEFAULT,
+      () -> broadcaster
+    );
+
+    final ReadDefinition readDefinition = new ReadDefinition();
+    readDefinition.setSplitVersion(0L);
+
+    final DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    datasetConfig.setId(new EntityId("test"));
+    datasetConfig.setFullPathList(ImmutableList.of("test", "file", "foobar"));
+    datasetConfig.setReadDefinition(readDefinition);
+    datasetConfig.setTotalNumSplits(0);
+
+
+    final MetadataRequestOptions metadataRequestOptions = ImmutableMetadataRequestOptions.newBuilder()
+      .setNewerThan(0L)
+      .setSchemaConfig(SchemaConfig.newBuilder("dremio").build())
+      .setCheckValidity(false)
+      .build();
+    assertTrue(manager.isStillValid(metadataRequestOptions, datasetConfig));
+
+  }
+
 }

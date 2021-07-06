@@ -84,6 +84,7 @@ public class TestSourceResource extends BaseTestServer {
     source.setCtime(System.currentTimeMillis());
     source.setConfig(nas);
     source.setAllowCrossSourceSelection(true);
+    source.setDisableMetadataValidityCheck(true);
 
     expectSuccess(
         getBuilder(getAPIv2().path(String.format("/source/%s", sourceName)))
@@ -98,6 +99,8 @@ public class TestSourceResource extends BaseTestServer {
     assertNotNull(result.getAccelerationRefreshPeriod());
     assertNotNull(result.getAccelerationGracePeriod());
     assertTrue(result.getAllowCrossSourceSelection());
+    assertTrue(result.getDisableMetadataValidityCheck());
+
 
     newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }

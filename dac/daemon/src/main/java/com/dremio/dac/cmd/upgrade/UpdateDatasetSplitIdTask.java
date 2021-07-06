@@ -65,7 +65,7 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final LegacyKVStoreProvider storeProvider = context.getKVStoreProvider();
+    final LegacyKVStoreProvider storeProvider = context.getLegacyKVStoreProvider();
     final LegacyKVStore<String, NameSpaceContainer> namespace = storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
     final LegacyKVStore<PartitionChunkId, PartitionChunk> partitionChunksStore = storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
@@ -145,7 +145,7 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
       new LocalKVStoreProvider(classpathScan, args[0], false, true)) {
       storeProvider.start();
 
-      final UpgradeContext context = new UpgradeContext(storeProvider.asLegacy(), null, null, null);
+      final UpgradeContext context = new UpgradeContext(storeProvider, storeProvider.asLegacy(), null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
     }

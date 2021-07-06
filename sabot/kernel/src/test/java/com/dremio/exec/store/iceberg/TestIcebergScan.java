@@ -30,12 +30,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.hadoop.HadoopTables;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.google.common.io.Resources;
 
 public class TestIcebergScan extends BaseTestQuery {
@@ -99,8 +99,9 @@ public class TestIcebergScan extends BaseTestQuery {
       fs.mkdirs(p);
       copyFromJar("iceberg/partitionednation", java.nio.file.Paths.get(testRootPath));
 
-      HadoopTables tables = new HadoopTables(conf);
-      Table table = tables.load(testRootPath);
+      File tableRoot = new File(testRootPath);
+      IcebergModel icebergModel = getIcebergModel(tableRoot);
+      Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
 
       // n_regionkey was renamed to regionkey
       assertNull(table.schema().findField("n_regionkey"));
@@ -111,7 +112,7 @@ public class TestIcebergScan extends BaseTestQuery {
       assertEquals("n_regionkey", table.spec().fields().get(0).name());
 
       IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(),
-          HadoopFileSystem.get(fs), conf, new File(testRootPath).getAbsolutePath()).getTableInfo();
+          HadoopFileSystem.get(fs), icebergModel, new File(testRootPath).getAbsolutePath()).getTableInfo();
       assertEquals(1, tableInfo.getPartitionColumns().size());
       // partition column matches new column name
       assertEquals("regionkey", tableInfo.getPartitionColumns().get(0));

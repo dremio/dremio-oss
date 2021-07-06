@@ -65,6 +65,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
   protected final boolean supportsColocatedReads;
   protected final InputStreamProvider inputStreamProvider;
   protected UnifiedParquetReader currentReader;
+  protected final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
   public TransactionalTableParquetReader(
     OperatorContext context,
@@ -166,6 +167,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
             inputStreamProvider,
             new ArrayList<>());
     currentReader.setIgnoreSchemaLearning(true);
+    this.runtimeFilters.forEach(currentReader::addRuntimeFilter);
     currentReader.setup(output);
   }
 
@@ -188,7 +190,13 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
 
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
-    if (runtimeFilter != null) {
+    if (this.runtimeFilters.contains(runtimeFilter)) {
+      logger.debug("Skipping runtime filter {} because it is already present", runtimeFilter);
+      return;
+    }
+
+    this.runtimeFilters.add(runtimeFilter);
+    if (this.currentReader != null) {
       this.currentReader.addRuntimeFilter(runtimeFilter);
     }
   }

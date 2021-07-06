@@ -34,6 +34,22 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 public class TestMetadataRefresh extends BaseTestQuery {
 
   @Test
+  public void badSql() {
+    String[] queries = {
+      "ALTER TABLE tbl REFRESH METADATA FOR",
+      "ALTER TABLE tbl REFRESH METADATA FOR ALL",
+      "ALTER TABLE tbl REFRESH METADATA FOR LAZY UPDATE",
+      "ALTER TABLE tbl REFRESH METADATA FOR WHEN MISSING",
+      "ALTER TABLE tbl REFRESH METADATA FOR PROMOTION",
+      "ALTER TABLE tbl REFRESH METADATA FOR FILES",
+      "ALTER TABLE tbl REFRESH METADATA FOR FILES ()",
+      "ALTER TABLE tbl REFRESH METADATA FOR FILES LAZY UPDATE"};
+    for (String q : queries) {
+      errorMsgTestHelper(q, "Failure parsing the query.");
+    }
+  }
+
+  @Test
   public void testRefresh() throws Exception {
     Path root = Paths.get(getDfsTestTmpSchemaLocation(), "blue", "metadata_refresh");
     Files.createDirectories(root);

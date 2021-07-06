@@ -62,25 +62,22 @@ public class ReflectionResource {
   @GET
   @Path("/{id}")
   public Reflection getReflection(@PathParam("id") String id) {
-    Optional<ReflectionGoal> goal = reflectionServiceHelper.getReflectionById(id);
+    final Optional<ReflectionGoal> goal = reflectionServiceHelper.getReflectionById(id);
 
     if (!goal.isPresent()) {
       throw new ReflectionNotFound(id);
     }
 
-    String reflectionId = goal.get().getId().getId();
-
-    return new Reflection(goal.get(), reflectionServiceHelper.getStatusForReflection(reflectionId), reflectionServiceHelper.getCurrentSize(reflectionId), reflectionServiceHelper.getTotalSize(reflectionId));
+    return reflectionServiceHelper.newReflection(goal.get());
   }
 
   @POST
   public Reflection createReflection(Reflection reflection) {
     // TODO: handle exceptions
-    ReflectionGoal newReflection = reflectionServiceHelper.createReflection(reflection.toReflectionGoal());
+    final ReflectionGoal newReflection = reflectionServiceHelper.createReflection(reflection.toReflectionGoal());
+    final String id = newReflection.getId().getId();
 
-    String id = newReflection.getId().getId();
-
-    return new Reflection(newReflection, reflectionServiceHelper.getStatusForReflection(id), reflectionServiceHelper.getCurrentSize(id), reflectionServiceHelper.getTotalSize(id));
+    return reflectionServiceHelper.newReflection(newReflection);
   }
 
   @PUT
@@ -90,11 +87,8 @@ public class ReflectionResource {
       // force ids to match
       reflection.setId(id);
 
-      ReflectionGoal reflectionGoal = reflectionServiceHelper.updateReflection(reflection.toReflectionGoal());
-
-      String reflectionId = reflectionGoal.getId().getId();
-
-      return new Reflection(reflectionGoal, reflectionServiceHelper.getStatusForReflection(reflectionId), reflectionServiceHelper.getCurrentSize(reflectionId), reflectionServiceHelper.getTotalSize(reflectionId));
+      final ReflectionGoal reflectionGoal = reflectionServiceHelper.updateReflection(reflection.toReflectionGoal());
+      return reflectionServiceHelper.newReflection(reflectionGoal);
     } catch (ConcurrentModificationException e) {
       throw new ConflictException(e);
     }

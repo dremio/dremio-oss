@@ -93,6 +93,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   private int numPlanCacheUses = 0;
 
+  private SubstitutionInfo latestSubstitutionInfo;
+
   public PlanCaptureAttemptObserver(final boolean verbose, final boolean includeDatasetProfiles,
                                     final FunctionImplementationRegistry funcRegistry,
                                     AccelerationDetailsPopulator detailsPopulator,
@@ -121,6 +123,11 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       builder.setAccelerationDetails(accelerationDetails);
     }
     return builder.build();
+  }
+
+  @Override
+  public void setCachedSubstitutionInfo(CachedPlan cachedPlan) {
+    cachedPlan.setSubstitutionInfo(latestSubstitutionInfo);
   }
 
   public Iterable<UserBitShared.DatasetProfile> getDatasets() {
@@ -162,6 +169,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         mapIdToAccelerationProfile.put(key, LayoutMaterializedViewProfile.newBuilder(lmvProfile).setNumUsed(lmvProfile.getNumUsed() + 1).build());
       }
     }
+    latestSubstitutionInfo = info;
     detailsPopulator.planAccelerated(info);
   }
 
@@ -296,7 +304,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         }
       });
 
-      serializedPlan = relSerializerFactory.getSerializer(converted.getCluster()).serializeToBytes(toSerialize);
+      serializedPlan = relSerializerFactory.getSerializer(converted.getCluster(), funcRegistry).serializeToBytes(toSerialize);
     } catch (Throwable e) {
       logger.debug("Error", e);
     }

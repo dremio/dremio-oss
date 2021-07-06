@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -23,9 +22,8 @@ import FontIcon from 'components/Icon/FontIcon';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
-@PureRender
 @Radium
-class RawHeader extends Component {
+class RawHeader extends PureComponent {
   static propTypes = {
     closeIconHandler: PropTypes.func,
     closeIcon: PropTypes.bool,

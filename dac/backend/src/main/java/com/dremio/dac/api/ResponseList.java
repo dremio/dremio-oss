@@ -18,11 +18,13 @@ package com.dremio.dac.api;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * Generic list model for the public REST API.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ResponseList<T> {
   private List<T> data;
   private List<Object> included;

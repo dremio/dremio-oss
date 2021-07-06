@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import $ from 'jquery';
@@ -31,9 +30,8 @@ import getTheme from './themeTreeMap';
 
 import './CellPopover.less';
 
-@pureRender
 @Radium
-export default class CellPopover extends Component {
+export default class CellPopover extends PureComponent {
   static propTypes = {
     availibleActions: PropTypes.array,
     cellPopover: PropTypes.instanceOf(Immutable.Map),

@@ -115,6 +115,10 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
     return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, icebergTableProps, options);
   }
 
+  public FileSystemCreateTableEntry cloneWithFields(FormatPlugin formatPlugin, WriterOptions writerOptions){
+    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, location, icebergTableProps, writerOptions);
+  }
+
   public String getUserName() {
     return userName;
   }
@@ -124,7 +128,9 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
       OpProps props,
       PhysicalOperator child
       ) throws IOException {
-    if (child != null && child.getProps() != null && icebergTableProps != null) {
+    // In a iceberg flow, schema in a icebergTableProps should be set only once and by the first writer i.e parquet writer.
+    // Because any writer in a plan after first ParquetWriter will have RecordWriterSchema which is not valid iceberg table schema.
+    if (child != null && child.getProps() != null && icebergTableProps != null && !icebergTableProps.isSchemaSet()) {
       BatchSchema writerSchema = child.getProps().getSchema();
       SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
       // current parquet writer uses a few extra columns in the schema for partitioning and distribution

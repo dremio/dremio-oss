@@ -25,7 +25,7 @@ import FieldWithError from 'components/Fields/FieldWithError';
 import Select from '@app/components/Fields/Select';
 import {selectWrapper, selectBody, selectFieldWithError} from '@app/components/Forms/Wrappers/FormWrappers.less';
 import { rowOfInputsSpacing, rowOfRadio } from '@app/uiTheme/less/forms.less';
-import { componentContainer, topLabel} from './ContainerSelection.less';
+import './ContainerSelection.less';
 
 export default class ContainerSelection extends Component {
   static propTypes = {
@@ -36,19 +36,28 @@ export default class ContainerSelection extends Component {
 
   renderRadioSelector = (elementConfig, selectedValue, radioProps) => {
     const label = elementConfig.getConfig().label;
+    const layout = elementConfig.getConfig().layout;
+    const layoutType = layout || 'row';
+    const className = classNames(
+      rowOfRadio,
+      rowOfInputsSpacing,
+      'containerSelection',
+      {'--horizontal': layoutType === 'row'});
     return (
-      <div className={classNames(rowOfRadio, rowOfInputsSpacing)}>
-        {label && <div className={topLabel}>{label}</div>}
-        {elementConfig.getOptions().map((option, index) => {
-          return (
-            <Radio radioValue={option.value}
-              value={selectedValue}
-              key={index}
-              label={option.label || option.value}
-              {...radioProps}/>
-          );
-        })}
-      </div>
+      <>
+        {label && <div className='topLabel'>{label}</div>}
+        <div className={className}>
+          {elementConfig.getOptions().map((option, index) => {
+            return (
+              <Radio radioValue={option.value}
+                value={selectedValue}
+                key={index}
+                label={option.label || option.value}
+                {...radioProps}/>
+            );
+          })}
+        </div>
+      </>
     );
   };
 
@@ -63,16 +72,20 @@ export default class ContainerSelection extends Component {
     const isFixedSize = typeof size === 'number' && size > 0;
     const style = (isFixedSize) ? {width: size} : {};
 
+    const selectWrapperClass = classNames(selectWrapper, 'full-width');
+    const selectClass = classNames(selectBody, 'full-width');
+    const labelClass = classNames(selectFieldWithError, 'full-width', 'gutter-bottom--full');
+
     return <div style={{marginTop: 6, marginBottom: 12}}>
       <FieldWithError errorPlacement='top'
         {...hoverHelpText}
         label={label}
-        labelClass={selectFieldWithError} >
-        <div className={selectWrapper}>
+        labelClass={labelClass} >
+        <div className={selectWrapperClass}>
           <Select
             {...isDisabled}
             items={elementConfig.getConfig().options}
-            className={selectBody}
+            className={selectClass}
             style={style}
             valueField='value'
             value={selectedValue}
@@ -108,7 +121,7 @@ export default class ContainerSelection extends Component {
     const selectorType = elementConfig.getConfig().selectorType;
 
     return (
-      <div className={componentContainer}>
+      <div className='componentContainer'>
         {selectorType === 'select' && this.renderSelectSelector(elementConfig, selectedValue, radioProps)}
         {(!selectorType || selectorType === 'radio') && this.renderRadioSelector(elementConfig, selectedValue, radioProps)}
         {container.getPropName &&

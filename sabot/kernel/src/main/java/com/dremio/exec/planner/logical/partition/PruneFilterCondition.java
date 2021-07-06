@@ -15,12 +15,20 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
+import static com.dremio.exec.planner.common.MoreRelOptUtil.getInputRewriterFromProjectedFields;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.record.BatchSchema;
 
 /**
  * PruneFilterCondition
@@ -82,6 +90,14 @@ public class PruneFilterCondition {
 
   private static RexNode buildConditionFromList(List<RexNode> conditions, RexBuilder builder) {
     return conditions.size() == 0 ? null : (conditions.size() == 1 ? conditions.get(0) : builder.makeCall(SqlStdOperatorTable.AND, conditions));
+  }
+
+  public PruneFilterCondition applyProjection(List<SchemaPath> projection, RelDataType rowType, RelOptCluster cluster, BatchSchema batchSchema) {
+    final PrelUtil.InputRewriter inputRewriter = getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
+    RexNode newPartitionRange = getPartitionRange() != null ? getPartitionRange().accept(inputRewriter) : null;
+    RexNode newNonPartitionRange = getNonPartitionRange() != null ? getNonPartitionRange().accept(inputRewriter) : null;
+    RexNode newPartitionExpression = getPartitionExpression() != null ? getPartitionExpression().accept(inputRewriter) : null;
+    return new PruneFilterCondition(newPartitionRange, newNonPartitionRange, newPartitionExpression);
   }
 
   @Override

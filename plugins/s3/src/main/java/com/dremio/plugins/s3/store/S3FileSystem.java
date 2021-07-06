@@ -58,6 +58,7 @@ import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
+import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
@@ -288,8 +289,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   @Override
   public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
-    final String bucket = ContainerFileSystem.getContainerName(path);
-    String pathStr = ContainerFileSystem.pathWithoutContainer(path).toString();
+    final String bucket = DremioHadoopUtils.getContainerName(path);
+    String pathStr = DremioHadoopUtils.pathWithoutContainer(path).toString();
     // The AWS HTTP client re-encodes a leading slash resulting in invalid keys, so strip them.
     pathStr = (pathStr.startsWith("/")) ? pathStr.substring(1) : pathStr;
     //return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr);
@@ -347,8 +348,10 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         return new STSCredentialProviderV2(config);
       case DREMIO_ASSUME_ROLE_PROVIDER:
         return new DremioAssumeRoleCredentialsProviderV2();
+      case AWS_PROFILE_PROVIDER:
+        return new AWSProfileCredentialsProviderV2(config);
       default:
-        throw new IllegalStateException(config.get(Constants.AWS_CREDENTIALS_PROVIDER));
+        throw new IllegalStateException("Invalid AWSCredentialsProvider provided: " + config.get(Constants.AWS_CREDENTIALS_PROVIDER));
     }
   }
 

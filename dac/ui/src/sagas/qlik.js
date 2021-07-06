@@ -160,6 +160,7 @@ export function* requestPassword() {
       title: la('Qlik Sense'),
       confirmText: la('Continue'),
       text: la('Qlik Sense requires your Dremio password to continue:'),
+      promptLabel: la('Password'),
       showPrompt: true,
       promptFieldProps: {
         type: 'password'

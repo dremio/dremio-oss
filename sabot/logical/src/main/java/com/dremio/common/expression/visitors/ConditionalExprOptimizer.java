@@ -16,18 +16,20 @@
 
 package com.dremio.common.expression.visitors;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
-import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.IfExpression.IfCondition;
+import com.dremio.common.expression.LogicalExpression;
 import com.google.common.collect.Lists;
 
 public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
@@ -96,6 +98,20 @@ public class ConditionalExprOptimizer extends AbstractExprVisitor<LogicalExpress
   public LogicalExpression visitConvertExpression(ConvertExpression cast, Void value) throws RuntimeException {
     throw new UnsupportedOperationException("ConvertExpression is not expected here. "
         + "It should have been converted to FunctionHolderExpression in materialization");
+  }
+
+  @Override
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    List<CaseExpression.CaseConditionNode> newConditions = new ArrayList<>();
+    LogicalExpression newElseExpr = caseExpression.elseExpr.accept(this, value);
+
+    for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+      LogicalExpression newWhen = conditionNode.whenExpr.accept(this, value);
+      LogicalExpression newThen = conditionNode.thenExpr.accept(this, value);
+      CaseExpression.CaseConditionNode condition = new CaseExpression.CaseConditionNode(newWhen, newThen);
+      newConditions.add(condition);
+    }
+    return CaseExpression.newBuilder().setCaseConditions(newConditions).setElseExpr(newElseExpr).build();
   }
 
   private static Comparator<LogicalExpression> costComparator = new Comparator<LogicalExpression> () {

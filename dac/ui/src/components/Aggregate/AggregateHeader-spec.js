@@ -44,23 +44,27 @@ describe('AggregateHeader', () => {
     expect(wrapper.children().at(2).find('SimpleButton')).to.have.length(0);
   });
 
-  it('should render columns with Clear All option when onClearAllDimensions and onClearAllMeasures are defined', () => {
+  //DX-28985
+  xit('should render columns with Clear All option when onClearAllDimensions and onClearAllMeasures are defined', () => {
     const wrapper = shallow(<AggregateHeader {...commonProps}/>);
     expect(wrapper.children().at(1).find('SimpleButton')).to.have.length(1);
     expect(wrapper.children().at(2).find('SimpleButton')).to.have.length(1);
   });
 
   describe('#renderClearAll', () => {
-    it('should return "Clear All" element when passed clearFunction param is defined', () => {
+    //DX-28985
+    xit('should return "Clear All" element when passed clearFunction param is defined', () => {
       const wrapper = shallow(shallow(<AggregateHeader {...commonProps}/>).instance().renderClearAll(() => {}));
       expect(wrapper).to.have.length(1);
     });
 
-    it('should return null when passed clearFunction is not defined', () => {
+    //DX-28985
+    xit('should return null when passed clearFunction is not defined', () => {
       expect(shallow(<AggregateHeader {...minimalProps}/>).instance().renderClearAll()).to.be.null;
     });
 
-    it('should call passed clearFunction when Clear All clicked', () => {
+    //DX-28985
+    xit('should call passed clearFunction when Clear All clicked', () => {
       const clearFunction = sinon.spy();
       const instance = shallow(<AggregateHeader {...commonProps}/>).instance();
       const wrapper = shallow(instance.renderClearAll(clearFunction));

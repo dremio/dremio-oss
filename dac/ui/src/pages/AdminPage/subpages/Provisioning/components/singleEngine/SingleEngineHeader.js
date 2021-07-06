@@ -17,7 +17,7 @@ import { PureComponent } from 'react';
 import { injectIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import Header from '@app/pages/AdminPage/components/Header';
+import SettingHeader from '@app/components/SettingHeader';
 import { YARN_NODE_TAG_PROPERTY } from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
 import { isYarn, getEntityName, getIsInReadOnlyState } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
 import { StartStopButton } from '@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell';
@@ -65,7 +65,7 @@ class SingleEngineHeader extends PureComponent {
     />;
 
     return (
-      <Header endChildren={
+      <SettingHeader endChildren={
         <div style={{display: 'flex'}}>{startStopButton} {this.renderButtons(this.onEdit, isReadOnly)}</div>
       }>
         <div  style={styles.lefChildren}>
@@ -74,7 +74,7 @@ class SingleEngineHeader extends PureComponent {
           {region && <div style={styles.region}>({region})</div>}
         </div>
         {this.renderDescription(engine)}
-      </Header>
+      </SettingHeader>
     );
   }
 }
@@ -84,7 +84,6 @@ export default injectIntl(SingleEngineHeader);
 const styles = {
   lefChildren: {
     display: 'flex',
-    fontSize: 20,
     color: '#333'
   },
   doubleCaret: {

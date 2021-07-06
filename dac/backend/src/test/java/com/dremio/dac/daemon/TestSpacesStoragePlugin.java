@@ -65,7 +65,7 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
     allocator.close();
   }
 
-  public static void setup(DACDaemon dremioDaemon) throws Exception {
+  public static void setup() throws Exception {
     getPopulator().populateTestUsers();
     final File root = getPopulator().getPath().toFile();
     try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(root, "testSpaceA.json")))) {
@@ -98,7 +98,6 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
     final HomeConfig home1 = new HomeConfig();
     home1.setOwner(DEFAULT_USER_NAME);
     namespaceService.addOrUpdateHome(new HomePath(HomeName.getUserHomePath(home1.getOwner())).toNamespaceKey(), home1);
-
 
     getPopulator().putDS("testA", "dsA1", new FromTable("LocalFS1.\"testSpaceA.json\"").wrap());
     getPopulator().putDS("testB", "dsB1", new FromTable("LocalFS1.\"testSpaceB.json\"").wrap());
@@ -157,7 +156,7 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
 
   @Test
   public void testSpacesPlugin() throws Exception {
-    setup(getCurrentDremioDaemon());
+    setup();
     // update storage plugin
 
     try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1", 1000)) {

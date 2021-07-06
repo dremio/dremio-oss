@@ -15,15 +15,14 @@
  */
 package com.dremio.plugins.elastic;
 
-import static org.junit.Assume.assumeTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.DremioTestWrapper;
@@ -43,6 +42,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Before
   public final void loadTable() throws Exception {
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     ColumnData[] data = getBusinessData();
     load(schema, table, data);
 
@@ -93,23 +94,23 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sql = "select _id, _uid, _type, _index from " + TABLENAME;
     verifyJsonInPlan(sql, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\",\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\",\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sql).unOrdered()
       .baselineColumns("_id", "_uid", "_type", "_index")
       .baselineValues(ids[0], uids[0], table, schema)
@@ -125,21 +126,21 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select CHAR_LENGTH(_index), CHAR_LENGTH(_type) from " + TABLENAME;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_index\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_index\",\n" +
+        "      \"_type\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("EXPR$0", "EXPR$1")
       .baselineValues(schema.length(), table.length())
@@ -155,20 +156,20 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select CHAR_LENGTH(_id) from " + TABLENAME;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("EXPR$0")
       .baselineValues(ids[0].length())
@@ -184,20 +185,20 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select CHAR_LENGTH(_uid) from " + TABLENAME;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("EXPR$0")
       .baselineValues(uids[0].length())
@@ -214,20 +215,20 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _id from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_id")
       .baselineValues(ids[1])
@@ -242,66 +243,66 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _id from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_id\" : {\n" +
-      "              \"query\" : \"" + ids[1] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_id\" : {\n" +
-      "              \"query\" : \"" + ids[2] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_id\" : {\n" +
-      "              \"query\" : \"" + ids[4] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_id\" : {\n" +
+        "              \"query\" : \"" + ids[1] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_id\" : {\n" +
+        "              \"query\" : \"" + ids[2] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_id\" : {\n" +
+        "              \"query\" : \"" + ids[4] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_id")
       .baselineValues(ids[1])
@@ -318,66 +319,66 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _id from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_id\" : {\n" +
-      "              \"query\" : \"" + ids[1] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_id\" : {\n" +
-      "              \"query\" : \"" + ids[2] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_id\" : {\n" +
-      "              \"query\" : \"" + ids[4] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_id\" : {\n" +
+        "              \"query\" : \"" + ids[1] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_id\" : {\n" +
+        "              \"query\" : \"" + ids[2] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_id\" : {\n" +
+        "              \"query\" : \"" + ids[4] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_id")
       .baselineValues(ids[1])
@@ -390,59 +391,60 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   public final void testFilterUIDOrIsNull() throws Exception {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
-
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse((elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0)||elastic.getMinVersionInCluster().getMajor() == 7);
     final String cond1 = "_uid = '" + uids[1] + "' or _uid is null";
     final String sqlQuery = "select _uid from " + TABLENAME + " where " + cond1;
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \"" + uids[1] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"bool\" : {\n" +
-      "            \"must_not\" : [\n" +
-      "              {\n" +
-      "                \"exists\" : {\n" +
-      "                  \"field\" : \"_uid\",\n" +
-      "                  \"boost\" : 1.0\n" +
-      "                }\n" +
-      "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
-      "            \"adjust_pure_negative\" : true,\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \"" + uids[1] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"bool\" : {\n" +
+        "            \"must_not\" : [\n" +
+        "              {\n" +
+        "                \"exists\" : {\n" +
+        "                  \"field\" : \"_uid\",\n" +
+        "                  \"boost\" : 1.0\n" +
+        "                }\n" +
+        "              }\n" +
+        "            ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "            \"adjust_pure_negative\" : true,\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -451,72 +453,75 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterUID() throws Exception {
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String cond1 = "_uid = '" + uids[1] + "'";
     final String cond2 = "_uid = '" + uids[2] + "'";
     final String cond3 = "_uid = '" + uids[4] + "'";
     final String sqlQuery = "select _uid from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \"" + uids[1] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \"" + uids[2] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \"" + uids[4] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \"" + uids[1] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \"" + uids[2] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \"" + uids[4] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -527,58 +532,62 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterIndexAndType() throws Exception {
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
+
     final String cond1 = "_index = '" + schema + "' OR _type = '" + table + "'";
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_index\" : {\n" +
-      "              \"query\" : \""+ schema +"\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_type\" : {\n" +
-      "              \"query\" : \""+ table + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_index\" : {\n" +
+        "              \"query\" : \""+ schema +"\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_type\" : {\n" +
+        "              \"query\" : \""+ table + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_index", "_type", "_id")
       .baselineValues(schema, table, ids[0])
@@ -593,57 +602,58 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   public final void testFilterTypeOrIsNull() throws Exception {
     final String cond1 = "_type = '" + table + "' or _type is null";
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_type\" : {\n" +
-      "              \"query\" : \"" + table + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"bool\" : {\n" +
-      "            \"must_not\" : [\n" +
-      "              {\n" +
-      "                \"exists\" : {\n" +
-      "                  \"field\" : \"_type\",\n" +
-      "                  \"boost\" : 1.0\n" +
-      "                }\n" +
-      "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
-      "            \"adjust_pure_negative\" : true,\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_type\" : {\n" +
+        "              \"query\" : \"" + table + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"bool\" : {\n" +
+        "            \"must_not\" : [\n" +
+        "              {\n" +
+        "                \"exists\" : {\n" +
+        "                  \"field\" : \"_type\",\n" +
+        "                  \"boost\" : 1.0\n" +
+        "                }\n" +
+        "              }\n" +
+        "            ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "            \"adjust_pure_negative\" : true,\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_index", "_type", "_id")
       .baselineValues(schema, table, ids[0])
@@ -660,22 +670,22 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_index", "_type", "_id")
       .baselineValues(schema, table, ids[0])
@@ -692,31 +702,31 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match\" : {\n" +
-      "      \"_type\" : {\n" +
-      "        \"query\" : \"" + table + "\",\n" +
-      "        \"operator\" : \"OR\",\n" +
-      "        \"prefix_length\" : 0,\n" +
-      "        \"max_expansions\" : 50000,\n" +
-      "        \"fuzzy_transpositions\" : false,\n" +
-      "        \"lenient\" : false,\n" +
-      "        \"zero_terms_query\" : \"NONE\",\n" +
-      "        \"boost\" : 1.0\n" +
-      "      }\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match\" : {\n" +
+        "      \"_type\" : {\n" +
+        "        \"query\" : \"" + table + "\",\n" +
+        "        \"operator\" : \"OR\",\n" +
+        "        \"prefix_length\" : 0,\n" +
+        "        \"max_expansions\" : 50000,\n" +
+        "        \"fuzzy_transpositions\" : false,\n" +
+        "        \"lenient\" : false,\n" +
+        "        \"zero_terms_query\" : \"NONE\",\n" +
+        "        \"boost\" : 1.0\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_index", "_type", "_id")
       .baselineValues(schema, table, ids[0])
@@ -734,31 +744,31 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match\" : {\n" +
-      "      \"_index\" : {\n" +
-      "        \"query\" : \""+ schema +"\",\n" +
-      "        \"operator\" : \"OR\",\n" +
-      "        \"prefix_length\" : 0,\n" +
-      "        \"max_expansions\" : 50000,\n" +
-      "        \"fuzzy_transpositions\" : false,\n" +
-      "        \"lenient\" : false,\n" +
-      "        \"zero_terms_query\" : \"NONE\",\n" +
-      "        \"boost\" : 1.0\n" +
-      "      }\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match\" : {\n" +
+        "      \"_index\" : {\n" +
+        "        \"query\" : \""+ schema +"\",\n" +
+        "        \"operator\" : \"OR\",\n" +
+        "        \"prefix_length\" : 0,\n" +
+        "        \"max_expansions\" : 50000,\n" +
+        "        \"fuzzy_transpositions\" : false,\n" +
+        "        \"lenient\" : false,\n" +
+        "        \"zero_terms_query\" : \"NONE\",\n" +
+        "        \"boost\" : 1.0\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_index", "_type", "_id")
       .baselineValues(schema, table, ids[0])
@@ -771,72 +781,75 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterUIDAndIsNotNull() throws Exception {
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String cond1 = "_uid = '" + uids[1] + "' and _uid is not null";
     final String cond2 = "_uid = '" + uids[2] + "' and _uid is not null";
     final String cond3 = "_uid = '" + uids[4] + "' and _uid is not null";
     final String sqlQuery = "select _uid from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \""+uids[1]+"\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \""+uids[2]+"\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \"" + uids[4] + "\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \""+uids[1]+"\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \""+uids[2]+"\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \"" + uids[4] + "\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"disable_coord\" : false,\n" +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -861,18 +874,18 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _id from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "=[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [ \"_id\" ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [ \"_id\" ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_id")
       .baselineValues(ids[1])
@@ -886,18 +899,18 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _uid from " + TABLENAME + " where " + cond1;
     verifyJsonInPlan(sqlQuery, new String[] {
       "=[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [ \"_uid\" ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [ \"_uid\" ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -911,23 +924,23 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _uid, _id, _index, _type from " + TABLENAME + " where " + cond1 + " OR " + cond2;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\",\n" +
-      "      \"_index\",\n" +
-      "      \"_type\",\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_id\",\n" +
+        "      \"_index\",\n" +
+        "      \"_type\",\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid", "_id", "_index", "_type")
       .baselineValues(uids[0], ids[0], schema, table)
@@ -944,38 +957,39 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     if (elastic.getMinVersionInCluster().getMajor() == 5) {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
-
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String sqlQuery = "select _id from " + TABLENAME + " where contains(_id:\"" + ids[1] + "\")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
-      "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"query_string\" : {\n" +
-      "      \"query\" : \"_id : \\\"" + ids[1] + "\\\"\",\n" +
-      "      \"fields\" : [ ],\n" +
-      "      \"use_dis_max\" : true,\n" +
-      "      \"tie_breaker\" : 0.0,\n" +
-      "      \"default_operator\" : \"or\",\n" +
-      "      \"auto_generate_phrase_queries\" : false,\n" +
-      "      \"max_determinized_states\" : 10000,\n" +
-      "      \"enable_position_increments\" : true,\n" +
-      "      \"fuzziness\" : \"AUTO\",\n" +
-      "      \"fuzzy_prefix_length\" : 0,\n" +
-      "      \"fuzzy_max_expansions\" : 50,\n" +
-      "      \"phrase_slop\" : 0,\n" +
-      "      \"escape\" : false,\n" +
-      "      \"split_on_whitespace\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_id\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"},
+        "[{\n" +
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"query_string\" : {\n" +
+          "      \"query\" : \"_id : \\\"" + ids[1] + "\\\"\",\n" +
+          "      \"fields\" : [ ],\n" +
+          "      \"use_dis_max\" : true,\n" +
+          "      \"tie_breaker\" : 0.0,\n" +
+          "      \"default_operator\" : \"or\",\n" +
+          "      \"auto_generate_phrase_queries\" : false,\n" +
+          "      \"max_determinized_states\" : 10000,\n" +
+          "      \"enable_position_increments\" : true,\n" +
+          "      \"fuzziness\" : \"AUTO\",\n" +
+          "      \"fuzzy_prefix_length\" : 0,\n" +
+          "      \"fuzzy_max_expansions\" : 50,\n" +
+          "      \"phrase_slop\" : 0,\n" +
+          "      \"escape\" : false,\n" +
+          "      \"split_on_whitespace\" : true,\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_id\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_id")
@@ -989,38 +1003,39 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     if (elastic.getMinVersionInCluster().getMajor() == 5) {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
-
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String sqlQuery = "select _uid from " + TABLENAME + " where contains(_uid:\"" + uids[1] + "\")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"query_string\" : {\n" +
-        "      \"query\" : \"_uid : \\\"" + uids[1] + "\\\"\",\n" +
-        "      \"fields\" : [ ],\n" +
-        "      \"use_dis_max\" : true,\n" +
-        "      \"tie_breaker\" : 0.0,\n" +
-        "      \"default_operator\" : \"or\",\n" +
-        "      \"auto_generate_phrase_queries\" : false,\n" +
-        "      \"max_determinized_states\" : 10000,\n" +
-        "      \"enable_position_increments\" : true,\n" +
-        "      \"fuzziness\" : \"AUTO\",\n" +
-        "      \"fuzzy_prefix_length\" : 0,\n" +
-        "      \"fuzzy_max_expansions\" : 50,\n" +
-        "      \"phrase_slop\" : 0,\n" +
-        "      \"escape\" : false,\n" +
-        "      \"split_on_whitespace\" : true,\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_uid\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"},
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"query_string\" : {\n" +
+          "      \"query\" : \"_uid : \\\"" + uids[1] + "\\\"\",\n" +
+          "      \"fields\" : [ ],\n" +
+          "      \"use_dis_max\" : true,\n" +
+          "      \"tie_breaker\" : 0.0,\n" +
+          "      \"default_operator\" : \"or\",\n" +
+          "      \"auto_generate_phrase_queries\" : false,\n" +
+          "      \"max_determinized_states\" : 10000,\n" +
+          "      \"enable_position_increments\" : true,\n" +
+          "      \"fuzziness\" : \"AUTO\",\n" +
+          "      \"fuzzy_prefix_length\" : 0,\n" +
+          "      \"fuzzy_max_expansions\" : 50,\n" +
+          "      \"phrase_slop\" : 0,\n" +
+          "      \"escape\" : false,\n" +
+          "      \"split_on_whitespace\" : true,\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_uid\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
@@ -1034,41 +1049,42 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     if (elastic.getMinVersionInCluster().getMajor() == 5) {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
-
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String sqlQuery = "select _uid, _id, _index, _type from " + TABLENAME + " where contains(_index:" + schema + ", _type:" + table + ")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"query_string\" : {\n" +
-        "      \"query\" : \"_index : "+ schema +",  _type : "+ table +"\",\n" +
-        "      \"fields\" : [ ],\n" +
-        "      \"use_dis_max\" : true,\n" +
-        "      \"tie_breaker\" : 0.0,\n" +
-        "      \"default_operator\" : \"or\",\n" +
-        "      \"auto_generate_phrase_queries\" : false,\n" +
-        "      \"max_determinized_states\" : 10000,\n" +
-        "      \"enable_position_increments\" : true,\n" +
-        "      \"fuzziness\" : \"AUTO\",\n" +
-        "      \"fuzzy_prefix_length\" : 0,\n" +
-        "      \"fuzzy_max_expansions\" : 50,\n" +
-        "      \"phrase_slop\" : 0,\n" +
-        "      \"escape\" : false,\n" +
-        "      \"split_on_whitespace\" : true,\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_id\",\n" +
-        "      \"_index\",\n" +
-        "      \"_type\",\n" +
-        "      \"_uid\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"},
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"query_string\" : {\n" +
+          "      \"query\" : \"_index : "+ schema +",  _type : "+ table +"\",\n" +
+          "      \"fields\" : [ ],\n" +
+          "      \"use_dis_max\" : true,\n" +
+          "      \"tie_breaker\" : 0.0,\n" +
+          "      \"default_operator\" : \"or\",\n" +
+          "      \"auto_generate_phrase_queries\" : false,\n" +
+          "      \"max_determinized_states\" : 10000,\n" +
+          "      \"enable_position_increments\" : true,\n" +
+          "      \"fuzziness\" : \"AUTO\",\n" +
+          "      \"fuzzy_prefix_length\" : 0,\n" +
+          "      \"fuzzy_max_expansions\" : 50,\n" +
+          "      \"phrase_slop\" : 0,\n" +
+          "      \"escape\" : false,\n" +
+          "      \"split_on_whitespace\" : true,\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_id\",\n" +
+          "      \"_index\",\n" +
+          "      \"_type\",\n" +
+          "      \"_uid\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid", "_id", "_index", "_type")
@@ -1109,20 +1125,20 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _uid from " + TABLENAME + " where _uid > ' '";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_uid\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"},
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"match_all\" : {\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_uid\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
@@ -1139,20 +1155,20 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _id from " + TABLENAME + " where _id > ' '";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_id\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"},
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"match_all\" : {\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_id\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_id")
@@ -1172,26 +1188,26 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery = "select _type from " + TABLENAME + " where _type > ' '";
     verifyJsonInPlanHelper(sqlQuery, new String[]{
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"_type\" : {\n" +
-        "        \"from\" : \" \",\n" +
-        "        \"to\" : null,\n" +
-        "        \"include_lower\" : false,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_type\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"},
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"range\" : {\n" +
+          "      \"_type\" : {\n" +
+          "        \"from\" : \" \",\n" +
+          "        \"to\" : null,\n" +
+          "        \"include_lower\" : false,\n" +
+          "        \"include_upper\" : true,\n" +
+          "        \"boost\" : 1.0\n" +
+          "      }\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_type\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_type")
@@ -1208,20 +1224,20 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String sqlQuery2 = "select _index from " + TABLENAME + " where _index > ' '";
     verifyJsonInPlanHelper(sqlQuery2, new String[] {
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"match_all\" : {\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_index\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"},
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"match_all\" : {\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"_index\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"},
       true);
     testBuilder().sqlQuery(sqlQuery2).unOrdered()
       .baselineColumns("_index")

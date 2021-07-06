@@ -47,6 +47,7 @@ import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.QueryState;
 import org.apache.calcite.avatica.util.Cursor;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.DremioResultSet;
 import com.dremio.jdbc.ExecutionCanceledSqlException;
@@ -206,6 +207,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     return super.getDouble( columnIndex );
   }
 
+  @SuppressForbidden
   @Override
   public BigDecimal getBigDecimal( int columnIndex,
                                    int scale ) throws SQLException {
@@ -243,6 +245,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     return super.getAsciiStream( columnIndex );
   }
 
+  @SuppressForbidden
   @Override
   public InputStream getUnicodeStream( int columnIndex ) throws SQLException {
     throwIfClosed();
@@ -304,6 +307,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     return super.getDouble( columnLabel );
   }
 
+  @SuppressForbidden
   @Override
   public BigDecimal getBigDecimal( String columnLabel,
                                    int scale ) throws SQLException {
@@ -341,6 +345,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     return super.getAsciiStream( columnLabel );
   }
 
+  @SuppressForbidden
   @Override
   public InputStream getUnicodeStream( String columnLabel ) throws SQLException {
     throwIfClosed();

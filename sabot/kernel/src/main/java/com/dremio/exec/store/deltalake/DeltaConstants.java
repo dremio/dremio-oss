@@ -95,8 +95,12 @@ public final class DeltaConstants {
     public static final String SCHEMA_NUM_RECORDS = "numRecords";
     public static final String SCHEMA_STATS_PARSED = "stats_parsed";
     public static final String SCHEMA_DELETION_TIMESTAMP = "deletionTimestamp";
+    public static final String VERSION = "version";
     public static final String SCHEMA_ADD_PATH = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_PATH;
     public static final String SCHEMA_REMOVE_PATH = DELTA_FIELD_REMOVE + DELTA_FIELD_JOINER + SCHEMA_PATH;
+    public static final String SCHEMA_ADD_VERSION = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + VERSION;
+    public static final String SCHEMA_REMOVE_VERSION = DELTA_FIELD_REMOVE + DELTA_FIELD_JOINER + VERSION;
+    public static final String SCHMEA_ADD_DATACHANGE = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_DATA_CHANGE;
     public static final String SCHEMA_ADD_SIZE = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_SIZE;
     public static final String SCHEMA_ADD_MODIFICATION_TIME = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_MODIFICATION_TIME;
 }

@@ -85,6 +85,9 @@ public class DremioFileSystem extends FileSystem {
         conf.set(AsyncReaderUtils.FS_DREMIO_AZURE_IMPL, "com.dremio.plugins.azure.AzureStorageFileSystem");
         updateAzureConfiguration(conf, name);
         break;
+      case AsyncReaderUtils.DREMIO_GCS:
+        conf.set(AsyncReaderUtils.FS_DREMIO_GCS_IMPL, "com.dremio.plugins.gcs.GoogleBucketFileSystem");
+        break;
       default:
         throw new UnsupportedOperationException("Unsupported async read path for hive parquet: " + name.getScheme());
     }
@@ -258,8 +261,10 @@ public class DremioFileSystem extends FileSystem {
 
   @Override
   public URI getUri() {
-    if (scheme.equals(AsyncReaderUtils.DREMIO_AZURE) || scheme.equals(AsyncReaderUtils.DREMIO_S3)) {
-      // Azure File System and S3 File system have modified URIs.
+    if (scheme.equals(AsyncReaderUtils.DREMIO_AZURE) ||
+            scheme.equals(AsyncReaderUtils.DREMIO_S3) ||
+            scheme.equals(AsyncReaderUtils.DREMIO_GCS)) {
+      // GCS, Azure File System and S3 File system have modified URIs.
       return originalURI;
     }
     return underLyingFs.getUri();

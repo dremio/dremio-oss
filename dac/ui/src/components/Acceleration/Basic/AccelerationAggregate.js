@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { overlay } from 'uiTheme/radium/overlay';
@@ -27,9 +26,8 @@ import Button from 'components/Buttons/Button';
 import { commonStyles } from '../commonStyles';
 import LayoutInfo from '../LayoutInfo';
 
-@pureRender
 @Radium
-export default class AccelerationAggregate extends Component {
+export default class AccelerationAggregate extends PureComponent {
   static getFields() {
     return AggregateForm.getFields();
   }
@@ -45,7 +43,8 @@ export default class AccelerationAggregate extends Component {
     shouldHighlight: PropTypes.bool,
     errorMessage: PropTypes.node,
     loadingRecommendations: PropTypes.bool,
-    skipRecommendations: PropTypes.func
+    skipRecommendations: PropTypes.func,
+    canAlter: PropTypes.any
   };
 
   static defaultProps = {
@@ -63,7 +62,7 @@ export default class AccelerationAggregate extends Component {
   }
 
   renderForm() {
-    const { location, fields, dataset, loadingRecommendations, skipRecommendations } = this.props;
+    const { location, fields, dataset, loadingRecommendations, skipRecommendations, canAlter } = this.props;
     const columns = this.mapSchemaToColumns();
 
     if (loadingRecommendations) {
@@ -77,6 +76,7 @@ export default class AccelerationAggregate extends Component {
       </div>;
     } else {
       return <AggregateForm
+        canAlter={canAlter}
         dataset={Immutable.fromJS({displayFullPath: dataset.get('path')})} // fake just enough of the legacy DS model
         style={styles.aggregateForm}
         fields={fields}

@@ -16,7 +16,7 @@
 import { IndexRedirect, IndexRoute, Redirect, Route } from 'react-router';
 import React from 'react';
 
-import { CheckUserAuthentication, UserIsAdmin, UserIsAuthenticated } from '@app/components/Auth/authWrappers';
+import { CheckUserAuthentication, UserIsAuthenticated } from '@app/components/Auth/authWrappers';
 
 import { ENTITY_TYPES } from '@app/constants/Constants';
 import {
@@ -24,11 +24,7 @@ import {
   explorePageLocationChanged,
   startExplorePageListener
 } from '@app/actions/explore/dataset/data';
-import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
-import Roles from '@inject/pages/AdminPage/subpages/Roles';
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
-import Queues from '@inject/pages/AdminPage/subpages/WLM/Queues';
-import QAssignments from '@inject/pages/AdminPage/subpages/WLM/QAssignments';
 import EulaPage from '@inject/pages/EulaPage/EulaPage';
 import PATListPage from '@inject/pages/AccountPage/personalAccessTokens/PATListPage';
 import SSOLandingPage from '@inject/pages/AuthenticationPage/components/SSOLandingPage';
@@ -36,8 +32,10 @@ import { resetModuleState } from '@app/actions/modulesState';
 import { exploreStateKey } from '@app/selectors/explore';
 import { LOGIN_PATH, SIGNUP_PATH, SSO_LANDING_PATH } from '@app/sagas/loginLogout';
 import { lazy } from '@app/components/Lazy';
-import Activation from '@inject/pages/AdminPage/subpages/Activation';
 import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
+import { AdminPageRouting } from '@inject/RouteMixin.js';
+import AuthenticationPage from '@inject/pages/AuthenticationPage/AuthenticationPage';
+import Info from '@inject/pages/AccountPage/subpages/InfoController';
 
 import additionalRoutes from '@inject/additionalRoutes';
 
@@ -53,20 +51,10 @@ import AllSources from './pages/HomePage/subpages/AllSources/AllSources';
 import ExploreModals from './pages/ExplorePage/ExploreModals';
 
 import AccountPage from './pages/AccountPage/AccountPage';
-import Info from './pages/AccountPage/subpages/InfoController';
 
-import AuthenticationPage from './pages/AuthenticationPage/AuthenticationPage';
 import SignupPage from './pages/SignupPage/SignupPage';
 import ServerStatusPage from './pages/ServerStatusPage/ServerStatusPage';
 
-import AdminPage from './pages/AdminPage/AdminPage';
-import NodeActivity from './pages/AdminPage/subpages/NodeActivity/NodeActivity';
-import Users from './pages/AdminPage/subpages/Users';
-import Advanced from './pages/AdminPage/subpages/Advanced';
-import Provisioning from './pages/AdminPage/subpages/Provisioning';
-import Support from './pages/AdminPage/subpages/Support';
-
-import AdminModals from './pages/AdminPage/AdminModals';
 import AccountModals from './pages/AccountPage/AccountModals';
 
 import JobPage from './pages/JobPage/JobPage';
@@ -129,6 +117,7 @@ export default dispatch => (
         <Route path='/status' component={ServerStatusPage} />
       </Route>
     </Route>
+    {additionalRoutes}
     <Route component={CheckUserAuthentication}>
       <Route component={UserIsAuthenticated(JobModals)}>
         <Route component={Page}>
@@ -145,24 +134,7 @@ export default dispatch => (
           </Route>
         </Route>
       </Route>
-      <Route component={UserIsAdmin(AdminModals)}>
-        <Route component={Page}>
-          <Route path='/admin' component={AdminPage} >
-            <IndexRedirect to='/admin/nodeActivity' />
-            <Route path='/admin/acceleration' component={Acceleration} />
-            <Route path='/admin/nodeActivity' component={NodeActivity} />
-            <Route path='/admin/users' component={UserIsAdmin(Users)} />
-            <Route path='/admin/roles' component={Roles} />
-            <Route path='/admin/advanced' component={Advanced} />
-            <Route path='/admin/provisioning' component={Provisioning} />
-            <Route path='/admin/activation' component={Activation}/>
-            <Route path='/admin/support' component={Support} />
-            {/* <Route path='/admin/votes' component={Votes} /> // To Be Removed */}
-            <Route path='/admin/queues' component={Queues} />
-            <Route path='/admin/rules' component={QAssignments} />
-          </Route>
-        </Route>
-      </Route>
+      {AdminPageRouting()}
       <Route component={UserIsAuthenticated(HomeModals)}>
         <Route component={Page}>
           <IndexRoute component={Home} /> {/* todo: is this valid?*/}
@@ -179,7 +151,6 @@ export default dispatch => (
           <Route path='/sources/external/list' component={AllSources} />
         </Route>
       </Route>
-      {additionalRoutes}
       <Route component={MainMasterPage}>
         {
           getExploreRoute({

@@ -37,7 +37,7 @@ public class TestSSLEngineFactory {
   public void testServerNameIndication() throws SSLException {
     // Arrange
     final SSLConfig config = SSLConfig.newBuilderForClient().build();
-    final SSLEngineFactory factory = SSLEngineFactoryImpl.create(Optional.of(config)).get();
+    final SSLEngineFactory factory = SSLEngineFactory.create(Optional.of(config)).get();
     final String host = "testhost";
     final SSLEngine clientEngine = factory.newClientEngine(ByteBufAllocator.DEFAULT, host, 100);
     final SSLParameters params = clientEngine.getSSLParameters();

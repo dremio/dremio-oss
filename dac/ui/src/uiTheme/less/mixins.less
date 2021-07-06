@@ -20,6 +20,11 @@
   border: 1px solid @BORDER_ACTIVE_DRAG_AREA;
  }
 
+ .disabled-dragged-item-mixin() {
+  background-color: @DISABLED_DRAG_AREA;
+  border: 1px solid @BORDER_DISABLED_DRAG_AREA;
+ }
+
 .formLabel() {
   font-weight: 500;
   font-size: 12px;
@@ -39,7 +44,7 @@
 
 .font-basic() {
   .fontBody();
-  font-family: Roboto, sans-serif;
+  font-family: 'Inter var', sans-serif;
   font-weight: 400;
 }
 

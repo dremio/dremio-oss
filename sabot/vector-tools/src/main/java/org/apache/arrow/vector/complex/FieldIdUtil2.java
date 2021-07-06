@@ -105,13 +105,14 @@ public class FieldIdUtil2 {
       public TypedFieldId visit(org.apache.arrow.vector.types.pojo.ArrowType.List incoming) {
         builder.intermediateType(CompleteType.fromField(field));
         builder.addId(id);
+        builder.isListOrUnionInPath(true);
         return getFieldIdIfMatches(field, builder, true, expectedPath.getRootSegment().getChild());
       }
 
       @Override
       public TypedFieldId visit(Union incoming) {
         builder.addId(id).remainder(expectedPath.getRootSegment().getChild());
-
+        builder.isListOrUnionInPath(true);
         CompleteType type = CompleteType.fromField(field);
         builder.intermediateType(type);
         if (seg.isLastPath()) {
@@ -162,12 +163,14 @@ public class FieldIdUtil2 {
     final ArrowTypeID typeType = field.getType().getTypeID();
 
     if (seg.isArray()) {
+      builder.isListOrUnionInPath(true);
       if (seg.isLastPath()) {
         CompleteType type;
         if (typeType == ArrowTypeID.Struct) {
           type = CompleteType.fromField(field);
         } else if (typeType == ArrowTypeID.List) {
           type = CompleteType.fromField(field.getChildren().get(0));
+          builder.isListOrUnionInPath(true);
           builder.listVector();
         } else {
           throw new UnsupportedOperationException("FieldIdUtil does not support field of type " + field.getType());
@@ -191,6 +194,7 @@ public class FieldIdUtil2 {
       }
     } else {
       if (typeType == ArrowTypeID.List) {
+        builder.isListOrUnionInPath(true);
         return null;
       }
     }
@@ -198,6 +202,7 @@ public class FieldIdUtil2 {
     final Field inner;
     if (typeType == ArrowTypeID.Struct) {
       if(seg.isArray()){
+        builder.isListOrUnionInPath(true);
         return null;
       }
       FieldWithOrdinal ford = getChildField(field, seg.isArray() ? null : seg.getNameSegment().getPath());
@@ -210,6 +215,7 @@ public class FieldIdUtil2 {
         builder.addId(ford.ordinal);
       }
     } else if (typeType == ArrowTypeID.List) {
+      builder.isListOrUnionInPath(true);
       inner = field.getChildren().get(0);
     } else {
       throw new UnsupportedOperationException("FieldIdUtil does not support field of type " + field.getType());
@@ -217,8 +223,12 @@ public class FieldIdUtil2 {
 
     final ArrowTypeID innerTypeType = inner.getType().getTypeID();
     if (innerTypeType == ArrowTypeID.List || innerTypeType == ArrowTypeID.Struct) {
+      if(innerTypeType == ArrowTypeID.List) {
+        builder.isListOrUnionInPath(true);
+      }
       return getFieldIdIfMatches(inner, builder, addToBreadCrumb, seg.getChild());
     } else if (innerTypeType == ArrowTypeID.Union) {
+      builder.isListOrUnionInPath(true);
       return getFieldIdIfMatchesUnion(inner, builder, addToBreadCrumb, seg.getChild());
     } else {
       if (seg.isNamed()) {
@@ -235,6 +245,7 @@ public class FieldIdUtil2 {
       } else {
         PathSegment child = seg.getChild();
         if (child.isLastPath() && child.isArray()) {
+          builder.isListOrUnionInPath(true);
           if (addToBreadCrumb) {
             builder.remainder(child);
           }

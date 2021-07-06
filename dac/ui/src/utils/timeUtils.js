@@ -89,6 +89,17 @@ class TimeUtils {
     const last = moment().add(years, 'y');
     return moment(time).isAfter(last);
   }
+
+  getUnixTime(stringTime, invalidDateString = la(INVALID_DATE_MSG)) {
+    const t = moment(stringTime);
+    return t.isValid() ? t.valueOf() : invalidDateString;
+  }
+
+  isInvalidDateTime(stringTime) {
+    const t = moment(stringTime);
+    return t.isValid() && t.get('year') === 1970 && t.get('month') === 0 && t.get('date') === 1;
+  }
+
 }
 
 TimeUtils.prototype.INVALID_DATE_MSG = INVALID_DATE_MSG;

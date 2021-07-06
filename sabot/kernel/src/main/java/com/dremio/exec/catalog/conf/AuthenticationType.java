@@ -29,6 +29,9 @@ public enum AuthenticationType {
   MASTER,
 
   @Tag(3)
-  KERBEROS
+  KERBEROS,
+
+  @Tag(4)
+  AWS_PROFILE,
 
 }

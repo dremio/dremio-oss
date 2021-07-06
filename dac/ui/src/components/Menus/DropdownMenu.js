@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent, Fragment } from 'react';
+import React, { Fragment } from 'react';
 import PropTypes from 'prop-types';
-import Radium from 'radium';
 import classNames from 'classnames';
 
 import { SelectView } from '@app/components/Fields/SelectView';
@@ -23,134 +22,91 @@ import FontIcon from '@app/components/Icon/FontIcon';
 
 import { triangleTop } from 'uiTheme/radium/overlay';
 
-@Radium
-export default class DropdownMenu extends PureComponent {
-  static propTypes = {
-    dataQa: PropTypes.string,
-    className: PropTypes.string,
-    text: PropTypes.string,
-    iconType: PropTypes.string,
-    menu: PropTypes.node.isRequired,
-    style: PropTypes.object,
-    iconStyle: PropTypes.object,
-    textStyle: PropTypes.object,
-    hideArrow: PropTypes.bool,
-    arrowStyle: PropTypes.object,
-    hideDivider: PropTypes.bool,
-    disabled: PropTypes.bool,
-    isButton: PropTypes.bool,
-    iconTooltip: PropTypes.string,
-    fontIcon: PropTypes.string
-  };
+import './DropdownMenu.less';
 
-  static defaultProps = {
-    text: '',
-    iconType: ''
-  };
+const DropdownMenu = (props) => {
 
-  render() {
-    const { dataQa, className, text, iconType, menu, style, iconStyle, textStyle, fontIcon,
-      hideArrow, hideDivider, disabled, isButton, iconTooltip, arrowStyle } = this.props;
+  const {
+    dataQa,
+    className,
+    text,
+    iconType,
+    menu,
+    style,
+    iconStyle,
+    textStyle,
+    fontIcon,
+    hideArrow,
+    hideDivider,
+    disabled,
+    isButton,
+    iconTooltip,
+    arrowStyle,
+    customItemRenderer
+  } = props;
 
-    const isTogglerHovered = !disabled ? Radium.getState(this.state, 'toggler', ':hover') : false;
-    const hoverStyle = {backgroundColor: '#F9F9F9'};
-    const togglerStyle = isButton ? styles.togglerButton : styles.toggler;
-    const cursorStyle = disabled ? { cursor: 'default' } : { cursor: 'pointer'};
-    const dividerStyle = isTogglerHovered || isTogglerHovered ? {
-      height: '100%',
-      left: 0,
-      top: 0,
-      marginTop: 0,
-      opacity: '.75'
-    } : {};
+  const togglerStyle = isButton ? 'dropdownMenu__togglerButton' : 'dropdownMenu__toggler';
+  const cursorStyle = disabled ? { cursor: 'default' } : { cursor: 'pointer'};
 
-    const stdArrowStyle = isButton ? styles.downButtonArrow : styles.downArrow;
+  const stdArrowStyle = isButton ? styles.downButtonArrow : styles.downArrow;
 
-    return (
-      <div style={isButton ? [styles.base, styles.button, style, isTogglerHovered && hoverStyle] : [styles.base, style]}>
-        <SelectView
-          content={
-            <div className={classNames('dropdown-menu', className)} key='toggler' style={[togglerStyle, cursorStyle]}>
-              {text && <span style={{...styles.text, ...textStyle}}>{text}</span>}
-              {iconType &&
-              <div style={styles.iconWrap}>
-                <FontIcon
-                  type={iconType}
-                  tooltip={iconTooltip}
-                  theme={{...styles.icon, ...iconStyle}}
-                />
-              </div>
-              }
-              {fontIcon &&
-              <div >
-                <div
-                  className={fontIcon}
-                  tooltip={iconTooltip}
-                />
-              </div>
-              }
-              {!hideDivider && <div style={[styles.divider, dividerStyle]} />}
-              {!hideArrow && <i className='fa fa-angle-down' style={{...stdArrowStyle, ...arrowStyle}}/>}
-            </div>
-          }
-          hideExpandIcon
-          listStyle={styles.popover}
-          listRightAligned
-          dataQa={dataQa}
-        >
-          {
-            ({ closeDD }) => (
-              <Fragment>
-                <div style={styles.triangle}/>
-                {React.cloneElement(menu, { closeMenu: closeDD })}
-              </Fragment>
-            )
-          }
-        </SelectView>
+  const selectedItemRenderer = () => (
+    <>
+      {text && <span className='dropdownMenu__text' style={{ ...textStyle}}>{text}</span>}
+
+      {iconType &&
+      <div className='dropdownMenu__iconWrap'>
+        <FontIcon
+          type={iconType}
+          tooltip={iconTooltip}
+          theme={{...styles.icon, ...iconStyle}}
+        />
       </div>
-    );
-  }
+      }
+      {fontIcon &&
+        <div>
+          <div
+            className={fontIcon}
+            tooltip={iconTooltip}
+          />
+        </div>
+      }
+    </>
+  );
 
-}
+  return (
+    <div className={classNames('dropdownMenu', isButton ? '--button' : '')} style={{...style}}>
+
+      <SelectView
+        content={
+          <div className={classNames('dropdownMenu__content', className, togglerStyle)} key='toggler' style={{...cursorStyle}}>
+
+            {/* Use a custom look and feel if needed */}
+            {customItemRenderer || selectedItemRenderer() }
+
+            {!hideDivider && <div className='dropdownMenu__divider' />}
+            {!hideArrow && <i className='fa fa-angle-down' style={{...stdArrowStyle, ...arrowStyle}}/>}
+          </div>
+        }
+        hideExpandIcon
+        listStyle={styles.popover}
+        listRightAligned
+        dataQa={dataQa}
+      >
+        {
+          ({ closeDD }) => (
+            <Fragment>
+              <div style={styles.triangle}/>
+              {React.cloneElement(menu, { closeMenu: closeDD })}
+            </Fragment>
+          )
+        }
+      </SelectView>
+    </div>
+  );
+};
 
 const styles = {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  button: {
-    backgroundColor: '#F2F2F2',
-    border: '1px solid #D9D9D9',
-    borderRadius: 4,
-    minWidth: 50,
-    height: 32
-  },
-  togglerButton: {
-    display: 'flex',
-    position: 'relative',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 27,
-    cursor: 'pointer',
-    ':hover': {} // for Radium.getState
-  },
-  toggler: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  text: {
-    margin: '0 6px 0 0'
-  },
-  iconWrap: {
-    display: 'flex',
-    flex: '1 1 0%',
-    padding: '0 3px',
-    height: 27,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
   icon: {
     Icon: {
       width: 17,
@@ -163,7 +119,10 @@ const styles = {
     }
   },
   downArrow: {
-    fontSize: '18px'
+    fontSize: '18px',
+    position: 'relative',
+    top: '1px',
+    marginLeft: '5px'
   },
   downButtonArrow: {
     fontSize: 14,
@@ -184,3 +143,24 @@ const styles = {
     display: 'block'
   }
 };
+
+DropdownMenu.propTypes = {
+  dataQa: PropTypes.string,
+  className: PropTypes.string,
+  text: PropTypes.string,
+  iconType: PropTypes.string,
+  menu: PropTypes.node.isRequired,
+  style: PropTypes.object,
+  iconStyle: PropTypes.object,
+  textStyle: PropTypes.object,
+  hideArrow: PropTypes.bool,
+  arrowStyle: PropTypes.object,
+  hideDivider: PropTypes.bool,
+  disabled: PropTypes.bool,
+  isButton: PropTypes.bool,
+  iconTooltip: PropTypes.string,
+  fontIcon: PropTypes.string,
+  customItemRenderer: PropTypes.element
+};
+
+export default DropdownMenu;

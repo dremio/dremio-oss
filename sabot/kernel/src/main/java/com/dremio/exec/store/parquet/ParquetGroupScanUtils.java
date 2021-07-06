@@ -225,6 +225,7 @@ public class ParquetGroupScanUtils {
         case TIME_MILLIS:
           return Types.optional(MinorType.TIME);
         case TIMESTAMP_MILLIS:
+        case TIMESTAMP_MICROS:
           return Types.optional(MinorType.TIMESTAMP);
         case UTF8:
           return Types.optional(MinorType.VARCHAR);

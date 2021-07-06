@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.planner.logical;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -28,46 +26,35 @@ import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.sql.SqlBinaryOperator;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
-import org.apache.calcite.util.Pair;
+
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 
 /**
  * <pre>
- * Rule to push join filters on literals, past join into the project below, e.g if we have 10 fields below join, 5 on each side:
+ * Rule to push join filters that depend on only one side of join, past join into the project below, e.g if we have 10 fields below join, 5 on each side:
  * JoinRel(condition=[AND(=($1, $8), =($5, 10))]
  *    ... [left side: $0, $1, $2, $3, $4] ...
  *    ... [right side: $5, $6, $7, $8, $9] ...
  *
  * will be written as:
  *
- * JoinRel(condition=[AND(=($1, $9), =($5, $6))]
- *    ProjectRel($0, $1, $2, $3, $4, $5=[10])
- *    ... [right side: $6, $7, $8, $9, $10] ... every element offset by 1
+ * JoinRel(condition=[AND(=($1, $9), =($5, $11))]
+ *    ProjectRel($0, $1, $2, $3, $4, $5=[1])
+ *       ...
+ *    ProjectRel($0, $1, $2, $3, $4, $5=case when $0 = 10 then 1 else 0 end)
  *
- * and when left side has 6 fields and right side has 4 fields
- * JoinRel(condition=[AND(=($1, $8), =($5, 10))]
- *    ... [left side: $0, $1, $2, $3, $4, $5] ...
- *    ... [right side: $6, $7, $8, $9] ...
- *
- * will be written as:
- *
- * JoinRel(condition=[AND(=($1, $8), =($5, $10))]
- *    ... [left side: $0, $1, $2, $3, $4, $5] ...
- *    ProjectRel($6, $7, $8, $9, $10=[10])
+ *    This rewrite allows the physical planning to use a HashJoin, since now all of the conditions are equi conditions
  *
  * </pre>
  */
@@ -85,232 +72,143 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
     this.factory = factory;
   }
 
+  private static List<RexNode> shift(List<RexNode> conditions, int s, RelNode child) {
+    return conditions.stream().map(c -> shift(c, s, child)).collect(Collectors.toList());
+  }
+
+  private static RexNode shift(RexNode rexNode, int s, RelNode child) {
+    return rexNode.accept(new RexShiftShuttle(s, child.getRowType()));
+  }
+
   @Override
   public void onMatch(RelOptRuleCall call) {
     Join join = call.rel(0);
-    List<RexNode> joinFilters = RelOptUtil.conjunctions(join.getCondition());
-    List<Boolean> pushedFilters = new ArrayList<>();
-    EquiLiteralConditionFinder visitor = new EquiLiteralConditionFinder(true, join.getCluster().getRexBuilder());
+    JoinInfo joinInfo = JoinInfo.of(join.getLeft(), join.getRight(), join.getCondition());
 
-    for (RexNode rexNode : joinFilters) {
-      pushedFilters.add(rexNode.accept(visitor) != null); // To keep track of which filters should be pushed below
+    if (joinInfo.isEqui()) {
+      return;
     }
 
-    if (visitor.fields.isEmpty()) {
+    // If there are no true equi-join conditions, there is no point in using this rule, as we still can't use HJ
+    if (joinInfo.keys().size() == 0) {
       return;
+    }
+
+    RexNode remaining = joinInfo.getRemaining(join.getCluster().getRexBuilder());
+    if (remaining.isAlwaysTrue()) {
+      return;
+    }
+
+    List<RexNode> remainingConditions = RelOptUtil.conjunctions(remaining);
+    List<RexNode> leftConditions = new ArrayList<>();
+    List<RexNode> rightConditions = new ArrayList<>();
+
+
+    for (RexNode rexNode : remainingConditions) {
+      SingleSidedConditionFinder finder = new SingleSidedConditionFinder(join.getLeft().getRowType().getFieldCount());
+      rexNode.accept(finder);
+      // if any conditions have both left and right components, we can't convert to equi-join, so no point in continuing
+      if (finder.hasRight && finder.hasLeft) {
+        return;
+      }
+      if (finder.hasRight) {
+        rightConditions.add(rexNode);
+      } else {
+        leftConditions.add(rexNode);
+      }
     }
 
     RelBuilder relBuilder = factory.create(join.getCluster(), null);
 
-    // Keeps track of where we add new fields for each constant in a Project below join
-    Map<Pair<RexInputRef, RexNode>, Integer> newFieldLocationMap = new HashMap<>();
-
-    // Keeps track of where we add new fields for each constant in a Join
-    Set<Integer> newFieldLocationsInJoin = new HashSet<>();
-
-    createJoin(join, join.getLeft(), join.getRight(), relBuilder, joinFilters, visitor.fields, pushedFilters, visitor.filterNulls, newFieldLocationMap, newFieldLocationsInJoin);
-    createTopProject(relBuilder, relBuilder.peek().getRowType(), newFieldLocationsInJoin);
-    call.transformTo(relBuilder.build());
+    RelNode newJoin = createJoin(join, relBuilder, join.getLeft(), join.getRight(), joinInfo.leftKeys, joinInfo.rightKeys, leftConditions, rightConditions);
+    call.transformTo(newJoin);
   }
 
-  private void createTopProject(RelBuilder relBuilder, RelDataType rowType, Set<Integer> newFieldLocationsInJoin) {
-    // Add a project on top to filter out the new constant fields we added, to keep the row type same
-    List<RexNode> exprs = new ArrayList<>();
-    List<RelDataTypeField> fieldList = rowType.getFieldList();
-    for (int i = 0; i < fieldList.size(); i++) {
-      if (newFieldLocationsInJoin.contains(i)) {
-        continue;
-      }
-      RelDataTypeField field = fieldList.get(i);
-      exprs.add(relBuilder.getRexBuilder().makeInputRef(field.getType(), i));
+  private RelNode createJoin(Join origJoin, RelBuilder relBuilder, RelNode left, RelNode right, List<Integer> leftKeys, List<Integer> rightKeys, List<RexNode> leftCond, List<RexNode> rightCond) {
+    final RexBuilder rexBuilder = left.getCluster().getRexBuilder();
+    final RexNode one = rexBuilder.makeBigintLiteral(BigDecimal.ONE);
+
+    final List<RexNode> leftProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(left.getRowType(), null));
+    final List<RexNode> rightProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(right.getRowType(), null));
+
+    final List<Integer> newLeftKeys = new ArrayList<>(leftKeys);
+    final List<Integer> newRightKeys = new ArrayList<>(rightKeys);
+
+    int cnt = 0;
+
+    if (!leftCond.isEmpty()) {
+      newLeftKeys.add(leftProjects.size());
+      newRightKeys.add(rightProjects.size());
+      leftProjects.add(makeCase(rexBuilder, shift(leftCond, 0, left)));
+      rightProjects.add(one);
+      cnt++;
     }
-    relBuilder.project(exprs);
+
+    if (!rightCond.isEmpty()) {
+      newLeftKeys.add(leftProjects.size());
+      newRightKeys.add(rightProjects.size());
+      rightProjects.add(makeCase(rexBuilder, shift(rightCond, -1 * left.getRowType().getFieldCount(), right)));
+      leftProjects.add(one);
+      cnt++;
+    }
+
+    RelNode newLeft = relBuilder.push(left).project(leftProjects).build();
+    RelNode newRight = relBuilder.push(right).project(rightProjects).build();
+
+    RexNode newEquiCondition = RelOptUtil.createEquiJoinCondition(newLeft, newLeftKeys, newRight, newRightKeys, left.getCluster().getRexBuilder());
+
+    int finalCnt = cnt;
+    List<RexNode> topProjects = MoreRelOptUtil.identityProjects(origJoin.getRowType(), null)
+      .stream().map(p -> RexUtil.shift(p, left.getRowType().getFieldCount(), finalCnt)).collect(Collectors.toList());
+
+    return relBuilder
+      .push(newLeft)
+      .push(newRight)
+      .join(origJoin.getJoinType(), newEquiCondition)
+      .project(topProjects)
+      .build();
   }
 
-  private void createJoin(Join origJoin, RelNode left, RelNode right,
-                          RelBuilder relBuilder, List<RexNode> joinFilters,
-                          List<Pair<RexInputRef, RexNode>> fields,
-                          List<Boolean> pushedFilters, List<Boolean> filterNulls,
-                          Map<Pair<RexInputRef, RexNode>, Integer> newFieldLocationMap,
-                          Set<Integer> newFieldLocationsInJoin) {
-
-    int origLeftFieldCount = left.getRowType().getFieldCount();
-    boolean leftProject = createProjectBelowJoin(relBuilder, left, fields, newFieldLocationMap, origLeftFieldCount, 0, true);
-    RelDataType newLeftRowType = relBuilder.peek().getRowType();
-    createProjectBelowJoin(relBuilder, right, fields, newFieldLocationMap, origLeftFieldCount, newLeftRowType.getFieldCount(), false);
-
-    int offsetForJoinFilters = 0;
-    if (leftProject) {
-      // If we added a constant field on left side, we will have to update the new join condition and add offset to all the right fields
-      offsetForJoinFilters = newLeftRowType.getFieldCount() - left.getRowType().getFieldCount();
-    }
-
-    RexNode newJoinCondition = buildNewJoinCondition(
-      origJoin, relBuilder.getRexBuilder(), joinFilters, fields,
-      newFieldLocationsInJoin, newFieldLocationMap, pushedFilters, filterNulls, origLeftFieldCount, offsetForJoinFilters);
-
-    relBuilder.join(origJoin.getJoinType(), newJoinCondition);
+  private RexNode makeCase(RexBuilder builder, Iterable<RexNode> conditions) {
+    return builder.makeCall(
+      SqlStdOperatorTable.CASE,
+      RexUtil.composeConjunction(builder, conditions, false),
+      builder.makeBigintLiteral(BigDecimal.ONE), builder.makeBigintLiteral(BigDecimal.ZERO));
   }
 
-  private boolean createProjectBelowJoin(RelBuilder relBuilder, RelNode relNode,
-                                         List<Pair<RexInputRef, RexNode>> fields,
-                                         Map<Pair<RexInputRef, RexNode>, Integer> newFieldLocationMap,
-                                         int origLeftFieldCount, int newLeftFieldCount, boolean isLeft) {
+  private static class RexShiftShuttle extends RexShuttle {
+    private final int offset;
+    private final RelDataType rowType;
 
-    List<RexNode> exprs = new ArrayList<>();
-    List<RelDataTypeField> fieldList = relNode.getRowType().getFieldList();
-    for (int i = 0; i < fieldList.size(); i++) {
-      RelDataTypeField field = fieldList.get(i);
-      exprs.add(relBuilder.getRexBuilder().makeInputRef(field.getType(), i));
-    }
-
-    boolean noConstantFieldFound = true;
-    for (Pair<RexInputRef, RexNode> fieldPair : fields) {
-      int index = fieldPair.left.getIndex();
-      // If we have $1 = someLiteral condition on a field from left side,
-      // push the constant on right side and update the condition with $1 = $n
-      // where n is the new index for the constant literal in the project below
-      // this join, and vice versa for right side.
-      if ((isLeft && index >= origLeftFieldCount) || (!isLeft && index < origLeftFieldCount)) {
-        RexNode newRexNode = fieldPair.right;
-        newFieldLocationMap.put(fieldPair,
-          isLeft ?
-            exprs.size() : // If adding the field on left side, no need to offset the new field location, we are adding at the end
-            exprs.size() + newLeftFieldCount); // Add offset
-        exprs.add(newRexNode);
-        noConstantFieldFound = false;
-      }
-    }
-
-    relBuilder.push(relNode);
-
-    if (noConstantFieldFound) {
-      // We didn't add any constant fields. No need to create a project on this side
-      return false;
-    }
-
-    relBuilder.project(exprs);
-    return true;
-  }
-
-  private RexNode buildNewJoinCondition(Join origJoin, RexBuilder rexBuilder, List<RexNode> joinFilters,
-                                        List<Pair<RexInputRef, RexNode>> fields,
-                                        Set<Integer> newFieldLocationsInJoin,
-                                        Map<Pair<RexInputRef, RexNode>, Integer> newFieldLocationMap,
-                                        List<Boolean> pushedFilters, List<Boolean> filterNulls,
-                                        int origLeftFieldCount, int offsetForJoinFilters) {
-    List<RexNode> newRexNodes = new ArrayList<>();
-
-    for (int i = 0; i < pushedFilters.size(); i++) {
-      // Add all the fields that we have not pushed
-      if (!pushedFilters.get(i)) {
-        RexNode rexNode = joinFilters.get(i);
-        if (offsetForJoinFilters != 0) {
-          // If we need to offset right side fields
-          newRexNodes.add(rexNode.accept(new RexShuttle() {
-            @Override
-            public RexNode visitInputRef(RexInputRef inputRef) {
-              if (inputRef.getIndex() >= origLeftFieldCount) {
-                return rexBuilder.makeInputRef(inputRef.getType(), inputRef.getIndex() + offsetForJoinFilters);
-              }
-              return inputRef;
-            }
-          }));
-        } else {
-          newRexNodes.add(rexNode);
-        }
-      }
-    }
-
-    for (int i = 0; i < fields.size(); i++) {
-      // Add all the fields that we want to update
-      Pair<RexInputRef, RexNode> fieldPair = fields.get(i);
-      int inputIndex = fieldPair.left.getIndex(); // This is the original index of this input in the original join
-      int literalIndex = newFieldLocationMap.get(fieldPair); // This will be the new index of the literal we have pushed below
-
-      RelDataType type = origJoin.getRowType().getFieldList().get(inputIndex).getType();
-
-      // If the original input was on the right side, we need to add the offset
-      if (inputIndex >= origLeftFieldCount) {
-        // Add the offset we need to add
-        inputIndex += offsetForJoinFilters;
-      }
-
-      newFieldLocationsInJoin.add(literalIndex);
-
-      SqlBinaryOperator operator = filterNulls.get(i) ? SqlStdOperatorTable.EQUALS : SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
-      RexNode leftInput = rexBuilder.makeInputRef(type, inputIndex);
-      RexNode rightInput = rexBuilder.makeInputRef(type, literalIndex);
-      newRexNodes.add(rexBuilder.makeCall(operator, leftInput, rightInput));
-    }
-
-    return RexUtil.composeConjunction(rexBuilder, newRexNodes, false);
-  }
-
-  /**
-   * Visitor to traverse a RexNode tree and find if a node is of the type: someVar = someConstant
-   * Basic traversal idea copied from org.apache.calcite.plan.RelOptUtil#splitJoinCondition
-   */
-  private static class EquiLiteralConditionFinder extends RexVisitorImpl<Pair<RexInputRef, RexNode>> {
-    private final List<Pair<RexInputRef, RexNode>> fields;
-    private final List<Boolean> filterNulls;
-    private final RexBuilder rexBuilder;
-
-    protected EquiLiteralConditionFinder(boolean deep, RexBuilder rexBuilder) {
-      super(deep);
-      this.rexBuilder = rexBuilder;
-      this.fields = new ArrayList<>();
-      this.filterNulls = new ArrayList<>();
+    RexShiftShuttle(int offset, RelDataType rowType) {
+      this.offset = offset;
+      this.rowType = rowType;
     }
 
     @Override
-    public Pair<RexInputRef, RexNode> visitCall(RexCall call) {
-      call = RelOptUtil.collapseExpandedIsNotDistinctFromExpr(call, rexBuilder);
-      SqlKind kind = call.getKind();
+    public RexNode visitInputRef(RexInputRef input) {
+      int idx = input.getIndex() + offset;
+      return new RexInputRef(idx, rowType.getFieldList().get(idx).getType());
+    }
+  }
 
-      // "=" and "IS NOT DISTINCT FROM" are the same except for how they treat nulls.
-      if (kind == SqlKind.EQUALS || kind == SqlKind.IS_NOT_DISTINCT_FROM) {
-        final List<RexNode> operands = call.getOperands();
-        RexInputRef inputRef;
-        RexNode literal;
+  private static class SingleSidedConditionFinder extends RexVisitorImpl<Void> {
+    private final int leftFieldCount;
 
-        if (operands.get(0) instanceof RexInputRef &&
-          (operands.get(1) instanceof RexLiteral || operands.get(1).getKind() == SqlKind.CAST)) {
-          inputRef = (RexInputRef) operands.get(0);
-          literal = getLiteralWithOrWithoutCast(operands.get(1));
-        } else if (operands.get(1) instanceof RexInputRef &&
-          (operands.get(0) instanceof RexLiteral || operands.get(0).getKind() == SqlKind.CAST)) {
-          inputRef = (RexInputRef) operands.get(1);
-          literal = getLiteralWithOrWithoutCast(operands.get(0));
-        } else {
-          return null;
-        }
+    boolean hasLeft;
+    boolean hasRight;
 
-        if (literal == null) {
-          return null;
-        }
-
-        Pair<RexInputRef, RexNode> pair = new Pair<>(inputRef, literal);
-        fields.add(pair);
-        filterNulls.add(kind == SqlKind.EQUALS);
-        return pair;
-      }
-      return null;
+    SingleSidedConditionFinder(int leftFieldCount) {
+      super(true);
+      this.leftFieldCount = leftFieldCount;
     }
 
-    public RexNode getLiteralWithOrWithoutCast(RexNode rexNode) {
-      // This will return a non-null RexNode only if the give node is a literal
-      // or a casted literal. Casting can be nested.
-      if (rexNode instanceof RexLiteral) {
-        return rexNode;
-      } else if (rexNode.getKind() == SqlKind.CAST) {
-        RexCall call = (RexCall) rexNode;
-        if (call.getOperands().size() == 1) {
-          RexNode castNode = getLiteralWithOrWithoutCast(call.getOperands().get(0));
-          if (castNode != null) {
-            return rexNode;
-          }
-        }
+    @Override
+    public Void visitInputRef(RexInputRef ref) {
+      if (ref.getIndex() < leftFieldCount) {
+        hasLeft = true;
+      } else {
+        hasRight = true;
       }
       return null;
     }

@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 
 import org.apache.hadoop.fs.FSError;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.Path;
 import com.google.common.base.Throwables;
@@ -32,6 +33,7 @@ import com.google.common.base.Throwables;
 /**
  * Some helper methods to test FSError handling
  */
+@SuppressForbidden
 public final class FSErrorTestUtils {
   private FSErrorTestUtils() {}
 

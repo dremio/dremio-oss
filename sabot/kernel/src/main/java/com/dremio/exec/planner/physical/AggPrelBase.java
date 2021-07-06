@@ -34,6 +34,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
+import com.dremio.exec.expr.fn.tdigest.TDigest;
 import com.dremio.exec.planner.common.AggregateRelBase;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
@@ -44,21 +45,21 @@ import com.google.common.collect.Lists;
 public abstract class AggPrelBase extends AggregateRelBase implements Prel {
 
 
-  protected static enum OperatorPhase {PHASE_1of1, PHASE_1of2, PHASE_2of2};
+  public static enum OperatorPhase {PHASE_1of1, PHASE_1of2, PHASE_2of2};
 
-  protected OperatorPhase operPhase = OperatorPhase.PHASE_1of1 ; // default phase
+  protected OperatorPhase operPhase = OperatorPhase.PHASE_1of1; // default phase
   protected List<NamedExpression> keys;
   protected List<NamedExpression> aggExprs;
   protected List<AggregateCall> phase2AggCallList = Lists.newArrayList();
 
   protected AggPrelBase(RelOptCluster cluster,
-                     RelTraitSet traits,
-                     RelNode child,
-                     boolean indicator,
-                     ImmutableBitSet groupSet,
-                     List<ImmutableBitSet> groupSets,
-                     List<AggregateCall> aggCalls,
-                     OperatorPhase phase) throws InvalidRelException {
+                        RelTraitSet traits,
+                        RelNode child,
+                        boolean indicator,
+                        ImmutableBitSet groupSet,
+                        List<ImmutableBitSet> groupSets,
+                        List<AggregateCall> aggCalls,
+                        OperatorPhase phase) throws InvalidRelException {
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
     this.operPhase = phase;
     this.keys = RexToExpr.groupSetToExpr(child, groupSet);
@@ -92,18 +93,29 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
               -1,
               aggCall.getValue().getType(),
               aggCall.e.getName());
-
+          phase2AggCallList.add(newAggCall);
+        } else if (aggCall.e.getAggregation().getName().equals("TDIGEST")) {
+          SqlAggFunction tDigestMergeFunction = new TDigest.SqlTDigestMergeAggFunction(aggCall.e.getType());
+          AggregateCall newAggCall =
+            AggregateCall.create(
+              tDigestMergeFunction,
+              aggCall.e.isDistinct(),
+              true,
+              Collections.singletonList(aggExprOrdinal),
+              -1,
+              aggCall.e.getType(),
+              aggCall.e.getName());
           phase2AggCallList.add(newAggCall);
         } else {
           AggregateCall newAggCall =
-              AggregateCall.create(
-                  aggCall.e.getAggregation(),
-                  aggCall.e.isDistinct(),
-                  aggCall.e.isApproximate(),
-                  Collections.singletonList(aggExprOrdinal),
-                  -1,
-                  aggCall.e.getType(),
-                  aggCall.e.getName());
+            AggregateCall.create(
+              aggCall.e.getAggregation(),
+              aggCall.e.isDistinct(),
+              aggCall.e.isApproximate(),
+              Collections.singletonList(aggExprOrdinal),
+              -1,
+              aggCall.e.getType(),
+              aggCall.e.getName());
 
           phase2AggCallList.add(newAggCall);
         }

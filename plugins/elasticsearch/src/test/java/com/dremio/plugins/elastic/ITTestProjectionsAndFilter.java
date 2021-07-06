@@ -67,28 +67,28 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     final String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where review_count < 10";
     final String sqlQuery2 = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where 10 > review_count";
     final String plan = "="
-        + "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"review_count\" : {\n" +
-        "        \"from\" : null,\n" +
-        "        \"to\" : 10,\n" +
-        "        \"include_lower\" : true,\n" +
-        "        \"include_upper\" : false,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]";
+      + "[{\n" +
+      "  \"from\" : 0,\n" +
+      "  \"size\" : 4000,\n" +
+      "  \"query\" : {\n" +
+      "    \"range\" : {\n" +
+      "      \"review_count\" : {\n" +
+      "        \"from\" : null,\n" +
+      "        \"to\" : 10,\n" +
+      "        \"include_lower\" : true,\n" +
+      "        \"include_upper\" : false,\n" +
+      "        \"boost\" : 1.0\n" +
+      "      }\n" +
+      "    }\n" +
+      "  },\n" +
+      "  \"_source\" : {\n" +
+      "    \"includes\" : [\n" +
+      "      \"review_count\",\n" +
+      "      \"stars\"\n" +
+      "    ],\n" +
+      "    \"excludes\" : [ ]\n" +
+      "  }\n" +
+      "}]";
     verifyJsonInPlan(sqlQuery, new String[]{ plan });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("plusOne")
       .baselineValues(2.0f)
@@ -104,28 +104,28 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     final String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where review_count <= 11";
     final String sqlQuery2 = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where 11 >= review_count";
     final String plan = ""
-        + "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"review_count\" : {\n" +
-        "        \"from\" : null,\n" +
-        "        \"to\" : 11,\n" +
-        "        \"include_lower\" : true,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]";
+      + "[{\n" +
+      "  \"from\" : 0,\n" +
+      "  \"size\" : 4000,\n" +
+      "  \"query\" : {\n" +
+      "    \"range\" : {\n" +
+      "      \"review_count\" : {\n" +
+      "        \"from\" : null,\n" +
+      "        \"to\" : 11,\n" +
+      "        \"include_lower\" : true,\n" +
+      "        \"include_upper\" : true,\n" +
+      "        \"boost\" : 1.0\n" +
+      "      }\n" +
+      "    }\n" +
+      "  },\n" +
+      "  \"_source\" : {\n" +
+      "    \"includes\" : [\n" +
+      "      \"review_count\",\n" +
+      "      \"stars\"\n" +
+      "    ],\n" +
+      "    \"excludes\" : [ ]\n" +
+      "  }\n" +
+      "}]";
     verifyJsonInPlan(sqlQuery, new String[]{ plan });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("plusOne")
       .baselineValues(2.0f)
@@ -145,28 +145,28 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     final String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where review_count > 11";
     final String sqlQuery2 = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where 11 < review_count";
     final String plan = ""
-        + "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"review_count\" : {\n" +
-        "        \"from\" : 11,\n" +
-        "        \"to\" : null,\n" +
-        "        \"include_lower\" : false,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]";
+      + "[{\n" +
+      "  \"from\" : 0,\n" +
+      "  \"size\" : 4000,\n" +
+      "  \"query\" : {\n" +
+      "    \"range\" : {\n" +
+      "      \"review_count\" : {\n" +
+      "        \"from\" : 11,\n" +
+      "        \"to\" : null,\n" +
+      "        \"include_lower\" : false,\n" +
+      "        \"include_upper\" : true,\n" +
+      "        \"boost\" : 1.0\n" +
+      "      }\n" +
+      "    }\n" +
+      "  },\n" +
+      "  \"_source\" : {\n" +
+      "    \"includes\" : [\n" +
+      "      \"review_count\",\n" +
+      "      \"stars\"\n" +
+      "    ],\n" +
+      "    \"excludes\" : [ ]\n" +
+      "  }\n" +
+      "}]";
     verifyJsonInPlan(sqlQuery, new String[]{ plan });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("plusOne")
       .baselineValues(4.5f)
@@ -184,28 +184,28 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     final String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where review_count >= 11";
     final String sqlQuery2 = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where 11 <= review_count";
     final String plan = ""
-        + "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"range\" : {\n" +
-        "      \"review_count\" : {\n" +
-        "        \"from\" : 11,\n" +
-        "        \"to\" : null,\n" +
-        "        \"include_lower\" : true,\n" +
-        "        \"include_upper\" : true,\n" +
-        "        \"boost\" : 1.0\n" +
-        "      }\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]";
+      + "[{\n" +
+      "  \"from\" : 0,\n" +
+      "  \"size\" : 4000,\n" +
+      "  \"query\" : {\n" +
+      "    \"range\" : {\n" +
+      "      \"review_count\" : {\n" +
+      "        \"from\" : 11,\n" +
+      "        \"to\" : null,\n" +
+      "        \"include_lower\" : true,\n" +
+      "        \"include_upper\" : true,\n" +
+      "        \"boost\" : 1.0\n" +
+      "      }\n" +
+      "    }\n" +
+      "  },\n" +
+      "  \"_source\" : {\n" +
+      "    \"includes\" : [\n" +
+      "      \"review_count\",\n" +
+      "      \"stars\"\n" +
+      "    ],\n" +
+      "    \"excludes\" : [ ]\n" +
+      "  }\n" +
+      "}]";
     verifyJsonInPlan(sqlQuery, new String[]{ plan });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("plusOne")
       .baselineValues(5.5f)
@@ -226,35 +226,36 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestFilterWithUID() throws Exception {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse((elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0)||elastic.getMinVersionInCluster().getMajor() == 7);
+    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
 
     String sqlQuery = "select _uid from elasticsearch." + schema + "." + table + " where _uid is null";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"must_not\" : [\n" +
-      "        {\n" +
-      "          \"exists\" : {\n" +
-      "            \"field\" : \"_uid\",\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must_not\" : [\n" +
+        "        {\n" +
+        "          \"exists\" : {\n" +
+        "            \"field\" : \"_uid\",\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" + disableCoordOrBlank +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     assertEquals(0, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
   }
@@ -263,51 +264,52 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestFilterWithUIDExists() throws Exception {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
-
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse((elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0)||elastic.getMinVersionInCluster().getMajor() == 7);
     String sqlQuery = "select _uid from elasticsearch." + schema + "." + table + " where _uid is not null and _uid <> 'ABC'";
+    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"must\" : [\n" +
-      "        {\n" +
-      "          \"exists\" : {\n" +
-      "            \"field\" : \"_uid\",\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"must_not\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"_uid\" : {\n" +
-      "              \"query\" : \"ABC\",\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_uid\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : [\n" +
+        "        {\n" +
+        "          \"exists\" : {\n" +
+        "            \"field\" : \"_uid\",\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"must_not\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"_uid\" : {\n" +
+        "              \"query\" : \"ABC\",\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" + disableCoordOrBlank +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     assertEquals(5, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
   }
@@ -316,7 +318,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestLike() throws Exception {
     String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where city LIKE 'San%'";
     verifyJsonInPlan(sqlQuery, new String[] {
-        "[{\n" +
+      "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
         "  \"query\" : {\n" +
@@ -338,172 +340,173 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "}]"
     });
     testBuilder()
-        .sqlQuery(sqlQuery)
-        .unOrdered()
-        .baselineColumns("city")
-        .baselineValues("San Francisco")
-        .baselineValues("San Diego")
-        .baselineValues("San Francisco")
-        .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues("San Francisco")
+      .baselineValues("San Diego")
+      .baselineValues("San Francisco")
+      .go();
   }
 
   @Test
   public final void runTestNotLike() throws Exception {
     String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where city NOT LIKE 'San%'";
+    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"must\" : [\n" +
-      "        {\n" +
-      "          \"exists\" : {\n" +
-      "            \"field\" : \"city\",\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"must_not\" : [\n" +
-      "        {\n" +
-      "          \"regexp\" : {\n" +
-      "            \"city\" : {\n" +
-      "              \"value\" : \"San.*\",\n" +
-      "              \"flags_value\" : 65535,\n" +
-      "              \"max_determinized_states\" : 10000,\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : [\n" +
+        "        {\n" +
+        "          \"exists\" : {\n" +
+        "            \"field\" : \"city\",\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" +
+        "      \"must_not\" : [\n" +
+        "        {\n" +
+        "          \"regexp\" : {\n" +
+        "            \"city\" : {\n" +
+        "              \"value\" : \"San.*\",\n" +
+        "              \"flags_value\" : 65535,\n" +
+        "              \"max_determinized_states\" : 10000,\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" + disableCoordOrBlank +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
 
     });
     testBuilder()
-        .sqlQuery(sqlQuery)
-        .unOrdered()
-        .baselineColumns("city")
-        .baselineValues("Cambridge")
-        .baselineValues("Cambridge")
-        .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues("Cambridge")
+      .baselineValues("Cambridge")
+      .go();
   }
 
   @Test
   public final void runTestFilter() throws Exception {
     String sqlQuery = "select state, city_analyzed, review_count from elasticsearch." + schema + "." + table + " where stars >= 4";
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"range\" : {\n" +
-            "      \"stars\" : {\n" +
-            "        \"from\" : 4,\n" +
-            "        \"to\" : null,\n" +
-            "        \"include_lower\" : true,\n" +
-            "        \"include_upper\" : true,\n" +
-            "        \"boost\" : 1.0\n" +
-            "      }\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"city_analyzed\",\n" +
-            "      \"review_count\",\n" +
-            "      \"stars\",\n" +
-            "      \"state\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"range\" : {\n" +
+        "      \"stars\" : {\n" +
+        "        \"from\" : 4,\n" +
+        "        \"to\" : null,\n" +
+        "        \"include_lower\" : true,\n" +
+        "        \"include_upper\" : true,\n" +
+        "        \"boost\" : 1.0\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city_analyzed\",\n" +
+        "      \"review_count\",\n" +
+        "      \"stars\",\n" +
+        "      \"state\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder()
-            .sqlQuery(sqlQuery)
-            .unOrdered()
-            .baselineColumns("state", "city_analyzed", "review_count")
-            .baselineValues("MA", "Cambridge", 11)
-            .baselineValues("CA", "San Diego", 33)
-            .baselineValues("MA", "Cambridge", 11)
-            .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("state", "city_analyzed", "review_count")
+      .baselineValues("MA", "Cambridge", 11)
+      .baselineValues("CA", "San Diego", 33)
+      .baselineValues("MA", "Cambridge", 11)
+      .go();
   }
 
   @Test
   public final void runTestFilterInClause() throws Exception {
     String sqlQuery = "select review_count from elasticsearch." + schema + "." + table +
       " where review_count in (1,11,22)";
+    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"should\" : [\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"review_count\" : {\n" +
-      "              \"query\" : 1,\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"review_count\" : {\n" +
-      "              \"query\" : 11,\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"match\" : {\n" +
-      "            \"review_count\" : {\n" +
-      "              \"query\" : 22,\n" +
-      "              \"operator\" : \"OR\",\n" +
-      "              \"prefix_length\" : 0,\n" +
-      "              \"max_expansions\" : 50000,\n" +
-      "              \"fuzzy_transpositions\" : false,\n" +
-      "              \"lenient\" : false,\n" +
-      "              \"zero_terms_query\" : \"NONE\",\n" +
-      "              \"boost\" : 1.0\n" +
-      "            }\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"review_count\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"should\" : [\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"review_count\" : {\n" +
+        "              \"query\" : 1,\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"review_count\" : {\n" +
+        "              \"query\" : 11,\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"match\" : {\n" +
+        "            \"review_count\" : {\n" +
+        "              \"query\" : 22,\n" +
+        "              \"operator\" : \"OR\",\n" +
+        "              \"prefix_length\" : 0,\n" +
+        "              \"max_expansions\" : 50000,\n" +
+        "              \"fuzzy_transpositions\" : false,\n" +
+        "              \"lenient\" : false,\n" +
+        "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"boost\" : 1.0\n" +
+        "            }\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" + disableCoordOrBlank +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"review_count\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
 
     testBuilder()
@@ -521,8 +524,8 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestFieldsEquality() throws Exception {
     String sqlQuery1 = "select state, city, review_count, stars from elasticsearch." + schema + "." + table + " where cast(review_count as double) = stars";
     verifyJsonInPlan(sqlQuery1,
-        new String[] {
-          "[{\n" +
+      new String[] {
+        "[{\n" +
           "  \"from\" : 0,\n" +
           "  \"size\" : 4000,\n" +
           "  \"query\" : {\n" +
@@ -544,7 +547,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
           "    \"excludes\" : [ ]\n" +
           "  }\n" +
           "}]"
-        });
+      });
     testBuilder()
       .sqlQuery(sqlQuery1)
       .unOrdered()
@@ -559,35 +562,35 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     verifyJsonInPlan(sqlQuery,
       new String[] {
         "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"script\" : {\n" +
-        "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( ((float)(doc[\\\"review_count\\\"].value)) == doc[\\\"stars\\\"].value ))\",\n" +
-        "        \"lang\" : \"painless\"\n" +
-        "      },\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city\",\n" +
-        "      \"review_count\",\n" +
-        "      \"stars\",\n" +
-        "      \"state\"\n" +
-        "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"
-    });
+          "  \"from\" : 0,\n" +
+          "  \"size\" : 4000,\n" +
+          "  \"query\" : {\n" +
+          "    \"script\" : {\n" +
+          "      \"script\" : {\n" +
+          "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( ((float)(doc[\\\"review_count\\\"].value)) == doc[\\\"stars\\\"].value ))\",\n" +
+          "        \"lang\" : \"painless\"\n" +
+          "      },\n" +
+          "      \"boost\" : 1.0\n" +
+          "    }\n" +
+          "  },\n" +
+          "  \"_source\" : {\n" +
+          "    \"includes\" : [\n" +
+          "      \"city\",\n" +
+          "      \"review_count\",\n" +
+          "      \"stars\",\n" +
+          "      \"state\"\n" +
+          "    ],\n" +
+          "    \"excludes\" : [ ]\n" +
+          "  }\n" +
+          "}]"
+      });
 
     testBuilder()
-        .sqlQuery(sqlQuery)
-        .unOrdered()
-        .baselineColumns("state", "city", "review_count", "stars")
-        .baselineValues("CA", "San Francisco", 1, 1.0F)
-        .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("state", "city", "review_count", "stars")
+      .baselineValues("CA", "San Francisco", 1, 1.0F)
+      .go();
   }
 
   @Test
@@ -595,32 +598,32 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     // We cannot push down complex fields
     String sqlQuery = "select t.location_field[1].lat as lat_1 from elasticsearch." + schema + "." + table + " t";
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"location_field\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"location_field\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder()
-            .sqlQuery(sqlQuery)
-            .unOrdered()
-            .baselineColumns("lat_1")
-            .baselineValues(-11D)
-            .baselineValues(-22D)
-            .baselineValues(-33D)
-            .baselineValues(-44D)
-            .baselineValues(-55D)
-            .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("lat_1")
+      .baselineValues(-11D)
+      .baselineValues(-22D)
+      .baselineValues(-33D)
+      .baselineValues(-44D)
+      .baselineValues(-55D)
+      .go();
   }
 
   @Test
@@ -628,32 +631,32 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     // We cannot push down complex fields
     String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t";
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"location_field\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"location_field\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder()
-            .sqlQuery(sqlQuery)
-            .unOrdered()
-            .baselineColumns("location_1")
-            .baselineValues(mapOf("lat", -11D, "lon", -11D))
-            .baselineValues(mapOf("lat", -22D, "lon", -22D))
-            .baselineValues(mapOf("lat", -33D, "lon", -33D))
-            .baselineValues(mapOf("lat", -44D, "lon", -44D))
-            .baselineValues(mapOf("lat", -55D, "lon", -55D))
-            .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("location_1")
+      .baselineValues(mapOf("lat", -11D, "lon", -11D))
+      .baselineValues(mapOf("lat", -22D, "lon", -22D))
+      .baselineValues(mapOf("lat", -33D, "lon", -33D))
+      .baselineValues(mapOf("lat", -44D, "lon", -44D))
+      .baselineValues(mapOf("lat", -55D, "lon", -55D))
+      .go();
   }
 
 
@@ -663,7 +666,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void avoidPushingDownArbitraryProjection() throws Exception {
     String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
-        "[{\n" +
+      "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
         "  \"query\" : {\n" +
@@ -680,12 +683,12 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("plusOne")
-            .baselineValues(5.5f)
-            .baselineValues(4.5f)
-            .baselineValues(6.0f)
-            .baselineValues(5.5f)
-            .baselineValues(2.0f)
-            .go();
+      .baselineValues(5.5f)
+      .baselineValues(4.5f)
+      .baselineValues(6.0f)
+      .baselineValues(5.5f)
+      .baselineValues(2.0f)
+      .go();
   }
 
   @Test
@@ -693,38 +696,38 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where review_count < 10";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"range\" : {\n" +
-      "      \"review_count\" : {\n" +
-      "        \"from\" : null,\n" +
-      "        \"to\" : 10,\n" +
-      "        \"include_lower\" : true,\n" +
-      "        \"include_upper\" : false,\n" +
-      "        \"boost\" : 1.0\n" +
-      "      }\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"review_count\",\n" +
-      "      \"stars\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"range\" : {\n" +
+        "      \"review_count\" : {\n" +
+        "        \"from\" : null,\n" +
+        "        \"to\" : 10,\n" +
+        "        \"include_lower\" : true,\n" +
+        "        \"include_upper\" : false,\n" +
+        "        \"boost\" : 1.0\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"review_count\",\n" +
+        "      \"stars\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("plusOne")
-            .baselineValues(2.0f)
-            .go();
+      .baselineValues(2.0f)
+      .go();
   }
 
   @Test
   public final void runTestComplexProjectWithFilterProject() throws Exception {
     String sqlQuery = "select stars + 1 as plusOne from elasticsearch." + schema + "." + table + " where stars < 3";
     verifyJsonInPlan(sqlQuery, new String[] {
-        "[{\n" +
+      "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
         "  \"query\" : {\n" +
@@ -747,199 +750,199 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "}]"
     });
     testBuilder().sqlQuery(sqlQuery).ordered().baselineColumns("plusOne")
-            .baselineValues(2.0F)
-            .go();
+      .baselineValues(2.0F)
+      .go();
   }
 
   @Test
   public final void tesFilterRequiringScripts() throws Exception {
     String sqlQuery = "select state, stars from elasticsearch." + schema + "." + table +
-        " where sqrt(stars) < 2";
+      " where sqrt(stars) < 2";
 
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( Math.pow(doc[\\\"stars\\\"].value, 0.5) < 2 ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"stars\",\n" +
-      "      \"state\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
-      });
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( Math.pow(doc[\\\"stars\\\"].value, 0.5) < 2 ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"stars\",\n" +
+        "      \"state\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
+    });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("state", "stars")
-        .baselineValues("CA", 3.5f)
-        .baselineValues("CA", 1.0f)
-        .go();
+      .baselineValues("CA", 3.5f)
+      .baselineValues("CA", 1.0f)
+      .go();
   }
 
   @Test
   public final void testFilterRequiringScriptsOnVarchar() throws Exception {
 
     String sqlQuery = "select state, stars from elasticsearch." + schema + "." + table +
-        " where concat(city, state) = 'San DiegoCA'";
+      " where concat(city, state) = 'San DiegoCA'";
 
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"state\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + doc[\\\"state\\\"].value ) == 'San DiegoCA' ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\",\n" +
-      "      \"stars\",\n" +
-      "      \"state\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"state\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + doc[\\\"state\\\"].value ) == 'San DiegoCA' ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\",\n" +
+        "      \"stars\",\n" +
+        "      \"state\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
 
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("state", "stars")
-        .baselineValues("CA", 5.0f)
-        .go();
+      .baselineValues("CA", 5.0f)
+      .go();
   }
 
   @Test
   public final void testFilterWithTrimFunc() throws Exception {
 
     String sqlQuery = "select city from elasticsearch." + schema + "." + table +
-        " where char_length(trim(concat(city, '  '))) = 9";
+      " where char_length(trim(concat(city, '  '))) = 9";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
 
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("city")
-        .baselineValues("Cambridge")
-        .baselineValues("San Diego")
-        .baselineValues("Cambridge")
-        .go();
-    }
+      .baselineValues("Cambridge")
+      .baselineValues("San Diego")
+      .baselineValues("Cambridge")
+      .go();
+  }
 
-    @Test
-    public final void testFilterWithTrimFunc2() throws Exception {
+  @Test
+  public final void testFilterWithTrimFunc2() throws Exception {
 
     String sqlQuery2 = "select city from elasticsearch." + schema + "." + table +
-        " where char_length(rtrim(concat(city, '  '))) = 9";
+      " where char_length(rtrim(concat(city, '  '))) = 9";
     verifyJsonInPlan(sqlQuery2, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery2).unOrdered().baselineColumns("city")
-        .baselineValues("Cambridge")
-        .baselineValues("San Diego")
-        .baselineValues("Cambridge")
-        .go();
-    }
+      .baselineValues("Cambridge")
+      .baselineValues("San Diego")
+      .baselineValues("Cambridge")
+      .go();
+  }
 
-    @Test
-    public final void testFilterWithTrimFunc3() throws Exception {
+  @Test
+  public final void testFilterWithTrimFunc3() throws Exception {
 
     String sqlQuery3 = "select city from elasticsearch." + schema + "." + table +
-        " where char_length(ltrim(concat('  ', city))) = 9";
+      " where char_length(ltrim(concat('  ', city))) = 9";
     verifyJsonInPlan(sqlQuery3, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery3).unOrdered().baselineColumns("city")
-        .baselineValues("Cambridge")
-        .baselineValues("San Diego")
-        .baselineValues("Cambridge")
-        .go();
+      .baselineValues("Cambridge")
+      .baselineValues("San Diego")
+      .baselineValues("Cambridge")
+      .go();
   }
 
   @Test
   public final void testFilterWithVarcharCaseChange() throws Exception {
     String sqlQuery3 = "select city from elasticsearch." + schema + "." + table +
-        " where upper(lower(city)) = 'CAMBRIDGE'";
+      " where upper(lower(city)) = 'CAMBRIDGE'";
     verifyJsonInPlan(sqlQuery3, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( doc[\\\"city\\\"].value.toLowerCase().toUpperCase() == 'CAMBRIDGE' ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( doc[\\\"city\\\"].value.toLowerCase().toUpperCase() == 'CAMBRIDGE' ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery3).unOrdered().baselineColumns("city")
-        .baselineValues("Cambridge")
-        .baselineValues("Cambridge")
-        .go();
+      .baselineValues("Cambridge")
+      .baselineValues("Cambridge")
+      .go();
 
   }
 
@@ -949,28 +952,28 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select stars > 2 as out_col from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"stars\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"stars\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("out_col")
-        .baselineValues(true)
-        .baselineValues(true)
-        .baselineValues(true)
-        .baselineValues(true)
-        .baselineValues(false)
-        .go();
+      .baselineValues(true)
+      .baselineValues(true)
+      .baselineValues(true)
+      .baselineValues(true)
+      .baselineValues(false)
+      .go();
   }
 
   @Test
@@ -979,20 +982,20 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select case when stars > 2 then 1 else 0 end as out_col from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"stars\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"stars\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     // TODO - Jason review, this baseline changed from double type to long when executed in Dremio instead of elastic
     // scripts, can numeric types other than double be returned from scripts?
@@ -1000,12 +1003,12 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     //      elastic would not provide type information for scripted fields and we didn't want schema changes
     //      relying on the JSON tokens which omitted decimal points on integer values
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("out_col")
-        .baselineValues(1)
-        .baselineValues(1)
-        .baselineValues(1)
-        .baselineValues(1)
-        .baselineValues(0)
-        .go();
+      .baselineValues(1)
+      .baselineValues(1)
+      .baselineValues(1)
+      .baselineValues(1)
+      .baselineValues(0)
+      .go();
   }
 
   @Test
@@ -1014,30 +1017,30 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where case when stars < 2 then city else state end = 'San Francisco'";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : doc[\\\"city\\\"].value ) : (def) ( (doc[\\\"state\\\"].empty) ? null : doc[\\\"state\\\"].value ) ) == 'San Francisco' ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\",\n" +
-      "      \"stars\",\n" +
-      "      \"state\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : doc[\\\"city\\\"].value ) : (def) ( (doc[\\\"state\\\"].empty) ? null : doc[\\\"state\\\"].value ) ) == 'San Francisco' ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\",\n" +
+        "      \"stars\",\n" +
+        "      \"state\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("city")
-        .baselineValues("San Francisco")
-        .go();
+      .baselineValues("San Francisco")
+      .go();
   }
 
   @Test
@@ -1046,35 +1049,35 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     // the expression is actually being constant folded, so this isn't the best test for the elastic expression
     // pushdown, but keeping it here just to track how planning changes if we start failing to fold constants
     String sqlQuery = "select stars + 2 - (2 * floor(power(2.1,2)))/4 + sqrt(4)/exp(0) - mod(5, 3) as complexIdentity " +
-        "from elasticsearch." + schema + "." + table;
+      "from elasticsearch." + schema + "." + table;
 
-      verifyJsonInPlan(sqlQuery, new String[] {
-          "[{\n" +
-          "  \"from\" : 0,\n" +
-          "  \"size\" : 4000,\n" +
-          "  \"query\" : {\n" +
-          "    \"match_all\" : {\n" +
-          "      \"boost\" : 1.0\n" +
-          "    }\n" +
-          "  },\n" +
-          "  \"_source\" : {\n" +
-          "    \"includes\" : [\n" +
-          "      \"stars\"\n" +
-          "    ],\n" +
-          "    \"excludes\" : [ ]\n" +
-          "  }\n" +
-          "}]"
-      });
+    verifyJsonInPlan(sqlQuery, new String[] {
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"stars\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
+    });
     testBuilder()
-        .sqlQuery(sqlQuery)
-        .ordered()
-        .baselineColumns("complexIdentity")
-        .baselineValues(4.5)
-        .baselineValues(3.5)
-        .baselineValues(5.0)
-        .baselineValues(4.5)
-        .baselineValues(1.0)
-        .go();
+      .sqlQuery(sqlQuery)
+      .ordered()
+      .baselineColumns("complexIdentity")
+      .baselineValues(4.5)
+      .baselineValues(3.5)
+      .baselineValues(5.0)
+      .baselineValues(4.5)
+      .baselineValues(1.0)
+      .go();
   }
 
   @Test
@@ -1083,41 +1086,41 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     assumeFalse(elastic.getMinVersionInCluster().getMajor() == 5 && elastic.getMinVersionInCluster().getMinor() == 0);
 
     String sqlQuery = "select city " +
-        "from elasticsearch." + schema + "." + table + " where " +
-        "(stars + 2 - (2 * floor(power(stars,2)))/4 + sqrt(stars)/exp(0) - mod(review_count, 3)) = 0.37082869338697066";
+      "from elasticsearch." + schema + "." + table + " where " +
+      "(stars + 2 - (2 * floor(power(stars,2)))/4 + sqrt(stars)/exp(0) - mod(review_count, 3)) = 0.37082869338697066";
 
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty || doc[\\\"review_count\\\"]" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty || doc[\\\"review_count\\\"]" +
         ".empty) ? false : ( ( ( ( ( doc[\\\"stars\\\"].value + 2 ) - ( ( 2 * Math.floor(Math.pow" +
         "(doc[\\\"stars\\\"].value, 2)) ) / 4 ) ) + ( Math.pow(doc[\\\"stars\\\"].value, 0.5) / 1E0D ) ) - ( doc[\\\"review_count\\\"].value % 3 ) ) == 0.37082869338697066D ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\",\n" +
-      "      \"review_count\",\n" +
-      "      \"stars\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\",\n" +
+        "      \"review_count\",\n" +
+        "      \"stars\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
 
     testBuilder()
-        .sqlQuery(sqlQuery)
-        .ordered()
-        .baselineColumns("city")
-        .baselineValues("San Francisco")
-        .go();
+      .sqlQuery(sqlQuery)
+      .ordered()
+      .baselineColumns("city")
+      .baselineValues("San Francisco")
+      .go();
   }
 
 
@@ -1125,36 +1128,36 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestProjectBooleanNoPush() throws Exception {
     String sqlQuery = "select not \"open\" from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[]{
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"open\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"open\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("EXPR$0")
-            .baselineValues(false)
-            .baselineValues(false)
-            .baselineValues(true)
-            .baselineValues(false)
-            .baselineValues(true)
-            .go();
+      .baselineValues(false)
+      .baselineValues(false)
+      .baselineValues(true)
+      .baselineValues(false)
+      .baselineValues(true)
+      .go();
   }
 
   @Test
   public final void dateLessThan() throws Exception{
     String query = "select datefield from elasticsearch." + schema + "." + table + " where datefield2 <= datefield";
     testBuilder().sqlQuery(query).expectsEmptyResultSet()
-    .go();
+      .go();
   }
 
   @Test
@@ -1170,31 +1173,31 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void dateLessThanOrEqual() throws Exception{
     String query = "select datefield from elasticsearch." + schema + "." + table + " where datefield <= datefield";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("datefield")
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-12 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-    .go();
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-12 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .go();
   }
 
   @Test
   public final void dateGreaterThan() throws Exception{
     String query = "select datefield from elasticsearch." + schema + "." + table + " where datefield > datefield";
     testBuilder().sqlQuery(query).expectsEmptyResultSet()
-    .go();
+      .go();
   }
 
   @Test
   public final void dateGreaterThanOrEqual() throws Exception{
     String query = "select datefield from elasticsearch." + schema + "." + table + " where datefield >= datefield";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("datefield")
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-12 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
-    .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-    .go();
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-12 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .go();
   }
 
 
@@ -1202,37 +1205,37 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestProjectTimestamp() throws Exception {
     String sqlQuery = "select \"datefield\" from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"datefield\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"});
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"datefield\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("datefield")
-            .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-            .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
-            .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-12 10:50:42")))
-            .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
-            .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-            .go();
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-12 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-11 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .go();
   }
 
   @Test
   public final void runTestProjectExtractYearMonth() throws Exception {
     String sqlQuery = "select extract(year from \"datefield\"), extract(month from \"datefield\"), "
-        + "extract(day from \"datefield\"), extract(hour from \"datefield\"), extract(minute from \"datefield\"),"
-        + "extract(second from \"datefield\") from elasticsearch." + schema + "." + table;
+      + "extract(day from \"datefield\"), extract(hour from \"datefield\"), extract(minute from \"datefield\"),"
+      + "extract(second from \"datefield\") from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
-        "[{\n" +
+      "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
         "  \"query\" : {\n" +
@@ -1249,16 +1252,17 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "}]"});
 
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("EXPR$0", "EXPR$1", "EXPR$2", "EXPR$3", "EXPR$4", "EXPR$5")
-        .baselineValues(2014L, 2L, 10L, 10L, 50L, 42L)
-        .baselineValues(2014L, 2L, 11L, 10L, 50L, 42L)
-        .baselineValues(2014L, 2L, 12L, 10L, 50L, 42L)
-        .baselineValues(2014L, 2L, 11L, 10L, 50L, 42L)
-        .baselineValues(2014L, 2L, 10L, 10L, 50L, 42L)
-        .go();
+      .baselineValues(2014L, 2L, 10L, 10L, 50L, 42L)
+      .baselineValues(2014L, 2L, 11L, 10L, 50L, 42L)
+      .baselineValues(2014L, 2L, 12L, 10L, 50L, 42L)
+      .baselineValues(2014L, 2L, 11L, 10L, 50L, 42L)
+      .baselineValues(2014L, 2L, 10L, 10L, 50L, 42L)
+      .go();
   }
 
   @Test
   public final void runTestProjectExtractDayFilter() throws Exception {
+    String isValueOrIsDate = elastic.getMinVersionInCluster().getMajor() == 7 ? ".value" : ".date";
     String sqlQuery = "select datefield from elasticsearch." + schema + "." + table + " where  extract(day from \"datefield\") = 10";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
@@ -1267,7 +1271,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"datefield\\\"].empty) ? false : ( LocalDateTime.ofInstant(Instant.ofEpochMilli(doc[\\\"datefield\\\"].date.millis), ZoneOffset.UTC).getDayOfMonth() == 10L ))\",\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"datefield\\\"].empty) ? false : ( LocalDateTime.ofInstant(Instant.ofEpochMilli(doc[\\\"datefield\\\"]"+isValueOrIsDate+".millis), ZoneOffset.UTC).getDayOfMonth() == 10L ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -1283,9 +1287,9 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     });
 
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("datefield")
-        .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-        .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
-        .go();
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2014-02-10 10:50:42")))
+      .go();
   }
 
   @Test
@@ -1293,43 +1297,45 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select _index from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"_index\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"});
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_index\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("_index")
       .baselineValues(schema).baselineValues(schema).baselineValues(schema).baselineValues(schema).baselineValues(schema).go();
   }
 
   @Test
   public final void runTestMetaFieldsUID() throws Exception {
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     String sqlQuery = "select _uid from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"_uid\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"});
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"_uid\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"});
     assertEquals(5, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
   }
 
@@ -1338,30 +1344,30 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestProjectWithNestedField() throws Exception {
     String sqlQuery = "select location_field, review_count from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"location_field\",\n" +
-            "      \"review_count\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"location_field\",\n" +
+        "      \"review_count\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("location_field", "review_count")
-            .baselineValues(listOf(mapOf("lat", 11D, "lon", 11D), mapOf("lat", -11D, "lon", -11D)), 11)
-            .baselineValues(listOf(mapOf("lat", 22D, "lon", 22D), mapOf("lat", -22D, "lon", -22D)), 22)
-            .baselineValues(listOf(mapOf("lat", 33D, "lon", 33D), mapOf("lat", -33D, "lon", -33D)), 33)
-            .baselineValues(listOf(mapOf("lat", 44D, "lon", 44D), mapOf("lat", -44D, "lon", -44D)), 11)
-            .baselineValues(listOf(mapOf("lat", 55D, "lon", 55D), mapOf("lat", -55D, "lon", -55D)), 1)
-            .go();
+      .baselineValues(listOf(mapOf("lat", 11D, "lon", 11D), mapOf("lat", -11D, "lon", -11D)), 11)
+      .baselineValues(listOf(mapOf("lat", 22D, "lon", 22D), mapOf("lat", -22D, "lon", -22D)), 22)
+      .baselineValues(listOf(mapOf("lat", 33D, "lon", 33D), mapOf("lat", -33D, "lon", -33D)), 33)
+      .baselineValues(listOf(mapOf("lat", 44D, "lon", 44D), mapOf("lat", -44D, "lon", -44D)), 11)
+      .baselineValues(listOf(mapOf("lat", 55D, "lon", 55D), mapOf("lat", -55D, "lon", -55D)), 1)
+      .go();
   }
 
   @Test
@@ -1375,31 +1381,31 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestWhereClauseWithNestedNoExpressionPushdown() throws Exception {
     String sqlQuery = "select t.\"open\", t.location_field[1]['lat'] as lat_1 from elasticsearch." + schema + "." + table + " t where t.location_field[1]['lat'] < -30";
     verifyJsonInPlan(sqlQuery, new String[] {
-            "[{\n" +
-            "  \"from\" : 0,\n" +
-            "  \"size\" : 4000,\n" +
-            "  \"query\" : {\n" +
-            "    \"match_all\" : {\n" +
-            "      \"boost\" : 1.0\n" +
-            "    }\n" +
-            "  },\n" +
-            "  \"_source\" : {\n" +
-            "    \"includes\" : [\n" +
-            "      \"location_field\",\n" +
-            "      \"open\"\n" +
-            "    ],\n" +
-            "    \"excludes\" : [ ]\n" +
-            "  }\n" +
-            "}]"
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"location_field\",\n" +
+        "      \"open\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder()
-            .sqlQuery(sqlQuery)
-            .unOrdered()
-            .baselineColumns("open", "lat_1")
-            .baselineValues(false, -33D)
-            .baselineValues(true, -44D)
-            .baselineValues(false, -55D)
-            .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("open", "lat_1")
+      .baselineValues(false, -33D)
+      .baselineValues(true, -44D)
+      .baselineValues(false, -55D)
+      .go();
   }
 
 
@@ -1408,116 +1414,113 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where concat(cast(review_count as varchar(1)), '') = '3'";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"script\" : {\n" +
-      "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty) ? false : ( ( Long.toString(doc[\\\"review_count\\\"].value).substring(0, Integer.min(1, Double.toString(doc[\\\"review_count\\\"].value).length())) + '' ) == '3' ))\",\n" +
-      "        \"lang\" : \"painless\"\n" +
-      "      },\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\",\n" +
-      "      \"review_count\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty) ? false : ( ( Long.toString(doc[\\\"review_count\\\"].value).substring(0, Integer.min(1, Double.toString(doc[\\\"review_count\\\"].value).length())) + '' ) == '3' ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\",\n" +
+        "      \"review_count\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder()
-            .sqlQuery(sqlQuery)
-            .unOrdered()
-            .baselineColumns("city")
-            .baselineValues("San Diego")
-            .go();
+      .sqlQuery(sqlQuery)
+      .unOrdered()
+      .baselineColumns("city")
+      .baselineValues("San Diego")
+      .go();
   }
 
   @Test
   public final void testMultipleFilters() throws Exception {
-
+    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
     String sqlQuery = "select * from "
-            + "(select state, city, review_count from elasticsearch." + schema + "." + table
-            + " where char_length(trim(concat(city, '  '))) = 9) t"
-            + " where t.review_count <> 11";
+      + "(select state, city, review_count from elasticsearch." + schema + "." + table
+      + " where char_length(trim(concat(city, '  '))) = 9) t"
+      + " where t.review_count <> 11";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"bool\" : {\n" +
-      "      \"must\" : [\n" +
-      "        {\n" +
-      "          \"bool\" : {\n" +
-      "            \"must\" : [\n" +
-      "              {\n" +
-      "                \"bool\" : {\n" +
-      "                  \"must\" : [\n" +
-      "                    {\n" +
-      "                      \"exists\" : {\n" +
-      "                        \"field\" : \"review_count\",\n" +
-      "                        \"boost\" : 1.0\n" +
-      "                      }\n" +
-      "                    }\n" +
-      "                  ],\n" +
-      "                  \"must_not\" : [\n" +
-      "                    {\n" +
-      "                      \"match\" : {\n" +
-      "                        \"review_count\" : {\n" +
-      "                          \"query\" : 11,\n" +
-      "                          \"operator\" : \"OR\",\n" +
-      "                          \"prefix_length\" : 0,\n" +
-      "                          \"max_expansions\" : 50000,\n" +
-      "                          \"fuzzy_transpositions\" : false,\n" +
-      "                          \"lenient\" : false,\n" +
-      "                          \"zero_terms_query\" : \"NONE\",\n" +
-      "                          \"boost\" : 1.0\n" +
-      "                        }\n" +
-      "                      }\n" +
-      "                    }\n" +
-      "                  ],\n" +
-      "                  \"disable_coord\" : false,\n" +
-      "                  \"adjust_pure_negative\" : true,\n" +
-      "                  \"boost\" : 1.0\n" +
-      "                }\n" +
-      "              }\n" +
-      "            ],\n" +
-      "            \"disable_coord\" : false,\n" +
-      "            \"adjust_pure_negative\" : true,\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        },\n" +
-      "        {\n" +
-      "          \"script\" : {\n" +
-      "            \"script\" : {\n" +
-      "              \"inline\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"review_count\\\"].empty) ? false : ( ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ) && ( doc[\\\"review_count\\\"].value != 11 ) ))\",\n" +
-      "              \"lang\" : \"painless\"\n" +
-      "            },\n" +
-      "            \"boost\" : 1.0\n" +
-      "          }\n" +
-      "        }\n" +
-      "      ],\n" +
-      "      \"disable_coord\" : false,\n" +
-      "      \"adjust_pure_negative\" : true,\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  },\n" +
-      "  \"_source\" : {\n" +
-      "    \"includes\" : [\n" +
-      "      \"city\",\n" +
-      "      \"review_count\",\n" +
-      "      \"state\"\n" +
-      "    ],\n" +
-      "    \"excludes\" : [ ]\n" +
-      "  }\n" +
-      "}]"
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"bool\" : {\n" +
+        "      \"must\" : [\n" +
+        "        {\n" +
+        "          \"bool\" : {\n" +
+        "            \"must\" : [\n" +
+        "              {\n" +
+        "                \"bool\" : {\n" +
+        "                  \"must\" : [\n" +
+        "                    {\n" +
+        "                      \"exists\" : {\n" +
+        "                        \"field\" : \"review_count\",\n" +
+        "                        \"boost\" : 1.0\n" +
+        "                      }\n" +
+        "                    }\n" +
+        "                  ],\n" +
+        "                  \"must_not\" : [\n" +
+        "                    {\n" +
+        "                      \"match\" : {\n" +
+        "                        \"review_count\" : {\n" +
+        "                          \"query\" : 11,\n" +
+        "                          \"operator\" : \"OR\",\n" +
+        "                          \"prefix_length\" : 0,\n" +
+        "                          \"max_expansions\" : 50000,\n" +
+        "                          \"fuzzy_transpositions\" : false,\n" +
+        "                          \"lenient\" : false,\n" +
+        "                          \"zero_terms_query\" : \"NONE\",\n" +
+        "                          \"boost\" : 1.0\n" +
+        "                        }\n" +
+        "                      }\n" +
+        "                    }\n" +
+        "                  ],\n" + disableCoordOrBlank +
+        "                  \"adjust_pure_negative\" : true,\n" +
+        "                  \"boost\" : 1.0\n" +
+        "                }\n" +
+        "              }\n" +
+        "            ],\n" + disableCoordOrBlank +
+        "            \"adjust_pure_negative\" : true,\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        },\n" +
+        "        {\n" +
+        "          \"script\" : {\n" +
+        "            \"script\" : {\n" +
+        "              \"inline\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"review_count\\\"].empty) ? false : ( ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ) && ( doc[\\\"review_count\\\"].value != 11 ) ))\",\n" +
+        "              \"lang\" : \"painless\"\n" +
+        "            },\n" +
+        "            \"boost\" : 1.0\n" +
+        "          }\n" +
+        "        }\n" +
+        "      ],\n" + disableCoordOrBlank +
+        "      \"adjust_pure_negative\" : true,\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"city\",\n" +
+        "      \"review_count\",\n" +
+        "      \"state\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("state", "city", "review_count")
-            .baselineValues("CA", "San Diego", 33)
-            .go();
+      .baselineValues("CA", "San Diego", 33)
+      .go();
   }
 
   @Test

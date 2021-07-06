@@ -138,3 +138,18 @@ message NormalizedDatasetSplitInfo {
 message NormalizedDatasetSplitInfoList {
   repeated NormalizedDatasetSplitInfo splits = 1;
 }
+
+message DataFileUID {
+  required string dataFilePath = 1;
+  required string pluginId = 2; //Append plugin ID to make the datafile path unique across hadoop clusters
+}
+
+message BlockLocations {
+  required int64 offset = 1;
+  required int64 size = 2;
+  repeated string hosts = 3;
+}
+
+message BlockLocationsList {
+  repeated BlockLocations blockLocations = 1;
+}

@@ -13,5 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const getParamsForSpacesUrl = () => ['datasetCount'];
-
+export const getParamsForSpacesUrl = (includeDatasetCount) => {
+  return includeDatasetCount ? ['datasetCount'] : [];
+};

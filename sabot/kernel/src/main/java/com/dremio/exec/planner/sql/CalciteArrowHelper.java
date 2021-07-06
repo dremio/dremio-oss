@@ -23,9 +23,12 @@ import java.util.function.Function;
 
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
+import org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.common.exceptions.UserException;
@@ -247,6 +250,18 @@ public class CalciteArrowHelper {
       if (completeType.getType().getTypeID() == ArrowTypeID.Timestamp ||
           completeType.getType().getTypeID() == ArrowTypeID.Time) {
         return typeFactory.createTypeWithNullability(typeFactory.createSqlType(sqlTypeName, completeType.getPrecision()), true);
+      }
+      if (completeType.getType().getTypeID() == ArrowTypeID.Interval) {
+        switch (completeType.toMinorType()) {
+          case INTERVALDAY:
+            return typeFactory.createTypeWithNullability(typeFactory
+                .createSqlIntervalType(new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO)), true);
+          case INTERVALYEAR:
+            return typeFactory.createTypeWithNullability(typeFactory
+                .createSqlIntervalType(new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO)), true);
+          default:
+            break;
+        }
       }
 
       return typeFactory.createTypeWithNullability(typeFactory.createSqlType(sqlTypeName), true);

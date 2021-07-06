@@ -115,9 +115,20 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
    */
   @VisibleForTesting
   static class DSRConnectionInfo {
-    private String server;
-    private String schema;
-    private String table;
+    private final String server;
+    private final String schema;
+    private final String table;
+
+    DSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig) {
+      this.server = String.format("%s:%d",hostname, port);
+      final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
+      // PBI doesn't work right when there are quotes embedded in the schema name, which happens
+      // when calling DatasetPath.toParentPath(). Instead manually join each element of the path
+      // up until the table.
+      this.schema = String.join(".", datasetConfig.getFullPathList().subList(0, datasetConfig.getFullPathList().size() - 1));
+
+      this.table = dataset.getLeaf().getName();
+    }
 
     public String getServer() {
       return server;
@@ -151,7 +162,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   /**
-   * Populate a DSRFile POJO according to the given host and dataset.
+   * Populate a DSRFile POJO according to the given host, port and dataset.
    * @param hostname The host to use for the DSR file.
    * @param datasetConfig The dataset to write to the DSR file.
    * @return
@@ -159,17 +170,8 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
    *  serialized with Jackson
    */
   @VisibleForTesting
-  static DSRFile createDSRFile(String hostname, DatasetConfig datasetConfig) {
-    final DSRConnectionInfo connInfo = new DSRConnectionInfo();
-    connInfo.server = hostname;
-    final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
-    // PBI doesn't work right when there are quotes embedded in the schema name, which happens
-    // when calling DatasetPath.toParentPath(). Instead manually join each element of the path
-    // up until the table.
-    connInfo.schema = String.join(".", datasetConfig.getFullPathList().subList(0, datasetConfig.getFullPathList().size() - 1));
-
-    connInfo.table = dataset.getLeaf().getName();
-
+  DSRFile createDSRFile(String hostname, DatasetConfig datasetConfig) {
+    final DSRConnectionInfo connInfo = createDSRConnectionInfo(hostname, getPort(), datasetConfig);
     final DataSourceReference dsr = new DataSourceReference(connInfo);
     final Connection conn = new Connection();
     conn.dsr = dsr;
@@ -178,5 +180,9 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     dsrFile.addConnection(conn);
 
     return dsrFile;
+  }
+
+  DSRConnectionInfo createDSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig) {
+    return new DSRConnectionInfo(hostname, port, datasetConfig);
   }
 }

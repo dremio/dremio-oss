@@ -1,5 +1,6 @@
 com.dremio.telemetry.impl.config.tracing.StackDriverConfigurator$Module
 com.dremio.telemetry.impl.config.tracing.JaegerConfigurator$Module
+com.dremio.telemetry.impl.config.tracing.OpenTelemetryConfigurator$Module
 com.dremio.telemetry.impl.config.metrics.Slf4jConfigurator$Module
 com.dremio.telemetry.impl.config.metrics.StackDriverConfigurator$Module
 com.dremio.telemetry.impl.config.metrics.JmxConfigurator$Module

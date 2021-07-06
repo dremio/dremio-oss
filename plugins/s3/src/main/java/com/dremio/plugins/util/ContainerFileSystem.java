@@ -43,10 +43,10 @@ import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.util.RemoteIterators;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -66,6 +66,16 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   private volatile ImmutableMap<String, ContainerHolder> containerMap = ImmutableMap.of();
   private volatile List<ContainerFailure> failures = ImmutableList.of();
+
+  // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169
+  public static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY =
+      (input -> {
+        final FileStatus status = input.getStatus();
+        if (!status.isDirectory()) {
+          return true;
+        }
+        return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName()).equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
+      });
 
   /**
    * Subclass Constructor.
@@ -283,27 +293,8 @@ public abstract class ContainerFileSystem extends FileSystem {
     return pathComponents.size() == 0;
   }
 
-  /**
-   * Get container name from the path.
-   *
-   * @param path path
-   * @return container name
-   */
-  public static String getContainerName(Path path) {
-    final List<String> pathComponents = Arrays.asList(
-        removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
-            .split(Path.SEPARATOR)
-    );
-    return pathComponents.get(0);
-  }
-
-  public static Path pathWithoutContainer(Path path) {
-    List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
-    return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
-  }
-
   private ContainerHolder getFileSystemForPath(Path path) throws IOException {
-    final String name = getContainerName(path);
+    final String name = DremioHadoopUtils.getContainerName(path);
     ContainerHolder container = containerMap.get(name);
 
     if (container == null) {
@@ -339,28 +330,28 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   public FSDataInputStream open(Path f, int bufferSize) throws IOException {
-    return getFileSystemForPath(f).fs().open(pathWithoutContainer(f), bufferSize);
+    return getFileSystemForPath(f).fs().open(DremioHadoopUtils.pathWithoutContainer(f), bufferSize);
   }
 
   @Override
   public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize, short replication, long blockSize, Progressable progress) throws IOException {
-    return getFileSystemForPath(f).fs().create(pathWithoutContainer(f), permission, overwrite, bufferSize, replication, blockSize, progress);
+    return getFileSystemForPath(f).fs().create(DremioHadoopUtils.pathWithoutContainer(f), permission, overwrite, bufferSize, replication, blockSize, progress);
   }
 
   @Override
   public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
-    return getFileSystemForPath(f).fs().append(pathWithoutContainer(f), bufferSize, progress);
+    return getFileSystemForPath(f).fs().append(DremioHadoopUtils.pathWithoutContainer(f), bufferSize, progress);
   }
 
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
-    Preconditions.checkArgument(getContainerName(src).equals(getContainerName(dst)), String.format("Cannot rename files across %ss.", containerName));
-    return getFileSystemForPath(src).fs().rename(pathWithoutContainer(src), pathWithoutContainer(dst));
+    Preconditions.checkArgument(DremioHadoopUtils.getContainerName(src).equals(DremioHadoopUtils.getContainerName(dst)), String.format("Cannot rename files across %ss.", containerName));
+    return getFileSystemForPath(src).fs().rename(DremioHadoopUtils.pathWithoutContainer(src), DremioHadoopUtils.pathWithoutContainer(dst));
   }
 
   @Override
   public boolean delete(Path f, boolean recursive) throws IOException {
-    return getFileSystemForPath(f).fs().delete(pathWithoutContainer(f), recursive);
+    return getFileSystemForPath(f).fs().delete(DremioHadoopUtils.pathWithoutContainer(f), recursive);
   }
 
 
@@ -371,22 +362,22 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   protected RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f, final PathFilter filter) throws FileNotFoundException, IOException {
-    final String container = getContainerName(f);
+    final String container = DremioHadoopUtils.getContainerName(f);
     final PathFilter alteredFilter = (path) -> {
       return filter.accept(transform(path, container));
     };
 
     return RemoteIterators.transform(
-        ListAccessor.listLocatedFileStatus(getFileSystemForPath(f).fs(), pathWithoutContainer(f), alteredFilter),
+        ListAccessor.listLocatedFileStatus(getFileSystemForPath(f).fs(), DremioHadoopUtils.pathWithoutContainer(f), alteredFilter),
         t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
         );
   }
 
   @Override
   public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
-    final String container = getContainerName(f);
+    final String container = DremioHadoopUtils.getContainerName(f);
     return RemoteIterators.transform(
-        getFileSystemForPath(f).fs().listFiles(pathWithoutContainer(f), recursive),
+        getFileSystemForPath(f).fs().listFiles(DremioHadoopUtils.pathWithoutContainer(f), recursive),
         t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
         );
   }
@@ -401,8 +392,8 @@ public abstract class ContainerFileSystem extends FileSystem {
         .toArray(FileStatus[]::new);
     }
 
-    final String containerName = getContainerName(f);
-    final Path pathWithoutContainerName = pathWithoutContainer(f);
+    final String containerName = DremioHadoopUtils.getContainerName(f);
+    final Path pathWithoutContainerName = DremioHadoopUtils.pathWithoutContainer(f);
     return Arrays.stream(getFileSystemForPath(f).fs().listStatus(pathWithoutContainerName))
       .map((Function<FileStatus, CorrectableFileStatus>) status ->
         new CorrectableFileStatus(status, pathWithoutContainerName))
@@ -481,7 +472,7 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   public boolean mkdirs(Path f, FsPermission permission) throws IOException {
-    return getFileSystemForPath(f).fs().mkdirs(pathWithoutContainer(f), permission);
+    return getFileSystemForPath(f).fs().mkdirs(DremioHadoopUtils.pathWithoutContainer(f), permission);
   }
 
   @Override
@@ -498,8 +489,8 @@ public abstract class ContainerFileSystem extends FileSystem {
     if (isRoot(f)) {
       return new FileStatus(0, true, 0, 0, 0, f);
     }
-    FileStatus fileStatus = getFileSystemForPath(f).fs().getFileStatus(pathWithoutContainer(f));
-    return transform(fileStatus, getContainerName(f));
+    FileStatus fileStatus = getFileSystemForPath(f).fs().getFileStatus(DremioHadoopUtils.pathWithoutContainer(f));
+    return transform(fileStatus, DremioHadoopUtils.getContainerName(f));
   }
 
   @Override

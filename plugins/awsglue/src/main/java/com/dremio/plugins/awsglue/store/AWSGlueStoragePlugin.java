@@ -50,6 +50,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
+import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
+import com.dremio.io.file.FileSystem;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -61,7 +64,7 @@ import com.google.common.base.Strings;
  * During instantiation it creates a hive 2 plugin and delegates all calls to it
  */
 public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignature,
-  SupportsListingDatasets, SupportsPF4JStoragePlugin {
+  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
   private static final String AWS_GLUE_HIVE_METASTORE_PLACEHOLDER = "DremioGlueHive";
@@ -77,11 +80,25 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   // AWS Credential providers
   public static final String ACCESS_KEY_PROVIDER = SimpleAWSCredentialsProvider.NAME;
   public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
+  public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
   private StoragePlugin hiveStoragePlugin;
+
+  private AWSGluePluginConfig config;
+  private SabotContext context;
+  private String name;
+  private Provider<StoragePluginId> idProvider;
+
   public AWSGlueStoragePlugin(AWSGluePluginConfig config,
                               SabotContext context,
                               String name, Provider<StoragePluginId> idProvider) {
+    this.config = config;
+    this.context = context;
+    this.name = name;
+    this.idProvider = idProvider;
+  }
+
+  protected void setup() {
     Hive2StoragePluginConfig hiveConf = new Hive2StoragePluginConfig();
 
     // set hive configuration properties
@@ -103,24 +120,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
 
     finalProperties.add(new Property(FSConstants.FS_S3A_REGION, config.regionNameSelection.getRegionName()));
 
-    String mainAWSCredProvider;
-    switch (config.credentialType) {
-      case ACCESS_KEY:
-        if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
-          throw UserException.validationError()
-            .message("Failure creating AWS Glue connection. You must provide AWS Access Key and AWS Access Secret.")
-            .build(logger);
-        }
-        mainAWSCredProvider = ACCESS_KEY_PROVIDER;
-        finalProperties.add(new Property(Constants.ACCESS_KEY, config.accessKey));
-        finalProperties.add(new Property(Constants.SECRET_KEY, config.accessSecret));
-        break;
-      case EC2_METADATA:
-        mainAWSCredProvider = EC2_METADATA_PROVIDER;
-        break;
-      default:
-        throw new RuntimeException("Failure creating AWS Glue connection. Invalid credentials type.");
-    }
+    String mainAWSCredProvider = getMainCredentialsProvider(config, finalProperties);
 
     if (!Strings.isNullOrEmpty(config.assumedRoleARN)) {
       finalProperties.add(new Property(ASSUMED_ROLE_ARN, config.assumedRoleARN));
@@ -152,6 +152,50 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
     hiveStoragePlugin = hiveConf.newPlugin(context, name, idProvider);
   }
 
+  /**
+   * Populate plugin properties into finalProperties parameter and return the credentials provider.
+   * @param config
+   * @param finalProperties
+   * @return
+   */
+  protected String getMainCredentialsProvider(AWSGluePluginConfig config, List<Property> finalProperties) {
+    switch (config.credentialType) {
+      case ACCESS_KEY:
+        if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
+          throw UserException.validationError()
+            .message("Failure creating AWS Glue connection. You must provide AWS Access Key and AWS Access Secret.")
+            .build(logger);
+        }
+        finalProperties.add(new Property(Constants.ACCESS_KEY, config.accessKey));
+        finalProperties.add(new Property(Constants.SECRET_KEY, config.accessSecret));
+        return ACCESS_KEY_PROVIDER;
+      case AWS_PROFILE:
+        if (config.awsProfile != null) {
+          finalProperties.add(new Property("com.dremio.awsProfile", config.awsProfile));
+        }
+        return AWS_PROFILE_PROVIDER;
+      case EC2_METADATA:
+        return EC2_METADATA_PROVIDER;
+      default:
+        throw new RuntimeException("Failure creating AWS Glue connection. Invalid credentials type.");
+    }
+  }
+
+  @Override
+  public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createFS(filePath, userName, operatorContext);
+  }
+
+  @Override
+  public boolean canGetDatasetMetadataInCoordinator() {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).canGetDatasetMetadataInCoordinator();
+  }
+
+  @Override
+  public List<String> resolveTableNameToValidPath(List<String> tableSchemaPath) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).resolveTableNameToValidPath(tableSchemaPath);
+  }
+
   @Override
   public boolean hasAccessPermission(String user,
                                      NamespaceKey key,
@@ -177,6 +221,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
 
   @Override
   public void start() throws IOException {
+    setup();
     hiveStoragePlugin.start();
   }
 

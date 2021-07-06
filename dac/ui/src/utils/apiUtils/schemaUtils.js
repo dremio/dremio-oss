@@ -40,7 +40,12 @@ class SchemaUtils {
               fullDataset: mapDataset
             };
             const payload = Immutable.fromJS(normalize(hash[schema._key] && hash[schema._key](finalJson, key) || finalJson, schema));
-            return payload.set('entities', applyDecorators(payload.get('entities')));
+            let newPayLoad = payload.set('entities', applyDecorators(payload.get('entities')));
+
+            if (payload.getIn(['entities', 'accessControlList', finalJson.id, 'grants']) !== undefined && type === 'ACCESS_CONTROL_GET_SUCCESS') {
+              newPayLoad = newPayLoad.setIn(['entities', 'accessControlList', finalJson.id], Immutable.fromJS(finalJson));
+            }
+            return newPayLoad;
           });
         }
       }

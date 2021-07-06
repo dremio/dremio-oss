@@ -34,6 +34,7 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STATS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STATS_PARSED;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_TAGS;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_VALUE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.VERSION;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -204,23 +205,36 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
       names.add(SCHEMA_SIZE);
       names.add(SCHEMA_MODIFICATION_TIME);
       builder.add(new RelDataTypeFieldImpl(DELTA_FIELD_ADD, 0, typeFactory.createStructType(typeList, names)));
-
       // Add all partition col fields
       List<String> partitionCols = tableMetadata.getReadDefinition().getPartitionColumnsList();
+      AtomicInteger i = new AtomicInteger(1);
       if (partitionCols != null) {
         Set<String> partitionColsSet = new HashSet<>(partitionCols);
-        AtomicInteger i = new AtomicInteger(1);
         deltaCommitLogSchema.getFields().stream()
           .filter(f -> partitionColsSet.contains(f.getName()))
           .forEach(field -> builder.add(new RelDataTypeFieldImpl(field.getName(), i.getAndIncrement(),
             CalciteArrowHelper.toCalciteType(field, typeFactory, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()))));
       }
+      builder.add(new RelDataTypeFieldImpl(VERSION, i.get(), typeFactory.createSqlType(SqlTypeName.BIGINT)));
     } else {
       // Schema for DeltaLakeScan for removed paths
-      typeList.add(typeFactory.createSqlType(SqlTypeName.VARCHAR));
-      names.add(SCHEMA_PATH);
+      List<RelDataType> removeTypeList = new ArrayList<>();
+      removeTypeList.add(typeFactory.createSqlType(SqlTypeName.VARCHAR));
 
-      builder.add(new RelDataTypeFieldImpl(DELTA_FIELD_REMOVE, 0, typeFactory.createStructType(typeList, names)));
+      List<RelDataType> addTypeList = new ArrayList<>();
+      addTypeList.add(typeFactory.createSqlType(SqlTypeName.VARCHAR));
+      addTypeList.add(typeFactory.createSqlType(SqlTypeName.BOOLEAN));
+
+      List<String> namesAdd = new ArrayList<>();
+      namesAdd.add(SCHEMA_PATH);
+      namesAdd.add(SCHEMA_DATA_CHANGE);
+
+      List<String> namesRemoved = new ArrayList<>();
+      namesRemoved.add(SCHEMA_PATH);
+
+      builder.add(new RelDataTypeFieldImpl(DELTA_FIELD_REMOVE, 0, typeFactory.createStructType(removeTypeList, namesRemoved)));
+      builder.add(new RelDataTypeFieldImpl(DELTA_FIELD_ADD, 1, typeFactory.createStructType(addTypeList, namesAdd)));
+      builder.add(new RelDataTypeFieldImpl(VERSION, 2, typeFactory.createSqlType(SqlTypeName.BIGINT)));
     }
     return builder.build();
   }
@@ -280,6 +294,7 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
     final Field statsParsed = new Field(SCHEMA_STATS_PARSED, FieldType.nullable(new ArrowType.Struct()),
       ImmutableList.of(numRecords, minValues, maxValues, nullCount));
 
+
     final Field add = new Field(DELTA_FIELD_ADD, true, new ArrowType.Struct(),
       ImmutableList.of(path, partitionValues, size, modificationTime, dataChange, tags, stats, partitionValuesParsed, statsParsed));
     outputSchema.addField(add);
@@ -290,7 +305,8 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
 
     final Field remove = new Field(DELTA_FIELD_REMOVE, true, new ArrowType.Struct(), ImmutableList.of(removePath, deletionTimestamp, removeDataChange));
     outputSchema.addField(remove);
-
+    final Field version = Field.nullablePrimitive(VERSION, new ArrowType.Int(64, true));
+    outputSchema.addField(version);
     // Partition cols to be populated explicitly
     outputSchema.addFields(partitionValuesParsed.getChildren());
     return outputSchema.build();
@@ -312,10 +328,18 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
           .filter(f -> partitionColsSet.contains(f.getName()))
           .forEach(f -> cols.add(SchemaPath.getSimplePath(f.getName())));
       }
+      cols.add(SchemaPath.getSimplePath(VERSION));
       return cols;
     } else {
+      final List<SchemaPath> cols = new ArrayList<>();
+      cols.add(SchemaPath.getCompoundPath(DELTA_FIELD_REMOVE, SCHEMA_PATH));
+
+      cols.add(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PATH));
+      cols.add(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_DATA_CHANGE));
+
       // Not projecting complete `remove` so RecordReader can adjust when internal structure has differences.
-      return Collections.singletonList(SchemaPath.getCompoundPath(DELTA_FIELD_REMOVE, SCHEMA_PATH));
+      cols.add(SchemaPath.getSimplePath(VERSION));
+      return cols;
     }
   }
 }

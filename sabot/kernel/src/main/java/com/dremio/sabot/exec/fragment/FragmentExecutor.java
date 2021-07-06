@@ -127,6 +127,8 @@ public class FragmentExecutor {
 
   private boolean retired = false;
   private boolean isSetup = false;
+  private volatile boolean foremanDead = false;
+  private volatile UserException foremanDeadException = null;
 
   // All tasks start as runnable. Only the execution thread will be allowed to change this value so no locking is needed.
   private volatile State taskState = State.RUNNABLE;
@@ -239,7 +241,7 @@ public class FragmentExecutor {
       }
 
       // if there are any deferred exceptions, exit.
-      if(deferredException.hasException()){
+      if(deferredException.hasException()) {
         transitionToFailed(null);
         return;
       }
@@ -247,9 +249,11 @@ public class FragmentExecutor {
       // if cancellation is requested, that is always the top priority.
       if (cancelled.isDone()) {
         Optional<Throwable> failedReason = eventProvider.getFailedReason();
-        if (failedReason.isPresent()) {
+        if (failedReason.isPresent() || foremanDead) {
           // check if it was failed due to an external reason (eg. by heap monitor).
-          transitionToFailed(failedReason.get());
+          // foremanDead is true, foremanDeadException must be non null.
+          assert(!foremanDead || (foremanDeadException != null));
+          transitionToFailed(failedReason.isPresent() ? failedReason.get() : foremanDeadException);
           return;
         }
 
@@ -493,12 +497,10 @@ public class FragmentExecutor {
     // only be sent once.
     final FragmentHandle handle = fragment.getMajor().getHandle();
     if (state == FragmentState.FAILED) {
-
-      @SuppressWarnings("deprecation")
       final UserException uex = UserException.systemError(deferredException.getAndClear())
-          .addIdentity(fragment.getMinor().getAssignment())
-          .addContext("Fragment", handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId())
-          .build(logger);
+        .addIdentity(fragment.getMinor().getAssignment())
+        .addContext("Fragment", handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId())
+        .build(logger);
       statusReporter.fail(uex);
     } else {
       statusReporter.stateChanged(state);
@@ -585,9 +587,19 @@ public class FragmentExecutor {
     public void nodesUnregistered(final Set<NodeEndpoint> unregistereds) {
       final NodeEndpoint foremanEndpoint = fragment.getMajor().getForeman();
       if (unregistereds.contains(foremanEndpoint)) {
-        logger.warn("AttemptManager {} no longer active.  Cancelling fragment {}.",
+        logger.warn("AttemptManager {} no longer active. Cancelling fragment {}.",
                     foremanEndpoint.getAddress(),
                     QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
+        if (!foremanDead) {
+          foremanDead = true;
+          foremanDeadException =
+            UserException.connectionError()
+              .message(String.format(
+                "AttemptManager %s no longer active. Cancelling fragment %s",
+                foremanEndpoint.getAddress(),
+                QueryIdHelper.getQueryIdentifier(fragment.getHandle())))
+              .buildSilently();
+        }
         requestCancellation();
       }
     }
@@ -702,6 +714,8 @@ public class FragmentExecutor {
     }
 
     public void cancel() {
+      logger.info("Cancellation requested for fragment {}.",
+        QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
       requestActivate("cancel message from foreman");
       requestCancellation();
     }

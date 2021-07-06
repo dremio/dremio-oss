@@ -15,27 +15,28 @@
  */
 package com.dremio.exec.planner;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
 
 public class PlanCache {
 
   private final Cache<Long, CachedPlan> cachePlans;
-  private final Multimap<PhysicalDataset, Long> datasetMap;
+  private static Multimap<String, Long> datasetMap;
 
-  public PlanCache(Cache<Long, CachedPlan> cachePlans, Multimap<PhysicalDataset, Long> map) {
+  public PlanCache(Cache<Long, CachedPlan> cachePlans, Multimap<String, Long> map) {
     this.cachePlans = cachePlans;
     this.datasetMap = map;
   }
 
-  public Multimap<PhysicalDataset, Long> getDatasetMap() {
+  public Multimap<String, Long> getDatasetMap() {
     return datasetMap;
   }
 
@@ -43,9 +44,9 @@ public class PlanCache {
     return cachePlans;
   }
 
-  public void addCacheToDatasetMap(PhysicalDataset dataset, Long cacheId) {
+  public void addCacheToDatasetMap(String datasetId, Long cacheId) {
     synchronized (datasetMap) {
-      datasetMap.put(dataset, cacheId);
+      datasetMap.put(datasetId, cacheId);
     }
   }
 
@@ -53,31 +54,37 @@ public class PlanCache {
     return sql.concat(workLoadType).hashCode();
   }
 
-  public CachedPlan getIfPresentAndValid(Catalog catalog, long cachedKey) {
+  public CachedPlan getIfPresentAndValid(Catalog catalog, long cacheId) {
     if (cachePlans == null) {
       return null;
     }
-    CachedPlan cachedPlan = cachePlans.getIfPresent(cachedKey);
+    CachedPlan cachedPlan = cachePlans.getIfPresent(cacheId);
     if (cachedPlan != null) {
       Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
       for (DremioTable dataset : datasets) {
-        if (dataset instanceof NamespaceTable) {
+        if (dataset instanceof NamespaceTable || dataset instanceof ViewTable) {
           DatasetConfig config = dataset.getDatasetConfig();
           if (config.getLastModified() > cachedPlan.getCreationTime()) {
-            invalidateCacheOnDataset(config.getPhysicalDataset());
+            // for this case, we can only invalidate this cach entry, other cache entries may still be valid
+            cachePlans.invalidate(cacheId);
+            return null;
           }
         }
       }
     }
-    return cachePlans.getIfPresent(cachedKey);
+    return cachePlans.getIfPresent(cacheId);
   }
 
-  public void invalidateCacheOnDataset(PhysicalDataset dataset) {
-    Collection<Long> affectedCaches = datasetMap.get(dataset);
+  public void invalidateCacheOnDataset(String datasetId) {
+    List<Long> affectedCaches = datasetMap.get(datasetId).stream().collect(Collectors.toList());
+    for(Long cacheId: affectedCaches) {
+      cachePlans.invalidate(cacheId);
+    }
+  }
+
+  public static void clearDatasetMapOnCacheGC(Long cacheId) {
     synchronized (datasetMap) {
-      for (Long affectedCache : affectedCaches) {
-        cachePlans.invalidate(affectedCache);
-      }
+      datasetMap.entries().removeIf(datasetMapEntry -> datasetMapEntry.getValue().equals(cacheId));
     }
   }
 }

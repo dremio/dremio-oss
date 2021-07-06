@@ -30,6 +30,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.CacheProperties;
 import com.dremio.exec.store.dfs.FileSystemConf;
+import com.dremio.exec.store.dfs.MayBeDistFileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
@@ -44,7 +45,7 @@ import io.protostuff.Tag;
  * Configuration for the MaterializationStoragePluginConfigOTAS plugin
  */
 @SourceType( value = "ACCELERATION", configurable = false)
-public class AccelerationStoragePluginConfig extends FileSystemConf<AccelerationStoragePluginConfig, AccelerationStoragePlugin> {
+public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<AccelerationStoragePluginConfig, AccelerationStoragePlugin> {
 
   private static final int MAX_CACHE_SPACE_PERCENT = 100;
 
@@ -167,18 +168,22 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     return enableS3FileStatusCheck;
   }
 
+  @Override
   public String getAccessKey() {
     return accessKey;
   }
 
+  @Override
   public String getSecretKey() {
     return secretKey;
   }
 
+  @Override
   public String getIamRole() {
     return iamRole;
   }
 
+  @Override
   public String getExternalId() {
     return externalId;
   }

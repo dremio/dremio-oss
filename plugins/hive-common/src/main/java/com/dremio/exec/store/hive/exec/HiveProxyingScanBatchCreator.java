@@ -34,7 +34,6 @@ public class HiveProxyingScanBatchCreator implements ProducerOperator.Creator<Hi
     final StoragePluginCreator.PF4JStoragePlugin plugin =
       pf4JStoragePlugin.getPF4JStoragePlugin();
 
-
-    return plugin.createScanBatchCreator().create(fragmentExecContext, context, config);
+    return plugin.createScanBatchCreator(fragmentExecContext, context, config).create();
   }
 }

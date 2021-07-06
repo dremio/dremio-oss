@@ -420,8 +420,9 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
     for (PartitionChunk partitionChunk : partitionChunks) {
       List<DatasetSplit> datasetSplits = new ArrayList<>();
       DatasetSplitListing datasetSplitListing = (partitionChunk.getSplits());
-      while (datasetSplitListing.iterator().hasNext()) {
-        datasetSplits.add(datasetSplitListing.iterator().next());
+      Iterator splits = datasetSplitListing.iterator();
+      while (splits.hasNext()) {
+        datasetSplits.add((DatasetSplit) splits.next());
       }
 
       allDatasetSplits.add(datasetSplits);

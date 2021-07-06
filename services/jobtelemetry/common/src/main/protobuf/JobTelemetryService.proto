@@ -64,6 +64,7 @@ message PutTailProfileRequest {
 
 message PutExecutorProfileRequest {
   exec.bit.control.ExecutorQueryProfile profile = 1;
+  bool is_final = 2;
 }
 
 message GetQueryProfileRequest {

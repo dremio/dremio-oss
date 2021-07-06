@@ -83,7 +83,6 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-
 /**
  * DeltaLog checkpoint parquet reader, which extracts datasize estimate and schema from a checkpoint.
  */
@@ -123,7 +122,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   private double estimationFactor;
 
   @Override
-  public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes) throws IOException {
+  public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes, long version) throws IOException {
     maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     estimationFactor = context.getOptionManager().getOption(ExecConstants.DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR);
     try (BufferAllocator allocator = context.getAllocator().newChildAllocator(
@@ -199,7 +198,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       final DeltaLogSnapshot snap = new DeltaLogSnapshot("UNKNOWN", netFilesAdded,
         estimatedNetBytesAdded, estimatedNetRecordsAdded, netFilesAdded, System.currentTimeMillis(), true);
       snap.setSchema(schemaString, partitionCols);
-      snap.setSplits(generateSplits(fileAttributes));
+      snap.setSplits(generateSplits(fileAttributes, version));
       return snap;
     } catch (Exception e) {
       logger.error("IOException occurred while reading deltalake table", e);
@@ -368,7 +367,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
     }
   }
 
-  private List<DatasetSplit> generateSplits(FileAttributes fileAttributes) {
+  private List<DatasetSplit> generateSplits(FileAttributes fileAttributes, long version) {
     FileProtobuf.FileSystemCachedEntity fileProto = FileProtobuf.FileSystemCachedEntity
       .newBuilder()
       .setPath(fileAttributes.getPath().toString())
@@ -377,11 +376,13 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       .build();
 
     int rowGrpIdx=0;
+
     final List<DatasetSplit> datasetSplits = new ArrayList<>(parquetMetadata.getBlocks().size());
     for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
       final DeltaLakeProtobuf.DeltaCommitLogSplitXAttr deltaExtended = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr
-              .newBuilder().setRowGroupIndex(rowGrpIdx).build();
+              .newBuilder().setRowGroupIndex(rowGrpIdx).setVersion(version).build();
       rowGrpIdx++;
+
       final EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
               .setPath(fileAttributes.getPath().toString())
               .setStart(blockMetaData.getStartingPos())

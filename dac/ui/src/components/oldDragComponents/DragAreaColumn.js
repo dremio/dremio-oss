@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -32,9 +31,8 @@ import {NOT_SUPPORTED_TYPES} from './DragColumnMenu';
 
 const COUNT_ACTION = 'Count (*)';
 
-@pureRender
 @Radium
-class DragAreaColumn extends Component {
+class DragAreaColumn extends PureComponent {
   static propTypes = {
     dragColumntableType: PropTypes.string,
     ownDragColumntableType: PropTypes.string,

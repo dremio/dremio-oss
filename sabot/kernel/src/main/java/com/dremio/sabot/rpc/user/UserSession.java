@@ -142,6 +142,13 @@ public class UserSession {
       public void setValue(UserSession session, String value) {
         session.routingEngine = value;
       }
+    },
+
+    ENGINE {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.routingEngine = value;
+      }
     };
 
     /**
@@ -314,6 +321,10 @@ public class UserSession {
   }
 
   public String getRoutingEngine() {
+    return routingEngine;
+  }
+
+  public String getEngine() {
     return routingEngine;
   }
 

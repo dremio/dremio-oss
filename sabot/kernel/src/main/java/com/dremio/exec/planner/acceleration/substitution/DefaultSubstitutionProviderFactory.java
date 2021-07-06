@@ -16,7 +16,7 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 
 /**
  * Factory class to create default (calcite) {@code org.apache.calcite.plan.substitution.UnifyingSubstitutionProvider}
@@ -31,7 +31,7 @@ public class DefaultSubstitutionProviderFactory implements SubstitutionProviderF
   public SubstitutionProvider getSubstitutionProvider(
       SabotConfig config,
       MaterializationProvider materializationProvider,
-      OptionManager options) {
+      OptionResolver options) {
     return new UnifyingSubstitutionProvider(materializationProvider);
   }
 }

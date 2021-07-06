@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.RecordReader.COL_IDS;
+import static com.dremio.exec.store.RecordReader.SPLIT_IDENTITY;
 import static com.dremio.exec.store.RecordReader.SPLIT_INFORMATION;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -52,10 +55,11 @@ import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FilterPrel;
-import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
@@ -64,8 +68,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ExpressionInputRewriter;
 import com.dremio.exec.store.MinMaxRewriter;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.google.common.collect.ImmutableList;
 
@@ -75,9 +79,10 @@ import com.google.common.collect.ImmutableList;
 public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergScanPrel.class);
 
-  private final ParquetScanFilter filter;
+  private final ScanFilter filter;
   private final boolean arrowCachingEnabled;
   private final PruneFilterCondition pruneCondition;
+  private final TableFunctionPrel.TableFunctionPOPCreator tableFunctionPOPCreator;
 
   private static Function<RexNode, List<Integer>> getUsedIndices = (cond) -> {
     Set<Integer> usedIndices = new HashSet<>();
@@ -92,26 +97,33 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   };
 
   public IcebergScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId, TableMetadata dataset,
-                         List<SchemaPath> projectedColumns, double observedRowcountAdjustment, ParquetScanFilter filter, boolean arrowCachingEnabled, PruneFilterCondition pruneCondition) {
+                         List<SchemaPath> projectedColumns, double observedRowcountAdjustment, ScanFilter filter, boolean arrowCachingEnabled,
+                         PruneFilterCondition pruneCondition, TableFunctionPrel.TableFunctionPOPCreator tableFunctionPOPCreator) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
     this.filter = filter;
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.pruneCondition = pruneCondition;
+    this.tableFunctionPOPCreator = tableFunctionPOPCreator;
   }
 
-  private List<ParquetFilterCondition> getConditions() {
-    return filter == null ? null : filter.getConditions();
+  public IcebergScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId, TableMetadata dataset,
+                         List<SchemaPath> projectedColumns, double observedRowcountAdjustment, ScanFilter filter, boolean arrowCachingEnabled,
+                         PruneFilterCondition pruneCondition) {
+    this(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, filter, arrowCachingEnabled, pruneCondition,
+      TableFunctionPrel.TableFunctionPOPCreator.DEFAULT);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new IcebergScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-      observedRowcountAdjustment, this.filter, this.arrowCachingEnabled, this.pruneCondition);
+      observedRowcountAdjustment, this.filter, this.arrowCachingEnabled, this.pruneCondition, tableFunctionPOPCreator);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new IcebergScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, this.filter, this.arrowCachingEnabled, this.pruneCondition);
+    ScanFilter newFilter = (filter != null && filter instanceof ParquetScanFilter) ? ((ParquetScanFilter) filter).applyProjection(projection, rowType, getCluster(), getBatchSchema()) : filter;
+    return new IcebergScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, newFilter, this.arrowCachingEnabled, pruneCondition == null ? pruneCondition : pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema()), tableFunctionPOPCreator);
+
   }
 
   @Override
@@ -141,11 +153,11 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
   @Override
   public Prel finalizeRel() {
-    List<SchemaPath> manifestListReaderColumns = new ArrayList<>(Collections.singleton(SchemaPath.getSimplePath(SPLIT_INFORMATION)));
-    BatchSchema manifestListReaderSchema = RecordReader.SPLIT_GEN_SCAN_SCHEMA;
+    List<SchemaPath> manifestListReaderColumns = new ArrayList<>(Arrays.asList(SchemaPath.getSimplePath(SPLIT_IDENTITY), SchemaPath.getSimplePath(SPLIT_INFORMATION), SchemaPath.getSimplePath(COL_IDS)));
+    BatchSchema manifestListReaderSchema = RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
 
-    List<SchemaPath> manifestFileReaderColumns = new ArrayList<>(Collections.singleton(SchemaPath.getSimplePath(SPLIT_INFORMATION)));
-    BatchSchema manifestFileReaderSchema = RecordReader.SPLIT_GEN_SCAN_SCHEMA;
+    List<SchemaPath> manifestFileReaderColumns = new ArrayList<>(Arrays.asList(SchemaPath.getSimplePath(SPLIT_IDENTITY), SchemaPath.getSimplePath(SPLIT_INFORMATION), SchemaPath.getSimplePath(COL_IDS)));
+    BatchSchema manifestFileReaderSchema = RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
 
     if (pruneCondition != null) {
       manifestListReaderSchema = getSchemaWithMinMaxUsedColumns(pruneCondition.getPartitionRange(), manifestListReaderColumns, manifestListReaderSchema);
@@ -168,14 +180,14 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
     // exchange above manifest list scan, which is a leaf level easy scan
     HashToRandomExchangePrel manifestSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
-            input, distributionTrait.getFields(),
-            HashPrelUtil.DREMIO_SPLIT_DISTRIBUTE_HASH_FUNCTION_NAME);
+            input, distributionTrait.getFields(), true);
 
     // Manifest scan phase
     TableFunctionConfig manifestScanTableFunctionConfig =  TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, manifestFileReaderColumns, manifestFileReaderSchema, null);
 
     TableFunctionPrel manifestScanTF = new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), manifestSplitsExchange, tableMetadata,
-      ImmutableList.copyOf(manifestFileReaderColumns), manifestScanTableFunctionConfig, getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, getCluster()));
+      ImmutableList.copyOf(manifestFileReaderColumns), manifestScanTableFunctionConfig, getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, getCluster()),
+      tableFunctionPOPCreator);
 
     RelNode input2 = manifestScanTF;
     final RexNode manifestFileCondition = getManifestFileFilter(getCluster().getRexBuilder(), manifestScanTF);
@@ -186,14 +198,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
     // Exchange above manifest scan phase
     HashToRandomExchangePrel parquetSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
-            input2, distributionTrait.getFields(),
-            HashPrelUtil.DREMIO_SPLIT_DISTRIBUTE_HASH_FUNCTION_NAME);
+            input2, distributionTrait.getFields(), true);
 
-    // Parquet scan phase
-    TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getParquetScanTableFunctionConfig(
-      tableMetadata, getConditions(), getProjectedColumns(), arrowCachingEnabled);
+    // table scan phase
+    TableFunctionConfig tableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
+      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled);
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), parquetSplitsExchange, tableMetadata,
-      ImmutableList.copyOf(getProjectedColumns()), parquetScanTableFunctionConfig, getRowType());
+      ImmutableList.copyOf(getProjectedColumns()), tableFunctionConfig, getRowType(), tableFunctionPOPCreator);
   }
 
   @Override
@@ -201,8 +212,14 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return Collections.emptyIterator();
   }
 
-  @Override public double estimateRowCount(RelMetadataQuery mq) {
-    return 1;
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    double selectivityEstimateFactor = 1.0;
+    if (filter != null) {
+      final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
+      selectivityEstimateFactor = plannerSettings.getFilterMinSelectivityEstimateFactor();
+    }
+    return tableMetadata.getReadDefinition().getScanStats().getRecordCount() * selectivityEstimateFactor;
   }
 
   @Override

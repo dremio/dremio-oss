@@ -63,6 +63,7 @@ import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -326,7 +327,11 @@ public final class JobsServiceUtil {
         type = JobFailureInfo.Type.UNKNOWN;
       }
 
-      message = (String) result[1];
+      if (Strings.isNullOrEmpty((String) result[1])) {
+        message = lines[1];
+      } else {
+        message = (String) result[1];
+      }
     } catch (ParseException e) {
       LOGGER.warn("Cannot parse error message {}", lines[0], e);
       return null;

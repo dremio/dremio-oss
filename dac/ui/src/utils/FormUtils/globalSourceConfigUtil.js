@@ -14,11 +14,18 @@
  * limitations under the License.
  */
 
-export const getAlwaysPresentFunctionalConfig = () => [{
-  label: la('Enable this source to be used with other sources even though Disable Cross Source is configured'),
-  propertyName: 'allowCrossSourceSelection',
-  type: 'boolean'
-}];
+export const getAlwaysPresentFunctionalConfig = () => [
+  {
+    label: la('Enable this source to be used with other sources even though Disable Cross Source is configured'),
+    propertyName: 'allowCrossSourceSelection',
+    type: 'boolean'
+  },
+  {
+    label: la('Disable check for expired metadata while querying'),
+    propertyName: 'disableMetadataValidityCheck',
+    type: 'boolean'
+  }
+];
 
 export const crossSourceSelectionUiConfig = {
   propName: 'allowCrossSourceSelection',
@@ -28,9 +35,21 @@ export const crossSourceSelectionUiConfig = {
   }
 };
 
+export const inlineMetadataRefreshConfig = {
+  propName: 'disableMetadataValidityCheck',
+  visibilityControl: {
+    config: 'showMetadataValidityCheckbox',
+    showCondition: true
+  }
+};
+
 const addAlwaysPresent = ({ elements }, { form }) => {
   if (elements) {
     elements.push(...getAlwaysPresentFunctionalConfig());
+  }
+
+  if (form.tabs[1] === undefined) {
+    return;
   }
 
   form.tabs[1].sections = form.tabs[1].sections || [];
@@ -44,7 +63,8 @@ const addAlwaysPresent = ({ elements }, { form }) => {
       ...(firstSection),
       elements: [
         ...(firstSection.elements || []),
-        crossSourceSelectionUiConfig
+        crossSourceSelectionUiConfig,
+        inlineMetadataRefreshConfig
       ]
     };
   }

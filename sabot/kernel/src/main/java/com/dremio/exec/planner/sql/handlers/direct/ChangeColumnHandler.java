@@ -29,7 +29,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
-import com.dremio.exec.store.iceberg.IcebergTableOperations;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -52,7 +52,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
     SqlAlterTableChangeColumn sqlChangeColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableChangeColumn.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlChangeColumn.getTable());
-    Optional<SimpleCommandResult> result = IcebergTableOperations.checkTableExistenceAndMutability(catalog, config,
+    Optional<SimpleCommandResult> result = IcebergUtils.checkTableExistenceAndMutability(catalog, config,
         path, false);
     if (result.isPresent()) {
       return Collections.singletonList(result.get());

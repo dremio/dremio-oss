@@ -33,7 +33,6 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
@@ -131,7 +130,7 @@ public class FragmentExecutorBuilder {
     ExecutorService executorService,
     OptionManager optionManager,
     ExecConnectionCreator dataCreator,
-    ScanResult scanResult,
+    OperatorCreatorRegistry operatorCreatorRegistry,
     PhysicalPlanReader planReader,
     NamespaceService namespace,
     CatalogService sources,
@@ -155,7 +154,7 @@ public class FragmentExecutorBuilder {
     this.dataCreator = dataCreator;
     this.namespace = namespace;
     this.planReader = planReader;
-    this.opCreator = new OperatorCreatorRegistry(scanResult);
+    this.opCreator = operatorCreatorRegistry;
     this.funcRegistry = functions;
     this.decimalFuncRegistry = decimalFunctions;
     this.nodeEndpointProvider = nodeEndpointProvider;
@@ -214,9 +213,16 @@ public class FragmentExecutorBuilder {
         Preconditions.checkNotNull(allocator, "Unable to acquire allocator");
         services.protect(allocator);
       } catch (final OutOfMemoryException e) {
-        throw UserException.memoryError(e)
-          .addContext("Fragment", handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId())
-          .build(logger);
+        UserException.Builder builder = UserException.memoryError(e)
+          .addContext("Fragment", handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId());
+
+        OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
+        if (oom != null) {
+          nodeDebugContextProvider.addMemoryContext(builder, oom);
+        } else if (ErrorHelper.findWrappedCause(e, OutOfDirectMemoryError.class) != null) {
+          nodeDebugContextProvider.addMemoryContext(builder);
+        }
+        throw builder.build(logger);
       } catch(final Throwable e) {
         throw new ExecutionSetupException("Failure while getting memory allocator for fragment.", e);
       }

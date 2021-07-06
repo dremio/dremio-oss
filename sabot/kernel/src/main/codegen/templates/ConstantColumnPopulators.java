@@ -33,6 +33,7 @@ import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -292,6 +293,7 @@ public class ConstantColumnPopulators {
       </#switch>
     }
 
+    @SuppressForbidden
     public byte[] getValueBytes() {
       if (value != null) {
     <#switch minor.class >

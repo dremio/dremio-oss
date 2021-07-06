@@ -48,7 +48,7 @@ public class TestIcebergFormatMatcher {
     // empty "metadata" folder
     File metadata = new File(root, "metadata");
     metadata.mkdir();
-    assertFalse(matcher.matches(fs, fileSelection, null));
+    assertTrue(matcher.matches(fs, fileSelection, null));
 
     // add "version-hint.text"
     File versionHint = new File(metadata, "version-hint.text");
@@ -57,7 +57,7 @@ public class TestIcebergFormatMatcher {
     // missing dot after '9'
     File metadataJsonNoDot = new File(metadata, "v9metadata.json");
     metadataJsonNoDot.createNewFile();
-    assertFalse(matcher.matches(fs, fileSelection, null));
+    assertTrue(matcher.matches(fs, fileSelection, null));
 
     // all correct
     File metadataJson = new File(metadata, "v9.metadata.json");

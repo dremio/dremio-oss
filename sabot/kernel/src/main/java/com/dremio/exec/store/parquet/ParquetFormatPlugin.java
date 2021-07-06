@@ -187,9 +187,11 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;
       this.dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS, autoCorrectCorruptDates);
+      boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
       this.schemaHelper = SchemaDerivationHelper.builder()
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
           .dateCorruptionStatus(dateStatus)
+          .allowMixedDecimals(mixedTypesDisabled)
           .build();
       this.codec = CodecFactory.createDirectCodecFactory(new Configuration(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
 

@@ -130,7 +130,7 @@ public class ContextFunctions {
     public void setup() {
       final com.dremio.exec.proto.UserBitShared.QueryId lastQueryId = contextInfo.getLastQueryId();
       if (lastQueryId != null) {
-        final String queryID = com.dremio.common.utils.protos.QueryIdHelper.getQueryId(contextInfo.getLastQueryId());
+        final String queryID = com.dremio.common.utils.protos.QueryIdHelper.getQueryId(lastQueryId);
         lastQueryIdLen = queryID.length();
         buffer = buffer.reallocIfNeeded(lastQueryIdLen);
         buffer.setBytes(0, queryID.getBytes(java.nio.charset.StandardCharsets.UTF_8));

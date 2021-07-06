@@ -498,7 +498,7 @@ class QueryProfileParser {
               setOperationStats(OperationType.Flatten, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             case TABLE_FUNCTION:
-              if(operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.PARQUET_DATA_SCAN.ordinal()) {
+              if(operatorProfile.getOperatorSubtype() == TableFunctionConfig.FunctionType.DATA_FILE_SCAN.ordinal()) {
                 setScanStats(operatorType, operatorProfile, majorFragment);
               }
               break;

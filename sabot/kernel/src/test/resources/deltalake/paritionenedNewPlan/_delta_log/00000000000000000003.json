@@ -1,0 +1,4 @@
+{"commitInfo":{"timestamp":1618768938853,"operation":"WRITE","operationParameters":{"mode":"Append","partitionBy":"[\"continent\"]"},"readVersion":2,"isBlindAppend":true,"operationMetrics":{"numFiles":"1","numOutputBytes":"11697","numOutputRows":"10"}}}
+{"add":{"path":"continent=North%20America/part-00000-94bce8a8-91ec-4d4d-aa2d-1d3a8d52a061.c000.snappy.parquet","partitionValues":{"continent":"North America"},"size":11697,"modificationTime":1618768938000,"dataChange":true}}
+{"add":{"path":"continent=Africa/part-00000-e167df5f-825a-4ac4-a42e-93a108daacba.c000.snappy.parquet","partitionValues":{"continent":"Africa"},"size":12008,"modificationTime":1618768885000,"dataChange":false}}
+

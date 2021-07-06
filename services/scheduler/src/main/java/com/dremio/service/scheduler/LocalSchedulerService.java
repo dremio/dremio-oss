@@ -116,13 +116,15 @@ public class LocalSchedulerService implements SchedulerService {
   private class CancellableTask implements Cancellable, Runnable {
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private final Iterator<Instant> instants;
+    private Instant scheduleStartInstant = null;
     private final String taskName;
     private final Runnable task;
     private volatile boolean taskState;
     private Instant lastRun = Instant.MIN;
     private TaskLeaderChangeListener taskLeaderChangeListener;
-
-    private final AtomicReference<ScheduledFuture<?>> currentTask = new AtomicReference<>(null);
+    private final AtomicReference<ScheduledFuture<?>> currentTask;
+    // start off with true; task will get scheduled only if its a leader
+    private final AtomicBoolean isLeader = new AtomicBoolean(true);
 
     public CancellableTask(Schedule schedule, Runnable task) {
       this(schedule, task, null);
@@ -133,75 +135,102 @@ public class LocalSchedulerService implements SchedulerService {
       this.task = task;
       this.taskName = taskName;
       this.taskState = false;
+
+      this.currentTask = new AtomicReference<>(null);
       this.taskLeaderChangeListener = new TaskLeaderChangeListener() {
         @Override
         public void onLeadershipGained() {
-          if (isDone() && schedule.isToRunOnce()) {
-            LOGGER.info("Task {} was already completed", taskName);
-            return;
+          synchronized (CancellableTask.this) {
+            isLeader.set(true);
+            if (isDone() && schedule.isToRunExactlyOnce()) {
+              LOGGER.info("Task {} was already completed", taskName);
+              return;
+            }
+            // start doing work
+            // if task was cancelled before due to remote scheduling
+            // reinstate it
+            // it may run earlier then it's scheduled time
+            // due to changed of leadership
+            scheduleNext();
           }
-          // start doing work
-          // if task was cancelled before due to remote scheduling
-          // reinstate it
-          // it may run earlier then it's scheduled time
-          // due to changed of leadership
-          scheduleNext();
         }
 
         @Override
         public void onLeadershipLost() {
-          if (isDone() && schedule.isToRunOnce()) {
-            LOGGER.info("Task {} was already completed", taskName);
+          synchronized (CancellableTask.this) {
+            isLeader.set(false);
+            if (isDone() && schedule.isToRunExactlyOnce()) {
+              LOGGER.info("Task {} was already completed", taskName);
+            }
+            // cancel task
+            basicCancel(false);
+            schedule.getCleanupListener().cleanup();
+            // unset cancel - since we will need to come back to it
+            cancelled.set(false);
           }
-          // cancel task
-          basicCancel(false);
-          schedule.getCleanupListener().cleanup();
-          // unset cancel - since we will need to come back to it
-          cancelled.set(false);
         }
 
         @Override
         public void onLeadershipRelinquished() {
-          if (currentTask.get() == null ||
-            currentTask.get().isCancelled() ||
-            currentTask.get().isDone()) {
-            LOGGER.info("Task {} is not currently running. Relinquishing leadership", task);
+          synchronized (CancellableTask.this) {
+            isLeader.set(false);
+            if (currentTask.get() == null ||
+              currentTask.get().isCancelled() ||
+              currentTask.get().isDone()) {
+              LOGGER.info("Task {} is not currently running. Relinquishing leadership", task);
+              schedule.getCleanupListener().cleanup();
+              return;
+            }
+            // if the task is in flight
+            // we can't wait before relinquishing
+            // as task could be scheduled to run next time in many hours
+            // so cancelling w/o interrupt
+            basicCancel(false);
             schedule.getCleanupListener().cleanup();
-            return;
+            // unset cancel - since we will need to come back to it
+            cancelled.set(false);
           }
-          // if the task is in flight
-          // we can't wait before relinquishing
-          // as task could be scheduled to run next time in many hours
-          // so cancelling w/o interrupt
-          basicCancel(false);
-          schedule.getCleanupListener().cleanup();
-          // unset cancel - since we will need to come back to it
-          cancelled.set(false);
         }
       };
     }
 
     @Override
     public void run() {
-      if (cancelled.get()) {
-        return;
-      }
+      synchronized (this) {
+        // if cancelled (or) lost leadership in between runs
+        // if we don't validate leadership, we will not honor
+        // that we lost leadership
+        if (cancelled.get() || !isLeader.get()) {
+          LOGGER.debug("Task cancelled or lost leadership. Dropping the task.");
+          return;
+        }
 
-      try {
-        task.run();
-      } catch(Exception e) {
-        LOGGER.warn(format("Execution of task %s failed", task.toString()), e);
+        try {
+          task.run();
+        } catch (Exception e) {
+          LOGGER.warn(format("Execution of task %s failed", task.toString()), e);
+        }
+        lastRun = Instant.now();
+        scheduleNext();
       }
-      lastRun = Instant.now();
-      scheduleNext();
     }
 
-    private void scheduleNext() {
+    private synchronized void scheduleNext() {
       if (cancelled.get()) {
         return;
       }
 
       Instant instant = nextInstant();
+      if (scheduleStartInstant == null) {
+        scheduleStartInstant = instant;
+      }
+      // if the task was scheduled but never ran because leadership was lost in between
+      // reschedule it back
+      if (instant == null && lastRun.equals(Instant.MIN)) {
+        LOGGER.debug("Task was cancelled before it could be run. Rescheduling back on getting " +
+          "leadership.");
+        instant = scheduleStartInstant;
+      }
       // if instant == null - it is the end of the scheduling
       // need to remove listener
       if (instant == null) {
@@ -221,7 +250,17 @@ public class LocalSchedulerService implements SchedulerService {
      */
     private ScheduledFuture<?> handleInstantNull() {
       LOGGER.debug("Handling Instant null");
-      ScheduledFuture<?> future = new ScheduledFuture<Object>() {
+      ScheduledFuture<?> future = getDefaultFuture();
+
+      taskState = true;
+      if (taskName != null && taskLeaderElectionServiceMap.get(taskName) != null) {
+        taskLeaderElectionServiceMap.get(taskName).removeListener(taskLeaderChangeListener);
+      }
+      return future;
+    }
+
+    private ScheduledFuture<Object> getDefaultFuture() {
+      return new ScheduledFuture<Object>() {
 
         @Override
         public int compareTo(Delayed o) {
@@ -258,12 +297,6 @@ public class LocalSchedulerService implements SchedulerService {
           return 0;
         }
       };
-
-      taskState = true;
-      if (taskName != null && taskLeaderElectionServiceMap.get(taskName) != null) {
-        taskLeaderElectionServiceMap.get(taskName).removeListener(taskLeaderChangeListener);
-      }
-      return future;
     }
 
 
@@ -325,10 +358,13 @@ public class LocalSchedulerService implements SchedulerService {
     CancellableTask cancellableTask = new CancellableTask(schedule, task, schedule.getTaskName());
     // wait for elections
     taskLeaderElection.getTaskLeader();
-    // adding listener after leader is established (not in CancellableTask ctor),
-    // otherwise it may be a race condition on first schedule
-    // between leader elected executing onLeadershipGained and ctor of CancellableTask
-    taskLeaderElection.addListener(cancellableTask.taskLeaderChangeListener);
+    // if the task is to run once now - as long as the node is the leader go ahead.
+    if (!schedule.isToRunExactlyOnce()) {
+      // adding listener after leader is established (not in CancellableTask ctor),
+      // otherwise it may be a race condition on first schedule
+      // between leader elected executing onLeadershipGained and ctor of CancellableTask
+      taskLeaderElection.addListener(cancellableTask.taskLeaderChangeListener);
+    }
     // taskLeaderElection.isTaskLeader() is much more definitive then/and
     // comparing current NodeEndPoint to a leader one - as a particular NodeEndPoint
     // becoming a leader or not is a side effect and not a cause

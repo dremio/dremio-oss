@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>15.7.0-202106112202490252-2fb62d31</version>
+  <version>17.0.0-202107060524010627-31b5222b</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -34,15 +34,18 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+
     <!--
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>4.0.0-20210408013758-103afaedd6-dremio</arrow.version>
+    <arrow.version>4.0.0-20210421034456-b2e0cc9343-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202103172325080800-52cfc7c</calcite.version>
+    <calcite.version>1.16.0-202107011821040879-02da13d</calcite.version>
     <derby.version>10.14.2.0</derby.version>
-    <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
+    <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
     <simpleclient.version>0.7.0</simpleclient.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -53,7 +56,7 @@
 
     <hadoop.version>3.2.1-dremio-202101121111520916-3f79071</hadoop.version>
     <avro.version>1.9.2</avro.version>
-    <iceberg.version>0.9.0</iceberg.version>
+    <iceberg.version>0.12-aba898b-20210614113000-ca59e2d</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive2.azure-datalake.version>
@@ -105,8 +108,9 @@
     <lilith.version>8.2.0</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.2.3</logback.version>
-    <metrics.version>4.1.0</metrics.version>
+    <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
+    <nessie.version>0.4.0</nessie.version>
     <netty.version>4.1.48.Final</netty.version>
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
     <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
@@ -132,6 +136,7 @@
     <guava.version>28.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
     <redis.clients.jedis.version>3.4.1</redis.clients.jedis.version>
+    <opentelemetry.version>1.0.1</opentelemetry.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>5.5.3</elasticsearch.version>
@@ -362,9 +367,21 @@
       <plugin>
         <groupId>de.thetaphi</groupId>
         <artifactId>forbiddenapis</artifactId>
-        <version>2.7</version>
+        <version>3.1</version>
         <configuration>
-          <failOnUnresolvableSignatures>false</failOnUnresolvableSignatures>
+          <failOnMissingClasses>false</failOnMissingClasses>
+          <ignoreSignaturesOfMissingClasses>true</ignoreSignaturesOfMissingClasses>
+          <bundledSignatures>
+            <!--
+              This will automatically choose the right
+              signatures based on 'maven.compiler.target':
+            -->
+            <bundledSignature>jdk-deprecated</bundledSignature>
+            <!-- disallow undocumented classes like sun.misc.Unsafe: -->
+            <bundledSignature>jdk-non-portable</bundledSignature>
+            <!-- don't allow unsafe reflective access: -->
+            <bundledSignature>jdk-reflection</bundledSignature>
+          </bundledSignatures>
           <signaturesArtifacts>
             <signaturesArtifact>
               <groupId>com.dremio.tools</groupId>
@@ -374,6 +391,16 @@
               <path>dremio-forbiddenapis/signatures.txt</path>
             </signaturesArtifact>
           </signaturesArtifacts>
+          <suppressAnnotations>
+            <!-- Dremio specific -->
+            <suppressAnnotation>com.dremio.common.SuppressForbidden</suppressAnnotation>
+            <!-- Java <= 8 -->
+            <suppressAnnotation>javax.processing.Generated</suppressAnnotation>
+            <!-- Java 9+ via javax.annotation-pi -->
+            <suppressAnnotation>javax.annotation.processing.Generated</suppressAnnotation>
+            <!-- immutables.org -->
+            <suppressAnnotation>org.immutables.value.Generated</suppressAnnotation>
+          </suppressAnnotations>
         </configuration>
         <executions>
           <execution>
@@ -388,7 +415,7 @@
         <!-- use as plugin instead of extension to resolve issues in Eclipse. See https://github.com/xolstice/protobuf-maven-plugin/issues/10#issuecomment-419529938 for more detail -->
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
-        <version>1.6.2</version>
+        <version>1.7.0</version>
         <executions>
           <execution>
             <phase>initialize</phase>
@@ -457,8 +484,6 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <forceJavacCompilerUse>true</forceJavacCompilerUse>
-          <source>1.8</source>
-          <target>1.8</target>
           <!-- See MCOMPILER-209 for why it is set to false! -->
           <useIncrementalCompilation>false</useIncrementalCompilation>
         </configuration>
@@ -674,6 +699,7 @@ limitations under the License.
             <exclude>**/.DS_Store</exclude>
             <exclude>**/.metadata</exclude>
             <exclude>**/.metadata/**</exclude>
+            <exclude>**/.helmignore</exclude>
             <exclude>**/.hg</exclude>
             <exclude>**/.hg/**</exclude>
             <exclude>**/.hgignore</exclude>
@@ -746,6 +772,7 @@ limitations under the License.
             <exclude>**/*.eot</exclude>
             <exclude>**/*.ttf</exclude>
             <exclude>**/*.woff</exclude>
+            <exclude>**/*.woff2</exclude>
             <exclude>**/*.xlsx</exclude>
             <exclude>**/*.docx</exclude>
             <exclude>**/*.ppt</exclude>
@@ -825,6 +852,7 @@ limitations under the License.
             <mvnw>SCRIPT_STYLE</mvnw>
             <ts>SLASHSTAR_STYLE</ts>
             <tsx>SLASHSTAR_STYLE</tsx>
+            <helmignore>SCRIPT_STYLE</helmignore>
           </mapping>
         </configuration>
         <executions>
@@ -868,7 +896,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.1.1</version>
+          <version>3.1.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1005,7 +1033,7 @@ limitations under the License.
         <plugin>
           <groupId>com.github.eirslett</groupId>
           <artifactId>frontend-maven-plugin</artifactId>
-          <version>1.10.0</version>
+          <version>1.11.3</version>
 
           <configuration>
             <installDirectory>${project.build.directory}/frontend</installDirectory>
@@ -1019,8 +1047,8 @@ limitations under the License.
                 <goal>install-node-and-npm</goal>
               </goals>
               <configuration>
-                <nodeVersion>v10.4.0</nodeVersion>
-                <npmVersion>6.1.0</npmVersion>
+                <nodeVersion>v14.0.0</nodeVersion>
+                <npmVersion>7.7.5</npmVersion>
               </configuration>
             </execution>
           </executions>
@@ -1122,6 +1150,11 @@ limitations under the License.
           <configuration>
             <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>4.2.0</version>
         </plugin>
 
         <!--This plugin's configuration is used to store Eclipse m2e settings
@@ -1441,6 +1474,16 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-nessie</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-nessie-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-resourcescheduler</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1595,13 +1638,10 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-core</artifactId>
+        <artifactId>metrics-bom</artifactId>
         <version>${metrics.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-jvm</artifactId>
-        <version>${metrics.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>javax.servlet</groupId>
@@ -1612,11 +1652,6 @@ limitations under the License.
         <groupId>com.github.vladimir-bukhtoyarov</groupId>
         <artifactId>rolling-metrics</artifactId>
         <version>2.0.5</version>
-      </dependency>
-      <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-jmx</artifactId>
-        <version>${metrics.version}</version>
       </dependency>
       <dependency>
         <groupId>com.101tec</groupId>
@@ -1673,7 +1708,7 @@ limitations under the License.
       <dependency>
         <groupId>com.typesafe</groupId>
         <artifactId>config</artifactId>
-        <version>1.2.1</version>
+        <version>1.4.1</version>
       </dependency>
       <dependency>
         <groupId>com.google.flatbuffers</groupId>
@@ -1694,6 +1729,13 @@ limitations under the License.
         <groupId>de.huxhorn.lilith</groupId>
         <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
         <version>${lilith.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.opentracing</groupId>
@@ -1767,7 +1809,7 @@ limitations under the License.
       <dependency>
         <groupId>io.jaegertracing</groupId>
         <artifactId>jaeger-client</artifactId>
-        <version>1.1.0</version>
+        <version>1.5.0</version>
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
@@ -1857,6 +1899,36 @@ limitations under the License.
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpcore</artifactId>
         <version>4.4.9</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-model</artifactId>
+        <version>${nessie.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-server-store</artifactId>
+        <version>${nessie.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-services</artifactId>
+        <version>${nessie.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-versioned-memory</artifactId>
+        <version>${nessie.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-versioned-spi</artifactId>
+        <version>${nessie.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-versioned-tests</artifactId>
+        <version>${nessie.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.arrow</groupId>
@@ -1987,7 +2059,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.4</version>
+        <version>3.12.0</version>
       </dependency>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
@@ -2526,7 +2598,7 @@ limitations under the License.
           </exclusion>
           <exclusion>
             <groupId>com.sun.jersey</groupId>
-            <artifactId>jersey-client</artifactId>
+            <artifactId>jersey-core</artifactId>
           </exclusion>
           <exclusion>
             <artifactId>core</artifactId>
@@ -3228,10 +3300,6 @@ limitations under the License.
     <repository>
       <id>dremio-public</id>
       <url>https://maven.dremio.com/public/</url>
-    </repository>
-    <repository>
-      <id>redshift</id>
-      <url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
     </repository>
   </repositories>
 </project>

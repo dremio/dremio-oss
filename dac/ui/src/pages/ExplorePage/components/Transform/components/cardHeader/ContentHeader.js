@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import { fixedWidthBold } from 'uiTheme/radium/typography';
 
 //TODO andrey, here we not sure what data we ger, need to improve architecture
-@pureRender
 @Radium
-export default class ContentHeader extends Component {
+export default class ContentHeader extends PureComponent {
 
   static propTypes = {
     type: PropTypes.string.isRequired,

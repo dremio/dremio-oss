@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
   <artifactId>dremio-services-catalog-api</artifactId>
   <name>Services - Catalog API</name>
@@ -31,6 +31,10 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
     </dependency>
 
     <dependency>
@@ -44,6 +48,12 @@
         <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
@@ -63,7 +73,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
+              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
           </execution>
@@ -75,7 +85,7 @@
               <goal>compile-custom</goal>
             </goals>
             <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
+              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
               <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>

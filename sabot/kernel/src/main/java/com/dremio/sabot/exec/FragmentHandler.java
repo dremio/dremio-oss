@@ -99,7 +99,7 @@ public class FragmentHandler implements EventProvider, MayExpire {
     // the cancelled flag is set will consume the flag so we don't have to worry about informing its cancellation
     if (canceled.compareAndSet(false,true)) {
       cancellationTime = System.currentTimeMillis();
-      logger.debug("set cancel for fragment {}", QueryIdHelper.getFragmentId(handle));
+      logger.info("set cancel for fragment {}", QueryIdHelper.getFragmentId(handle));
       final FragmentExecutor executor = execReference.getReference(); // this is important, another thread could set this.executor to null
       if (executor != null) {
         executor.getListener().cancel();

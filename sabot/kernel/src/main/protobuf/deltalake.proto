@@ -37,4 +37,5 @@ message DeltaLakeDatasetXAttr {
 
 message DeltaCommitLogSplitXAttr {
   optional int32 rowGroupIndex = 1; // Identifies the position of the rowgroup.
+  optional int64 version = 2; //Identifies the commit version from which the file is read from
 }

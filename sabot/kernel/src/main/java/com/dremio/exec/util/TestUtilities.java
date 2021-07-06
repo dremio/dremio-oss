@@ -171,7 +171,9 @@ public class TestUtilities {
       list.add("wlmqueuecontainerversion");
       list.add("configuration");
       list.add("node_collections");
+      list.add("roles_store");
       list.add("sys.options");
+      list.add("catalogevent");
       if(savedStores != null) {
         list.addAll(savedStores);
       }
@@ -186,6 +188,7 @@ public class TestUtilities {
     list.add("__accelerator");
     list.add("__datasetDownload");
     list.add("__support");
+    list.add("__metadata");
     list.add("$scratch");
     list.add("sys");
     list.add("INFORMATION_SCHEMA");

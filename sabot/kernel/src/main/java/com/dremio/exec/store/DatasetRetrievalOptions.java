@@ -16,7 +16,9 @@
 package com.dremio.exec.store;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -25,6 +27,7 @@ import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
+import com.dremio.connector.metadata.options.DirListInputSplitType;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
@@ -64,6 +67,7 @@ public class DatasetRetrievalOptions {
         .setDeleteUnavailableDatasets(true)
         .setAutoPromote(DEFAULT_AUTO_PROMOTE)
         .setForceUpdate(false)
+        .setRefreshDataset(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
         .setMaxNestedLevel(DEFAULT_MAX_NESTED_LEVEL)
         .build();
@@ -78,6 +82,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Boolean> deleteUnavailableDatasets;
   private final Optional<Boolean> autoPromote;
   private final Optional<Boolean> forceUpdate;
+  private final Optional<Boolean> refreshDataset;
   private final Optional<Integer> maxMetadataLeafColumns;
   private final Optional<Integer> maxNestedLevel;
 
@@ -86,20 +91,14 @@ public class DatasetRetrievalOptions {
   /**
    * Use {@link #newBuilder() builder}.
    */
-  private DatasetRetrievalOptions(
-      Boolean ignoreAuthzErrors,
-      Boolean deleteUnavailableDatasets,
-      Boolean autoPromote,
-      Boolean forceUpdate,
-      Integer maxMetadataLeafColumns,
-      Integer maxNestedLevel
-  ) {
-    this.ignoreAuthzErrors = Optional.ofNullable(ignoreAuthzErrors);
-    this.deleteUnavailableDatasets = Optional.ofNullable(deleteUnavailableDatasets);
-    this.autoPromote = Optional.ofNullable(autoPromote);
-    this.forceUpdate = Optional.ofNullable(forceUpdate);
-    this.maxMetadataLeafColumns = Optional.ofNullable(maxMetadataLeafColumns);
-    this.maxNestedLevel = Optional.ofNullable(maxNestedLevel);
+  DatasetRetrievalOptions(Builder builder) {
+    this.ignoreAuthzErrors = Optional.ofNullable(builder.ignoreAuthzErrors);
+    this.deleteUnavailableDatasets = Optional.ofNullable(builder.deleteUnavailableDatasets);
+    this.autoPromote = Optional.ofNullable(builder.autoPromote);
+    this.forceUpdate = Optional.ofNullable(builder.forceUpdate);
+    this.refreshDataset = Optional.ofNullable(builder.refreshDataset);
+    this.maxMetadataLeafColumns = Optional.ofNullable(builder.maxMetadataLeafColumns);
+    this.maxNestedLevel = Optional.ofNullable(builder.maxNestedLevel);
   }
 
 
@@ -117,6 +116,10 @@ public class DatasetRetrievalOptions {
 
   public boolean forceUpdate() {
     return forceUpdate.orElseGet(() -> fallback.forceUpdate());
+  }
+
+  public boolean refreshDataset() {
+    return refreshDataset.orElseGet(() -> fallback.refreshDataset());
   }
 
   public int maxMetadataLeafColumns() {
@@ -138,6 +141,7 @@ public class DatasetRetrievalOptions {
         .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
         .setAutoPromote(autoPromote.orElse(null))
         .setForceUpdate(forceUpdate.orElse(null))
+        .setRefreshDataset(refreshDataset.orElse(null))
         .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
         .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL));
   }
@@ -148,8 +152,11 @@ public class DatasetRetrievalOptions {
     private Boolean deleteUnavailableDatasets;
     private Boolean autoPromote;
     private Boolean forceUpdate;
+    private boolean refreshDataset;
     private Integer maxMetadataLeafColumns;
     private Integer maxNestedLevel;
+    private List<String> filesList = new ArrayList<>();
+    private Map<String, String> partition = new LinkedHashMap<>();
 
     private Builder() {
     }
@@ -174,6 +181,11 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setRefreshDataset(Boolean refreshDataset) {
+      this.refreshDataset = refreshDataset;
+      return this;
+    }
+
     public Builder setMaxMetadataLeafColumns(Integer maxMetadataLeafColumns) {
       this.maxMetadataLeafColumns = maxMetadataLeafColumns;
       return this;
@@ -184,9 +196,24 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setFilesList(List<String> filesList) {
+      this.filesList.addAll(filesList);
+      return this;
+    }
+
+    public Builder setPartition(Map<String, String> partition) {
+      this.partition.putAll(partition);
+      return this;
+    }
+
     public DatasetRetrievalOptions build() {
-      return new DatasetRetrievalOptions(ignoreAuthzErrors, deleteUnavailableDatasets,
-        autoPromote, forceUpdate, maxMetadataLeafColumns, maxNestedLevel);
+      if (!filesList.isEmpty()) {
+        return new DatasetRetrievalFilesListOptions(this, filesList);
+      } else if (!partition.isEmpty()) {
+        return new DatasetRetrievalPartitionOptions(this, partition);
+      }
+
+      return new DatasetRetrievalOptions(this);
     }
   }
 
@@ -234,6 +261,7 @@ public class DatasetRetrievalOptions {
         .setDeleteUnavailableDatasets(policy.getDeleteUnavailableDatasets())
         // not an option in policy (or UI)
         .setForceUpdate(false)
+        .setRefreshDataset(false)
         // not an option in policy (or UI)
         .setIgnoreAuthzErrors(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
@@ -273,9 +301,17 @@ public class DatasetRetrievalOptions {
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
     options.add(new MaxNestedFieldLevels(maxNestedLevel()));
 
+    if (refreshDataset()) {
+      options.add(new DirListInputSplitType());
+    }
+
+    addCustomOptions(options);
+
     addDatasetOptions(ListPartitionChunkOption.class, datasetConfig, options);
     return options.toArray(new ListPartitionChunkOption[options.size()]);
   }
+
+  protected void addCustomOptions(List<ListPartitionChunkOption> options) {}
 
   private <T extends MetadataOption> void addDatasetOptions(Class<T> clazz, DatasetConfig datasetConfig, List<T> outOptions) {
     if(datasetConfig == null) {

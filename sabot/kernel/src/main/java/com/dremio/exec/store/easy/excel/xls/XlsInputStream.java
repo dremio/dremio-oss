@@ -69,7 +69,16 @@ public class XlsInputStream extends InputStream {
     while (blocks.size() <= block) {
       ArrowBuf buf = bufferManager.allocate(size);
       try {
-        total += buf.setBytes(0, in, size);
+        int totalBytesRead = 0, readBytes = 0;
+        while (totalBytesRead < size) {
+          readBytes = buf.setBytes(totalBytesRead , in, size - totalBytesRead);
+          if (readBytes <= 0) {
+            break;
+          }
+          totalBytesRead += readBytes;
+        }
+        Preconditions.checkArgument(readBytes <= 0 || totalBytesRead == size);
+        total += totalBytesRead;
       } catch (IOException e) {
         // we should never hit an IOException for a well formatted XLS file
         throw new IllegalStateException("Couldn't read a block from the input stream");

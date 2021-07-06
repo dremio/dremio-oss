@@ -25,14 +25,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
@@ -49,11 +47,13 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.PartitionChunkListingImpl;
+import com.dremio.exec.store.common.HostAffinityComputer;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
-import com.dremio.exec.store.parquet.Metadata;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.parquet.ParquetGroupScanUtils;
 import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetXAttr;
@@ -74,7 +74,6 @@ public class IcebergTableWrapper {
 
   private SabotContext context;
   private FileSystem fs;
-  private Configuration fsConf;
   private String rootDir;
   private Table table;
   private Schema schema;
@@ -85,11 +84,12 @@ public class IcebergTableWrapper {
   private IcebergDatasetXAttr datasetXAttr;
   private BytesOutput readSignature;
   private long recordCount;
+  private final IcebergModel icebergModel;
 
-  public IcebergTableWrapper(SabotContext context, FileSystem fs, Configuration fsConf, String rootDir) {
+  public IcebergTableWrapper(SabotContext context, FileSystem fs, IcebergModel icebergModel, String rootDir) {
     this.fs = fs;
-    this.fsConf = fsConf;
     this.rootDir = rootDir;
+    this.icebergModel = icebergModel;
     this.context = context;
     this.datasetColumnValueCounts = new HashMap<>();
     this.partitionChunkListing = new PartitionChunkListingImpl();
@@ -102,8 +102,8 @@ public class IcebergTableWrapper {
         // This should be the first step. Else, we can miss updates if there is a race with
         // insert.
         buildReadSignature();
-
-        table = (new HadoopTables(fsConf)).load(rootDir);
+        table = icebergModel.getIcebergTable(
+                  icebergModel.getTableIdentifier(rootDir));
         schema = table.schema();
         batchSchema = SchemaConverter.fromIceberg(table.schema());
         buildPartitionColumns();
@@ -430,8 +430,9 @@ public class IcebergTableWrapper {
               .build();
 
       // build the host affinity details for the split.
-      Map<HostAndPort, Float> affinities =
-        Metadata.getHostAffinity(fs, fileAttributes, task.start(), task.length());
+      Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(fileAttributes, task.start(), task.length());
+      Map<HostAndPort, Float> affinities = HostAffinityComputer.computeAffinitiesForSplit(
+        task.start(), task.length(), blockLocations, fs.preserveBlockLocationsOrder());
       List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();
       for (ObjectLongCursor<HostAndPort> item :
         ParquetGroupScanUtils.buildEndpointByteMap(activeHostMap,

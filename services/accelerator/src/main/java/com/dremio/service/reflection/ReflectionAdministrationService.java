@@ -76,7 +76,7 @@ public interface ReflectionAdministrationService {
   boolean isReflectionIncremental(ReflectionId reflectionId);
 
   /**
-   * Factyory for {@ReflectionAdministrationService}
+   * Factory for {@ReflectionAdministrationService}
    */
   interface Factory {
     ReflectionAdministrationService get(ReflectionContext context);

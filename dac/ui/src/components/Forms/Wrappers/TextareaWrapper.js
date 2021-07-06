@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import TextArea from 'components/Fields/TextArea';
+import { TextArea } from 'dremio-ui-lib';
 import FieldWithError from 'components/Fields/FieldWithError';
 import PropTypes from 'prop-types';
 
@@ -31,19 +31,31 @@ export default class TextareaWrapper extends Component {
 
   render() {
     const {elementConfig, field} = this.props;
-    const tooltip = elementConfig.getConfig().tooltip;
-    const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
-    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ? {disabled: true} : null;
+    const { tooltip, enableCopy } = elementConfig.getConfig();
 
+    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ? {disabled: true} : null;
+    const label = elementConfig.getConfig().label;
     return (
       <div className={flexContainer}>
         <FieldWithError
-          {...hoverHelpText}
-          label={elementConfig.getConfig().label}
+          {...field}
           name={elementConfig.getPropName()}
           className={fieldWithError}>
           <div className={textFieldWrapper}>
-            <TextArea {...field} {...isDisabled} className={textAreaBody}/>
+            <TextArea
+              value={field.value}
+              helpText={tooltip}
+              label={label}
+              name={label}
+              maxLines={4}
+              classes={{
+                root: textAreaBody,
+                container: textAreaBody
+              }}
+              enableCopy={enableCopy}
+              noResize
+              {...isDisabled}
+            />
           </div>
         </FieldWithError>
       </div>

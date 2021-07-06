@@ -85,6 +85,11 @@ public class GandivaRegistryWrapper {
         && signature.getParamTypes().get(1).equals(new ArrowType.Utf8());
     }
 
+    // DX-32437; blacklisting temporarily
+    if (signature.getName().equalsIgnoreCase("convert_replaceUTF8")) {
+      return true;
+    }
+
     return false;
   }
 

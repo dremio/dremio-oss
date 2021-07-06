@@ -87,12 +87,17 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
     JBlock sub = new JBlock(true, true);
     JBlock topSub = sub;
     HoldingContainer out = null;
-
+    int numVars = 0;
 
     // add outside null handling if it is defined.
     if (nullHandling == NullHandling.NULL_IF_NULL) {
       JExpression e = null;
       for (HoldingContainer v : inputVariables) {
+        if (v.isConstant() && !v.isNullConstant()) {
+          // no need to null check constant as it is always non null
+          continue;
+        }
+        numVars++;
         final JExpression isNullExpr;
         if (v.isReader()) {
           isNullExpr = JOp.cond(v.getHolder().invoke("isSet"), JExpr.lit(1), JExpr.lit(0));
@@ -114,6 +119,8 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
         jc._then().assign(out.getIsSet(), JExpr.lit(0));
         sub = jc._else();
       }
+    } else {
+      numVars = inputVariables.length;
     }
 
     if (out == null) {
@@ -127,7 +134,7 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
     JVar internalOutput = sub.decl(JMod.FINAL, CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel()), getReturnName(), JExpr._new(CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel())));
     addProtectedBlock(g, sub, body, inputVariables, workspaceJVars, false);
 
-    if (sub != topSub || inputVariables.length == 0) {
+    if (sub != topSub || numVars == 0) {
       sub.assign(internalOutput.ref("isSet"), JExpr.lit(1));// Assign null if NULL_IF_NULL mode
     }
     sub.assign(out.getHolder(), internalOutput);

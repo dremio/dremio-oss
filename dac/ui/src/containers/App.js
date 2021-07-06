@@ -45,17 +45,26 @@ import DevErrorContainer from '@app/containers/DevError';
 import {LocationProvider} from '@app/containers/dremioLocation';
 import { withHookProvider } from '@app/containers/RouteLeave';
 
+import { themeStyles } from 'dremio-ui-lib';
+
 DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage('App.Dremio')].filter(Boolean).join(' - ');
 };
 
+const {
+  overrides: themeOverrides,
+  ...otherStyles
+} = themeStyles;
+
 const theme = createMuiTheme({
+  ...otherStyles,
   palette: {
     primary: {
       main: 'rgb(0, 188, 212)'
     }
   },
   overrides: {
+    ...themeOverrides,
     MuiSwitch: {
       switchBase: {
         height: 'auto'

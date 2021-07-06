@@ -32,6 +32,7 @@ import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -96,6 +97,7 @@ public class TestReflectionStatusService {
     final ExternalReflectionStore externalReflectionStore = mock(ExternalReflectionStore.class);
     final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
     final ReflectionValidator validator = mock(ReflectionValidator.class);
+    final CatalogService catalogService = mock(CatalogService.class);
 
     statusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
@@ -106,7 +108,8 @@ public class TestReflectionStatusService {
       materializationStore,
       externalReflectionStore,
       reflectionSettings,
-      validator
+      validator,
+      DirectProvider.wrap(catalogService)
     );
 
     reflectionId = new ReflectionId(UUID.randomUUID().toString());
@@ -249,6 +252,7 @@ public class TestReflectionStatusService {
     final ExternalReflectionStore externalReflectionStore = mock(ExternalReflectionStore.class);
     final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
     final ReflectionValidator validator = mock(ReflectionValidator.class);
+    final CatalogService catalogService = mock(CatalogService.class);
 
     ReflectionStatusServiceImpl reflectionStatusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
@@ -259,7 +263,8 @@ public class TestReflectionStatusService {
       materializationStore,
       externalReflectionStore,
       reflectionSettings,
-      validator
+      validator,
+      DirectProvider.wrap(catalogService)
     );
 
     // mock query dataset

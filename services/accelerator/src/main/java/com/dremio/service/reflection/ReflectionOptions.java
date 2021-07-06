@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 
 /**
  * System options that affect the reflection service
@@ -64,4 +65,5 @@ public interface ReflectionOptions {
   BooleanValidator STRICT_INCREMENTAL_REFRESH = new BooleanValidator("reflection.manager.strict_incremental_refresh.enabled", false);
   // If enabled, uses Iceberg format for reflection datasets
   BooleanValidator REFLECTION_USE_ICEBERG_DATASET = new BooleanValidator("reflection.manager.use_iceberg_dataset.enabled", false);
+  StringValidator NESSIE_REFLECTIONS_NAMESPACE = new StringValidator("reflection.manager.nessie_iceberg_namespace", "dremio.reflections");
 }

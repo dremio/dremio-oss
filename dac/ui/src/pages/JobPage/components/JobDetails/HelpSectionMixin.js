@@ -32,7 +32,7 @@ export default function(input) {
           onClick={this.handleDownload}/>],
         this.props.isSupport && this.props.clusterType === 'YARN' && ['bundleDownload', <SimpleButton
           buttonStyle='secondary'
-          style={{width: '205px'}}
+          style={{width: '220px'}}
           children={la('Download Query Support Bundle')}
           onClick={this.handleQueryDownload}
         />]

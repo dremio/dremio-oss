@@ -21,7 +21,7 @@ import java.util.Set;
 import javax.inject.Provider;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.ServiceSet;
@@ -116,8 +116,8 @@ public class ClusterResourceInformation implements GroupResourceInformation {
    * @return average number of executor cores
    */
   @Override
-  public long getAverageExecutorCores(final OptionManager optionManager) {
-    long configuredMaxWidthPerNode = optionManager.getOption(MAX_WIDTH_PER_NODE_KEY).getNumVal();
+  public long getAverageExecutorCores(final OptionResolver optionManager) {
+    long configuredMaxWidthPerNode = optionManager.getOption(MAX_WIDTH_PER_NODE_KEY);
     if (configuredMaxWidthPerNode == 0) {
       /* user has not overridden the default, use the default MAX_WIDTH_PER_NODE which is average
        * number of cores as computed by ClusterResourceInformation.

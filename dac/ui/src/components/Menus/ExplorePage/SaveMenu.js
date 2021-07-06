@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -29,12 +28,12 @@ export const DOWNLOAD_TYPES = {
 };
 
 @Radium
-@pureRender
-export default class SaveMenu extends Component {
+export default class SaveMenu extends PureComponent {
   static propTypes = {
     action: PropTypes.func,
     closeMenu: PropTypes.func,
-    mustSaveAs: PropTypes.bool
+    mustSaveAs: PropTypes.bool,
+    disableBoth: PropTypes.bool
   };
 
   save = () => {
@@ -48,17 +47,18 @@ export default class SaveMenu extends Component {
   };
 
   render() {
-    const {mustSaveAs} = this.props;
+    const {mustSaveAs, disableBoth} = this.props;
     return (
       <Menu>
         <MenuItem
           className='save-menu-item'
-          disabled={mustSaveAs}
+          disabled={mustSaveAs || disableBoth}
           onClick={mustSaveAs ? () => {} : this.save}>
           {la('Save')}
         </MenuItem>
         <MenuItem
           className='save-as-menu-item'
+          disabled={disableBoth}
           onClick={this.saveAs}>
           {la('Save As…')}
         </MenuItem>

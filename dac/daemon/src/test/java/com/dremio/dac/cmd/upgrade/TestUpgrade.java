@@ -48,6 +48,7 @@ import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.services.configuration.ConfigurationStore;
@@ -68,7 +69,7 @@ public class TestUpgrade extends DremioTest {
    */
   public static final class TopPriorityTask extends UpgradeTask {
     public TopPriorityTask() {
-      super("test-top-priority-class", ImmutableList.of(SetTableauDefaults.taskUUID));
+      super("test-top-priority-class", ImmutableList.of(SetExportType.taskUUID));
     }
 
     @Override
@@ -104,20 +105,23 @@ public class TestUpgrade extends DremioTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private static final LegacyKVStoreProvider kvstore =
-      LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+  private static final LocalKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(
+    CLASSPATH_SCAN_RESULT, null, true, false);
+
+  private static LegacyKVStoreProvider legacyKVStoreProvider;
 
   private static UpgradeStore upgradeStore;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    kvstore.start();
-    upgradeStore = new UpgradeStore(kvstore);
+    kvStoreProvider.start();
+    legacyKVStoreProvider = kvStoreProvider.asLegacy();
+    upgradeStore = new UpgradeStore(legacyKVStoreProvider);
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    kvstore.close();
+    legacyKVStoreProvider.close();
   }
 
   @After
@@ -263,7 +267,7 @@ public class TestUpgrade extends DremioTest {
   }
 
   private UpgradeContext tasksExecutor(Version kvStoreVersion, List<UpgradeTask> tasks) throws Exception {
-    final UpgradeContext context = new UpgradeContext(kvstore, null, null, null);
+    final UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
     List<UpgradeTask> tasksToRun = new ArrayList<>();
     for(UpgradeTask task: tasks) {
       if (upgradeStore.isUpgradeTaskCompleted(task.getTaskUUID())) {
@@ -426,6 +430,7 @@ public class TestUpgrade extends DremioTest {
         instanceOf(UpdateExternalReflectionHash.class),
         instanceOf(DeleteSysMaterializationsMetadata.class),
         instanceOf(SetTableauDefaults.class),
+        instanceOf(SetExportType.class),
         // Test task
         instanceOf(TopPriorityTask.class),
         // Final test task
@@ -525,6 +530,7 @@ public class TestUpgrade extends DremioTest {
       instanceOf(UpdateExternalReflectionHash.class),
       instanceOf(DeleteSysMaterializationsMetadata.class),
       instanceOf(SetTableauDefaults.class),
+      instanceOf(SetExportType.class),
       // Test task
       instanceOf(TopPriorityTask.class),
       // Final test task

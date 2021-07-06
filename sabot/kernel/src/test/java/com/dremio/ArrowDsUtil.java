@@ -50,6 +50,12 @@ public class ArrowDsUtil {
     return list;
   }
 
+  public static JsonStringArrayList<Double> doubleList(Double... doubles) {
+    JsonStringArrayList<Double> list = new JsonStringArrayList<>(doubles.length);
+    list.addAll(Arrays.asList(doubles));
+    return list;
+  }
+
   public static JsonStringArrayList<BigDecimal> decimalList(String value) {
     JsonStringArrayList<BigDecimal> list = new JsonStringArrayList<>(1);
     list.add(new BigDecimal(value));
@@ -70,8 +76,22 @@ public class ArrowDsUtil {
     return structrow;
   }
 
+  public static JsonStringHashMap<String, Object> doubleStruct(String fieldName, Double... doubles) {
+    JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
+    for (Double aDouble : doubles) {
+      structrow.put(fieldName, aDouble);
+    }
+    return structrow;
+  }
+
   public static JsonStringArrayList<JsonStringArrayList<Long>> wrapListInList(JsonStringArrayList<Long> underlying) {
     JsonStringArrayList<JsonStringArrayList<Long>> list = new JsonStringArrayList<>();
+    list.add(underlying);
+    return list;
+  }
+
+  public static JsonStringArrayList<JsonStringArrayList<Double>> wrapDoubleListInList(JsonStringArrayList<Double> underlying) {
+    JsonStringArrayList<JsonStringArrayList<Double>> list = new JsonStringArrayList<>();
     list.add(underlying);
     return list;
   }

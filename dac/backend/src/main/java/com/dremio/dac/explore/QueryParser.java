@@ -122,7 +122,8 @@ public final class QueryParser {
         catalog,
         context.getSubstitutionProviderFactory(),
         context.getConfig(),
-        context.getScanResult());
+        context.getScanResult(),
+        context.getRelMetadataQuerySupplier());
   }
 
   /**

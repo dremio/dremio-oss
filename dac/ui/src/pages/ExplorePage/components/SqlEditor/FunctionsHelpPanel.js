@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import * as sqlEditorStyles from 'uiTheme/radium/sqlEditor';
 import HelpFunctions from './HelpFunctions';
@@ -23,8 +22,7 @@ import HelpFunctions from './HelpFunctions';
 const HEADER_LIST_OF_FUNCS = 30;
 
 @Radium
-@pureRender
-export default class FunctionsHelpPanel extends Component {
+export default class FunctionsHelpPanel extends PureComponent {
   static propTypes = {
     height: PropTypes.number,
     dragType: PropTypes.string.isRequired,

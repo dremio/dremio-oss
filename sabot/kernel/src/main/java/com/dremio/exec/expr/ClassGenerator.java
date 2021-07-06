@@ -27,6 +27,7 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.compile.sig.CodeGeneratorArgument;
 import com.dremio.exec.compile.sig.CodeGeneratorMethod;
+import com.dremio.exec.compile.sig.ConstantExtractor;
 import com.dremio.exec.compile.sig.GeneratorMapping;
 import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.compile.sig.SignatureHolder;
@@ -36,6 +37,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.sun.codemodel.JAssignmentTarget;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JClassAlreadyExistsException;
@@ -51,13 +53,13 @@ import com.sun.codemodel.JMod;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
 
-public class ClassGenerator<T>{
+public class ClassGenerator<T> {
 
   public static final GeneratorMapping DEFAULT_SCALAR_MAP = GM("doSetup", "doEval", null, null);
   public static final GeneratorMapping DEFAULT_CONSTANT_MAP = GM("doSetup", "doSetup", null, null);
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassGenerator.class);
-  public static enum BlockType {SETUP, EVAL, RESET, CLEANUP}
+  public enum BlockType {SETUP, EVAL, RESET, CLEANUP}
 
   private static final int MAX_EXPRESSIONS_IN_FUNCTION = 50;
 
@@ -72,6 +74,7 @@ public class ClassGenerator<T>{
   public final JDefinedClass clazz;
   private final LinkedList<SizedJBlock>[] blocks;
   private final JCodeModel model;
+  private final ConstantGenerator cgen;
 
   private int index = 0;
   private int labelIndex = 0;
@@ -89,6 +92,7 @@ public class ClassGenerator<T>{
     this.sig = signature;
     this.evaluationVisitor = eval;
     this.model = Preconditions.checkNotNull(model, "Code model object cannot be null.");
+    this.cgen = new ConstantGenerator(this.clazz);
     blocks = new LinkedList[sig.size()];
 
     for (int i =0; i < sig.size(); i++) {
@@ -135,6 +139,10 @@ public class ClassGenerator<T>{
     this.mappings = mappings;
   }
 
+  public void setConstantExtractor(ConstantExtractor constantExtractor, int constantArrayThreshold) {
+    this.cgen.setConstantExtractor(constantExtractor, constantArrayThreshold);
+  }
+
   public CodeGenerator<T> getCodeGenerator() {
     return codeGenerator;
   }
@@ -176,7 +184,7 @@ public class ClassGenerator<T>{
       method.param(arg.getType(), arg.getName());
     }
     nestEvalBlock(method.body());
-    evaluationVisitor.previousExpressions.clear();
+    evaluationVisitor.clearPreviousExpressions();
     return method;
   }
 
@@ -324,7 +332,7 @@ public class ClassGenerator<T>{
       }
     }
     if (blockRotated) {
-      evaluationVisitor.previousExpressions.clear();
+      evaluationVisitor.clearPreviousExpressions();
     }
   }
 
@@ -392,6 +400,10 @@ public class ClassGenerator<T>{
 
   public JVar declareClassField(String prefix, JType t) {
     return clazz.field(JMod.NONE, t, prefix + index++);
+  }
+
+  public JAssignmentTarget declareNextConstantField(CompleteType type, JType jType) {
+    return cgen.nextConstant(type, jType, index++);
   }
 
   public JVar declareClassField(String prefix, JType t, JExpression init) {
@@ -473,26 +485,40 @@ public class ClassGenerator<T>{
   }
 
   public static class HoldingContainer{
-    private final JVar holder;
+    private final JAssignmentTarget holder;
+    private final JType jType;
     private final JFieldRef value;
     private final JFieldRef isSet;
     private final CompleteType type;
     private boolean isConstant;
+    private boolean isNullConstant;
     private final boolean singularRepeated;
     private final boolean isReader;
 
     public HoldingContainer(CompleteType t, JVar holder, JFieldRef value, JFieldRef isSet) {
-      this(t, holder, value, isSet, false, false);
+      this(t, holder, holder.type(), value, isSet, false, false);
     }
 
-    public HoldingContainer(CompleteType t, JVar holder, JFieldRef value, JFieldRef isSet, boolean singularRepeated, boolean isReader) {
+    public HoldingContainer(CompleteType t, JAssignmentTarget holder, JType jType, JFieldRef value, JFieldRef isSet) {
+      this(t, holder, jType, value, isSet, false, false);
+    }
+
+    public HoldingContainer(CompleteType t, JVar holder, JFieldRef value, JFieldRef isSet,
+                            boolean singularRepeated, boolean isReader) {
+      this(t, holder, holder.type(), value, isSet, singularRepeated, isReader);
+    }
+
+    public HoldingContainer(CompleteType t, JAssignmentTarget holder, JType jType, JFieldRef value, JFieldRef isSet,
+                            boolean singularRepeated, boolean isReader) {
       this.holder = holder;
       this.value = value;
       this.isSet = isSet;
       this.type = t;
       this.isConstant = false;
+      this.isNullConstant = false;
       this.singularRepeated = singularRepeated;
       this.isReader = isReader;
+      this.jType = jType;
     }
 
     public boolean isReader() {
@@ -508,6 +534,11 @@ public class ClassGenerator<T>{
       return this;
     }
 
+    public HoldingContainer setNullConstant(boolean isNull) {
+      this.isNullConstant = isNull;
+      return this;
+    }
+
     public JFieldRef f(String name) {
       return holder.ref(name);
     }
@@ -516,7 +547,11 @@ public class ClassGenerator<T>{
       return this.isConstant;
     }
 
-    public JVar getHolder() {
+    public boolean isNullConstant() {
+      return this.isNullConstant;
+    }
+
+    public JAssignmentTarget getHolder() {
       return holder;
     }
 
@@ -531,6 +566,10 @@ public class ClassGenerator<T>{
     public JFieldRef getIsSet() {
       Preconditions.checkNotNull(isSet, "You cannot access the isSet variable when operating on a non-nullable output value.");
       return isSet;
+    }
+
+    public JType getJType() {
+      return jType;
     }
 
   }

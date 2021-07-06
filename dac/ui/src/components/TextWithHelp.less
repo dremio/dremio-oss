@@ -14,19 +14,50 @@
  * limitations under the License.
  */
 
- .container {
-  display: flex;
-  align-items: baseline;
-  position: relative; // for tooltip, which is absolutely positioned
-}
+@import "~@app/components/colors.less";
 
-.tooltip {
-  left: 100%;
-  top: 0;
-}
+:global {
+  .textWithHelp {
+    display: flex;
+    align-items: baseline;
+    position: relative; // for tooltip, which is absolutely positioned  
 
-.textWithHelp {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    &__content {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__tooltip {
+      left: 100%;
+      top: 0;
+      width: auto !important;
+      max-width: 450px;
+      white-space: pre-line !important;
+
+      &.--light {
+        background-color: @aqua-spring !important;
+        color: inherit !important;
+        border: 1px solid @blue;
+      }
+    }
+
+    // Todo: Clean up Tooltip component to use less instead of inline styles and add the color property there instead
+    &__tooltipArrow {
+      &.--light {
+        border-color: transparent transparent @blue transparent !important;
+        &:after {
+          content: '';
+          position: absolute;
+          top: 1px;
+          margin-left: -4px;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 4px 5px;
+          border-color: transparent transparent @aqua-spring transparent;
+        }
+      }
+    }
+  }
 }

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
@@ -374,6 +375,7 @@ class FragmentStarter {
     private final FragmentSubmitFailures fragmentSubmitFailures;
     private final FragmentSubmitSuccess fragmentSubmitSuccesses;
     private final NodeEndpoint endpoint;
+    private final AtomicBoolean done;
 
     /**
      * Constructor.
@@ -391,6 +393,7 @@ class FragmentStarter {
       this.fragmentSubmitFailures = fragmentSubmitFailures;
       this.endpoint = endpoint;
       this.fragmentSubmitSuccesses = fragmentSubmitSuccess;
+      done = new AtomicBoolean(false);
     }
 
     @Override
@@ -400,7 +403,7 @@ class FragmentStarter {
 
     @Override
     public void onError(Throwable throwable) {
-      if (latch != null) { // this block only applies to start rpcs.
+      if (latch != null && done.compareAndSet(false, true)) { // this block only applies to start rpcs.
         RpcException ex = RpcException.mapException(throwable);
         fragmentSubmitFailures.addFailure(endpoint, ex);
         latch.countDown();
@@ -412,7 +415,7 @@ class FragmentStarter {
 
     @Override
     public void onCompleted() {
-      if (latch != null) {
+      if (latch != null && done.compareAndSet(false, true)) {
         fragmentSubmitSuccesses.addSuccess(endpoint);
         latch.countDown();
       }

@@ -175,7 +175,7 @@ public class ParquetTypeHelper {
         }
         return CompleteType.INT.toField(colName);
       case INT64:
-        if (originalType == OriginalType.TIMESTAMP_MILLIS) {
+        if (originalType == OriginalType.TIMESTAMP_MILLIS || originalType == OriginalType.TIMESTAMP_MICROS) {
           return CompleteType.TIMESTAMP.toField(colName);
         } else if (originalType == OriginalType.DECIMAL) {
           return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()

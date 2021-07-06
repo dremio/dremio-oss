@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import uuid from 'uuid';
 import deepEqual from 'deep-equal';
 
-import {connectComplexForm, FormBody, FormTitle, ModalForm, modalFormProps} from '@app/components/Forms';
+import {connectComplexForm, FormBody, ModalForm, modalFormProps} from '@app/components/Forms';
 import reflectionActions from '@app/actions/resources/reflection';
 import {getListErrorsFromNestedReduxFormErrorEntity} from '@app/utils/validation';
 import {
@@ -33,7 +33,9 @@ import {
 } from '@app/utils/accelerationUtils';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
 
-import Button from '../Buttons/Button';
+import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
+
+import { AccelerationFormWithMixin } from '@inject/components/Acceleration/AccelerationFormMixin.js';
 import Message from '../Message';
 import AccelerationBasic from './Basic/AccelerationBasic';
 import AccelerationAdvanced from './Advanced/AccelerationAdvanced';
@@ -57,6 +59,7 @@ export class AccelerationForm extends Component {
     values: PropTypes.object,
     destroyForm: PropTypes.func,
     isModal: PropTypes.bool,
+    canAlter: PropTypes.any,
 
     putReflection: PropTypes.func.isRequired,
     postReflection: PropTypes.func.isRequired,
@@ -403,7 +406,7 @@ export class AccelerationForm extends Component {
         // todo: if a delete succeeds and another call fails then we can end up with no reflections of a type
 
         // start with fallback
-        errors[reflectionId] = error.message || la('Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html');
+        errors[reflectionId] = error.message || DEFAULT_ERR_MSG;
 
         const {response} = error;
         if (response) {
@@ -446,29 +449,6 @@ export class AccelerationForm extends Component {
     });
   }
 
-  renderHeader() {
-    const { mode } = this.state;
-
-    return (
-      <div>
-        <div style={{float: 'right', display: 'flex', marginTop: '5px'}}>
-          {mode === 'ADVANCED' && <Button disableSubmit onClick={this.clearReflections} type='CUSTOM' text={la('Remove All Reflections')} />}
-          <Button
-            disable={mode === 'ADVANCED' && this.getMustBeInAdvancedMode()}
-            disableSubmit
-            onClick={this.toggleMode}
-            type='CUSTOM'
-            style={{ marginLeft: 10, width: 140 }} // lock width the prevent wiggle on toggle
-            text={mode === 'BASIC' ? la('Switch to Advanced') : la('Revert to Basic')}
-          />
-        </div>
-        <FormTitle>
-          {la('Reflections')}
-        </FormTitle>
-      </div>
-    );
-  }
-
   getMustBeInAdvancedMode(props) {
     const {aggregationReflections, rawReflections} = props ? props.values : this.props.values;
 
@@ -485,12 +465,13 @@ export class AccelerationForm extends Component {
   }
 
   renderAccelerationMode() {
-    const { fields, location, values, updateFormDirtyState, dataset, reflections } = this.props;
+    const { fields, location, values, updateFormDirtyState, dataset, reflections, canAlter } = this.props;
     const { mode, waitingForRecommendations } = this.state;
 
     if (mode === 'BASIC') {
       return (
         <AccelerationBasic
+          canAlter={canAlter}
           dataset={dataset}
           reflections={reflections}
           location={location}
@@ -501,6 +482,7 @@ export class AccelerationForm extends Component {
       );
     } else if (mode === 'ADVANCED') {
       return <AccelerationAdvanced
+        canAlter={canAlter}
         dataset={dataset}
         reflections={reflections}
         fields={fields}
@@ -640,4 +622,4 @@ export default connectComplexForm({
   putReflection: reflectionActions.put.dispatch,
   postReflection: reflectionActions.post.dispatch,
   deleteReflection: reflectionActions.delete.dispatch
-})(AccelerationForm);
+})(AccelerationFormWithMixin(AccelerationForm));

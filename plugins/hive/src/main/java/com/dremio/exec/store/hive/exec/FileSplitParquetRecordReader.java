@@ -64,7 +64,6 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveAsyncStreamConf;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
-import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.OutputMutatorHelper;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;

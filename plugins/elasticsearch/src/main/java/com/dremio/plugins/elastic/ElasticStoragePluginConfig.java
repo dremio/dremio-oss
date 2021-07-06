@@ -134,13 +134,24 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
         authenticationType = ElasticsearchConf.AuthenticationType.NONE;
     }
     ElasticsearchConf elasticsearchConf = new ElasticsearchConf(
-      elasticStoragePluginConfig.hostList, elasticStoragePluginConfig.username,
-      elasticStoragePluginConfig.password, "", "", "", authenticationType,
-      elasticStoragePluginConfig.scriptsEnabled, elasticStoragePluginConfig.showHiddenIndices,
-      elasticStoragePluginConfig.sslEnabled, elasticStoragePluginConfig.showIdColumn,
-      elasticStoragePluginConfig.readTimeoutMillis, elasticStoragePluginConfig.scrollTimeoutMillis,
-      elasticStoragePluginConfig.usePainless, elasticStoragePluginConfig.useWhitelist,
-      elasticStoragePluginConfig.scrollSize, elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+      elasticStoragePluginConfig.hostList,
+      elasticStoragePluginConfig.username,
+      elasticStoragePluginConfig.password,
+      "",
+      "",
+      "",
+      "",
+      authenticationType,
+      elasticStoragePluginConfig.scriptsEnabled,
+      elasticStoragePluginConfig.showHiddenIndices,
+      elasticStoragePluginConfig.sslEnabled,
+      elasticStoragePluginConfig.showIdColumn,
+      elasticStoragePluginConfig.readTimeoutMillis,
+      elasticStoragePluginConfig.scrollTimeoutMillis,
+      elasticStoragePluginConfig.usePainless,
+      elasticStoragePluginConfig.useWhitelist,
+      elasticStoragePluginConfig.scrollSize,
+      elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
       elasticStoragePluginConfig.warnOnRowCountMismatch,
       elasticStoragePluginConfig.encryptionValidationMode);
     return elasticsearchConf;

@@ -283,6 +283,7 @@ public class MaestroServiceImpl implements MaestroService {
           PutExecutorProfileRequest
             .newBuilder()
             .setProfile(profile)
+            .setIsFinal(true)
             .build()
         );
       }

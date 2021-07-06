@@ -24,8 +24,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.LocalDateTime;
 
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.DremioStringUtils;
+import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
+import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.google.common.base.Joiner;
@@ -200,5 +203,11 @@ public class VectorUtil {
     }
 
     return size;
+  }
+
+  public static ValueVector getVectorFromSchemaPath(VectorAccessible vectorAccessible, String schemaPath) {
+    TypedFieldId typedFieldId = vectorAccessible.getSchema().getFieldId(SchemaPath.getSimplePath(schemaPath));
+    Field field = vectorAccessible.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
+    return vectorAccessible.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
   }
 }

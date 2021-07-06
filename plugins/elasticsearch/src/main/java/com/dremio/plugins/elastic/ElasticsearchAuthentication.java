@@ -25,16 +25,14 @@ import org.slf4j.LoggerFactory;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
-import com.amazonaws.regions.Region;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.regions.RegionUtils;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.Host;
 
 public class ElasticsearchAuthentication {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchAuthentication.class);
-  private final ElasticsearchConf.AuthenticationType authenticationType;
   private final String username;
   private final String password;
   private final String regionName;
@@ -42,8 +40,7 @@ public class ElasticsearchAuthentication {
 
   public ElasticsearchAuthentication(List<Host> hosts, ElasticsearchConf.AuthenticationType authenticationType,
                                      String username, String password, String accessKey, String accessSecret,
-                                     String regionName) {
-    this.authenticationType = authenticationType;
+                                     String regionName, String awsProfile) {
     switch (authenticationType) {
       case ES_ACCOUNT:
         this.username = username;
@@ -65,7 +62,13 @@ public class ElasticsearchAuthentication {
       case EC2_METADATA:
         this.username = null;
         this.password = null;
-        this.awsCredentialsProvider = new InstanceProfileCredentialsProvider();
+        this.awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();
+        this.regionName = getRegionName(regionName, hosts.get(0).hostname);
+        break;
+      case AWS_PROFILE:
+        this.username = null;
+        this.password = null;
+        this.awsCredentialsProvider = new ProfileCredentialsProvider(awsProfile);
         this.regionName = getRegionName(regionName, hosts.get(0).hostname);
         break;
       case NONE:

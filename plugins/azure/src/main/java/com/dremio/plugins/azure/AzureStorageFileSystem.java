@@ -33,9 +33,9 @@ import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
+import com.dremio.http.AsyncHttpClientProvider;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
-import com.dremio.plugins.azure.utils.AsyncHttpClientProvider;
 import com.dremio.plugins.util.ContainerFileSystem;
 
 /**
@@ -121,7 +121,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
 
     final String[] containerList = getContainerNames(conf.get(CONTAINER_LIST));
     if (accountKind == AccountKind.STORAGE_V2) {
-      containerProvider = new AzureAsyncContainerProvider(asyncHttpClient, account, authProvider, this, secure, containerList);
+      containerProvider = new AzureAsyncContainerProvider(asyncHttpClient, azureEndpoint, account, authProvider, this, secure, containerList);
     } else {
       final String connection = String.format("%s://%s.%s", proto.getEndpointScheme(), account, azureEndpoint);
       switch (credentialsType) {
@@ -225,6 +225,6 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
 
   @Override
   public AsyncByteReader getAsyncByteReader(Path path, String version) {
-    return new AzureAsyncReader(account, path, authProvider, version, secure, asyncHttpClient);
+    return new AzureAsyncReader(azureEndpoint, account, path, authProvider, version, secure, asyncHttpClient);
   }
 }

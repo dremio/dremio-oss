@@ -22,13 +22,18 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-provision-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
   <artifactId>dremio-shimloader</artifactId>
   <packaging>jar</packaging>
   <name>MapR ShimLoader Replacement</name>
+
+  <properties>
+    <!-- No need to verify ShimLoader class (this will fail) -->
+    <forbiddenapis.skip>true</forbiddenapis.skip>
+  </properties>
 
   <dependencies>
   </dependencies>

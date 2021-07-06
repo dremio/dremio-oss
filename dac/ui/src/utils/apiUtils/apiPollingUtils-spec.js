@@ -40,9 +40,12 @@ describe('ApiPollingUtils', () => {
     stub.restore();
   });
   it('should call handleSuccess multiple times', async () => {
+    handleSuccess.resetHistory();
     const stub = sinon.stub(ApiUtils, 'fetch').resolves({ok: true});
     await ApiPolling(apiParams, handleFailure, handleSuccess, 1, 2);
-    expect(handleSuccess).to.have.been.called.twice;
+    setTimeout(() => {
+      expect(handleSuccess).to.have.been.calledTwice;
+    }, 1500);
     stub.restore();
   });
 

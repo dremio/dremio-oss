@@ -18,7 +18,7 @@ package com.dremio.resource;
 import java.util.Collection;
 
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 
 /**
  * GroupResourceInformation implementation when only a subset of executors are selected for the query.
@@ -58,8 +58,8 @@ public class SelectedExecutorsResourceInformation implements GroupResourceInform
   }
 
   @Override
-  public long getAverageExecutorCores(OptionManager optionManager) {
-    long configuredMaxWidthPerNode = optionManager.getOption(MAX_WIDTH_PER_NODE_KEY).getNumVal();
+  public long getAverageExecutorCores(OptionResolver optionManager) {
+    long configuredMaxWidthPerNode = optionManager.getOption(MAX_WIDTH_PER_NODE_KEY);
     if (configuredMaxWidthPerNode == 0) {
       /* user has not overridden the default, use the default MAX_WIDTH_PER_NODE which is average
        * number of cores as computed by ClusterResourceInformation.

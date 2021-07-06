@@ -36,11 +36,11 @@ import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.common.HostAffinityComputer;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.parquet.Metadata;
 import com.dremio.exec.store.parquet.ParquetGroupScanUtils;
 import com.dremio.exec.store.schedule.EndpointByteMap;
-import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
@@ -111,8 +111,9 @@ public class DeltaLakeTable {
             inputSplit.getExtraInfo().writeTo(baos);
             final EasyProtobuf.EasyDatasetSplitXAttr xAttr = EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(baos.toByteArray());
             final Path path = Path.of(xAttr.getPath());
-            final FileAttributes fileAttrs = fs.getFileAttributes(path);
-            final Map<HostAndPort, Float> affinities = Metadata.getHostAffinity(fs, fileAttrs, xAttr.getStart(), xAttr.getLength());
+            Iterable<FileBlockLocation> fileBlockLocations = fs.getFileBlockLocations(path, xAttr.getStart(), xAttr.getLength());
+            final Map<HostAndPort, Float> affinities = HostAffinityComputer.computeAffinitiesForSplit(
+              xAttr.getStart(), xAttr.getLength(), fileBlockLocations, fs.preserveBlockLocationsOrder());
             final List<DatasetSplitAffinity> datasetAffinities = new ArrayList<>();
             final Set<HostAndPort> hostEndpointMap = Sets.newHashSet();
             final Set<HostAndPort> hostPortEndpointMap = Sets.newHashSet();
@@ -161,7 +162,7 @@ public class DeltaLakeTable {
     }
 
     private long setNumCommitJsonDataFileCount() {
-      return getListOfSnapshot().stream().filter(s -> !s.containsCheckpoint()).mapToLong(DeltaLogSnapshot::getNetFilesAdded).sum();
+      return getListOfSnapshot().stream().filter(s -> !s.containsCheckpoint()).mapToLong(DeltaLogSnapshot::getDataFileEntryCount).sum();
     }
 
     public boolean checkMetadataStale(DeltaLakeProtobuf.DeltaLakeReadSignature oldSignature) throws IOException {

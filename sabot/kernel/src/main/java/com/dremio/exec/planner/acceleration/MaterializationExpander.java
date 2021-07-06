@@ -47,6 +47,7 @@ import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.NamespaceTable;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -58,14 +59,16 @@ import com.google.common.collect.ImmutableList;
 public class MaterializationExpander {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationExpander.class);
   private final SqlConverter parent;
+  private final CatalogService catalogService;
 
-  private MaterializationExpander(final SqlConverter parent) {
+  private MaterializationExpander(final SqlConverter parent, final CatalogService catalogService) {
     this.parent = Preconditions.checkNotNull(parent, "parent is required");
+    this.catalogService = catalogService;
   }
 
   public DremioMaterialization expand(MaterializationDescriptor descriptor) {
 
-    RelNode queryRel = deserializePlan(descriptor.getPlan(), parent);
+    RelNode queryRel = deserializePlan(descriptor.getPlan(), parent, catalogService);
 
     // used for old reflections where we stripped before plan persistence.
     final boolean preStripped = descriptor.getStrippedPlanHash() == null;
@@ -239,14 +242,24 @@ public class MaterializationExpander {
 
 
 
-  public static RelNode deserializePlan(final byte[] planBytes, SqlConverter parent) {
+  public static RelNode deserializePlan(final byte[] planBytes, SqlConverter parent, CatalogService catalogService) {
     final SqlConverter parser = new SqlConverter(parent, parent.getCatalogReader().withSchemaPath(ImmutableList.of()));
-    final LogicalPlanDeserializer deserializer = parser.getSerializerFactory().getDeserializer(parser.getCluster(), parser.getCatalogReader(), parser.getFunctionImplementationRegistry());
-    return deserializer.deserialize(planBytes);
+    try {
+      final LogicalPlanDeserializer deserializer = parser.getSerializerFactory().getDeserializer(parser.getCluster(), parser.getCatalogReader(), parser.getFunctionImplementationRegistry(), catalogService);
+      return deserializer.deserialize(planBytes);
+    } catch (Exception ex) {
+      try {
+        // Try using legacy serializer. If this one also fails, throw the original exception.
+        final LogicalPlanDeserializer deserializer = parser.getLegacySerializerFactory().getDeserializer(parser.getCluster(), parser.getCatalogReader(), parser.getFunctionImplementationRegistry(), catalogService);
+        return deserializer.deserialize(planBytes);
+      } catch (Exception ignored) {
+        throw ex;
+      }
+    }
   }
 
-  public static MaterializationExpander of(final SqlConverter parent) {
-    return new MaterializationExpander(parent);
+  public static MaterializationExpander of(final SqlConverter parent, final CatalogService catalogService) {
+    return new MaterializationExpander(parent, catalogService);
   }
 
   public static class ExpansionException extends RuntimeException {

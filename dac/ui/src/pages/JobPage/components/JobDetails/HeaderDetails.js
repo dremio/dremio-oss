@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import Immutable from 'immutable';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import { injectIntl } from 'react-intl';
@@ -33,9 +32,8 @@ import JobsUtils, { JobState } from '@app/utils/jobsUtils';
 import JobStateIcon from '../JobStateIcon';
 
 @injectIntl
-@PureRender
 @Radium
-class HeaderDetails extends Component {
+class HeaderDetails extends PureComponent {
   static propTypes = {
     cancelJob: PropTypes.func,
     style: PropTypes.object,

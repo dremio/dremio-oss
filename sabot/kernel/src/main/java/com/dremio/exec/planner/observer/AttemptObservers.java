@@ -26,12 +26,14 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -93,6 +95,27 @@ public class AttemptObservers implements AttemptObserver {
   public void planCacheUsed(int count) {
     for (final AttemptObserver observer : observers) {
       observer.planCacheUsed(count);
+    }
+  }
+
+  @Override
+  public void setCachedSubstitutionInfo(CachedPlan cachedPlan) {
+    for (final AttemptObserver observer : observers) {
+      observer.setCachedSubstitutionInfo(cachedPlan);
+    }
+  }
+
+  @Override
+  public void setAccelerationProfile(AccelerationProfile accelerationProfile) {
+    for (final AttemptObserver observer : observers) {
+      observer.setAccelerationProfile(accelerationProfile);
+    }
+  }
+
+  @Override
+  public void setCacheKey(long cacheKey) {
+    for (final AttemptObserver observer : observers) {
+      observer.setCacheKey(cacheKey);
     }
   }
 

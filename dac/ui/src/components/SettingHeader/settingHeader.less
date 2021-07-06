@@ -1,0 +1,60 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "~@app/components/colors.less";
+
+@icon-size: 25px;
+ 
+:global {
+  .settingHeader {
+    min-height: 100%;
+    height: 100%;
+
+    &__root {
+      min-height: 54px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid @border-color;
+    }
+ 
+    &__title {
+      display: flex;
+      align-items: center;
+      font-size: 18px !important;
+      font-weight: 500 !important;
+    }
+
+    &__endChildren {
+      display: flex;
+      align-items: center;
+    }
+  
+    &__action {
+      cursor: pointer;
+      display: flex;
+      font-size: 13px;
+      align-items: center;
+      color: @blue;
+      margin-right: 8px;
+    }
+ 
+    &__icon {
+      height: @icon-size;
+      width: @icon-size;
+    }
+  }
+ }

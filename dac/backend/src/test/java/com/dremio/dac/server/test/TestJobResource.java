@@ -40,6 +40,7 @@ import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceService;
 
 /**
  * Job test resource
@@ -49,20 +50,24 @@ import com.dremio.service.jobs.JobsService;
 @RolesAllowed({"admin", "user"})
 @Path("/testjob/{jobId}")
 public class TestJobResource extends JobResource {
+  private final JobId jobId;
+
   @Inject
   public TestJobResource(
     JobsService jobsService,
     DatasetVersionMutator datasetService,
     @Context SecurityContext securityContext,
-    BufferAllocatorFactory allocatorFactory
+    NamespaceService namespace,
+    BufferAllocatorFactory allocatorFactory,
+    @PathParam("jobId") JobId jobId
   ) {
-    super(jobsService, datasetService, securityContext, allocatorFactory);
+    super(jobsService, datasetService, securityContext, namespace, allocatorFactory, jobId);
+    this.jobId = jobId;
   }
 
   /**
    * Export data for job id as a file
    *
-   * @param previewJobId
    * @param downloadFormat - a format of output file. Also defines a file extension
    * @return
    * @throws IOException
@@ -73,11 +78,9 @@ public class TestJobResource extends JobResource {
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
   @TemporaryAccess
-  public Response download(
-    @PathParam("jobId") JobId previewJobId,
-    @QueryParam("downloadFormat") DownloadFormat downloadFormat
+  public Response download(@QueryParam("downloadFormat") DownloadFormat downloadFormat
   ) throws JobResourceNotFoundException, JobNotFoundException {
-    return doDownload(previewJobId, downloadFormat);
+    return doDownload(jobId, downloadFormat);
   }
 
   /**

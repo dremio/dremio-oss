@@ -261,7 +261,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
       // the type system for elastic somewhat incomplete. In cases of the single "date" type can be mapped to TIME, DATE or TIMESTAMP. We need to check this here.
       if(type == Type.DATE){
-        FormatterAndType[] types = DateFormats.getFormatterAndType(formats);
+        DateFormats.FormatterAndType[] types = DateFormats.FormatterAndType.getFormatterAndType(formats);
         Preconditions.checkArgument(types.length > 0);
         Type newType = types[0].type();
 

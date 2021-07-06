@@ -16,6 +16,7 @@
 package com.dremio.exec.store.dfs;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
@@ -24,11 +25,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -40,24 +41,23 @@ import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.deltalake.DeltaConstants;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
 /**
@@ -74,6 +74,7 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   private VarCharVector pathVector;
   private BigIntVector sizeVector;
   private BigIntVector modTimeVector;
+  private VarBinaryVector outputSplitsIdentity;
   private VarBinaryVector outputSplits;
 
   private String currentPath;
@@ -93,19 +94,13 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     super.setup(accessible);
-    pathVector = (VarCharVector) getValueVector(incoming, DeltaConstants.SCHEMA_ADD_PATH);
-    sizeVector = (BigIntVector) getValueVector(incoming, DeltaConstants.SCHEMA_ADD_SIZE);
-    modTimeVector = (BigIntVector) getValueVector(incoming, DeltaConstants.SCHEMA_ADD_MODIFICATION_TIME);
-    outputSplits = (VarBinaryVector) getValueVector(outgoing, RecordReader.SPLIT_INFORMATION);
-    partitionCols.forEach(col -> partitionColValues.put(col, getValueVector(incoming, col)));
+    pathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_PATH);
+    sizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_SIZE);
+    modTimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_MODIFICATION_TIME);
+    outputSplits = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
+    outputSplitsIdentity = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_IDENTITY);
+    partitionCols.forEach(col -> partitionColValues.put(col, VectorUtil.getVectorFromSchemaPath(incoming, col)));
     return outgoing;
-  }
-
-  public static ValueVector getValueVector(VectorAccessible vectorWrappers, String fieldName) {
-    TypedFieldId typedFieldId = vectorWrappers.getSchema().getFieldId(SchemaPath.getSimplePath(fieldName));
-    Preconditions.checkNotNull(typedFieldId, "Column [%s] not found in incoming vectors.", fieldName);
-    Field field = vectorWrappers.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
-    return vectorWrappers.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
   }
 
   @Override
@@ -129,19 +124,24 @@ public class SplitGenTableFunction extends AbstractTableFunction {
       return 0;
     }
     int splitOffset = 0;
-    for (SplitAndPartitionInfo split : createSplits(currentPath, currentModTime, maxRecords)) {
-      try (final ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-        ObjectOutput out = new ObjectOutputStream(bos);
-        out.writeObject(split);
-        outputSplits.setSafe(startOutIndex + (splitOffset++), bos.toByteArray());
-      }
+    List<SplitIdentity> splitsIdentity = new ArrayList<>();
+    List<SplitAndPartitionInfo> splits = createSplits(currentPath, currentModTime, maxRecords, splitsIdentity);
+    Preconditions.checkState(splits.size() == splitsIdentity.size(), "Splits count is not same as splits Identity count");
+    Iterator<SplitAndPartitionInfo> splitsIterator = splits.iterator();
+    Iterator<SplitIdentity> splitsIdentityIterator = splitsIdentity.iterator();
+
+    while (splitsIterator.hasNext()) {
+      outputSplitsIdentity.setSafe(startOutIndex + splitOffset, serializeToByteArray(splitsIdentityIterator.next()));
+      outputSplits.setSafe(startOutIndex + splitOffset, serializeToByteArray(splitsIterator.next()));
+      splitOffset++;
     }
-    outputSplits.setValueCount(startOutIndex + splitOffset);
-    outgoing.setRecordCount(startOutIndex + splitOffset);
+    int recordCount = startOutIndex + splitOffset;
+    outgoing.forEach(vw -> vw.getValueVector().setValueCount(recordCount));
+    outgoing.setRecordCount(recordCount);
     return splitOffset;
   }
 
-  private List<SplitAndPartitionInfo> createSplits(String path, long mtime, int maxRecords) {
+  private List<SplitAndPartitionInfo> createSplits(String path, long mtime, int maxRecords, List<SplitIdentity> splitsIdentity) {
     PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo
             .newBuilder();
     partitionInfoBuilder.setId(String.valueOf(1));
@@ -165,6 +165,8 @@ public class SplitGenTableFunction extends AbstractTableFunction {
                       .setFileLength(fileSize)
                       .setLastModificationTime(mtime)
                       .build();
+
+      splitsIdentity.add(new SplitIdentity(splitExtended.getPath(), null, splitExtended.getStart(), splitExtended.getLength()));
 
       final PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo
               .newBuilder()
@@ -208,6 +210,14 @@ public class SplitGenTableFunction extends AbstractTableFunction {
       // TODO: Handle other types
       throw new IllegalArgumentException("Partition column " + partitionColName + "'s type "
               + partitionValVec.getField().getType() + " is unsupported.");
+    }
+  }
+
+  private static byte[] serializeToByteArray(Object object) throws IOException {
+    try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+         ObjectOutput out = new ObjectOutputStream(bos)) {
+      out.writeObject(object);
+      return bos.toByteArray();
     }
   }
 

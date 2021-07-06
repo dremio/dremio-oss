@@ -19,6 +19,8 @@ import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -33,6 +35,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.GroupType;
@@ -59,9 +62,11 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergFormatMatcher;
-import com.dremio.exec.store.iceberg.IcebergTableOperations;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.FileSystem;
 import com.dremio.test.TemporarySystemProperties;
@@ -431,8 +436,6 @@ public class TestCTAS extends PlanTestBase {
 
       File metadataFolder = new File(tableFolder, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
-      assertTrue(new File(metadataFolder, "v1.metadata.json").exists()); // snapshot metadata
-      assertTrue(new File(metadataFolder, "version-hint.text").exists()); // root pointer file
       assertEquals(2, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
@@ -507,20 +510,21 @@ public class TestCTAS extends PlanTestBase {
 
       assertTrue(dataFolder.exists()); // query ID folder, which contains data
       //writers are in different phase
-      assertTrue(new File(dataFolder, "1_0_0.parquet").exists()); // parquet data file
-      assertTrue(new File(dataFolder, "1_1_0.parquet").exists()); // parquet data file
+      assertTrue(new File(dataFolder, "2_0_0.parquet").exists()); // parquet data file
+      assertTrue(new File(dataFolder, "2_1_0.parquet").exists()); // parquet data file
 
       File metadataFolder = new File(tableFolder, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
-      assertTrue(new File(metadataFolder, "v1.metadata.json").exists()); // snapshot metadata
-      assertTrue(new File(metadataFolder, "version-hint.text").exists()); // root pointer file
-      assertEquals(2, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
+      assertTrue(Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
           return name.endsWith(".avro");
         }
-      })).length); // manifest list and manifest files
-
+      })).length >= 2); // manifest list and manifest files
+      // TODO: Due to distribution strategy on path. these 2 datafile goes to 2 different writer thread
+      //  So this generates one extra manifest file.
+      //  Currently parallelization cost is same for both writers(Datafile and Manifest writer) which
+      //  total number of records to be inserted.
       testBuilder()
               .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
               .unOrdered()
@@ -564,8 +568,6 @@ public class TestCTAS extends PlanTestBase {
 
       File metadataFolder = new File(tableFolder, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
-      assertTrue(new File(metadataFolder, "v1.metadata.json").exists()); // snapshot metadata
-      assertTrue(new File(metadataFolder, "version-hint.text").exists()); // root pointer file
       assertEquals(2, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
@@ -584,7 +586,12 @@ public class TestCTAS extends PlanTestBase {
       final String insertQuery = String.format("INSERT INTO %s.%s SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1", TEMP_SCHEMA, newTblName);
       test(insertQuery);
 
-      assertTrue(new File(metadataFolder, "v2.metadata.json").exists());
+      assertEquals(2, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
+        @Override
+        public boolean accept(File dir, String name) {
+          return name.endsWith(".json");
+        }
+      })).length);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }
@@ -689,9 +696,11 @@ public class TestCTAS extends PlanTestBase {
         .build()
         .run();
 
-      IcebergTableOperations tableOperations = new IcebergTableOperations(
-        new org.apache.hadoop.fs.Path(tableFolder.toString()), new Configuration());
-      BatchSchema icebergSchema = SchemaConverter.fromIceberg(tableOperations.current().schema());
+      FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+      when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+      Table table = icebergHadoopModel.getIcebergTable(icebergHadoopModel.getTableIdentifier(tableFolder.toString()));
+      BatchSchema icebergSchema = SchemaConverter.fromIceberg(table.schema());
       SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
       schemaBuilder.addField(CompleteType.VARCHAR.toField("name"));
       schemaBuilder.addField(CompleteType.struct(CompleteType.BIGINT.toField("age"), CompleteType.VARCHAR.toField("gender")).toField("info"));
@@ -930,6 +939,56 @@ public class TestCTAS extends PlanTestBase {
         .run();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), caseSensitiveTest));
+    }
+  }
+
+  @Test
+  public void testIncorrectCatalog() throws Exception {
+    final String newTblName = "test_incorrect_iceberg_catalog";
+    try (AutoCloseable c = enableIcebergTables()) {
+      final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
+                      " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
+              TEMP_SCHEMA, newTblName);
+      test(ctasQuery);
+    }
+
+    // enable v2 so that default catalog becomes nessie
+    try (AutoCloseable c = enableIcebergTables();
+        AutoCloseable c2 = enableV2Execution()) {
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
+      IcebergModel icebergModel = getIcebergModel(tableFolder);
+      expectedEx.expect(UserException.class);
+      expectedEx.expectMessage(String.format("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry."));
+      icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableFolder.getPath()));
+    }
+  }
+
+  @Test
+  public void testManifestWriter() throws Exception {
+
+    final String icebergTable = "icebergTable";
+
+    try (AutoCloseable c = enableIcebergTables()) {
+      final String query = String.format("CREATE TABLE %s.%s  " +
+          " AS SELECT n_nationkey, n_name from cp.\"tpch/nation.parquet\" limit 1",
+        TEMP_SCHEMA, icebergTable);
+      test(query);
+
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), icebergTable);
+      assertTrue(tableFolder.exists());
+
+      File metadataFolder = new File(tableFolder, "metadata");
+      assertTrue(metadataFolder.exists()); // metadata folder
+      assertEquals(1, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
+        @Override
+        public boolean accept(File dir, String name) {
+          return name.endsWith(".avro") && name.length() == 32 + 4 + 5;
+        }
+      })).length);
+      //Manifest file example f22926dd-04c9-4d11-ab3f-23adc25e1959.avro
+      // Format : UUID.avro  so 32(uuid) + 4(dash) + 5(.avro extension)
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), icebergTable));
     }
   }
 }

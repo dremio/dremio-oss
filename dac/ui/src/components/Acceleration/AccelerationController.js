@@ -32,6 +32,7 @@ export class AccelerationController extends Component {
     datasetId: PropTypes.string, // populated except during teardown
     dataset: PropTypes.instanceOf(Immutable.Map),
     reflections: PropTypes.instanceOf(Immutable.Map),
+    canAlter: PropTypes.any,
 
     getReflections: PropTypes.func.isRequired,
     getDataset: PropTypes.func.isRequired,
@@ -76,7 +77,7 @@ export class AccelerationController extends Component {
   };
 
   renderContent() {
-    const { viewState, reflections, dataset, onCancel, isModal = true } = this.props;
+    const { viewState, reflections, dataset, onCancel, isModal = true, canAlter } = this.props;
 
     if (!this.state.getComplete || viewState.get('isFailed')) {
       return null; // AccelerationForm expects to only be created after data is ready
@@ -85,6 +86,7 @@ export class AccelerationController extends Component {
     if (!dataset || !reflections) return null; // teardown guard
 
     return <AccelerationForm
+      canAlter={canAlter}
       isModal={isModal}
       updateFormDirtyState={this.props.updateFormDirtyState}
       onCancel={onCancel}
@@ -110,6 +112,8 @@ function mapStateToProps(state, ownProps) {
     return reflection.get('datasetId') === ownProps.datasetId;
   }) : new Immutable.Map();
 
+  const canAlter = state.resources.entities.get('reflection') && state.resources.entities.getIn(['reflection', 'canAlter']);
+
   const dataset = state.resources.entities.get('dataset') && state.resources.entities.get('dataset').get(ownProps.datasetId);
 
   let viewState = getViewState(state, VIEW_ID);
@@ -123,6 +127,7 @@ function mapStateToProps(state, ownProps) {
   }
 
   return {
+    canAlter,
     reflections,
     dataset,
     viewState

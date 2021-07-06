@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import { injectIntl } from 'react-intl';
 
 import PropTypes from 'prop-types';
@@ -24,8 +23,7 @@ import Art from 'components/Art';
 
 @injectIntl
 @Radium
-@pureRender
-class LoginTitle extends Component {
+class LoginTitle extends PureComponent {
   static propTypes = {
     subTitle: PropTypes.node,
     style: PropTypes.object,

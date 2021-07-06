@@ -1,6 +1,6 @@
 import { ENTITY_TYPES } from '@app/constants/Constants';
 import { manageSourceRule, manageSpaceRule } from '@app/utils/authUtils';
-
+import {isCME} from 'dyn-load/utils/versionUtils';
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -24,12 +24,18 @@ export default function(input) {
       const buttons = [];
 
       if (entity.get('entityType') === ENTITY_TYPES.space) {
-        buttons.push({
-          qa: 'settings',
-          iconType: 'Settings',
-          to: {...location, state: {modal: 'SpaceModal', entityId: entity.get('id')}},
-          authRule: manageSpaceRule
-        });
+        let showSettingsButton = true;
+        if (isCME && !isCME() && entity.get('permissions')) {
+          showSettingsButton = entity.getIn(['permissions', 'canEditAccessControlList']);
+        }
+        if (showSettingsButton) {
+          buttons.push({
+            qa: 'settings',
+            iconType: 'Settings',
+            to: {...location, state: {modal: 'SpaceModal', entityId: entity.get('id')}},
+            authRule: manageSpaceRule
+          });
+        }
       }
 
       buttons.push({
@@ -48,21 +54,29 @@ export default function(input) {
       const buttons = [];
 
       if (entity.get('entityType') === 'source') {
-        buttons.push({
-          qa: 'settings',
-          iconType: 'Settings',
-          to: {
-            ...location,
-            state: {
-              modal: 'EditSourceModal',
-              query: { name: entity.get('name'), type: entity.get('type') }
-            }
-          },
-          authRule: manageSourceRule
-        });
+        let showSettingsButton = true;
+        if (isCME && !isCME() && entity.get('permissions')) {
+          showSettingsButton = entity.getIn(['permissions', 'canEditAccessControlList']);
+        }
+        if (showSettingsButton) {
+          buttons.push({
+            qa: 'settings',
+            iconType: 'Settings',
+            to: {
+              ...location,
+              state: {
+                modal: 'EditSourceModal',
+                query: { name: entity.get('name'), type: entity.get('type') }
+              }
+            },
+            authRule: manageSourceRule
+          });
+        }
       }
 
       return buttons;
     }
   });
 }
+
+export const isUploadEnabled = () => true;

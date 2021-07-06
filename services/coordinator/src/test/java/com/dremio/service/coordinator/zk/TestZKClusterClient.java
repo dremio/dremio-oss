@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,6 +40,8 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.test.DremioTest;
 import com.typesafe.config.ConfigValueFactory;
+
+import junit.framework.Assert;
 
 /**
  * Test for {@code TestZKClusterClient}
@@ -279,6 +282,108 @@ public class TestZKClusterClient extends DremioTest {
       assertTrue("Node was not disconnected", loss.await(5, TimeUnit.SECONDS));
       assertTrue("Node was not reconnected", reconnected.await(5, TimeUnit.SECONDS));
       assertEquals("Node was cancelled", 1L, cancelled.getCount());
+    }
+  }
+
+  private ZKClusterClient getZkClientInstance() throws Exception {
+    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("5s"));
+    final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
+    ZKClusterClient client = new ZKClusterClient(
+      config,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()));
+    Assert.assertNotNull(client);
+    return client;
+  }
+
+  // testElectionWithMultipleParticipants was executed repeatedly around 200 to 300 times to reproduce the
+  // issue in DX-30714
+  @Test
+  public void testElectionWithMultipleParticipants() throws Exception {
+    try (ZKClusterClient client1 = getZkClientInstance();
+         ZKClusterClient client2 = getZkClientInstance()) {
+      client1.start();
+      client2.start();
+      TestElectionListener electionListener1 = new TestElectionListener();
+      TestElectionListener electionListener2 = new TestElectionListener();
+
+      ElectionRegistrationHandle electionRegistrationHandle1 = client1.joinElection("test-election", electionListener1);
+      ElectionRegistrationHandle electionRegistrationHandle2 = client2.joinElection("test-election", electionListener2);
+
+      // For the client that gained leadership, relinquish leadership and reenter the election
+      // After relinquishing leadership, asynchronously restart zk to simulate leadership lost
+      // while the client reenters leadership
+      Thread.sleep(1000);
+      if (electionListener1.isLeader) {
+        // close
+        electionRegistrationHandle1.close();
+        // restart the zk server to simulate leadership lost
+        CompletableFuture.runAsync(() -> {
+          try {
+            Thread.sleep(1000);
+            zooKeeperServer.restartServer();
+          } catch (Exception e) {
+          }
+        });
+        TestElectionListener temp = new TestElectionListener();
+        CompletableFuture<ElectionRegistrationHandle> future = CompletableFuture.supplyAsync(() -> {
+          return client1.joinElection("test-election", temp);
+        });
+        electionListener1 = temp;
+        electionRegistrationHandle1 = future.get();
+      } else if (electionListener2.isLeader) {
+        electionRegistrationHandle2.close();
+        CompletableFuture.runAsync(() -> {
+          try {
+            Thread.sleep(1000);
+            zooKeeperServer.restartServer();
+          } catch (Exception e) {
+          }
+        });
+        TestElectionListener temp = new TestElectionListener();
+        CompletableFuture<ElectionRegistrationHandle> future = CompletableFuture.supplyAsync(() -> {
+          return client2.joinElection("test-election", temp);
+        });
+        electionListener2 = temp;
+        electionRegistrationHandle2 = future.get();
+      }
+
+      // After zk restart, leadership would be lost and regained to one of the client.
+      // wait till one of the clients gain leadership
+      do {
+        Thread.sleep(1000);
+      } while (!electionListener1.isLeader && !electionListener2.isLeader);
+
+      Thread.sleep(5000);
+
+      // verify if one of the clients is leader
+      boolean bothLeaders = electionListener1.isLeader && electionListener2.isLeader;
+      // wait for 10 seconds to confirm if both leaders continue to exist after 10 seconds also
+      if (bothLeaders) {
+        Thread.sleep(10000);
+        bothLeaders = electionListener1.isLeader && electionListener2.isLeader;
+      }
+
+      Assert.assertTrue(electionRegistrationHandle1.instanceCount() == 2);
+      Assert.assertTrue(electionRegistrationHandle2.instanceCount() == 2);
+
+      // assert that there is only one leader
+      Assert.assertFalse("Two leaders are not expected.", bothLeaders);
+    }
+  }
+
+  private class TestElectionListener implements ElectionListener {
+    private volatile boolean isLeader = false;
+
+    @Override
+    public void onElected() {
+      isLeader = true;
+    }
+
+    @Override
+    public void onCancelled() {
+      isLeader = false;
     }
   }
 }

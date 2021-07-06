@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect }   from 'react-redux';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import { Link } from 'react-router';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { loadSummaryDataset } from 'actions/resources/dataset';
 import { getViewState } from 'selectors/resources';
@@ -41,9 +40,8 @@ import './DatasetOverlayContent.less';
 const VIEW_ID = 'SummaryDataset';
 
 @Radium
-@pureRender
 @DatasetOverlayContentMixin
-export class DatasetOverlayContent extends Component {
+export class DatasetOverlayContent extends PureComponent {
   static propTypes = {
     fullPath: PropTypes.instanceOf(Immutable.List),
     summaryDataset: PropTypes.instanceOf(Immutable.Map),

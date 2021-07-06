@@ -32,7 +32,9 @@ export class Tooltip extends PureComponent {
     target: PropTypes.func.isRequired,
     container: PropTypes.object,
     tooltipInnerStyle: PropTypes.object,
+    tooltipInnerClass: PropTypes.string,
     tooltipArrowStyle: PropTypes.object,
+    tooltipArrowClass: PropTypes.string,
     dataQa: PropTypes.string
   };
 
@@ -49,6 +51,8 @@ export class Tooltip extends PureComponent {
       placement,
       target,
       tooltipInnerStyle,
+      tooltipInnerClass,
+      tooltipArrowClass,
       container,
       dataQa
     } = this.props;
@@ -89,8 +93,13 @@ export class Tooltip extends PureComponent {
                       ...arrowProps.style,
                       ...placementStyle.arrow
                     }}
+                    className={tooltipArrowClass}
                   />
-                  <div data-qa={dataQa} style={{ ...styles.inner, ...tooltipInnerStyle }}>
+                  <div
+                    data-qa={dataQa}
+                    style={{ ...styles.inner, ...tooltipInnerStyle }}
+                    className={tooltipInnerClass}
+                  >
                     {children}
                   </div>
                 </div>

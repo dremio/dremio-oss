@@ -153,7 +153,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       requestedTables,
       serializerFactory,
       optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH),
-      forceFullUpdate);
+      forceFullUpdate,
+      sqlHandlerConfig.getContext().getFunctionRegistry());
 
     if (isIncremental(refreshDecision)) {
       try {

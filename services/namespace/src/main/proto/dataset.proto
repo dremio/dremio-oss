@@ -81,41 +81,6 @@ enum SortOrder {
   DESC = 2;
 }
 
-enum ScanStatsType {
-  NO_EXACT_ROW_COUNT = 1;
-  EXACT_ROW_COUNT = 2;
-}
-
-message ScanStats {
-  optional ScanStatsType type = 1;
-  optional int64 record_count = 2;
-  optional float cpu_cost = 3;
-  optional float disk_cost = 4;
-  optional double scan_factor = 5;
-}
-
-message ReadDefinition {
-  // last time the definition was updated
-  optional int64 last_refresh_date = 1;
-
-  // minimal plugin specific signature to identify whether the dataset has changed since last updated.
-  optional bytes read_signature = 2; 
-  
-  repeated string partitionColumns = 3;
-  
-  // in order
-  repeated string sortColumns = 4;
-
-  optional ScanStats scanStats = 5;
-  
-  // source specific information about this dataset
-  optional bytes extendedProperty = 6;
-
-  optional int64 splitVersion = 7; // increasing number assigned to map read definition to its latest splits
-
-  optional ScanStats manifestScanStats = 8;
-}
-
 message PhysicalDataset {
   optional com.dremio.service.namespace.file.proto.FileConfig formatSettings = 1;
   optional bytes deprecated_dataset_schema = 2; // FlatBuffer encoded schema

@@ -60,6 +60,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
@@ -225,10 +226,20 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
         }
       }
     }
+    return getSchema(oldSchema, context, firstFile, fields);
+  }
 
+  private BatchSchema getSchema(BatchSchema oldSchema, SabotContext context, FileAttributes firstFile, List<Field> fields) {
     BatchSchema newSchema = BatchSchema.newBuilder().addFields(fields).build();
     boolean mixedTypesDisabled = context.getOptionManager().getOption(ExecConstants.MIXED_TYPES_DISABLED);
-    return oldSchema != null ? oldSchema.merge(newSchema, mixedTypesDisabled) : newSchema;
+    try {
+      newSchema = newSchema.handleUnions(mixedTypesDisabled);
+      return oldSchema != null ? oldSchema.merge(newSchema, mixedTypesDisabled) : newSchema;
+    } catch (NoSupportedUpPromotionOrCoercionException e) {
+      e.addFilePath(firstFile.getPath().toString());
+      e.addDatasetPath(tableSchemaPath.getPathComponents());
+      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+    }
   }
 
   /**

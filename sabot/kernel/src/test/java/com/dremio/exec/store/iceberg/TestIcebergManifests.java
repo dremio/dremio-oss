@@ -16,8 +16,11 @@
 package com.dremio.exec.store.iceberg;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,11 +31,14 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Files;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,7 +48,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.io.file.Path;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.google.common.collect.Lists;
 
 public class TestIcebergManifests extends BaseTestQuery {
@@ -121,29 +129,64 @@ public class TestIcebergManifests extends BaseTestQuery {
     try {
       tableFolder.mkdir();
 
-      IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(tableName, Path.of(tableFolder.toPath().toString()),
-        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
-      committer.consumeData(getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName));
+      FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+      when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+      IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName));
       committer.commit();
 
-      Table table = new HadoopTables(new Configuration()).load(tableFolder.getPath());
+      committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()));
+      ManifestFile manifestFile = getManifestFile("Manifest", partitionSpec, partitionValueSize, dataFilesCount, columnName, tableFolder);
+      committer.consumeManifestFile(manifestFile);
+      committer.commit();
+
+      Table table = getIcebergTable(tableFolder);
       Assert.assertEquals(1, table.currentSnapshot().allManifests().size());
 
       table.updateProperties()
         .set(TableProperties.MANIFEST_TARGET_SIZE_BYTES, "20480")
         .commit();
 
-      for (int i=0; i<insertCount; ++i) {
-        committer = IcebergOperation.getInsertTableCommitter(tableName,
-          Path.of(tableFolder.toPath().toString()), SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
-        committer.consumeData(getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName));
+      when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+      for (int i = 0; i < insertCount; ++i) {
+        committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()));
+        manifestFile = getManifestFile("Manifest" + i, partitionSpec, partitionValueSize, dataFilesCount, columnName, tableFolder);
+        committer.consumeManifestFile(manifestFile);
         committer.commit();
       }
-      table = new HadoopTables(new Configuration()).load(tableFolder.getPath());
+      table = getIcebergTable(tableFolder);
       return table.currentSnapshot().allManifests().size();
     }
     finally {
       tableFolder.delete();
     }
+  }
+
+  ManifestFile getManifestFile(String name, PartitionSpec partitionSpec, int partitionValueSize, int dataFilesCount, String columnName, File tableFolder) throws IOException {
+   return writeManifest(name, getDataFiles(partitionSpec, partitionValueSize, dataFilesCount, columnName), tableFolder);
+  }
+
+  ManifestFile writeManifest(String fileName, List<DataFile> files, File tableFolder) throws IOException {
+    return writeManifest(fileName, null, files, tableFolder);
+  }
+
+  ManifestFile writeManifest(String fileName, Long snapshotId, List<DataFile> files, File tableFolder) throws IOException {
+    File metadataFolder = new File(tableFolder, "metadata");
+    metadataFolder.mkdir();
+    File manifestFile =  new File(metadataFolder, fileName + ".avro");
+    Table table = getIcebergTable(tableFolder);
+    OutputFile outputFile = table.io().newOutputFile(manifestFile.getCanonicalPath());
+
+    ManifestWriter<DataFile> writer = ManifestFiles.write(1, table.spec(), outputFile, snapshotId);
+    try {
+      for (DataFile file : files) {
+        writer.add(file);
+      }
+    } finally {
+      writer.close();
+    }
+    return writer.toManifestFile();
   }
 }

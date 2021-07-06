@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
@@ -31,8 +30,7 @@ import AnalyzeMenuItems from 'components/Menus/AnalyzeMenuItems';
 import { openTableau, openQlikSense, openPowerBI } from 'actions/explore/download';
 
 @injectIntl
-@pureRender
-export class AnalyzeMenuItem extends Component {
+export class AnalyzeMenuItem extends PureComponent {
 
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),

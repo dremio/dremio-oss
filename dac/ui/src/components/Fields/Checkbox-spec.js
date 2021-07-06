@@ -52,11 +52,11 @@ describe('Checkbox', () => {
   });
 
   it('should render checked when checked is truthy regardless of value', () => {
-    expect(wrapper.find('input').props().checked).to.be.falsy;
+    expect(wrapper.find('input').props().checked).to.be.undefined;
     wrapper.setProps({value: true});
-    expect(wrapper.find('input').props().checked).to.be.falsy;
+    expect(wrapper.find('input').props().checked).to.be.undefined;
     wrapper.setProps({checked:false, value: true});
-    expect(wrapper.find('input').props().checked).to.be.falsy;
+    expect(wrapper.find('input').props().checked).to.be.false;
     wrapper.setProps({checked:true});
     expect(wrapper.find('input').props().checked).to.be.true;
     wrapper.setProps({checked:true, value: false});

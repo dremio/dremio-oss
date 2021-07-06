@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive;
 
+import org.apache.calcite.rex.RexNode;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 
 import com.dremio.common.expression.SchemaPath;
@@ -35,6 +36,8 @@ public class ORCScanFilter extends HiveProxiedOrcScanFilter {
 
   private final SearchArgument sarg;
   private final StoragePluginId pluginId;
+  @JsonIgnore
+  private final RexNode rexFilter;
 
   @JsonCreator
   public ORCScanFilter(@JsonProperty("kryoBase64EncodedFilter") final String kryoBase64EncodedFilter,
@@ -43,13 +46,22 @@ public class ORCScanFilter extends HiveProxiedOrcScanFilter {
     super(kryoBase64EncodedFilter, column);
     this.sarg = HiveUtilities.decodeSearchArgumentFromBase64(kryoBase64EncodedFilter);
     this.pluginId = pluginId;
+    this.rexFilter = null;
   }
 
-  public ORCScanFilter(final SearchArgument sarg, StoragePluginId pluginId, SchemaPath column) {
+  @JsonIgnore
+  public ORCScanFilter(final SearchArgument sarg, StoragePluginId pluginId, SchemaPath column, RexNode rexFilter) {
     super(HiveUtilities.encodeSearchArgumentAsBas64(sarg), column);
     Preconditions.checkNotNull(sarg, "expected a non-null filter expression");
     this.sarg = sarg;
     this.pluginId = pluginId;
+    this.rexFilter = rexFilter;
+  }
+
+  @Override
+  @JsonIgnore
+  public RexNode getRexFilter() {
+    return rexFilter;
   }
 
   @Override

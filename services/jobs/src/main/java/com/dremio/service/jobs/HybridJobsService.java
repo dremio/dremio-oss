@@ -59,6 +59,7 @@ import com.dremio.service.job.proto.JobId;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.opentelemetry.api.trace.Span;
 
 /**
  * This is used by the clients of {@link JobsService}. This service redirects calls to {@link LocalJobsService} over
@@ -136,7 +137,10 @@ public class HybridJobsService implements JobsService {
   public JobId submitJob(SubmitJobRequest jobRequest, JobStatusListener statusListener) {
     final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(statusListener);
     getAsyncStub().submitJob(jobRequest, adapter);
-    return adapter.getJobId();
+    JobId jobId = adapter.getJobId();
+    //Set the current JobID in span to enable searching of traces by JobId.
+    Span.current().setAttribute("jobId", jobId.getId());
+    return jobId;
   }
 
   @Override

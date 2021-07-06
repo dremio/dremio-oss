@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import classNames from 'classnames';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
 import Checkbox, { checkboxPropTypes } from './Checkbox';
 import { dot, dummy } from './Radio.less';
 
-@pureRender
-export default class Radio extends Component {
+export default class Radio extends PureComponent {
 
   static propTypes = {
     ...checkboxPropTypes,

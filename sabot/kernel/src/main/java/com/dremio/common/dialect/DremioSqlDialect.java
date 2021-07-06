@@ -116,6 +116,11 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
     return this.databaseName;
   }
 
+  public boolean supportsNullReturnType() {
+    // We do not support NULL as a return data type in SELECT in Dremio
+    return false;
+  }
+
   // Calcite overrides
   @Override
   public boolean supportsCharSet() {

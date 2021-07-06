@@ -203,7 +203,7 @@ class AggrFunctionHolder extends BaseFunctionHolder {
       for(int i =0; i < inputVariables.length; i++){
         ValueReference parameter = parameters[i];
         HoldingContainer inputVariable = inputVariables[i];
-        sub.decl(inputVariable.getHolder().type(), parameter.getName(), inputVariable.getHolder());
+        sub.decl(inputVariable.getJType(), parameter.getName(), inputVariable.getHolder());
       }
     }
 

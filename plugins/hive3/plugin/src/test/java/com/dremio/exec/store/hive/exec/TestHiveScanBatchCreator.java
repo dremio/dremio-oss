@@ -26,7 +26,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Test;
 
 import com.dremio.exec.store.hive.Hive3StoragePlugin;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
 public class TestHiveScanBatchCreator {
   @Test
@@ -34,20 +33,16 @@ public class TestHiveScanBatchCreator {
     final String originalName = "Test";
     final String finalName = "Replaced";
 
-    final HiveScanBatchCreator creator = new HiveScanBatchCreator();
-
     final Hive3StoragePlugin plugin = mock(Hive3StoragePlugin.class);
     when(plugin.getUsername(originalName)).thenReturn(finalName);
 
-    final FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
-    when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(plugin);
-
     final OpProps props = mock(OpProps.class);
-    final HiveProxyingSubScan hiveSubScan = mock(HiveProxyingSubScan.class);
-    when(hiveSubScan.getProps()).thenReturn(props);
-    when(hiveSubScan.getProps().getUserName()).thenReturn(originalName);
+    when(props.getUserName()).thenReturn(originalName);
 
-    final UserGroupInformation ugi = creator.getUGI(plugin, hiveSubScan);
+    final HiveScanBatchCreator creator = mock(HiveScanBatchCreator.class);
+    when(creator.getUGI(any(), any())).thenCallRealMethod();
+
+    final UserGroupInformation ugi = creator.getUGI(plugin, props);
     verify(plugin).getUsername(originalName);
     assertEquals(finalName, ugi.getUserName());
   }

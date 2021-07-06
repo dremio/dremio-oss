@@ -81,6 +81,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   // This can happen if the table is defined but data is not yet present in sources like Mongo/Elasticsearch.
   public static final String SCHEMA_UNKNOWN_NO_DATA_COLNAME = "NO_DATA";
   public static final BatchSchema SCHEMA_UNKNOWN_NO_DATA = BatchSchema.newBuilder().addField(new Field(SCHEMA_UNKNOWN_NO_DATA_COLNAME, true, new ArrowType.Utf8(), null)).build();
+  public static final BatchSchema EMPTY = new BatchSchema(Collections.EMPTY_LIST);
   public static final UnknownSchema UNKNOWN_SCHEMA_OBJECT = new UnknownSchema();
 
   public static final String MIXED_TYPES_ERROR = "Mixed types are not supported as returned values over JDBC, ODBC and Flight connections.";
@@ -659,6 +660,26 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return false;
   }
 
+  public BatchSchema handleUnions(boolean mixedTypesDisabled) {
+    if (mixedTypesDisabled && hasUnions()) {
+      return mergeWithUpPromotion(this);
+    }
+    return this;
+  }
+
+  public boolean hasUnions() {
+    return hasUnions(getFields());
+  }
+
+  public boolean hasUnions(List<Field> fields) {
+    for (Field field : fields) {
+      if (field.getType().getTypeID() == ArrowTypeID.Union || hasUnions(field.getChildren())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public BatchSchema merge(BatchSchema schemaToMergeIntoThis, boolean mixedTypesDisabled) {
     if (mixedTypesDisabled) {
       return mergeWithUpPromotion(schemaToMergeIntoThis);
@@ -679,11 +700,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   private List<Field> mergeWithUpPromotion(List<Field> fileFields) {
-    try {
       return CompleteType.mergeFieldListsWithUpPromotionOrCoercion(ImmutableList.copyOf(this), fileFields);
-    } catch (UnsupportedOperationException e) {
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
-    }
   }
 
   private static List<Field> mergeFieldLists(List<Field> original, List<Field> newlyObserved) {

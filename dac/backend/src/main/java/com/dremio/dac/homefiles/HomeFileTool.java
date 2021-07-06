@@ -41,6 +41,7 @@ import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 
 /**
  * Injectable tool for doing home file manipulation.
@@ -49,17 +50,19 @@ public class HomeFileTool {
 
   private final HomeFileConf config;
   private final FileSystem fs;
-  private final String hostname;
+  private final HostNameProvider hostNameProvider;
   private final SecurityContext securityContext;
 
+  public interface HostNameProvider extends Supplier<String> {};
+
   @Inject
-  public HomeFileTool(SabotContext context, CatalogService catalog, @Context SecurityContext securityContext) throws ExecutionSetupException {
+  public HomeFileTool(SabotContext context, CatalogService catalog, HostNameProvider hostnameProvider, @Context SecurityContext securityContext) throws ExecutionSetupException {
     StoragePlugin plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     Preconditions.checkNotNull(plugin, "Plugin [%s] not found.", HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileSystemStoragePlugin homePlugin = (HomeFileSystemStoragePlugin) plugin;
     this.fs = homePlugin.getSystemUserFS();
     this.config = homePlugin.getConfig();
-    this.hostname = context.getDremioConfig().getThisNode();
+    this.hostNameProvider = hostnameProvider;
     this.securityContext = securityContext;
   }
 
@@ -67,7 +70,7 @@ public class HomeFileTool {
   public HomeFileTool(HomeFileConf config, FileSystem fs, String hostname, SecurityContext securityContext){
     this.config = config;
     this.fs = fs;
-    this.hostname = hostname;
+    this.hostNameProvider = () -> hostname;
     this.securityContext = securityContext;
   }
 
@@ -81,7 +84,7 @@ public class HomeFileTool {
   @VisibleForTesting
   public Path getStagingLocation(FilePath filePath, String extension) {
     FilePath uniquePath = filePath.rename(format("%s_%s-%s", filePath.getFileName().toString(), extension, UUID.randomUUID().toString()));
-    return Path.mergePaths(config.getStagingPath(hostname), PathUtils.toFSPath(uniquePath.toPathList()));
+    return Path.mergePaths(config.getStagingPath(hostNameProvider.get()), PathUtils.toFSPath(uniquePath.toPathList()));
   }
 
   public HomeFileConf getConf() {
@@ -155,7 +158,7 @@ public class HomeFileTool {
 
     // the path to validate against should include the username
     final HomeName userHomePath = HomeName.getUserHomePath(securityContext.getUserPrincipal().getName());
-    final Path validBasePath = fs.makeQualified(config.getStagingPath(hostname).resolve(userHomePath.getName()));
+    final Path validBasePath = fs.makeQualified(config.getStagingPath(hostNameProvider.get()).resolve(userHomePath.getName()));
 
     return stagingPath.toURI().getScheme().equals(validBasePath.toURI().getScheme()) &&
       PathUtils.checkNoAccessOutsideBase(validBasePath, stagingPath);

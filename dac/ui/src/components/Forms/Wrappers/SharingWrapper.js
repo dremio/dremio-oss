@@ -15,22 +15,44 @@
  */
 import { Component } from 'react';
 import AccessControlListSection from 'dyn-load/components/Forms/AccessControlListSection';
+import { connect } from 'react-redux';
 
 import PropTypes from 'prop-types';
 
-export default class SharingWrapper extends Component {
+class SharingWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
-    fields: PropTypes.object
+    fields: PropTypes.object,
+    isFileSystemSource: PropTypes.bool,
+    isExternalQueryAllowed: PropTypes.bool
   };
 
   render() {
-    const {elementConfig, fields} = this.props;
+    const {elementConfig, fields, isFileSystemSource, isExternalQueryAllowed} = this.props;
+    let source;
+    if (isFileSystemSource === true) {
+      source = 'FS_SOURCE';
+    } else if (isExternalQueryAllowed === true) {
+      source = 'ARP_SOURCE';
+    } else {
+      source = 'source';
+    }
+
     return (
       <AccessControlListSection
         fields={fields}
+        EntityType={source}
         isTopLevelEntity
         elementConfig={elementConfig.getConfig()}/>
     );
   }
 }
+
+const mapStateToProps = (state) => {
+  return {
+    isFileSystemSource: state.passDataBetweenModalTabs.isFileSystemSource,
+    isExternalQueryAllowed: state.passDataBetweenModalTabs.isExternalQueryAllowed
+  };
+};
+
+export default connect(mapStateToProps)(SharingWrapper);

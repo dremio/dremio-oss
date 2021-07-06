@@ -25,17 +25,19 @@ import javax.validation.constraints.NotBlank;
 
 import org.apache.hadoop.conf.Configuration;
 
-import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.FileSystemConf;
+import com.dremio.exec.store.dfs.MayBeDistFileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
+import com.dremio.service.coordinator.proto.DataCredentials;
+import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -46,7 +48,7 @@ import io.protostuff.Tag;
  * Source type used for Home Files purposes.
  */
 @SourceType(value = "HOME", configurable = false)
-public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemStoragePlugin>{
+public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFileSystemStoragePlugin> {
 
   private static final String UPLOADS = "_uploads";
   private static final String STAGING = "_staging";
@@ -73,16 +75,52 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   @Tag(2)
   public boolean enableAsync = true;
 
+  @Tag(3)
+  public String accessKey = null;
+
+  @Tag(4)
+  public String secretKey = null;
+
+  @Tag(5)
+  public String iamRole = null;
+
+  @Tag(6)
+  public String externalId = null;
+
   public HomeFileConf() {
 
   }
 
-  public HomeFileConf(DremioConfig config) {
-    this(config.getString(DremioConfig.UPLOADS_PATH_STRING));
-    final boolean enableAsyncForUploads = !config.hasPath(DremioConfig.DEBUG_UPLOADS_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_UPLOADS_ASYNC_ENABLED);
-    hostname = config.getThisNode();
-    enableAsync = enableAsyncForUploads;
+  public HomeFileConf(String location, String thisNode, boolean enableAsync, DataCredentials dataCredentials) {
+    this(location, thisNode);
+    this.enableAsync = enableAsync;
+    if (dataCredentials != null) {
+      if (dataCredentials.hasKeys()) {
+        this.accessKey = dataCredentials.getKeys().getAccessKey();
+        this.secretKey = dataCredentials.getKeys().getSecretKey();
+      } else {
+        this.iamRole = dataCredentials.getDataRole().getIamRole();
+        this.externalId = dataCredentials.getDataRole().getExternalId();
+      }
+    }
+  }
+
+  public static SourceConfig create(
+    String name,
+    URI uri,
+    String thisNode,
+    SchemaMutability mutability,
+    MetadataPolicy policy,
+    boolean enableAsync,
+    DataCredentials dataCredentials
+  ) {
+    SourceConfig conf = new SourceConfig();
+
+    HomeFileConf fc = new HomeFileConf(uri.toString(), thisNode, enableAsync, dataCredentials);
+    conf.setConnectionConf(fc);
+    conf.setMetadataPolicy(policy);
+    conf.setName(name);
+    return conf;
   }
 
   public HomeFileConf(String location) {
@@ -127,6 +165,22 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.USER_VIEW;
+  }
+
+  public String getAccessKey() {
+    return accessKey;
+  }
+
+  public String getSecretKey() {
+    return secretKey;
+  }
+
+  public String getIamRole() {
+    return iamRole;
+  }
+
+  public String getExternalId() {
+    return externalId;
   }
 
   @Override

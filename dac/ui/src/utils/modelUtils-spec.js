@@ -41,7 +41,7 @@ describe('exploreUtils', () => {
       const dataset = Immutable.fromJS({
         fullPath: ['foo', 'name']
       });
-      expect(modelUtils.isNewDataset(dataset)).to.be.fase;
+      expect(modelUtils.isNewDataset(dataset, 'edit')).to.be.false;
     });
   });
 

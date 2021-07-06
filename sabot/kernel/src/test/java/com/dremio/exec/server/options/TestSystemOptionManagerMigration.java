@@ -22,6 +22,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -38,7 +40,6 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import com.sun.tools.javac.util.List;
 
 /**
  * Tests for legacy store migration in {@link SystemOptionManager}
@@ -161,7 +162,7 @@ public class TestSystemOptionManagerMigration extends DremioTest {
       OptionValue.OptionType.SYSTEM, "invalid", true);
 
     store.put(SystemOptionManager.OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(
-      List.of(
+      Arrays.asList(
         OptionValueProtoUtils.toOptionValueProto(validOption),
         OptionValueProtoUtils.toOptionValueProto(invalidOption)
       )));

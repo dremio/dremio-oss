@@ -48,14 +48,17 @@ export class ConfirmationContainer extends Component {
       text,
       title,
       confirmText,
+      confirmButtonStyle,
       cancelText,
       hideCancelButton,
       showOnlyConfirm,
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
+      promptLabel,
       promptFieldProps,
-      dataQa
+      dataQa,
+      validatePromptText
     } = this.props.confirmation;
     if (!isOpen) {
       return null;
@@ -67,15 +70,18 @@ export class ConfirmationContainer extends Component {
         title={title}
         text={text}
         confirmText={confirmText}
+        confirmButtonStyle={confirmButtonStyle}
         cancelText={cancelText}
         showOnlyConfirm={showOnlyConfirm}
         doNotAskAgainText={doNotAskAgainText}
         doNotAskAgainKey={doNotAskAgainKey}
         showPrompt={showPrompt}
+        promptLabel={promptLabel}
         promptFieldProps={promptFieldProps}
         onCancel={this.onCancel}
         onConfirm={this.onConfirm}
         dataQa={dataQa}
+        validatePromptText={validatePromptText}
       />
     );
   }

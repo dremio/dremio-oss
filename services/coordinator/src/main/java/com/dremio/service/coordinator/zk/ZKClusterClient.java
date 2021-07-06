@@ -24,6 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -203,7 +204,12 @@ class ZKClusterClient implements com.dremio.service.Service {
     final LeaderLatch leaderLatch =
       new LeaderLatch(curator, "/" + clusterId + "/leader-latch/" + name, id, CloseMode.SILENT);
 
+    logger.info("joinElection called {}", id);
+
     final AtomicReference<ListenableFuture<?>> newLeaderRef = new AtomicReference<>();
+
+    // incremented every time this node is elected as leader.
+    final AtomicLong leaderElectedGeneration = new AtomicLong(0);
 
     leaderLatch.addListener(new LeaderLatchListener() {
       private final long electionTimeoutMs = config.getElectionTimeoutMilliSecs();
@@ -211,7 +217,7 @@ class ZKClusterClient implements com.dremio.service.Service {
 
       @Override
       public void notLeader() {
-        logger.debug("Lost latch for election {}.", name);
+        logger.info("Lost latch {} for election {}.", id, name);
 
         // If latch is closed, notify right away
         if (leaderLatch.getState() == LeaderLatch.State.CLOSED) {
@@ -224,10 +230,11 @@ class ZKClusterClient implements com.dremio.service.Service {
           ((ZKElectionListener) listener).onConnectionLoss();
         }
 
+        final long savedLeaderElectedGeneration = leaderElectedGeneration.get();
         // submit a task to get notified about a new leader being elected
-        final Future<String> newLeader = executorService.submit(new Callable<String>() {
+        final Future<Void> newLeader = executorService.submit(new Callable<Void>() {
           @Override
-          public String call() throws Exception {
+          public Void call() throws Exception {
             // loop until election happened, or timeout
             do {
               // No polling required to check its own state
@@ -237,7 +244,7 @@ class ZKClusterClient implements com.dremio.service.Service {
                 if (listener instanceof ZKElectionListener) {
                   ((ZKElectionListener) listener).onReconnection();
                 }
-                return id;
+                return null;
               }
 
               // The next call will block until connection is back
@@ -251,7 +258,7 @@ class ZKClusterClient implements com.dremio.service.Service {
               // A dummy participant can be returned if election hasn't happen yet,
               // but it would not be leader...
               if (participant.isLeader()) {
-                return participant.getId();
+                return null;
               }
 
               TimeUnit.MILLISECONDS.sleep(electionPollingMs);
@@ -260,9 +267,9 @@ class ZKClusterClient implements com.dremio.service.Service {
         });
 
         // Wrap the previous task to detect timeout
-        final ListenableFuture<String> newLeaderWithTimeout = executorService.submit(new Callable<String>() {
+        final ListenableFuture<Void> newLeaderWithTimeout = executorService.submit(new Callable<Void>() {
           @Override
-          public String call() throws Exception {
+          public Void call() throws Exception {
             try {
               return newLeader.get(electionTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
@@ -274,13 +281,10 @@ class ZKClusterClient implements com.dremio.service.Service {
         });
 
         // Add callback to notify the user if needed
-        Futures.addCallback(newLeaderWithTimeout, new FutureCallback<String>() {
+        Futures.addCallback(newLeaderWithTimeout, new FutureCallback<Void>() {
           @Override
-          public void onSuccess(String result) {
-            if (!id.equals(result)) {
-              logger.info("New leader elected. Cancelling election...", electionTimeoutMs);
-              listener.onCancelled();
-            }
+          public void onSuccess(Void v) {
+            checkAndNotifyCancelled(savedLeaderElectedGeneration);
           }
 
           @Override
@@ -289,7 +293,7 @@ class ZKClusterClient implements com.dremio.service.Service {
               // ignore
               return;
             }
-            listener.onCancelled();
+            checkAndNotifyCancelled(savedLeaderElectedGeneration);
           }
         }, MoreExecutors.directExecutor());
 
@@ -298,16 +302,27 @@ class ZKClusterClient implements com.dremio.service.Service {
 
       @Override
       public void isLeader() {
-        logger.debug("Acquired latch for election {}.", name);
+        logger.info("Acquired latch {} for election {}.", id, name);
         // Cancel possible watcher task
         ListenableFuture<?> newLeader = newLeaderRef.getAndSet(null);
         if (newLeader != null) {
           newLeader.cancel(false);
         }
-        listener.onElected();
+
+        synchronized (this) {
+          leaderElectedGeneration.getAndIncrement();
+          listener.onElected();
+        }
+      }
+
+      // unless this node has become leader again, notify cancel.
+      private synchronized void checkAndNotifyCancelled(long svdLeaderGeneration) {
+        if (leaderElectedGeneration.get() == svdLeaderGeneration) {
+          logger.info("New leader elected. Invoke cancel on listener");
+          listener.onCancelled();
+        }
       }
     });
-
 
     // Time to start the latch
     try {

@@ -17,6 +17,7 @@
 package com.dremio.exec.planner.logical;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -46,8 +47,8 @@ public class FilterWindowTransposeRule extends RelOptRule {
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    final LogicalFilter filter = (LogicalFilter) call.rel(0);
-    final LogicalWindow window = (LogicalWindow) call.rel(1);
+    final LogicalFilter filter = call.rel(0);
+    final LogicalWindow window = call.rel(1);
     List<RexNode> pushable = new ArrayList<>();
     List<RexNode> notPushable = new ArrayList<>();
 
@@ -56,6 +57,16 @@ public class FilterWindowTransposeRule extends RelOptRule {
     window.groups.forEach(g -> keys.intersect(g.keys));
 
     RelOptUtil.splitFilters(keys.build(), filter.getCondition(), pushable, notPushable);
+
+    //Do not push down filters with correlated variables because we will just pull them back up.
+    Iterator<RexNode> pushableIter = pushable.listIterator();
+    while (pushableIter.hasNext()) {
+      RexNode pushableRexNode = pushableIter.next();
+      if(RexUtil.containsCorrelation(pushableRexNode)) {
+        notPushable.add(pushableRexNode);
+        pushableIter.remove();
+      }
+    }
 
     if (pushable.size() == 0) {
       return;

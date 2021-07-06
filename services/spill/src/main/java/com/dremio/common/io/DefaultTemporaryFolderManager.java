@@ -59,9 +59,9 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
   // Currently these config values are not externally configurable except for unit testing purposes.
   private static final int DEFAULT_STALENESS_LIMIT_SECONDS = 30 * 60;
   private static final int DEFAULT_STALENESS_ON_RESTART_LIMIT_SECONDS = 90;
-  private static final int DEFAULT_CLEANUP_DELAY_SECONDS = 5 * 60;
-  private static final int DEFAULT_CLEANUP_DELAY_MAX_GAP = 2 * 60;
-  private static final int DEFAULT_ONE_SHOT_DELAY_SECONDS = 30;
+  private static final int DEFAULT_CLEANUP_DELAY_SECONDS = 3 * 60;
+  private static final int DEFAULT_CLEANUP_DELAY_MAX_GAP = 60;
+  private static final int DEFAULT_ONE_SHOT_DELAY_SECONDS = DEFAULT_STALENESS_ON_RESTART_LIMIT_SECONDS + 1;
   private static final int DEFAULT_MIN_UNHEALTHY_CYCLES = 5;
 
   private static final CleanupConfig CLEANUP_CONFIG = new DefaultCleanupConfig();
@@ -134,11 +134,13 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
       if (fileStatus.isDirectory()) {
         try {
           final long incarnation = Long.parseLong(fileStatus.getPath().getName());
-          if (incarnation > Instant.EPOCH.toEpochMilli()
-            && incarnation <= (Instant.now().toEpochMilli() - (cleanupConfig.getStalenessOnRestartSeconds() * 1000L))) {
+          if (incarnation > Instant.EPOCH.toEpochMilli() && incarnation < Instant.now().toEpochMilli()) {
             pathsToDelete.add(fileStatus.getPath());
+          } else {
+            logger.warn("Not deleting old incarnation {} as it is too recent or invalid", incarnation);
           }
         } catch (NumberFormatException ignored) {
+          logger.debug("Ignoring directory {} as it is not a valid incarnation", fileStatus.getPath().getName());
         }
       }
     });
@@ -183,7 +185,7 @@ public class DefaultTemporaryFolderManager implements TemporaryFolderManager {
 
   private void doCleanupOneShot(List<Path> pathsToDelete) {
     for (final Path incarnationDir : pathsToDelete) {
-      fsWrapper.safeCleanOldIncarnation(incarnationDir, cleanupConfig.getStalenessOnRestartSeconds());
+      fsWrapper.safeCleanOldIncarnation(incarnationDir, cleanupConfig.getStalenessOnRestartSeconds(), true);
     }
   }
 

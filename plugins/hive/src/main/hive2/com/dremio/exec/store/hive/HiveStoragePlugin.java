@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store.hive;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.DIR_LIST_INPUT_SPLIT;
+import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.INPUT_SPLIT;
 import static java.lang.Math.toIntExact;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.pf4j.PluginManager;
 import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -73,18 +75,25 @@ import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.dfs.AsyncStreamConf;
 import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
+import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.exec.store.hive.exec.HiveScanBatchCreator;
+import com.dremio.exec.store.hive.exec.HiveSplitCreator;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
+import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.metadata.HiveDatasetHandle;
 import com.dremio.exec.store.hive.metadata.HiveDatasetHandleListing;
 import com.dremio.exec.store.hive.metadata.HiveDatasetMetadata;
@@ -97,6 +106,7 @@ import com.dremio.exec.store.hive.metadata.TableMetadata;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
+import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
@@ -105,7 +115,10 @@ import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.PropertyCollectionType;
 import com.dremio.hive.thrift.TException;
+import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
@@ -133,7 +146,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.protostuff.ByteString;
 
 public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin, SupportsReadSignature,
-    SupportsListingDatasets, SupportsAlteringDatasetMetadata, SupportsPF4JStoragePlugin {
+    SupportsListingDatasets, SupportsAlteringDatasetMetadata, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
 
   private LoadingCache<String, HiveClient> clientsByUser;
@@ -185,6 +198,26 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       this.signatureValidationParallelism = Long.valueOf(optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_PARALLELISM)).intValue();
       this.signatureValidationTimeoutMS = optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS);
     }
+  }
+
+  @Override
+  public boolean canGetDatasetMetadataInCoordinator() {
+    return true;
+  }
+
+  @Override
+  public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
+      Path path = new Path(filePath);
+      final JobConf jobConf = new JobConf(hiveConf);
+      AsyncStreamConf cacheAndAsyncConf = HiveAsyncStreamConf.from(path.toUri().getScheme(), jobConf, operatorContext.getOptions());
+      return createFS(new DremioHadoopFileSystemWrapper(path, jobConf, operatorContext.getStats(), cacheAndAsyncConf.isAsyncEnabled()), operatorContext, cacheAndAsyncConf);
+    }
+  }
+
+  public List<String> resolveTableNameToValidPath(List<String> tableSchemaPath) {
+    final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath, true);
+    return Arrays.asList(schemaComponents.getDbName(), schemaComponents.getTableName());
   }
 
   @Override
@@ -584,7 +617,8 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     return new StatsEstimationParameters(
         hiveSettings.useStatsInMetastore(),
         toIntExact(optionManager.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE)),
-        toIntExact(optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE))
+        toIntExact(optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE)),
+        hiveSettings
     );
   }
 
@@ -664,13 +698,15 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
             HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(hiveTableXattrFromKVStore.getDatasetOptionMap()));
       }
 
+      HivePartitionChunkListing.SplitType splitType = HiveMetadataUtils.isDirListInputSplitType(options) ? DIR_LIST_INPUT_SPLIT : INPUT_SPLIT;
       final HivePartitionChunkListing.Builder builder = HivePartitionChunkListing
         .newBuilder()
         .hiveConf(hiveConf)
         .storageImpersonationEnabled(storageImpersonationEnabled)
         .statsParams(getStatsParams())
         .enforceVarcharWidth(enforceVarcharWidth)
-        .maxInputSplitsPerPartition(toIntExact(hiveSettings.getMaxInputSplitsPerPartition()));
+        .maxInputSplitsPerPartition(toIntExact(hiveSettings.getMaxInputSplitsPerPartition()))
+        .splitType(splitType);
       boolean includeComplexTypes = optionManager.getOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED);
 
       final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
@@ -940,8 +976,20 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public HiveProxiedScanBatchCreator createScanBatchCreator() {
-    return new HiveScanBatchCreator();
+  public HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context,
+                                                            HiveProxyingSubScan config) throws ExecutionSetupException {
+    return new HiveScanBatchCreator(fragmentExecContext, context, config);
+  }
+
+  @Override
+  public HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context,
+                                                            OpProps props, TableFunctionConfig tableFunctionConfig) throws ExecutionSetupException {
+    return new HiveScanBatchCreator(fragmentExecContext, context, props, tableFunctionConfig);
+  }
+
+  @Override
+  public BlockBasedSplitGenerator.SplitCreator createSplitCreator() {
+    return new HiveSplitCreator();
   }
 
   @Override

@@ -19,12 +19,12 @@ import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
 
 import { LIST, MAP, MIXED } from '@app/constants/DataTypes';
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 import { getExploreJobId, getExploreState } from '@app/selectors/explore';
 import { isSqlChanged } from '@app/sagas/utils';
 import { addNotification } from 'actions/notification';
 import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 import { APIV2Call } from '@app/core/APICall';
+import tokenUtils from '@inject/utils/tokenUtils';
 import config from 'dyn-load/utils/config';
 import MenuItem from './MenuItem';
 import Menu from './Menu';
@@ -53,23 +53,14 @@ export class ExportMenu extends PureComponent {
   };
 
   handleDatasetDownload = (type) => {
-    const token = localStorageUtils.getAuthToken();
-    const tempApiCall = new APIV2Call()
-      .path('temp-token')
-      .params({
-        'durationSeconds': 30,
-        'request': '/apiv2/job/' + this.props.jobId + '/download/?downloadFormat=' + type.name
-      });
-
     this.showNotification(type.label);
-    fetch(tempApiCall.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token
-      }
+    tokenUtils.getTempToken({
+      params: {
+        'durationSeconds': 30,
+        'request': 'job/' + this.props.jobId + '/download/?downloadFormat=' + type.name
+      },
+      requestApiVersion: 2
     })
-      .then(res => res.json())
       .then(data => {
         const apiCall = new APIV2Call()
           .path('job')

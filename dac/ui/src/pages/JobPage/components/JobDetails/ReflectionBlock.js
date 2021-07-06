@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { loadSummaryDataset } from 'actions/resources/dataset';
@@ -25,8 +24,7 @@ import ReflectionList from './ReflectionList';
 
 const VIEW_ID = 'ReflectionBlock';
 
-@PureRender
-class ReflectionBlock extends Component {
+class ReflectionBlock extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map).isRequired,
     loadSummaryDataset: PropTypes.func,

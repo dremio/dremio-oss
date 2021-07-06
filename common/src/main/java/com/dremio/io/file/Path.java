@@ -17,9 +17,13 @@ package com.dremio.io.file;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.arrow.util.Preconditions;
+
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Filesystem path
@@ -31,6 +35,21 @@ import org.apache.arrow.util.Preconditions;
  *
  */
 public final class Path implements Comparable<Path> {
+
+  public static final String FILE_SCHEME = "file";
+  public static final String S3_SCHEME = "s3";
+  public static final String AZURE_SCHEME = "wasbs";
+  public static final String GCS_SCHEME = "gs";
+  public static final String ADL_SCHEME = "adl";
+  public static final String SCHEME_SEPARATOR = "://";
+  public static final String AZURE_AUTHORITY_SUFFIX = ".blob.core.windows.net";
+  public static final String CONTAINER_SEPARATOR = "@";
+
+  public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a", "s3", "s3n");
+  public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of("gs");
+  public static final Set<String> AZURE_FILE_SYSTEM = ImmutableSet.of("wasbs", "wasb", "abfs", "abfss");
+  public static final Set<String> ADLS_FILE_SYSTEM = ImmutableSet.of("adl");
+
   public static final String SEPARATOR = "/";
   public static final char SEPARATOR_CHAR = '/';
 
@@ -280,6 +299,10 @@ public final class Path implements Comparable<Path> {
     return uri;
   }
 
+  public Path relativize(Path that) {
+    return Path.of(this.uri.relativize(that.uri));
+  }
+
   /**
    * Gets the string representation of this path
    *
@@ -386,5 +409,30 @@ public final class Path implements Comparable<Path> {
     }
 
     return sb.toString();
+  }
+
+  /*
+  Current container file system accepts path in a format container_Name/PathToObject
+  This function is to convert container file path to relative path that ContainerFile System under stands
+   */
+  public static String getContainerSpecificRelativePath(Path path) {
+    URI pathUri = path.uri;
+    if (pathUri.getScheme() == null) {
+      return path.toString();
+    }
+    String scheme = pathUri.getScheme().toLowerCase(Locale.ROOT);
+    if (S3_FILE_SYSTEM.contains(scheme)) {
+      return SEPARATOR + pathUri.getAuthority() + pathUri.getPath();
+    } else if (AZURE_FILE_SYSTEM.contains(scheme)) {
+      return SEPARATOR + pathUri.getUserInfo() + pathUri.getPath();
+    } else if (GCS_FILE_SYSTEM.contains(scheme)) {
+      return SEPARATOR + pathUri.getAuthority() + pathUri.getPath();
+    } else if (ADLS_FILE_SYSTEM.contains(scheme)) {
+      return Path.withoutSchemeAndAuthority(path).toString();
+    } else if (FILE_SCHEME.equals(scheme)) {
+      return pathUri.getPath();
+    } else {
+      return path.toString();
+    }
   }
 }

@@ -16,6 +16,7 @@
 package com.dremio.common.expression.visitors;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -44,6 +45,7 @@ public interface ExprVisitor<T, VAL, EXCEP extends Exception> {
   T visitFunctionCall(FunctionCall call, VAL value) throws EXCEP;
   T visitFunctionHolderExpression(FunctionHolderExpression holder, VAL value) throws EXCEP;
   T visitIfExpression(IfExpression ifExpr, VAL value) throws EXCEP;
+  T visitCaseExpression(CaseExpression caseExpression, VAL value) throws EXCEP;
   T visitBooleanOperator(BooleanOperator call, VAL value) throws EXCEP;
   T visitSchemaPath(SchemaPath path, VAL value) throws EXCEP;
   T visitIntConstant(IntExpression intExpr, VAL value) throws EXCEP;

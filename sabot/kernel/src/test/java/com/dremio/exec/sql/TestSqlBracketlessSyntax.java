@@ -78,6 +78,15 @@ public class TestSqlBracketlessSyntax {
           public <T extends AdditionalContext> T getAdditionalInfo(Class<T> claz) {
             return null;
           }
+
+          @Override
+          public boolean isPlanCacheable() {
+            return true;
+          }
+
+          @Override
+          public void setPlanCacheable(boolean isplancacheable) {
+          }
         }))
         .build();
     Planner planner = Frameworks.getPlanner(config);

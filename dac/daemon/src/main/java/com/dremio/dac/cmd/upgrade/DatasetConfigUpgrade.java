@@ -75,7 +75,7 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final LegacyKVStoreProvider localStore = context.getKVStoreProvider();
+    final LegacyKVStoreProvider localStore = context.getLegacyKVStoreProvider();
 
     final LegacyKVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> vdsVersionStore =
       localStore.getStore(DatasetVersionMutator.VersionStoreCreator.class);

@@ -22,6 +22,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.serialization.kryo.KryoRelSerializerFactory;
+import com.dremio.exec.store.CatalogService;
 
 /**
  * Abstract class that defines how to get plan serializers and deserializers.
@@ -29,15 +30,16 @@ import com.dremio.exec.planner.serialization.kryo.KryoRelSerializerFactory;
 public abstract class RelSerializerFactory {
 
   private static final String PLANNING_PATH = "dremio.planning.serializer";
+  private static final String LEGACY_PLANNING_PATH = "dremio.planning.legacy.serializer";
   private static final String PROFILE_PATH = "dremio.profile.serializer";
-  public final static RelSerializerFactory DEFAULT = new KryoRelSerializerFactory(null);
+  public static RelSerializerFactory DEFAULT = new KryoRelSerializerFactory(null);
 
   /**
    * Get a serializer for the given cluster.
    * @param cluster The cluster to serialize from.
    * @return
    */
-  public abstract LogicalPlanSerializer getSerializer(RelOptCluster cluster);
+  public abstract LogicalPlanSerializer getSerializer(RelOptCluster cluster, FunctionImplementationRegistry registry);
 
   /**
    * Get a deserializer for the given cluster and catalog.
@@ -49,10 +51,22 @@ public abstract class RelSerializerFactory {
   public abstract LogicalPlanDeserializer getDeserializer(
       final RelOptCluster cluster,
       final DremioCatalogReader catalog,
-      final FunctionImplementationRegistry registry);
+      final FunctionImplementationRegistry registry,
+      final CatalogService catalogService);
+
+  public LogicalPlanDeserializer getDeserializer(
+    final RelOptCluster cluster,
+    final DremioCatalogReader catalog,
+    final FunctionImplementationRegistry registry) {
+    return getDeserializer(cluster, catalog, registry, null);
+  }
 
   public static RelSerializerFactory getPlanningFactory(SabotConfig config, ScanResult scanResult) {
     return getFactory(config, scanResult, PLANNING_PATH);
+  }
+
+  public static RelSerializerFactory getLegacyPlanningFactory(SabotConfig config, ScanResult scanResult) {
+    return getFactory(config, scanResult, LEGACY_PLANNING_PATH);
   }
 
   public static RelSerializerFactory getProfileFactory(SabotConfig config, ScanResult scanResult) {

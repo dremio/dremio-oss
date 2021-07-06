@@ -43,6 +43,7 @@ import org.apache.calcite.rel.rules.FilterCorrelateRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
+import org.apache.calcite.rel.rules.IntersectToDistinctRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
 import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
@@ -94,8 +95,10 @@ import com.dremio.exec.planner.logical.JoinNormalizationRule;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.JoinRule;
 import com.dremio.exec.planner.logical.LimitRule;
+import com.dremio.exec.planner.logical.MedianRewriteRule;
 import com.dremio.exec.planner.logical.MergeProjectForFlattenRule;
 import com.dremio.exec.planner.logical.MergeProjectRule;
+import com.dremio.exec.planner.logical.PercentileFunctionsRewriteRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.ProjectRule;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
@@ -112,6 +115,8 @@ import com.dremio.exec.planner.logical.SortRule;
 import com.dremio.exec.planner.logical.UnionAllRule;
 import com.dremio.exec.planner.logical.ValuesRule;
 import com.dremio.exec.planner.logical.WindowRule;
+import com.dremio.exec.planner.logical.rule.GroupSetToCrossJoinCaseStatement;
+import com.dremio.exec.planner.logical.rule.MinusToJoin;
 import com.dremio.exec.planner.physical.EmptyPrule;
 import com.dremio.exec.planner.physical.FilterNLJMergeRule;
 import com.dremio.exec.planner.physical.FilterProjectNLJRule;
@@ -223,6 +228,7 @@ public enum PlannerPhase {
       ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
       PlannerSettings ps = context.getPlannerSettings();
       b.add(
+        GroupSetToCrossJoinCaseStatement.RULE,
         ConvertCountDistinctToHll.INSTANCE,
         RewriteNdvAsHll.INSTANCE,
 
@@ -233,6 +239,8 @@ public enum PlannerPhase {
         FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
         FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
         FILTER_MERGE_CALCITE_RULE,
+        IntersectToDistinctRule.INSTANCE,
+        MinusToJoin.RULE,
 
         DremioSortMergeRule.INSTANCE,
 
@@ -652,6 +660,11 @@ public enum PlannerPhase {
       userConfigurableRules.add(ReduceTrigFunctionsRule.INSTANCE);
     }
 
+    if (ps.options.getOption(PlannerSettings.FILTER_EXTRACT_CONJUNCTIONS)) {
+      userConfigurableRules.add(ExtractCommonConjunctionInFilterRule.INSTANCE);
+      userConfigurableRules.add(ExtractCommonConjunctionInJoinRule.INSTANCE);
+    }
+
     if (ps.isConstantFoldingEnabled()) {
       // TODO - DRILL-2218, DX-2319
       if (ps.isReduceProjectExpressionsEnabled()) {
@@ -664,6 +677,11 @@ public enum PlannerPhase {
         userConfigurableRules.add(CALC_REDUCE_EXPRESSIONS_CALCITE_RULE);
       }
     }
+
+    userConfigurableRules.add(MedianRewriteRule.INSTANCE);
+
+    userConfigurableRules.add(PercentileFunctionsRewriteRule.INSTANCE);
+
     return RuleSets.ofList(userConfigurableRules.build());
   }
 

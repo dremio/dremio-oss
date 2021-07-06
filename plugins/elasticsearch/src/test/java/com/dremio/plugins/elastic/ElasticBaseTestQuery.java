@@ -73,6 +73,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   protected String schema;
   protected String table;
   protected String alias;
+  protected static boolean enable7vFeatures;
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
@@ -189,6 +190,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields));
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
     getSabotContext().getCatalogService().createSourceIfMissingWithThrow(sc);
+    enable7vFeatures = elastic.getMinVersionInCluster().compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
   }
 
   @After
@@ -469,6 +471,9 @@ public class ElasticBaseTestQuery extends PlanTestBase {
         indexInPlan = positionOfPushdownInPlan + PUSHDOWN_PREFIX.length();
         int pushdownEndIndexInPlan = findJsonEndBoundary(plan, indexInPlan);
         String jsonPushdown = plan.substring(indexInPlan, pushdownEndIndexInPlan);
+        if (enable7vFeatures) {
+          jsonPushdown = jsonPushdown.replaceAll(ElasticsearchConstants.DISABLE_COORD_FIELD, "");
+        }
         indexInPlan = pushdownEndIndexInPlan;
         String expectedJson = jsonExpectedInPlan[expectedJsonBlobIndex];
         if (!edgeProjectEnabled) {

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { bodySmall } from 'uiTheme/radium/typography';
 
@@ -23,9 +22,8 @@ import {FORMAT_HASH} from './MaskedInput';
 
 const SYMBOL_WIDTH = 7;
 
-@PureRender
 @Radium
-class SmartInput extends Component {
+class SmartInput extends PureComponent {
   static propTypes = {
     index: PropTypes.number.isRequired,
     inputValue: PropTypes.string.isRequired,

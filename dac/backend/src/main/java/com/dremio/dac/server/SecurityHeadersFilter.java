@@ -29,8 +29,12 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Filter that adds several security related HTTP headers
  */
-public class      SecurityHeadersFilter implements Filter {
+public class SecurityHeadersFilter implements Filter {
   private static final long STS_MAX_AGE = TimeUnit.SECONDS.toDays(356);
+  private static final String CSP_DEFAULT_HEADER = "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    + " blob: ws: *.dremio.com *.bm4u.net *.mktoresp.com *.cloudfront.net *.marketo.com *.sentry.io *.intercom.io"
+    + " *.walkme.com *.intercomcdn.com *.io *.marketo.net *.bootstrapcdn.com *.googletagmanager.com; img-src 'self'"
+    + " blob: data: *.cloudfront.net *.amazonaws.com; font-src 'self' data: *.bootstrapcdn.com;";
 
   @Override
   public void init(FilterConfig filterConfig) {
@@ -43,6 +47,7 @@ public class      SecurityHeadersFilter implements Filter {
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "SAMEORIGIN");
     response.setHeader("x-xss-protection", "1; mode=block");
+    response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", CSP_DEFAULT_HEADER));
 
     if (servletRequest.isSecure()) {
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security

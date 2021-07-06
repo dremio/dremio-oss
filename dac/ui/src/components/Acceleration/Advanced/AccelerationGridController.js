@@ -49,7 +49,8 @@ export default class AccelerationGridController extends Component {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     layoutFields: PropTypes.array,
-    activeTab: PropTypes.string
+    activeTab: PropTypes.string,
+    canAlter: PropTypes.any
   };
 
   state = {
@@ -312,7 +313,7 @@ export default class AccelerationGridController extends Component {
     const isLastCell = (fieldType === fieldTypes.partition) ?
       !this.shouldShowDistribution() : (fieldType === fieldTypes.distribution);
     return (
-      <AccelerationGridSubCell onClick={onCheckClick} isChecked={isChecked} isLastCell={isLastCell}/>
+      <AccelerationGridSubCell onClick={onCheckClick} isChecked={isChecked} isLastCell={isLastCell} hasPermission={this.checkForPermissionToAlter()}/>
     );
   };
 
@@ -325,9 +326,11 @@ export default class AccelerationGridController extends Component {
     const onCheckClick = () => this.handleOnCheckboxItem(fieldTypes.dimension, columnIndex, rowIndex);
     const onValueClick = (e) => this.handleClickSubValue(e, {columnIndex, rowIndex, labelCell: cellType.dimension, field: fieldTypes.dimension});
     const isChecked = !!currentColumn;
+
     return (
       <AccelerationGridSubCell
         onClick={onCheckClick}
+        hasPermission={this.checkForPermissionToAlter()}
         isChecked={isChecked}
         subValue={subValue}
         subValueAltText={`${granularity.alt} granularity`}
@@ -356,6 +359,7 @@ export default class AccelerationGridController extends Component {
     return (
       <AccelerationGridSubCell
         onClick={onCheckClick}
+        hasPermission={this.checkForPermissionToAlter()}
         isChecked={isChecked}
         subValue={subValue}
         subValueAltText={subValueAltText}
@@ -373,9 +377,11 @@ export default class AccelerationGridController extends Component {
     const subValueAltText = subValue && subValue.alt || '';
     const onCheckClick = () => this.handleOnCheckboxItem(fieldTypes.measure, columnIndex, rowIndex);
     const onValueClick = (e) => this.handleClickSubValue(e, {columnIndex, rowIndex, labelCell: cellType.measure, field: fieldTypes.measure});
+
     return (
       <AccelerationGridSubCell
         onClick={onCheckClick}
+        hasPermission={this.checkForPermissionToAlter()}
         isChecked={isChecked}
         subValue={subValueText}
         subValueAltText={subValueAltText}
@@ -439,6 +445,7 @@ export default class AccelerationGridController extends Component {
           sortFields={layoutFields[columnIndex] && layoutFields[columnIndex].sortFields}
           onRequestClose={this.handleRequestClose}
           onSelectMenuItem={this.handleOnSelectMenuItem}
+          hasPermission={this.checkForPermissionToAlter()}
         />
       </div>
     );

@@ -123,7 +123,7 @@ public class TestJobMetadataCollection extends BaseTestServer {
     JobDetailsRequest request = JobDetailsRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(toId(id)))
       .build();
-    return JobDetailsUI.of(jobs.getJobDetails(request));
+    return JobDetailsUI.of(jobs.getJobDetails(request), jobs.getJobDetails(request).getAttempts(0).getInfo().getUser());
   }
 
   private JobId toId(QueryId id){

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isAuthorized, Capabilities } from './authUtils';
+import { isAuthorized } from './authUtils';
 
 describe('authUtils (EE)', () => {
   //  it('getAuthInfoSelector and authInfoPropType are consistent', () => {
@@ -55,28 +55,6 @@ describe('authUtils (EE)', () => {
         isAdmin: true
       };
       expect(isAuthorized(rule, userAuthInfo)).to.be.false;
-    });
-
-    it('An non admin does not have access to Space list if respective option is disabled', () => {
-      const userAuthInfo = {
-        isAdmin: false,
-        allowSpaceManagement: false
-      };
-      const rule = {
-        capabilities: [Capabilities.manageSpaces]
-      };
-      expect(isAuthorized(rule, userAuthInfo)).to.be.false;
-    });
-
-    it('An non admin has access to Space list if respective option is enabled', () => {
-      const userAuthInfo = {
-        isAdmin: false,
-        allowSpaceManagement: true
-      };
-      const rule = {
-        capabilities: [Capabilities.manageSpaces]
-      };
-      expect(isAuthorized(rule, userAuthInfo)).to.be.true;
     });
   });
 });

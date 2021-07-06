@@ -38,7 +38,7 @@ import com.google.common.base.Preconditions;
  */
 public final class NamespaceUtils {
 
-  static boolean isListable(final NameSpaceContainer.Type t) {
+  public static boolean isListable(final NameSpaceContainer.Type t) {
     return (t == HOME || t == SPACE || t == FOLDER || t == SOURCE);
   }
 
@@ -83,7 +83,7 @@ public final class NamespaceUtils {
   /**
    * helper method that sets the given id in given container
    */
-  static void setId(NameSpaceContainer container, String id) {
+  public static void setId(NameSpaceContainer container, String id) {
     switch (container.getType()) {
     case SOURCE:
       container.getSource().setId(new EntityId(id));
@@ -105,12 +105,33 @@ public final class NamespaceUtils {
     }
   }
 
+
+  /**
+   * helper method that returns the tag of the entity in given container
+   */
+  public static String getTag(NameSpaceContainer container) {
+    switch (container.getType()) {
+      case SOURCE:
+        return container.getSource().getTag();
+      case SPACE:
+        return container.getSpace().getTag();
+      case HOME:
+        return container.getHome().getTag();
+      case FOLDER:
+        return container.getFolder().getTag();
+      case DATASET:
+        return container.getDataset().getTag();
+      default:
+        throw new RuntimeException("Invalid container type");
+    }
+  }
+
   static <T> List<T> skipLast(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.subList(0, entitiesOnPath.size() - 1);
   }
 
-  static <T> T lastElement(List<T> entitiesOnPath) {
+  public static <T> T lastElement(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.get(entitiesOnPath.size() - 1);
   }

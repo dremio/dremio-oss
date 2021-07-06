@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.store.hive.proxy;
 
+import java.util.List;
+
 import org.pf4j.ExtensionPoint;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
 /**
@@ -29,5 +30,15 @@ import com.dremio.sabot.op.spi.ProducerOperator;
 @SuppressWarnings("unused")
 public interface HiveProxiedScanBatchCreator extends ExtensionPoint {
 
-  ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, HiveProxyingSubScan config) throws ExecutionSetupException;
+  ProducerOperator create() throws ExecutionSetupException;
+
+  /*
+   * Create a record reader iterator
+   */
+  RecordReaderIterator createRecordReaderIterator();
+
+  /*
+   * Add splits to the underlying recordreaderiterator
+   */
+  void addSplits(List<SplitAndPartitionInfo> splits);
 }

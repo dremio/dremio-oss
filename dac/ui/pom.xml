@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <artifactId>dremio-dac-ui</artifactId>
@@ -30,6 +30,11 @@
   <name>Analyst Center - UI</name>
 
   <dependencies>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-ui-lib</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <properties>
@@ -39,6 +44,18 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}/node_modules</directory>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
@@ -50,6 +67,7 @@
           <excludes combine.children="append">
             <exclude>target/**</exclude> <!-- todo: ${project.build.directory} not working, unsure why -->
             <exclude>build/**</exclude>
+            <exclude>public/**</exclude>
             <exclude>coverage/**</exclude>
             <exclude>.nyc_output/**</exclude>
             <exclude>**/*.pattern</exclude>
@@ -130,7 +148,7 @@
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <arguments>install --no-save</arguments>
+              <arguments>install --no-save  --prefer-offline --no-audit</arguments>
             </configuration>
           </execution>
 
@@ -174,25 +192,6 @@
   </build>
 
   <profiles>
-    <profile>
-      <id>node</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-clean-plugin</artifactId>
-            <configuration>
-              <filesets>
-                <fileset>
-                  <directory>${project.basedir}/node_modules</directory>
-                  <followSymlinks>false</followSymlinks>
-                </fileset>
-              </filesets>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
     <profile>
       <id>precommit</id>
       <properties>

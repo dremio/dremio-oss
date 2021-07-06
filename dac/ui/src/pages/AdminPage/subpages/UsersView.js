@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 import './Users.less'; // TODO to Vasyl, need to use Radium
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
+import { injectIntl, FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import Radium from 'radium';
 import { createSelector } from 'reselect';
 
-import LinkButton from 'components/Buttons/LinkButton';
+import SettingHeader from '@app/components/SettingHeader';
+import Art from '@app/components/Art';
 import FontIcon from 'components/Icon/FontIcon';
 
 import StatefulTableViewer from 'components/StatefulTableViewer';
@@ -44,13 +45,13 @@ const userLinkToSelector = createSelector(
   }));
 
 @Radium
-@pureRender
-export default class UsersView extends Component {
+class UsersView extends PureComponent {
   static propTypes = {
     users: PropTypes.instanceOf(Immutable.List),
     removeUser: PropTypes.func.isRequired,
     viewState: PropTypes.instanceOf(Immutable.Map),
-    search: PropTypes.func
+    search: PropTypes.func,
+    intl: PropTypes.object
   }
 
   static contextTypes = {
@@ -128,23 +129,38 @@ export default class UsersView extends Component {
     });
   }
 
+  renderAddUsersButton = () => {
+    const addUserLinkTo = userLinkToSelector(this.context.location);
+
+    return (
+      <Link to={addUserLinkTo} data-qa='add-user-link' className='settingHeader__action'>
+        <Art src='PlusSolid.svg' alt='+' className='settingPage__icon margin-right'/>
+        <FormattedMessage id='Admin.UserManagement.Users.Add' />
+      </Link>
+    );
+  }
+
+  renderHeader() {
+    const {
+      intl: {
+        formatMessage
+      } = {}
+    } = this.props;
+    return (
+      <SettingHeader
+        title={formatMessage({ id: 'Admin.UserManagement.Users' })}
+        endChildren={this.renderAddUsersButton()}
+      />
+    );
+  }
+
   render() {
     const { viewState } = this.props;
     const columns = this.getTableColumns();
     const tableData = this.getTableData();
-    const addUserLinkTo = userLinkToSelector(this.context.location);
     return (
       <div id='admin-user' style={page}>
-        <div className='admin-header' style={styles.adminHeader}>
-          <h3>{la('Users')}</h3>
-          <LinkButton
-            to={addUserLinkTo}
-            buttonStyle='primary'
-            data-qa='add-user'
-            style={styles.addUserBtn}>
-            {la('Add User')}
-          </LinkButton>
-        </div>
+        {this.renderHeader()}
         {
           <div className='filter user'>
             <div className='search-wrap' style={styles.searchWrap}>
@@ -174,15 +190,6 @@ export default class UsersView extends Component {
 }
 
 const styles = {
-  adminHeader: { // todo: DRY with '../components/Header' ?
-    display: 'flex',
-    alignItems: 'center',
-    borderBottom: '1px solid rgba(0,0,0,.1)',
-    padding: '10px 0'
-  },
-  addUserBtn: {
-    marginLeft: 'auto'
-  },
   nameHolder: {
     display: 'flex',
     alignItems: 'center',
@@ -254,3 +261,5 @@ const styles = {
     }
   }
 };
+
+export default injectIntl(UsersView);

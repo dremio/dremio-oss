@@ -50,15 +50,27 @@ public class PrefetchingIterator implements RecordReaderIterator {
 
   @Override
   public RecordReader next() {
-    Preconditions.checkArgument(hasNext());
-    if (current != null) {
-      current.clearLocalFields();
+    try {
+      Preconditions.checkArgument(hasNext());
+      if (current != null) {
+        current.clearLocalFields();
+      }
+      current = creators.next();
+      current.createInputStreamProvider(inputStreamProvider, footer);
+      this.inputStreamProvider = current.getInputStreamProvider();
+      this.footer = current.getFooter();
+      return current.createRecordReader(this.footer);
+    } catch (Exception ex) {
+      if (current != null) {
+        try {
+          AutoCloseables.close(current);
+        } catch (Exception ignoredEx) {
+          // ignore the exception due to close of current record reader
+          // since we are going to throw the source exception anyway
+        }
+      }
+      throw ex;
     }
-    current = creators.next();
-    current.createInputStreamProvider(inputStreamProvider, footer);
-    this.inputStreamProvider = current.getInputStreamProvider();
-    this.footer = current.getFooter();
-    return current.createRecordReader(this.footer);
   }
 
   @Override

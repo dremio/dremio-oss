@@ -15,11 +15,16 @@
  */
 package com.dremio.dac.server;
 
+import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE;
+import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
+import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.EnumSet;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -28,7 +33,6 @@ import javax.ws.rs.core.MediaType;
 
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -74,20 +78,16 @@ public class TestSSLServer extends BaseClientUtils {
     currentDremioDaemon.init();
     initClient(hostname);
 
-    final Path keyStoreDirectory = Paths.get(localWritePathString,
-        SSLConfigurator.KEY_STORE_DIRECTORY);
-    Assert.assertTrue(Files.exists(keyStoreDirectory));
-    assertEquals(Files.getPosixFilePermissions(keyStoreDirectory),
-        SSLConfigurator.KEY_STORE_DIRECTORY_PERMISSIONS);
+    final Path keyStoreDirectory = Paths.get(localWritePathString, "security");
+    assertTrue(Files.exists(keyStoreDirectory));
+    assertEquals(Files.getPosixFilePermissions(keyStoreDirectory), EnumSet.of(OWNER_EXECUTE, OWNER_WRITE, OWNER_READ));
 
-    final Path keyStorePath = Paths.get(localWritePathString,
-        SSLConfigurator.KEY_STORE_DIRECTORY, SSLConfigurator.KEY_STORE_FILE);
-    Assert.assertTrue(Files.exists(keyStorePath));
-    assertEquals(Files.getPosixFilePermissions(keyStorePath),
-        SSLConfigurator.KEY_STORE_FILE_PERMISSIONS);
+    final Path keyStorePath = Paths.get(localWritePathString, "security", SSLConfigurator.KEY_STORE_FILE);
+    assertTrue(Files.exists(keyStorePath));
+    assertEquals(Files.getPosixFilePermissions(keyStorePath), EnumSet.of(OWNER_WRITE, OWNER_READ));
 
     final Path trustStorePath = Paths.get(localWritePathString, SSLConfigurator.TRUST_STORE_FILE);
-    Assert.assertTrue(Files.exists(trustStorePath));
+    assertTrue(Files.exists(trustStorePath));
     assertEquals(Files.getPosixFilePermissions(trustStorePath),
         SSLConfigurator.TRUST_STORE_FILE_PERMISSIONS);
   }

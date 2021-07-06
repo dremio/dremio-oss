@@ -15,10 +15,11 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import Switch from '@material-ui/core/Switch';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Switch from '@material-ui/core/Switch';
+import { ToggleWithMixin } from '@inject/components/Fields/ToggleMixin.js';
 
-export default class Toggle extends Component {
+export class Toggle extends Component {
   static propTypes = {
     onChange: PropTypes.func,
     value: PropTypes.bool,
@@ -32,15 +33,17 @@ export default class Toggle extends Component {
 
   render() {
     const { onChange, value, label, style } = this.props;
+    const conditionalRenderingButtonStyling = this.checkToRenderToggle();
     return (
       <FormControlLabel
-        control={
+        control={ conditionalRenderingButtonStyling ? (
           <Switch
             color='primary'
             onChange={onChange}
             checked={value}
             className='field'
           />
+        ) : ( <div style={{marginLeft: 15}}></div> )
         }
         label={label}
         style={{ marginRight: 0, ...style}}
@@ -48,3 +51,5 @@ export default class Toggle extends Component {
     );
   }
 }
+
+export default ToggleWithMixin(Toggle);

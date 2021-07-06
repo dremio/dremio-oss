@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.api;
 
+import static com.dremio.dac.server.UIOptions.ALLOW_HIVE_SOURCE;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
@@ -169,15 +170,21 @@ public class SourceResource {
 
   // Returns all source types in Dremio
   @GET
-  @RolesAllowed("admin")
+  @RolesAllowed({"admin", "user"})
   @Path("/type")
   public ResponseList<SourceTypeTemplate> getSourceTypes() {
     final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
     final ResponseList<SourceTypeTemplate> types = new ResponseList<>();
 
+    final boolean showHive = sabotContext.getOptionManager().getOption(ALLOW_HIVE_SOURCE);
+
     for(Class<? extends ConnectionConf<?, ?>> input : connectionReader.getAllConnectionConfs().values()) {
       // we can't use isInternal as its not a static method, instead we only show listable sources
       if (isListable(input)) {
+        // Hive is listed by default, but hidden in DCS currently
+        if (!showHive && input.getAnnotation(SourceType.class).value().equals("HIVE")) {
+          continue;
+        }
         types.add(SourceTypeTemplate.fromSourceClass(input, false));
       }
     }
@@ -187,7 +194,7 @@ public class SourceResource {
 
   // Returns the specified source type with all its properties expanded
   @GET
-  @RolesAllowed("admin")
+  @RolesAllowed({"admin", "user"})
   @Path("/type/{name}")
   public SourceTypeTemplate getSourceByType(@PathParam("name") String name) {
     final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();

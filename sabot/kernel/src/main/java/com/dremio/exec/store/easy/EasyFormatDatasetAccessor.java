@@ -29,6 +29,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -41,9 +42,11 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
@@ -220,9 +223,20 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
         reader.allocate(fieldVectorMap);
         reader.next();
         mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-        BatchSchema newSchema = mutator.getContainer().getSchema();
-        return oldSchema != null ? oldSchema.merge(newSchema) : newSchema;
+        return getMergedSchema(oldSchema, operatorContext, mutator, file);
       }
+    }
+  }
+
+  private BatchSchema getMergedSchema(BatchSchema oldSchema, OperatorContextImpl operatorContext, SampleMutator mutator, FileAttributes file) {
+    boolean mixedTypesDisabled = operatorContext.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+    try {
+      BatchSchema newSchema = mutator.getContainer().getSchema().handleUnions(mixedTypesDisabled);
+      return oldSchema != null ? oldSchema.merge(newSchema, mixedTypesDisabled) : newSchema;
+    } catch (NoSupportedUpPromotionOrCoercionException e) {
+      e.addFilePath(file.getPath().toString());
+      e.addDatasetPath(tableSchemaPath.getPathComponents());
+      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
     }
   }
 

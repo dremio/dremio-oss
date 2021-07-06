@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
@@ -59,8 +57,7 @@ export const checkboxPropTypes = {
   toolTipPosition: PropTypes.string
 };
 
-@pureRender
-export default class Checkbox extends Component {
+export default class Checkbox extends PureComponent {
 
   static propTypes = checkboxPropTypes;
 

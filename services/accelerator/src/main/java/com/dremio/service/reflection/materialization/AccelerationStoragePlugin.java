@@ -15,6 +15,10 @@
  */
 package com.dremio.service.reflection.materialization;
 
+import static com.dremio.exec.ExecConstants.ICEBERG_CATALOG_TYPE_KEY;
+import static com.dremio.exec.ExecConstants.ICEBERG_NAMESPACE_KEY;
+import static com.dremio.service.reflection.ReflectionOptions.NESSIE_REFLECTIONS_NAMESPACE;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,12 +52,13 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.MayBeDistFileSystemPlugin;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.exec.store.iceberg.IcebergExecutionDatasetAccessor;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
-import com.dremio.exec.store.iceberg.IcebergFormatDatasetAccessor;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
@@ -61,7 +66,6 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.DirectProvider;
-import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
@@ -73,7 +77,6 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -81,7 +84,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * A custom FileSystemPlugin that only works with Parquet files and generates file selections based on Refreshes as opposed to path.
  */
-public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStoragePluginConfig> {
+public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<AccelerationStoragePluginConfig> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationStoragePlugin.class);
 
@@ -89,7 +92,6 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   private MaterializationStore materializationStore;
   private ParquetFormatPlugin formatPlugin;
   private IcebergFormatPlugin icebergFormatPlugin;
-  private List<Property> props = null;
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -97,16 +99,11 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   @Override
   protected List<Property> getProperties() {
-    List<Property> props = new ArrayList<>();
+    List<Property> props = new ArrayList<>(super.getProperties());
     props.add(new Property(FSConstants.FS_S3A_FILE_STATUS_CHECK, Boolean.toString(getConfig().isS3FileStatusCheckEnabled())));
-    // used only in dcs.
-    // copy over only if keys are used for data credentials
-    // roles will be available as instance roles.
-    if (!Strings.isNullOrEmpty(getConfig().getAccessKey())) {
-      // both go together and data credentials already validates that both are present
-      props.add(new Property(FSConstants.FS_S3A_ACCESS_KEY, getConfig().getAccessKey()));
-      props.add(new Property(FSConstants.FS_S3A_SECRET_KEY, getConfig().getSecretKey()));
-    }
+    props.add(new Property(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.NESSIE.name()));
+    props.add(new Property(ICEBERG_NAMESPACE_KEY,
+            getContext().getOptionManager().getOption(NESSIE_REFLECTIONS_NAMESPACE)));
     return props;
   }
 
@@ -120,17 +117,6 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   @Override
   public FileSystem createFS(String userName, OperatorContext operatorContext, boolean metadata) throws IOException {
-    if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
-      getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
-      getFsConf().set("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-    } else if (!Strings.isNullOrEmpty(getConfig().getIamRole())) {
-      getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");
-      // in executor we should use the associated instance profile
-      if (!getContext().getRoles().contains(ClusterCoordinator.Role.EXECUTOR)) {
-        getFsConf().set("fs.s3a.aws.credentials.provider", "com.dremio.service.coordinator" +
-          ".DremioAssumeRoleCredentialsProviderV1");
-      }
-    }
     return new AccelerationFileSystem(super.createFS(userName, operatorContext, metadata));
   }
 
@@ -241,8 +227,8 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   private Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, Integer fieldCount, boolean icebergDataset, FileSelection selection, PreviousDatasetInfo pdi) {
     if (icebergDataset) {
-      return Optional.of(new IcebergFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
-        new NamespaceKey(datasetPath.getComponents()), icebergFormatPlugin, this, pdi, fieldCount));
+      return Optional.of(new IcebergExecutionDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(),
+              icebergFormatPlugin, selection, this, new NamespaceKey(datasetPath.getComponents())));
     } else {
       return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
         this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));

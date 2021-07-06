@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { fixedWidthSmall } from 'uiTheme/radium/typography';
@@ -22,9 +21,8 @@ import { TEAL } from 'uiTheme/radium/colors';
 const MAX_LENGTH_CONTENT = 63;
 const SYMBOL_WIDTH = 6;
 
-@pureRender
 @Radium
-export default class FixedWidthForContentCard extends Component {
+export default class FixedWidthForContentCard extends PureComponent {
   static propTypes = {
     example: PropTypes.object,
     index: PropTypes.number

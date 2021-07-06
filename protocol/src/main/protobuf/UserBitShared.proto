@@ -204,6 +204,13 @@ message DremioPBError{
      */
     RESOURCE_TIMEOUT = 1019;
 
+    /* Retry attempt error exception
+     * This is mainly used for notifying that system failed in completing the operation even after retrying multiple times
+     * This is mainly used for re-attempting the operation
+     * This is a new error type not present in Apache Drill
+     */
+    RETRY_ATTEMPT_ERROR = 1020;
+
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -377,6 +384,7 @@ message ResourceSchedulingProfile {
   optional ResourceSchedulingProperties scheduling_properties = 7;
   optional int64 resource_scheduling_start = 8;    // time, in ms, when resource scheduling started
   optional int64 resource_scheduling_end = 9;      // time, in ms, when resource scheduling completed
+  optional string engine_name = 10; // engine used to run query in DCS
 }
 
 message ResourceSchedulingProperties {
@@ -631,6 +639,10 @@ enum CoreOperatorType {
   ICEBERG_SUB_SCAN = 52;
   TABLE_FUNCTION = 53;
   DELTALAKE_SUB_SCAN = 54;
+  DIR_LISTING_SUB_SCAN = 55;
+  ICEBERG_WRITER_COMMITTER = 56;
+  GRPC_WRITER = 57;
+  MANIFEST_WRITER = 58;
 }
 
 message MetricDef {

@@ -75,7 +75,7 @@ public class TestServerJobs extends BaseTestServer {
   @Test
   @Ignore
   public void testRunningJob() throws Exception {
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
     final JobsService jobsService = l(JobsService.class);
     final DatasetVersionMutator datasetService = newDatasetVersionMutator();
     final DatasetPath datasetPath = new DatasetPath("testA.dsA1");
@@ -125,7 +125,7 @@ public class TestServerJobs extends BaseTestServer {
   @Test
   @Ignore
   public void testJob() throws Exception {
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
     expectSuccess(getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000")).buildGet(), JobDataFragment.class);
     final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
         .setDataset(VersionedDatasetPath.newBuilder()
@@ -247,7 +247,7 @@ public class TestServerJobs extends BaseTestServer {
   @Test
   @Ignore
   public void testJobDetails() throws Exception {
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
     expectSuccess(getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000")).buildGet(), JobDataFragment.class);
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
         .setDataset(VersionedDatasetPath.newBuilder()
@@ -270,7 +270,7 @@ public class TestServerJobs extends BaseTestServer {
   @Test
   public void testJobsPerUser() throws Exception {
     JobsService jobsService = l(JobsService.class);
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
     // run at least one job
     getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
     doc("getting list of all jobs");
@@ -390,7 +390,7 @@ public class TestServerJobs extends BaseTestServer {
   @Test
   public void testJobs() throws Exception {
     JobsService jobsService = l(JobsService.class);
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
     // run at least one job
     getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
     doc("getting list of all jobs");
@@ -519,7 +519,7 @@ public class TestServerJobs extends BaseTestServer {
   }
 
   private DatasetUI setupIteratorTests(String datasetName) throws Exception{
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
     DatasetUI dataset = getDataset(new DatasetPath(datasetName));
 
     // run dataset twice. We do a run and a preview since subsequent previews won't actually rerun...

@@ -43,19 +43,19 @@ import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 
-import com.dremio.exec.hadoop.HadoopAsyncByteReader;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.OpenFileTracker;
 import com.dremio.exec.store.dfs.SimpleFileBlockLocation;
 import com.dremio.exec.store.hive.exec.DremioFileSystem;
-import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
@@ -104,7 +104,6 @@ public class DremioHadoopFileSystemWrapper
   private final boolean isNAS;
   private final boolean isHDFS;
   private final boolean enableAsync;
-
 
   public DremioHadoopFileSystemWrapper(org.apache.hadoop.fs.Path path, Configuration fsConf, OperatorStats operatorStats, boolean enableAsync) throws IOException {
     this(fsConf, path.getFileSystem(fsConf), operatorStats, enableAsync);
@@ -325,6 +324,15 @@ public class DremioHadoopFileSystemWrapper
   }
 
   @Override
+  public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
+    try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
+      return new FetchOnDemandDirectoryStream(underlyingFs.listFiles(toHadoopPath(f), recursive), f, operatorStats);
+    } catch(FSError e) {
+      throw propagateFSError(e);
+    }
+  }
+
+  @Override
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
       throws FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
@@ -488,6 +496,11 @@ public class DremioHadoopFileSystemWrapper
   }
 
   @Override
+  public boolean supportsBlockAffinity() {
+    return isHDFS;
+  }
+
+  @Override
   public boolean supportsPath(Path path) {
     try {
       underlyingFs.makeQualified(toHadoopPath(path));
@@ -561,6 +574,44 @@ public class DremioHadoopFileSystemWrapper
     @Override
     public Iterator<FileAttributes> iterator() {
       return delegate.iterator();
+    }
+
+    @Override
+    public void close() throws IOException {
+    }
+  }
+
+  private static final class FetchOnDemandDirectoryStream implements DirectoryStream<FileAttributes> {
+    private final Iterator<FileAttributes> convertedIterator;
+
+    public FetchOnDemandDirectoryStream(RemoteIterator<LocatedFileStatus> statuses, Path p, OperatorStats stats) {
+
+      convertedIterator = new Iterator<FileAttributes>() {
+        @Override
+        public boolean hasNext() {
+          try(WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)) {
+            return statuses.hasNext();
+          } catch (IOException e) {
+            logger.error("IO exception in FetchOnDemandDirectoryStream while performing hasNext on RemoteIterator", e);
+            throw new RuntimeException(e.getCause());
+          }
+        }
+
+        @Override
+        public FileAttributes next() {
+          try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(stats, p)){
+            return new HadoopFileStatusWrapper(statuses.next());
+          } catch (IOException e) {
+            logger.error("IO exception in FetchOnDemandDirectoryStream in fetching next fileAttribute ", e);
+            throw new RuntimeException(e.getCause());
+          }
+        }
+      };
+    }
+
+    @Override
+    public Iterator<FileAttributes> iterator() {
+      return convertedIterator;
     }
 
     @Override

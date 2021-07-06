@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 import {safeHtml} from 'common-tags';
@@ -34,8 +33,7 @@ import './HelpFunctions.less';
 
 @injectIntl
 @Radium
-@pureRender
-export class HelpFunctions extends Component {
+export class HelpFunctions extends PureComponent {
   static propTypes = {
     dragType: PropTypes.string.isRequired,
     addFuncToSqlEditor: PropTypes.func.isRequired,
@@ -198,7 +196,7 @@ const styles = {
     overflowY: 'hidden'
   },
   func: {
-    fontFamily: 'Roboto, sans-serif',
+    fontFamily: 'Inter var, sans-serif',
     padding: '5px 8px',
     clear: 'both',
     position: 'relative',

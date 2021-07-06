@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import { connect }   from 'react-redux';
 import shallowEqual from 'shallowequal';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { USERS_VIEW_ID, searchUsers, removeUser } from 'actions/admin';
 import { showConfirmationDialog } from 'actions/confirmation';
@@ -26,9 +25,7 @@ import { getViewState } from 'selectors/resources';
 
 import UsersView from './UsersView';
 
-
-@pureRender
-export class Users extends Component {
+export class Users extends PureComponent {
   static propTypes = {
     location: PropTypes.object,
     searchUsers: PropTypes.func,

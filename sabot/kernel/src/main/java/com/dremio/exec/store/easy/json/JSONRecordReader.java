@@ -82,6 +82,11 @@ public class JSONRecordReader extends AbstractRecordReader {
     this(context, inputPath, null, codecFactory, fileSystem, columns);
   }
 
+  @Override
+  public String getFilePath() {
+    return fsPath.toString();
+  }
+
   /**
    * Create a new JSON Record Reader that uses a in memory materialized JSON stream.
    * @param context
@@ -234,7 +239,9 @@ public class JSONRecordReader extends AbstractRecordReader {
         }
       }
 
-      jsonReader.ensureAtLeastOneField(writer);
+      if (!context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED)) {
+        jsonReader.ensureAtLeastOneField(writer);
+      }
 
       writer.setValueCount(recordCount);
 //      p.stop();

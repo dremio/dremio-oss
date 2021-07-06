@@ -79,6 +79,10 @@ abstract class BaseBIToolMessageBodyGenerator implements MessageBodyWriter<Datas
     return masterNode;
   }
 
+  protected int getPort() {
+    return endpoint.getUserPort();
+  }
+
   /**
    * Getter method to retrieve OptionManager.
    * @return the OptionManager of this instance.

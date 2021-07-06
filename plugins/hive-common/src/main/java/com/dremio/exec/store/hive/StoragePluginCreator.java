@@ -20,12 +20,19 @@ import javax.inject.Provider;
 import org.pf4j.ExtensionPoint;
 import org.pf4j.PluginManager;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
 /**
  * PF4J extension for creating storage plugin instances.
@@ -46,7 +53,17 @@ public interface StoragePluginCreator extends ExtensionPoint {
     /**
      * Creates the plugin-specific scan batch creator.
      */
-    HiveProxiedScanBatchCreator createScanBatchCreator();
+    HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context, HiveProxyingSubScan config) throws ExecutionSetupException;
+
+    /**
+     * Creates the plugin-specific scan batch creator.
+     */
+    HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context, OpProps opProps, TableFunctionConfig config) throws ExecutionSetupException;
+
+    /**
+     * Creates the plugin-specific split creator.
+     */
+    BlockBasedSplitGenerator.SplitCreator createSplitCreator();
 
     /**
      * Gets the class definition for the HiveProxiedOrcScanFilter implementation that is used

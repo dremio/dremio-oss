@@ -31,6 +31,7 @@ export const ORACLE = 'ORACLE';
 export const POSTGRESQL = 'POSTGRES';
 export const ADL = 'ADL';
 export const AWSGLUE = 'AWSGLUE';
+export const GCS = 'GCS';
 export const AMAZONELASTIC = 'AMAZONELASTIC';
 export const AZURE_STORAGE = 'AZURE_STORAGE';
 
@@ -57,7 +58,8 @@ export const sourceProperties = [
   {label: 'Oracle', sourceType: ORACLE},
   {label: 'PostgreSQL', sourceType: POSTGRESQL},
   {label: 'Azure Data Lake Store', sourceType: ADL, beta: true},
-  {label: 'AWS Glue Catalog', sourceType: AWSGLUE, beta: true}
+  {label: 'AWS Glue Catalog', sourceType: AWSGLUE, beta: true},
+  {label: 'Google Cloud Storage', sourceType: GCS, beta: true}
 ];
 
 export const externalSourceType = {
@@ -80,7 +82,8 @@ export const dataLakeSoureType = {
   [NAS]: true,
   [HIVE]: true,
   [HIVE3]: true,
-  [AWSGLUE]: true
+  [AWSGLUE]: true,
+  [GCS]: true
 };
 
 export const isExternalSourceType = (sourceType) => {

@@ -33,6 +33,8 @@ public class JavaTypeFactoryImpl extends org.apache.calcite.jdbc.JavaTypeFactory
   @Override
   public RelDataType createSqlType(SqlTypeName typeName, int precision) {
     switch (typeName) {
+    case CHAR:
+      return super.createSqlType(SqlTypeName.VARCHAR, precision);
     case TIME:
     case TIMESTAMP:
       return super.createSqlType(typeName, RelDataTypeSystemImpl.SUPPORTED_DATETIME_PRECISION);

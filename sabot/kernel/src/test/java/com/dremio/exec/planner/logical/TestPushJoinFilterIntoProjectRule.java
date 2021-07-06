@@ -20,7 +20,6 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -63,8 +62,7 @@ import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
-import com.dremio.options.OptionList;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
@@ -72,14 +70,14 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.test.DremioTest;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Unit tests for PushJoinFilterIntoProjectRule
  */
 public class TestPushJoinFilterIntoProjectRule extends DremioTest {
-  @Mock
-  private OptionManager optionManager;
   @Mock
   private StoragePluginId pluginId;
   @Mock
@@ -119,14 +117,12 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
-      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
-    when(optionManager.getNonDefaultOptions()).thenReturn(new OptionList());
+    OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    PlannerSettings plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, () -> info);
+    PlannerSettings plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver, () -> info);
     planner = new VolcanoPlanner(plannerSettings);
     cluster = RelOptCluster.create(planner, builder);
 
@@ -176,7 +172,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($3, CAST('300'):INTEGER NOT NULL), =($4, CAST('400'):INTEGER NOT NULL))", joinConditionWithCast.toString());
 
     // After transformation, the constants should be pushed below on left side, which should shift all the right fields
-    String expected = "AND(=($0, $5), =($1, $6), =($2, $7), =($5, $3), =($6, $4))";
+    String expected = "AND(=($0, $4), =($1, $5), =($2, $6), =($3, $7))";
 
     Join joinWithoutCast = JoinRel.create(cluster, traits, leftProj, rightProj, joinConditionWithoutCast, JoinRelType.INNER);
     Join joinWithCast = JoinRel.create(cluster, traits, leftProj, rightProj, joinConditionWithCast, JoinRelType.INNER);
@@ -224,8 +220,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, 100), =($2, 200))", joinConditionWithoutCast.toString());
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, CAST('100'):INTEGER NOT NULL), =($2, CAST('200'):INTEGER NOT NULL))", joinConditionWithCast.toString());
 
-    // After transformation, the constants should be pushed below on right side, which should NOT shift any fields
-    String expected = "AND(=($0, $3), =($1, $4), =($2, $5), =($1, $6), =($2, $7))";
+    String expected = "AND(=($0, $4), =($1, $5), =($2, $6), =($3, $7))";
 
     Join joinWithoutCast = JoinRel.create(cluster, traits, leftProj, rightProj, joinConditionWithoutCast, JoinRelType.INNER);
     Join joinWithCast = JoinRel.create(cluster, traits, leftProj, rightProj, joinConditionWithCast, JoinRelType.INNER);
@@ -282,7 +277,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
     assertEquals("AND(=($0, $3), =($1, $4), =($2, $5), =($1, CAST('100'):INTEGER NOT NULL), =($2, CAST('200'):INTEGER NOT NULL), =($3, CAST('300'):INTEGER NOT NULL), =($4, CAST('400'):INTEGER NOT NULL))", joinConditionWithCast.toString());
 
     // After transformation, the constants should be pushed below on both sides, which should shift all the right fields
-    String expected = "AND(=($0, $5), =($1, $6), =($2, $7), =($1, $8), =($2, $9), =($5, $3), =($6, $4))";
+    String expected = "AND(=($0, $5), =($1, $6), =($2, $7), =($3, $8), =($4, $9))";
 
     Join joinWithoutCast = JoinRel.create(cluster, traits, leftProj, rightProj, joinConditionWithoutCast, JoinRelType.INNER);
     Join joinWithCast = JoinRel.create(cluster, traits, leftProj, rightProj, joinConditionWithCast, JoinRelType.INNER);

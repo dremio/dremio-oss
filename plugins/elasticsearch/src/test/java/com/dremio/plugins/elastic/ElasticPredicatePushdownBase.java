@@ -53,6 +53,8 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   private static QueryContext context;
 
+  public String disableCoordOrBlank;
+  private ElasticVersionBehaviorProvider elasticVersionBehaviorProvider;
   protected static final String NOT_PUSHABLE_TO_QUERY_ONLY_SCRIPTS = "float_field = integer_field";
 
   @BeforeClass
@@ -65,6 +67,8 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
   public void before() throws Exception {
     super.before();
     elastic.populate(schema, table, 1);
+    disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
+    elasticVersionBehaviorProvider =  new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
   }
 
 
@@ -94,7 +98,8 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
    */
   protected void assertPushDownContains(String sql, String fragment) throws Exception {
     ElasticsearchGroupScan scan = generate(sql);
-    compareJson(fragment, scan.getScanSpec().getQuery());
+    String query = elasticVersionBehaviorProvider.processElasticSearchQuery(scan.getScanSpec().getQuery());
+    compareJson(fragment, query);
   }
 
 
@@ -186,7 +191,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
     SqlConverter converter = new SqlConverter(context.getPlannerSettings(),
       context.getOperatorTable(), context, context.getMaterializationProvider(), context.getFunctionRegistry(),
       context.getSession(), observer, context.getCatalog(), context.getSubstitutionProviderFactory(), context.getConfig(),
-      context.getScanResult());
+      context.getScanResult(), context.getRelMetadataQuerySupplier());
     SqlNode node = converter.parse(sql);
     SqlHandlerConfig config = new SqlHandlerConfig(context, converter, observer, null);
     NormalHandler handler = new NormalHandler();

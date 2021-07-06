@@ -31,4 +31,5 @@ public @interface SourceType {
   String uiConfig() default "";
   boolean configurable() default true;
   boolean listable() default true;
+  boolean externalQuerySupported() default false;
 }

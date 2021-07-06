@@ -46,5 +46,5 @@ public interface DeltaLogReader {
      * @param fileAttributes
      * @return
      */
-    DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes) throws IOException;
+    DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes, long version) throws IOException;
 }

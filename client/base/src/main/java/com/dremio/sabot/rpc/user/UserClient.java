@@ -59,7 +59,6 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.ssl.SSLConfig;
 import com.dremio.ssl.SSLEngineFactory;
-import com.dremio.ssl.SSLEngineFactoryImpl;
 import com.google.common.collect.Sets;
 import com.google.protobuf.MessageLite;
 
@@ -95,7 +94,7 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
 
   private static Optional<SSLEngineFactory> newSSLEngineFactory(Optional<SSLConfig> sslConfig) throws RpcException {
     try {
-      return SSLEngineFactoryImpl.create(sslConfig);
+      return SSLEngineFactory.create(sslConfig);
     } catch (SSLException e) {
       throw new RpcException(e);
     }

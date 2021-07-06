@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
+import React, { PureComponent } from 'react';
 import classNames from 'classnames';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Popover from '@material-ui/core/Popover';
 import Radium from 'radium';
@@ -25,8 +24,7 @@ import './SettingsBtn.less';
 
 
 @Radium
-@pureRender
-export default class SettingsBtn extends Component {
+export default class SettingsBtn extends PureComponent {
   static propTypes = {
     classStr: PropTypes.string,
     dataQa: PropTypes.string,
@@ -65,6 +63,7 @@ export default class SettingsBtn extends Component {
   }
 
   handleTouchTap(event) {
+    event.preventDefault();
     if (this.props.handleSettingsOpen) {
       this.props.handleSettingsOpen(this.refs.settingsWrap);
     }

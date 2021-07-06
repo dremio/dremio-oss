@@ -42,8 +42,6 @@ import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
-import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -86,7 +84,6 @@ import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubsti
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.logical.DremioRelDecorrelator;
@@ -137,8 +134,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -473,7 +468,7 @@ public class PrelTransformer {
       if(plannerType.isCombineRules()) {
         hepPgmBldr.addRuleCollection(Lists.newArrayList(rules));
       } else {
-        for(RelOptRule rule : rules) {
+        for (RelOptRule rule : rules) {
           hepPgmBldr.addRuleInstance(rule);
         }
       }
@@ -482,15 +477,9 @@ public class PrelTransformer {
       final DremioHepPlanner hepPlanner = new DremioHepPlanner(hepPgmBldr.build(), plannerSettings, converter.getCostFactory(), phase, matchCountListener);
       hepPlanner.setExecutor(new ConstExecutor(converter.getFunctionImplementationRegistry(), converter.getFunctionContext(), converter.getSettings()));
 
-      final List<RelMetadataProvider> list = Lists.newArrayList();
-      list.add(DefaultRelMetadataProvider.INSTANCE);
-      hepPlanner.registerMetadataProviders(list);
-      final RelMetadataProvider cachingMetaDataProvider = buildCachingRelMetadataProvider(
-          ChainedRelMetadataProvider.of(list), hepPlanner);
-
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
       RelOptCluster cluster = input.getCluster();
-      cluster.setMetadataProvider(cachingMetaDataProvider);
+      cluster.setMetadataQuery(config.getContext().getRelMetadataQuerySupplier());
       cluster.invalidateMetadataQuery();
 
       // Begin planning
@@ -518,16 +507,9 @@ public class PrelTransformer {
       volcanoPlanner.setNoneConventionHaveInfiniteCost((phase != PlannerPhase.JDBC_PUSHDOWN) && (phase != PlannerPhase.RELATIONAL_PLANNING));
       final Program program = Programs.of(rules);
 
-      final List<RelMetadataProvider> list = Lists.newArrayList();
-      list.add(DefaultRelMetadataProvider.INSTANCE);
-      volcanoPlanner.registerMetadataProviders(list);
-
-      final RelMetadataProvider cachingMetaDataProvider = buildCachingRelMetadataProvider(
-          ChainedRelMetadataProvider.of(list), volcanoPlanner);
-
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
       RelOptCluster cluster = input.getCluster();
-      cluster.setMetadataProvider(cachingMetaDataProvider);
+      cluster.setMetadataQuery(config.getContext().getRelMetadataQuerySupplier());
       cluster.invalidateMetadataQuery();
 
       // Configure substitutions
@@ -566,17 +548,6 @@ public class PrelTransformer {
       pl.setRoot(relNode);
       return pl.findBestExp().accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
     };
-  }
-
-  private static RelMetadataProvider buildCachingRelMetadataProvider(
-    RelMetadataProvider relMetadataProvider,
-    RelOptPlanner hepPlanner
-  ) {
-    Cache<List<Object>, CachingRelMetadataProvider.CacheEntry> cache =
-      CacheBuilder.newBuilder()
-        .softValues()
-        .build();
-    return new CachingRelMetadataProvider(relMetadataProvider, hepPlanner, cache.asMap());
   }
 
   private static RelNode doTransform(SqlHandlerConfig config, final PlannerType plannerType, final PlannerPhase phase, final RelOptPlanner planner, final RelNode input, boolean log, Supplier<RelNode> toPlan) {
@@ -679,7 +650,10 @@ public class PrelTransformer {
         throw ex;
       }
     }
+    return applyPhysicalPrelTransformations(config, phyRelNode);
+  }
 
+  public static Pair<Prel, String> applyPhysicalPrelTransformations(SqlHandlerConfig config, Prel phyRelNode) throws RelConversionException {
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
     final PlannerSettings plannerSettings = context.getPlannerSettings();
@@ -755,10 +729,10 @@ public class PrelTransformer {
      * This is not needed for planning anymore, but just in case there are udfs that needs to be split up, keep it.
      */
     phyRelNode = phyRelNode.accept(
-        new SplitUpComplexExpressions.SplitUpComplexExpressionsVisitor(
-            context.getOperatorTable(),
-            context.getFunctionRegistry()),
-        null);
+      new SplitUpComplexExpressions.SplitUpComplexExpressionsVisitor(
+        context.getOperatorTable(),
+        context.getFunctionRegistry()),
+      null);
 
     /*
      * 2.)
@@ -922,6 +896,9 @@ public class PrelTransformer {
     config.getConverter().getSubstitutionProvider().setPostSubstitutionTransformer(getPostSubstitutionTransformer(config));
     config.getConverter().getSubstitutionProvider().setObserver(config.getObserver());
     final RelRootPlus convertible = config.getConverter().toConvertibleRelRoot(validatedNode, expand, true);
+    final boolean currentPlanCacheable = config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable();
+    config.getConverter().getFunctionContext().getContextInformation().setPlanCacheable(
+      currentPlanCacheable && convertible.isPlanCacheable());
     config.getObserver().planConvertedToRel(convertible.rel, stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
     if(config.getContext().getOptions().getOption(PlannerSettings.VDS_AUTO_FIX)) {

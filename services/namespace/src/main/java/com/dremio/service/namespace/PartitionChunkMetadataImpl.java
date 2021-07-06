@@ -40,6 +40,7 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PartitionChunkMetadataImpl.class);
 
   private final PartitionChunkId partitionChunkId;
+  private final Runnable multiSplitPrefetcher;
   private final Supplier<MultiSplit> multiSplitSupplier;
   private Iterable<DatasetSplit> materializedDatasetSplits;  // Materialized only on first lookup
 
@@ -49,13 +50,39 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
    * @param multiSplitSupplier   When invoked, materializes the backing MultiSplit that in turn contains this partition chunk's
    *                                 dataset splits
    */
-  public PartitionChunkMetadataImpl(PartitionChunk partitionChunk, PartitionChunkId partitionChunkId, Supplier<MultiSplit> multiSplitSupplier) {
+  public PartitionChunkMetadataImpl(PartitionChunk partitionChunk, PartitionChunkId partitionChunkId, Runnable multiSplitPrefetcher, Supplier<MultiSplit> multiSplitSupplier) {
     super(partitionChunk);
+    Preconditions.checkNotNull(multiSplitPrefetcher);
     Preconditions.checkNotNull(multiSplitSupplier);
     Preconditions.checkArgument(partitionChunk.hasSplitCount(), "Must be constructed with a partitionChunk with a set split_count");
     this.partitionChunkId = partitionChunkId;
+    this.multiSplitPrefetcher = multiSplitPrefetcher;
     this.multiSplitSupplier = Suppliers.memoize(multiSplitSupplier);
     this.materializedDatasetSplits = null;
+  }
+
+
+  /**
+   * Constructor
+   * @param partitionChunk           The partition chunk.
+   *                                 This constructor is used for the case where there are no multisplits
+   *
+   */
+  public PartitionChunkMetadataImpl(PartitionChunk partitionChunk, PartitionChunkId partitionChunkId) {
+    super(partitionChunk);
+    Preconditions.checkArgument(partitionChunk.hasSplitCount(), "Must be constructed with a partitionChunk with a set split_count");
+    this.partitionChunkId = partitionChunkId;
+    this.multiSplitPrefetcher = null;
+    this.multiSplitSupplier = null;
+    this.materializedDatasetSplits = null;
+  }
+
+  @Override
+  public void mayGetDatasetSplits() {
+    PartitionChunk partitionChunk = getPartitionChunk();
+    if (!partitionChunk.hasDatasetSplit()) {
+      multiSplitPrefetcher.run();
+    }
   }
 
   @Override

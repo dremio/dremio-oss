@@ -17,6 +17,8 @@ package com.dremio.exec.store;
 
 import java.util.List;
 
+import org.apache.calcite.rex.RexNode;
+
 import com.dremio.common.expression.SchemaPath;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -45,4 +47,6 @@ public interface ScanFilter {
 
   @JsonIgnore
   List<SchemaPath> getPaths();
+
+  RexNode getRexFilter();
 }

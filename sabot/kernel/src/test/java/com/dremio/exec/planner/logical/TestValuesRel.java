@@ -113,7 +113,7 @@ public class TestValuesRel {
     // Check the adjusted types.
     RelDataType adjustedRowType = valuesRel.getRowType();
     assertEquals(1, adjustedRowType.getFieldCount());
-    assertEquals(SqlTypeName.CHAR, adjustedRowType.getFieldList().get(0).getType().getSqlTypeName());
+    assertEquals(SqlTypeName.VARCHAR, adjustedRowType.getFieldList().get(0).getType().getSqlTypeName());
     assertEquals(INListLength - 1, adjustedRowType.getFieldList().get(0).getType().getPrecision());
   }
 

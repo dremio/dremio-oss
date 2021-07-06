@@ -21,6 +21,7 @@ import java.time.temporal.ChronoField;
 import java.util.List;
 import java.util.Objects;
 
+import com.dremio.common.SuppressForbidden;
 import com.google.common.collect.ImmutableList;
 
 public class TimePrintMillis extends Time {
@@ -32,7 +33,9 @@ public class TimePrintMillis extends Time {
   // Millis of the date time object.
   private final int millisOfSecond;
 
+  @SuppressForbidden
   public TimePrintMillis(LocalTime time) {
+    // Although the constructor is deprecated, this is the exact same code as Time#valueOf(LocalTime)
     super(time.getHour(), time.getMinute(), time.getSecond());
     millisOfSecond = time.get(ChronoField.MILLI_OF_SECOND);
   }

@@ -68,7 +68,7 @@ public class Limit0Converter extends BasePrelVisitor<Prel, Void, IOException> {
   private static boolean isLimit0(RexNode fetch) {
     if (fetch != null && fetch.isA(SqlKind.LITERAL)) {
       RexLiteral l = (RexLiteral) fetch;
-      switch (l.getTypeName()) {
+      switch (l.getType().getSqlTypeName()) {
       case BIGINT:
       case INTEGER:
       case DECIMAL:

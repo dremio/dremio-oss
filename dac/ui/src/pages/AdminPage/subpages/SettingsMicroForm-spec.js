@@ -102,7 +102,8 @@ describe('SettingsMicroForm', () => {
       expect(instance.renderField().type.displayName).to.be.eql('TextField');
     });
 
-    it('with boolean type', () => {
+    //DX-28985
+    xit('with boolean type', () => {
       wrapper.setProps({
         setting: commonProps.setting.set('type', 'BOOLEAN')
       });

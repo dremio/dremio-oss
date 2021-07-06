@@ -19,6 +19,8 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
 
 /**
@@ -41,6 +43,13 @@ public interface HivePluginOptions {
    */
   String HIVE_USE_STATS_IN_METASTORE_KEY = "store.hive.use_stats_in_metastore";
   BooleanValidator HIVE_USE_STATS_IN_METASTORE = new BooleanValidator(HIVE_USE_STATS_IN_METASTORE_KEY, false);
+
+  /**
+   * Compression factor override for estimating the row count for hive parquet tables.
+   */
+  String HIVE_PARQUET_COMPRESSION_FACTOR_KEY = "store.hive.parquet_compression_factor";
+  DoubleValidator HIVE_PARQUET_COMPRESSION_FACTOR_VALIDATOR =
+    new RangeDoubleValidator(HIVE_PARQUET_COMPRESSION_FACTOR_KEY, 0.01, 100.00d, 30.00d);
 
   /**
    * Partition batch size override, used mainly for testing.

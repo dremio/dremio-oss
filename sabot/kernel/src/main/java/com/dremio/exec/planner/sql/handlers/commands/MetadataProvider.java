@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import javax.inject.Provider;
+
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -53,6 +55,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.work.protector.ResponseSenderHandler;
 import com.dremio.service.catalog.Catalog;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.catalog.ListCatalogsRequest;
 import com.dremio.service.catalog.ListSchemataRequest;
@@ -62,6 +65,7 @@ import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
+import com.dremio.service.conduit.server.ConduitInProcessChannelProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -85,10 +89,12 @@ public class MetadataProvider {
     protected final MetadataCommandParameters parameters;
 
     protected MetadataCommand(
-      InformationSchemaServiceBlockingStub catalogStub,
+      Provider<ConduitInProcessChannelProvider> inProcessChannelProviderProvider,
       MetadataCommandParameters parameters
     ) {
-      this.catalogStub = Preconditions.checkNotNull(catalogStub);
+      Preconditions.checkNotNull(inProcessChannelProviderProvider.get());
+      this.catalogStub =
+        InformationSchemaServiceGrpc.newBlockingStub(inProcessChannelProviderProvider.get().getInProcessChannelToConduit());
       this.parameters = Preconditions.checkNotNull(parameters);
     }
 
@@ -145,7 +151,7 @@ public class MetadataProvider {
     private final QueryId queryId;
 
     public CatalogsProvider(
-      InformationSchemaServiceBlockingStub catalogStub,
+      Provider<ConduitInProcessChannelProvider> catalogStub,
       MetadataCommandParameters parameters,
       GetCatalogsReq req
     ) {
@@ -216,7 +222,7 @@ public class MetadataProvider {
     private final QueryId queryId;
 
     public SchemasProvider(
-      InformationSchemaServiceBlockingStub catalogStub,
+      Provider<ConduitInProcessChannelProvider> catalogStub,
       MetadataCommandParameters parameters,
       GetSchemasReq req
     ) {
@@ -291,7 +297,7 @@ public class MetadataProvider {
     private final QueryId queryId;
 
     public TablesProvider(
-      InformationSchemaServiceBlockingStub catalogStub,
+      Provider<ConduitInProcessChannelProvider> catalogStub,
       MetadataCommandParameters parameters,
       GetTablesReq req
     ) {
@@ -378,7 +384,7 @@ public class MetadataProvider {
     private final QueryId queryId;
 
     public ColumnsProvider(
-      InformationSchemaServiceBlockingStub catalogStub,
+      Provider<ConduitInProcessChannelProvider> catalogStub,
       MetadataCommandParameters parameters,
       CatalogService catalogService,
       GetColumnsReq req

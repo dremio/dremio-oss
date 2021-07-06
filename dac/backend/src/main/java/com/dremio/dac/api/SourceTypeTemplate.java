@@ -30,6 +30,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.catalog.conf.DoNotDisplay;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -50,18 +51,21 @@ public class SourceTypeTemplate {
   private final String sourceType;
   private final String label;
   private final String icon;
+  private final boolean externalQueryAllowed;
   private final List<SourcePropertyTemplate> elements;
   private final String uiConfig;
 
   public SourceTypeTemplate(
-    String name,
-    String label,
-    String icon,
-    List<SourcePropertyTemplate> elements,
-    String uiConfig) {
+      String name,
+      String label,
+      String icon,
+      boolean externalQueryAllowed,
+      List<SourcePropertyTemplate> elements,
+      String uiConfig) {
     this.sourceType = name;
     this.label = label;
     this.icon = icon;
+    this.externalQueryAllowed = externalQueryAllowed;
     this.elements = elements;
     this.uiConfig = uiConfig;
   }
@@ -71,10 +75,12 @@ public class SourceTypeTemplate {
     @JsonProperty("sourceType") String name,
     @JsonProperty("label") String label,
     @JsonProperty("icon") String icon,
+    @JsonProperty("arpSource") boolean externalQueryAllowed,
     @JsonProperty("elements") List<SourcePropertyTemplate> elements) {
     this.sourceType = name;
     this.label = label;
     this.icon = icon;
+    this.externalQueryAllowed = externalQueryAllowed;
     this.elements = elements;
     this.uiConfig = null;
   }
@@ -91,6 +97,10 @@ public class SourceTypeTemplate {
     return label;
   }
 
+  public boolean isExternalQueryAllowed() {
+    return externalQueryAllowed;
+  }
+
   public List<SourcePropertyTemplate> getElements() {
     return elements;
   }
@@ -103,6 +113,7 @@ public class SourceTypeTemplate {
 
   public static SourceTypeTemplate fromSourceClass(Class<?> sourceClass, boolean includeProperties) {
     final SourceType type = sourceClass.getAnnotation(SourceType.class);
+    final boolean supportsExternalQuery = type != null && type.externalQuerySupported();
 
     // source icon has to be SourceTypeTemplate.svg and provided as a resource
     String icon = null;
@@ -132,7 +143,12 @@ public class SourceTypeTemplate {
     }
 
     if (!includeProperties) {
-      return new SourceTypeTemplate(type.value(), type.label(), icon, null, null);
+      return new SourceTypeTemplate(type.value(),
+        type.label(),
+        icon,
+        supportsExternalQuery,
+        null,
+        null);
     }
 
     final Object newClassInstance;
@@ -140,7 +156,12 @@ public class SourceTypeTemplate {
       newClassInstance = sourceClass.getConstructor().newInstance();
     } catch (Exception e) {
       logger.warn("Failed to create new instance of [{}]", sourceClass.getName(), e);
-      return new SourceTypeTemplate(type.value(), type.label(), icon, null, null);
+      return new SourceTypeTemplate(type.value(),
+        type.label(),
+        icon,
+        supportsExternalQuery,
+        null,
+        null);
     }
 
     final List<SourcePropertyTemplate> properties = new ArrayList<>();
@@ -148,6 +169,11 @@ public class SourceTypeTemplate {
     for (Field field : getAllFields(sourceClass)) {
       // only properties with the Tag annotation will be included
       if (field.getAnnotation(Tag.class) == null || field.getAnnotation(JsonIgnore.class) != null) {
+        continue;
+      }
+
+      if (field.getAnnotation(DoNotDisplay.class) != null) {
+        // fields which are annotated as DoNotDisplay - should not be shown in UI.
         continue;
       }
 
@@ -192,7 +218,12 @@ public class SourceTypeTemplate {
       }
     }
 
-    return new SourceTypeTemplate(type.value(), type.label(), icon, properties, uiLayoutConfig);
+    return new SourceTypeTemplate(type.value(),
+      type.label(),
+      icon,
+      supportsExternalQuery,
+      properties,
+      uiLayoutConfig);
   }
 
   private static Iterable<Field> getAllFields(Class<?> clazz) {

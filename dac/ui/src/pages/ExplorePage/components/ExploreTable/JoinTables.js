@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import { connect } from 'react-redux';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -38,8 +37,7 @@ import ExploreTableController from './ExploreTableController';
 const WIDTH_SCALE = 0.495;
 
 @Radium
-@pureRender
-export class JoinTables extends Component {
+export class JoinTables extends PureComponent {
 
   static propTypes = {
     pageType: PropTypes.string.isRequired,

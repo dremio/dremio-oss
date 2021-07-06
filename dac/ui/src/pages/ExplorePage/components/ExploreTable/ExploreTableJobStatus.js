@@ -19,16 +19,17 @@ import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
 import { injectIntl } from 'react-intl';
 
-import DropdownMenu from '@app/components/Menus/DropdownMenu';
 import RealTimeTimer from '@app/components/RealTimeTimer';
-import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
-import ExploreTableJobStatusSpinner from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusSpinner';
 import jobsUtils from '@app/utils/jobsUtils';
 import {getJobProgress, getRunStatus, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
 import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
 import TooltipEnabledLabel from '@app/components/TooltipEnabledLabel';
 import ExploreTableJobStatusMixin from 'dyn-load/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusMixin';
+
+import './ExploreTableJobStatus.less';
+import ExploreTableJobStatusDropdown from './ExploreTableJobStatusDropdown';
+import ExploreTableJobStatusSpinner from './ExploreTableJobStatusSpinner';
 
 export const JOB_STATUS = {
   notSubmitted: 'NOT_SUBMITTED',
@@ -132,9 +133,12 @@ export class ExploreTableJobStatus extends Component {
     //in case there was no jobProgress, show "preview" warning once table data appears
     const { approximate, haveRows } = this.props;
     if (approximate && haveRows) {
-      return <SampleDataMessage />;
+      return <>
+        <SampleDataMessage />
+        {this.renderExtraStatus(true)}
+      </>;
     }
-    return null;
+    return this.renderExtraStatus(true);
   };
 
   getCancellable = jobStatus => {
@@ -150,27 +154,28 @@ export class ExploreTableJobStatus extends Component {
   };
 
   render() {
-    const { jobProgress, runStatus, jobId, outputRecords, intl } = this.props;
+    const { jobProgress, runStatus, jobId, outputRecords, intl, cancelJob } = this.props;
+
     if (!jobProgress) {
       return this.renderPreviewWarning();
     }
 
     const jobTypeLabel = runStatus ? la('Run') : la('Preview');
     const isCompleteWithRecords = jobProgress.status === JOB_STATUS.completed && outputRecords;
+    const isJobCancellable = this.getCancellable(jobProgress.status);
     const jobStatusLabel = (isCompleteWithRecords) ? la('Records: ') : la('Status: ');
     const jobStatusName = (isCompleteWithRecords) ? outputRecords.toLocaleString() : this.jobStatusNames[jobProgress.status];
-    const isJobCancellable = this.getCancellable(jobProgress.status);
 
     const helpContent = jobProgress.isRun ? intl.formatMessage({ id: 'Explore.run.warning' }) : intl.formatMessage({ id: 'Explore.preview.warning' });
     const jobLabel = (
       <span>
-        <span style={styles.label}>{la('Job: ')}</span>
+        <span className='exploreJobStatus__label'>{la('Job: ')}</span>
         <span style={styles.value}>{jobTypeLabel}</span>
       </span>
     );
 
     return (
-      <div style={styles.wrapper}>
+      <div className='exploreJobStatus'>
         <TooltipEnabledLabel
           tooltip={helpContent}
           toolTipPosition={'bottom-start'}
@@ -180,26 +185,24 @@ export class ExploreTableJobStatus extends Component {
           label={jobLabel}
         />
         <span style={styles.divider}> | </span>
-        <span style={styles.label}>{jobStatusLabel}</span>
-        <span style={styles.value}>
-          {!jobId && <span style={styles.text}>{jobStatusName}</span>}
-          {jobId &&
-            <DropdownMenu
-              className='explore-job-status-button'
-              hideArrow
-              hideDivider
-              style={styles.textLink}
-              textStyle={styles.menuText}
-              text={jobStatusName}
-              menu={<JobStatusMenu action={this.doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
-          }
-          <ExploreTableJobStatusSpinner jobProgress={jobProgress} jobId={jobId}/>
-        </span>
+
+        <span className='exploreJobStatus__label'>{jobStatusLabel}</span>
+        {!jobId && <span className='exploreJobStatus__name'>{jobStatusName}</span>}
+
+        <ExploreTableJobStatusDropdown
+          jobId ={jobId}
+          jobStatusName={jobStatusName}
+          isJobCancellable={isJobCancellable}
+          cancelJob={cancelJob} />
+
+        <ExploreTableJobStatusSpinner jobProgress={jobProgress} jobId={jobId}/>
+
         <span style={styles.divider}> | </span>
-        <span style={styles.label}>{la('Time: ')}</span>
+        <span className='exploreJobStatus__label'>{la('Time: ')}</span>
         <span style={styles.timeValue}>
           {this.renderTime(jobProgress)}
         </span>
+
         {this.renderExtraStatus()}
       </div>
     );
@@ -236,7 +239,7 @@ export default withRouter(connect(mapStateToProps, {
   cancelJob: cancelJobAndShowNotification
 })(ExploreTableJobStatus));
 
-const styles = {
+export const styles = {
   wrapper: {
     display: 'flex',
     alignItems: 'center'

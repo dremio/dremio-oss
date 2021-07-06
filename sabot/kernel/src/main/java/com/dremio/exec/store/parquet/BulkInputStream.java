@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.Closeable;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -150,11 +151,15 @@ public interface BulkInputStream extends Closeable {
       public int read(ByteBuffer buf) throws IOException {
         final int remainingBytes = buf.remaining();
         final ByteBuf buf1 = Unpooled.buffer(remainingBytes);
-        BulkInputStream.this.readFully(buf1, remainingBytes);
-        buf.put(buf1.nioBuffer());
-        // TODO: Question: how do we indicate end of stream?
-        buf1.release();
-        return remainingBytes - buf.remaining();
+        try {
+          BulkInputStream.this.readFully(buf1, remainingBytes);
+          buf.put(buf1.nioBuffer());
+          return remainingBytes - buf.remaining();
+        } catch (EOFException e) {
+          return -1;
+        } finally {
+          buf1.release();
+        }
       }
 
       @Override
@@ -172,10 +177,15 @@ public interface BulkInputStream extends Closeable {
       private final ByteBuf singleByte = Unpooled.buffer(1);
       @Override
       public int read() throws IOException {
-        BulkInputStream.this.readFully(singleByte, 1);
-        int value = singleByte.getByte(0);
-        singleByte.clear();
-        return (value & 0xff);
+        try {
+          BulkInputStream.this.readFully(singleByte, 1);
+          int value = singleByte.getByte(0);
+          return (value & 0xff);
+        } catch (EOFException e) {
+          return -1;
+        } finally {
+          singleByte.clear();
+        }
       }
 
       @Override

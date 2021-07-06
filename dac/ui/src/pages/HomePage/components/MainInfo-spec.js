@@ -56,7 +56,7 @@ describe('MainInfoView', () => {
 
   describe('#getFolderActions', () => {
 
-    it('should show setting button for folder-as-dataset', () => {
+    xit('should show setting button for folder-as-dataset', () => {
       const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
       sinon.stub(instance, 'getSettingsBtnByType');
       const folder = Immutable.fromJS({
@@ -68,7 +68,7 @@ describe('MainInfoView', () => {
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<DatasetMenu entity={folder} entityType='folder'/>);
     });
 
-    it('should show query button for folder-as-dataset', () => {
+    xit('should show query button for folder-as-dataset', () => {
       const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
       sinon.stub(instance, 'getSettingsBtnByType');
       const folder = Immutable.fromJS({
@@ -80,7 +80,7 @@ describe('MainInfoView', () => {
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<DatasetMenu entity={folder} entityType='folder'/>);
     });
 
-    it('should show settings button for folder', () => {
+    xit('should show settings button for folder', () => {
       const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
       sinon.stub(instance, 'getSettingsBtnByType');
       const folder = Immutable.fromJS({

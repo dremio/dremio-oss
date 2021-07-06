@@ -84,6 +84,11 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public DremioTable getTableForQuery(NamespaceKey key) {
+    return delegate.getTableForQuery(key);
+  }
+
+  @Override
   public DremioTable getTable(String datasetId) {
     return delegate.getTable(datasetId);
   }

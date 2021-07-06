@@ -23,6 +23,7 @@ import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.exec.store.CatalogService;
 
 /**
  * RelSerializerFactory that uses Kryo.
@@ -33,7 +34,7 @@ public class KryoRelSerializerFactory extends RelSerializerFactory {
   }
 
   @Override
-  public LogicalPlanSerializer getSerializer(RelOptCluster cluster) {
+  public LogicalPlanSerializer getSerializer(RelOptCluster cluster, FunctionImplementationRegistry registry) {
     return KryoLogicalPlanSerializers.forSerialization(cluster);
   }
 
@@ -41,7 +42,16 @@ public class KryoRelSerializerFactory extends RelSerializerFactory {
   public LogicalPlanDeserializer getDeserializer(
       RelOptCluster cluster,
       DremioCatalogReader catalog,
-      FunctionImplementationRegistry registry) {
+      FunctionImplementationRegistry registry,
+      CatalogService catalogService) {
+    return getDeserializer(cluster, catalog, registry);
+  }
+
+  @Override
+  public LogicalPlanDeserializer getDeserializer(
+    RelOptCluster cluster,
+    DremioCatalogReader catalog,
+    FunctionImplementationRegistry registry) {
     return KryoLogicalPlanSerializers.forDeserialization(cluster, catalog);
   }
 

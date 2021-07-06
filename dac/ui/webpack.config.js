@@ -277,6 +277,10 @@ const config = {
       {
         from: `node_modules/monaco-editor/${isProductionBuild ? 'min' : 'dev'}/vs`,
         to: 'vs'
+      },
+      {
+        from: 'public/static',
+        to: 'static'
       }
     ]),
     !skipSourceMapUpload && new SentryCliPlugin({
@@ -318,7 +322,10 @@ const config = {
         isBeta
           ? './src/components/Icon/icons/Narwhal-Logo-With-Name-Light-Beta.svg'
           : './src/components/Icon/icons/Narwhal-Logo-With-Name-Light.svg'
-      )
+      ),
+      // Todo: Below lines are to fix the issue with 2 instances of react because of lib. Find a better fix for this. https://github.com/facebook/react/issues/13991
+      'react': path.resolve(__dirname, 'node_modules/react'),
+      '@material-ui': path.resolve(__dirname, 'node_modules/@material-ui')
     },
     plugins: [new InjectionResolver()]
   }

@@ -450,6 +450,11 @@ public final class ClassPathScanner {
         Collections.<ParentClassDescriptor>emptyList());
   }
 
+  /**
+   * Scans the current classpath using the provided config.
+   *
+   * The returned object is immutable and should be cached as much as possible.
+   */
   public static ScanResult fromPrescan(SabotConfig config) {
     return RunTimeScan.fromPrescan(config);
   }

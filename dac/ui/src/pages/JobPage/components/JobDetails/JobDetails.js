@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
@@ -29,8 +28,7 @@ import TabsContent from './TabsContent';
 import './JobDetails.less';
 
 @Radium
-@PureRender
-export default class JobDetails extends Component {
+export default class JobDetails extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     jobId: PropTypes.string,

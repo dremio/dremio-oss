@@ -168,6 +168,22 @@
                         }
                       ]
                     }
+                  },
+                  {
+                    "value": "AWS_PROFILE",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.awsProfile",
+                          "label": "AWS Profile (optional)",
+                          "placeholder": "default",
+                          "size": "half",
+                          "validate": {
+                            "isRequired": false
+                          }
+                        }
+                      ]
+                    }
                   }
                 ]
               },

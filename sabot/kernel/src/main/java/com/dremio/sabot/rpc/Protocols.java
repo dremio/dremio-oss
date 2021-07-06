@@ -25,4 +25,6 @@ public interface Protocols {
   int EXEC_TO_EXEC = 3;
   int CATALOG = 11;
   int REFLECTIONS_EXEC_TO_COORD = 13;
+  int ACCESSCONTROL_EXEC_TO_COORD = 14;
+  int STATISTICS_EXEC_TO_COORD = 15;
 }

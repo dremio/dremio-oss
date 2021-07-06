@@ -21,6 +21,7 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.OpProps;
@@ -113,13 +114,26 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       List<SchemaPath> columns) throws ExecutionSetupException;
 
   public RecordReader getRecordReader(
-          OperatorContext context,
-          FileSystem dfs,
-          SplitAndPartitionInfo split,
-          EasyDatasetSplitXAttr splitAttributes,
-          List<SchemaPath> columns,
-          FragmentExecutionContext fec,
-          EasySubScan config) throws ExecutionSetupException {
+    OperatorContext context,
+    FileSystem dfs,
+    SplitAndPartitionInfo split,
+    EasyDatasetSplitXAttr splitAttributes,
+    List<SchemaPath> columns,
+    FragmentExecutionContext fec,
+    EasySubScan config) throws ExecutionSetupException {
+    boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+    if (mixedTypesDisabled) {
+      return getRecordReader(context, dfs, splitAttributes, columns, config);
+    }
+    return getRecordReader(context, dfs, splitAttributes, columns);
+  }
+
+  protected RecordReader getRecordReader(
+    OperatorContext context,
+    FileSystem dfs,
+    EasyDatasetSplitXAttr splitAttributes,
+    List<SchemaPath> columns,
+    EasySubScan config) throws ExecutionSetupException {
     return getRecordReader(context, dfs, splitAttributes, columns);
   }
 

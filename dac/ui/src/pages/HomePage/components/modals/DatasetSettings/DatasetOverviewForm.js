@@ -15,11 +15,9 @@
  */
 // todo: rename this file
 
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-
-import pureRender from 'pure-render-decorator';
 
 import { FormattedMessage } from 'react-intl';
 import { FormBody, FormTitle } from 'components/Forms';
@@ -30,9 +28,8 @@ import { getIconDataTypeFromEntity } from 'utils/iconUtils';
 import DatasetOverviewFormMixin
   from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin'; // eslint-disable-line max-len
 
-@pureRender
 @DatasetOverviewFormMixin
-export default class DatasetOverviewForm extends Component {
+export default class DatasetOverviewForm extends PureComponent {
 
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),

@@ -25,7 +25,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.exec.record.VectorAccessible;
-import com.google.common.collect.ImmutableList;
 
 public class GandivaUtils {
 
@@ -35,16 +34,25 @@ public class GandivaUtils {
    * @param referencedFields
    * @return the vector schema root.
    */
-  public static VectorSchemaRoot getSchemaRoot(VectorAccessible input, Set referencedFields) {
-    List<FieldVector> fv = ImmutableList.copyOf(input)
+  public static VectorSchemaRoot getSchemaRoot(VectorAccessible input, Set<ReferencedField> referencedFields) {
+
+    List<FieldVector> fv = (List<FieldVector>) referencedFields
       .stream()
-      .map(vw -> ((FieldVector)vw.getValueVector()))
-      .filter(fVec -> referencedFields.contains(fVec.getField()))
+      .map((rf) -> getFieldVector((ReferencedField) rf))
       .collect(Collectors.toList());
 
-    List<Field> fields = fv.stream()
-      .map(fieldVec -> fieldVec.getField())
+
+    List<Field> fields = referencedFields.stream()
+      .map((rf) ->{
+        if(rf.isComplexType()) {
+          return rf.getModifiedField();
+        }
+        else {
+          return rf.getReferencedFieldVector().getField();
+        }
+      })
       .collect(Collectors.toList());
+
 
     Schema schemaWithOnlyReferencedFields = new Schema(fields);
     VectorSchemaRoot root = new VectorSchemaRoot(
@@ -53,5 +61,9 @@ public class GandivaUtils {
       0
     );
     return root;
+  }
+
+  private static FieldVector getFieldVector(ReferencedField rf) {
+      return rf.getReferencedFieldVector();
   }
 }

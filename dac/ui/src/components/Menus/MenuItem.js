@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, createRef } from 'react';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
@@ -43,17 +43,22 @@ export default class MenuItem extends Component {
     isInformational: PropTypes.bool // shouldn't look intereactive
   };
 
-  state = {
-    open: false,
-    anchorOrigin: {
-      horizontal: 'right',
-      vertical: 'top'
-    },
-    targetOrigin: {
-      horizontal: 'left',
-      vertical: 'top'
-    }
-  };
+  constructor(props) {
+    super(props);
+    this.state = {
+      open: false,
+      anchorOrigin: {
+        horizontal: 'right',
+        vertical: 'top'
+      },
+      targetOrigin: {
+        horizontal: 'left',
+        vertical: 'top'
+      }
+    };
+    this.menuItemRef = createRef();
+    this.subMenuRef = createRef();
+  }
 
   delayedCloseTimer = null;
 
@@ -63,8 +68,8 @@ export default class MenuItem extends Component {
     if (enteredElement === window) {
       return true; // have seen this case
     }
-    return (!this.refs.subMenu || !ReactDOM.findDOMNode(this.refs.subMenu).contains(enteredElement))
-      && !this.refs.menuItem.contains(enteredElement);
+    return (!this.subMenuRef.current || !ReactDOM.findDOMNode(this.subMenuRef.current).contains(enteredElement))
+      && !this.menuItemRef.current.contains(enteredElement);
   }
 
   handleMouseOver = () => {
@@ -98,11 +103,12 @@ export default class MenuItem extends Component {
       <div>
         <MenuItemMaterial
           style={styles.resetStyle}
-          onClick={onClick}>
+          onClick={onClick}
+          disabled={disabled}>
           <div
             onMouseOver={this.handleMouseOver}
             onMouseLeave={this.handleMouseLeave}
-            ref='menuItem'
+            ref={this.menuItemRef}
             className={className}
             style={itemStyle}
           >
@@ -127,10 +133,10 @@ export default class MenuItem extends Component {
               placement='right-start'
               style={{overflow: 'visible', zIndex: 1300 }}
               open={this.state.open}
-              anchorEl={this.refs.menuItem}
+              anchorEl={this.menuItemRef.current}
             >
               <ClickAwayListener mouseEvent='onMouseDown' onClickAway={this.handleRequestClose}>
-                <Paper ref='subMenu' onMouseLeave={this.handleMouseLeave} onMouseOver={this.handleMouseOver}>
+                <Paper ref={this.subMenuRef} onMouseLeave={this.handleMouseLeave} onMouseOver={this.handleMouseOver}>
                   {menuItems}
                 </Paper>
               </ClickAwayListener>

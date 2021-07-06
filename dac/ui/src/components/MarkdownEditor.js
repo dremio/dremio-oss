@@ -27,7 +27,8 @@ import {
   readMode as readModeCls,
   saveButton,
   cancelButton,
-  fitToParent as fitToParentCls
+  fitToParent as fitToParentCls,
+  wikiModalHeight
 } from './MarkdownEditor.less';
 
 // simple mde overrides ---------------------------
@@ -76,7 +77,8 @@ export class MarkdownEditorView extends PureComponent {
     onCancelClick: PropTypes.func, // () => {}; Cancel menu item click handler
     onReadModeHasScrollChanged: PropTypes.func, // (hasScroll: bool) => {} would be fired in readMode, when internal hasScroll will change it value
     fullScreenAvailable: PropTypes.bool,
-    onFullScreenChanged: PropTypes.func // (fullScreenMode: bool) => {}
+    onFullScreenChanged: PropTypes.func, // (fullScreenMode: bool) => {}
+    isModal: PropTypes.any
   }
 
   static defaultProps = {
@@ -361,12 +363,13 @@ export class MarkdownEditorView extends PureComponent {
     const {
       readMode,
       className,
-      fitToContainer
+      fitToContainer,
+      isModal
     } = this.props;
 
     return (
       <div
-        className={classNames(editorCls, readMode && readModeCls, fitToContainer && fitToParentCls, className)}
+        className={classNames(editorCls, isModal && wikiModalHeight, readMode && readModeCls, fitToContainer && fitToParentCls, className)}
       >
         <textarea id={this._id} />
       </div>

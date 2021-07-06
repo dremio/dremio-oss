@@ -17,8 +17,12 @@ package com.dremio.exec.catalog;
 
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.SplitsPointer;
+import com.dremio.service.namespace.DelegatingPartitionChunkMetadata;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 
 /**
  * Base class to {@code SplitPointer} types whose data is loaded lazily
@@ -30,6 +34,8 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
   private final NamespaceService namespaceService;
   private final long splitVersion;
   private final int totalSplitCount;
+  private volatile Iterable<PartitionChunkMetadata> splitsIterable;
+  private volatile boolean mayGetDataSplitsFired;
 
   protected LazySplitsPointer(NamespaceService namespaceService, long splitVersion, int totalSplitCount) {
     this.namespaceService = namespaceService;
@@ -68,11 +74,40 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
 
   @Override
   public Iterable<PartitionChunkMetadata> getPartitionChunks() {
-    return findSplits();
+    if (splitsIterable == null) {
+      // Re-using the iterable allows for caching/batching in the underlying implementation.
+      splitsIterable = Iterables.transform(findSplits(), InterceptingPartitionChunkMetadata::new);
+    }
+    return splitsIterable;
   }
 
   @Override
   public int getTotalSplitsCount() {
     return totalSplitCount;
+  }
+
+  private void checkAndFireMayGetDataSplits() {
+    if (mayGetDataSplitsFired) {
+      return;
+    }
+
+    Preconditions.checkNotNull(splitsIterable);
+    for (PartitionChunkMetadata partitionChunkMetadata : splitsIterable) {
+      partitionChunkMetadata.mayGetDatasetSplits();
+    }
+    mayGetDataSplitsFired = true;
+  }
+
+  private class InterceptingPartitionChunkMetadata extends DelegatingPartitionChunkMetadata {
+    InterceptingPartitionChunkMetadata(PartitionChunkMetadata inner) {
+      super(inner);
+    }
+
+    // Assume that if getDatasetSplits() is invoked for one, it will be done for the rest too.
+    @Override
+    public Iterable<PartitionProtobuf.DatasetSplit> getDatasetSplits() {
+      checkAndFireMayGetDataSplits();
+      return super.getDatasetSplits();
+    }
   }
 }

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -29,9 +28,8 @@ import { sectionMargin } from '@app/uiTheme/less/layout.less';
 
 const SECTIONS = [NewFieldSection, ConvertCaseOptions, TrimWhiteSpaceOptions];
 
-@PureRender
 @Radium
-class EditTextContent extends Component {
+class EditTextContent extends PureComponent {
 
   static propTypes = {
     ...transformProps,

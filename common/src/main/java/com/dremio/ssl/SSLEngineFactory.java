@@ -15,6 +15,8 @@
  */
 package com.dremio.ssl;
 
+import java.util.Optional;
+
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 
@@ -25,6 +27,17 @@ import io.netty.handler.ssl.SslContextBuilder;
  * Factory to create {@link SSLEngine}.
  */
 public interface SSLEngineFactory {
+
+  /**
+   * Creates an instance of this factory.
+   *
+   * @param sslConfig SSL config
+   * @return ssl engine factory
+   * @throws SSLException if creation fails
+   */
+  public static Optional<SSLEngineFactory> create(Optional<SSLConfig> sslConfig) throws SSLException {
+    return sslConfig.isPresent() ? Optional.of(new SSLEngineFactoryImpl(sslConfig.get())) : Optional.empty();
+  }
 
   /**
    * Creates a {@link SslContextBuilder} to be used on server-side of SSL negotiation.

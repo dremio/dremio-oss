@@ -57,8 +57,8 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
 
   @Override
   public void upgrade(UpgradeContext context) {
-    namespace = new NamespaceServiceImpl(context.getKVStoreProvider());
-    store = new ExternalReflectionStore(DirectProvider.wrap(context.getKVStoreProvider()));
+    namespace = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+    store = new ExternalReflectionStore(DirectProvider.wrap(context.getLegacyKVStoreProvider()));
 
     final Iterable<ExternalReflection> reflections = store.getExternalReflections();
     StreamSupport.stream(reflections.spliterator(), false)

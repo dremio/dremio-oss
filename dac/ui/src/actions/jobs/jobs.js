@@ -22,7 +22,7 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import jobDetailsSchema from 'schemas/jobDetails';
 import { renderQueryState, renderQueryStateForServer } from 'utils/jobsQueryState';
 import { addNotification } from 'actions/notification';
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
+import tokenUtils from '@inject/utils/tokenUtils';
 import { APIV2Call } from '@app/core/APICall';
 
 export const UPDATE_JOB_DETAILS = 'UPDATE_JOB_DETAILS';
@@ -323,20 +323,13 @@ export function askGnarly(jobId) {
 
 export function showJobProfile(profileUrl) {
   return (dispatch, getState) => {
-    const tempApiCall = new APIV2Call()
-      .path('temp-token')
-      .params({
+    tokenUtils.getTempToken({
+      params: {
         'durationSeconds': 30,
-        'request': '/apiv2' + profileUrl
-      });
-    fetch(tempApiCall.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': localStorageUtils.getAuthToken()
-      }
+        'request': profileUrl
+      },
+      requestApiVersion: 2
     })
-      .then(res => res.json())
       .then(data => {
         const apiCall = new APIV2Call()
           .fullpath(profileUrl)
@@ -353,23 +346,12 @@ export function showJobProfile(profileUrl) {
 }
 
 export function showReflectionJobProfile(profileUrl, reflectionId) {
-  return (dispatch, getState) => {
-    // add the reflection id to the end of the url, but before the ? (url always has ?attemptId)
-    const split = profileUrl.split('/');
-    split[2] = split[2].replace('?', `/reflection/${reflectionId}?`);
+  // add the reflection id to the end of the url, but before the ? (url always has ?attemptId)
+  const split = profileUrl.split('/');
+  split[2] = split[2].replace('?', `/reflection/${reflectionId}?`);
+  const url = split.join('/');
 
-    const apiCall = new APIV2Call()
-      .fullpath(split.join('/'))
-      .param('Authorization', localStorageUtils.getAuthToken());
-
-    const location = getState().routing.locationBeforeTransitions;
-    return dispatch(
-      push({...location, state: {
-        modal: 'JobProfileModal',
-        profileUrl: apiCall.toString()
-      }})
-    );
-  };
+  return showJobProfile(url);
 }
 
 export const SET_CLUSTER_TYPE = 'SET_CLUSTER_TYPE';

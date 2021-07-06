@@ -426,10 +426,11 @@ public interface Schedule extends Iterable<Instant> {
   }
 
   /**
-   * To run just once
+   * To run exactly once - leader executes once and everyone
+   * else backs off.
    * @return
    */
-  default boolean isToRunOnce() {
+  default boolean isToRunExactlyOnce() {
     return false;
   }
 

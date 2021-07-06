@@ -109,7 +109,6 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
@@ -133,7 +132,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
@@ -453,6 +451,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/results").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/accelerator").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/scratch").toPath());
+      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/metadata").toPath());
 
       // Get a random port
       int port;
@@ -474,6 +473,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
               .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, port)
               .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+              .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
               .clusterMode(ClusterMode.DISTRIBUTED),
           DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
@@ -497,6 +497,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .localPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort() + 1)
               .isRemote(true)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
+              .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
               .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
@@ -534,6 +535,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
               .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
+              .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
               .clusterMode(DACDaemon.ClusterMode.LOCAL),
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule
@@ -623,12 +625,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
     });
     SabotContext context = dremioBinder.lookup(SabotContext.class);
     dremioBinder.bind(OptionManager.class, context.getOptionManager());
-
-    dremioBinder.bindProvider(ReflectionAdministrationService.class, () -> {
-      ReflectionAdministrationService.Factory factory = dremioBindingProvider.lookup(ReflectionAdministrationService.Factory.class);
-      return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
-    });
-
     return dremioBinder;
   }
 
@@ -647,10 +643,11 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   private static int getQueryPlanningAllocatorCount() {
-    return l(SabotContext.class)
-      .getQueryPlanningAllocator()
-      .getChildAllocators()
-      .size();
+    final BufferAllocator queryPlanningAllocator = l(SabotContext.class).getQueryPlanningAllocator();
+    if (queryPlanningAllocator == null) {
+      return 0;
+    }
+    return queryPlanningAllocator.getChildAllocators().size();
   }
 
   @AfterClass
@@ -1089,6 +1086,15 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return () ->
       setSystemOption(PlannerSettings.ENABLE_DELTALAKE.getOptionName(),
         PlannerSettings.ENABLE_DELTALAKE.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableRowCountStat(boolean enableStatAfterTest) {
+    setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "true");
+    setSystemOption(PlannerSettings.USE_STATISTICS.getOptionName(), "false");
+    return () -> {
+      setSystemOption(PlannerSettings.USE_ROW_COUNT_STATISTICS.getOptionName(), "false");
+      setSystemOption(PlannerSettings.USE_STATISTICS.getOptionName(), String.valueOf(enableStatAfterTest));
+    };
   }
 
   protected static AutoCloseable withSystemOption(String optionName, String optionValue) {

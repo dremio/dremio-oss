@@ -17,6 +17,7 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
+import { clearDataBetweenTabs } from 'actions/modals/passDataBetweenTabs.js';
 
 /**
  * Returns specified Modal component wrapped into component which tracks and warn user about unsaved changes
@@ -32,7 +33,8 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
     static propTypes = {
       hide: PropTypes.func,
       //connected
-      showUnsavedChangesConfirmDialog: PropTypes.func
+      showUnsavedChangesConfirmDialog: PropTypes.func,
+      clearDataBetweenTabs: PropTypes.func
     }
 
     state = {
@@ -73,6 +75,7 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
         } else {
           this.handleHide(resolve);
         }
+        this.props.clearDataBetweenTabs();
       });
     }
 
@@ -90,5 +93,5 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
 }
 
 export default function FormUnsavedWarningHOC(Modal) {
-  return connect(null, { showUnsavedChangesConfirmDialog })(wrapUnsavedChangesWarningWithModal(Modal));
+  return connect(null, { showUnsavedChangesConfirmDialog, clearDataBetweenTabs })(wrapUnsavedChangesWarningWithModal(Modal));
 }

@@ -22,6 +22,7 @@ import java.util.EnumSet;
 
 import javax.inject.Provider;
 import javax.servlet.DispatcherType;
+import javax.ws.rs.container.DynamicFeature;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jetty.http.MimeTypes;
@@ -32,7 +33,6 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.gzip.GzipHandler;
-import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -43,13 +43,12 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.socket.SocketServlet;
-import com.dremio.dac.server.tracing.ServerTracingDynamicFeature;
-import com.dremio.dac.server.tracing.SpanFinishingFilter;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.tokens.TokenManager;
+import com.dremio.telemetry.api.tracing.http.ServerTracingFilter;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.opentracing.Tracer;
@@ -104,9 +103,6 @@ public class DremioServer {
       servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/apiv2/*", EnumSet.of(DispatcherType.REQUEST));
       servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/api/*", EnumSet.of(DispatcherType.REQUEST));
 
-      // server tracing filter.
-      servletContextHandler.addFilter(SpanFinishingFilter.class.getName(), "/*", EnumSet.of(DispatcherType.REQUEST));
-
       // add the font mime type.
       final MimeTypes mimeTypes = servletContextHandler.getMimeTypes();
       mimeTypes.addMimeMapping("woff2", "application/font-woff2; charset=utf-8");
@@ -126,7 +122,7 @@ public class DremioServer {
       restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);
 
       restServer.register(dremioBinder);
-      restServer.register(new ServerTracingDynamicFeature(tracer));
+      restServer.register((DynamicFeature) (resourceInfo, context) -> context.register(TracingFilter.class));
 
       final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
       restHolder.setInitOrder(2);
@@ -135,7 +131,7 @@ public class DremioServer {
       // Public API
       ResourceConfig apiServer = apiServerProvider.get();
       apiServer.register(dremioBinder);
-      apiServer.register(new ServerTracingDynamicFeature(tracer));
+      apiServer.register((DynamicFeature) (resourceInfo, context) -> context.register(TracingFilter.class));
 
       final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
       apiHolder.setInitOrder(3);
@@ -156,14 +152,6 @@ public class DremioServer {
         final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", registry.lookup(DremioServlet.class));
         addStaticPath(fallbackServletHolder, basePath, markerPath);
         servletContextHandler.addServlet(fallbackServletHolder, "/*");
-
-        // TODO DX-1556 - temporary static asset serving for showing Profiles
-        final String baseStaticPath = "rest/static/";
-        final String arrowDownResourceRelativePath = "rest/static/img/arrow-down-small.svg";
-        ServletHolder restStaticHolder = new ServletHolder("static", DefaultServlet.class);
-        // Get resource URL for legacy static assets, based on where some image is located
-        addStaticPath(restStaticHolder, baseStaticPath, arrowDownResourceRelativePath);
-        servletContextHandler.addServlet(restStaticHolder, "/static/*");
       }
 
       if (!embeddedJetty.isRunning()) {
@@ -262,5 +250,15 @@ public class DremioServer {
 
   public void close() throws Exception {
     embeddedJetty.stop();
+  }
+
+  /**
+   * Wrapper extension to tracing filter to enable registration of class instead of instance.
+   * Registering an object prevents context injection. Hence registering a class.
+   */
+  public static class TracingFilter extends ServerTracingFilter {
+    public TracingFilter() {
+      super(true, "x-tracing-enabled");
+    }
   }
 }

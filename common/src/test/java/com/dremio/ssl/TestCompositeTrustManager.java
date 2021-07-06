@@ -31,6 +31,7 @@ import javax.net.ssl.X509ExtendedTrustManager;
 
 import org.junit.Test;
 
+import com.dremio.common.SuppressForbidden;
 import com.google.common.collect.ImmutableList;
 
 import sun.security.x509.X509CertImpl;
@@ -91,6 +92,7 @@ public class TestCompositeTrustManager {
     }
   }
 
+  @SuppressForbidden
   static class AlwaysSuccessTrustManager extends SingleStateX509ExtendedTrustManager {
     static final X509Certificate CERT1 = new X509CertImpl();
     static final X509Certificate CERT2 = new X509CertImpl();
@@ -106,6 +108,7 @@ public class TestCompositeTrustManager {
     }
   }
 
+  @SuppressForbidden
   static class FailingTrustManager extends SingleStateX509ExtendedTrustManager {
     static final X509Certificate CERT1 = new X509CertImpl();
     static final X509Certificate CERT2 = new X509CertImpl();

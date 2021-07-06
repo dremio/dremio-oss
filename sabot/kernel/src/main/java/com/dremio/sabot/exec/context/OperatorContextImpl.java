@@ -86,6 +86,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final SpillService spillService;
   private final EndpointsIndex endpointsIndex;
   private final Map<Integer, MajorFragmentAssignment> majorFragmentAssignments;
+  private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
 
   public OperatorContextImpl(
     SabotConfig config,
@@ -137,6 +138,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.majorFragmentAssignments = Optional.ofNullable(majorFragmentAssignments)
             .map(f -> f.stream().collect(Collectors.toMap(MajorFragmentAssignment::getMajorFragmentId, v -> v)))
             .orElse(Collections.emptyMap());
+    this.minorFragmentEndpoints = minorFragmentEndpoints;
   }
 
   public OperatorContextImpl(
@@ -325,5 +327,10 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   @Override
   public SpillService getSpillService() {
     return spillService;
+  }
+
+  @Override
+  public List<MinorFragmentEndpoint> getMinorFragmentEndpoints() {
+    return minorFragmentEndpoints;
   }
 }

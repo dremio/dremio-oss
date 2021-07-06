@@ -18,6 +18,7 @@ package com.dremio.jdbc;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -60,6 +61,10 @@ public class ConnectionTest extends JdbcWithServerTestBase {
         + " instead of less-noncompliant SQLFeatureNotSupportedException" );
   }
 
+  @Test
+  public void testGetCatalog() throws SQLException {
+    assertEquals("DREMIO", getConnection().getCatalog());
+  }
 
   ////////////////////////////////////////
   // Basic tests of statement creation methods (not necessarily executing

@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
@@ -36,7 +34,6 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.fun.SqlSingleValueAggFunction;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
@@ -77,19 +74,6 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
     this.table = table;
     this.unsupportedOperatorCollector = new UnsupportedOperatorCollector();
     this.unwrappingExpressionVisitor = new UnwrappingExpressionVisitor(rexBuilder);
-  }
-
-  @Override
-  public RelNode visit(LogicalAggregate aggregate) {
-    for(AggregateCall aggregateCall : aggregate.getAggCallList()) {
-      if(aggregateCall.getAggregation() instanceof SqlSingleValueAggFunction) {
-        // see DRILL-1937
-        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-            "Dremio doesn't currently support non-scalar sub-queries used in an expression");
-        throw new UnsupportedOperationException();
-      }
-    }
-    return visitChild(aggregate, 0, aggregate.getInput());
   }
 
   @Override

@@ -21,7 +21,7 @@ import { saveAsDataset } from 'actions/explore/dataset/save';
 import { hideConfirmationDialog, showConfirmationDialog } from 'actions/confirmation';
 
 import FileUtils from '@app/utils/FileUtils';
-import config from 'dyn-load/utils/config';
+import config from '@inject/utils/config';
 import jobsUtils from 'utils/jobsUtils';
 
 export const START_DATASET_DOWNLOAD = 'START_DATASET_DOWNLOAD';

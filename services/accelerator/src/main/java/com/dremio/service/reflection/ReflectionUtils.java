@@ -49,6 +49,7 @@ import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor.ReflectionInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.io.file.Path;
 import com.dremio.proto.model.UpdateId;
@@ -251,7 +252,8 @@ public class ReflectionUtils {
       final ReflectionGoal reflectionGoal,
       final ReflectionEntry reflectionEntry,
       final Materialization materialization,
-      double originalCost) {
+      double originalCost,
+      final CatalogService catalogService) {
     final IncrementalUpdateSettings updateSettings = new IncrementalUpdateSettings(
       reflectionEntry.getRefreshMethod() == RefreshMethod.INCREMENTAL,
       reflectionEntry.getRefreshField());
@@ -268,7 +270,8 @@ public class ReflectionUtils {
       updateSettings,
       JoinDependencyProperties.NONE,
       materialization.getLogicalPlanStrippedHash(),
-      materialization.getStripVersion());
+      materialization.getStripVersion(),
+      catalogService);
   }
 
   public static List<String> getPartitionNames(List<DataPartition> partitions) {
@@ -301,7 +304,7 @@ public class ReflectionUtils {
   }
 
   public static MaterializationDescriptor getMaterializationDescriptor(final ExternalReflection externalReflection,
-                                                                       final NamespaceService namespaceService) throws NamespaceException {
+                                                                       final NamespaceService namespaceService, final CatalogService catalogService) throws NamespaceException {
     DatasetConfig queryDataset = namespaceService.findDatasetByUUID(externalReflection.getQueryDatasetId());
     DatasetConfig targetDataset = namespaceService.findDatasetByUUID(externalReflection.getTargetDatasetId());
 
@@ -347,7 +350,8 @@ public class ReflectionUtils {
       externalReflection.getId(),
       Optional.fromNullable(externalReflection.getTag()).or(String.valueOf(0)),
       queryDataset.getFullPathList(),
-      targetDataset.getFullPathList()
+      targetDataset.getFullPathList(),
+      catalogService
     );
   }
 

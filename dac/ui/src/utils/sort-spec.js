@@ -40,6 +40,16 @@ describe('humanSorter', () => {
   it('should handle non strings/numbers', () => {
     expect(humanSorter({a: 'a'}, {a: 'b'})).to.equal(0);
   });
+  it('should handle string/number that start with a number', () => {
+    expect(humanSorter('1a', '1a')).to.equal(0);
+    expect(humanSorter('1a', '12a')).to.equal(-1);
+    expect(humanSorter('12a', '2a')).to.equal(1);
+  });
+  it('should handle string/number that do not start with a number', () => {
+    expect(humanSorter('a1', 'a1')).to.equal(0);
+    expect(humanSorter('a01', 'a1')).to.equal(-1);
+    expect(humanSorter('a1', 'a01')).to.equal(1);
+  });
 });
 
 describe('getSortValue', () => {

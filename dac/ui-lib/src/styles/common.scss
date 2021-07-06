@@ -1,0 +1,119 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import './constants/index.scss';
+
+.align-center {
+  text-align: center;
+}
+
+$directions: "left", "right", "top", "bottom";
+
+.gutter {
+  padding: map-get($map: $gutter-sizes, $key: full);
+  @each $name, $size in $gutter-sizes {
+    &--#{$name} {
+      padding: $size !important;
+    }
+  }
+
+  @each $direction in $directions {
+    &-#{$direction} {
+      padding-#{$direction}: map-get($map: $gutter-sizes, $key: full);
+      @each $name, $size in $gutter-sizes {
+        &--#{$name} {
+          padding-#{$direction}: $size !important;
+        }
+      }
+    }
+  } 
+}
+
+.margin {
+  margin: map-get($map: $gutter-sizes, $key: full) !important;
+  @each $name, $size in $gutter-sizes {
+    &--#{$name} {
+      margin: $size !important;
+    }
+  }
+
+  @each $direction in $directions {
+    &-#{$direction} {
+      margin-#{$direction}: map-get($map: $gutter-sizes, $key: full) !important;
+      @each $name, $size in $gutter-sizes {
+        &--#{$name} {
+          margin-#{$direction}: $size !important;
+        }
+      }
+    }
+  }
+}
+
+.text {
+  &-small {
+    font-size: $font-s !important;
+  }
+  &-tiny {
+    font-size: $font-xs !important;
+  }
+
+  &-info {
+    color: $boulder;
+  }
+
+  &-ellipsis {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old versions of Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Chrome, Edge, Opera and Firefox */
+}
+
+.border {
+  @each $direction in $directions {
+    &-#{$direction} {
+      border-#{$direction}: 1px solid $border-color;
+
+      &.--dark {
+        border-color: $dark-gray;
+      }
+    }
+  }
+}
+
+.modal {
+  // To be used for ViewStateWrapper when used inside a modal from ui-lib.
+  &__viewState {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}
+
+.full-height {
+  height: 100%;
+}
+
+.full-width {
+  width: 100% !important;
+}

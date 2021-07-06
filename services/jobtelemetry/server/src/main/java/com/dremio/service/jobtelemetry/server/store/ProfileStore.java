@@ -85,7 +85,8 @@ public interface ProfileStore extends Service {
    */
   void putExecutorProfile(UserBitShared.QueryId queryId,
                           CoordinationProtos.NodeEndpoint endpoint,
-                          ExecutorQueryProfile executorQueryProfile);
+                          ExecutorQueryProfile executorQueryProfile,
+                          boolean isFinal);
 
   /**
    * Get all executor profiles for a given query.

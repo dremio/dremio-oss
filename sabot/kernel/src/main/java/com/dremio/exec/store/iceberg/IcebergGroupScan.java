@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -32,15 +33,25 @@ import com.dremio.exec.store.dfs.easy.EasySubScan;
  * Iceberg dataset group scan
  */
 public class IcebergGroupScan extends EasyGroupScan {
+
   public IcebergGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns) {
     super(props, dataset, columns);
   }
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    final List<SplitAndPartitionInfo> splits = new ArrayList<>(work.size());
-    for(SplitWork split : work){
-      splits.add(split.getSplitAndPartitionInfo());
+
+    List<SplitAndPartitionInfo> splits = new ArrayList<>();
+    StoragePluginId pluginId;
+    if (dataset instanceof InternalIcebergScanTableMetadata) {
+      InternalIcebergScanTableMetadata icebergDataset = (InternalIcebergScanTableMetadata) dataset;
+      splits = icebergDataset.getSplitAndPartitionInfo();
+      pluginId = icebergDataset.getIcebergTableStoragePlugin();
+    } else {
+      for (SplitWork split : work) {
+        splits.add(split.getSplitAndPartitionInfo());
+      }
+      pluginId = dataset.getStoragePluginId();
     }
 
     return new EasySubScan(
@@ -49,7 +60,7 @@ public class IcebergGroupScan extends EasyGroupScan {
       splits,
       props.getSchema(),
       getDataset().getName().getPathComponents(),
-      dataset.getStoragePluginId(),
+      pluginId,
       columns,
       getDataset().getReadDefinition().getPartitionColumnsList(),
       getDataset().getReadDefinition().getExtendedProperty());

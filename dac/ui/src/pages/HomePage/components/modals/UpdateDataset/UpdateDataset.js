@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect }   from 'react-redux';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
@@ -39,8 +38,7 @@ import { TOGGLE_VIEW_ID } from 'components/RightContext/FolderContext';
 import UpdateDatasetView, {UpdateMode} from './UpdateDatasetView';
 
 @injectIntl
-@pureRender
-export class UpdateDataset extends Component {
+export class UpdateDataset extends PureComponent {
   static propTypes = {
     routeParams: PropTypes.object,
     location: PropTypes.object,

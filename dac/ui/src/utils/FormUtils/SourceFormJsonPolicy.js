@@ -32,7 +32,7 @@ import PropertListConfig from 'utils/FormUtils/PropertyListConfig';
 import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
 import { isCME } from 'dyn-load/utils/versionUtils';
-import { PASSWORD_FIELD, SECRET_RESOURCE_URL_FIELD, USER_NAME_FIELD, KERBEROS_FIELD } from '@app/components/Forms/Credentials';
+import { PASSWORD_FIELD, SECRET_RESOURCE_URL_FIELD, USER_NAME_FIELD, KERBEROS_FIELD, PROFILE_NAME_FIELD, DB_USER_FIELD } from '@app/components/Forms/Credentials';
 import addAlwaysPresent from 'dyn-load/utils/FormUtils/globalSourceConfigUtil';
 
 export default class SourceFormJsonPolicy {
@@ -375,7 +375,9 @@ export default class SourceFormJsonPolicy {
           USER_NAME_FIELD,
           PASSWORD_FIELD,
           SECRET_RESOURCE_URL_FIELD,
-          KERBEROS_FIELD
+          KERBEROS_FIELD,
+          PROFILE_NAME_FIELD,
+          DB_USER_FIELD
         ].indexOf(propName) === -1;
       });
     }

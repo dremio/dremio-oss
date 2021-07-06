@@ -19,14 +19,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.nodes.EndpointHelper;
@@ -37,6 +41,7 @@ import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.work.foreman.CompletionListener;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
@@ -177,6 +182,7 @@ class FragmentTracker implements AutoCloseable {
     // from the last fragments that were running on the dead nodes which may cause the query to be marked completed
     // which is actually correct in this case as the node died after all its fragments completed.
 
+    logger.debug("pendingNodes:{}, unRegisteredNodes:{}", pendingNodes, unregisteredNodes);
     List<NodeEndpoint> nodesToMarkDead = new ArrayList<>();
     for (final NodeEndpoint ep : unregisteredNodes) {
       /*
@@ -187,8 +193,10 @@ class FragmentTracker implements AutoCloseable {
       if (!pendingNodes.contains(minimalEp)) {
         // fragments were not assigned to this executor (or) all assigned fragments are
         // already complete.
+        logger.debug("Executor nodeEndpoint: {}, not in pendingNodes: {}", minimalEp, pendingNodes);
         continue;
       }
+      logger.debug("Executor nodeEndpoint: {}, is added to nodesToMarkDead: {}", minimalEp, nodesToMarkDead);
       nodesToMarkDead.add(minimalEp);
     }
 
@@ -249,6 +257,7 @@ class FragmentTracker implements AutoCloseable {
     Retryer retryer = new Retryer.Builder()
       .setWaitStrategy(Retryer.WaitStrategy.FLAT, 5000, 5000)
       .retryIfExceptionOfType(StatusRuntimeException.class)
+      .retryIfExceptionOfType(TimeoutException.class)
       .setMaxRetries(12)
       .build();
 
@@ -303,7 +312,20 @@ class FragmentTracker implements AutoCloseable {
       });
     }
     catch(Retryer.OperationFailedAfterRetriesException e) {
-      logger.error("Retrying cancelling fragments failed. Max retries reached. No more retry done.");
+      logger.error("Retrying cancelling fragments failed for queryId:{}. Max retries reached. No more retry done.",
+        queryId, e);
+
+      // To avoid query being un-cancellable, marking query as cancelled on coordinator side.
+      // The query might still be running on executor side, which will be killed by ActiveQueryList setup.
+
+      UserBitShared.DremioPBError error = UserBitShared.DremioPBError.newBuilder()
+        .setErrorType(UserBitShared.DremioPBError.ErrorType.SYSTEM)
+        .setErrorId(UUID.randomUUID().toString())
+        .setMessage("Query cancelled because cancelling fragments failed.")
+        .setException(ErrorHelper.getWrapper(e))
+        .build();
+
+      checkAndUpdateFirstError(UserRemoteException.create(error));
     }
   }
 
@@ -435,8 +457,11 @@ class FragmentTracker implements AutoCloseable {
       return exception;
     }
 
-    public void await() throws InterruptedException {
-      latch.await();;
+    public void await() throws InterruptedException, TimeoutException {
+      boolean done = latch.await(5, TimeUnit.SECONDS);
+      if (!done) {
+        throw new TimeoutException("Timed out waiting for cancel to complete.");
+      }
     }
   }
 }

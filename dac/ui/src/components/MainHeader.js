@@ -24,6 +24,7 @@ import { FormattedMessage, injectIntl } from 'react-intl';
 import Art from 'components/Art';
 
 import MainHeaderMixin from 'dyn-load/components/MainHeaderMixin';
+import mainHeaderConfig from '@inject/components/mainHeaderConfig';
 import config from '../utils/config';
 import MainHeaderItem from './MainHeaderItem';
 import HeaderLink from './HeaderItemsTypes/HeaderLink';
@@ -105,9 +106,11 @@ export class MainHeader extends PureComponent {
                 </div>
               </HeaderLink>
             </MainHeaderItem>
-            <MainHeaderItem>
-              <SearchItem/>
-            </MainHeaderItem>
+            {mainHeaderConfig.showMainHeaderSeachItem &&
+              <MainHeaderItem>
+                <SearchItem/>
+              </MainHeaderItem>
+            }
             <MainHeaderItem>
               <NewQueryButton/>
             </MainHeaderItem>

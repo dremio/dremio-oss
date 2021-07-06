@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -25,9 +24,8 @@ import SqlEditorController from './../components/SqlEditor/SqlEditorController';
 import ExploreInfoHeader from './../components/ExploreInfoHeader';
 import TopSplitterContent from './../components/TopSplitterContent';
 
-@pureRender
 @Radium
-export default class ExplorePageUpperContent extends Component {
+export default class ExplorePageUpperContent extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     pageType: pageTypesProp,

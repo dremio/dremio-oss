@@ -40,6 +40,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.EndPointListProviderImpl;
 import com.dremio.exec.store.PartitionExplorer;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FunctionContext;
@@ -161,13 +162,18 @@ public class ClassProducerImpl implements ClassProducer {
     @Override
     public PartitionExplorer getPartitionExplorer() {
       throw UserException.unsupportedError().message("The partition explorer interface can only be used " +
-          "in functions that can be evaluated at planning time. Make sure that the %s configuration " +
-          "option is set to true.", PlannerSettings.CONSTANT_FOLDING.getOptionName()).build(logger);
+        "in functions that can be evaluated at planning time. Make sure that the %s configuration " +
+        "option is set to true.", PlannerSettings.CONSTANT_FOLDING.getOptionName()).build(logger);
     }
 
     @Override
     public EndPointListProvider getEndPointListProvider() {
       return new EndPointListProviderImpl(minorFragmentEndpoints);
+    }
+
+    @Override
+    public OptionResolver getOptions() {
+      return compilationOptions.getOptionResolver();
     }
 
     @Override

@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.planner.serialization.kryo.Injection;
 import com.dremio.exec.planner.serialization.kryo.InjectionMapping;
 import com.esotericsoftware.kryo.Kryo;
@@ -44,6 +45,7 @@ import com.google.common.collect.FluentIterable;
  *
  * @param <T> type to serialize
  */
+@SuppressForbidden
 public class InjectingSerializer<T> extends FieldSerializer<T> {
   private static final Logger logger = LoggerFactory.getLogger(InjectingSerializer.class);
 
@@ -75,6 +77,7 @@ public class InjectingSerializer<T> extends FieldSerializer<T> {
     setSuperField("transientFields", newTransientFields);
   }
 
+  @SuppressForbidden
   protected void setSuperField(final String fieldName, final Object value) {
     try {
       final Field field = InjectingSerializer.class.getSuperclass().getDeclaredField(fieldName);

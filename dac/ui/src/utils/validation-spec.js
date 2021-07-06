@@ -165,7 +165,7 @@ describe('validation', () => {
               [fieldName]: `${fieldName} must be an integer greater than or equal to ${limit}.`
             });
           } else {
-            expect(validator(data)).to.be.empty;
+            expect(validator(data)).to.be.undefined;
           }
         });
       };
@@ -193,7 +193,7 @@ describe('validation', () => {
               [fieldName]: `${fieldName} must be an integer less than or equal ${limit}.`
             });
           } else {
-            expect(validator(data)).to.be.empty;
+            expect(validator(data)).to.be.undefined;
           }
         });
       };
@@ -221,7 +221,7 @@ describe('validation', () => {
               [fieldName]: `${fieldName} must be an integer between ${lowLimit} and ${topLimit}.`
             });
           } else {
-            expect(validator(data)).to.be.empty;
+            expect(validator(data)).to.be.undefined;
           }
         });
       };

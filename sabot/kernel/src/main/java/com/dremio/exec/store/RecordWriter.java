@@ -38,6 +38,7 @@ public interface RecordWriter extends AutoCloseable {
   String PARTITION_COLUMN = "Partition";
   String RECORDS_COLUMN = "Records";
   String ICEBERG_METADATA_COLUMN = "IcebergMetadata";
+  String FILE_SCHEMA_COLUMN = "fileschema";
 
   BatchSchema SCHEMA = BatchSchema.newBuilder()
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
@@ -47,6 +48,7 @@ public interface RecordWriter extends AutoCloseable {
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(PARTITION_COLUMN, Types.optional(MinorType.INT)))
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILESIZE_COLUMN, Types.optional(MinorType.BIGINT)))
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(ICEBERG_METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA_COLUMN, Types.optional(MinorType.VARBINARY)))
       .setSelectionVectorMode(SelectionVectorMode.NONE)
       .build();
 
@@ -57,7 +59,7 @@ public interface RecordWriter extends AutoCloseable {
   Field PARTITION = SCHEMA.getColumn(4);
   Field FILESIZE = SCHEMA.getColumn(5);
   Field ICEBERG_METADATA = SCHEMA.getColumn(6);
-
+  Field FILE_SCHEMA = SCHEMA.getColumn(7);
 
   /**
    *
@@ -98,7 +100,8 @@ public interface RecordWriter extends AutoCloseable {
    * Depending on the source, this could be files, a database path, etc.
    */
   interface OutputEntryListener {
-    void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata);
+    void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber,
+                        byte[] icebergMetadata, byte[] schema);
   }
 
   /**

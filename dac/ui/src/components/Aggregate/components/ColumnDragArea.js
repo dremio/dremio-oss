@@ -22,6 +22,7 @@ import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
 import { isAlreadySelected } from 'utils/explore/aggregateUtils';
 import ColumnDragItem from 'utils/ColumnDragItem';
 import { rowMargin } from '@app/uiTheme/less/forms.less';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 
 import DragAreaColumn from '../../DragComponents/DragAreaColumn';
 
@@ -47,7 +48,8 @@ class ColumnDragArea extends Component {
     canUseFieldAsBothDimensionAndMeasure: PropTypes.bool,
     onDragEnd: PropTypes.func,
     className: PropTypes.string,
-    dragContentCls: PropTypes.string
+    dragContentCls: PropTypes.string,
+    canAlter: PropTypes.any
   };
 
   static defaultProps = {
@@ -83,6 +85,7 @@ class ColumnDragArea extends Component {
   }
 
   renderColumnsForDragArea() {
+    const isUserAnAdmin = localStorageUtils.isUserAnAdmin();
     return this.props.columnsField.map( (columnField, i) => (
       <DragAreaColumn
         className={rowMargin}
@@ -100,6 +103,7 @@ class ColumnDragArea extends Component {
         moveColumn={this.props.moveColumn}
         onRemoveColumn={this.handleRemoveColumn}
         dragType={this.props.dragType}
+        preventDrag={!(isUserAnAdmin || this.props.canAlter)}
       />
     ));
   }

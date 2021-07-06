@@ -15,6 +15,7 @@
  */
 import { Component } from 'react';
 import Radium from 'radium';
+import Immutable from 'immutable';
 import PropTypes from 'prop-types';
 import { formDefault } from 'uiTheme/radium/typography';
 import HoverHelp from 'components/HoverHelp';
@@ -26,6 +27,7 @@ import config from 'dyn-load/utils/config';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import NotificationSystem from 'react-notification-system';
 import Message from 'components/Message';
+import {isCME} from 'dyn-load/utils/versionUtils';
 
 const DURATION_ONE_HOUR = 3600000;
 const MIN_DURATION = config.subhourAccelerationPoliciesEnabled ? 60 * 1000 : DURATION_ONE_HOUR; // when changed, must update validation error text
@@ -33,6 +35,7 @@ const MIN_DURATION = config.subhourAccelerationPoliciesEnabled ? 60 * 1000 : DUR
 @Radium
 export default class DataFreshnessSection extends Component {
   static propTypes = {
+    entity: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     entityType: PropTypes.string,
     datasetId: PropTypes.string,
@@ -103,6 +106,15 @@ export default class DataFreshnessSection extends Component {
     this.setState({refreshingReflections: true});
   };
 
+  isRefreshAllowed = () => {
+    const {entity} = this.props;
+    let result = true;
+    if (isCME && !isCME()) {
+      result = entity ? entity.get('permissions').get('canAlterReflections') : false;
+    }
+    return result;
+  }
+
   render() {
     const { entityType, elementConfig, editing, fields: { accelerationRefreshPeriod, accelerationGracePeriod, accelerationNeverRefresh, accelerationNeverExpire } } = this.props;
     const helpContent = la('How often reflections are refreshed and how long data can be served before expiration.');
@@ -139,7 +151,7 @@ export default class DataFreshnessSection extends Component {
                 <FieldWithError errorPlacement='right' {...accelerationRefreshPeriod}>
                   <div style={{display: 'flex'}}>
                     <DurationField {...accelerationRefreshPeriod} min={MIN_DURATION} style={styles.durationField} disabled={!!accelerationNeverRefresh.value}/>
-                    {entityType === 'dataset' && <Button
+                    { this.isRefreshAllowed() && entityType === 'dataset' && <Button
                       disable={this.state.refreshingReflections}
                       disableSubmit
                       onClick={this.refreshAll}

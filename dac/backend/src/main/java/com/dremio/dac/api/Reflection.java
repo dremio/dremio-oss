@@ -321,4 +321,3 @@ public class Reflection {
     return goal;
   }
 }
-

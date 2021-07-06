@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import moment from 'moment';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
@@ -38,8 +37,7 @@ import { tableStyles } from '../../tableStyles';
 
 @injectIntl
 @Radium
-@pureRender
-export default class AllSourcesView extends Component {
+export default class AllSourcesView extends PureComponent {
   static propTypes = {
     sources: PropTypes.object,
     intl: PropTypes.object.isRequired,

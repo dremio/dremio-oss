@@ -34,3 +34,7 @@ export function getClouds(state) {
 export function getAwsDefaults(state) {
   return state.resources.entities.get('awsDefaults');
 }
+
+export const getEngineDefualts = state => {
+  return state.resources.entities.get('engineDefaults');
+};

@@ -56,6 +56,7 @@ public class Source implements CatalogEntity {
   private Boolean accelerationNeverRefresh;
   private List<CatalogItem> children;
   private Boolean allowCrossSourceSelection;
+  private Boolean disableMetadataValidityCheck;
 
   private static final InputValidation validator = new InputValidation();
 
@@ -73,6 +74,7 @@ public class Source implements CatalogEntity {
     this.name = config.getName();
     this.description = config.getDescription();
     this.allowCrossSourceSelection = config.getAllowCrossSourceSelection();
+    this.disableMetadataValidityCheck = config.getDisableMetadataValidityCheck();
 
     if (config.getCtime() != null) {
       this.createdAt = config.getCtime();
@@ -237,6 +239,17 @@ public class Source implements CatalogEntity {
     this.allowCrossSourceSelection = allowCrossSourceSelection;
   }
 
+  public Boolean isDisableMetadataValidityCheck() {
+    // Ensure that we always return true/false in case the setting is not passed in via the API (and thus null).
+    // SourceConfig defaults to false and we want to match that behavior and not return null when the user doesn't pass
+    // in the value.
+    return Boolean.TRUE.equals(disableMetadataValidityCheck);
+  }
+
+  public void setDisableMetadataValidityCheck(Boolean disableMetadataValidityCheck) {
+    this.disableMetadataValidityCheck = disableMetadataValidityCheck;
+  }
+
   public SourceState getState() {
     // TODO: use our own SourceState
     return this.state;
@@ -266,6 +279,7 @@ public class Source implements CatalogEntity {
     sourceConfig.setAccelerationNeverExpire(isAccelerationNeverExpire());
     sourceConfig.setAccelerationNeverRefresh(isAccelerationNeverRefresh());
     sourceConfig.setAllowCrossSourceSelection(isAllowCrossSourceSelection());
+    sourceConfig.setDisableMetadataValidityCheck(isDisableMetadataValidityCheck());
     return sourceConfig;
   }
 

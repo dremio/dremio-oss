@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -52,4 +53,6 @@ public interface JsonProcessor {
    * @return
    */
   long getDataSizeCounter();
+
+  Pair<String, Long> getScrollAndTotalSizeThenSeekToHits() throws IOException;
 }

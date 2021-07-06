@@ -31,7 +31,7 @@ import com.dremio.exec.record.BatchSchema;
  * Dremio logical RelNode implementation for an external query scan.
  */
 public final class ExternalQueryScanCrel extends ExternalQueryRelBase implements CopyToCluster {
-  ExternalQueryScanCrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType,
+  public ExternalQueryScanCrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType,
                         StoragePluginId pluginId, String sql, BatchSchema schema) {
     super(cluster, traitSet, rowType, pluginId, sql, schema);
   }

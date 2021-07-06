@@ -54,7 +54,7 @@ public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  Lega
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions =
-        context.getKVStoreProvider().getStore(VersionStoreCreator.class);
+        context.getLegacyKVStoreProvider().getStore(VersionStoreCreator.class);
 
     final Map<VersionDatasetKey, VirtualDatasetVersion> renamedDatasets = Maps.newHashMap();
     for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion : datasetVersions.find()) {

@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import GroupBy from 'pages/ExplorePage/components/GroupBy/GroupBy';
 
-@pureRender
 @Radium
-export default class GroupByController extends Component {
+export default class GroupByController extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     columns: PropTypes.instanceOf(Immutable.List),

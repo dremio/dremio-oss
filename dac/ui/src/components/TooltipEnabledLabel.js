@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes, { oneOfType } from 'prop-types';
 import classNames from 'classnames';
 import { Tooltip } from 'components/Tooltip';
 
-@pureRender
-export default class TooltipEnabledLabel extends Component {
+export default class TooltipEnabledLabel extends PureComponent {
   static propTypes = {
     label: PropTypes.node,
     labelContentClass: PropTypes.string,

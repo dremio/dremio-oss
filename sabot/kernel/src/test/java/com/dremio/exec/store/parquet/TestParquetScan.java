@@ -246,5 +246,29 @@ public class TestParquetScan extends BaseTestQuery {
     PlanTestBase.testPlanMatchingPatterns(sql, new String[]{"Empty"}, "ParquetGroupScan");
   }
 
+  @Test
+  public void testNoExtParquetFile() throws Exception {
+    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/parquet/parquet_without_ext_dir/no_extension\"";
 
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(5L)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testNoExtParquetDir() throws Exception {
+    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/parquet/parquet_without_ext_dir/no_extension_dir\"";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(5L)
+      .build()
+      .run();
+  }
 }

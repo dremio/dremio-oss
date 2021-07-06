@@ -42,6 +42,7 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.Serializer;
@@ -101,7 +102,7 @@ public class CatalogImpl implements Catalog {
   private final MetadataRequestOptions options;
   private final PluginRetriever pluginRetriever;
   private final CatalogServiceImpl.SourceModifier sourceModifier;
-  private final String username;
+  private final String userName;
 
   private final OptionManager optionManager;
   private final NamespaceService systemNamespaceService;
@@ -129,7 +130,7 @@ public class CatalogImpl implements Catalog {
     this.options = options;
     this.pluginRetriever = pluginRetriever;
     this.sourceModifier = sourceModifier;
-    this.username = options.getSchemaConfig().getUserName();
+    this.userName = options.getSchemaConfig().getUserName();
 
     this.optionManager = optionManager;
     this.systemNamespaceService = systemNamespaceService;
@@ -137,9 +138,9 @@ public class CatalogImpl implements Catalog {
     this.datasetListingService = datasetListingService;
     this.viewCreatorFactory = viewCreatorFactory;
 
-    this.userNamespaceService = namespaceFactory.get(username);
+    this.userNamespaceService = namespaceFactory.get(userName);
 
-    this.datasets = new DatasetManager(pluginRetriever, userNamespaceService, optionManager);
+    this.datasets = new DatasetManager(pluginRetriever, userNamespaceService, optionManager, userName);
     this.iscDelegate = new InformationSchemaCatalogImpl(userNamespaceService);
 
     this.selectedSources = ConcurrentHashMap.newKeySet();
@@ -207,6 +208,11 @@ public class CatalogImpl implements Catalog {
       }
     }
     return t;
+  }
+
+  @Override
+  public DremioTable getTableForQuery(NamespaceKey key) {
+    return getTable(key);
   }
 
   @Override
@@ -285,13 +291,17 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public boolean containerExists(NamespaceKey path) {
+    return containerExists(path, userNamespaceService);
+  }
+
+  protected boolean containerExists(NamespaceKey path, NamespaceService namespaceService) {
     final SchemaType type = getType(path, false);
     if(type == SchemaType.UNKNOWN) {
       return false;
     }
 
     try {
-      List<NameSpaceContainer> containers = userNamespaceService.getEntities(ImmutableList.of(path));
+      List<NameSpaceContainer> containers = namespaceService.getEntities(ImmutableList.of(path));
       NameSpaceContainer c = containers.get(0);
       if(c != null &&
         (
@@ -309,7 +319,7 @@ public class CatalogImpl implements Catalog {
       // For some sources, some folders aren't automatically existing in namespace, let's be more invasive...
 
       // let's check for a dataset in this path. We're looking for a dataset who either has this path as the schema of it or has a schema that starts with this path.
-      if(!Iterables.isEmpty(userNamespaceService.find(new LegacyFindByCondition().setCondition(
+      if(!Iterables.isEmpty(namespaceService.find(new LegacyFindByCondition().setCondition(
         SearchQueryUtils.and(
           SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), NameSpaceContainer.Type.DATASET.getNumber()),
           SearchQueryUtils.or(
@@ -373,7 +383,7 @@ public class CatalogImpl implements Catalog {
     final NamespaceKey resolved = resolveSingle(path);
 
     if (resolved != null) {
-      if (containerExists(resolved.getParent())) {
+      if (containerExists(resolved.getParent(), systemNamespaceService)) {
         List<Function> functions = new ArrayList<>();
         Collection<Function> resolvedFunctions = getFunctionsInternal(resolved);
         functions.addAll(resolvedFunctions);
@@ -382,7 +392,7 @@ public class CatalogImpl implements Catalog {
     }
 
     List<Function> functions = new ArrayList<>();
-    if(containerExists(path.getParent())) {
+    if(containerExists(path.getParent(), systemNamespaceService)) {
       functions.addAll(getFunctionsInternal(path));
     }
     return functions;
@@ -481,9 +491,9 @@ public class CatalogImpl implements Catalog {
   @Override
   public Catalog resolveCatalog(NamespaceKey newDefaultSchema) {
     return new CatalogImpl(
-      options.cloneWith(username, newDefaultSchema, options.checkValidity()),
+      options.cloneWith(userName, newDefaultSchema, options.checkValidity()),
       pluginRetriever,
-      sourceModifier.cloneWith(username),
+      sourceModifier.cloneWith(userName),
       optionManager,
       systemNamespaceService,
       namespaceFactory,
@@ -530,7 +540,7 @@ public class CatalogImpl implements Catalog {
               .message("Dremio doesn't support field aliases defined in view creation.")
               .buildSilently();
         }
-        viewCreatorFactory.get(username)
+        viewCreatorFactory.get(userName)
           .createView(key.getPathComponents(), view.getSql(), view.getWorkspaceSchemaPath(), attributes);
         break;
       default:
@@ -549,7 +559,7 @@ public class CatalogImpl implements Catalog {
         break;
       case SPACE:
       case HOME:
-        viewCreatorFactory.get(username)
+        viewCreatorFactory.get(userName)
           .updateView(key.getPathComponents(), view.getSql(), view.getWorkspaceSchemaPath(), attributes);
         break;
       default:
@@ -567,7 +577,7 @@ public class CatalogImpl implements Catalog {
         return;
       case SPACE:
       case HOME:
-        viewCreatorFactory.get(username).dropView(key.getPathComponents());
+        viewCreatorFactory.get(userName).dropView(key.getPathComponents());
         return;
       default:
         throw UserException.unsupportedError().message("Invalid request to drop " + key).build(logger);
@@ -582,7 +592,7 @@ public class CatalogImpl implements Catalog {
   private SchemaType getType(NamespaceKey key, boolean throwOnMissing) {
     try {
 
-      if(("@" + username).equalsIgnoreCase(key.getRoot())) {
+      if(("@" + userName).equalsIgnoreCase(key.getRoot())) {
         return SchemaType.HOME;
       }
 
@@ -626,30 +636,74 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public void dropTable(NamespaceKey key) {
+    final boolean existsInNamespace = systemNamespaceService.exists(key);
+    final boolean isLayered;
 
-    DatasetConfig dataset;
-    try {
-      dataset = systemNamespaceService.getDataset(key);
-    } catch (NamespaceException ex) {
-      throw new RuntimeException(ex);
+    // CTAS does not create a namespace entry (DX-13454), but we want to allow dropping it, so handle the cases
+    // where it does not exist in the namespace but does exist at the plugin level.
+    if (existsInNamespace) {
+      final DatasetConfig dataset;
+      try {
+        dataset = systemNamespaceService.getDataset(key);
+      } catch (NamespaceException ex) {
+        throw UserException.validationError()
+          .message("Table [%s] not found.", key)
+          .build(logger);
+      }
+
+      if (dataset == null) {
+        throw UserException.validationError()
+          .message("Table [%s] not found.", key)
+          .build(logger);
+      } else if (!isDroppable(dataset)) {
+        throw UserException.validationError()
+          .message("[%s] is not a TABLE", key)
+          .build(logger);
+      }
+
+      if (userNamespaceService.hasChildren(key)) {
+        throw UserException.validationError()
+          .message("Cannot drop table [%s] since it has child tables ", key)
+          .buildSilently();
+      }
+
+      isLayered = DatasetHelper.isIcebergDataset(dataset);
+    } else {
+      try {
+        final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), false);
+        final GetDatasetOption[] getDatasetOptions = plugin.getDefaultRetrievalOptions().asGetDatasetOptions(null);
+
+        if (!asMutable(key, "does not support dropping tables")
+          .getDatasetHandle(new EntityPath(key.getPathComponents()), getDatasetOptions).isPresent()) {
+          throw UserException.validationError()
+            .message("Table [%s] not found.", key)
+            .build(logger);
+        }
+      } catch (ConnectorException e) {
+        throw new RuntimeException(e);
+      }
+
+      isLayered = false;
     }
-
-    if (userNamespaceService.hasChildren(key)) {
-      throw UserException.validationError()
-        .message("Cannot drop table [%s] since it has child tables ", key)
-        .buildSilently();
-    }
-
-    boolean isLayered = DatasetHelper.isIcebergDataset(dataset);
 
     asMutable(key, "does not support dropping tables")
       .dropTable(key.getPathComponents(), isLayered, options.getSchemaConfig());
 
-    try {
-      systemNamespaceService.deleteEntity(key);
-    } catch (NamespaceException e) {
-      throw Throwables.propagate(e);
+    if (existsInNamespace) {
+      try {
+        systemNamespaceService.deleteEntity(key);
+      } catch (NamespaceException e) {
+        throw Throwables.propagate(e);
+      }
     }
+  }
+
+  private boolean isDroppable(DatasetConfig datasetConfig) {
+    if (isSystemTable(datasetConfig) || datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
+      return false;
+    }
+
+    return true;
   }
 
   private boolean isSystemTable(DatasetConfig config) {
@@ -707,7 +761,13 @@ public class CatalogImpl implements Catalog {
 
     while (true) {
       DatasetConfig dataset;
-      dataset = getConfigFromNamespace(key);
+      try {
+        dataset = systemNamespaceService.getDataset(key);
+      } catch (NamespaceNotFoundException ex) {
+        dataset = null;
+      } catch (NamespaceException ex) {
+        throw new RuntimeException(ex);
+      }
 
       if (dataset == null) {
         // try to check if canonical key finds

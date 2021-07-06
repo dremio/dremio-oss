@@ -50,16 +50,27 @@ public class HashToRandomExchangePrel extends ExchangePrel {
   private final List<DistributionField> fields;
   private final String hashFunctionName;
 
+  // If true we will use a tableFunction op before a sender to get the corresponding receiver fragment
+  // else will use a project op to hash the expression
+  private final boolean assignFromTableFunction;
+
+
   public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,
-                                  String hashFunctionName) {
+                                  String hashFunctionName, boolean assignFromTableFunction) {
     super(cluster, traitSet, input);
     this.fields = fields;
     assert input.getConvention() == Prel.PHYSICAL;
     this.hashFunctionName = hashFunctionName;
+    this.assignFromTableFunction = assignFromTableFunction;
+  }
+
+  public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,
+                                  boolean assignFromTableFunction) {
+    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME, assignFromTableFunction);
   }
 
   public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields) {
-    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME);
+    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME, false);
   }
 
   /**
@@ -96,7 +107,7 @@ public class HashToRandomExchangePrel extends ExchangePrel {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName);
+    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName, assignFromTableFunction);
   }
 
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
@@ -139,5 +150,9 @@ public class HashToRandomExchangePrel extends ExchangePrel {
 
   public String getHashFunctionName() {
     return this.hashFunctionName;
+  }
+
+  public boolean assignFromTableFunction() {
+    return assignFromTableFunction;
   }
 }

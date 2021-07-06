@@ -178,7 +178,7 @@ public class SchemaConverter {
   }
 
   public static Schema toIcebergSchema(BatchSchema schema) {
-    return toIcebergSchema(schema, new UnboundedFieldIdBroker());
+    return TypeUtil.assignIncreasingFreshIds(toIcebergSchema(schema, new UnboundedFieldIdBroker()));
   }
 
   public static Schema toIcebergSchema(BatchSchema batchSchema, FieldIdBroker fieldIdBroker) {
@@ -189,7 +189,7 @@ public class SchemaConverter {
       .map(field -> toIcebergColumn(field, fieldIdBroker))
       .collect(Collectors.toList()));
 
-    return TypeUtil.assignIncreasingFreshIds(icebergSchema);
+    return icebergSchema;
   }
 
   public static NestedField changeIcebergColumn(Field field, NestedField icebergField) {

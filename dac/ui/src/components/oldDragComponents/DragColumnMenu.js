@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -23,9 +22,8 @@ import ColumnMenuItem from './ColumnMenuItem';
 
 export const NOT_SUPPORTED_TYPES = ['MAP', 'LIST'];
 
-@pureRender
 @Radium
-export default class DragColumnMenu extends Component {
+export default class DragColumnMenu extends PureComponent {
   static propTypes = {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
     namesOfColumnsInDragArea: PropTypes.instanceOf(Immutable.List),

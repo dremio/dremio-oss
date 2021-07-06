@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
@@ -23,13 +22,16 @@ import Art from 'components/Art';
 import { tabLabel, tabIcon } from '@app/uiTheme/less/layout.less';
 import { nav, navBtn, navBtnActive } from './NavPanel.less';
 
-
-@pureRender
-export default class NavPanel extends Component {
+export default class NavPanel extends PureComponent {
   static propTypes = {
     changeTab: PropTypes.func.isRequired,
     activeTab: PropTypes.string,
-    tabs: PropTypes.instanceOf(Immutable.OrderedMap)
+    tabs: PropTypes.instanceOf(Immutable.OrderedMap),
+    showSingleTab: PropTypes.bool
+  };
+
+  static defaultProps = {
+    showSingleTab: false
   };
 
   renderTabLabel = ({
@@ -52,7 +54,11 @@ export default class NavPanel extends Component {
   };
 
   render() {
-    if (this.props.tabs.count() <= 1) {
+    const { showSingleTab, tabs} = this.props;
+
+    const invalidTabCount = showSingleTab ? tabs.count() < 1 : tabs.count() <= 1;
+
+    if (invalidTabCount) {
       return null;
     }
 

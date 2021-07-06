@@ -104,7 +104,10 @@ export class SelectedTextPopoverView extends Component {
 
   renderForItemsOfList(newState) {
     const extract = this.items.filter(item => item.get('transform') === 'extract');
-    return this.renderItem(extract.get(0), newState);
+    if (extract && extract.size > 0) {
+      return this.renderItem(extract.get(0), newState);
+    }
+    return null;
   }
 
   renderItem = (item, newState, index) => {
@@ -151,10 +154,11 @@ export class SelectedTextPopoverView extends Component {
     };
 
     if (state && state.listOfItems && state.listOfItems.length > 1) {
+      const itemsList = this.renderForItemsOfList(newState);
       return (
         <Menu>
-          {this.renderForItemsOfList(newState)}
-          <Divider />
+          {itemsList}
+          {itemsList && <Divider />}
           {this.renderCopySelectionItem()}
         </Menu>
       );
@@ -162,7 +166,7 @@ export class SelectedTextPopoverView extends Component {
     return (
       <Menu>
         {items.map((item, index) => this.renderItem(item, newState, index))}
-        {items.size && <Divider />}
+        {items.size > 0 && <Divider />}
         {this.renderCopySelectionItem()}
       </Menu>
     );

@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -25,9 +24,8 @@ import JoinDragAreaColumn from './JoinDragAreaColumn';
 
 const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click “Add a Join Condition”.';
 
-@pureRender
 @Radium
-class JoinDragArea extends Component {
+class JoinDragArea extends PureComponent {
   static propTypes = {
     style: PropTypes.object,
     dragColumntableType: PropTypes.string,

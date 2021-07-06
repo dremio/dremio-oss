@@ -51,6 +51,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.util.DremioEdition;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
@@ -143,6 +144,7 @@ public class ReflectionManager implements Runnable {
   private final ReflectionGoalChecker reflectionGoalChecker;
   private final RefreshStartHandler refreshStartHandler;
   private volatile Path accelerationBasePath;
+  private final CatalogService catalogService;
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
   private long lastOrphanCheckTime;
@@ -153,7 +155,8 @@ public class ReflectionManager implements Runnable {
                     DependencyManager dependencyManager, DescriptorCache descriptorCache,
                     Set<ReflectionId> reflectionsToUpdate, WakeUpCallback wakeUpCallback,
                     Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator, Path accelerationBasePath,
-                    ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler) {
+                    ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
+                    CatalogService catalogService) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespaceService required");
@@ -168,6 +171,7 @@ public class ReflectionManager implements Runnable {
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
+    this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
     this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath);
     this.reflectionGoalChecker = Preconditions.checkNotNull(reflectionGoalChecker);
     this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
@@ -746,7 +750,7 @@ public class ReflectionManager implements Runnable {
 
     try {
       final RefreshDoneHandler handler = new RefreshDoneHandler(entry, materialization, job, jobsService,
-        namespaceService, materializationStore, dependencyManager, expansionHelper, accelerationBasePath, allocator);
+        namespaceService, materializationStore, dependencyManager, expansionHelper, accelerationBasePath, allocator, catalogService);
       final RefreshDecision decision = handler.handle();
 
       // no need to set the following attributes if we fail to handle the refresh
@@ -961,7 +965,7 @@ public class ReflectionManager implements Runnable {
     // we should always update lastSubmittedRefresh to avoid an immediate refresh if we fail to start a refresh job
     entry.setLastSubmittedRefresh(jobSubmissionTime);
 
-    if (DremioEdition.get() != DremioEdition.MARKETPLACE) {
+    if (DremioEdition.get() != DremioEdition.MARKETPLACE && sabotContext.getCoordinatorModeInfoProvider().get().isInSoftwareMode()) {
       if (sabotContext.getExecutors().isEmpty() && System.currentTimeMillis() - sabotContext.getEndpoint().getStartTime() < START_WAIT_MILLIS) {
         logger.warn("reflection {} was not refreshed because no executors were available", entry.getId().getId());
         reportFailure(entry, ACTIVE);

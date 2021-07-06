@@ -262,6 +262,7 @@ public class AttemptManager implements Runnable {
     @Override
     public void interrupted(InterruptedException paramInterruptedException) {
       ackit();
+      logger.info("Connection interrupted for query {}", queryIdString);
       addToEventQueue(QueryState.CANCELED, paramInterruptedException);
     }
 
@@ -725,8 +726,13 @@ public class AttemptManager implements Runnable {
    * @param exception if not null, the exception that drove this state transition (usually a failure)
    */
   private void moveToState(final QueryState newState, final Exception exception) {
-    logger.debug(queryIdString + ": State change requested {} --> {}", state, newState,
-      exception);
+    if (exception == null) {
+      logger.debug(queryIdString + ": State change requested {} --> {}", state, newState,
+        exception);
+    } else {
+      logger.info(queryIdString + ": State change requested {} --> {}, Exception {}", state, newState,
+        exception.toString());
+    }
     switch (state) {
       case ENQUEUED:
         switch (newState) {

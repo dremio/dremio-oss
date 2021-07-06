@@ -71,12 +71,14 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
   private DatasetMetadata datasetMetadata;
   private final ElasticPartitionChunkListing partitionChunkListing;
   private final ElasticDatasetHandle datasetHandle;
+  private ElasticVersionBehaviorProvider elasticVersionBehaviorProvider;
 
   public ElasticDatasetMetadata(BatchSchema oldSchema, ElasticDatasetHandle datasetHandle, ElasticPartitionChunkListing listing) {
     this.partitionChunkListing = listing;
     this.datasetHandle = datasetHandle;
 
     this.oldSchema = oldSchema;
+    this.elasticVersionBehaviorProvider = new ElasticVersionBehaviorProvider(datasetHandle.getConnection().getESVersionInCluster());
   }
 
   /**
@@ -140,7 +142,7 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
 
       WorkingBuffer buffer = new WorkingBuffer(operatorContext.getManagedBuffer());
       final int maxCellSize = Math.toIntExact(operatorContext.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
-      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(schema, annotations, buffer, maxCellSize);
+      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(schema, annotations, buffer, maxCellSize, elasticVersionBehaviorProvider);
 
       try (final ElasticsearchRecordReader reader = new ElasticsearchRecordReader (
         null,
@@ -200,9 +202,16 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
     }
 
     JsonObject aliasObject = aliasResult.getAsJsonObject();
+    if (0 == aliasObject.size()) {
+      // It seems that ES 6.x return a successful result with no aliases, so verify the results.
+      return null;
+    }
     JsonObject firstIndex = aliasObject.entrySet().iterator().next().getValue().getAsJsonObject();
     JsonObject aliasesObject = firstIndex.getAsJsonObject("aliases");
     JsonObject aliasObject2 = aliasesObject.getAsJsonObject(name);
+    if (aliasObject2 == null) {
+      return null;
+    }
     JsonObject filterObject = aliasObject2.getAsJsonObject("filter");
     if (filterObject == null) {
       return null;

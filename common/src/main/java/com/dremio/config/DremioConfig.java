@@ -53,6 +53,8 @@ public class DremioConfig extends NestedConfig {
   public static final String LOCAL_WRITE_PATH_STRING = "paths.local";
   public static final String DIST_WRITE_PATH_STRING = "paths.dist";
 
+  public static final String CREDENTIALS_KEYSTORE_PASSWORD = "security.keystore-password";
+
   public static final String NODE_TAG = "services.node-tag";
   public static final String ENABLE_COORDINATOR_BOOL = "services.coordinator.enabled";
   public static final String ENABLE_MASTER_BOOL = "services.coordinator.master.enabled";
@@ -72,9 +74,22 @@ public class DremioConfig extends NestedConfig {
   public static final String KERBEROS_PRINCIPAL = "services.kerberos.principal";
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
 
+  public static final String CACHE_DB_PATH = "services.executor.cache.path.db";
+  public static final String CACHE_FS_PATH_LIST = "services.executor.cache.path.fs";
+  public static final String CACHE_ENABLED = "services.executor.cache.enabled";
+  public static final String CACHE_DB_QUOTA = "services.executor.cache.pctquota.db";
+  public static final String CACHE_FS_QUOTA_LIST = "services.executor.cache.pctquota.fs";
+  public static final String CACHE_FS_ENSURE_FREE_SPACE_LIST = "services.executor.cache.ensurefreespace.fs";
+
   public static final String JOBS_ENABLED_BOOL = "services.jobs.enabled";
   public static final String NO_OP_CLUSTER_COORDINATOR_ENABLED = "debug.noop.cluster" +
     ".coordinator.enabled";
+
+  /**
+   * Config values related to plan caching
+   */
+  public static final String PLAN_CACHE_TIMEOUT_MINUTES = "dremio.plan.cache.timeout_minutes";
+  public static final String PLAN_CACHE_MAX_ENTRIES = "dremio.plan.cache.max_entries";
 
   /**
    * Path where ui config is located
@@ -94,6 +109,10 @@ public class DremioConfig extends NestedConfig {
   public static final String FLIGHT_SERVICE_PORT_INT = "services.flight.port";
   public static final String FLIGHT_SERVICE_AUTHENTICATION_MODE = "services.flight.auth.mode";
 
+  public static final String NESSIE_SERVICE_ENABLED_BOOLEAN = "services.nessie.enabled";
+  public static final String NESSIE_SERVICE_IN_MEMORY_BOOLEAN = "services.nessie.backend.in-memory";
+  public static final String NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES = "services.nessie.kvstore.max-commit-retries";
+
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
 
   public static final String REGISTRATION_ADDRESS = "registration.publish-host";
@@ -104,6 +123,7 @@ public class DremioConfig extends NestedConfig {
   public static final String RESULTS_PATH_STRING = "paths.results";
   public static final String SCRATCH_PATH_STRING = "paths.scratch";
   public static final String SPILLING_PATH_STRING = "paths.spilling";
+  public static final String METADATA_PATH_STRING = "paths.metadata";
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
@@ -150,6 +170,7 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_JOBS_ASYNC_ENABLED = "debug.results.async.enabled";
   public static final String DEBUG_SCRATCH_ASYNC_ENABLED = "debug.scratch.async.enabled";
   public static final String DEBUG_DOWNLOAD_ASYNC_ENABLED = "debug.download.async.enabled";
+  public static final String DEBUG_METADATA_ASYNC_ENABLED = "debug.metadata.async.enabled";
   public static final String DEBUG_LOGS_ASYNC_ENABLED = "debug.logs.async.enabled";
   public static final String DEBUG_DIST_S3_FILE_STATUS_CHECK = "debug.dist.s3_file_status_check.enabled";
 

@@ -15,13 +15,25 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.exec.planner.common.MoreRelOptUtil.getInputRewriterFromProjectedFields;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Objects;
@@ -105,5 +117,25 @@ public class ParquetScanFilter implements ScanFilter {
   @Override
   public List<SchemaPath> getPaths() {
     return conditions.stream().map(ParquetFilterCondition::getPath).collect(Collectors.toList());
+  }
+
+  @JsonIgnore
+  public RexNode getRexFilter() {
+    if (conditions.get(0) == null) {
+      return null;
+    }
+    // assume that conditions are joined only by AND for now
+    List<RexNode> rexNodeList = conditions.stream().map(ParquetFilterCondition::getRexFilter)
+      .collect(Collectors.toList());
+    return RexUtil.composeConjunction(new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
+  }
+
+  public ParquetScanFilter applyProjection(List<SchemaPath> projection, RelDataType rowType, RelOptCluster cluster, BatchSchema batchSchema) {
+    final PrelUtil.InputRewriter inputRewriter = getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
+    List<ParquetFilterCondition> newParquetFilterConditionsList = getConditions().stream().map(c -> {
+      RexNode newFilter = c.getRexFilter() != null ? c.getRexFilter().accept(inputRewriter) : null;
+      return new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort(), newFilter);
+    }).collect(Collectors.toList());
+    return new ParquetScanFilter(newParquetFilterConditionsList);
   }
 }

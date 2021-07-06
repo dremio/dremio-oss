@@ -162,6 +162,7 @@ export class AccelerationUpdatesController extends Component {
           entityId={entity.get('id')}
           onCancel={onCancel}
           updateFormDirtyState={updateFormDirtyState}
+          entity={entity}
           submit={this.submit} />}
       </ViewStateWrapper>
     );

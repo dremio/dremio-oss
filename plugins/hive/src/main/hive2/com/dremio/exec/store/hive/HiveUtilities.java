@@ -47,6 +47,7 @@ import org.apache.hive.com.esotericsoftware.kryo.Kryo;
 import org.apache.hive.com.esotericsoftware.kryo.io.Input;
 import org.apache.hive.com.esotericsoftware.kryo.io.Output;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.DataMode;
@@ -240,6 +241,7 @@ public class HiveUtilities {
     return null;
   }
 
+  @SuppressForbidden
   public static InputSplit deserializeInputSplit(SerializedInputSplit split) throws IOException, ReflectiveOperationException{
     Constructor<?> constructor = Class.forName(split.getInputSplitClass()).getDeclaredConstructor();
     if (constructor == null) {

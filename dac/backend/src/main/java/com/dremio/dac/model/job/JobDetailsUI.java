@@ -170,12 +170,13 @@ public class JobDetailsUI {
     this.spillDetails = spillDetails;
   }
 
-  public static JobDetailsUI of(com.dremio.service.job.JobDetails jobDetails) {
+  public static JobDetailsUI of(com.dremio.service.job.JobDetails jobDetails, String currentUser) {
     final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream()
       .map(JobsProtoUtil::toStuff)
       .collect(Collectors.toList());
     final JobAttempt lastJobAttempt = Util.last(attempts);
     final JobInfo jobInfo = lastJobAttempt.getInfo();
+    final String username = attempts.get(0).getInfo().getUser();
 
     final AccelerationDetails accelerationDetails = deserialize(Util.last(attempts).getAccelerationDetails());
     final JobId jobId = JobsProtoUtil.toStuff(jobDetails.getJobId());
@@ -188,7 +189,7 @@ public class JobDetailsUI {
         toJobFailureInfo(jobInfo.getFailureInfo(), jobInfo.getDetailedFailureInfo()),
         toJobCancellationInfo(lastJobAttempt.getState(), lastJobAttempt.getInfo().getCancellationInfo()),
         lastJobAttempt.getInfo().getDatasetVersion(),
-        jobDetails.getHasResults(),
+        jobDetails.getHasResults() && currentUser.equals(username),
         accelerationDetails,
         jobInfo.getSpillJobDetails());
   }
@@ -336,7 +337,8 @@ public class JobDetailsUI {
       resourceSchedulingInfo.getQueueName(),
       resourceSchedulingInfo.getRuleId(),
       resourceSchedulingInfo.getRuleName(),
-      resourceSchedulingInfo.getRuleContent());
+      resourceSchedulingInfo.getRuleContent(),
+      resourceSchedulingInfo.getEngineName());
   }
 
   private static SpillJobDetailsUI toSpillUI(final SpillJobDetails spillJobDetails) {

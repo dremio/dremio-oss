@@ -123,6 +123,7 @@ public class SimpleUserService implements UserService {
         .message("User '%s' already exists.", userName)
         .build(logger);
     }
+    validateUsername(userName);
     validatePassword(authKey);
     UserConfig newUser = toUserConfig(userConfig)
       .setUid(new UID(UUID.randomUUID().toString()))
@@ -203,6 +204,8 @@ public class SimpleUserService implements UserService {
         .message("User '%s' already exists.", newUserName)
         .build(logger);
     }
+    validateUsername(newUserName);
+
     UserConfig userConfig = toUserConfig(userGroup);
     if (!userConfig.getUserName().equals(newUserName)) {
       throw new IllegalArgumentException("Usernames do not match " + newUserName + " , " + userConfig.getUserName());
@@ -228,7 +231,7 @@ public class SimpleUserService implements UserService {
   }
 
   @Override
-  public void authenticate(String userName, String password) throws UserLoginException {
+  public AuthResult authenticate(String userName, String password) throws UserLoginException {
     final UserInfo userInfo = findUserByUserName(userName);
     if (userInfo == null) {
       throw new UserLoginException(userName, "Invalid user credentials");
@@ -239,6 +242,8 @@ public class SimpleUserService implements UserService {
       if (!UserServiceUtils.slowEquals(authKey, userAuth.getAuthKey().toByteArray())) {
         throw new UserLoginException(userName, "Invalid user credentials");
       }
+
+      return AuthResult.of(userName);
     } catch (InvalidKeySpecException ikse) {
       throw new UserLoginException(userName, "Invalid user credentials");
     }
@@ -376,6 +381,14 @@ public class SimpleUserService implements UserService {
     if (!UserServiceUtils.validatePassword(input)) {
       throw UserException.validationError()
         .message("Invalid password: must be at least 8 letters long, must contain at least one number and one letter")
+        .build(logger);
+    }
+  }
+
+  public static void validateUsername(String input) {
+    if (!UserServiceUtils.validateUsername(input)) {
+      throw UserException.validationError()
+        .message("Invalid username: can not contain quotes or colons.")
         .build(logger);
     }
   }

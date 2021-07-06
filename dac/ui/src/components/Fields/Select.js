@@ -139,9 +139,10 @@ export default class Select extends PureComponent {
         className={classNames(['field', button, className])}
         style={style}
         listClass={classNames([listCls, listClass])}
-        listStyle={{width: 250}}
+        listStyle={{width: 388}}
         dataQa={dataQa}
         rootAttrs={{ 'role': 'listbox' }}
+        listWidthSameAsAnchorEl
       >
         {
           ({ closeDD }) => this.renderItems(selectedValue, closeDD)

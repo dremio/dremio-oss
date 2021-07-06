@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
-@PureRender
-export default class RealTimeTimer extends Component {
+export default class RealTimeTimer extends PureComponent {
   static propTypes = {
     startTime: PropTypes.number.isRequired,
     updateInterval: PropTypes.number,

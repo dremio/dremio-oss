@@ -15,7 +15,8 @@
  */
 package com.dremio.resource;
 
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.Service;
 
 /**
@@ -25,7 +26,8 @@ import com.dremio.service.Service;
 public interface GroupResourceInformation extends Service {
   // duplicate of name in ExecConstants. Taking a dependency on sabot-kernel will cause
   // circular dependency.
-  static final String MAX_WIDTH_PER_NODE_KEY = "planner.width.max_per_node";
+  TypeValidators.LongValidator MAX_WIDTH_PER_NODE_KEY =
+      new TypeValidators.LongValidator("planner.width.max_per_node", 0L);
 
   /**
    * Get the average maximum direct memory of executors in the cluster.
@@ -46,5 +48,5 @@ public interface GroupResourceInformation extends Service {
    *
    * @return average number of executor cores
    */
-  long getAverageExecutorCores(final OptionManager optionManager);
+  long getAverageExecutorCores(final OptionResolver optionManager);
 }

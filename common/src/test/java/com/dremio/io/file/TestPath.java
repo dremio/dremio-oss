@@ -17,6 +17,7 @@ package com.dremio.io.file;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.net.URI;
@@ -227,5 +228,28 @@ public class TestPath extends DremioTest {
 
   private void checkDepth(Path value, int expected) {
     collector.checkThat(value.depth(), is(equalTo(expected)));
+  }
+
+  @Test
+  public void testgetContainerSpecificRelativePath() {
+    String path = "wasbs://testdir@azurev1accountName.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro";
+    Path p = Path.of(path);
+    String modified = Path.getContainerSpecificRelativePath(p);
+    assertEquals("/testdir/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro", modified);
+
+    path = "s3a://unittest.dremio.com/icebergtables/t63/metadata/snap-2789552798039628309-1-8a1551a0-80cf-44fd-9a28-2e3334b9602f.avro";
+    p = Path.of(path);
+    modified = Path.getContainerSpecificRelativePath(p);
+    assertEquals("/unittest.dremio.com/icebergtables/t63/metadata/snap-2789552798039628309-1-8a1551a0-80cf-44fd-9a28-2e3334b9602f.avro", modified);
+
+    path = "adl://databrickstest.azuredatalakestore.net/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
+    p = Path.of(path);
+    modified = Path.getContainerSpecificRelativePath(p);
+    assertEquals("/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
+
+    path = "file:///Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
+    p = Path.of(path);
+    modified = Path.getContainerSpecificRelativePath(p);
+    assertEquals("/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
   }
 }

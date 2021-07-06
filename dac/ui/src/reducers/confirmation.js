@@ -33,14 +33,17 @@ export default function confirmation(state = initialState, action) {
       confirm,
       cancel,
       confirmText,
+      confirmButtonStyle,
       cancelText,
       hideCancelButton,
       showOnlyConfirm,
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
+      promptLabel,
       promptFieldProps,
-      dataQa
+      dataQa,
+      validatePromptText
     } = action;
     // list all to be sure to reset everything
     return {
@@ -49,6 +52,7 @@ export default function confirmation(state = initialState, action) {
       text,
       title,
       confirmText,
+      confirmButtonStyle,
       cancelText,
       confirm,
       cancel,
@@ -57,8 +61,10 @@ export default function confirmation(state = initialState, action) {
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
+      promptLabel,
       promptFieldProps,
-      dataQa
+      dataQa,
+      validatePromptText
     };
   }
   case ActionTypes.HIDE_CONFIRMATION_DIALOG:

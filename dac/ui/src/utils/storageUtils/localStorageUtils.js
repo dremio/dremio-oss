@@ -71,6 +71,11 @@ export class LocalStorageUtils {
     return user ? user.userId : null;
   }
 
+  isUserAnAdmin() {
+    const isAdmin = this.getUserData();
+    return isAdmin !== null ? isAdmin.admin : null;
+  }
+
   getApp() {
     return this._safeParse(localStorage.getItem(APP_KEY));
   }
@@ -131,7 +136,7 @@ export class LocalStorageUtils {
   }
 
   getWikiVisibleState() {
-    return localStorage.getItem('isWikiVisible') !== 'false'; // true is default value
+    return localStorage.getItem('isWikiVisible') === 'true'; // false is default value
   }
 
   getWikiSize() {

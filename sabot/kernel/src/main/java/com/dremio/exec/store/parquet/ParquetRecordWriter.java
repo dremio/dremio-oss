@@ -85,6 +85,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
@@ -98,7 +99,8 @@ import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.FieldIdBroker.SeededFieldIdBroker;
-import com.dremio.exec.store.iceberg.IcebergCatalog;
+import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
+import com.dremio.exec.store.iceberg.IcebergMetadataInformation.IcebergMetadataFileType;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -593,7 +595,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
       final long fileSize = parquetFileWriter.getPos();
       listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
-        partition.getBucketNumber(), getIcebergMetaData());
+        partition.getBucketNumber(), getIcebergMetaData(), null);
       parquetFileWriter = null;
 
       updateStats(memSize, recordCount);
@@ -634,9 +636,12 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     final long fileSize = parquetFileWriter.getPos();
+    String datafileLocation = IcebergUtils.getValidIcebergPath(DremioHadoopUtils.toHadoopPath(path),
+      plugin.getFsConfCopy(),
+      fs.getScheme());
     DataFiles.Builder dataFileBuilder =
-      DataFiles.builder(IcebergCatalog.getIcebergPartitionSpec(this.batchSchema, this.partitionColumns))
-        .withPath(path.toString())
+      DataFiles.builder(IcebergUtils.getIcebergPartitionSpec(this.batchSchema, this.partitionColumns, this.icebergSchema))
+        .withPath(datafileLocation)
         .withFileSizeInBytes(fileSize)
         .withRecordCount(recordCount)
         .withFormat(FileFormat.PARQUET);
@@ -649,7 +654,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     // add column level metrics
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetFileWriter.getFooter(), icebergSchema);
     dataFileBuilder = dataFileBuilder.withMetrics(metrics);
-    return IcebergSerDe.serializeDataFile(dataFileBuilder.build());
+    IcebergMetadataInformation icebergMetadata = new IcebergMetadataInformation(
+      IcebergSerDe.serializeDataFile(dataFileBuilder.build()),
+      IcebergMetadataFileType.ADD_DATAFILE);
+    return IcebergSerDe.serializeToByteArray(icebergMetadata);
   }
 
   private interface UpdateTrackingConverter {

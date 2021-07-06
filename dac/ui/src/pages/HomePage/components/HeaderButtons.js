@@ -24,8 +24,9 @@ import config from 'dyn-load/utils/config';
 import Art from 'components/Art';
 import { ENTITY_TYPES } from '@app/constants/Constants';
 
-import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
+import HeaderButtonsMixin, { isUploadEnabled } from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 @injectIntl
 @Radium
@@ -72,7 +73,7 @@ export class HeaderButtons extends Component {
         to: entity.getIn(['links', 'query']),
         isAdd: false
       });
-    } else if (entity.get('fileSystemFolder')) {
+    } else if (entity.get('fileSystemFolder') && (entity.getIn('permissions', 'canEditFormatSettings') === true || localStorageUtils.isUserAnAdmin())) {
       buttons.push({
         qa: 'convert-folder',
         iconType: 'FolderConvert',
@@ -102,7 +103,7 @@ export class HeaderButtons extends Component {
         isAdd: true
       }
     );
-    if (config.allowFileUploads) {
+    if (config.allowFileUploads && isUploadEnabled()) {
       buttons.push(
         {
           qa: 'add-file',
@@ -193,7 +194,8 @@ const styles = {
     height: 24
   },
   mainSettingsHolder: {
-    display: 'flex'
+    display: 'flex',
+    marginRight: 10
   },
   button: {
     background: '#F2F2F2',

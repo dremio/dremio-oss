@@ -80,6 +80,7 @@ class AttemptProfileTracker {
   private volatile String cancelReason;
   private volatile UserException userException;
   private volatile ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
+  private final Context grpcContext;
 
   AttemptProfileTracker(UserBitShared.QueryId queryId,
                         QueryContext queryContext,
@@ -103,6 +104,8 @@ class AttemptProfileTracker {
       .getProfileFactory(queryContext.getConfig(), queryContext.getScanResult()));
 
     mergedObserver = AttemptObservers.of(observer, capturer, new TimeMarker());
+    //separate out grpc context for jts
+    this.grpcContext = Context.current().fork();
   }
 
   AttemptObserver getObserver() {
@@ -123,13 +126,19 @@ class AttemptProfileTracker {
 
   // Send planning profile to JTS.
   ListenableFuture<Empty> sendPlanningProfile() {
-    return jobTelemetryClient.getFutureStub()
-      .putQueryPlanningProfile(
-        PutPlanningProfileRequest.newBuilder()
-          .setQueryId(queryId)
-          .setProfile(getPlanningProfile())
-          .build()
-      );
+    try {
+      return grpcContext.call(() -> {
+        return jobTelemetryClient.getFutureStub()
+          .putQueryPlanningProfile(
+            PutPlanningProfileRequest.newBuilder()
+              .setQueryId(queryId)
+              .setProfile(getPlanningProfile())
+              .build()
+          );
+      });
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   // Send tail profile to JTS (used after query terminates).
@@ -139,7 +148,7 @@ class AttemptProfileTracker {
     // DX-28440 : when query is cancelled from flight service
     // sometimes the original context might not be valid.
     // fork a new context always.
-    Context.current().fork().run( () -> {
+    grpcContext.run( () -> {
       jobTelemetryClient.getBlockingStub()
         .putQueryTailProfile(
           PutTailProfileRequest.newBuilder()
@@ -171,12 +180,18 @@ class AttemptProfileTracker {
 
   // fetch full profile (including executor profiles) from JTS.
   UserBitShared.QueryProfile getFullProfile() {
-    return jobTelemetryClient.getBlockingStub()
-      .getQueryProfile(
-        GetQueryProfileRequest.newBuilder()
-          .setQueryId(queryId)
-          .build()
-      ).getProfile();
+    try {
+      return grpcContext.call(() -> {
+        return jobTelemetryClient.getBlockingStub()
+          .getQueryProfile(
+            GetQueryProfileRequest.newBuilder()
+              .setQueryId(queryId)
+              .build()
+          ).getProfile();
+      });
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   // add planner related details to the profile builder.
@@ -293,6 +308,9 @@ class AttemptProfileTracker {
     }
     resourceBuilder.setResourceSchedulingStart(resourceSchedulingDecisionInfo.getSchedulingStartTimeMs());
     resourceBuilder.setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs());
+    if (resourceSchedulingDecisionInfo.getEngineName() != null) {
+      resourceBuilder.setEngineName(resourceSchedulingDecisionInfo.getEngineName());
+    }
     return resourceBuilder.build();
   }
 

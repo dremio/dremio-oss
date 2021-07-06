@@ -16,6 +16,7 @@
 package com.dremio.common.expression.visitors;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -55,6 +56,11 @@ public abstract class AbstractExprVisitor<T, VAL, EXCEP extends Exception> imple
   @Override
   public T visitIfExpression(IfExpression ifExpr, VAL value) throws EXCEP {
     return visitUnknown(ifExpr, value);
+  }
+
+  @Override
+  public T visitCaseExpression(CaseExpression caseExpression, VAL value) throws EXCEP {
+    return visitUnknown(caseExpression, value);
   }
 
   @Override

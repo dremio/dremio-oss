@@ -15,6 +15,10 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -24,9 +28,12 @@ import java.util.UUID;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.util.VersionInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
 import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -48,15 +55,32 @@ import software.amazon.awssdk.utils.SdkAutoCloseable;
  * Assume role credential provider that supports aws sdk 2.X
  */
 public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoCloseable {
+  private static final Logger logger = LoggerFactory.getLogger(STSCredentialProviderV2.class);
   private final StsAssumeRoleCredentialsProvider stsAssumeRoleCredentialsProvider;
 
   public STSCredentialProviderV2(Configuration conf) {
     AwsCredentialsProvider awsCredentialsProvider = null;
 
-    if (S3StoragePlugin.ACCESS_KEY_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
+    String assumeRoleProvider = conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER);
+    logger.debug("assumed_role_credentials_provider: {}", assumeRoleProvider);
+    switch(assumeRoleProvider) {
+      case ACCESS_KEY_PROVIDER:
+        awsCredentialsProvider = StaticCredentialsProvider.create(
+          AwsBasicCredentials.create(conf.get(Constants.ACCESS_KEY), conf.get(Constants.SECRET_KEY)));
+        break;
+      case EC2_METADATA_PROVIDER:
+        awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
+        break;
+      case DREMIO_ASSUME_ROLE_PROVIDER:
+        awsCredentialsProvider = new DremioAssumeRoleCredentialsProviderV2();
+        break;
+      default:
+        throw new IllegalArgumentException("Assumed role credentials provided " + assumeRoleProvider + " is not supported.");
+    }
+    if (ACCESS_KEY_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
       awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(
         conf.get(Constants.ACCESS_KEY), conf.get(Constants.SECRET_KEY)));
-    } else if (S3StoragePlugin.EC2_METADATA_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
+    } else if (EC2_METADATA_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
       awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
     }
 

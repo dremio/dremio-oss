@@ -31,8 +31,9 @@ import FieldWithError from 'components/Fields/FieldWithError';
 import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
-
 import Message from 'components/Message';
+
+import AccelerationGridMixin from '@inject/components/Acceleration/Advanced/AccelerationGridMixin.js';
 import EllipsedText from '@app/components/EllipsedText';
 import Checkbox from '@app/components/Fields/Checkbox';
 
@@ -46,11 +47,12 @@ import 'fixed-data-table-2/dist/fixed-data-table.css';
 import './AccelerationGrid.less';
 
 const HEADER_HEIGHT = 90;
-const COLUMN_WIDTH = 70;
+const COLUMN_WIDTH = 80;
 const GRID_PADDING = 20;
 
 @injectIntl
 @Radium
+@AccelerationGridMixin
 export class AccelerationGrid extends Component {
   static propTypes = {
     columns: PropTypes.instanceOf(Immutable.List),
@@ -168,7 +170,6 @@ export class AccelerationGrid extends Component {
         isDismissable={false}/>;
     }
 
-
     let textMessage;
     if (shouldDelete) {
       textMessage = la('will remove');
@@ -192,6 +193,7 @@ export class AccelerationGrid extends Component {
     // todo: loc
     const placeholderName = this.props.intl.formatMessage({id:'Reflection.UnnamedReflection'});
     const name = this.props.layoutFields[columnIndex].name.value || placeholderName;
+    const isAdminOrHasCanAlter = this.checkIfUserHasCanAlter();
 
     return (
       <div data-qa={`reflection_${columnIndex}`} style={{
@@ -216,12 +218,12 @@ export class AccelerationGrid extends Component {
               }}
             />
             { <FontIcon type={shouldDelete ? 'Add' : 'Minus'}
-              style={styles.layoutHeaderIcon}
+              style={isAdminOrHasCanAlter ? styles.layoutHeaderIcon : {display: 'none'}}
               onClick={() => fields.shouldDelete.onChange(!shouldDelete)} />
             }
             <FontIcon
               type='SettingsMediumFilled'
-              style={styles.layoutHeaderIcon}
+              style={isAdminOrHasCanAlter ? styles.layoutHeaderIcon : {display: 'none'}}
               onClick={() => this.setState({visibleLayoutExtraSettingsIndex: columnIndex})} />
           </div>
         </div>
@@ -304,7 +306,7 @@ export class AccelerationGrid extends Component {
 
     const {layoutId} = (this.props.location.state || {});
 
-    let jumpToIndex;
+    let jumpToIndex = 0;
     const columnNodes = layoutFields.map((layout, index) => {
       const shouldJumpTo = layout.id.value === layoutId;
 

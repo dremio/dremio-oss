@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
 import ReactDOM from 'react-dom';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -34,9 +33,8 @@ export const FORMAT_HASH = Immutable.fromJS({
  * this component consists of a some amount of inputs(editable areas) and spans(not-editable areas)
  * Inputs check user input for correct format(Smart Input are used)
  */
-@PureRender
 @Radium
-class MaskedInput extends Component {
+class MaskedInput extends PureComponent {
 
   static propTypes = {
     mask: PropTypes.string.isRequired,

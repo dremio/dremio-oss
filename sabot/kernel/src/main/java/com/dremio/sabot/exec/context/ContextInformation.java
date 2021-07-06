@@ -51,4 +51,7 @@ public interface ContextInformation {
   void registerAdditionalInfo(AdditionalContext object);
 
   <T extends AdditionalContext> T getAdditionalInfo(Class<T> clazz);
+
+  boolean isPlanCacheable();
+  void setPlanCacheable(boolean isplancacheable);
 }

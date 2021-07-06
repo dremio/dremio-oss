@@ -18,9 +18,16 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.successful;
 import static java.util.Collections.singletonList;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
@@ -34,14 +41,23 @@ import com.dremio.service.namespace.NamespaceKey;
 public class RefreshTableHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
+  private final boolean allowPartialRefresh;
 
-  public RefreshTableHandler(Catalog catalog) {
+  public RefreshTableHandler(Catalog catalog, boolean allowPartialRefresh) {
     this.catalog = catalog;
+    this.allowPartialRefresh = allowPartialRefresh;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlRefreshTable sqlRefreshTable = SqlNodeUtil.unwrap(sqlNode, SqlRefreshTable.class);
+
+    if (!allowPartialRefresh) {
+      if (isOptionEnabled(sqlRefreshTable.getAllFilesRefresh()) || isOptionEnabled(sqlRefreshTable.getFileRefresh()) ||
+          isOptionEnabled(sqlRefreshTable.getAllPartitionsRefresh()) || isOptionEnabled(sqlRefreshTable.getPartitionRefresh())) {
+        throw new UnsupportedOperationException("Refresh Metadata feature not yet implemented.");
+      }
+    }
 
     final NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
 
@@ -54,6 +70,12 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     }
     if (sqlRefreshTable.getPromotion().getValue() != null) {
       builder.setAutoPromote(sqlRefreshTable.getPromotion().booleanValue());
+    }
+
+    if (isOptionEnabled(sqlRefreshTable.getFileRefresh())) {
+      builder.setFilesList(createFilesList(sqlRefreshTable));
+    } else if (isOptionEnabled(sqlRefreshTable.getPartitionRefresh())) {
+      builder.setPartition(createPartitionMap(sqlRefreshTable));
     }
 
     UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build());
@@ -74,5 +96,30 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     }
 
     return singletonList(successful(String.format(message, sqlRefreshTable.getTable().toString())));
+  }
+
+  private boolean isOptionEnabled(SqlLiteral option) {
+    return option != null && option.getValue() != null && option.booleanValue();
+  }
+
+  private List<String> createFilesList(SqlRefreshTable sqlRefreshTable) {
+    return sqlRefreshTable.getFilesList().getList().stream().map(v -> ((SqlLiteral) v).getValueAs(String.class)).collect(Collectors.toList());
+  }
+
+  private Map<String, String> createPartitionMap(SqlRefreshTable sqlRefreshTable) {
+    final Map<String, String> partition = new LinkedHashMap<>();
+    sqlRefreshTable.getPartitionList().forEach(node -> {
+      final SqlNodeList pair = (SqlNodeList) node;
+      final SqlIdentifier name = (SqlIdentifier) pair.get(0);
+      final SqlLiteral value = (SqlLiteral) pair.get(1);
+
+      if (value.getTypeName().equals(SqlTypeName.NULL)) {
+        partition.put(name.getSimple(), null);
+      } else {
+        partition.put(name.getSimple(), value.getValueAs(String.class));
+      }
+    });
+
+    return partition;
   }
 }

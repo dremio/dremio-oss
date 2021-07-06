@@ -17,10 +17,10 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.regex.Pattern;
 
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.expr.fn.impl.RegexpUtil;
-import com.dremio.exec.planner.sql.SqlVarCharStringLiteral;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 
 public class SqlNodeUtil {
@@ -43,11 +43,11 @@ public class SqlNodeUtil {
       return MATCH_ALL;
     }
 
-    if( !(node instanceof SqlVarCharStringLiteral) ){
+    if( !(node instanceof SqlCharStringLiteral) ){
       throw new IllegalArgumentException("You must provide a string literal.");
     }
 
-    String str = ((SqlVarCharStringLiteral) node).toValue();
+    String str = ((SqlCharStringLiteral) node).toValue();
     return Pattern.compile(RegexpUtil.sqlToRegexLike(str),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.DOTALL);
   }

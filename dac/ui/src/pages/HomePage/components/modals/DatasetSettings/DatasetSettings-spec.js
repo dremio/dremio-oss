@@ -32,7 +32,10 @@ describe('DatasetSettings', () => {
   beforeEach(() => {
     minimalProps = {
       viewState: Immutable.Map(),
-      location: {state: { tab: '' }},
+      location: {
+        pathname: '/share',
+        state: { tab: '' }
+      },
       loadDatasetForDatasetType: sinon.spy(),
       updateFormDirtyState: sinon.spy(),
       showUnsavedChangesConfirmDialog: sinon.spy()
@@ -158,7 +161,10 @@ describe('DatasetSettings', () => {
     it('should set first available tab as active if no active tab marked in location state', () => {
       const instance = shallow(<DatasetSettings {...commonProps}/>, {context}).instance();
       instance.componentDidMount();
-      expect(context.router.replace).to.be.calledWith({ state: { tab: 'overview'}});
+      expect(context.router.replace).to.be.calledWith({
+        pathname: '/share',
+        state: { tab: 'overview'}
+      });
     });
 
     it('should set active according to props.tab', () => {

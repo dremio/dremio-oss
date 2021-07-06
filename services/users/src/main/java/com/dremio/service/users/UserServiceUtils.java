@@ -38,6 +38,13 @@ public class UserServiceUtils {
     }
   }
 
+  public static boolean validateUsername(String input) throws IllegalArgumentException {
+    // DX-8156: These two characters `":` currently cause trouble, particularly for constructing SQL queries.
+    return input != null && !input.isEmpty()
+      && !input.contains(String.valueOf('"'))
+      && !input.contains(":");
+  }
+
   public static boolean validatePassword(String input) throws IllegalArgumentException {
     return input != null && !input.isEmpty() && PASSWORD_MATCHER.matcher(input).matches();
   }

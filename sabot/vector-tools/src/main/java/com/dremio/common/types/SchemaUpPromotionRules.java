@@ -21,6 +21,7 @@ import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.MAX_DECIMAL_PRECISION;
+import static com.dremio.common.expression.CompleteType.NULL;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 
 import java.util.Optional;
@@ -43,6 +44,9 @@ public class SchemaUpPromotionRules {
    * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
    */
   public static Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
+    if (tableType.equals(NULL)) {
+      return Optional.of(fileType);
+    }
     if (fileType.equals(BIGINT)) {
       return getResultantTypeForBigIntFileType(tableType);
     }
@@ -79,7 +83,8 @@ public class SchemaUpPromotionRules {
 
   private static Optional<CompleteType> getResultantTypeForVarcharFileType(CompleteType tableType) {
     if (tableType.equals(BIT) || tableType.equals(INT) || tableType.equals(BIGINT) ||
-      tableType.equals(FLOAT) || tableType.equals(DOUBLE) || tableType.isValidDecimal()) {
+      tableType.equals(FLOAT) || tableType.equals(DOUBLE) || tableType.isValidDecimal() ||
+      tableType.isTemporal()) {
       return Optional.of(VARCHAR);
     }
     return Optional.empty();

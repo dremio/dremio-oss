@@ -1,0 +1,63 @@
+{
+  "name": "dremio-ui-lib",
+  "version": "1.0.0",
+  "description": "Common components and utils for Dremio UI",
+  "author": "dremio",
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "module": "dist/index.modern.js",
+  "source": "src/index.js",
+  "engines": {
+    "node": ">=10"
+  },
+  "scripts": {
+    "build": "yarn build:sass && microbundle-crl --css-modules false --format modern,cjs",
+    "start": "microbundle-crl watch --no-compress --css-modules false --format modern,cjs",
+    "build:sass": "npm rebuild node-sass",
+    "test": "run-s test:unit test:lint",
+    "test:lint": "eslint .",
+    "test:unit": "cross-env CI=1 react-scripts test --env=jsdom",
+    "test:watch": "react-scripts test --env=jsdom",
+    "predeploy": "cd example && yarn install && yarn run build",
+    "deploy": "gh-pages -d example/build"
+  },
+  "peerDependencies": {
+    "@material-ui/core": ">= 4.11.0",
+    "formik": ">= ^2.2.6",
+    "prop-types": ">= 15.5.10",
+    "react": ">= ^16.14.0",
+    "react-dom": ">= ^16.14.0",
+    "react-intl": ">= 2.3.0"
+  },
+  "devDependencies": {
+    "@material-ui/core": "4.11.0",
+    "babel-eslint": "^10.0.3",
+    "cross-env": "^7.0.2",
+    "enzyme": "^3.11.0",
+    "enzyme-adapter-react-16": "^1.15.5",
+    "eslint": "^6.8.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-react": "^7.17.0",
+    "file-loader": "^6.1.1",
+    "formik": "^2.2.6",
+    "gh-pages": "^2.2.0",
+    "microbundle-crl": "^0.13.10",
+    "node-sass": "4.13.1",
+    "npm-run-all": "^4.1.5",
+    "prop-types": "15.5.10",
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0",
+    "react-intl": "^2.3.0",
+    "react-scripts": "^3.4.1"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "clsx": "^1.1.1",
+    "lodash.get": "^4.4.2",
+    "lodash.noop": "^3.0.1",
+    "react-copy-to-clipboard": "^5.0.3",
+    "uuid": "^8.3.2"
+  }
+}

@@ -269,16 +269,26 @@ export class ExploreTableView extends PureComponent {
     });
   };
 
-  handleColumnResizeEnd(width, index) {
+  /**
+   * Handles when a user resizes a table column
+   *
+   * @param  {Number} width size of new column size
+   * @param  {Number} key column's index key
+   */
+  handleColumnResizeEnd(width, columnKey) {
     const { columns } = this.state;
+    const resizeColumns = this.state.columns.toJS();
+    const resizeColumnIndex = resizeColumns.findIndex(({ index }) => index === columnKey);
 
     // https://dremio.atlassian.net/browse/DX-5848
     // https://github.com/facebook/fixed-data-table/issues/401
     // https://github.com/facebook/fixed-data-table/issues/415
     $('.fixedDataTableColumnResizerLineLayout_main').addClass('fixedDataTableColumnResizerLineLayout_hiddenElem');
+
     this.setState({
-      columns: columns.setIn([index, 'width'], width)
+      columns: columns.setIn([resizeColumnIndex, 'width'], width)
     });
+
     this.updateSize();
   }
 

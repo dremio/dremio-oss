@@ -60,7 +60,8 @@ public class TestComplexToJsonMixedTypes extends BaseTestQuery {
       queryContext.getCatalog(),
       queryContext.getSubstitutionProviderFactory(),
       queryContext.getConfig(),
-      queryContext.getScanResult());
+      queryContext.getScanResult(),
+      queryContext.getRelMetadataQuerySupplier());
     final SqlNode node = converter.parse(sql);
     SqlHandlerConfig config = new SqlHandlerConfig(queryContext, converter, observer, null);
     NormalHandler handler = new NormalHandler();

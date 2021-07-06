@@ -16,7 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { get } from 'lodash';
+import { get, noop } from 'lodash';
 
 
 export default function FormDirtyStateWatcher(Form) {
@@ -81,11 +81,12 @@ export default function FormDirtyStateWatcher(Form) {
 
     componentWillReceiveProps(nextProps) {
       const dirty = nextProps.dirty || this.areArrayFieldsDirty(nextProps);
+      let callBack = noop;
       if (this.state.dirty !== dirty) {
         if (this.props.updateFormDirtyState) {
-          this.props.updateFormDirtyState(dirty);
+          callBack = () => this.props.updateFormDirtyState(dirty);
         }
-        this.setState({ dirty });
+        this.setState({ dirty }, callBack);
       }
     }
 

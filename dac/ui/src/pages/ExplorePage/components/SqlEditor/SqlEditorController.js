@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import { FormattedMessage } from 'react-intl';
 
 import PropTypes from 'prop-types';
@@ -43,9 +42,8 @@ import SqlAutoComplete from './SqlAutoComplete';
 import FunctionsHelpPanel from './FunctionsHelpPanel';
 
 const toolbarHeight = 42;
-@pureRender
 @Radium
-export class SqlEditorController extends Component {
+export class SqlEditorController extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     datasetSummary: PropTypes.object,

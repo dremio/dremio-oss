@@ -53,6 +53,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.CatalogService;
@@ -134,6 +135,7 @@ public class BaseTestReflection extends BaseTestServer {
 
     materializationStore = new MaterializationStore(p(LegacyKVStoreProvider.class));
     entriesStore = new ReflectionEntriesStore(p(LegacyKVStoreProvider.class));
+    setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
   }
 
   @AfterClass

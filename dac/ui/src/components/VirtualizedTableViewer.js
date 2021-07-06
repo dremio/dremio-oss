@@ -20,6 +20,8 @@ import { AutoSizer, Column, Table } from 'react-virtualized';
 import classNames from 'classnames';
 import Immutable, { List } from 'immutable';
 
+import Tooltip from '@material-ui/core/Tooltip';
+
 import { humanSorter, getSortValue } from '@app/utils/sort';
 import { virtualizedRow } from './VirtualizedTableViewer.less';
 
@@ -72,7 +74,7 @@ export default class VirtualizedTableViewer extends Component {
   };
 
   rowClassName(rowData, index) {
-    return classNames(((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even'), virtualizedRow); // Adding virtualizedRow for keeping the Row styles stable wrt another class
+    return classNames(((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even'), virtualizedRow, 'virtualized-row'); // Adding virtualizedRow for keeping the Row styles stable wrt another class
   }
 
   handleScroll = ({scrollTop}) => {
@@ -111,20 +113,36 @@ export default class VirtualizedTableViewer extends Component {
   }
 
   renderHeader = ({ label, dataKey, sortBy, sortDirection },
-    /* column */ { style, infoContent, headerStyle }) => {
+    /* column */ { style, infoContent, headerStyle, helpContent }) => {
     const isSorted = sortBy === dataKey;
-    const headerClassName = isSorted ? classNames({
-      'sort-asc': sortDirection === SortDirection.ASC,
-      'sort-desc': sortDirection === SortDirection.DESC
-    }) : '';
+    const headerClassName = classNames(
+      'virtualizedTable__headerContent',
+      {
+        'sort-asc': isSorted && sortDirection === SortDirection.ASC,
+        'sort-desc': isSorted && sortDirection === SortDirection.DESC
+      }
+    );
     const infoContentStyle = {};
     if (isSorted) {
       // sort icon with - 4px to put infoContent closer to sort icon. See .sort-icon() mixin
       infoContentStyle.marginLeft = 20;
     }
+    const helperTooltipClass = classNames(
+      'dremioIcon-HeaderHelp',
+      'iconType',
+      'virtualizedTable__helpIcon',
+      'margin-left',
+      'margin-right--half',
+      'text-small'
+    );
     return (
       <div style={{ display: 'flex', alignItems: 'center', ...style, ...headerStyle }}>
-        <div className={headerClassName}>{ label === undefined ? dataKey : label} </div>
+        <div className={headerClassName}>
+          { label === undefined ? dataKey : label}
+          {helpContent && <Tooltip title={helpContent} arrow placement='top'>
+            <span className={helperTooltipClass}/>
+          </Tooltip>}
+        </div>
         {infoContent && <span style={infoContentStyle}>
           {infoContent}
         </span>}

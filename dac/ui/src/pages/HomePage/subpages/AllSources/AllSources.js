@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect }   from 'react-redux';
 import Immutable from 'immutable';
 import shallowEqual from 'shallowequal';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
 import { injectIntl } from 'react-intl';
@@ -29,9 +28,8 @@ import { getSources } from 'selectors/home';
 import { isExternalSourceType } from '@app/constants/sourceTypes';
 import AllSourcesView from './AllSourcesView.js';
 
-@pureRender
 @injectIntl
-export class AllSources extends Component {
+export class AllSources extends PureComponent {
 
   static propTypes = {
     location: PropTypes.object.isRequired,

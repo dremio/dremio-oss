@@ -21,6 +21,7 @@ import org.apache.calcite.avatica.Handler;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.UnregisteredDriver;
 
+import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.DremioVersionInfo;
 
 /**
@@ -28,14 +29,12 @@ import com.dremio.common.util.DremioVersionInfo;
  */
 public class DriverImpl extends UnregisteredDriver {
   private static final String CONNECTION_STRING_PREFIX = "jdbc:dremio:";
-  private static final String METADATA_PROPERTIES_RESOURCE_PATH =
-      "dremio-jdbc.properties";
+  private static final String METADATA_PROPERTIES_RESOURCE_PATH = "dremio-jdbc.properties";
 
+  private SabotConfig sabotConfig;
 
   public DriverImpl() {
-    super();
   }
-
 
   @Override
   protected String getConnectStringPrefix() {
@@ -78,4 +77,10 @@ public class DriverImpl extends UnregisteredDriver {
     return new DremioHandler();
   }
 
+  SabotConfig getSabotConfig() {
+    if (null == sabotConfig) {
+      sabotConfig = SabotConfig.forClient();
+    }
+    return sabotConfig;
+  }
 }

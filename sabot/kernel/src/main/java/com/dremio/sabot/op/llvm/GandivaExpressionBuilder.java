@@ -18,6 +18,7 @@ package com.dremio.sabot.op.llvm;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.gandiva.expression.Condition;
@@ -28,6 +29,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -49,7 +51,9 @@ import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
+import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -60,18 +64,20 @@ import com.google.common.collect.Sets;
  */
 public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void, RuntimeException> {
   private final VectorAccessible incoming;
-  private final Set<Field> referencedFields;
+  private final Set<ReferencedField> referencedFields;
   private final Set<LogicalExpression> constantSet;
   private final FunctionContext functionContext;
   private final boolean enableOrOptimization;
   private final int minConversionSize;
   private final int minConversionSizeForVarchars;
+  private final AtomicInteger fieldNameCreator = new AtomicInteger(0);
   private static final List<CompleteType> supportedInTypesInGandiva = Lists.newArrayList(CompleteType.BIGINT, CompleteType.INT,
     CompleteType.VARCHAR);
   private static final List<Class<? extends LogicalExpression>> supportedExpressionTypes = Lists
     .newArrayList(ValueVectorReadExpression.class);
+  private boolean isComplex = false;
 
-  private GandivaExpressionBuilder(VectorAccessible incoming, Set<Field> referencedFields, Set<LogicalExpression> constantSet, FunctionContext functionContext) {
+  private GandivaExpressionBuilder(VectorAccessible incoming, Set<ReferencedField> referencedFields, Set<LogicalExpression> constantSet, FunctionContext functionContext) {
     this.incoming = incoming;
     this.referencedFields = referencedFields;
     this.constantSet = constantSet;
@@ -85,8 +91,10 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
    * Take an expression tree and convert it into a Gandiva Expression.
    */
   public static ExpressionTree serializeExpr(VectorAccessible incoming, LogicalExpression ex,
-                                             FieldVector out, Set<Field> referencedFields, FunctionContext functionContext) {
-    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields, ConstantExpressionIdentifier.getConstantExpressionSet(ex), functionContext);
+                                             FieldVector out, Set<ReferencedField> referencedFields,
+                                             FunctionContext functionContext) {
+    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields,
+      ConstantExpressionIdentifier.getConstantExtractor(ex).getConstantExpressionIdentitySet(), functionContext);
     TreeNode expr = ex.accept(serializer, null);
     return TreeBuilder.makeExpression(expr, out.getField());
   }
@@ -99,9 +107,10 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
    */
   public static Condition serializeExprToCondition(VectorAccessible incoming,
                                                    LogicalExpression expr,
-                                                   Set<Field> referencedFields,
+                                                   Set<ReferencedField> referencedFields,
                                                    FunctionContext functionContext) {
-    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields, ConstantExpressionIdentifier.getConstantExpressionSet(expr), functionContext);
+    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields,
+      ConstantExpressionIdentifier.getConstantExtractor(expr).getConstantExpressionIdentitySet(), functionContext);
     TreeNode expression = expr.accept(serializer, null);
     return TreeBuilder.makeCondition(expression);
   }
@@ -190,14 +199,14 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
     } else if (e instanceof InExpression) {
       InExpression in = (InExpression) e;
       ValueVectorReadExpression read = (ValueVectorReadExpression) in.getEval();
-      Field field = incoming.getValueAccessorById(FieldVector.class, read.getTypedFieldId().getFieldIds())
-        .getValueVector().getField();
-      referencedFields.add(field);
+      ReferencedField referencedField = setReferencedFields(read);
+      referencedFields.add(referencedField);
+      Field xformed = referencedField.getModifiedField();
       CompleteType constantType = in.getConstants().get(0).getCompleteType();
       if (CompleteType.INT.equals(constantType)) {
         Set<Integer> intValues = in.getConstants().stream().map(constant -> ((IntExpression)
           constant).getInt()).collect(Collectors.toSet());
-        return TreeBuilder.makeInExpressionInt32(TreeBuilder.makeField(field), intValues);
+        return TreeBuilder.makeInExpressionInt32(TreeBuilder.makeField(xformed), intValues);
       }else if (CompleteType.BIGINT.equals(constantType)) {
         Set<Long> longValues = Sets.newHashSet();
         for (LogicalExpression constant : in.getConstants()) {
@@ -214,7 +223,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
             }
           }
         }
-        return TreeBuilder.makeInExpressionBigInt(TreeBuilder.makeField(field), longValues);
+        return TreeBuilder.makeInExpressionBigInt(TreeBuilder.makeField(xformed), longValues);
       }else if (CompleteType.VARCHAR.equals(constantType)){
         Set<String> stringValues = Sets.newHashSet();
         for (LogicalExpression constant : in.getConstants()) {
@@ -226,7 +235,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
             stringValues.add(val);
           }
         }
-        return TreeBuilder.makeInExpressionString(TreeBuilder.makeField(field), stringValues);
+        return TreeBuilder.makeInExpressionString(TreeBuilder.makeField(xformed), stringValues);
       }else {
         // Should not reach here since the or-in conversion happens only for valid types
         throw new UnsupportedOperationException("In not supported in Gandiva. Was trying to create an in expression of " +
@@ -237,13 +246,34 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
     }
   }
 
-  private TreeNode visitValueVectorReadExpression(ValueVectorReadExpression readExpr, Void value) {
+  @Override
+  public TreeNode visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    // TODO: Implement Gandiva code generation for case expressions
+    return null;
+  }
 
+  private TreeNode visitValueVectorReadExpression(ValueVectorReadExpression readExpr, Void value) {
+    ReferencedField referencedField = setReferencedFields(readExpr);
+    referencedFields.add(referencedField);
+    Field xformed = referencedField.getModifiedField();
+    return TreeBuilder.makeField(xformed);
+  }
+
+  private ReferencedField setReferencedFields(ValueVectorReadExpression readExp) {
+    TypedFieldId typedFieldId = readExp.getTypedFieldId();
+    isComplex = typedFieldId.getFieldIds().length > 1;
     FieldVector vector = incoming.getValueAccessorById(FieldVector.class,
-                                                       readExpr.getTypedFieldId().getFieldIds())
-                                 .getValueVector();
-    referencedFields.add(vector.getField());
-    return TreeBuilder.makeField(vector.getField());
+      typedFieldId.getFieldIds())
+      .getValueVector();
+    ReferencedField referencedField;
+    if(isComplex) {
+      VectorWrapper<FieldVector> parent = incoming.getValueAccessorById(FieldVector.class, readExp.getTypedFieldId().getFieldIds()[0]);
+      referencedField = new ReferencedField(vector, typedFieldId, parent);
+    } else {
+      referencedField = new ReferencedField(vector, typedFieldId);
+    }
+    referencedFields.add(referencedField);
+    return referencedField;
   }
 
   @Override

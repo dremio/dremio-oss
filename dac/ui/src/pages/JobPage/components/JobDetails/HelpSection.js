@@ -27,8 +27,8 @@ import { callIfChatAllowedOrWarn } from 'actions/account';
 import { addNotification } from 'actions/notification';
 
 import { getViewState } from 'selectors/resources';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import APICall, {APIV2Call} from '@app/core/APICall';
+import tokenUtils from '@inject/utils/tokenUtils';
+import APICall from '@app/core/APICall';
 
 import jobsUtils from 'utils/jobsUtils';
 import config from 'dyn-load/utils/config';
@@ -82,23 +82,14 @@ export class HelpSection extends PureComponent {
   }
 
   handleQueryDownload = () => {
-    const token = localStorageUtils.getAuthToken();
-    const tempApiCall = new APIV2Call()
-      .path('temp-token')
-      .params({
-        'durationSeconds': 30,
-        'request': '/api/v3/support-bundle/' + this.props.jobId + '/download/'
-      });
-
     this.showNotification();
-    fetch(tempApiCall.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token
-      }
+    tokenUtils.getTempToken({
+      params: {
+        'durationSeconds': 30,
+        'request': 'support-bundle/' + this.props.jobId + '/download/'
+      },
+      requestApiVersion: 3
     })
-      .then(res => res.json())
       .then(data => {
         const apiCall = new APICall()
           .path('support-bundle')

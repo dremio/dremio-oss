@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
@@ -23,9 +22,8 @@ import { TextField, Select } from 'components/Fields';
 
 import Tabs from '../Tabs';
 
-@pureRender
 @Radium
-export default class Frequency extends Component {
+export default class Frequency extends PureComponent {
   static getFields() {
     return ['format', 'month', 'dayOfWeek', 'hour', 'minutes', 'week', 'period'];
   }

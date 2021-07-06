@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
 import { Overlay, Portal } from 'react-overlays';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
@@ -29,8 +28,7 @@ import { stopPropagation } from '@app/utils/reactEventUtils';
 import DatasetOverlayContent from './DatasetOverlayContent';
 
 @Radium
-@pureRender
-export default class DatasetItemLabel extends Component {
+export default class DatasetItemLabel extends PureComponent {
   static propTypes = {
     name: PropTypes.string, // defaults to last token of fullPath
     inputValue: PropTypes.string,

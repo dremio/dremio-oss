@@ -25,7 +25,6 @@ import org.apache.calcite.avatica.NoSuchStatementException;
 import org.apache.calcite.avatica.UnregisteredDriver;
 import org.slf4j.Logger;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.jdbc.AlreadyClosedSqlException;
@@ -43,6 +42,7 @@ import java.sql.Clob;
 import java.sql.DatabaseMetaData;
 import java.sql.NClob;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
@@ -87,23 +87,12 @@ class DremioConnectionImpl extends AvaticaConnection
     this.timeZone = getTimeZone(this.config.timeZone());
 
     try {
-      final String connect;
-
       if (config.isLocal()) {
         throw new UnsupportedOperationException("Dremio JDBC driver doesn't not support local mode operation");
-      } else if(config.isDirect()) {
-        final SabotConfig dConfig = SabotConfig.forClient();
-        this.client = new DremioClient(dConfig, true); // Get a direct connection
-        connect = config.getZookeeperConnectionString();
-      } else {
-        final SabotConfig dConfig = SabotConfig.forClient();
-        // TODO:  Check:  Why does new DremioClient() create another SabotConfig,
-        // with enableServerConfigs true, and cause scanning for function
-        // implementations (needed by a server, but not by a client-only
-        // process, right?)?  Probably pass dConfig to construction.
-        this.client = new DremioClient(dConfig, false);
-        connect = config.getZookeeperConnectionString();
       }
+
+      this.client = new DremioClient(driver.getSabotConfig(), config.isDirect());
+      final String connect = config.getZookeeperConnectionString();
       this.client.setClientName("Dremio JDBC Driver");
       this.client.connect(connect, info);
     } catch (OutOfMemoryException e) {
@@ -397,9 +386,21 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public String getCatalog() throws SQLException {
+  public synchronized String getCatalog() throws SQLException {
     throwIfClosed();
-    return super.getCatalog();
+    String catalog = super.getCatalog();
+    if (null == catalog) {
+      // There is no catalog set in the local properties initially, so lazily load it from Dremio. Note that Dremio
+      // currently only ever has a single catalog.
+      try (final ResultSet rs = getMetaData().getCatalogs()) {
+        if (rs.next()) {
+          catalog = rs.getString(1);
+          super.setCatalog(catalog);
+        }
+      }
+    }
+
+    return catalog;
   }
 
   @Override

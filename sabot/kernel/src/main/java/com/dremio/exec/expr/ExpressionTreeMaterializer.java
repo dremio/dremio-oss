@@ -34,6 +34,7 @@ import com.dremio.common.expression.fn.CastFunctions;
 import com.dremio.common.expression.visitors.ConditionalExprOptimizer;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -147,7 +148,18 @@ public class ExpressionTreeMaterializer {
     // convert expression tree to a context tree first
     CodeGenContext contextTree = out.accept(contextAnnotator, null);
 
-    if(contextAnnotator.isExpHasComplexField() == true) {
+    boolean enableGandivaForComposite = functionLookupContext.getOptionManager().getOption(ExecConstants.ENABLE_GANDIVA_CODEGEN_FOR_COMPOSITE);
+
+    if(contextAnnotator.isExpHasComplexField() && !enableGandivaForComposite) {
+      codeGenOption = SupportedEngines.CodeGenOption.Java;
+    }
+
+    // temporary short circuit to bypass Gandiva codegen, if expression has case
+    // TODO(ramesh) : remove this when Gandiva supports case natively
+    if (contextAnnotator.isExpHasCase()) {
+      if (contextTree.isMixedModeExecution()) {
+        errorCollector.addGeneralError("Currently large case statements cannot have Gandiva only functions");
+      }
       codeGenOption = SupportedEngines.CodeGenOption.Java;
     }
 

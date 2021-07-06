@@ -141,7 +141,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(41, returnedSuggestions.getSuggestions().size());
+    assertEquals(45, returnedSuggestions.getSuggestions().size());
   }
 
   @Test
@@ -155,6 +155,7 @@ public class TestSQLResource extends BaseTestServer {
       asList(
         "INFORMATION_SCHEMA.\"TABLES\"",
         "cp.\"tpch/supplier.parquet\"",
+        "sys.table_statistics",
         "sys.threads",
         "sys.timezone_abbrevs",
         "sys.timezone_names",
@@ -163,7 +164,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(8, returnedSuggestions.getSuggestions().size());
+    assertEquals(9, returnedSuggestions.getSuggestions().size());
     for (int i = 0; i < 8; i++) {
       SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
       if (suggestion.getType().equals("TABLE")) {
@@ -371,6 +372,7 @@ public class TestSQLResource extends BaseTestServer {
         "mysrc.ds2",
         "mysrc.ds3",
         "sys.materializations",
+        "sys.membership",
         "sys.memory",
         "\"sys.cache\".mount_points"));
 

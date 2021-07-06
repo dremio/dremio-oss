@@ -68,6 +68,22 @@
                     }
                   },
                   {
+                    "value": "AWS_PROFILE",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.awsProfile",
+                          "label": "AWS Profile (optional)",
+                          "placeholder": "default",
+                          "size": "half",
+                          "validate": {
+                            "isRequired": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
                     "value": "NONE",
                     "container": {
                       "help": {
@@ -106,9 +122,6 @@
             "elements": [
               {
                 "propName": "config.enableAsync"
-              },
-              {
-                "propName": "config.allowCreateDrop"
               },
               {
                 "propName": "config.compatibilityMode"

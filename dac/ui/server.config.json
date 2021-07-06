@@ -1,11 +1,12 @@
 {
   "proxyPatterns": [{
-      "patterns": ["/v1*"], "origin": "atlantisApi", "subDomain": ".api.drem.io", "ws": false
+      "patterns": ["/v1*"], "origin": "atlantisApi", "ws": false
     }, {
-      "patterns": ["/ui*"], "origin": "atlantisApi", "subDomain": ".app.drem.io", "ws": true
+      "patterns": ["/ui*"], "origin": "atlantisApp", "ws": false
     }, {
       "patterns": ["/api*", "/static"], "ws": true
     }],
   "apiOrigin": "http://automaster.drem.io:9047",
-  "atlantisApi": "http://dcs-aws-autodaas-1934-ns"
+  "atlantisApp": "https://app.dev.dremio.site",
+  "atlantisApi": "https://api.dev.dremio.site"
 }

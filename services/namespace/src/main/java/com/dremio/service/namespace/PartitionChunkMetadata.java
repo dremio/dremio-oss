@@ -33,6 +33,8 @@ public interface PartitionChunkMetadata {
 
   int getSplitCount();
 
+  default void mayGetDatasetSplits() {};
+
   Iterable<PartitionProtobuf.DatasetSplit> getDatasetSplits();
 
   ByteString getPartitionExtendedProperty();

@@ -168,6 +168,7 @@ message ResourceSchedulingInfo {
   optional int64 resource_scheduling_start = 6;    // time, in ms, when resource scheduling started
   optional int64 resource_scheduling_end = 7;      // time, in ms, when resource scheduling completed
   optional double query_cost = 8; // query plan cost used by WLM query_cost() rules function
+  optional string engine_name = 9; // engine used to run query in DCS
 }
 
 message JoinTable {

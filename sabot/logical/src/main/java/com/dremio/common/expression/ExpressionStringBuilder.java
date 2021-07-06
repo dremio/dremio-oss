@@ -17,7 +17,6 @@ package com.dremio.common.expression;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.List;
 
 import org.joda.time.Period;
 
@@ -38,7 +37,6 @@ import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
 public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBuilder, RuntimeException>{
@@ -380,6 +378,25 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     }
     sb.append(") ");
 
+    return null;
+  }
+
+  @Override
+  public Void visitCaseExpression(CaseExpression caseExpression, StringBuilder sb) throws RuntimeException {
+    sb.append(" ( ");
+    sb.append("case ");
+    for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+      sb.append(" when (");
+      conditionNode.whenExpr.accept(this, sb);
+      sb.append(") then (");
+      conditionNode.thenExpr.accept(this, sb);
+      sb.append(" ) ");
+    }
+    sb.append(" else (");
+    caseExpression.elseExpr.accept(this, sb);
+    sb.append(" ) ");
+    sb.append(" end ");
+    sb.append(" ) ");
     return null;
   }
 

@@ -26,6 +26,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.service.namespace.TableInstance;
@@ -114,6 +115,7 @@ final class FormatPluginOptionsDescriptor {
    * @param t the signature and the parameters passed to the table function
    * @return the corresponding config
    */
+  @SuppressForbidden
   FormatPluginConfig createConfigForTable(TableInstance t) {
     // Per the constructor, the first param is always "type"
     TableParamDef typeParamDef = t.getSig().getParams().get(0);

@@ -19,8 +19,7 @@ import java.text.ParseException;
 
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.container.ContainerRequestContext;
-
-import org.apache.http.HttpHeaders;
+import javax.ws.rs.core.HttpHeaders;
 
 /**
  * Utility methods for tokens.
@@ -52,7 +51,7 @@ public final class TokenUtils {
    * @return token string. Return null if authorization header is not present.
    */
   public static String getAuthHeaderToken(ContainerRequestContext context) {
-    final String authHeader = context.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+    final String authHeader = context.getHeaderString(HttpHeaders.AUTHORIZATION.toLowerCase());
     if (authHeader == null) {
       return null;
     }

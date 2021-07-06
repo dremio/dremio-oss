@@ -36,7 +36,7 @@ export class HelpMenu extends Component {
     const { closeMenu, location, intl } = this.props;
 
     return <Menu>
-      <MenuItemLink href='https://docs.dremio.com' external newWindow closeMenu={closeMenu}
+      <MenuItemLink href={intl.formatMessage({ id: 'HeaderMenu.Documentation.Link' })} external newWindow closeMenu={closeMenu}
         text={intl.formatMessage({ id: 'HeaderMenu.Documentation' })} />
       <MenuItemLink href='https://community.dremio.com' external newWindow closeMenu={closeMenu}
         text={intl.formatMessage({ id: 'HeaderMenu.CommunitySite' })} />

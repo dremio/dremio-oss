@@ -24,6 +24,7 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
+import com.dremio.xml.SafeXMLFactories;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -49,7 +50,7 @@ public class ExcelUtil {
   public static final String STYLE = "s";
   public static final String CELL_REF = "r";
 
-  public static final XMLInputFactory XML_INPUT_FACTORY = XMLInputFactory.newInstance();
+  public static final XMLInputFactory XML_INPUT_FACTORY = SafeXMLFactories.newSafeXMLInputFactory();
 
   /**
    * Helper method to get the column name from cell reference. Ex. cell reference 'AB345' => column name is 'AB'.

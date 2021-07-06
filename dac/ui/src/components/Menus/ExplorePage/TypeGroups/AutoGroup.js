@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Divider from '@material-ui/core/Divider';
 
@@ -26,8 +25,7 @@ import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 import MenuItem from './../MenuItem';
 
 @Radium
-@pureRender
-export default class AutoGroup extends Component {
+export default class AutoGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
     columnType: PropTypes.string

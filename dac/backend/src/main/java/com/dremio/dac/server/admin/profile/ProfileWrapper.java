@@ -315,6 +315,9 @@ public class ProfileWrapper {
       return "";
     }
     DescriptionListBuilder dlb = new DescriptionListBuilder();
+    if (r.hasEngineName()) {
+      dlb.addItem("Engine Name:", r.getEngineName());
+    }
     if (r.hasQueueName()) {
       dlb.addItem("Queue Name:", r.getQueueName());
     }

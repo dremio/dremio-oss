@@ -23,6 +23,7 @@ import java.util.Set;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 
@@ -90,4 +91,14 @@ public class WindowUtil {
     return rexOvers;
   }
 
+  public static RexWindow createRexWindow(List<RexNode> partitionKeys, List<RexFieldCollation> orderKeys,
+                                 RexWindowBound lowerBound, RexWindowBound upperBound, boolean isRows) {
+    return new RexWindow(partitionKeys, orderKeys, lowerBound, upperBound, isRows);
+  }
+
+  public static RexOver createRexOver(RelDataType type, SqlAggFunction op,
+                                      List<RexNode> operands, RexWindow window,
+                                      boolean distinct) {
+    return new RexOver(type, op, operands, window, distinct);
+  }
 }

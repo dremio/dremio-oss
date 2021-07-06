@@ -39,8 +39,10 @@ import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.maestro.GlobalKeysService;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.RulesFactory;
+import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
@@ -48,18 +50,27 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
+import com.dremio.exec.store.sys.accesscontrol.AccessControlListingManager;
+import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
+import com.dremio.exec.store.sys.statistics.StatisticsListManager;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.security.CredentialsService;
+import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.conduit.server.ConduitInProcessChannelProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.coordinator.CoordinatorModeInfo;
 import com.dremio.service.coordinator.ServiceSetDecorator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.nessieapi.ContentsApiGrpc;
+import com.dremio.service.nessieapi.TreeApiGrpc;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
@@ -90,6 +101,8 @@ public class SabotContext implements AutoCloseable {
   private final UserService userService;
   private final Provider<QueryObserverFactory> queryObserverFactory;
   private final Provider<AccelerationManager> accelerationManager;
+  private final Provider<StatisticsService> statisticsService;
+  private final Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier;
   private final Provider<AccelerationListManager> accelerationListManager;
   private final Provider<CatalogService> catalogService;
   private final ConduitProvider conduitProvider;
@@ -107,6 +120,16 @@ public class SabotContext implements AutoCloseable {
   private final OptionValidatorListing optionValidatorListing;
   private final ExecutorService executorService;
   private final JdbcSchemaFetcherFactoryContext jdbcSchemaFetcherFactoryContext;
+  private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
+  private final Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider;
+  private final Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider;
+  private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory;
+  private final Provider<StatisticsListManager> statisticsListManagerProvider;
+  private final Provider<SimpleJobRunner> jobsRunnerProvider;
+  private final Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub;
+  private final Provider<GlobalKeysService> globalCredentailsServiceProvider;
+  private final Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider;
+  private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -139,7 +162,19 @@ public class SabotContext implements AutoCloseable {
       OptionManager optionManager,
       SystemOptionManager systemOptionManager,
       OptionValidatorListing optionValidatorListing,
-      ExecutorService executorService
+      ExecutorService executorService,
+      Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
+      Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
+      Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+      Provider<StatisticsService> statisticsService,
+      Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
+      Provider<StatisticsListManager> statisticsListManagerProvider,
+      Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
+      Provider<SimpleJobRunner> jobsRunnerProvider,
+      Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
+      Provider<GlobalKeysService> globalCredentailsServiceProvider,
+      Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
+      Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
   ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -152,6 +187,7 @@ public class SabotContext implements AutoCloseable {
     this.endpoint = checkNotNull(endpoint);
     this.lpPersistence = lpPersistence;
     this.accelerationManager = accelerationManager;
+    this.statisticsService = statisticsService;
     this.accelerationListManager = accelerationListManager;
     this.connectionReaderProvider = connectionReaderProvider;
 
@@ -188,6 +224,17 @@ public class SabotContext implements AutoCloseable {
     this.optionValidatorListing = optionValidatorListing;
     this.executorService = executorService;
     this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
+    this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
+    this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
+    this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
+    this.statisticsAdministrationFactory = statisticsAdministrationFactory;
+    this.statisticsListManagerProvider = statisticsListManagerProvider;
+    this.relMetadataQuerySupplier = relMetadataQuerySupplier;
+    this.jobsRunnerProvider = jobsRunnerProvider;
+    this.datasetCatalogStub = datasetCatalogStub;
+    this.globalCredentailsServiceProvider = globalCredentailsServiceProvider;
+    this.credentialsServiceProvider = credentialsServiceProvider;
+    this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
   }
 
   private static List<RulesFactory> getRulesFactories(ScanResult scan) {
@@ -238,8 +285,20 @@ public class SabotContext implements AutoCloseable {
     GroupResourceInformation clusterInfo,
     FileSystemWrapper fileSystemWrapper,
     OptionValidatorListing optionValidatorListing,
-    ExecutorService executorService
-  ) {
+    ExecutorService executorService,
+    Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
+    Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
+    Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+    Provider<StatisticsService> statisticsService,
+    Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
+    Provider<StatisticsListManager> statisticsListManagerProvider,
+    Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
+    Provider<SimpleJobRunner> jobsRunnerProvider,
+    Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
+    Provider<GlobalKeysService> globalCredentailsServiceProvider,
+    Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
+    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+    ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
     this.roles = ImmutableSet.copyOf(roles);
@@ -281,6 +340,18 @@ public class SabotContext implements AutoCloseable {
     this.optionValidatorListing = optionValidatorListing;
     this.executorService = executorService;
     this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
+    this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
+    this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
+    this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
+    this.statisticsService = statisticsService;
+    this.statisticsAdministrationFactory = statisticsAdministrationFactory;
+    this.statisticsListManagerProvider = statisticsListManagerProvider;
+    this.relMetadataQuerySupplier = relMetadataQuerySupplier;
+    this.jobsRunnerProvider = jobsRunnerProvider;
+    this.datasetCatalogStub = datasetCatalogStub;
+    this.globalCredentailsServiceProvider = globalCredentailsServiceProvider;
+    this.credentialsServiceProvider = credentialsServiceProvider;
+    this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
   }
 
   private void checkIfCoordinator() {
@@ -296,12 +367,32 @@ public class SabotContext implements AutoCloseable {
     return accelerationManager;
   }
 
+  protected Provider<StatisticsService> getStatisticsServiceProvider() {
+    return statisticsService;
+  }
+
   protected Provider<AccelerationListManager> getAccelerationListManagerProvider() {
     return accelerationListManager;
   }
 
+  public Provider<StatisticsListManager> getStatisticsListManagerProvider() {
+    return statisticsListManagerProvider;
+  }
+
   public Provider<CatalogService> getCatalogServiceProvider() {
     return catalogService;
+  }
+
+  public StatisticsService getStatisticsService() {
+    return statisticsService.get();
+  }
+
+  public Provider<StatisticsAdministrationService.Factory> getStatisticsAdministrationFactoryProvider() {
+    return statisticsAdministrationFactory;
+  }
+
+  public Provider<RelMetadataQuerySupplier> getRelMetadataQuerySupplier() {
+    return relMetadataQuerySupplier;
   }
 
   public Provider<ViewCreatorFactory> getViewCreatorFactoryProvider() {
@@ -309,7 +400,7 @@ public class SabotContext implements AutoCloseable {
   }
 
   public FunctionImplementationRegistry getFunctionImplementationRegistry() {
-    return functionRegistry ;
+    return functionRegistry;
   }
 
   public DecimalFunctionImplementationRegistry getDecimalFunctionImplementationRegistry() {
@@ -426,6 +517,10 @@ public class SabotContext implements AutoCloseable {
     return informationSchemaStub;
   }
 
+  public Provider<ConduitInProcessChannelProvider> getConduitInProcessChannelProviderProvider() {
+    return conduitInProcessChannelProviderProvider;
+  }
+
   public InformationSchemaServiceBlockingStub getInformationSchemaServiceBlockingStub() {
     return informationSchemaStub.get();
   }
@@ -523,5 +618,45 @@ public class SabotContext implements AutoCloseable {
   //TODO(DX-26296): Return JdbcSchemaFetcherFactory
   public JdbcSchemaFetcherFactoryContext getJdbcSchemaFetcherFactoryContext() {
     return jdbcSchemaFetcherFactoryContext;
+  }
+
+  public Provider<CoordinatorModeInfo> getCoordinatorModeInfoProvider() {
+    return this.coordinatorModeInfoProvider;
+  }
+
+  public AccessControlListingManager getAccessControlListingManager() {
+    return null;
+  }
+
+  public Provider<TreeApiGrpc.TreeApiBlockingStub> getNessieTreeApiBlockingStubProvider() {
+    return nessieTreeApiBlockingStubProvider;
+  }
+
+  public TreeApiGrpc.TreeApiBlockingStub getNessieTreeApiBlockingStub() {
+    return nessieTreeApiBlockingStubProvider.get();
+  }
+
+  public Provider<ContentsApiGrpc.ContentsApiBlockingStub> getNessieContentsApiBlockingStubProvider() {
+    return nessieContentsApiBlockingStuProvider;
+  }
+
+  public ContentsApiGrpc.ContentsApiBlockingStub getNessieContentsApiBlockingStub() {
+    return nessieContentsApiBlockingStuProvider.get();
+  }
+
+  public Provider<SimpleJobRunner> getJobsRunner() {
+    return jobsRunnerProvider;
+  }
+
+  public Provider<DatasetCatalogServiceBlockingStub> getDatasetCatalogBlockingStub() {
+    return datasetCatalogStub;
+  }
+
+  public Provider<GlobalKeysService> getGlobalCredentailsServiceProvider() {
+    return globalCredentailsServiceProvider;
+  }
+
+  public Provider<com.dremio.services.credentials.CredentialsService> getCredentialsServiceProvider() {
+    return credentialsServiceProvider;
   }
 }

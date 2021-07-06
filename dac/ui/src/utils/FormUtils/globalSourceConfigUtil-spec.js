@@ -17,7 +17,8 @@
 import { cloneDeep } from 'lodash';
 import addAlwaysPresent, {
   crossSourceSelectionUiConfig,
-  getAlwaysPresentFunctionalConfig
+  getAlwaysPresentFunctionalConfig,
+  inlineMetadataRefreshConfig
 } from './globalSourceConfigUtil';
 
 describe('globalSourceConfigUtil', () => {
@@ -52,12 +53,12 @@ describe('globalSourceConfigUtil', () => {
       ...functionalConfig,
       elements: [
         ...functionalConfig.elements,
-        getAlwaysPresentFunctionalConfig()[0]
+        ...getAlwaysPresentFunctionalConfig()
       ]
     };
 
     const expectedUiConfig = cloneDeep(uiConfig);
-    expectedUiConfig.form.tabs[1].sections[0].elements.push(crossSourceSelectionUiConfig);
+    expectedUiConfig.form.tabs[1].sections[0].elements.push(crossSourceSelectionUiConfig, inlineMetadataRefreshConfig);
     addAlwaysPresent(functionalConfig, uiConfig);
     expect(functionalConfig).to.deep.equal(expectedFunctionalConfig);
     expect(uiConfig).to.deep.equal(expectedUiConfig);
@@ -82,7 +83,7 @@ describe('globalSourceConfigUtil', () => {
       ...functionalConfig,
       elements: [
         ...functionalConfig.elements,
-        getAlwaysPresentFunctionalConfig()[0]
+        ...getAlwaysPresentFunctionalConfig()
       ]
     };
 
@@ -90,7 +91,8 @@ describe('globalSourceConfigUtil', () => {
     expectedUiConfig.form.tabs[1].sections = [
       {
         elements: [
-          crossSourceSelectionUiConfig
+          crossSourceSelectionUiConfig,
+          inlineMetadataRefreshConfig
         ]
       }
     ];

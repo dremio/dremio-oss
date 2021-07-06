@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import ImmutablePropTypes from 'react-immutable-proptypes';
 
 import { connect } from 'react-redux';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import isEmpty from 'lodash/isEmpty';
 
@@ -41,9 +40,8 @@ import { MAP, LIST } from '@app/constants/DataTypes';
 
 import TransformView from './TransformView';
 
-@pureRender
 @Radium
-export class Transform extends Component {
+export class Transform extends PureComponent {
 
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),

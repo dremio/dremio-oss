@@ -32,7 +32,8 @@ export default class General extends Component {
     fields: PropTypes.object,
     editing: PropTypes.bool,
     children: PropTypes.node,
-    showAccelerationSection: PropTypes.bool
+    showAccelerationSection: PropTypes.bool,
+    entityType: PropTypes.string
   };
 
   static defaultProps = {
@@ -68,7 +69,7 @@ export default class General extends Component {
         </div>
         {this.props.children}
         {this.props.showAccelerationSection && <AccelerationSection fields={this.props.fields} />}
-        {this.renderFooter()}
+        {this.renderFooter(this.props.entityType)}
       </div>
     );
   }

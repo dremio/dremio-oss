@@ -53,7 +53,7 @@ describe('FileUtils', () => {
           json: () => {
             return Promise.resolve({errorMessage: 'foo'});
           }
-        })).to.be.rejectedWith(FileDownloadError, Immutable.fromJS({errorMessage: 'foo'}));
+        })).to.be.rejectedWith(Immutable.fromJS({errorMessage: 'foo'}));
       });
 
       it('should throw FileDownloadError with Download  if response json is missing .errorMessage', () => {

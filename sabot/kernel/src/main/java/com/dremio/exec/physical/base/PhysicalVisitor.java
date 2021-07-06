@@ -16,6 +16,7 @@
 package com.dremio.exec.physical.base;
 
 import com.dremio.exec.physical.config.AbstractSort;
+import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.BroadcastSender;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -34,7 +35,6 @@ import com.dremio.exec.physical.config.RoundRobinSender;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.physical.config.SingleSender;
 import com.dremio.exec.physical.config.StreamingAggregate;
-import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.physical.config.UnionAll;
 import com.dremio.exec.physical.config.UnionExchange;
 import com.dremio.exec.physical.config.UnorderedReceiver;
@@ -89,5 +89,5 @@ public interface PhysicalVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
   public RETURN visitUnionExchange(UnionExchange op, EXTRA value) throws EXCEP;
   public RETURN visitWindowFrame(WindowPOP op, EXTRA value) throws EXCEP;
   public RETURN visitConvertFromJson(ConvertFromJsonPOP op, EXTRA value) throws EXCEP;
-  public RETURN visitTableFunction(TableFunctionPOP op, EXTRA value) throws EXCEP;
+  public RETURN visitTableFunction(AbstractTableFunctionPOP op, EXTRA value) throws EXCEP;
 }

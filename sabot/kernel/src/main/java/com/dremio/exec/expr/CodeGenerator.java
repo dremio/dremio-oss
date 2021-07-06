@@ -45,8 +45,16 @@ public class CodeGenerator<T> {
 
   private static final String PACKAGE_NAME = "com.dremio.s";
 
+  private static final String SIMPLE_TYPES =
+    "(BigInt|Int|Float4|Float8|VarBinary|VarChar|TimeStampMilli|DateMilli|TimeMilli|Decimal)";
+  private static final String HOLDER_STRING = Pattern.quote("Holder()");
+  private static final String REPLACE_SINGLE_TYPE_REGEX = "new " + SIMPLE_TYPES + "(" + HOLDER_STRING + ")";
+  private static final Pattern REPLACE_SINGLE_TYPE_TO_NULLABLE =
+    Pattern.compile(REPLACE_SINGLE_TYPE_REGEX);
+  private static final String REPLACE_PATTERN = "new Nullable$1$2";
+
   private final TemplateClassDefinition<T> definition;
-  private CodeCompiler compiler;
+  private final CodeCompiler compiler;
   private final String className;
   private final String fqcn;
 
@@ -91,19 +99,10 @@ public class CodeGenerator<T> {
     //Free up unused Space early : model, rootGenerator.
     model = null;
     rootGenerator = null;
-    this.generifiedCode = w.getCode().toString()
-        // hack for single type variables.
-        .replaceAll(Pattern.quote("new BigIntHolder()"), "new NullableBigIntHolder()")
-        .replaceAll(Pattern.quote("new IntHolder()"), "new NullableIntHolder()")
-        .replaceAll(Pattern.quote("new Float4Holder()"), "new NullableFloat4Holder()")
-        .replaceAll(Pattern.quote("new Float8Holder()"), "new NullableFloat8Holder()")
-        .replaceAll(Pattern.quote("new VarBinaryHolder()"), "new NullableVarBinaryHolder()")
-        .replaceAll(Pattern.quote("new VarCharHolder()"), "new NullableVarCharHolder()")
-        .replaceAll(Pattern.quote("new TimeStampMilliHolder()"), "new NullableTimeStampHolder()")
-        .replaceAll(Pattern.quote("new DateMilliHolder()"), "new NullableDateMilliHolder()")
-        .replaceAll(Pattern.quote("new TimeMilliHolder()"), "new NullableTimeMilliHolder()")
-        .replaceAll(Pattern.quote("new DecimalHolder()"), "new NullableDecimalHolder()");
 
+    this.generifiedCode = REPLACE_SINGLE_TYPE_TO_NULLABLE.matcher(w.getCode().toString())
+      // hack for single type variables.
+      .replaceAll(REPLACE_PATTERN);
   }
 
   public String getGeneratedCode() {
@@ -133,10 +132,10 @@ public class CodeGenerator<T> {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj){
+    if (this == obj) {
       return true;
     }
-    if (obj == null){
+    if (obj == null) {
       return false;
     }
     if (getClass() != obj.getClass()){
@@ -151,14 +150,9 @@ public class CodeGenerator<T> {
       return false;
     }
     if (generifiedCode == null) {
-      if (other.generifiedCode != null){
-        return false;
-      }
-
-    } else if (!generifiedCode.equals(other.generifiedCode)){
-      return false;
+      return other.generifiedCode == null;
     }
-    return true;
+    return generifiedCode.equals(other.generifiedCode);
   }
 
   public T getImplementationClass(){

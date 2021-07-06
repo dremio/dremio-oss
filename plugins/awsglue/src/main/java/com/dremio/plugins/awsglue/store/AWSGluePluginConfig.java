@@ -86,6 +86,10 @@ public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWS
   @DisplayMetadata(label = "IAM Role to Assume")
   public String assumedRoleARN;
 
+  @Tag(11)
+  @DisplayMetadata(label = "AWS Profile")
+  public String awsProfile;
+
   @Override
   public AWSGlueStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new AWSGlueStoragePlugin(this, context, name, pluginIdProvider);

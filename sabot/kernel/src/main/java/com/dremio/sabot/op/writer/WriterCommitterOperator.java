@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.iceberg.DataFile;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -34,18 +32,13 @@ import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.IcebergOpCommitter;
-import com.dremio.exec.store.iceberg.IcebergOperation;
-import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Optional;
@@ -65,16 +58,14 @@ public class WriterCommitterOperator implements SingleInputOperator {
   private long recordCount;
   private ProjectOperator project;
   private boolean success = false;
-  private IcebergOpCommitter icebergOpCommitter;
   private final List<ValueVector> vectors = new ArrayList<>();
-  private boolean icebergTableCommitter = false;
-  private VarBinaryVector icebergMetadataVector;
+
+  private final IcebergCommitOpHelper icebergCommitHelper;
 
   public WriterCommitterOperator(OperatorContext context, WriterCommitterPOP config){
     this.config = config;
     this.context = context;
-    icebergOpCommitter = null;
-    icebergTableCommitter = config.getIcebergTableProps() != null;
+    this.icebergCommitHelper = IcebergCommitOpHelper.getInstance(context, config);
   }
 
   @Override
@@ -93,29 +84,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
     }
 
     fs = config.getPlugin().createFS(config.getProps().getUserName());
-
-    if (icebergTableCommitter) {
-      IcebergTableProps icebergTableProps = config.getIcebergTableProps();
-      TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
-      icebergMetadataVector = accessible.getValueAccessorById(VarBinaryVector.class, id.getFieldIds()).getValueVector();
-
-      switch (icebergTableProps.getIcebergOpType()) {
-        case CREATE:
-          icebergOpCommitter = IcebergOperation.getCreateTableCommitter(
-            icebergTableProps.getTableName(), Path.of(icebergTableProps.getTableLocation()),
-            icebergTableProps.getFullSchema(),
-            icebergTableProps.getPartitionColumnNames(),
-            config.getPlugin().getFsConfCopy());
-          break;
-        case INSERT:
-          icebergOpCommitter = IcebergOperation.getInsertTableCommitter(
-            icebergTableProps.getTableName(), Path.of(icebergTableProps.getTableLocation()),
-            icebergTableProps.getFullSchema(),
-            icebergTableProps.getPartitionColumnNames(),
-            config.getPlugin().getFsConfCopy());
-          break;
-      }
-    }
+    icebergCommitHelper.setup(accessible);
 
     // replacement expression.
     LogicalExpression replacement;
@@ -138,7 +107,8 @@ public class WriterCommitterOperator implements SingleInputOperator {
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.METADATA.getName()), new FieldReference(RecordWriter.METADATA.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName()))
+        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
+        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName()))
         ));
     this.project = new ProjectOperator(context, projectConfig);
     return project.setup(accessible);
@@ -157,8 +127,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     try {
-      icebergTableCommitter = false;
-      icebergOpCommitter = null;
+      icebergCommitHelper.close();
       if (!success) {
         Path path = Path.of(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
         if (fs != null && fs.exists(path)) {
@@ -179,33 +148,14 @@ public class WriterCommitterOperator implements SingleInputOperator {
       }
     }
     project.noMoreToConsume();
-    if (icebergTableCommitter) {
-      if (icebergOpCommitter != null) {
-        // iceberg library isn't using dremio's fs wrappers. So, accounting the
-        // entire call as wait time.
-        try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-          icebergOpCommitter.commit();
-        }
-      }
-    }
+    icebergCommitHelper.commit();
     success = true;
   }
 
   @Override
   public void consumeData(int records) throws Exception {
     project.consumeData(records);
-    if (icebergTableCommitter) {
-      List<DataFile> icebergDatafiles = new ArrayList<>();
-      for (int i = 0; i < records; ++i) {
-        DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadataVector.get(i));
-        icebergDatafiles.add(dataFile);
-      }
-      if (icebergDatafiles.size() > 0) {
-        try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-          icebergOpCommitter.consumeData(icebergDatafiles);
-        }
-      }
-    }
+    icebergCommitHelper.consumeData(records);
     recordCount += records;
   }
 
@@ -215,6 +165,5 @@ public class WriterCommitterOperator implements SingleInputOperator {
     public SingleInputOperator create(OperatorContext context, WriterCommitterPOP operator) throws ExecutionSetupException {
       return new WriterCommitterOperator(context, operator);
     }
-
   }
 }

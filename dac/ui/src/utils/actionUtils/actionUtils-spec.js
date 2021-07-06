@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
+
 import actionUtils from './actionUtils';
 
 describe('actionUtils', () => {
@@ -56,7 +59,7 @@ describe('actionUtils', () => {
     });
 
     it('should set notification with default when there is no errorMessage and payload is empty ', () => {
-      const defaultMessage = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
+      const defaultMessage = DEFAULT_ERR_MSG;
       const payload = {};
       const result = {
         message: Immutable.Map({ message: defaultMessage }),

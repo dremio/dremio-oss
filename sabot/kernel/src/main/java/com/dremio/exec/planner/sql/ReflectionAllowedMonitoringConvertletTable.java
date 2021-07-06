@@ -41,6 +41,7 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
 
   private final SqlRexConvertletTable delegate;
   private boolean contextSensitive = false;
+  private boolean planCacheable = true;
 
   public ReflectionAllowedMonitoringConvertletTable(SqlRexConvertletTable delegate) {
     super();
@@ -50,8 +51,11 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
   @Override
   public SqlRexConvertlet get(SqlCall call) {
     SqlOperator operator = call.getOperator();
-    if(operator.isDynamicFunction() && !WHITELIST.contains(operator)) {
-      contextSensitive = true;
+    if(operator.isDynamicFunction() || !operator.isDeterministic()) {
+      planCacheable = false;
+    }
+    if (operator.isDynamicFunction() && !WHITELIST.contains(operator)) {
+        contextSensitive = true;
     }
     return delegate.get(call);
   }
@@ -60,4 +64,7 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
     return contextSensitive;
   }
 
+  public boolean isPlanCacheable() {
+    return planCacheable;
+  }
 }

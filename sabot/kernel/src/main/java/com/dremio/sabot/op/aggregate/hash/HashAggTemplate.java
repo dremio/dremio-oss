@@ -33,6 +33,7 @@ import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
@@ -89,6 +90,7 @@ public abstract class HashAggTemplate implements HashAggregator {
     }
   }
 
+  @SuppressForbidden
   public HashAggTemplate(){
     try{
       Class<?> clazz = null;

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 import javax.net.ssl.SSLException;
@@ -29,6 +30,7 @@ import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.avatica.util.Quoting;
 
+import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
@@ -42,6 +44,7 @@ import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
+import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.BitToUserHandshake;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
 import com.dremio.exec.proto.UserProtos.GetCatalogsReq;
@@ -75,10 +78,10 @@ import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.protector.UserConnectionResponseHandler;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserWorker;
-import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserService;
 import com.google.common.annotations.VisibleForTesting;
@@ -185,8 +188,19 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   }
 
   @Override
-  protected void handle(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
-      ResponseSender responseSender) throws RpcException {
+  protected void handle(
+    UserClientConnectionImpl connection,
+    int coordinationId,
+    int rpcType,
+    byte[] pBody,
+    ByteBuf dBody,
+    ResponseSender responseSender
+  ) throws RpcException {
+
+    final RequestHandle requestHandle = connection.newRequestHandle(coordinationId);
+    if (requestHandle == null) {
+      throw new RpcException("Session expired. Will close the connection soon.");
+    }
 
     final Span span;
     if(connection.getSession().isTracingEnabled()) {
@@ -200,12 +214,14 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       @Override
       public void send(Response r) {
         responseSender.send(r);
+        requestHandle.close();
         span.finish();
       }
 
       @Override
       public void sendFailure(UserRpcException e) {
         responseSender.sendFailure(e);
+        requestHandle.close();
         span.finish();
       }
     };
@@ -214,7 +230,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     // If there's an error parsing the request, the failure will not be sent through the response sender.
     try (Scope scope = tracer.activateSpan(span)){
       workIngestor.feedWork(connection, rpcType, pBody, dBody, wrappedSender);
-    } catch (RpcException e){
+    } catch (RpcException e) {
+      requestHandle.close();
       span.finish();
       throw e;
     }
@@ -403,10 +420,14 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
    * {@link RemoteConnection} implementation for user connection. Also implements {@link UserClientConnection}.
    */
   public class UserClientConnectionImpl extends RemoteConnection implements UserClientConnection {
+    private final IntHashSet pendingRequests = new IntHashSet();
+
     private final UUID uuid;
-    private InetSocketAddress remote;
+    private final InetSocketAddress remote;
+
     private UserSession session;
-    private OptionManager optionManager;
+
+    private volatile boolean sessionExpired = false;
 
     public UserClientConnectionImpl(SocketChannel channel) {
       super(channel, "user client", false);
@@ -565,6 +586,41 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       getChannel().closeFuture().removeListener(listener);
     }
 
+    RequestHandle newRequestHandle(int coordinationId) {
+      if (sessionExpired) {
+        return null;
+      }
+
+      synchronized (pendingRequests) {
+        pendingRequests.add(coordinationId);
+      }
+
+      return () -> {
+        synchronized (pendingRequests) {
+          pendingRequests.remove(coordinationId);
+        }
+      };
+    }
+
+    private void scheduleExpiryHandler(long delay, TimeUnit timeUnit) {
+      final Runnable expiryHandler = () -> {
+        sessionExpired = true; // stop accepting new requests
+        boolean closed = false;
+        synchronized (pendingRequests) {
+          if (pendingRequests.isEmpty()) {
+            getChannel().close();
+            closed = true;
+          }
+        }
+        if (!closed) { // try again in 10 minutes
+          scheduleExpiryHandler(10, TimeUnit.MINUTES);
+        }
+      };
+
+      getChannel()
+        .eventLoop()
+        .schedule(expiryHandler, delay, timeUnit);
+    }
   }
 
   @Override
@@ -645,7 +701,18 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
                   break;
                 }
               }
-              userService.authenticate(inbound.getCredentials().getUserName(), password);
+
+              final AuthResult authResult =
+                userService.authenticate(inbound.getCredentials().getUserName(), password);
+              inbound = inbound.toBuilder()
+                .setCredentials(UserCredentials.newBuilder()
+                  .setUserName(authResult.getUserName()))
+                .build();
+
+              if (authResult.getExpiresAt() != null) {
+                final long delay = authResult.getExpiresAt().getTime() - System.currentTimeMillis();
+                connection.scheduleExpiryHandler(delay, TimeUnit.MILLISECONDS);
+              }
             } catch (UserLoginException ex) {
               return handleFailure(respBuilder, HandshakeStatus.AUTH_FAILED, ex.getMessage(), ex);
             }
@@ -734,4 +801,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     return new UserProtobufLengthDecoder(allocator);
   }
 
+  interface RequestHandle extends AutoCloseable {
+    @Override
+    void close();
+  }
 }

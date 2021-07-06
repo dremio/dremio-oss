@@ -26,6 +26,7 @@ import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.WriterUpdater;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
@@ -61,6 +62,7 @@ public class WriterOptions {
   private final IcebergWriterOperation icebergWriterOperation;
   private final ByteString extendedProperty;
   private final boolean outputLimitEnabled;
+  private IcebergTableProps icebergTableProps;
 
   public WriterOptions(
     Integer ringCount,
@@ -83,11 +85,29 @@ public class WriterOptions {
     boolean singleWriter,
     long recordLimit,
     IcebergWriterOperation icebergWriterOperation,
+    ByteString extendedProperty,
+    IcebergTableProps icebergTableProps
+  ) {
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
+      singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE,
+      icebergTableProps);
+  }
+
+  public WriterOptions(
+    Integer ringCount,
+    List<String> partitionColumns,
+    List<String> sortColumns,
+    List<String> distributionColumns,
+    PartitionDistributionStrategy partitionDistributionStrategy,
+    boolean singleWriter,
+    long recordLimit,
+    IcebergWriterOperation icebergWriterOperation,
     ByteString extendedProperty
   ) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
-         singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE);
+      singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE, null);
   }
+
 
   @JsonCreator
   public WriterOptions(
@@ -101,7 +121,8 @@ public class WriterOptions {
     @JsonProperty("icebergWriterOperation") IcebergWriterOperation icebergWriterOperation,
     @JsonProperty("extendedProperty") ByteString extendedProperty,
     @JsonProperty("outputLimitEnabled") boolean outputLimitEnabled,
-    @JsonProperty("outputLimitSize") long outputLimitSize
+    @JsonProperty("outputLimitSize") long outputLimitSize,
+    @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps
     ) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
@@ -114,6 +135,7 @@ public class WriterOptions {
     this.extendedProperty = extendedProperty;
     this.outputLimitEnabled = outputLimitEnabled;
     this.outputLimitSize = outputLimitSize;
+    this.icebergTableProps = icebergTableProps;
   }
 
   public Integer getRingCount() {
@@ -170,13 +192,13 @@ public class WriterOptions {
   public WriterOptions withOutputLimitEnabled(boolean outputLimitEnabled) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
                              this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
-                             this.icebergWriterOperation, this.extendedProperty, outputLimitEnabled, this.outputLimitSize);
+                             this.icebergWriterOperation, this.extendedProperty, outputLimitEnabled, this.outputLimitSize, null);
   }
 
   public WriterOptions withOutputLimitSize(long outputLimitSize) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
                              this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
-                             this.icebergWriterOperation, this.extendedProperty, this.outputLimitEnabled, outputLimitSize);
+                             this.icebergWriterOperation, this.extendedProperty, this.outputLimitEnabled, outputLimitSize, null);
   }
 
   public WriterOptions withPartitionColumns(List<String> partitionColumns) {
@@ -213,9 +235,16 @@ public class WriterOptions {
     return relTraits;
   }
 
-
   public ByteString getExtendedProperty() {
     return extendedProperty;
+  }
+
+  public IcebergTableProps getIcebergTableProps() {
+    return icebergTableProps;
+  }
+
+  public void setIcebergTableProps(IcebergTableProps icebergTableProps) {
+    this.icebergTableProps = icebergTableProps;
   }
 
   private static DistributionTrait hashDistributedOn(final List<String> columns, final RelDataType inputRowType) {

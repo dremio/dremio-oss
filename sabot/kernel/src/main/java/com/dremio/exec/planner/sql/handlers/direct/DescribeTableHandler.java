@@ -16,8 +16,10 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -28,7 +30,6 @@ import org.apache.calcite.tools.RelConversionException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.store.ischema.Column;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -51,28 +52,27 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     try {
       final SqlIdentifier tableId = node.getTable();
       final NamespaceKey path = new NamespaceKey(tableId.names);
-      DremioPrepareTable table = catalog.getTable(tableId.names);
-      if(table == null) {
+      final Optional<RelDataType> type = catalog.getTableSchema(tableId.names);
+      if (!type.isPresent()) {
         throw UserException.validationError()
-        .message("Unknown table [%s]", path)
-        .build(logger);
+          .message("Unknown table [%s]", path)
+          .build(logger);
       }
 
-      final RelDataType type = table.getRowType();
       List<DescribeResult> columns = new ArrayList<>();
       String column = null;
       final SqlIdentifier col = node.getColumn();
-      if(col != null){
+      if (col != null) {
         final List<String> names = col.names;
-        if(names.size() > 1){
+        if (names.size() > 1) {
           throw UserException.validationError().message("You can only describe single component paths. You tried to describe [%s].", Joiner.on('.').join(names)).build(logger);
         }
         column = col.getSimple();
       }
 
-      for(RelDataTypeField field : type.getFieldList()){
+      for (RelDataTypeField field : type.get().getFieldList()) {
         Column c = new Column("dremio", path.getParent().toUnescapedString(), path.getLeaf(), field);
-        if(column == null || column.equals(field.getName())){
+        if (column == null || column.equals(field.getName())) {
           Integer precision = c.NUMERIC_PRECISION;
           Integer scale = c.NUMERIC_SCALE;
           DescribeResult r = new DescribeResult(field.getName(), c.DATA_TYPE, precision, scale);
@@ -80,6 +80,8 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
         }
       }
       return columns;
+    } catch (AccessControlException e) {
+      throw UserException.permissionError().message("Not authorized to describe table.").build(logger);
     } catch (Exception ex) {
       throw UserException.planError(ex)
           .message("Error while rewriting DESCRIBE query: %s", ex.getMessage())

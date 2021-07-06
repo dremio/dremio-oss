@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Divider from '@material-ui/core/Divider';
+
+import { showCuration } from '@inject/pages/ExplorePage/utils';
 
 import Menu from './Menu';
 
@@ -28,8 +29,7 @@ import ReplaceGroup from './ActionGroups/ReplaceGroup';
 import OtherGroup from './ActionGroups/OtherGroup';
 
 @Radium
-@pureRender
-export default class ColumnActionMenu extends Component {
+export default class ColumnActionMenu extends PureComponent {
   static propTypes = {
     columnType: PropTypes.string,
     columnName: PropTypes.string,
@@ -85,16 +85,16 @@ export default class ColumnActionMenu extends Component {
           makeTransform={this.makeTransform}
           columnType={columnType}
         />
-        {this.renderDivider([SqlGroup, ReplaceGroup, OtherGroup])}
-        <ReplaceGroup
+        {showCuration() && this.renderDivider([SqlGroup, ReplaceGroup, OtherGroup])}
+        {showCuration() && <ReplaceGroup
           makeTransform={this.makeTransform}
           columnType={columnType}
-        />
-        {this.renderDivider([ReplaceGroup, OtherGroup])}
-        <OtherGroup
+        />}
+        {showCuration() && this.renderDivider([ReplaceGroup, OtherGroup])}
+        {showCuration() && <OtherGroup
           makeTransform={this.makeTransform}
           columnType={columnType}
-        />
+        />}
       </Menu>
     );
   }

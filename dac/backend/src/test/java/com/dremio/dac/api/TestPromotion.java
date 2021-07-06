@@ -84,7 +84,7 @@ public class TestPromotion extends BaseTestServer {
   @Test
   public void file() throws Exception {
     doc("browse to the json directory");
-    String id = getFolderIdByName(source.getChildren(), "\"json\"");
+    String id = getFolderIdByName(source.getChildren(), "json");
     assertNotNull(id, "Failed to find json directory");
 
     doc("load the json dir");
@@ -103,7 +103,7 @@ public class TestPromotion extends BaseTestServer {
       List<String> path = item.getPath();
       // get the numbers.json file
       if (item.getType() == CatalogItem.CatalogItemType.FILE &&
-          path.get(path.size() - 1).equals("\"numbers.json\"")) {
+          path.get(path.size() - 1).equals("numbers.json")) {
         fileId = item.getId();
         break;
       }
@@ -181,7 +181,7 @@ public class TestPromotion extends BaseTestServer {
   @Test
   public void folder() {
     doc("browse to the json directory");
-    String id = getFolderIdByName(source.getChildren(), "\"json\"");
+    String id = getFolderIdByName(source.getChildren(), "json");
     assertNotNull(id, "Failed to find json directory");
 
     doc("load the json dir");
@@ -196,7 +196,7 @@ public class TestPromotion extends BaseTestServer {
 
 
     doc("promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)");
-    String folderId = getFolderIdByName(source.getChildren(), "\"datasets\"");
+    String folderId = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(folderId, "Failed to find datasets directory");
 
     Folder dsFolder = expectSuccess(
@@ -207,7 +207,7 @@ public class TestPromotion extends BaseTestServer {
         new GenericType<Folder>() {}
     );
 
-    String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "\"folderdataset\"");
+    String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
     doc("we want to use the path that the backend gives us so fetch the full folder");

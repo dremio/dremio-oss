@@ -1,0 +1,3 @@
+{"commitInfo":{"timestamp":1618769743075,"operation":"DELETE","operationParameters":{"predicate":"[\"(`continent` = 'Oceania')\"]"},"readVersion":6,"isBlindAppend":false,"operationMetrics":{"numRemovedFiles":"1"}}}
+{"remove":{"path":"continent=Oceania/part-00000-91d9e13d-b7a6-4d0a-b173-e172bc5dfad6.c000.snappy.parquet","deletionTimestamp":1618769742944,"dataChange":true,"extendedFileMetadata":true,"partitionValues":{"continent":"Oceania"},"size":12161}}
+{"remove":{"path":"continent=South%20America/part-00000-44b6dd9b-c71c-4d18-b91f-ee712f7a3b0c.c000.snappy.parquet","partitionValues":{"continent":"South America"},"size":12267,"modificationTime":1618768947000,"dataChange":true}}

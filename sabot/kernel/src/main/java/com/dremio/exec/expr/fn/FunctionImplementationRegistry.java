@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -33,8 +31,14 @@ import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.options.OptionManager;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.inject.AbstractModule;
+import com.google.inject.ConfigurationException;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.ProvisionException;
 
 /**
  * This class offers the registry for functions. Notably, in addition to Dremio its functions
@@ -46,7 +50,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
   protected List<PrimaryFunctionRegistry> primaryFunctionRegistries = Lists.newArrayList();
   protected FunctionRegistry functionRegistry;
-  private List<PluggableFunctionRegistry> pluggableFuncRegistries = Lists.newArrayList();
+  private final List<PluggableFunctionRegistry> pluggableFuncRegistries;
   private OptionManager optionManager = null;
   private static final Set<String> aggrFunctionNames = Sets.newHashSet("sum", "$sum0", "min",
     "max", "hll");
@@ -61,9 +65,26 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     Set<Class<? extends PluggableFunctionRegistry>> registryClasses =
         classpathScan.getImplementations(PluggableFunctionRegistry.class);
 
+    // Create a small Guice module
+    final Injector injector = Guice.createInjector(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(SabotConfig.class).toInstance(config);
+        bind(ScanResult.class).toInstance(classpathScan);
+      }
+    });
+
+    final ImmutableList.Builder<PluggableFunctionRegistry> registries = ImmutableList.builder();
     for (Class<? extends PluggableFunctionRegistry> clazz : registryClasses) {
-      instantiateAndAddRepo(config, clazz);
+      try {
+        PluggableFunctionRegistry registry = injector.getInstance(clazz);
+        registries.add(registry);
+      } catch (ProvisionException | ConfigurationException e) {
+        logger.warn("Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
+      }
     }
+
+    pluggableFuncRegistries = registries.build();
 
     logger.info("Function registry loaded. Functions loaded in {} ms.", w.elapsed(TimeUnit
       .MILLISECONDS));
@@ -76,26 +97,6 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     // if gandiva is preferred code generator, the function would be replaced later.
     primaryFunctionRegistries.add(functionRegistry);
     primaryFunctionRegistries.add(new GandivaFunctionRegistry(isDecimalV2Enabled));
-  }
-
-  private void instantiateAndAddRepo(SabotConfig config, Class<? extends PluggableFunctionRegistry> clazz) {
-    for (Constructor<?> c : clazz.getConstructors()) {
-      Class<?>[] params = c.getParameterTypes();
-      if (params.length != 1 || params[0] != SabotConfig.class) {
-        logger.warn("Skipping PluggableFunctionRegistry constructor {} for class {} since it doesn't implement a " +
-            "[constructor(SabotConfig)]", c, clazz);
-        continue;
-      }
-
-      try {
-        PluggableFunctionRegistry registry = (PluggableFunctionRegistry)c.newInstance(config);
-        pluggableFuncRegistries.add(registry);
-      } catch(InstantiationException | IllegalAccessException | IllegalArgumentException |
-          InvocationTargetException e) {
-        logger.warn("Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
-      }
-
-    }
   }
 
   public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan, OptionManager optionManager) {
@@ -217,6 +218,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     return functionRegistry;
   }
 
+  @Override
   public boolean isDecimalV2Enabled() {
     return isDecimalV2Enabled;
   }

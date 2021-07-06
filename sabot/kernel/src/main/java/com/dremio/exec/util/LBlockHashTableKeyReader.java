@@ -160,8 +160,8 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
                     int keySizeForCopy = Math.min(allocatedLen, keyFieldLength);
                     int offset = keyBufValueOffset;
                     if (setVarFieldLenInFirstByte) {
-                        keyBuf.setByte(offset++, (byte) keySizeForCopy);
                         keySizeForCopy = (keySizeForCopy==allocatedLen) ? keySizeForCopy - 1:keySizeForCopy;
+                        keyBuf.setByte(offset++, (byte) keySizeForCopy);
                         allocatedLen--;
                     }
                     Copier.copy(keyAddr + 4, keyBuf.memoryAddress() + offset + allocatedLen - keySizeForCopy, keySizeForCopy);

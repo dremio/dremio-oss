@@ -32,8 +32,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -57,6 +55,7 @@ import org.apache.orc.OrcConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.store.RecordReader;
@@ -73,7 +72,9 @@ import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -83,6 +84,7 @@ import com.google.common.collect.FluentIterable;
  * Helper class for {@link HiveScanBatchCreator} to create a {@link ProducerOperator} that uses readers provided by
  * Hive.
  */
+@SuppressForbidden
 class ScanWithHiveReader {
   private static final Logger logger = LoggerFactory.getLogger(ScanWithHiveReader.class);
 
@@ -168,10 +170,12 @@ class ScanWithHiveReader {
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
-      final HiveProxyingSubScan config,
       final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
       final UserGroupInformation readerUGI,
+      final ScanFilter scanFilter,
+      final boolean isPartitioned,
+      final Collection<List<String>> referencedTables,
       List<SplitAndPartitionInfo> splits){
 
     if(splits.isEmpty()) {
@@ -179,19 +183,21 @@ class ScanWithHiveReader {
     }
 
     final List<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>> readers = FluentIterable.from(splits).transform(split ->
-            readerUGI.doAs((PrivilegedAction<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>>) () -> {
-              final Supplier<RecordReader> innerReader = () -> compositeReader.wrapIfNecessary(context.getAllocator(),
-                      getRecordReader(tableXattr, context, hiveConf, split, compositeReader, config, readerUGI),
-                      split);
-              return Pair.of(split, innerReader);
-            })).toList();
+      readerUGI.doAs((PrivilegedAction<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>>) () -> {
+        final Supplier<RecordReader> innerReader = () -> compositeReader.wrapIfNecessary(context.getAllocator(),
+          getRecordReader(tableXattr, context, hiveConf, split, compositeReader, readerUGI, scanFilter,
+            isPartitioned, referencedTables),
+          split);
+        return Pair.of(split, innerReader);
+      })).toList();
     return new HiveRecordReaderIterator(context, compositeReader, readers);
   }
 
   private static RecordReader getRecordReader(HiveTableXattr tableXattr,
                                               OperatorContext context, HiveConf hiveConf,
                                               SplitAndPartitionInfo split, CompositeReaderConfig compositeReader,
-                                              HiveProxyingSubScan config, UserGroupInformation readerUgi) {
+                                              UserGroupInformation readerUgi, ScanFilter scanFilter, boolean isPartitioned,
+                                              Collection<List<String>> referencedTables) {
     try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final HiveSplitXattr splitXattr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
       final JobConf jobConf = new JobConf(hiveConf);
@@ -199,7 +205,6 @@ class ScanWithHiveReader {
       addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
 
       final boolean isTransactional = AcidUtils.isTablePropertyTransactional(jobConf);
-      final boolean isPartitioned = config.getPartitionColumns()!=null && config.getPartitionColumns().size() > 0;
       final Optional<String> tableInputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
 
       final SerDe tableSerDe = createSerDe(jobConf, HiveReaderProtoUtil.getTableSerializationLib(tableXattr).get(),
@@ -246,6 +251,7 @@ class ScanWithHiveReader {
 
         } else {
           logger.debug("Reading partition properties from PartitionChunk");
+          // TODO
           final PartitionXattr partitionXattr = HiveReaderProtoUtil.getPartitionXattr(split);
           partitionPropertiesList = HiveReaderProtoUtil.getPartitionProperties(tableXattr, partitionXattr);
           addProperties(jobConf, partitionProperties, partitionPropertiesList);
@@ -260,6 +266,7 @@ class ScanWithHiveReader {
 
         jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName));
         partitionOI = getStructOI(partitionSerDe);
+        updateFileFormatStat(context.getStats(), partitionInputFormat);
 
         if (!partitionInputFormat.equals(tableInputFormat) || isTransactional && hasDeltas) {
           final Class<? extends HiveAbstractReader> partitionReaderClass = getNativeReaderClass(
@@ -270,11 +277,12 @@ class ScanWithHiveReader {
         partitionSerDe = null;
         partitionOI = null;
         jobConf.setInputFormat(getInputFormatClass(jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr)));
+        updateFileFormatStat(context.getStats(), tableInputFormat);
       }
 
       return readerCtor.newInstance(tableXattr, split,
               compositeReader.getInnerColumns(), context, jobConf, tableSerDe, tableOI, partitionSerDe,
-              partitionOI, config.getFilter(), config.getReferencedTables(), readerUgi);
+              partitionOI, scanFilter, referencedTables, readerUgi);
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
@@ -297,5 +305,25 @@ class ScanWithHiveReader {
 
     final Path[] deltas = AcidUtils.deserializeDeltas(root, orcSplit.getDeltas());
     return deltas.length > 0;
+  }
+
+  private static void updateFileFormatStat(OperatorStats stats, Optional<String> formatName) {
+    if (!formatName.isPresent()) {
+      return;
+    }
+    long fileFormat;
+    if (formatName.get().equals(OrcInputFormat.class.getCanonicalName())) {
+      fileFormat = (1 << ScanOperator.HiveFileFormat.ORC.ordinal());
+    } else if (formatName.get().equals(AvroContainerInputFormat.class.getCanonicalName())) {
+      fileFormat = (1 << ScanOperator.HiveFileFormat.AVRO.ordinal());
+    } else if (formatName.get().equals(RCFileInputFormat.class.getCanonicalName())) {
+      fileFormat = (1 << ScanOperator.HiveFileFormat.RCFILE.ordinal());
+    } else if (formatName.get().equals(TextInputFormat.class.getCanonicalName())) {
+      fileFormat = (1 << ScanOperator.HiveFileFormat.TEXT.ordinal());
+    } else {
+      fileFormat = (1 << ScanOperator.HiveFileFormat.OTHER.ordinal());
+    }
+    stats.setLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS,
+      stats.getLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS) | fileFormat);
   }
 }

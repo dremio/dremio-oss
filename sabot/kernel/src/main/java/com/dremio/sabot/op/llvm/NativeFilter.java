@@ -64,7 +64,7 @@ public class NativeFilter implements AutoCloseable {
   static public NativeFilter build(LogicalExpression expr, VectorAccessible input,
                                    SelectionVector2 selectionVector, FunctionContext functionContext,
                                    boolean optimize, boolean targetHostCPU) throws GandivaException {
-    Set referencedFields = Sets.newHashSet();
+    Set<ReferencedField> referencedFields = Sets.newHashSet();
     Condition condition = GandivaExpressionBuilder.serializeExprToCondition(input, expr, referencedFields, functionContext);
     VectorSchemaRoot root = GandivaUtils.getSchemaRoot(input, referencedFields);
     ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
@@ -110,6 +110,5 @@ public class NativeFilter implements AutoCloseable {
   public void close() throws GandivaException {
     filter.close();
   }
-
 }
 

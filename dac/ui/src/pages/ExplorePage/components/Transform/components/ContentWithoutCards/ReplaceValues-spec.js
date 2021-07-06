@@ -107,7 +107,7 @@ describe('ReplaceValues', () => {
       const wrapper = shallow(<ReplaceValues {...brokenProps}/>);
       const instance = wrapper.instance();
 
-      expect(instance.renderSelectedValuesCount()).to.be.empty;
+      expect(instance.renderSelectedValuesCount()).to.be.undefined;
     });
     it('should throw an error if fields is not present', () => {
       const noFieldProps = {

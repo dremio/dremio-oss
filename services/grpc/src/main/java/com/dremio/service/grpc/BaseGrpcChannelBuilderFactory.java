@@ -35,16 +35,16 @@ import io.opentracing.contrib.grpc.TracingClientInterceptor;
 /**
  * Base class for grpc channel builder factory.
  */
-class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
+public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
   private final Tracer tracer;
   private final Set<ClientInterceptor> interceptors;
   private final Provider<Map<String, Object>> defaultServiceConfigProvider;
 
-  BaseGrpcChannelBuilderFactory(Tracer tracer) {
+  public BaseGrpcChannelBuilderFactory(Tracer tracer) {
     this(tracer, Collections.emptySet(), () -> Maps.newHashMap());
   }
 
-  BaseGrpcChannelBuilderFactory(Tracer tracer, Set<ClientInterceptor> interceptors,
+  public BaseGrpcChannelBuilderFactory(Tracer tracer, Set<ClientInterceptor> interceptors,
                                 Provider<Map<String, Object>> defaultServiceConfigProvider) {
     this.tracer = new GrpcTracerFacade((TracerFacade) tracer);
     this.interceptors = Sets.newHashSet(interceptors);
@@ -103,6 +103,8 @@ class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
 
   /* Decorates a ManagedChannelBuilder with default properties.   */
   private void addDefaultBuilderProperties(ManagedChannelBuilder<?> builder, Map<String, Object> defaultServiceConfigProvider) {
+    final int setMaxMetaDataSizeToEightMB = 8388608;
+    final int defaultMaxInboundMessageSize = Integer.MAX_VALUE;
     final TracingClientInterceptor tracingInterceptor = TracingClientInterceptor
       .newBuilder()
       .withTracer(tracer)
@@ -114,6 +116,8 @@ class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
     builder.intercept(tracingInterceptor)
       .enableRetry()
       .defaultServiceConfig(defaultServiceConfigProvider)
+      .maxInboundMetadataSize(setMaxMetaDataSizeToEightMB)
+      .maxInboundMessageSize(defaultMaxInboundMessageSize)
       .maxRetryAttempts(MAX_RETRY);
   }
 }

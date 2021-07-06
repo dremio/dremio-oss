@@ -94,5 +94,9 @@ public class ReleasingData extends JobDataFragmentImpl implements ReleaseAfterSe
         .collect(Collectors.toList())
       );
     }
+
+    public int size() {
+      return batches.size();
+    }
   }
 }

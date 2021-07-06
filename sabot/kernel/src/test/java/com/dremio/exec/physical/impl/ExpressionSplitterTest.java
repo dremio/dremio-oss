@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.impl;
 
+import static com.dremio.sabot.Fixtures.NULL_BIGINT;
 import static com.dremio.sabot.Fixtures.date;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
@@ -35,6 +36,7 @@ import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.ExpressionStringBuilder;
@@ -43,6 +45,7 @@ import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
+import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
@@ -424,6 +427,31 @@ public class ExpressionSplitterTest extends BaseTestFunction {
       new Split(false, "_xxx4", "(if (_xxx2) then (casttimestamp(909619200000l)) else (cast((__$internal_null$__) as timestamp)) end)", 3, 1, "_xxx2"),
       new Split(true, "_xxx5", "(if (_xxx2) then(greater_than(_xxx3, _xxx4)) else (false) end)", 4, 1, "_xxx2", "_xxx3", "_xxx4"),
       new Split(false, "_xxx6", "(if (_xxx5) then(casttimestamp(1395822273000l)) else(casttimestamp(1395822273999l)) end)", 5, 0, "_xxx5")
+    };
+    splitAndVerify(query, input, output, splits, annotator);
+  }
+
+  @Test
+  public void testConstantExpression() throws Exception {
+    GandivaAnnotator annotator = new GandivaAnnotator("castTIMESTAMP");
+    String query = "case " +
+      "when castTIMESTAMP(698457600000l) > 3l then castTIMESTAMP(1395822273999l) " +
+      "else castTIMESTAMP(1396762453000l) end";
+
+    Fixtures.Table input = Fixtures.t(
+      th("c0"),
+      tr(date("2001-01-01"))
+    );
+
+    Fixtures.Table output = Fixtures.t(
+      th("out"),
+      tr(ts("2014-03-26T08:24:33.999"))
+    );
+
+    Split[] splits = {
+      new Split(false, "_xxx0", "greater_than(castTIMESTAMP(698457600000l), castTIMESTAMP(3l))", 1, 1),
+      new Split(true,"_xxx1",
+        "(if (_xxx0 ) then (castTIMESTAMP(1395822273999l))  else (castTIMESTAMP(1396762453000l)) end)", 2, 0, "_xxx0")
     };
     splitAndVerify(query, input, output, splits, annotator);
   }
@@ -1040,6 +1068,31 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     splitAndVerify(query, input, output, expSplits, annotator);
   }
 
+  @Test
+  public void testTruncAndNullCast() throws Exception {
+    GandivaAnnotator annotator = new GandivaAnnotator();
+
+    String query = "trunc(extractYear(cast((__$INTERNAL_NULL$__) as TIMESTAMP)))";
+    Fixtures.Table input = Fixtures.split(
+      th("c0"),
+      1,
+      tr(ts("2014-02-01T17:20:34")),
+      tr(ts("2019-02-01T17:20:36")),
+      tr(ts("2015-02-01T17:20:50"))
+    );
+    Fixtures.Table output = t(
+      th("out"),
+      tr(NULL_BIGINT),
+      tr(NULL_BIGINT),
+      tr(NULL_BIGINT)
+    );
+    Split[] expSplits = new Split[]{
+      new Split(false, "_xxx0", "trunc(extractyear(cast((__$INTERNAL_NULL$__) as TIMESTAMP)))", 1, 0)
+    };
+
+    splitAndVerify(query, input, output, expSplits, annotator);
+  }
+
   // Converts an expression to a tree
   // Uses the schema to convert reads to column names
   private class ExprToString extends ExpressionStringBuilder {
@@ -1170,6 +1223,29 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     }
 
     @Override
+    public CodeGenContext visitCaseExpression(CaseExpression caseExpression, Void value) throws GandivaException {
+      List<LogicalExpression> expressions = new ArrayList<>();
+      List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+      for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+        LogicalExpression whenExpr = conditionNode.whenExpr.accept(this, value);
+        LogicalExpression thenExpr = conditionNode.thenExpr.accept(this, value);
+        CaseExpression.CaseConditionNode newConditionExpression = new CaseExpression.CaseConditionNode(whenExpr, thenExpr);
+        caseConditions.add(newConditionExpression);
+        expressions.add(whenExpr);
+        expressions.add(thenExpr);
+      }
+      CodeGenContext elseExpr = caseExpression.elseExpr.accept(this, value);
+      expressions.add(elseExpr);
+      CaseExpression result = CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+      CodeGenContext caseExpr = new CodeGenContext(result);
+      caseExpr.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      if (allExpressionsSupported(expressions)) {
+        caseExpr.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+      }
+      return caseExpr;
+    }
+
+    @Override
     public CodeGenContext visitBooleanOperator(BooleanOperator op, Void value) throws GandivaException {
       List<LogicalExpression> argsContext = Lists.newArrayList();
       for(LogicalExpression e : op.args) {
@@ -1246,6 +1322,11 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     @Override
     public CodeGenContext visitQuotedStringConstant(ValueExpressions.QuotedString e, Void value) {
+      return annotateWithGandivaSupport(e);
+    }
+
+    @Override
+    public CodeGenContext visitNullConstant(TypedNullConstant e, Void value) throws GandivaException {
       return annotateWithGandivaSupport(e);
     }
   }

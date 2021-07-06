@@ -16,12 +16,13 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 
 /**
  * A Factory interface to create {@code org.apache.calcite.plan.SubstitutionProvider} based on context
  *
  */
 public interface SubstitutionProviderFactory {
-  public SubstitutionProvider getSubstitutionProvider(SabotConfig config, MaterializationProvider materializationProvider, OptionManager options);
+  SubstitutionProvider getSubstitutionProvider(SabotConfig config,
+      MaterializationProvider materializationProvider, OptionResolver options);
 }

@@ -72,7 +72,7 @@ public class IcebergFormatDatasetAccessor implements FileDatasetHandle {
     this.formatPlugin = formatPlugin;
     this.oldConfig = oldConfig;
     this.tableWrapper = new IcebergTableWrapper(formatPlugin.getContext(), fs,
-      fsPlugin.getFsConfCopy(), fileSelection.getSelectionRoot());
+      fsPlugin.getIcebergModel(), fileSelection.getSelectionRoot());
   }
 
   @Override

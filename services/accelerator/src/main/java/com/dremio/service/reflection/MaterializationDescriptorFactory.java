@@ -16,6 +16,7 @@
 package com.dremio.service.reflection;
 
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
@@ -31,5 +32,6 @@ public interface MaterializationDescriptorFactory {
       final ReflectionGoal reflectionGoal,
       final ReflectionEntry reflectionEntry,
       final Materialization materialization,
-      double originalCost);
+      double originalCost,
+      final CatalogService catalogService);
 }

@@ -1,0 +1,287 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.exec.store.metadatarefresh.footerread;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.logging.log4j.util.TriConsumer;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
+import com.dremio.exec.util.VectorUtil;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorContextImpl;
+import com.dremio.service.namespace.file.proto.FileConfig;
+import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Resources;
+
+/**
+ * Tests for {@link FooterReadTableFunction}
+ */
+public class TestFooterReadTableFunction extends BaseTestQuery {
+
+  private static FileSystem fs;
+  private static long currentTime;
+  private VectorContainer incoming;
+  private VectorAccessible outgoing;
+  private TriConsumer<String, Long, Long> incomingRow;
+  private VarBinaryVector partitionVector;
+
+  @BeforeClass
+  public static void initialise() throws IOException {
+    fs = HadoopFileSystem.getLocal(new Configuration());
+    currentTime = System.currentTimeMillis();
+  }
+
+  @Before
+  public void setupInputs() throws URISyntaxException {
+    VarCharVector pathVector = new VarCharVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH, allocator);
+    BigIntVector sizeVector = new BigIntVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE, allocator);
+    BigIntVector mtimeVector = new BigIntVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME, allocator);
+    BitVector isDeletedFile = new BitVector(MetadataRefreshExecConstants.isDeletedFile, allocator);
+    partitionVector = new VarBinaryVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.PARTITION_INFO, allocator);
+    incoming = new VectorContainer();
+    List<ValueVector> incomingVectors = ImmutableList.of(pathVector, sizeVector, mtimeVector, partitionVector, isDeletedFile);
+    incoming.addCollection(incomingVectors);
+    incomingVectors.forEach(ValueVector::allocateNew);
+
+    AtomicInteger counter = new AtomicInteger(0);
+    Path tableRoot = Path.of(Resources.getResource("parquet/").toURI());
+    incomingRow = (path, size, mtime) -> {
+      int idx = counter.getAndIncrement();
+      pathVector.set(idx, tableRoot.resolve(path).toString().getBytes(StandardCharsets.UTF_8));
+      sizeVector.set(idx, size);
+      mtimeVector.set(idx, mtime);
+      isDeletedFile.set(idx, 0);
+    };
+  }
+
+  @After
+  public void close() throws Exception {
+    incoming.close();
+    AutoCloseables.close(outgoing);
+  }
+
+  @Test
+  public void testFooterReadTableFunctionForFSTables() {
+    FooterReadTableFunction tableFunction = new FooterReadTableFunction(null, getOpCtx(), null, getConfig(null));
+    tableFunction.setFs(fs);
+
+    incomingRow.accept("int96.parquet", 431L, currentTime);
+    incomingRow.accept("decimals.parquet", 12219L, currentTime);
+    incomingRow.accept("intTypes/int_8.parquet", 343L, currentTime);
+    incomingRow.accept("empty.parquet", 0L, currentTime);
+    incomingRow.accept("complex.parquet", 817L, currentTime);
+    incomingRow.accept("alltypes.json", 5097L, currentTime);
+    incomingRow.accept("arrl_2.parquet", 1062L, currentTime); // this requires reading records to figure out schema
+
+    try {
+      BatchSchema file0Schema = BatchSchema.of(
+        Field.nullablePrimitive("varchar_field", new ArrowType.PrimitiveType.Utf8()),
+        Field.nullablePrimitive("dir0", new ArrowType.PrimitiveType.Utf8()),
+        Field.nullablePrimitive("dir1", new ArrowType.PrimitiveType.Utf8()),
+        Field.nullablePrimitive("timestamp_field", new ArrowType.PrimitiveType.Timestamp(TimeUnit.MILLISECOND, null)));
+      PartitionSpec file0PartitionSpec = IcebergUtils.getIcebergPartitionSpec(file0Schema, Arrays.asList("dir0", "dir1"), null);
+      IcebergPartitionData file0PartitionData = new IcebergPartitionData(file0PartitionSpec.partitionType());
+      file0PartitionData.setString(0, "partition0");
+      file0PartitionData.setString(1, "partition1");
+      partitionVector.set(0, IcebergSerDe.serializeToByteArray(file0PartitionData));
+
+      BatchSchema file2Schema = BatchSchema.of(
+        Field.nullablePrimitive("value", new ArrowType.PrimitiveType.Int(32, true)),
+        Field.nullablePrimitive("dir0", new ArrowType.PrimitiveType.Int(32, true)),
+        Field.nullablePrimitive("dir1", new ArrowType.PrimitiveType.Int(32, true)),
+        Field.nullablePrimitive("index", new ArrowType.PrimitiveType.Int(32, true)));
+
+      PartitionSpec file2PartitionSpec = IcebergUtils.getIcebergPartitionSpec(file2Schema, Arrays.asList("dir0", "dir1"), null);
+      IcebergPartitionData file2PartitionData = new IcebergPartitionData(file2PartitionSpec.partitionType());
+      file2PartitionData.setInteger(0, 324);
+      file2PartitionData.setInteger(1, 189);
+      partitionVector.set(2, IcebergSerDe.serializeToByteArray(file2PartitionData));
+
+      incoming.setAllCount(7);
+      incoming.buildSchema();
+      outgoing = tableFunction.setup(incoming);
+
+      VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
+
+      VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+
+      tableFunction.startRow(0);
+      assertEquals(1, tableFunction.processRow(0, 5));
+
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), file0Schema, file0PartitionData);
+
+      assertEquals(0, tableFunction.processRow(1, 5)); // one input row returns at most output 1 row
+      tableFunction.closeRow();
+
+      tableFunction.startRow(1);
+      assertEquals(1, tableFunction.processRow(1, 5));
+      verifyOutput(outputDatafileVector.get(1), outputSchemaVector.get(1),
+        BatchSchema.of(Field.nullable("EXPR$0", new ArrowType.Decimal(32, 20))),
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()));
+      tableFunction.closeRow();
+
+      tableFunction.startRow(2);
+      assertEquals(1, tableFunction.processRow(2, 5));
+      verifyOutput(outputDatafileVector.get(2), outputSchemaVector.get(2), file2Schema, file2PartitionData);
+      tableFunction.closeRow();
+
+      // empty parquet, outputs 0 rows
+      tableFunction.startRow(3);
+      assertEquals(0, tableFunction.processRow(3, 5));
+      tableFunction.closeRow();
+
+      tableFunction.startRow(4);
+      assertEquals(1, tableFunction.processRow(3, 5));
+      tableFunction.closeRow();
+
+      // json, outputs 0 rows
+      tableFunction.startRow(5);
+      assertEquals(0, tableFunction.processRow(4, 5));
+      tableFunction.closeRow();
+
+      tableFunction.startRow(6);
+      assertEquals(1, tableFunction.processRow(4, 5));
+      tableFunction.closeRow();
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail(e.getMessage());
+    }
+  }
+
+  @Test
+  public void testFooterReadTableFunctionForHiveTables() {
+    incomingRow.accept("int96.parquet", 431L, currentTime);
+    // For hive case, we are setting the table schema to later check that outputSchemaVector returns the same schema
+    // and doesn't learns the schema from the input file.
+    BatchSchema tableSchema = BatchSchema.EMPTY;
+    TableFunctionConfig tableFunctionConfig = getConfig(tableSchema);
+    FooterReadTableFunction tableFunction = new FooterReadTableFunction(null, getOpCtx(), null, tableFunctionConfig);
+    tableFunction.setFs(fs);
+
+    try {
+      incoming.setAllCount(1);
+      incoming.buildSchema();
+      outgoing = tableFunction.setup(incoming);
+
+      VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
+
+      VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+
+      tableFunction.startRow(0);
+
+      assertEquals(1, tableFunction.processRow(0, 5));
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), tableSchema, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()));
+    }
+    catch (Exception e) {
+      e.printStackTrace();
+      fail(e.getMessage());
+    }
+  }
+
+
+  private void verifyOutput(byte[] outputDataFileBinary, byte[] outputSchemaBinary, BatchSchema expectedSchema,
+                            IcebergPartitionData expectedPartitionData) throws IOException, ClassNotFoundException {
+    BatchSchema actualSchema = BatchSchema.deserialize(outputSchemaBinary);
+    assertTrue(expectedSchema.equalsTypesWithoutPositions(actualSchema));
+    IcebergMetadataInformation icebergMetaInfo = IcebergSerDe.deserializeFromByteArray(outputDataFileBinary);
+    assertEquals(IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE, icebergMetaInfo.getIcebergMetadataFileType());
+    DataFile actualDataFile = IcebergSerDe.deserializeDataFile(icebergMetaInfo.getIcebergMetadataFileByte());
+    int partitions = actualDataFile.partition().size();
+    assertEquals(expectedPartitionData.size(), actualDataFile.partition().size());
+
+    for(int i = 0; i < partitions; i++) {
+      Object expectedPartition = expectedPartitionData.get(i);
+      assertEquals(expectedPartition, actualDataFile.partition().get(i, expectedPartition.getClass()));
+    }
+  }
+
+  private static final Function<BatchSchema, List<SchemaPath>> pathsOfSchemaFields = (schema) -> schema.getFields()
+    .stream()
+    .map(f -> SchemaPath.getSimplePath(f.getName()))
+    .collect(Collectors.toList());
+
+  private static TableFunctionConfig getConfig(BatchSchema tableSchema) {
+
+    FileConfig fileConfig = new FileConfig();
+    fileConfig.setType(FileType.PARQUET);
+
+    TableFunctionContext functionContext = mock(TableFunctionContext.class);
+    when(functionContext.getFullSchema()).thenReturn(MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.BATCH_SCHEMA);
+    when(functionContext.getColumns()).thenReturn(pathsOfSchemaFields.apply(MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.BATCH_SCHEMA));
+    when(functionContext.getFormatSettings()).thenReturn(fileConfig);
+    when(functionContext.getTableSchema()).thenReturn(tableSchema);
+
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.FOOTER_READER, true,
+      functionContext);
+  }
+
+  private OperatorContext getOpCtx() {
+    SabotContext sabotContext = getSabotContext();
+    return new OperatorContextImpl(sabotContext.getConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+  }
+}
+

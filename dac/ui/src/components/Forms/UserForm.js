@@ -19,7 +19,7 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 
 import { FieldWithError, TextField, PasswordField } from 'components/Fields';
-import { applyValidators, isRequired, confirmPassword, isEmail } from 'utils/validation';
+import { applyValidators, isRequired, confirmPassword, isEmail, noDoubleQuotes, noColons } from 'utils/validation';
 import { formRow } from 'uiTheme/radium/forms';
 import {EDITION} from 'dyn-load/constants/serverStatus';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
@@ -51,7 +51,8 @@ export default class UserForm extends Component { // todo: rename, make proper "
   static validate = (values) => { // todo: loc
     const validators = [
       isRequired('firstName', 'First Name'), isRequired('lastName', 'Last Name'),
-      isRequired('userName', 'Username'), isEmail('email'), isRequired('email')
+      isRequired('userName', 'Username'), noDoubleQuotes('userName'),
+      noColons('userName'), isEmail('email'), isRequired('email')
     ];
     if (values.tag === undefined) { // only require password for a new user
       validators.push(isRequired('password'), isRequired('passwordVerify', la('Confirm Password')));

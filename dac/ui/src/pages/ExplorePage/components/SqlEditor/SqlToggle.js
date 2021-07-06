@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import { FormattedMessage, injectIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 import Art from 'components/Art';
@@ -27,9 +26,8 @@ import { toggleExploreSql } from 'actions/explore/ui';
 import { formLabel } from 'uiTheme/radium/typography';
 
 @injectIntl
-@pureRender
 @Radium
-export class SqlToggle extends Component {
+export class SqlToggle extends PureComponent {
 
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),

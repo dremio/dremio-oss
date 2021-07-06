@@ -52,7 +52,7 @@ public class UpdateS3CredentialType extends UpgradeTask implements LegacyUpgrade
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
 
     List<SourceConfig> sources = namespaceService.getSources();
 

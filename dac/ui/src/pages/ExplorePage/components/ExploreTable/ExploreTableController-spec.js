@@ -117,14 +117,14 @@ describe('ExploreTableController', () => {
       instance.transformPreconfirmed = true;
       const promise = instance.preconfirmTransform();
       expect(commonProps.transformHistoryCheck).to.not.be.called;
-      return expect(promise).to.be.resolved;
+      return expect(promise).to.be.fulfilled;
     });
 
     it('should call transformHistoryCheck if not confirmed', () => {
       const confirmCallback = sinon.spy();
       const promise = instance.preconfirmTransform(confirmCallback);
       expect(commonProps.transformHistoryCheck).to.be.called;
-      expect(promise).to.not.be.resolved;
+      expect(promise).to.not.be.fulfilled;
     });
 
     it('should reset transformPreconfirmed when table version changes', () => {

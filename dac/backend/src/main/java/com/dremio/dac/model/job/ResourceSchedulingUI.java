@@ -28,6 +28,7 @@ public class ResourceSchedulingUI {
   private final String ruleId;
   private final String ruleName;
   private final String ruleContent;
+  private final String engineName;
 
   @JsonCreator
   public ResourceSchedulingUI(
@@ -35,12 +36,14 @@ public class ResourceSchedulingUI {
     @JsonProperty("queueName")String queueName,
     @JsonProperty("ruleId")String ruleId,
     @JsonProperty("ruleName")String ruleName,
-    @JsonProperty("ruleContent")String ruleContent) {
+    @JsonProperty("ruleContent")String ruleContent,
+    @JsonProperty("engineName")String engineName) {
     this.queueId = queueId;
     this.queueName = queueName;
     this.ruleId = ruleId;
     this.ruleName = ruleName;
     this.ruleContent = ruleContent;
+    this.engineName = engineName;
   }
 
   public String getQueueId() {
@@ -61,5 +64,9 @@ public class ResourceSchedulingUI {
 
   public String getRuleContent() {
     return ruleContent;
+  }
+
+  public String getEngineName() {
+    return engineName;
   }
 }

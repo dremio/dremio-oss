@@ -171,4 +171,8 @@ public final class WithOptionsTableMacro implements TableMacro {
       throw new RuntimeException(e);
     }
   }
+
+  protected List<String> getTableSchemaPath() {
+    return tableSchemaPath;
+  }
 }

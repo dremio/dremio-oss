@@ -39,6 +39,11 @@ import com.dremio.exec.store.sys.OptionIterator.OptionValueWrapper;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationListManager.MaterializationInfo;
 import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionInfo;
+import com.dremio.exec.store.sys.accesscontrol.AccessControlListingManager;
+import com.dremio.exec.store.sys.accesscontrol.SysTableMembershipInfo;
+import com.dremio.exec.store.sys.accesscontrol.SysTablePrivilegeInfo;
+import com.dremio.exec.store.sys.accesscontrol.SysTableRoleInfo;
+import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.work.CacheManagerDatasetInfo;
 import com.dremio.exec.work.CacheManagerFilesInfo;
 import com.dremio.exec.work.CacheManagerMountPointInfo;
@@ -47,6 +52,7 @@ import com.dremio.exec.work.WorkStats.FragmentInfo;
 import com.dremio.exec.work.WorkStats.SlicingThreadInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.task.TaskPool;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -198,6 +204,61 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     @Override
     public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
       return TimezoneNames.getIterator();
+    }
+  },
+
+  ROLES(false, SysTableRoleInfo.class, "roles") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+      try {
+        final AccessControlListingManager accessControlListingManager = sabotContext.getAccessControlListingManager();
+        if (accessControlListingManager == null) {
+          throw new IllegalAccessException("Unable to retrieve sys.roles.");
+        }
+
+        return accessControlListingManager.getRoleInfo().iterator();
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+  },
+
+  PRIVILEGES(false, SysTablePrivilegeInfo.class, "privileges") {
+    @Override
+    public Iterator<?> getIterator (final SabotContext sabotContext, final OperatorContext operatorContext){
+      try {
+        final AccessControlListingManager accessControlListingManager = sabotContext.getAccessControlListingManager();
+        if (accessControlListingManager == null) {
+          throw new IllegalAccessException("Unable to retrieve sys.privileges.");
+        }
+
+        return accessControlListingManager.getPrivilegeInfo().iterator();
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+  },
+
+  MEMBERSHIP(false, SysTableMembershipInfo.class, "membership") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext operatorContext) {
+      try {
+        final AccessControlListingManager accessControlListingManager = sabotContext.getAccessControlListingManager();
+        if (accessControlListingManager == null) {
+          throw new IllegalAccessException("Unable to retrieve sys.membership.");
+        }
+
+        return accessControlListingManager.getMembershipInfo().iterator();
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+  },
+
+  TABLE_STATISTICS(false, StatisticsListManager.StatisticsInfo.class, "table_statistics") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return sContext.getStatisticsListManagerProvider().get().getStatisticsInfos().iterator();
     }
   };
 

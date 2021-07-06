@@ -60,4 +60,19 @@ public class TestFilterPastJoin extends PlanTestBase {
       "ON l_orderkey = o_orderkey AND l_orderkey = 32";
     testPlanMatchingPatterns(sql, new String[]{"(?s)Join.*Filter.*Filter"}, "(?s)Filter.*Join");
   }
+
+  @Test public void testMultiCorrelatedValueExists () throws Exception {
+    testPlanMatchingPatterns(
+        ""
+            + "SELECT o_orderkey\n"
+            + "FROM cp.\"tpch/orders.parquet\" AS lhs\n"
+            + "WHERE EXISTS (\n"
+            + "      SELECT rhs.l_orderkey\n"
+            + "      FROM (\n"
+            + "        SELECT l_orderkey, RANK() OVER (PARTITION BY l_orderkey ORDER BY l_shipdate DESC) AS \"qX01\"\n"
+            + "        FROM cp.\"tpch/lineitem.parquet\"\n"
+            + "      ) AS rhs\n"
+            + "      WHERE (\"qX01\" <= 1) AND (lhs.o_orderkey = rhs.l_orderkey)\n"
+            + ")", null, "Correl");
+  }
 }

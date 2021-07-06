@@ -26,8 +26,6 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
 
 import com.dremio.exec.store.hive.metadata.HiveMetadataUtils;
 import com.dremio.hive.proto.HiveReaderProto;
@@ -41,7 +39,6 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.protobuf.ByteString;
 import com.dremio.exec.store.hive.HiveStoragePlugin;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
 public class TestHiveScanBatchCreator {
   @Test
@@ -49,20 +46,16 @@ public class TestHiveScanBatchCreator {
     final String originalName = "Test";
     final String finalName = "Replaced";
 
-    final HiveScanBatchCreator creator = new HiveScanBatchCreator();
+    final OpProps props = mock(OpProps.class);
+    when(props.getUserName()).thenReturn(originalName);
 
     final HiveStoragePlugin plugin = mock(HiveStoragePlugin.class);
     when(plugin.getUsername(originalName)).thenReturn(finalName);
 
-    final FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
-    when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(plugin);
+    final HiveScanBatchCreator creator = mock(HiveScanBatchCreator.class);
+    when(creator.getUGI(any(), any())).thenCallRealMethod();
 
-    final OpProps props = mock(OpProps.class);
-    final HiveProxyingSubScan hiveSubScan = mock(HiveProxyingSubScan.class);
-    when(hiveSubScan.getProps()).thenReturn(props);
-    when(hiveSubScan.getProps().getUserName()).thenReturn(originalName);
-
-    final UserGroupInformation ugi = creator.getUGI(plugin, hiveSubScan);
+    final UserGroupInformation ugi = creator.getUGI(plugin, props);
     verify(plugin).getUsername(originalName);
     assertEquals(finalName, ugi.getUserName());
   }
@@ -100,10 +93,11 @@ public class TestHiveScanBatchCreator {
   }
 
   @Test
-  public void testAllSplitsAreOnS3() {
+  public void testAllSplitsAreOnS3() throws Exception {
     List<SplitAndPartitionInfo> s3Splits = buildSplits("s3");
     List<SplitAndPartitionInfo> hdfsplits = buildSplits("hdfs");
-    HiveScanBatchCreator scanBatchCreator = new HiveScanBatchCreator();
+    HiveScanBatchCreator scanBatchCreator = mock(HiveScanBatchCreator.class);
+    when(scanBatchCreator.allSplitsAreOnS3(any())).thenCallRealMethod();
     assertTrue(scanBatchCreator.allSplitsAreOnS3(s3Splits));
     assertFalse(scanBatchCreator.allSplitsAreOnS3(hdfsplits));
   }

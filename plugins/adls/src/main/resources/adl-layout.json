@@ -43,9 +43,6 @@
             "elements": [
               {
                 "propName": "config.enableAsync"
-              },
-              {
-                "propName": "config.allowCreateDrop"
               }
             ]
           },

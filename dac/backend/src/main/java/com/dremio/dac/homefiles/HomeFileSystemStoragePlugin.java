@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.RejectedExecutionException;
 
 import javax.inject.Provider;
 
@@ -37,6 +38,7 @@ import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
@@ -46,8 +48,8 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.dfs.MayBeDistFileSystemPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.file.proto.FileProtobuf;
@@ -69,7 +71,7 @@ import com.google.common.collect.Sets;
 /**
  * New storage plugin for home files
  */
-public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> {
+public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeFileConf> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HomeFileSystemStoragePlugin.class);
 
   static final Set<PosixFilePermission> DEFAULT_PERMISSIONS = Sets.immutableEnumSet(
@@ -114,7 +116,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
           getSystemUserFS().delete(stagingDir, true);
           FileSystemUtils.cancelDeleteOnExit(deleteHookKey);
         }
-      } catch (IOException ex) {
+      } catch (IOException| RejectedExecutionException ex) {
         logger.warn("Unable to delete staging directory when closing HomeFileSystemPlugin.", ex);
       }
       deleteHookKey = null;
@@ -168,7 +170,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
 
   @Override
   protected FileDatasetHandle getDatasetWithFormat(NamespaceKey datasetPath, PreviousDatasetInfo oldConfig, FormatPluginConfig formatPluginConfig, DatasetRetrievalOptions retrievalOptions, String user) throws Exception {
-    try{
+    try {
       final FileSystem fs = getSystemUserFS();
       final DatasetConfig datasetConfig = getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getDataset(datasetPath);
 
@@ -178,13 +180,26 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
 
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
 
-
       return getDataset(datasetPath, oldConfig, formatPlugin, fs, datasetConfig.getPhysicalDataset().getFormatSettings(), retrievalOptions.maxMetadataLeafColumns());
     } catch (NamespaceNotFoundException nfe){
       if(formatPluginConfig == null) {
         // a home file can only be read from the namespace or using a format options. Without either, it is invalid, return nothing.
         return null;
       }
+
+      // check that the user owns the home path
+      final HomeName userHomePath = HomeName.getUserHomePath(user);
+      final String stagingHome = PathUtils.toDottedPath(Path.mergePaths(Path.of(HOME_PLUGIN_NAME), this.stagingDir));
+
+      final Path path = PathUtils.toFSPath(datasetPath.getPathComponents());
+      if (PathUtils.toDottedPath(path).startsWith(stagingHome)) {
+        final String userStaging = PathUtils.toDottedPath(Path.mergePaths(Path.of(HOME_PLUGIN_NAME), Path.mergePaths(this.stagingDir, Path.of(userHomePath.getName()))));
+
+        if (!PathUtils.toDottedPath(path).startsWith(userStaging)) {
+          return null;
+        }
+      }
+
       return super.getDatasetWithFormat(new NamespaceKey(relativePath(datasetPath.getPathComponents(), getConfig().getPath())), oldConfig, formatPluginConfig, retrievalOptions, SystemUser.SYSTEM_USERNAME);
     }
   }

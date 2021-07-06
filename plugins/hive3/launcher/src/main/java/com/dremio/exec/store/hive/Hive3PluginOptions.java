@@ -43,6 +43,13 @@ public interface Hive3PluginOptions {
   BooleanValidator HIVE_USE_STATS_IN_METASTORE = new BooleanValidator(HIVE_USE_STATS_IN_METASTORE_KEY, false);
 
   /**
+   * Compression factor override for estimating the row count for hive parquet tables.
+   */
+  String HIVE_PARQUET_COMPRESSION_FACTOR_KEY = "store.hive3.parquet_compression_factor";
+  TypeValidators.DoubleValidator HIVE_PARQUET_COMPRESSION_FACTOR_VALIDATOR =
+    new TypeValidators.RangeDoubleValidator(HIVE_PARQUET_COMPRESSION_FACTOR_KEY, 0.01d, 100.00d, 30.00d);
+
+  /**
    * Partition batch size override, used mainly for testing.
    */
   String HIVE_PARTITION_BATCH_SIZE_KEY = "store.hive3.partition_batch_size";

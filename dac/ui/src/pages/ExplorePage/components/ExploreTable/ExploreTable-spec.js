@@ -310,9 +310,9 @@ describe('ExploreTable', () => {
       sinon.stub(instance, 'getScrollToColumn');
       sinon.stub(instance, 'updateSize');
     });
-    it('should update column with given width by index and update table size', () => {
-      instance.handleColumnResizeEnd(100, 0);
-      expect(wrapper.state('columns').getIn([0, 'width'])).to.be.eql(100);
+    it('should update current column with given width by column key and update table size', () => {
+      instance.handleColumnResizeEnd(100, 2);
+      expect(wrapper.state('columns').getIn([2, 'width'])).to.be.eql(100);
       expect(instance.updateSize).to.have.been.called;
     });
   });

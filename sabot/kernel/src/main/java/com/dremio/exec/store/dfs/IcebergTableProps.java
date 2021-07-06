@@ -18,8 +18,9 @@ package com.dremio.exec.store.dfs;
 import java.util.List;
 
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.IcebergOperation;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
@@ -29,8 +30,10 @@ public class IcebergTableProps {
   private final String uuid;
   private BatchSchema fullSchema;
   private List<String> partitionColumnNames;
-  private IcebergOperation.Type icebergOpType;
+  private IcebergCommandType icebergOpType;
   private String tableName;
+  private boolean detectSchema;
+  private boolean isMetadataRefresh;
 
   @JsonCreator
   public IcebergTableProps(
@@ -38,7 +41,7 @@ public class IcebergTableProps {
     @JsonProperty("uuid") String uuid,
     @JsonProperty("fullSchema") BatchSchema fullSchema,
     @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
-    @JsonProperty("icebergOpType") IcebergOperation.Type icebergOpType,
+    @JsonProperty("icebergOpType") IcebergCommandType icebergOpType,
     @JsonProperty("tableName") String tableName
     ) {
       this.tableLocation = tableLocation;
@@ -56,6 +59,8 @@ public class IcebergTableProps {
     this.fullSchema = other.fullSchema;
     this.icebergOpType = other.icebergOpType;
     this.tableName = other.tableName;
+    this.detectSchema = other.detectSchema;
+    this.isMetadataRefresh = other.isMetadataRefresh;
   }
 
   public String getTableLocation() {
@@ -70,7 +75,7 @@ public class IcebergTableProps {
     return fullSchema;
   }
 
-  public IcebergOperation.Type getIcebergOpType() {
+  public IcebergCommandType getIcebergOpType() {
     return icebergOpType;
   }
 
@@ -94,4 +99,24 @@ public class IcebergTableProps {
     this.tableName = tableName;
   }
 
+  public boolean isDetectSchema() {
+    return detectSchema;
+  }
+
+  public void setDetectSchema(boolean detectSchema) {
+    this.detectSchema = detectSchema;
+  }
+
+  public boolean isMetadataRefresh() {
+    return isMetadataRefresh;
+  }
+
+  public void setMetadataRefresh(boolean metadataRefresh) {
+    isMetadataRefresh = metadataRefresh;
+  }
+
+  @JsonIgnore
+  public boolean isSchemaSet() {
+    return fullSchema != null;
+  }
 }

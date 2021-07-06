@@ -17,12 +17,16 @@ package com.dremio.common.types;
 
 import static com.dremio.common.expression.CompleteType.BIGINT;
 import static com.dremio.common.expression.CompleteType.BIT;
+import static com.dremio.common.expression.CompleteType.DATE;
 import static com.dremio.common.expression.CompleteType.DECIMAL;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.LIST;
+import static com.dremio.common.expression.CompleteType.NULL;
 import static com.dremio.common.expression.CompleteType.STRUCT;
+import static com.dremio.common.expression.CompleteType.TIME;
+import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static com.dremio.common.types.SchemaUpPromotionRules.getResultantType;
 import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal;
@@ -67,9 +71,23 @@ public class TestSchemaUpPromotionRules {
     assertThat(getType(VARCHAR, DEC_10_5), is(VARCHAR));
     assertThat(getType(VARCHAR, DEC_18_18), is(VARCHAR));
     assertThat(getType(VARCHAR, DEC_38_0), is(VARCHAR));
+    assertThat(getType(VARCHAR, DATE), is(VARCHAR));
+    assertThat(getType(VARCHAR, TIME), is(VARCHAR));
+    assertThat(getType(VARCHAR, TIMESTAMP), is(VARCHAR));
     assertThat(getType(DECIMAL, INT), is(DECIMAL));
     assertThat(getType(DECIMAL, BIGINT), is(DECIMAL));
     assertThat(getType(DECIMAL, FLOAT), is(DECIMAL));
+    assertThat(getType(INT, NULL), is(INT));
+    assertThat(getType(BIGINT, NULL), is(BIGINT));
+    assertThat(getType(FLOAT, NULL), is(FLOAT));
+    assertThat(getType(DOUBLE, NULL), is(DOUBLE));
+    assertThat(getType(VARCHAR, NULL), is(VARCHAR));
+    assertThat(getType(DECIMAL, NULL), is(DECIMAL));
+    assertThat(getType(TIMESTAMP, NULL), is(TIMESTAMP));
+    assertThat(getType(TIME, NULL), is(TIME));
+    assertThat(getType(DATE, NULL), is(DATE));
+    assertThat(getType(BIT, NULL), is(BIT));
+
   }
 
   @Test

@@ -31,6 +31,7 @@ import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -79,6 +80,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.trace.Span;
 
 /**
  * Can re-run a query if needed/possible without the user noticing.
@@ -162,6 +164,7 @@ public class Foreman {
   }
 
   private void newAttempt(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
+    Span.current().setAttribute("attemptId", attemptId.toString());
     try {
       // we should ideally check if the query wasn't cancelled before starting a new attempt but this will over-complicate
       // things as the observer expects a query profile at completion and this may not be available if the cancellation
@@ -317,6 +320,9 @@ public class Foreman {
       if (attemptManager != null) {
         attemptManager.cancel(reason, clientCancelled, cancelContext, isCancelledByHeapMonitor);
       }
+    } else {
+      logger.debug("Cancel of queryId:{} was already attempted before. Ignoring cancelling request now.",
+        QueryIdHelper.getQueryId(attemptId.toQueryId()));
     }
   }
 

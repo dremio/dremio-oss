@@ -36,6 +36,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncCompletionHandler;
@@ -47,6 +48,10 @@ import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.junit.Test;
 
+import com.dremio.http.BufferBasedCompletionHandler;
+import com.dremio.plugins.async.utils.AsyncReadWithRetry;
+import com.dremio.plugins.async.utils.MetricsLogger;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -55,6 +60,8 @@ import io.netty.buffer.Unpooled;
  * Tests for AzureAsyncReader
  */
 public class TestAzureAsyncReader {
+
+  private static final String AZURE_ENDPOINT = "dfs.core.windows.net";
 
   private static final DateTimeFormatter DATE_RFC1123_FORMATTER = DateTimeFormatter
     .ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'")
@@ -127,7 +134,11 @@ public class TestAzureAsyncReader {
       // Verify each attempt explicitly.
       int expectedRetries = 10;
       for (int retryAttempt = 0; retryAttempt < expectedRetries; retryAttempt++) {
-        verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, retryAttempt);
+        AsyncReadWithRetry asyncReadWithRetry = azureAsyncReader.getAsyncReaderWithRetry();
+        verify(asyncReadWithRetry).read(azureAsyncReader.getAsyncHttpClient(),
+                azureAsyncReader.getRequestBuilderFunction(0, 20, azureAsyncReader.getMetricLogger()),
+                azureAsyncReader.getMetricLogger(), azureAsyncReader.getPath(), azureAsyncReader.getThreadName(),
+                buf, 0, retryAttempt, azureAsyncReader.getBackoff());
       }
     }
   }
@@ -215,9 +226,10 @@ public class TestAzureAsyncReader {
   }
 
   AzureAsyncReader getReader(String version, boolean isSecure, AsyncHttpClient client) {
-    return spy(new AzureAsyncReader(
+    AsyncReadWithRetry asyncReadWithRetry = spy(new AsyncReadWithRetry());
+    return spy(new AzureAsyncReader(AZURE_ENDPOINT,
       "account", new Path("container/directory/file_00.parquet"),
-      getMockAuthTokenProvider(), version, isSecure, client
+      getMockAuthTokenProvider(), version, isSecure, client, asyncReadWithRetry
     ));
   }
 
@@ -226,7 +238,7 @@ public class TestAzureAsyncReader {
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     try {
       LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
-      AzureAsyncReader azureAsyncReader = new AzureAsyncReader(
+      AzureAsyncReader azureAsyncReader = new AzureAsyncReader(AZURE_ENDPOINT,
         "account", new Path("/testdir/$#%&New Folder to test abc 123/0_0_0.parquet"),
         getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
         false, client
@@ -242,7 +254,7 @@ public class TestAzureAsyncReader {
     when(client.isClosed()).thenReturn(true);
     LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
 
-    AzureAsyncReader azureAsyncReader = spy(new AzureAsyncReader(
+    AzureAsyncReader azureAsyncReader = spy(new AzureAsyncReader(AZURE_ENDPOINT,
       "account", new Path("container/directory/file_00.parquet"),
       getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
       false, client
@@ -288,6 +300,14 @@ public class TestAzureAsyncReader {
     } else {
       azureAsyncReader = getReader("0", true, client);
     }
+    MetricsLogger metricsLogger = mock(MetricsLogger.class);
+    when(azureAsyncReader.getMetricLogger()).thenReturn(metricsLogger);
+    Function<Void, Request> requestFunction = unused -> {
+      Request request = mock(Request.class);
+      return request;
+    };
+
+    when(azureAsyncReader.getRequestBuilderFunction(0, 20, metricsLogger)).thenReturn(requestFunction);
     return azureAsyncReader;
   }
 

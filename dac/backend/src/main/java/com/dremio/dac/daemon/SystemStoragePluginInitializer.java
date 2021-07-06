@@ -15,8 +15,10 @@
  */
 package com.dremio.dac.daemon;
 
+import static com.dremio.dac.daemon.DACDaemonModule.METADATA_STORAGEPLUGIN_NAME;
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
 import static com.dremio.dac.support.SupportService.*;
+import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_ICEBERG_EXECUTION;
 import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
@@ -26,10 +28,12 @@ import java.nio.file.Paths;
 import java.util.ConcurrentModificationException;
 
 import com.dremio.common.DeferredException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemConf;
@@ -116,22 +120,22 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final Path supportPath = Paths.get(sabotContext.getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
     final Path logPath = Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
 
-    final URI homePath = config.getURI(DremioConfig.UPLOADS_PATH_STRING);
+    final ProjectConfig.DistPathConfig uploadsPathConfig = projectConfig.getUploadsConfig();
     final ProjectConfig.DistPathConfig accelerationPathConfig = projectConfig.getAcceleratorConfig();
-    final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
-    final URI scratchPath = config.getURI(DremioConfig.SCRATCH_PATH_STRING);
+    final ProjectConfig.DistPathConfig scratchPathConfig = projectConfig.getScratchConfig();
+    final ProjectConfig.DistPathConfig metadataPathConfig = projectConfig.getMetadataConfig();
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
+    final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     // Do not construct URI simply by concatenating, as it might not be encoded properly
     final URI logsPath = new URI("pdfs", "///" + logPath.toUri().getPath(), null);
     final URI supportURI = supportPath.toUri();
 
-    SourceConfig home = new SourceConfig();
-    HomeFileConf hfc = new HomeFileConf(config);
-    home.setConnectionConf(hfc);
-    home.setName(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
-    home.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+    final boolean enableAsyncForUploads = enable(config, DremioConfig.DEBUG_UPLOADS_ASYNC_ENABLED);
+    createSafe(catalogService, ns,
+      HomeFileConf.create(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME, uploadsPathConfig.getUri(), config.getThisNode(),
+        SchemaMutability.USER_TABLE, CatalogService.NEVER_REFRESH_POLICY,
+        enableAsyncForUploads, scratchPathConfig.getDataCredentials()), deferred);
 
-    createSafe(catalogService, ns, home, deferred);
 
     final int maxCacheSpacePercent = config.hasPath(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT)?
       config.getInt(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT) : MAX_CACHE_SPACE_PERCENT;
@@ -154,27 +158,34 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final boolean enableAsyncForJobs = enable(config, DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
     createSafe(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE,
-        CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs), deferred);
+        CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs, null), deferred);
 
     final boolean enableAsyncForScratch = enable(config, DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED);
     createSafe(catalogService, ns,
-      InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForScratch), deferred);
+      InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPathConfig.getUri(), SchemaMutability.USER_TABLE,
+        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForScratch, scratchPathConfig.getDataCredentials()), deferred);
 
     final boolean enableAsyncForDownload = enable(config, DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED);
     createSafe(catalogService, ns,
       InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload), deferred);
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload, null), deferred);
+
+    if (sabotContext.getOptionManager().getOption(ENABLE_ICEBERG_EXECUTION)) {
+      final boolean enableAsyncForMetadata = enable(config, DremioConfig.DEBUG_METADATA_ASYNC_ENABLED);
+      createSafe(catalogService, ns,
+        InternalFileConf.create(METADATA_STORAGEPLUGIN_NAME, metadataPathConfig.getUri(), SchemaMutability.SYSTEM_TABLE,
+          CatalogService.NEVER_REFRESH_POLICY, enableAsyncForMetadata, metadataPathConfig.getDataCredentials()), deferred);
+    }
 
     final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createSafe(catalogService, ns,
       InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForLogs), deferred);
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForLogs, null), deferred);
 
     final boolean enableAsyncForSupport = enable(config, DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED);
     createSafe(catalogService, ns,
       InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport), deferred);
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport, null), deferred);
 
     deferred.throwAndClear();
   }
@@ -212,8 +223,14 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
       }
     } catch (ConcurrentModificationException ex) {
       // someone else got there first, ignore this failure.
-      logger.info("Two source creations occurred simultaneously, ignoring the failed one.", ex);
+      logger.info(ex.getMessage(), ex);
       // proceed with update
+    } catch (UserException ex) {
+      if (ex.getErrorType() != UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION) {
+        throw ex;
+      }
+      // someone else got there first, ignore this failure.
+      logger.info(ex.getMessage(), ex);
     }
     final NamespaceKey nsKey = new NamespaceKey(config.getName());
     final SourceConfig oldConfig = ns.getSource(nsKey);

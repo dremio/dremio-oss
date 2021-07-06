@@ -19,6 +19,7 @@ import static com.dremio.common.types.Types.isFixedWidthType;
 import static com.dremio.exec.expr.fn.impl.DecimalFunctions.DECIMAL_CAST_NULL_ON_OVERFLOW;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
@@ -28,9 +29,11 @@ import java.util.Queue;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.BasicTypeHelper;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.CompleteType;
@@ -367,6 +370,87 @@ class ExpressionMaterializationVisitor
   }
 
   @Override
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, FunctionLookupContext functionLookupContext) throws RuntimeException {
+    List<CaseExpression.CaseConditionNode> newConditions = new ArrayList<>();
+    LogicalExpression newElseExpr = caseExpression.elseExpr.accept(this, functionLookupContext);
+    final CompleteType elseType = newElseExpr.getCompleteType();
+    final MinorType elseMinor = elseType.toMinorType();
+    CompleteType outputType = caseExpression.outputType;
+    boolean newElseExprReWritten = false;
+
+    for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+      LogicalExpression newWhen = conditionNode.whenExpr.accept(this, functionLookupContext);
+      LogicalExpression newThen = conditionNode.thenExpr.accept(this, functionLookupContext);
+      CaseExpression.CaseConditionNode condition = new CaseExpression.CaseConditionNode(newWhen, newThen);
+
+      final CompleteType thenType = newThen.getCompleteType();
+      final MinorType thenMinor = thenType.toMinorType();
+
+      // if the types aren't equal (and one of them isn't null), we need to unify them.
+      if(!thenType.equals(elseType) && !thenType.isNull() && !elseType.isNull()){
+
+        final MinorType leastRestrictive = TypeCastRules.getLeastRestrictiveType((Arrays.asList
+          (thenMinor, elseMinor)));
+        if (leastRestrictive != thenMinor && leastRestrictive != elseMinor && leastRestrictive !=
+          null) {
+          // Implicitly cast then and else to common type
+          CompleteType toType = CompleteType.fromMinorType(leastRestrictive);
+          condition = new CaseExpression.CaseConditionNode(newWhen, ExpressionTreeMaterializer
+            .addImplicitCastExact(newThen, toType, functionLookupContext, errorCollector, allowGandivaFunctions));
+          newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, toType, functionLookupContext, errorCollector, allowGandivaFunctions);
+        }else if (leastRestrictive != thenMinor) {
+          // Implicitly cast the then expression
+          condition = new CaseExpression.CaseConditionNode(newWhen, ExpressionTreeMaterializer
+            .addImplicitCastExact(newThen, newElseExpr.getCompleteType(), functionLookupContext, errorCollector, allowGandivaFunctions));
+        } else if (leastRestrictive != elseMinor) {
+          // Implicitly cast the else expression
+          newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, newThen.getCompleteType(), functionLookupContext, errorCollector, allowGandivaFunctions);
+        } else{
+          // casting didn't work, now we need to merge the types.
+          outputType = thenType.merge(elseType, ALLOW_MIXED_DECIMALS);
+          condition = new CaseExpression.CaseConditionNode(newWhen, ExpressionTreeMaterializer
+            .addImplicitCastExact(newElseExpr, outputType, functionLookupContext, errorCollector, allowGandivaFunctions));
+          newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, outputType, functionLookupContext, errorCollector, allowGandivaFunctions);
+        }
+      }
+
+      // Resolve NullExpression into TypedNullConstant by visiting all conditions
+      // We need to do this because we want to give the correct MajorType to the
+      // Null constant
+      List<LogicalExpression> allExpressions = new ArrayList<>();
+      allExpressions.add(newThen);
+      if (!newElseExprReWritten) {
+        allExpressions.add(newElseExpr);
+      }
+
+      boolean containsNullExpr = allExpressions.stream().anyMatch(input -> input instanceof NullExpression);
+
+      if (containsNullExpr) {
+        Optional<LogicalExpression> nonNullExpr = Iterables.tryFind(allExpressions, new Predicate<LogicalExpression>() {
+          @Override
+          public boolean apply(LogicalExpression input) {
+            return !input.getCompleteType().toMinorType().equals(MinorType.NULL);
+          }
+        });
+
+        if (nonNullExpr.isPresent()) {
+          CompleteType type = nonNullExpr.get().getCompleteType();
+          condition = new CaseExpression.CaseConditionNode(newWhen, rewriteNullExpression(newThen, type));
+          if (!newElseExprReWritten) {
+            newElseExprReWritten = true;
+            newElseExpr = rewriteNullExpression(newElseExpr, type);
+          }
+        }
+      }
+
+      newConditions.add(condition);
+    }
+
+    return validateNewExpr(
+      CaseExpression.newBuilder().setCaseConditions(newConditions).setElseExpr(newElseExpr).setOutputType(outputType).build());
+  }
+
+  @Override
   public LogicalExpression visitIfExpression(IfExpression ifExpr, FunctionLookupContext functionLookupContext) {
     final IfExpression.IfCondition oldConditions = ifExpr.ifCondition;
     final LogicalExpression newCondition = oldConditions.condition.accept(this, functionLookupContext);
@@ -627,9 +711,7 @@ class ExpressionMaterializationVisitor
       return to.getScale() == fromDecimal.getScale() && to.getPrecision() == fromDecimal.getPrecision();
     case VARBINARY:
     case VARCHAR:
-      // since we don't track length, if there is an explicit cast to one of these types, we have to do it.
-      // TODO: come up with a way of determining if the cast is explicit.
-      return false;
+      return to.getWidth() == BasicTypeHelper.VARCHAR_DEFAULT_CAST_LEN || to.getWidth() == 0;
 
     default:
       errorCollector.addGeneralError(String.format("Casting rules are unknown for type %s.", from));

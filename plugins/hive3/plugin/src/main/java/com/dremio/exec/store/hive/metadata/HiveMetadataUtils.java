@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.DIR_LIST_INPUT_SPLIT;
+import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.INPUT_SPLIT;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 import java.io.IOException;
@@ -27,12 +29,15 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
+import com.dremio.connector.metadata.options.DirListInputSplitType;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.math.LongMath;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -67,7 +72,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -98,9 +102,7 @@ import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
-import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
-import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
@@ -118,6 +120,7 @@ public class HiveMetadataUtils {
   private static final String EMPTY_STRING = "";
   private static final Long ONE = Long.valueOf(1l);
   private static final int INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM = 16;
+  private static final long MAX_NAMENODE_FS_CALL_TIMEOUT = 2000l;
   private static final Joiner PARTITION_FIELD_SPLIT_KEY_JOINER = Joiner.on("__");
 
   public static class SchemaComponents {
@@ -503,24 +506,10 @@ public class HiveMetadataUtils {
   }
 
   public static List<Long> getInputSplitSizes(final JobConf job, String tableName, List<InputSplit> inputSplits) {
-    final List<TimedRunnable<Long>> splitSizeRunnables = inputSplits
-      .stream()
-      .map(inputSplit -> new InputSplitSizeRunnable(job, tableName, inputSplit))
-      .collect(Collectors.toList());
-
-    if (!splitSizeRunnables.isEmpty()) {
-      try {
-        return TimedRunnable.run(
-          MessageFormatter.format("Table '{}', Get split sizes", tableName).getMessage(),
-          logger,
-          splitSizeRunnables,
-          INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM);
-      } catch (IOException e) {
-        throw UserException.dataReadError(e).message(e.getMessage()).build(logger);
-      }
-    } else {
-      return Collections.emptyList();
-    }
+    List<TimedRunnable<Long>> splitSizeJobs = new ArrayList<>();
+    long maxDeltas = populateSplitJobAndGetMaxDeltas(job, tableName, inputSplits, splitSizeJobs);
+    long maxTimeoutPerCore = getMaxTimeoutPerCore(inputSplits, maxDeltas);
+    return runInputSplitSizeRunnable(splitSizeJobs, tableName, maxTimeoutPerCore);
   }
 
   public static HiveSplitXattr buildHiveSplitXAttr(int partitionId, InputSplit inputSplit) {
@@ -538,10 +527,26 @@ public class HiveMetadataUtils {
     }
   }
 
-  public static List<DatasetSplit> getDatasetSplits(TableMetadata tableMetadata,
-                                                    MetadataAccumulator metadataAccumulator,
-                                                    PartitionMetadata partitionMetadata,
-                                                    StatsEstimationParameters statsParams) {
+  public static List<DatasetSplit> getDatasetSplitsFromDirListSplits(TableMetadata tableMetadata,
+                                                                     PartitionMetadata partitionMetadata) {
+
+    if (partitionMetadata.getDirListInputSplit() == null) {
+      throw UserException
+        .dataReadError()
+        .message("Splits expected but not available for table: '{}', partition: '{}'",
+          tableMetadata.getTable().getTableName(),
+          getPartitionValueLogString(partitionMetadata.getPartition()))
+        .build(logger);
+    }
+
+    final DirListInputSplitProto.DirListInputSplit dirListInputSplit = partitionMetadata.getDirListInputSplit();
+    return Collections.singletonList(DatasetSplit.of(Collections.emptyList(), 0, 1, dirListInputSplit::writeTo));
+  }
+
+  public static List<DatasetSplit> getDatasetSplitsFromInputSplits(TableMetadata tableMetadata,
+                                                                   MetadataAccumulator metadataAccumulator,
+                                                                   PartitionMetadata partitionMetadata,
+                                                                   StatsEstimationParameters statsParams) {
 
     // This should be checked prior to entry.
     if (!partitionMetadata.getInputSplitBatchIterator().hasNext()) {
@@ -763,6 +768,19 @@ public class HiveMetadataUtils {
   }
 
   /**
+   * When splitType is {@link HivePartitionChunkListing.SplitType#DIR_LIST_INPUT_SPLIT},
+   * some of the stats are not required (eg. which are expensive to generate).
+   *
+   * @return true if stats should be trimmed. False if not.
+   */
+  public static boolean trimStats(HivePartitionChunkListing.SplitType splitType) {
+    if (splitType == DIR_LIST_INPUT_SPLIT) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * When impersonation is not possible and when last modified times are not available,
    * {@link HiveReaderProto.FileSystemPartitionUpdateKey} should not be generated.
    *
@@ -812,14 +830,17 @@ public class HiveMetadataUtils {
                                                        Partition partition,
                                                        HiveConf hiveConf,
                                                        int partitionId,
-                                                       int maxInputSplitsPerPartition) {
+                                                       int maxInputSplitsPerPartition,
+                                                       HivePartitionChunkListing.SplitType splitType) {
     try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final Table table = tableMetadata.getTable();
       final Properties tableProperties = tableMetadata.getTableProperties();
       final JobConf job = new JobConf(hiveConf);
+      boolean trimStats = trimStats(splitType);
       final PartitionXattr partitionXattr;
 
       List<InputSplit> inputSplits = Collections.emptyList();
+      DirListInputSplitProto.DirListInputSplit dirListInputSplit = null;
       HiveDatasetStats metastoreStats = null;
       InputFormat<?, ?> format = null;
 
@@ -835,10 +856,17 @@ public class HiveMetadataUtils {
         final StorageDescriptor storageDescriptor = table.getSd();
         if (inputPathExists(storageDescriptor, job)) {
           configureJob(job, table, tableProperties, null, storageDescriptor);
-          inputSplits = getInputSplits(format, job);
+          if (splitType == INPUT_SPLIT) {
+            inputSplits = getInputSplits(format, job);
+          } else if (splitType == DIR_LIST_INPUT_SPLIT) {
+            dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
+              .setPath(storageDescriptor.getLocation())
+              .setReadSignature(Long.MAX_VALUE)
+              .build();
+          }
         }
 
-        if (shouldGenerateFileSystemUpdateKeys(tableStorageCapabilities, format)) {
+        if (!trimStats && shouldGenerateFileSystemUpdateKeys(tableStorageCapabilities, format)) {
           final boolean generateFSUKeysForDirectoriesOnly =
             shouldGenerateFSUKeysForDirectoriesOnly(tableStorageCapabilities, storageImpersonationEnabled);
           final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
@@ -863,10 +891,17 @@ public class HiveMetadataUtils {
         final StorageDescriptor storageDescriptor = partition.getSd();
         if (inputPathExists(storageDescriptor, job)) {
           configureJob(job, table, tableProperties, partitionProperties, storageDescriptor);
-          inputSplits = getInputSplits(format, job);
+          if (splitType == INPUT_SPLIT) {
+            inputSplits = getInputSplits(format, job);
+          } else if (splitType == DIR_LIST_INPUT_SPLIT) {
+            dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
+              .setPath(storageDescriptor.getLocation())
+              .setReadSignature(Long.MAX_VALUE)
+              .build();
+          }
         }
 
-        if (shouldGenerateFileSystemUpdateKeys(partitionStorageCapabilities, format)) {
+        if (!trimStats && shouldGenerateFileSystemUpdateKeys(partitionStorageCapabilities, format)) {
           final boolean generateFSUKeysForDirectoriesOnly =
             shouldGenerateFSUKeysForDirectoriesOnly(partitionStorageCapabilities, storageImpersonationEnabled);
           final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
@@ -898,6 +933,7 @@ public class HiveMetadataUtils {
             .inputSplits(inputSplits)
             .maxInputSplitsPerPartition(maxInputSplitsPerPartition)
             .build())
+        .dirListInputSplit(dirListInputSplit)
         .datasetSplitBuildConf(
           DatasetSplitBuildConf.newBuilder()
             .job(job)
@@ -962,7 +998,7 @@ public class HiveMetadataUtils {
 
     double compressionFactor = 1.0;
     if (MapredParquetInputFormat.class.equals(inputFormat)) {
-      compressionFactor = 30;
+      compressionFactor = statsParams.getHiveSettings().getParquetCompressionFactor();
     } else if (OrcInputFormat.class.equals(inputFormat)) {
       compressionFactor = 30f;
     } else if (AvroContainerInputFormat.class.equals(inputFormat)) {
@@ -1337,8 +1373,69 @@ public class HiveMetadataUtils {
     return false;
   }
 
+  public static boolean isDirListInputSplitType(MetadataOption... options) {
+    if (null != options) {
+      for (MetadataOption option : options) {
+        if (option instanceof DirListInputSplitType) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   public static String getPartitionValueLogString(Partition partition) {
     return ((null == partition) || (null == partition.getValues()) ? "default" :
       HiveMetadataUtils.PARTITION_FIELD_SPLIT_KEY_JOINER.join(partition.getValues()));
+  }
+
+  @VisibleForTesting
+  static long getMaxTimeoutPerCore(List<InputSplit> inputSplits, long maxDeltas) {
+    int effectiveParallelism = Math.min(INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM, inputSplits.size());
+    long splitsPerCore = (long) Math.ceil((double) inputSplits.size() / effectiveParallelism);
+    long deltasPerCore = quietCheckedMultiply(splitsPerCore, maxDeltas);
+    return quietCheckedMultiply(deltasPerCore, MAX_NAMENODE_FS_CALL_TIMEOUT);
+  }
+
+  @VisibleForTesting
+  static long populateSplitJobAndGetMaxDeltas(JobConf job, String tableName, List<InputSplit> inputSplits, List<TimedRunnable<Long>> splitSizeJobs) {
+    long maxDeltas = 0;
+    for (InputSplit inputSplit : inputSplits) {
+      splitSizeJobs.add(new InputSplitSizeRunnable(job, tableName, inputSplit));
+      if (inputSplit instanceof OrcSplit) {
+        maxDeltas = Math.max(((OrcSplit) inputSplit).getDeltas().size(), maxDeltas);
+      }
+    }
+    /*
+     +1 is for : in case of Orc it is for base directory
+               : in case of NonOrc, if is for minimum Non zero time out of 2000 ms which will be overwrite by TimedRunnable.run method, if required.
+     */
+    return maxDeltas + 1;
+  }
+
+  @VisibleForTesting
+  static List<Long> runInputSplitSizeRunnable(List<TimedRunnable<Long>> splitSizeRunnables, String tableName, long timeoutMillis) {
+    if (!splitSizeRunnables.isEmpty()) {
+      try {
+        return TimedRunnable.run(
+          MessageFormatter.format("Table '{}', Get split sizes", tableName).getMessage(),
+          logger,
+          splitSizeRunnables,
+          INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM,
+          timeoutMillis);
+      } catch (IOException e) {
+        throw UserException.dataReadError(e).message(e.getMessage()).build(logger);
+      }
+    } else {
+      return Collections.emptyList();
+    }
+  }
+
+  private static long quietCheckedMultiply(long a, long b) {
+    try {
+      return LongMath.checkedMultiply(a, b);
+    } catch (ArithmeticException e) {
+      return Long.MAX_VALUE;
+    }
   }
 }

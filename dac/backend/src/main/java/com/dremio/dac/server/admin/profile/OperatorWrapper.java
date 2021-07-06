@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
@@ -334,25 +335,19 @@ public class OperatorWrapper {
       return;
     }
 
-    OperatorProfile foundOp = null;
-    for (ImmutablePair<OperatorProfile, Integer> ip : ops) {
-      int minor = ip.getRight();
-      OperatorProfile op = ip.getLeft();
+    List<OperatorProfile> foundOps = ops.stream()
+      .filter(p -> p.getLeft().hasDetails())
+      .map(ImmutablePair::getLeft)
+      .collect(Collectors.toList());
 
-      // pick details only from the 0th minor fragment.
-      if (minor == 0 && op.hasDetails()) {
-        foundOp = op;
-        break;
-      }
-    }
-    if (foundOp == null) {
+    if (foundOps.isEmpty()) {
       return;
     }
 
     generator.writeFieldName("details");
-    if (foundOp.getDetails().getSplitInfosList() != null && !foundOp.getDetails().getSplitInfosList().isEmpty()) {
+    if (foundOps.get(0).getDetails().getSplitInfosList() != null && !foundOps.get(0).getDetails().getSplitInfosList().isEmpty()) {
       JsonBuilder builder = new JsonBuilder(generator, SPLIT_INFO_COLUMNS);
-      for (ExpressionSplitInfo splitInfo : foundOp.getDetails().getSplitInfosList()) {
+      for (ExpressionSplitInfo splitInfo : foundOps.get(0).getDetails().getSplitInfosList()) {
         builder.startEntry();
         builder.appendString(splitInfo.getOutputName());
         builder.appendString(splitInfo.getInGandiva() ? "true" : "false");
@@ -372,8 +367,10 @@ public class OperatorWrapper {
       builder.end();
     } else {
       JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
-      addSlowIO(builder, foundOp.getDetails().getSlowIoInfosList(), "Data IO");
-      addSlowIO(builder, foundOp.getDetails().getSlowMetadataIoInfosList(), "Metadata IO");
+      for (OperatorProfile op :  foundOps) {
+        addSlowIO(builder, op.getDetails().getSlowIoInfosList(), "Data IO");
+        addSlowIO(builder, op.getDetails().getSlowMetadataIoInfosList(), "Metadata IO");
+      }
       builder.end();
     }
   }

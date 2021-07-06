@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -55,6 +56,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableMacro;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
+import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.Util;
 
 import com.dremio.service.catalog.Table;
@@ -91,11 +93,25 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
   @Override
   public DremioPrepareTable getTable(List<String> paramList) {
-    final DremioTable table = catalog.getTable(new NamespaceKey(paramList));
+    final DremioTable table = catalog.getTableForQuery(new NamespaceKey(paramList));
     if(table == null) {
       return null;
     }
     return new DremioPrepareTable(this, typeFactory, table);
+  }
+
+  /**
+   * Used to get the table schema
+   *
+   * @param paramList
+   * @return
+   */
+  public Optional<RelDataType> getTableSchema(List<String> paramList) {
+    final DremioTable table = catalog.getTable(new NamespaceKey(paramList));
+    if(table == null) {
+      return Optional.empty();
+    }
+    return Optional.of(new DremioPrepareTable(this, typeFactory, table).getRowType());
   }
 
   public void validateSelection() {
@@ -249,7 +265,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     } else if (function instanceof AggregateFunction) {
       return new SqlUserDefinedAggFunction(name,
           infer((AggregateFunction) function), InferTypes.explicit(argTypes),
-          typeChecker, (AggregateFunction) function, false, false, typeFactory);
+          typeChecker, (AggregateFunction) function, false, false, Optionality.FORBIDDEN, typeFactory);
     } else if (function instanceof TableMacro) {
       return new SqlUserDefinedTableMacro(name, ReturnTypes.CURSOR,
           InferTypes.explicit(argTypes), typeChecker, paramTypes,

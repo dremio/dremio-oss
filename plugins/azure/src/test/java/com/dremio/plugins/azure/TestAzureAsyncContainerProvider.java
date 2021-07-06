@@ -59,6 +59,7 @@ import com.google.common.io.ByteStreams;
  * Tests for AzureAsyncContainerProvider
  */
 public class TestAzureAsyncContainerProvider {
+  private static final String AZURE_ENDPOINT = "dfs.core.windows.net";
 
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
@@ -126,7 +127,7 @@ public class TestAzureAsyncContainerProvider {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
     AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
 
     List<String> receivedContainers = containerProvider.getContainerCreators()
       .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)
@@ -173,7 +174,7 @@ public class TestAzureAsyncContainerProvider {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
     AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
 
     List<String> receivedContainers = containerProvider.getContainerCreators()
       .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)
@@ -197,7 +198,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
     containerProvider.assertContainerExists("container");
   }
 
@@ -214,7 +215,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"});
+      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"});
 
     thrown.expect(UserException.class);
     thrown.expectMessage("Failure while validating existence of container tempContainer. Error Unable to find container tempContainer - [404 null]");
@@ -235,7 +236,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-            client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+            client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
     try {
       containerProvider.assertContainerExists("container");
       fail("Expecting exception");
@@ -262,7 +263,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-            client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+            client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
     try {
       containerProvider.assertContainerExists("container");
       fail("Expecting exception");
@@ -337,7 +338,7 @@ public class TestAzureAsyncContainerProvider {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
     AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-            client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+            client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
 
     List<String> receivedContainers = containerProvider.getContainerCreators()
             .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)

@@ -33,21 +33,26 @@ public class TypedFieldId {
   final int[] fieldIds;
   final boolean isHyperReader;
   final boolean isListVector;
+  final boolean isListOrUnionInPath;
   final PathSegment remainder;
 
   public TypedFieldId(CompleteType type, int... fieldIds) {
-    this(type, type, type, false, null, fieldIds);
+    this(type, type, type, false, null, false, fieldIds);
   }
 
   public TypedFieldId(CompleteType type, boolean isHyper, int... fieldIds) {
-    this(type, type, type, isHyper, null, fieldIds);
+    this(type, type, type, isHyper, null, false, fieldIds);
   }
 
-  public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, PathSegment remainder, int... fieldIds) {
-    this(intermediateType, secondaryFinal, finalType, isHyper, false, remainder, fieldIds);
+  public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, PathSegment remainder, boolean isListInPath, int... fieldIds) {
+    this(intermediateType, secondaryFinal, finalType, isHyper, false, remainder, isListInPath, fieldIds);
   }
 
   public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, boolean isListVector, PathSegment remainder, int... fieldIds) {
+    this(intermediateType, secondaryFinal, finalType, isHyper, isListVector, remainder, false, fieldIds);
+  }
+
+  public TypedFieldId(CompleteType intermediateType, CompleteType secondaryFinal, CompleteType finalType, boolean isHyper, boolean isListVector, PathSegment remainder, boolean isListInPath, int... fieldIds) {
     super();
     this.intermediateType = intermediateType;
     this.finalType = finalType;
@@ -56,11 +61,12 @@ public class TypedFieldId {
     this.isHyperReader = isHyper;
     this.isListVector = isListVector;
     this.remainder = remainder;
+    this.isListOrUnionInPath = isListInPath;
   }
 
   public TypedFieldId cloneWithChild(int id) {
     int[] fieldIds = ArrayUtils.add(this.fieldIds, id);
-    return new TypedFieldId(intermediateType, secondaryFinal, finalType, isHyperReader, remainder, fieldIds);
+    return new TypedFieldId(intermediateType, secondaryFinal, finalType, isHyperReader, remainder, isListOrUnionInPath, fieldIds);
   }
 
   public PathSegment getLastSegment() {
@@ -75,7 +81,7 @@ public class TypedFieldId {
   }
 
   public TypedFieldId cloneWithRemainder(PathSegment remainder) {
-    return new TypedFieldId(intermediateType, secondaryFinal, finalType, isHyperReader, remainder, fieldIds);
+    return new TypedFieldId(intermediateType, secondaryFinal, finalType, isHyperReader, remainder, isListOrUnionInPath, fieldIds);
   }
 
   public boolean hasRemainder() {
@@ -92,6 +98,10 @@ public class TypedFieldId {
 
   public boolean isListVector() {
     return isListVector;
+  }
+
+  public boolean isListOrUnionInPath() {
+    return isListOrUnionInPath;
   }
 
   public CompleteType getIntermediateType() {
@@ -130,6 +140,7 @@ public class TypedFieldId {
     boolean hyperReader = false;
     boolean withIndex = false;
     boolean isListVector = false;
+    boolean isListOrUnionInPath = false;
 
     public Builder addId(int id) {
       ids.add(id);
@@ -171,6 +182,11 @@ public class TypedFieldId {
       return this;
     }
 
+    public Builder isListOrUnionInPath(boolean isList) {
+      this.isListOrUnionInPath = isList;
+      return this;
+    }
+
     public TypedFieldId build() {
       Preconditions.checkNotNull(intermediateType);
       Preconditions.checkNotNull(finalType);
@@ -191,7 +207,7 @@ public class TypedFieldId {
       // if this isn't a direct access, switch the final type to nullable as offsets may be null.
       // TODO: there is a bug here with some things.
       //if(intermediateType != finalType) actualFinalType = finalType.toBuilder().setMode(DataMode.OPTIONAL).build();
-      return new TypedFieldId(intermediateType, secondaryFinal, actualFinalType, hyperReader, isListVector, remainder, ids.stream().mapToInt(i -> i).toArray());
+      return new TypedFieldId(intermediateType, secondaryFinal, actualFinalType, hyperReader, isListVector, remainder, isListOrUnionInPath, ids.stream().mapToInt(i -> i).toArray());
     }
   }
 

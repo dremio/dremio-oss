@@ -15,6 +15,7 @@
  */
 package com.dremio.telemetry.api;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -37,6 +38,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentracing.Tracer;
 import io.opentracing.noop.NoopTracerFactory;
 
@@ -45,10 +47,14 @@ import io.opentracing.noop.NoopTracerFactory;
  */
 public final class Telemetry {
   private static final String CONFIG_FILE = "dremio-telemetry.yaml";
+  private static final String CONFIG_FILE_PROPERTY = "dremio.telemetry.configfile";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Telemetry.class);
 
   private static AutoRefreshConfigurator<InnerTelemetryConf> CONFIG_REFRESHER;
   private static InnerTelemetryConfigListener CONFIG_REFRESH_LISTENER;
+
+  /** Sampling is forced if this Attribute exists in the Span */
+  public static final AttributeKey<Boolean> FORCE_SAMPLING_ATTRIBUTE = AttributeKey.booleanKey("dremio-sample");
 
   /**
    * Reads the telemetry config file and sets itself up to listen for changes.
@@ -84,10 +90,20 @@ public final class Telemetry {
 
         @Override
         public CompleteRefreshConfig<InnerTelemetryConf> get() {
-          final URL resource;
+          URL resource = null;
           CompleteRefreshConfig<InnerTelemetryConf> ret = null;
           try {
-            resource = Resources.getResource(CONFIG_FILE);
+            String configFilePath = System.getProperty(CONFIG_FILE_PROPERTY);
+            if (configFilePath!=null && !configFilePath.isEmpty()) {
+              File file = new File(configFilePath);
+              if (file.exists()) {
+                resource = file.toURI().toURL();
+              }
+            }
+            if (resource == null) {
+              resource = Resources.getResource(CONFIG_FILE);
+            }
+
             final TelemetryConfigurator fromConfig = reader.readValue(resource);
 
             final InnerTelemetryConf telemConf = new InnerTelemetryConf(fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig());

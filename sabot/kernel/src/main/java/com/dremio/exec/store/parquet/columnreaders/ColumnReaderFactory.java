@@ -47,7 +47,6 @@ public class ColumnReaderFactory {
    * @param columnChunkMetaData
    * @param allocateSize - the size of the vector to create
    * @return
-   * @throws SchemaChangeException
    */
   static ColumnReader<?> createFixedColumnReader(DeprecatedParquetVectorizedReader recordReader, boolean fixedLength, ColumnDescriptor descriptor,
                                                  ColumnChunkMetaData columnChunkMetaData, int allocateSize, ValueVector v,
@@ -115,6 +114,8 @@ public class ColumnReaderFactory {
                   return new ParquetFixedWidthDictionaryReaders.DictionaryLongDecimalReader(recordReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, (DecimalVector) v, schemaElement);
                 case TIMESTAMP_MILLIS:
                   return new ParquetFixedWidthDictionaryReaders.DictionaryTimeStampReader(recordReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, (TimeStampMilliVector) v, schemaElement);
+                case TIMESTAMP_MICROS:
+                  return new ParquetFixedWidthDictionaryReaders.DictionaryTimeStampMicrosReader(recordReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, (TimeStampMilliVector) v, schemaElement);
                 default:
                   throw new ExecutionSetupException("Unsupported dictionary converted type " + convertedType + " for primitive type INT64");
               }
@@ -248,6 +249,8 @@ public class ColumnReaderFactory {
               return new NullableFixedByteAlignedReaders.NullableDictionaryDecimal18Reader(parentReader, allocateSize, columnDescriptor, columnChunkMetaData, fixedLength, (DecimalVector)valueVec, schemaElement);
             case TIMESTAMP_MILLIS:
               return new NullableFixedByteAlignedReaders.NullableDictionaryTimeStampReader(parentReader, allocateSize, columnDescriptor, columnChunkMetaData, fixedLength, (TimeStampMilliVector)valueVec, schemaElement);
+            case TIMESTAMP_MICROS:
+              return new NullableFixedByteAlignedReaders.NullableDictionaryTimeStampMicrosReader(parentReader, allocateSize, columnDescriptor, columnChunkMetaData, true, (TimeStampMilliVector) valueVec, schemaElement);
             default:
               throw new ExecutionSetupException("Unsupported nullable converted type " + convertedType + " for primitive type INT64");
           }

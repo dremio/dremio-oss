@@ -24,11 +24,13 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -66,8 +68,6 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
 
     @Override
     public double estimateRowCount(RelMetadataQuery mq) {
-        // TODO: We should use the size of the manifest list file to estimate the number of
-        // manifest files that would be produced by this scan
         return 1;
     }
 
@@ -116,6 +116,7 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
 
     @Override
     public int getMaxParallelizationWidth() {
+        // read manifest list file using single thread
         return 1;
     }
 
@@ -132,5 +133,10 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
     @Override
     protected RelDataType deriveRowType() {
         return relDataType;
+    }
+
+    @Override
+    public RelWriter explainTerms(RelWriter pw) {
+        return ScanRelBase.explainScanRel(pw, tableMetadata, projectedColumns, 1.0);
     }
 }

@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 
 @injectIntl
-@PureRender
 @Radium
-export default class ContainsText extends Component {
+export default class ContainsText extends PureComponent {
 
   static propTypes = {
     onEnterText: PropTypes.func.isRequired,

@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -639,6 +640,157 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       assertEquals(1, wasCleaned.getCount());
       listener.onLeadershipLost();
       wasCleaned.await();
+    }
+  }
+
+  @Test
+  public void testLosingAndRegainingLeadership() throws Exception {
+    try(ClusterCoordinator coordinator = LocalClusterCoordinator.newRunningCoordinator()) {
+      coordinator.start();
+
+      CoordinationProtos.NodeEndpoint currentEndPoint = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host1")
+        .setFabricPort(1234)
+        .setUserPort(2345)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+      CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
+
+      LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
+        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(currentEndPoint), true);
+
+      AtomicInteger counter = new AtomicInteger(0);
+      CountDownLatch cleanupLatch = new CountDownLatch(1);
+      CountDownLatch restartLatch = new CountDownLatch(1);
+      AtomicBoolean restartFlag = new AtomicBoolean(false);
+      Cancellable cancellable = schedulerService.schedule(Schedule.Builder
+          .everySeconds(2)
+          .asClusteredSingleton("abc")
+          .startingAt(Instant.now())
+          .withCleanup(() -> {
+            counter.set(0);
+            restartFlag.set(true);
+            cleanupLatch.countDown();
+          })
+          .build(), () -> {
+         counter.incrementAndGet();
+         if (restartFlag.get()) {
+           restartLatch.countDown();
+         }
+      });
+
+      TaskLeaderChangeListener listener = schedulerService.getTaskLeaderChangeListener(cancellable);
+      // simulate losing the leadership
+      listener.onLeadershipLost();
+      cleanupLatch.await();
+      Assert.assertEquals(0, counter.get());
+
+      // simulate gaining the leadership back.
+      // the task should be scheduled again
+      listener.onLeadershipGained();
+      boolean taskScheduledAgain = restartLatch.await(5, TimeUnit.SECONDS);
+      Assert.assertTrue("Task did not get scheduled.", taskScheduledAgain);
+      Assert.assertTrue(counter.get() > 0);
+    }
+  }
+
+  @Test
+  public void testLostLeadershipWhileRunning() throws Exception {
+    try(ClusterCoordinator coordinator = LocalClusterCoordinator.newRunningCoordinator()) {
+      coordinator.start();
+
+      CoordinationProtos.NodeEndpoint currentEndPoint = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host1")
+        .setFabricPort(1234)
+        .setUserPort(2345)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+      CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
+
+      LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
+        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(currentEndPoint), true);
+
+      AtomicInteger counter = new AtomicInteger(0);
+      CountDownLatch cancelLatch = new CountDownLatch(1);
+      Cancellable cancellable = schedulerService.schedule(Schedule.Builder
+        .everySeconds(1)
+        .asClusteredSingleton("abc")
+        .startingAt(Instant.now())
+        .withCleanup(() -> {
+          try {
+            // sleep for five seconds; if the task
+            // gets scheduled again in a second
+            // should be within 5 seconds
+            // the task will run after this
+            Thread.sleep(4000);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+        })
+        .build(), () -> {
+        counter.incrementAndGet();
+      });
+
+      TaskLeaderChangeListener listener = schedulerService.getTaskLeaderChangeListener(cancellable);
+
+      // simulate losing the leadership task will start and wait meanwhile
+      listener.onLeadershipLost();
+
+      // wait for three seconds for actual task to complete
+      Thread.sleep(3000);
+      // task should have cancelled itself
+      Assert.assertEquals(0, counter.get());
+    }
+  }
+
+  @Test
+  public void testLosingAndRegainingLeadershipSingleRun() throws Exception {
+    try(ClusterCoordinator coordinator = LocalClusterCoordinator.newRunningCoordinator()) {
+      coordinator.start();
+
+      CoordinationProtos.NodeEndpoint currentEndPoint = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host1")
+        .setFabricPort(1234)
+        .setUserPort(2345)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+      CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
+
+      LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
+        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(currentEndPoint), true);
+
+      AtomicInteger counter = new AtomicInteger(0);
+      CountDownLatch cleanupLatch = new CountDownLatch(1);
+      CountDownLatch restartLatch = new CountDownLatch(1);
+      Cancellable cancellable =
+        schedulerService.schedule(ScheduleUtils.scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + 3000),
+          "TEST", () -> {
+            cleanupLatch.countDown();
+          }),
+          () -> {
+             counter.incrementAndGet();
+             restartLatch.countDown();
+          }
+          );
+
+      TaskLeaderChangeListener listener = schedulerService.getTaskLeaderChangeListener(cancellable);
+      // simulate losing the leadership
+      listener.onLeadershipLost();
+      cleanupLatch.await();
+      Assert.assertEquals(0, counter.get());
+
+      // simulate gaining the leadership back.
+      // the task should be scheduled again
+      listener.onLeadershipGained();
+      boolean done = restartLatch.await(5, TimeUnit.SECONDS);
+      Assert.assertTrue("Task did not get scheduled.", done);
+      Assert.assertTrue(counter.get() > 0);
     }
   }
 

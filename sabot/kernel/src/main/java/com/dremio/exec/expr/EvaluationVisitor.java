@@ -17,20 +17,23 @@ package com.dremio.exec.expr;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.apache.arrow.vector.ValueHolderHelper;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.FieldWriter;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
@@ -60,6 +63,7 @@ import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.compile.sig.ConstantExpressionIdentifier;
+import com.dremio.exec.compile.sig.ConstantExtractor;
 import com.dremio.exec.compile.sig.GeneratorMapping;
 import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
@@ -70,8 +74,8 @@ import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.sun.codemodel.JArray;
+import com.sun.codemodel.JAssignmentTarget;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
@@ -91,22 +95,25 @@ public class EvaluationVisitor {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EvaluationVisitor.class);
   private final FunctionContext functionContext;
   private final int newMethodThreshold;
+  private final int constantArrayThreshold;
 
   public EvaluationVisitor(FunctionContext functionContext) {
     super();
     this.functionContext = functionContext;
     this.newMethodThreshold = functionContext.getCompilationOptions().getNewMethodThreshold();
+    this.constantArrayThreshold = functionContext.getCompilationOptions().getConstantArrayThreshold();
   }
 
   public HoldingContainer addExpr(LogicalExpression e, ClassGenerator<?> generator, boolean allowInnerMethods) {
-
     Set<LogicalExpression> constantBoundaries;
     if (generator.getMappingSet().hasEmbeddedConstant()) {
       constantBoundaries = Collections.emptySet();
     } else {
-      constantBoundaries = ConstantExpressionIdentifier.getConstantExpressionSet(e);
+      final ConstantExtractor extractor = ConstantExpressionIdentifier.getConstantExtractor(e);
+      constantBoundaries = extractor.getConstantExpressionIdentitySet();
+      generator.setConstantExtractor(extractor, constantArrayThreshold);
     }
-    return e.accept(new CSEFilter(constantBoundaries, functionContext, allowInnerMethods), generator);
+    return e.accept(new ConstantFilter(constantBoundaries, functionContext, allowInnerMethods), generator);
   }
 
   private class ExpressionHolder {
@@ -139,19 +146,20 @@ public class EvaluationVisitor {
     generator.getEvalBlock().assign(out.getIsSet(), JExpr.lit(1));
   }
 
-  Map<ExpressionHolder,HoldingContainer> previousExpressions = Maps.newHashMap();
-
-  Stack<Map<ExpressionHolder,HoldingContainer>> mapStack = new Stack<>();
+  // map tracking expressions in scope (includes all previous scope and current scope)
+  Map<ExpressionHolder, HoldingContainer> previousExpressions = new HashMap<>();
+  // list of expressions at each scope in a stack. Top of stack has expressions in current scope
+  Deque<List<ExpressionHolder>> mapKeys = new ArrayDeque<>();
 
   void newScope() {
-    mapStack.push(previousExpressions);
-    previousExpressions = new HashMap<>(previousExpressions);
+    mapKeys.push(new ArrayList<>());
   }
 
   void leaveScope() {
-    previousExpressions.clear();
-    previousExpressions = mapStack.pop();
+    List<ExpressionHolder> currentExpressionsToPop = mapKeys.pop();
+    currentExpressionsToPop.forEach(previousExpressions::remove);
   }
+
   /**
    * Get a HoldingContainer for the expression if it had been already evaluated
    */
@@ -164,7 +172,19 @@ public class EvaluationVisitor {
   }
 
   private void put(LogicalExpression expression, HoldingContainer hc, MappingSet mappingSet) {
-    previousExpressions.put(new ExpressionHolder(expression, mappingSet), hc);
+    final ExpressionHolder eh = new ExpressionHolder(expression, mappingSet);
+    previousExpressions.put(eh, hc);
+    if (mapKeys.isEmpty()) {
+      mapKeys.push(new ArrayList<>());
+    }
+    mapKeys.peek().add(eh);
+  }
+
+  /**
+   * Clear the stack of expressions when we move to another method
+   */
+  public void clearPreviousExpressions() {
+    previousExpressions.clear();
   }
 
   private class EvalVisitor extends AbstractExprVisitor<HoldingContainer, ClassGenerator<?>, RuntimeException> {
@@ -187,10 +207,10 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitBooleanOperator(BooleanOperator op,
-        ClassGenerator<?> generator) throws RuntimeException {
+                                                 ClassGenerator<?> generator) throws RuntimeException {
       if (op.getName().equals("booleanAnd")) {
         return visitBooleanAnd(op, generator);
-      } else if(op.getName().equals("booleanOr")) {
+      } else if (op.getName().equals("booleanOr")) {
         return visitBooleanOr(op, generator);
       } else {
         throw new UnsupportedOperationException("BooleanOperator can only be booleanAnd, booleanOr. You are using " + op.getName());
@@ -199,7 +219,7 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitFunctionHolderExpression(FunctionHolderExpression holderExpr,
-        ClassGenerator<?> generator) throws RuntimeException {
+                                                          ClassGenerator<?> generator) throws RuntimeException {
       CompleteType resolvedOutput = holderExpr.getCompleteType();
       AbstractFunctionHolder holder = (AbstractFunctionHolder) holderExpr.getHolder();
 
@@ -242,7 +262,7 @@ public class EvaluationVisitor {
         JVar complexOutput = generator.declareClassField("inputReader", generator.getModel()._ref(FieldReader.class));
 
         final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
-            .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
+          .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
         generator.nestEvalBlock(jc._then());
         HoldingContainer thenExpr = c.expression.accept(this, generator);
         generator.unNestEvalBlock();
@@ -254,7 +274,7 @@ public class EvaluationVisitor {
         } else {
           final CompleteType fieldType = thenExpr.getCompleteType();
           final JExpression fieldReader = fieldType.isUnion()
-              ? thenExpr.getHolder().ref("reader") : thenExpr.getHolder();
+            ? thenExpr.getHolder().ref("reader") : thenExpr.getHolder();
           jc._then().assign(complexOutput, fieldReader);
         }
 
@@ -269,7 +289,7 @@ public class EvaluationVisitor {
         } else {
           final CompleteType fieldType = elseExpr.getCompleteType();
           final JExpression fieldReader = fieldType.isUnion()
-              ? elseExpr.getHolder().ref("reader") : elseExpr.getHolder();
+            ? elseExpr.getHolder().ref("reader") : elseExpr.getHolder();
           jc._else().assign(complexOutput, fieldReader);
         }
 
@@ -281,7 +301,7 @@ public class EvaluationVisitor {
       HoldingContainer output = generator.declare(ifExpr.getCompleteType());
 
       final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
-          .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
+        .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
 
       generator.nestEvalBlock(jc._then());
 
@@ -305,6 +325,62 @@ public class EvaluationVisitor {
       //b.assign(output.getIsSet(), elseExpr.getIsSet());
       local.add(conditionalBlock);
       return output;
+    }
+
+    @Override
+    public HoldingContainer visitCaseExpression(CaseExpression caseExpression, ClassGenerator<?> generator)
+      throws RuntimeException {
+      BiConsumer<HoldingContainer, JBlock> assigner;
+      Supplier<HoldingContainer> outputSupplier;
+      final CompleteType outputType = caseExpression.getCompleteType();
+      if (outputType.isComplex() || outputType.isUnion()) {
+        JVar complexOutput = generator.declareClassField("inputReader",
+          generator.getModel()._ref(FieldReader.class));
+        assigner = (expr, block) -> {
+          if (expr.isConstant()) {
+            JClass nrClass = generator.getModel().ref(org.apache.arrow.vector.complex.impl.NullReader.class);
+            JExpression nullReader = nrClass.staticRef("INSTANCE");
+            block.assign(complexOutput, nullReader);
+          } else {
+            final CompleteType fieldType = expr.getCompleteType();
+            final JExpression fieldReader = fieldType.isUnion()
+              ? expr.getHolder().ref("reader") : expr.getHolder();
+            block.assign(complexOutput, fieldReader);
+          }
+        };
+        outputSupplier = () -> new HoldingContainer(outputType, complexOutput, null, null, false, true);
+      } else {
+        final HoldingContainer output = generator.declare(outputType);
+        assigner = (expr, block) -> {
+          final JBlock ifBLock = block._if(expr.getIsSet().ne(JExpr.lit(0)))._then();
+          ifBLock.assign(output.getHolder(), expr.getHolder());
+        };
+        outputSupplier = () -> output;
+      }
+      JLabel caseLabel = generator.getEvalBlockLabel("caseBlock");
+      JBlock eval = generator.createInnerEvalBlock();
+      generator.nestEvalBlock(eval);
+      for (final CaseExpression.CaseConditionNode node : caseExpression.caseConditions) {
+        final JBlock local = generator.getEvalBlock();
+        final JBlock conditionalBlock = new JBlock(false, false);
+        final HoldingContainer holdingContainer = node.whenExpr.accept(this, generator);
+        final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
+          .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
+        generator.nestEvalBlock(jc._then());
+        HoldingContainer thenExpr = node.thenExpr.accept(this, generator);
+        generator.unNestEvalBlock();
+        assigner.accept(thenExpr, jc._then());
+        jc._then()._break(caseLabel);
+        local.add(conditionalBlock);
+      }
+      final JBlock elseBlock = generator.getEvalBlock();
+      generator.nestEvalBlock(elseBlock);
+      final HoldingContainer elseExpr = caseExpression.elseExpr.accept(this, generator);
+      generator.unNestEvalBlock();
+      assigner.accept(elseExpr, elseBlock);
+
+      generator.unNestEvalBlock();
+      return outputSupplier.get();
     }
 
     @Override
@@ -346,7 +422,7 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitIntervalYearConstant(IntervalYearExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       HoldingContainer out = generator.declare(e.getCompleteType());
       generator.getEvalBlock().assign(out.getValue(), JExpr.lit(e.getIntervalYear()));
       setIsSet(out, generator);
@@ -355,7 +431,7 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitTimeStampConstant(TimeStampExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       HoldingContainer out = generator.declare(e.getCompleteType());
       generator.getEvalBlock().assign(out.getValue(), JExpr.lit(e.getTimeStamp()));
       setIsSet(out, generator);
@@ -364,7 +440,7 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitFloatConstant(FloatExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       HoldingContainer out = generator.declare(e.getCompleteType());
       generator.getEvalBlock().assign(out.getValue(), JExpr.lit(e.getFloat()));
       setIsSet(out, generator);
@@ -373,7 +449,7 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitDoubleConstant(DoubleExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       HoldingContainer out = generator.declare(e.getCompleteType());
       generator.getEvalBlock().assign(out.getValue(), JExpr.lit(e.getDouble()));
       setIsSet(out, generator);
@@ -382,7 +458,7 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitBooleanConstant(BooleanExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       HoldingContainer out = generator.declare(e.getCompleteType());
       generator.getEvalBlock().assign(out.getValue(), JExpr.lit(e.getBoolean() ? 1 : 0));
       setIsSet(out, generator);
@@ -417,12 +493,14 @@ public class EvaluationVisitor {
       final JClass listType = e.getListType(model);
       final JVar valueSet = generator.declareClassField(generator.getNextVar("inMap"), listType);
 
-      buildInSet: {
-        final List<HoldingContainer> constants = FluentIterable.from(e.getConstants()).transform(new com.google.common.base.Function<LogicalExpression, HoldingContainer>(){
+      buildInSet:
+      {
+        final List<HoldingContainer> constants = FluentIterable.from(e.getConstants()).transform(new com.google.common.base.Function<LogicalExpression, HoldingContainer>() {
           @Override
           public HoldingContainer apply(LogicalExpression input) {
             return input.accept(EvalVisitor.this, generator);
-          }}).toList();
+          }
+        }).toList();
 
         final HoldingContainer exampleConstant = constants.get(0);
 
@@ -431,7 +509,7 @@ public class EvaluationVisitor {
         JClass holderType = e.getHolderType(model);
         JArray holders = JExpr.newArray(holderType, constants.size());
         JVar inVars = block.decl(holderType.array(), generator.getNextVar("inVals"), holders);
-        for(int i =0; i < constants.size(); i++) {
+        for (int i = 0; i < constants.size(); i++) {
           block.assign(JExpr.component(inVars, JExpr.lit(i)), constants.get(i).getHolder());
         }
 
@@ -440,19 +518,20 @@ public class EvaluationVisitor {
         generator.getMappingSet().exitConstant();
       }
 
-      buildInEvaluation: {
+      buildInEvaluation:
+      {
         JBlock block = generator.getEvalBlock();
         HoldingContainer eval = e.getEval().accept(EvalVisitor.this, generator);
         JClass outType = CodeModelArrowHelper.getHolderType(CompleteType.BIT, model);
         JVar var = block.decl(outType, generator.getNextVar("inListResult"), JExpr._new(outType));
         block.assign(var.ref("isSet"), JExpr.lit(1));
         JInvocation valueFound;
-        if(e.isVarType()) {
+        if (e.isVarType()) {
           valueFound = valueSet.invoke("isContained")
-          .arg(eval.getIsSet())
-          .arg(eval.getHolder().ref("start"))
-          .arg(eval.getHolder().ref("end"))
-          .arg(eval.getHolder().ref("buffer"));
+            .arg(eval.getIsSet())
+            .arg(eval.getHolder().ref("start"))
+            .arg(eval.getHolder().ref("end"))
+            .arg(eval.getHolder().ref("buffer"));
         } else {
           valueFound = valueSet.invoke("isContained")
             .arg(eval.getIsSet())
@@ -478,9 +557,9 @@ public class EvaluationVisitor {
       // Otherwise, input is a holder and we use vv mutator to set value.
       if (inputContainer.isReader()) {
         JType writerImpl = generator.getModel()._ref(
-                TypeHelper.getWriterImpl(getArrowMinorType(inputContainer.getCompleteType().toMinorType())));
+          TypeHelper.getWriterImpl(getArrowMinorType(inputContainer.getCompleteType().toMinorType())));
         JType writerIFace = generator.getModel()._ref(
-            TypeHelper.getWriterInterface(getArrowMinorType(inputContainer.getCompleteType().toMinorType())));
+          TypeHelper.getWriterInterface(getArrowMinorType(inputContainer.getCompleteType().toMinorType())));
 
         JVar writer = generator.declareClassField("writer", writerIFace);
         generator.getSetupBlock().assign(writer, JExpr._new(writerImpl).arg(vv));
@@ -488,12 +567,12 @@ public class EvaluationVisitor {
 
         if (child.getCompleteType().isUnion() || child.getCompleteType().isComplex()) {
           final JClass complexCopierClass = generator.getModel()
-              .ref(org.apache.arrow.vector.complex.impl.ComplexCopier.class);
+            .ref(org.apache.arrow.vector.complex.impl.ComplexCopier.class);
           final JExpression castedWriter = JExpr.cast(generator.getModel().ref(FieldWriter.class), writer);
           generator.getEvalBlock()
-              .add(complexCopierClass.staticInvoke("copy")
-                  .arg(inputContainer.getHolder())
-                  .arg(castedWriter));
+            .add(complexCopierClass.staticInvoke("copy")
+              .arg(inputContainer.getHolder())
+              .arg(castedWriter));
         } else {
           String copyMethod = inputContainer.isSingularRepeated() ? "copyAsValueSingle" : "copyAsValue";
           generator.getEvalBlock().add(inputContainer.getHolder().invoke(copyMethod).arg(writer));
@@ -517,11 +596,11 @@ public class EvaluationVisitor {
     }
 
     private HoldingContainer visitValueVectorReadExpression(ValueVectorReadExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       // declare value vector
 
       JExpression vv1 = generator.declareVectorValueSetupAndMember(generator.getMappingSet().getIncoming(),
-          e.getFieldId());
+        e.getFieldId());
       JExpression indexVariable = generator.getMappingSet().getValueReadIndex();
 
       JExpression componentVariable = indexVariable.shrz(JExpr.lit(16));
@@ -544,7 +623,7 @@ public class EvaluationVisitor {
 
       if (!hasReadPath && !complex) {
         JBlock eval = new JBlock();
-        GetSetVectorHelper.read(e.getCompleteType(),  vv1, eval, out, generator.getModel(), indexVariable);
+        GetSetVectorHelper.read(e.getCompleteType(), vv1, eval, out, generator.getModel(), indexVariable);
         generator.getEvalBlock().add(eval);
 
       } else {
@@ -580,14 +659,14 @@ public class EvaluationVisitor {
             // if this is an array, set a single position for the expression to
             // allow us to read the right data lower down.
             JVar desiredIndex = eval.decl(generator.getModel().INT, "desiredIndex" + listNum,
-                JExpr.lit(seg.getArraySegment().getIndex()));
+              JExpr.lit(seg.getArraySegment().getIndex()));
             // start with negative one so that we are at zero after first call
             // to next.
             JVar currentIndex = eval.decl(generator.getModel().INT, "currentIndex" + listNum, JExpr.lit(-1));
 
             eval._while( //
-                currentIndex.lt(desiredIndex) //
-                    .cand(list.invoke("next"))).body().assign(currentIndex, currentIndex.plus(JExpr.lit(1)));
+              currentIndex.lt(desiredIndex) //
+                .cand(list.invoke("next"))).body().assign(currentIndex, currentIndex.plus(JExpr.lit(1)));
 
 
             JBlock ifNoVal = eval._if(desiredIndex.ne(currentIndex))._then().block();
@@ -667,9 +746,8 @@ public class EvaluationVisitor {
       return null;
     }
 
-    @Override
     public HoldingContainer visitQuotedStringConstant(QuotedString e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       CompleteType completeType = CompleteType.VARCHAR;
       JBlock setup = generator.getBlock(BlockType.SETUP);
       JType holderType = CodeModelArrowHelper.getHolderType(completeType, generator.getModel());
@@ -677,13 +755,13 @@ public class EvaluationVisitor {
       JExpression stringLiteral = JExpr.lit(e.value);
       JExpression buffer = JExpr.direct("context").invoke("getManagedBuffer");
       setup.assign(var,
-          generator.getModel().ref(ValueHolderHelper.class).staticInvoke("getNullableVarCharHolder").arg(buffer).arg(stringLiteral));
+        generator.getModel().ref(ValueHolderHelper.class).staticInvoke("getNullableVarCharHolder").arg(buffer).arg(stringLiteral));
       return new HoldingContainer((completeType), var, var.ref("value"), var.ref("isSet"));
     }
 
     @Override
     public HoldingContainer visitIntervalDayConstant(IntervalDayExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
+      throws RuntimeException {
       CompleteType completeType = CompleteType.INTERVAL_DAY_SECONDS;
       JBlock setup = generator.getBlock(BlockType.SETUP);
       JType holderType = CodeModelArrowHelper.getHolderType(completeType, generator.getModel());
@@ -691,9 +769,9 @@ public class EvaluationVisitor {
       JExpression dayLiteral = JExpr.lit(e.getIntervalDay());
       JExpression millisLiteral = JExpr.lit(e.getIntervalMillis());
       setup.assign(
-          var,
-          generator.getModel().ref(ValueHolderHelper.class).staticInvoke("getNullableIntervalDayHolder").arg(dayLiteral)
-              .arg(millisLiteral));
+        var,
+        generator.getModel().ref(ValueHolderHelper.class).staticInvoke("getNullableIntervalDayHolder").arg(dayLiteral)
+          .arg(millisLiteral));
       return new HoldingContainer(completeType, var, var.ref("value"), var.ref("isSet"));
     }
 
@@ -714,12 +792,12 @@ public class EvaluationVisitor {
     @Override
     public HoldingContainer visitCastExpression(CastExpression e, ClassGenerator<?> value) throws RuntimeException {
       throw new UnsupportedOperationException("CastExpression is not expected here. "
-          + "It should have been converted to FunctionHolderExpression in materialization");
+        + "It should have been converted to FunctionHolderExpression in materialization");
     }
 
     @Override
     public HoldingContainer visitConvertExpression(ConvertExpression e, ClassGenerator<?> value)
-        throws RuntimeException {
+      throws RuntimeException {
       String convertFunctionName = e.getConvertFunction() + e.getEncodingType();
 
       List<LogicalExpression> newArgs = Lists.newArrayList();
@@ -730,7 +808,7 @@ public class EvaluationVisitor {
     }
 
     private HoldingContainer visitBooleanAnd(BooleanOperator op,
-        ClassGenerator<?> generator) {
+                                             ClassGenerator<?> generator) {
 
       HoldingContainer out = generator.declare(op.getCompleteType());
 
@@ -753,15 +831,15 @@ public class EvaluationVisitor {
         arg = op.args.get(i).accept(this, generator);
 
         JBlock earlyExit = null;
-          earlyExit = eval._if(arg.getIsSet().eq(JExpr.lit(1)).cand(arg.getValue().ne(JExpr.lit(1))))._then();
-          if (e == null) {
-            e = arg.getIsSet();
-          } else {
-            e = e.mul(arg.getIsSet());
-          }
+        earlyExit = eval._if(arg.getIsSet().eq(JExpr.lit(1)).cand(arg.getValue().ne(JExpr.lit(1))))._then();
+        if (e == null) {
+          e = arg.getIsSet();
+        } else {
+          e = e.mul(arg.getIsSet());
+        }
         earlyExit.assign(out.getIsSet(), JExpr.lit(1));
 
-        earlyExit.assign(out.getValue(),  JExpr.lit(0));
+        earlyExit.assign(out.getValue(), JExpr.lit(0));
         earlyExit._break(label);
       }
 
@@ -780,7 +858,7 @@ public class EvaluationVisitor {
     }
 
     private HoldingContainer visitBooleanOr(BooleanOperator op,
-        ClassGenerator<?> generator) {
+                                            ClassGenerator<?> generator) {
 
       HoldingContainer out = generator.declare(op.getCompleteType());
 
@@ -810,7 +888,7 @@ public class EvaluationVisitor {
           e = e.mul(arg.getIsSet());
         }
         earlyExit.assign(out.getIsSet(), JExpr.lit(1));
-        earlyExit.assign(out.getValue(),  JExpr.lit(1));
+        earlyExit.assign(out.getValue(), JExpr.lit(1));
         earlyExit._break(label);
       }
 
@@ -827,13 +905,11 @@ public class EvaluationVisitor {
 
       return out;
     }
-
   }
 
-  private class CSEFilter extends ConstantFilter {
-
-    public CSEFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext, boolean allowInnerMethods) {
-      super(constantBoundaries, functionContext, allowInnerMethods);
+  private class CSEFilter extends InnerMethodNester {
+    public CSEFilter(FunctionContext functionContext, boolean allowInnerMethods) {
+      super(functionContext, allowInnerMethods);
     }
 
     @Override
@@ -867,6 +943,22 @@ public class EvaluationVisitor {
     }
 
     @Override
+    public HoldingContainer visitCaseExpression(CaseExpression caseExpr, ClassGenerator<?> generator) throws RuntimeException {
+      if (caseExpr.caseConditions.size() < newMethodThreshold) {
+        HoldingContainer hc = getPrevious(caseExpr, generator.getMappingSet());
+        if (hc == null) {
+          hc = super.visitCaseExpression(caseExpr, generator);
+          put(caseExpr, hc, generator.getMappingSet());
+        }
+        return hc;
+      } else {
+        // very unlikely that large case expressions are duplicated, not worth checking and storing
+        // previous computations for such large case expressions
+        return super.visitCaseExpression(caseExpr, generator);
+      }
+    }
+
+    @Override
     public HoldingContainer visitBooleanOperator(BooleanOperator call, ClassGenerator<?> generator) throws RuntimeException {
       HoldingContainer hc = getPrevious(call, generator.getMappingSet());
       if (hc == null) {
@@ -888,122 +980,62 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitIntConstant(IntExpression intExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(intExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitIntConstant(intExpr, generator);
-        put(intExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitIntConstant(intExpr, generator);
     }
 
     @Override
     public HoldingContainer visitFloatConstant(FloatExpression fExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(fExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitFloatConstant(fExpr, generator);
-        put(fExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitFloatConstant(fExpr, generator);
     }
 
     @Override
     public HoldingContainer visitLongConstant(LongExpression longExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(longExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitLongConstant(longExpr, generator);
-        put(longExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitLongConstant(longExpr, generator);
     }
 
     @Override
     public HoldingContainer visitDateConstant(DateExpression dateExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(dateExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitDateConstant(dateExpr, generator);
-        put(dateExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitDateConstant(dateExpr, generator);
     }
 
     @Override
     public HoldingContainer visitTimeConstant(TimeExpression timeExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(timeExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitTimeConstant(timeExpr, generator);
-        put(timeExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitTimeConstant(timeExpr, generator);
     }
 
     @Override
     public HoldingContainer visitTimeStampConstant(TimeStampExpression timeStampExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(timeStampExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitTimeStampConstant(timeStampExpr, generator);
-        put(timeStampExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitTimeStampConstant(timeStampExpr, generator);
     }
 
     @Override
     public HoldingContainer visitIntervalYearConstant(IntervalYearExpression intervalYearExpression, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(intervalYearExpression, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitIntervalYearConstant(intervalYearExpression, generator);
-        put(intervalYearExpression, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitIntervalYearConstant(intervalYearExpression, generator);
     }
 
     @Override
     public HoldingContainer visitIntervalDayConstant(IntervalDayExpression intervalDayExpression, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(intervalDayExpression, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitIntervalDayConstant(intervalDayExpression, generator);
-        put(intervalDayExpression, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitIntervalDayConstant(intervalDayExpression, generator);
     }
 
     @Override
     public HoldingContainer visitDecimalConstant(DecimalExpression decExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(decExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitDecimalConstant(decExpr, generator);
-        put(decExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitDecimalConstant(decExpr, generator);
     }
 
     @Override
     public HoldingContainer visitDoubleConstant(DoubleExpression dExpr, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(dExpr, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitDoubleConstant(dExpr, generator);
-        put(dExpr, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitDoubleConstant(dExpr, generator);
     }
 
     @Override
     public HoldingContainer visitBooleanConstant(BooleanExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(e, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitBooleanConstant(e, generator);
-        put(e, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitBooleanConstant(e, generator);
     }
 
     @Override
     public HoldingContainer visitQuotedStringConstant(QuotedString e, ClassGenerator<?> generator) throws RuntimeException {
-      HoldingContainer hc = getPrevious(e, generator.getMappingSet());
-      if (hc == null) {
-        hc = super.visitQuotedStringConstant(e, generator);
-        put(e, hc, generator.getMappingSet());
-      }
-      return hc;
+      return super.visitQuotedStringConstant(e, generator);
     }
 
     @Override
@@ -1061,8 +1093,8 @@ public class EvaluationVisitor {
    */
   private class InnerMethodNester extends EvalVisitor {
     private final boolean allowNewMethods;
-
-    private Deque<Integer> exprCount = new LinkedList<>();
+    private final Deque<Integer> exprCount = new ArrayDeque<>();
+    private final Deque<Integer> caseConditionCount = new ArrayDeque<>();
 
     InnerMethodNester(FunctionContext functionContext, boolean allowNewMethods) {
       super(functionContext);
@@ -1075,7 +1107,20 @@ public class EvaluationVisitor {
     }
 
     private boolean shouldNestMethod() {
-      return exprCount.peekLast() > newMethodThreshold;
+      return ((caseConditionCount.isEmpty() && exprCount.peekLast() > newMethodThreshold)
+        || (!caseConditionCount.isEmpty() && caseConditionCount.peek() > newMethodThreshold));
+    }
+
+    private void addCaseDepth() {
+      if (!caseConditionCount.isEmpty()) {
+        caseConditionCount.push(0);
+      }
+    }
+
+    private void removeCaseDepth() {
+      if (!caseConditionCount.isEmpty()) {
+        caseConditionCount.pop();
+      }
     }
 
     @Override
@@ -1083,6 +1128,7 @@ public class EvaluationVisitor {
       inc();
       if (allowNewMethods && shouldNestMethod()) {
         exprCount.push(0);
+        addCaseDepth();
         HoldingContainer out = generator.declare(holder.getCompleteType(), false);
         JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(holder.getCompleteType());
@@ -1094,6 +1140,7 @@ public class EvaluationVisitor {
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
         generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
+        removeCaseDepth();
         exprCount.pop();
         return out;
       }
@@ -1105,6 +1152,7 @@ public class EvaluationVisitor {
       inc();
       if (shouldNestMethod()) {
         exprCount.push(0);
+        addCaseDepth();
         HoldingContainer out = generator.declare(ifExpr.getCompleteType(), false);
         JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(ifExpr.getCompleteType());
@@ -1116,6 +1164,7 @@ public class EvaluationVisitor {
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
         generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
+        removeCaseDepth();
         exprCount.pop();
         return out;
       }
@@ -1123,10 +1172,39 @@ public class EvaluationVisitor {
     }
 
     @Override
+    public HoldingContainer visitCaseExpression(CaseExpression caseExpr, ClassGenerator<?> generator)
+      throws RuntimeException {
+      inc();
+      if (shouldNestMethod()) {
+        exprCount.push(0);
+        HoldingContainer out = generator.declare(caseExpr.getCompleteType(), false);
+        JMethod setupMethod = generator.nestSetupMethod();
+        JMethod method = generator.innerMethod(caseExpr.getCompleteType());
+        HoldingContainer returnContainer = super.visitCaseExpression(caseExpr, generator);
+        method.body()._return(returnContainer.getHolder());
+        generator.unNestEvalBlock();
+        generator.unNestSetupBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method, BlockType.EVAL);
+        generator.getEvalBlock().assign(out.getHolder(), methodCall);
+        generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
+
+        exprCount.pop();
+        return out;
+      }
+      caseConditionCount.push(CaseConditionCounter.getCaseConditionCount(caseExpr));
+      try {
+        return super.visitCaseExpression(caseExpr, generator);
+      } finally {
+        caseConditionCount.pop();
+      }
+    }
+
+    @Override
     public HoldingContainer visitBooleanOperator(BooleanOperator call, ClassGenerator<?> generator) throws RuntimeException {
       inc();
       if (shouldNestMethod()) {
         exprCount.push(0);
+        addCaseDepth();
         HoldingContainer out = generator.declare(call.getCompleteType(), false);
         JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(call.getCompleteType());
@@ -1138,6 +1216,7 @@ public class EvaluationVisitor {
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
         generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
+        removeCaseDepth();
         exprCount.pop();
         return out;
       }
@@ -1155,6 +1234,7 @@ public class EvaluationVisitor {
       inc();
       if (shouldNestMethod()) {
         exprCount.push(0);
+        addCaseDepth();
         HoldingContainer out = generator.declare(e.getCompleteType(), false);
         JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(e.getCompleteType());
@@ -1166,6 +1246,7 @@ public class EvaluationVisitor {
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
         generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
+        removeCaseDepth();
         exprCount.pop();
         return out;
       }
@@ -1173,296 +1254,203 @@ public class EvaluationVisitor {
     }
   }
 
-  private class ConstantFilter extends InnerMethodNester {
+  /**
+   * Filter constants at the first level as constants can be treated at global scope.
+   * Also, constants with the same literal value need be rendered only once.
+   */
+  private class ConstantFilter extends CSEFilter {
+    private final Set<LogicalExpression> constantBoundaries;
+    private final Map<ExpressionHolder, HoldingContainer> processedConstantMap;
 
-    private Set<LogicalExpression> constantBoundaries;
-
-    public ConstantFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext, boolean allowNewMethods) {
+    public ConstantFilter(Set<LogicalExpression> constantBoundaries, FunctionContext functionContext,
+                          boolean allowNewMethods) {
       super(functionContext, allowNewMethods);
       this.constantBoundaries = constantBoundaries;
+      this.processedConstantMap = new HashMap<>();
+    }
+
+    private HoldingContainer preProcessIfConstant(LogicalExpression e, ClassGenerator<?> generator,
+                                                  Supplier<HoldingContainer> containerCreator,
+                                                  Supplier<HoldingContainer> containerCreatorForVar) {
+      if (constantBoundaries.contains(e)) {
+        final ExpressionHolder holder = new ExpressionHolder(e, generator.getMappingSet());
+        final HoldingContainer hc = processedConstantMap.get(holder);
+        if (hc == null) {
+          // constants have global scope, so holding container can be reused globally
+          generator.getMappingSet().enterConstant();
+          final HoldingContainer c = containerCreator.get();
+          c.setNullConstant(generator.getMappingSet().isNullConstant());
+          final HoldingContainer rendered = renderConstantExpression(generator, c);
+          processedConstantMap.put(holder, rendered);
+          return rendered;
+        } else {
+          return hc;
+        }
+      } else if (generator.getMappingSet().isWithinConstant()) {
+        return containerCreator.get().setConstant(true).setNullConstant(generator.getMappingSet().isNullConstant());
+      } else {
+        return (containerCreatorForVar != null) ? containerCreatorForVar.get() : containerCreator.get();
+      }
     }
 
     @Override
     public HoldingContainer visitFunctionCall(FunctionCall e, ClassGenerator<?> generator) throws RuntimeException {
       throw new UnsupportedOperationException("FunctionCall is not expected here. "
-          + "It should have been converted to FunctionHolderExpression in materialization");
+        + "It should have been converted to FunctionHolderExpression in materialization");
     }
 
     @Override
     public HoldingContainer visitFunctionHolderExpression(FunctionHolderExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitFunctionHolderExpression(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitFunctionHolderExpression(e, generator).setConstant(true);
-      } else {
-        return super.visitFunctionHolderExpression(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitFunctionHolderExpression(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitBooleanOperator(BooleanOperator e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitBooleanOperator(e, generator);
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitBooleanOperator(e, generator).setConstant(true);
-      } else {
-
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitBooleanOperator(e, generator), () -> {
         // want to optimize a non-constant boolean operator.
-        if(functionContext.getCompilationOptions().enableOrOptimization() && "booleanOr".equals(e.getName())) {
-          List<LogicalExpression> newExpressions = OrInConverter.optimizeMultiOrs(e.args, constantBoundaries, functionContext.getCompilationOptions().getOrOptimizationThreshold(),
+        if (functionContext.getCompilationOptions().enableOrOptimization() && "booleanOr".equals(e.getName())) {
+          List<LogicalExpression> newExpressions = OrInConverter.optimizeMultiOrs(e.args, constantBoundaries,
+            functionContext.getCompilationOptions().getOrOptimizationThreshold(),
             functionContext.getCompilationOptions().getVarcharOrOptimizationThreshold());
           return super.visitBooleanOperator(new BooleanOperator(e.getName(), newExpressions), generator);
         }
-
         return super.visitBooleanOperator(e, generator);
-      }
+      });
     }
 
     @Override
     public HoldingContainer visitIfExpression(IfExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitIfExpression(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitIfExpression(e, generator).setConstant(true);
-      } else {
-        return super.visitIfExpression(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitIfExpression(e, generator), null);
+    }
+
+    @Override
+    public HoldingContainer visitCaseExpression(CaseExpression caseExpr, ClassGenerator<?> generator)
+      throws RuntimeException {
+      return preProcessIfConstant(caseExpr, generator, () -> super.visitCaseExpression(caseExpr, generator), null);
     }
 
     @Override
     public HoldingContainer visitSchemaPath(SchemaPath e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitSchemaPath(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitSchemaPath(e, generator).setConstant(true);
-      } else {
-        return super.visitSchemaPath(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitSchemaPath(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitLongConstant(LongExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitLongConstant(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitLongConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitLongConstant(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitLongConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitDecimalConstant(DecimalExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitDecimalConstant(e, generator);
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitDecimalConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitDecimalConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitDecimalConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitIntConstant(IntExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitIntConstant(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitIntConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitIntConstant(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitIntConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitDateConstant(DateExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitDateConstant(e, generator);
-
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitDateConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitDateConstant(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitDateConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitTimeConstant(TimeExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitTimeConstant(e, generator);
-
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitTimeConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitTimeConstant(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitTimeConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitIntervalYearConstant(IntervalYearExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitIntervalYearConstant(e, generator);
-
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitIntervalYearConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitIntervalYearConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitIntervalYearConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitTimeStampConstant(TimeStampExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitTimeStampConstant(e, generator);
-
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitTimeStampConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitTimeStampConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitTimeStampConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitFloatConstant(FloatExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitFloatConstant(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitFloatConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitFloatConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitFloatConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitDoubleConstant(DoubleExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitDoubleConstant(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitDoubleConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitDoubleConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitDoubleConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitBooleanConstant(BooleanExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitBooleanConstant(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitBooleanConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitBooleanConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitBooleanConstant(e, generator), null);
+    }
+
+    @Override
+    public HoldingContainer visitNullConstant(TypedNullConstant e, ClassGenerator<?> generator)
+      throws RuntimeException {
+      generator.getMappingSet().setNullConstant();
+      return super.visitNullConstant(e, generator).setNullConstant(true);
     }
 
     @Override
     public HoldingContainer visitUnknown(LogicalExpression e, ClassGenerator<?> generator) throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitUnknown(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitUnknown(e, generator).setConstant(true);
-      } else {
-        return super.visitUnknown(e, generator);
-      }
+      return preProcessIfConstant(e, generator, () -> super.visitUnknown(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitQuotedStringConstant(QuotedString e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitQuotedStringConstant(e, generator);
-        // generator.getMappingSet().exitConstant();
-        // return c;
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitQuotedStringConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitQuotedStringConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitQuotedStringConstant(e, generator), null);
     }
 
     @Override
     public HoldingContainer visitIntervalDayConstant(IntervalDayExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      if (constantBoundaries.contains(e)) {
-        generator.getMappingSet().enterConstant();
-        HoldingContainer c = super.visitIntervalDayConstant(e, generator);
-
-        return renderConstantExpression(generator, c);
-      } else if (generator.getMappingSet().isWithinConstant()) {
-        return super.visitIntervalDayConstant(e, generator).setConstant(true);
-      } else {
-        return super.visitIntervalDayConstant(e, generator);
-      }
+      throws RuntimeException {
+      return preProcessIfConstant(e, generator, () -> super.visitIntervalDayConstant(e, generator), null);
     }
 
     /*
      * Get a HoldingContainer for a constant expression. The returned
-     * HoldingContainder will indicate it's for a constant expression.
+     * HoldingContainer will indicate it's for a constant expression.
      */
     private HoldingContainer renderConstantExpression(ClassGenerator<?> generator, HoldingContainer input) {
-      JVar fieldValue = generator.declareClassField("constant", CodeModelArrowHelper.getHolderType(input.getCompleteType(), generator.getModel()));
-      generator.getEvalBlock().assign(fieldValue, input.getHolder());
+      final JType jType = CodeModelArrowHelper.getHolderType(input.getCompleteType(), generator.getModel());
+      JAssignmentTarget target = generator.declareNextConstantField(input.getCompleteType(), jType);
+      generator.getEvalBlock().assign(target, input.getHolder());
       generator.getMappingSet().exitConstant();
-      return new HoldingContainer(input.getCompleteType(), fieldValue, fieldValue.ref("value"), fieldValue.ref("isSet"))
-          .setConstant(true);
+      return new HoldingContainer(input.getCompleteType(), target, jType, target.ref("value"), target.ref("isSet"))
+        .setConstant(true);
     }
   }
 
+  /**
+   * Count total case conditions including nesting to get an approximate idea of expression size
+   */
+  private static class CaseConditionCounter extends AbstractExprVisitor<Integer, Void, RuntimeException> {
+    @Override
+    public Integer visitCaseExpression(CaseExpression caseExpression, Void value) {
+      final int topLevelExprCount = 1 + caseExpression.caseConditions.size() * 2;
+      final int nextLevelConditionsCount = caseExpression.caseConditions.stream()
+          .mapToInt(x -> x.thenExpr.accept(this, null) + x.whenExpr.accept(this, null))
+          .sum();
+      final int nextLevelElseCount = caseExpression.elseExpr.accept(this, null);
+      return topLevelExprCount + nextLevelConditionsCount + nextLevelElseCount;
+    }
+
+    @Override
+    public Integer visitUnknown(LogicalExpression e, Void value) {
+      return 0;
+    }
+
+    private static int getCaseConditionCount(CaseExpression caseExpression) {
+      return caseExpression.accept(new CaseConditionCounter(), null);
+    }
+  }
 }

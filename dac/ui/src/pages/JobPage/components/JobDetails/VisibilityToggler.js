@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
@@ -23,8 +22,7 @@ import Art from 'components/Art';
 
 @injectIntl
 @Radium
-@PureRender
-class VisibilityToggler extends Component {
+class VisibilityToggler extends PureComponent {
   static propTypes = {
     title: PropTypes.object.isRequired,
     children: PropTypes.node.isRequired,

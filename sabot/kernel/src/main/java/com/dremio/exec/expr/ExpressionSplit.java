@@ -24,6 +24,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -265,6 +266,16 @@ public class ExpressionSplit implements Closeable {
     @Override
     public Double visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
       return 0.0;
+    }
+
+    @Override
+    public Double visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+      double result = 1.0;
+
+      for (LogicalExpression e : caseExpression) {
+        result += e.accept(this, value);
+      }
+      return result;
     }
   }
 }

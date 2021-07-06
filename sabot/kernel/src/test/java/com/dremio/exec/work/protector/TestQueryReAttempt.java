@@ -42,6 +42,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -148,6 +149,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
   public static void enableReAttempts() {
     setSessionOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG, "false");
     setSessionOption(ExecConstants.ENABLE_REATTEMPTS.getOptionName(), "true");
+    setSessionOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
   }
 
   /**

@@ -1,0 +1,2 @@
+{"commitInfo":{"timestamp":1618769399578,"operation":"WRITE","operationParameters":{"mode":"Append","partitionBy":"[\"continent\"]"},"readVersion":5,"isBlindAppend":true,"operationMetrics":{"numFiles":"1","numOutputBytes":"11807","numOutputRows":"10"}}}
+{"add":{"path":"continent=Asia/part-00000-ecbd17c6-1747-4c75-ade9-00cfb12f7bb3.c000.snappy.parquet","partitionValues":{"continent":"Asia"},"size":11807,"modificationTime":1618769399000,"dataChange":true}}

@@ -56,7 +56,7 @@ import com.google.protobuf.Empty;
  */
 @RestResource
 @Secured
-@RolesAllowed({"admin", "user"})
+@RolesAllowed({"admin"})
 @Path("/system")
 public class SystemResource extends BaseResourceWithAllocator {
 

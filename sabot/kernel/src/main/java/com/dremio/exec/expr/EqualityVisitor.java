@@ -18,6 +18,7 @@ package com.dremio.exec.expr;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -74,6 +75,14 @@ class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,Runt
       return false;
     }
     return checkChildren(holder, value);
+  }
+
+  @Override
+  public Boolean visitCaseExpression(CaseExpression caseExpression, LogicalExpression value) throws RuntimeException {
+    if (!(value instanceof CaseExpression)) {
+      return false;
+    }
+    return checkChildren(caseExpression, value);
   }
 
   @Override

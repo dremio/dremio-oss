@@ -653,16 +653,25 @@ public class TestCatalogServiceImpl {
     assertEquals(0, Iterables.size(namespaceService.getAllDatasets(mockUpKey)));
   }
 
-  private static final String MOCK_UP = "mockup";
+  static final String MOCK_UP = "mockup";
   private static final String MOCK_UP_BAD = "mockup_bad";
 
   @SourceType(value = MOCK_UP, configurable = false)
   public static class MockUpConfig extends ConnectionConf<MockUpConfig, MockUpPlugin> {
+    MockUpPlugin plugin;
+
+    MockUpConfig() {
+      this(mockUpPlugin);
+    }
+
+    MockUpConfig(MockUpPlugin plugin) {
+      this.plugin = plugin;
+    }
 
     @Override
     public MockUpPlugin newPlugin(SabotContext context, String name,
                                   Provider<StoragePluginId> pluginIdProvider) {
-      return mockUpPlugin;
+      return plugin;
     }
   }
 

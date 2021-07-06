@@ -59,7 +59,7 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
       IcebergTableWrapper tableWrapper = new IcebergTableWrapper(getSabotContext(), localFs,
-        new Configuration(), tableFolder.toPath().toString());
+        getIcebergModel(tableFolder), tableFolder.toPath().toString());
 
       List<PartitionChunk> chunks = ImmutableList.copyOf(
         tableWrapper.getTableInfo().getPartitionChunkListing().iterator());
@@ -103,7 +103,7 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
       IcebergTableWrapper tableWrapper = new IcebergTableWrapper(getSabotContext(), localFs,
-        new Configuration(), tableFolder.toPath().toString());
+              getIcebergModel(tableFolder), tableFolder.toPath().toString());
 
       List<PartitionChunk> chunks =
         ImmutableList.copyOf(tableWrapper.getTableInfo().getPartitionChunkListing().iterator());

@@ -266,7 +266,7 @@ public class TestParquetScanTableFunction {
         when(functionContext.getFullSchema()).thenReturn(fullSchema);
         when(functionContext.getColumns()).thenReturn(Collections.EMPTY_LIST);
 
-        return new TableFunctionConfig(TableFunctionConfig.FunctionType.PARQUET_DATA_SCAN, false, functionContext);
+        return new TableFunctionConfig(TableFunctionConfig.FunctionType.DATA_FILE_SCAN, false, functionContext);
     }
 
     private ExecProtos.RuntimeFilter newRuntimeFilter(int sizeBytes, String... cols) {

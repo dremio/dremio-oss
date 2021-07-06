@@ -72,6 +72,11 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
   }
 
   @Override
+  public String getFilePath() {
+    return path.toString();
+  }
+
+  @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     // Reason for enabling the union by default is because Excel documents are highly likely to contain
     // mixed types and the sampling code doesn't take enable union by default.

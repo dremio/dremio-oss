@@ -16,6 +16,7 @@
 package com.dremio.exec.store.easy.json;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -24,11 +25,13 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.EasyCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
+import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin.JSONFormatConfig;
 import com.dremio.io.file.FileSystem;
@@ -37,6 +40,7 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
 
@@ -54,6 +58,12 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
     return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns);
+  }
+
+  @Override
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, EasySubScan config) throws ExecutionSetupException {
+    RecordReader inner = getRecordReader(context, dfs, splitAttributes, columns);
+    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), Collections.emptyList());
   }
 
   @Override

@@ -130,13 +130,13 @@ public interface QueryLogBundleService extends Service {
       return;
     }
     Arrays.sort(files);
-    int lastDate = -1;
+    long lastDate = Long.MIN_VALUE;
     List<File> temp = new ArrayList<>();
     int k = 0;
     for (int i = 0; i < files.length; i++) {
       File file = files[i];
       try {
-        int fileDate = DateTimeUtils.getDateFromString(file.getName()).getDate();
+        long fileDate = DateTimeUtils.getDateFromString(file.getName()).getTime();
         if (lastDate != -1 && lastDate != fileDate) {
           File[] sortedTemp = temp.toArray(new File[0]);
           Arrays.sort(sortedTemp, Collections.reverseOrder());

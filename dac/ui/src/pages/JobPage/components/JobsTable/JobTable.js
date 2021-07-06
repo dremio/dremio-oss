@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable, { Map }  from 'immutable';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
@@ -37,8 +36,7 @@ const JOBS_OFFSET = 30;
 const OFFSETHEIGHT_HEIGHT_DIFF = 25;
 
 @Radium
-@PureRender
-export default class JobTable extends Component {
+export default class JobTable extends PureComponent {
 
   static propTypes = {
     jobs: PropTypes.instanceOf(Immutable.List).isRequired,

@@ -27,6 +27,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -66,6 +67,7 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   @Tag(6)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  @JsonIgnore
   public boolean allowCreateDrop;
 
   @Override
@@ -91,7 +93,7 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+    return SchemaMutability.USER_TABLE;
   }
 
   @Override

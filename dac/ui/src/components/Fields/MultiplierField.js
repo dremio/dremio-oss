@@ -102,6 +102,10 @@ export default class MultiplierField extends Component {
 
   getConvertedNumberForDisplay() {
     const {value, valueMultiplier, unitMultipliers} = this.props;
+    if (unitMultipliers === undefined) {
+      return 0;
+    }
+
     const valueWithMultiplier = (valueMultiplier) ? value * valueMultiplier : value;
     let convertedValue = valueWithMultiplier / unitMultipliers.get(this.getUnit());
     if (Number.isNaN(convertedValue)) {

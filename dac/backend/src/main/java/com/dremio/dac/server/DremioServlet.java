@@ -136,7 +136,8 @@ public class DremioServlet implements Servlet {
       .setAnalyzeTools(AnalyzeTools.from(options))
       .setCrossSourceDisabled(options.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT))
       .setQueryBundleUsersEnabled(options.getOption(QueryLogBundleService.USERS_BUNDLE_DOWNLOAD))
-      .setDownloadRecordsLimit(options.getOption(DatasetDownloadManager.DOWNLOAD_RECORDS_LIMIT));
+      .setDownloadRecordsLimit(options.getOption(DatasetDownloadManager.DOWNLOAD_RECORDS_LIMIT))
+      .setShowMetadataValidityCheckbox(options.getOption(CatalogOptions.SHOW_METADATA_VALIDITY_CHECKBOX));
   }
 
   protected Provider<SupportService> getSupportService() {

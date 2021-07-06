@@ -29,6 +29,7 @@ import com.dremio.service.Service;
 import com.dremio.service.grpc.DefaultGrpcServiceConfigProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.ssl.SSLEngineFactory;
+import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -37,9 +38,11 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 
 import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.opentracing.contrib.grpc.TracingClientInterceptor;
 
 /**
  * Master coordinator conduit that provides an active channel to the master coordinator.
@@ -55,7 +58,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
 
   // all grpc services that conduit channels should be whitelisted here for
   // retries
-  private final List<String> serviceNames = Arrays.asList("dremio.job.JobsService", "dremio" +
+  private static final List<String> serviceNames = Arrays.asList("dremio.job.JobsService", "dremio" +
     ".catalog.InformationSchemaService", "dremio.job.Chronicle", "dremio.maestroservice.MaestroService");
 
   public ConduitProviderImpl(
@@ -78,6 +81,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
               .maxInboundMessageSize(Integer.MAX_VALUE)
               .maxInboundMetadataSize(Integer.MAX_VALUE)
               .enableRetry()
+              .intercept(TracingClientInterceptor.newBuilder().withTracer(TracerFacade.INSTANCE.getTracer()).build())
               .defaultServiceConfig(DefaultGrpcServiceConfigProvider.getDefaultGrpcServiceConfig(serviceNames))
               .maxRetryAttempts(GrpcChannelBuilderFactory.MAX_RETRY);
 
@@ -88,6 +92,62 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
               .sslContext(GrpcSslContexts.configure(contextBuilder).build());
           } else {
             builder.usePlaintext();
+          }
+
+          return builder.build();
+        }
+      });
+  }
+
+  public ConduitProviderImpl(
+    Provider<NodeEndpoint> masterEndpoint,
+    GrpcChannelBuilderFactory channelBuilderFactory
+  ) {
+    this.masterEndpoint = masterEndpoint;
+    this.managedChannels = CacheBuilder.newBuilder()
+      .removalListener((RemovalListener<NodeEndpoint, ManagedChannel>) notification -> {
+        if (!notification.wasEvicted()) {
+          notification.getValue().shutdown();
+        }
+      })
+      .build(new CacheLoader<NodeEndpoint, ManagedChannel>() {
+        @Override
+        public ManagedChannel load(@SuppressWarnings("NullableProblems") NodeEndpoint peerEndpoint)
+          throws SSLException {
+          return channelBuilderFactory.newManagedChannelBuilder(peerEndpoint.getAddress(),
+            peerEndpoint.getConduitPort()).usePlaintext().build();
+        }
+      });
+  }
+
+  /**
+   * Takes a channel builder factory to create channels (instead of default Netty Based builder)
+   * @param masterEndpoint
+   * @param factoryProvider
+   */
+  public ConduitProviderImpl(
+    Provider<NodeEndpoint> masterEndpoint,
+    Provider<GrpcChannelBuilderFactory> factoryProvider,
+    boolean enableSSLToControlPlane) {
+    this.masterEndpoint = masterEndpoint;
+    this.managedChannels = CacheBuilder.newBuilder()
+      .removalListener((RemovalListener<NodeEndpoint, ManagedChannel>) notification -> {
+        if (!notification.wasEvicted()) {
+          notification.getValue().shutdown();
+        }
+      })
+      .build(new CacheLoader<NodeEndpoint, ManagedChannel>() {
+        @Override
+        public ManagedChannel load(@SuppressWarnings("NullableProblems") NodeEndpoint peerEndpoint) {
+          ManagedChannelBuilder<?> builder = factoryProvider.get().newManagedChannelBuilder(
+            peerEndpoint.getAddress(), peerEndpoint.getConduitPort())
+            .enableRetry()
+            .maxInboundMessageSize(Integer.MAX_VALUE)
+            .maxInboundMetadataSize(Integer.MAX_VALUE)
+            .maxRetryAttempts(GrpcChannelBuilderFactory.MAX_RETRY);
+
+          if (!enableSSLToControlPlane) {
+            builder = builder.usePlaintext();
           }
 
           return builder.build();
@@ -133,6 +193,10 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
     }
   }
 
+  public static List<String> getServiceNames() {
+    return serviceNames;
+  }
+
 
   @Override
   public void start() {
@@ -141,5 +205,9 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
   @Override
   public void close() throws Exception {
     managedChannels.invalidateAll(); // shutdowns all connections
+  }
+
+  public Provider<NodeEndpoint> getMasterEndpoint() {
+    return masterEndpoint;
   }
 }

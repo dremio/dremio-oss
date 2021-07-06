@@ -139,7 +139,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   @Override
-  protected double getFilterReduction(){
+  public double getFilterReduction(){
     if(filter != null){
       return 0.15d;
     }else {
@@ -171,7 +171,9 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   @Override
   public FilesystemScanDrel cloneWithProject(List<SchemaPath> projection) {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, filter, observedRowcountAdjustment, arrowCachingEnabled, partitionFilter);
+    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, filter == null ? filter : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
+      observedRowcountAdjustment, arrowCachingEnabled, partitionFilter == null ? partitionFilter : partitionFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()));
+
   }
 
   @Override

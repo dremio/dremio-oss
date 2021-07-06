@@ -143,7 +143,7 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
   }
 
   @Override
-  public void validateAggregateParams(SqlCall aggCall, SqlNode filter, SqlValidatorScope scope) {
+  public void validateAggregateParams(SqlCall aggCall, SqlNode filter, SqlNodeList orderList, SqlValidatorScope scope) {
     if (filter != null) {
       Exception e = new SqlValidatorException("Dremio does not currently support aggregate functions with a filter clause", null);
       SqlParserPos pos = filter.getParserPosition();
@@ -151,7 +151,7 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
       ex.setPosition(pos.getLineNum(), pos.getColumnNum());
       throw ex;
     }
-    super.validateAggregateParams(aggCall, filter, scope);
+    super.validateAggregateParams(aggCall, filter, orderList, scope);
   }
 
   @Override

@@ -142,7 +142,7 @@ class SourceMetadataManager implements AutoCloseable {
   }
 
   DatasetSaver getSaver() {
-    return new DatasetSaver(bridge.getNamespaceService(),
+    return new DatasetSaverImpl(bridge.getNamespaceService(),
         key -> localUpdateTime.put(key, System.currentTimeMillis()),
         optionManager);
   }
@@ -301,23 +301,26 @@ class SourceMetadataManager implements AutoCloseable {
     final long currentTime = System.currentTimeMillis();
     final long expiryTime = bridge.getMetadataPolicy().getDatasetDefinitionExpireAfterMs();
 
-    // check if the entry is expired
-    if (
-        // request marks this expired
-        options.newerThan() < currentTime
-        ||
-        // dataset was locally updated too long ago (or never)
-        ((updateTime == null || updateTime + expiryTime < currentTime) &&
-            // AND dataset was globally updated too long ago
-            fullRefresh.getLastStart() + expiryTime < currentTime)
-        ||
-        // request marks this dataset as invalid
-        !options.getSchemaConfig().getDatasetValidityChecker().apply(config)
-        ) {
+    final boolean isDatasetExpired = options.newerThan() < currentTime ||  //  request marks this expired
+      ((updateTime == null || updateTime + expiryTime < currentTime) && // dataset was locally updated too long ago (or never)
+        fullRefresh.getLastStart() + expiryTime < currentTime); // AND dataset was globally updated too long ago
+
+    // bypass checking validity if the option to disable checking validity is set
+    if (!options.checkValidity()) {
+      // Log a warning message only if expired.
+      if (isDatasetExpired) {
+        logger.warn("Metadata for dataset '{}' has expired, but validity check has been disabled, likely for the source. Local update time: {}. Global update time: {}. Expiry time: {} min",
+          key, updateTime != null ? new Timestamp(updateTime) : null, new Timestamp(fullRefresh.getLastStart()), expiryTime / 60000);
+      }
+      return true;
+    }
+
+    // check if the entry is expired  or  request marks this dataset as invalid
+    if (isDatasetExpired || !options.getSchemaConfig().getDatasetValidityChecker().apply(config)) {
       if (logger.isDebugEnabled()) {
         logger.debug("Dataset {} metadata is not valid. Request marks this expired: {}. Local update time: {}. Global update time: {}. Expiry time: {} min",
           key, options.newerThan() < currentTime,
-          updateTime != null ? new Timestamp(updateTime) : null, new Timestamp(fullRefresh.getLastStart()), expiryTime/60000);
+          updateTime != null ? new Timestamp(updateTime) : null, new Timestamp(fullRefresh.getLastStart()), expiryTime / 60000);
       }
       return false;
     }

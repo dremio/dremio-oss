@@ -59,7 +59,7 @@ describe('FileFormatController', () => {
 
   it('triggers load when opened', () => {
     const wrapper = shallow(<FileFormatController {...commonProps}/>, {context});
-    expect(commonProps.loadFileFormat).to.have.been.notCalled;
+    expect(commonProps.loadFileFormat).to.have.not.been.called;
     const url = 'test/url';
     wrapper.setProps({ formatUrl: url });
     expect(commonProps.loadFileFormat).to.have.been.calledWith(url, VIEW_ID);

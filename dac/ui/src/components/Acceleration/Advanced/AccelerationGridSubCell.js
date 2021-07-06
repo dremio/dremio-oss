@@ -24,11 +24,12 @@ export default class AccelerationGridSubCell extends Component {
     isLastCell: PropTypes.bool,
     subValue: PropTypes.string,
     subValueAltText: PropTypes.string,
-    onValueClick: PropTypes.func
+    onValueClick: PropTypes.func,
+    hasPermission: PropTypes.bool
   };
 
   render() {
-    const {isChecked, isLastCell, onClick, subValue, subValueAltText, onValueClick} = this.props;
+    const {isChecked, isLastCell, onClick, subValue, subValueAltText, onValueClick, hasPermission} = this.props;
     const iconType = isChecked ? 'OKSolid' : 'MinusSimple';
     const cellStyle = isLastCell ? styles.lastSubCell : styles.subCell;
     const altText = subValueAltText ? `${subValueAltText}` : null;
@@ -37,8 +38,8 @@ export default class AccelerationGridSubCell extends Component {
     //   and if subValue is given, show it
     //   and if onValueClick is defined, show caret and handle click on subvalue with caret
     return (
-      <div style={cellStyle} className='subCell' onClick={onClick}>
-        <FontIcon type={iconType} theme={styles.iconTheme} style={{flex: '1 1 auto'}}/>
+      <div style={cellStyle} className={hasPermission ? 'subCell' : 'subCellDisabled'} onClick={hasPermission ? onClick : null}>
+        <FontIcon type={iconType} theme={hasPermission ? styles.iconTheme : styles.disabledTheme} style={{flex: '1 1 auto'}}/>
         {isChecked && subValue &&
           <div title={altText} onClick={onValueClick} style={onValueClick ? styles.subValueClickable : styles.subValue}>
             {subValue}
@@ -76,6 +77,11 @@ const styles = {
   caretTheme: {
     Container: {
       cursor: 'pointer'
+    }
+  },
+  disabledTheme: {
+    Container: {
+      cursor: 'default'
     }
   }
 };

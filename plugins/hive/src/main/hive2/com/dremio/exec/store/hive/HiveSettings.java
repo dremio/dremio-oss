@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.hive;
 
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
 
 /**
@@ -29,9 +29,9 @@ public final class HiveSettings {
   public static final TypeValidators.LongValidator RESERVE = HivePluginOptions.RESERVE;
   public static final TypeValidators.LongValidator LIMIT = HivePluginOptions.LIMIT;
 
-  private final OptionManager options;
+  private final OptionResolver options;
 
-  public HiveSettings(OptionManager options) {
+  public HiveSettings(OptionResolver options) {
     this.options = options;
   }
   /**
@@ -52,6 +52,13 @@ public final class HiveSettings {
    */
   public boolean useStatsInMetastore() {
     return options.getOption(HivePluginOptions.HIVE_USE_STATS_IN_METASTORE);
+  }
+
+  /**
+   * Compression factor override for estimating the row count for hive parquet tables
+   */
+  public double getParquetCompressionFactor() {
+    return options.getOption(HivePluginOptions.HIVE_PARQUET_COMPRESSION_FACTOR_VALIDATOR);
   }
 
   /**

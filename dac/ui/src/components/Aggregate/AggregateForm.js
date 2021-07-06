@@ -49,7 +49,8 @@ class AggregateForm extends Component {
     style: PropTypes.object,
     footerStyle: PropTypes.object,
     contentStyle: PropTypes.object,
-    headerStyle: PropTypes.object
+    headerStyle: PropTypes.object,
+    canAlter: PropTypes.any
   };
 
   static defaultProps = {
@@ -150,29 +151,32 @@ class AggregateForm extends Component {
   };
 
   render() {
+    const {style, headerStyle, dataset, fields, values, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure, contentStyle, columns, canAlter, footerStyle} = this.props;
     return (
-      <div className='aggregate-form' style={[styles.base, this.props.style]}>
+      <div className='aggregate-form' style={[styles.base, style]}>
         <AggregateHeader
-          style={this.props.headerStyle}
-          dataset={this.props.dataset}
+          style={headerStyle}
+          dataset={dataset}
           onClearAllDimensions={this.handleClearAllDimensions}
           onClearAllMeasures={this.handleClearAllMeasures}
         />
         <AggregateContent
-          fields={this.props.fields}
-          values={this.props.values}
-          canSelectMeasure={this.props.canSelectMeasure}
-          canUseFieldAsBothDimensionAndMeasure={this.props.canUseFieldAsBothDimensionAndMeasure}
-          style={this.props.contentStyle}
+          fields={fields}
+          values={values}
+          canSelectMeasure={canSelectMeasure}
+          canUseFieldAsBothDimensionAndMeasure={canUseFieldAsBothDimensionAndMeasure}
+          style={contentStyle}
           handleDragStart={this.onDragStart}
           onDragEnd={this.stopDrag}
           onDrop={this.handleDrop}
           isDragInProgress={this.state.isDragInProgress}
           dragItem={this.state.dragItem}
           dragType='aggregate'
-          allColumns={this.props.columns}/>
+          allColumns={columns}
+          canAlter={canAlter}
+        />
         <AggregateFooter
-          style={this.props.footerStyle}
+          style={footerStyle}
           addAnother={this.addAnother}
         />
       </div>

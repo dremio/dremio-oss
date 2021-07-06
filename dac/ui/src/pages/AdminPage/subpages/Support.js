@@ -17,7 +17,11 @@ import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
+import { compose } from 'redux';
 import { connect } from 'react-redux';
+
+import authorize from '@inject/containers/authorize';
+
 import settingActions, { getDefinedSettings } from 'actions/resources/setting';
 import { addNotification } from 'actions/notification';
 
@@ -28,6 +32,7 @@ import { getErrorMessage } from '@app/reducers/resources/view';
 import { description } from 'uiTheme/radium/forms';
 import { formContext } from 'uiTheme/radium/typography';
 
+import SettingHeader from '@app/components/SettingHeader';
 import ViewStateWrapper from '@app/components/ViewStateWrapper';
 import SimpleButton from '@app/components/Buttons/SimpleButton';
 import TextField from '@app/components/Fields/TextField';
@@ -36,7 +41,6 @@ import SupportAccess, { RESERVED as SUPPORT_ACCESS_RESERVED } from '@inject/page
 import FormUnsavedRouteLeave from '@app/components/Forms/FormUnsavedRouteLeave';
 import AnalyzeTools, { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
 
-import Header from '../components/Header';
 import SettingsMicroForm from './SettingsMicroForm';
 import { LABELS, LABELS_IN_SECTIONS } from './settingsConfig';
 import InternalSupportEmail, { RESERVED as INTERNAL_SUPPORT_RESERVED } from './InternalSupportEmail';
@@ -210,7 +214,7 @@ export class Support extends PureComponent {
     </form>;
 
     return <div className='support-settings'>
-      <Header>{la('Support Settings')}</Header>
+      <SettingHeader>{la('Support Settings')}</SettingHeader>
 
       <ViewStateWrapper
         viewState={viewStateWithoutError}
@@ -255,12 +259,16 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps, { // todo: find way to auto-inject PropTypes for actions
-  resetSetting: settingActions.delete.dispatch,
-  getSetting: settingActions.get.dispatch,
-  getDefinedSettings,
-  addNotification
-})(FormUnsavedRouteLeave(Support));
+export default compose(
+  authorize('Support'),
+  connect(mapStateToProps, { // todo: find way to auto-inject PropTypes for actions
+    resetSetting: settingActions.delete.dispatch,
+    getSetting: settingActions.get.dispatch,
+    getDefinedSettings,
+    addNotification
+  }),
+  FormUnsavedRouteLeave
+)(Support);
 
 const styles = {
   description: {

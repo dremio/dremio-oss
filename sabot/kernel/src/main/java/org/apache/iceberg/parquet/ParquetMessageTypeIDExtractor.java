@@ -45,9 +45,4 @@ public class ParquetMessageTypeIDExtractor extends MessageTypeToType {
       return false;
     }
   }
-
-  @Override
-  protected int nextId() {
-    throw new IllegalStateException("Needed to assign ID");
-  }
 }

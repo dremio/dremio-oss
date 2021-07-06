@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -58,6 +59,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.OptionManagerWrapper;
@@ -75,6 +77,9 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
@@ -211,7 +216,7 @@ public class TestPluginsManager {
 
   private static final EntityPath DELETED_PATH = new EntityPath(ImmutableList.of(INSPECTOR, "deleted"));
 
-  private static final DatasetConfig datasetConfig = new DatasetConfig();
+  private static final DatasetConfig incompleteDatasetConfig = new DatasetConfig();
 
   private static final EntityPath ENTITY_PATH = new EntityPath(ImmutableList.of(INSPECTOR, "one"));
   private static final DatasetHandle DATASET_HANDLE = () -> ENTITY_PATH;
@@ -281,7 +286,7 @@ public class TestPluginsManager {
         .build();
 
     // force a cache of the permissions
-    plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", requestOptions);
+    plugin.checkAccess(new NamespaceKey("test"), incompleteDatasetConfig, "user", requestOptions);
 
     // create a replacement that will always fail permission checks
     final SourceConfig newConfig = new SourceConfig()
@@ -295,7 +300,7 @@ public class TestPluginsManager {
     // will throw if the cache has been cleared
     boolean threw = false;
     try {
-      plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", requestOptions);
+      plugin.checkAccess(new NamespaceKey("test"), incompleteDatasetConfig, "user", requestOptions);
     } catch (UserException e) {
       threw = true;
     }
@@ -325,4 +330,71 @@ public class TestPluginsManager {
     assertTrue(scheduledTasks.get(0).isCancelled());
     assertTrue(userExceptionOccured);
   }
+
+  @Test
+  public void disableMetadataValidityCheck() throws Exception {
+
+    final SourceConfig sourceConfigWithValidityCheck = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName("source")
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString());
+
+    final DatasetConfig incompleteDatasetConfig = new DatasetConfig();
+    final LegacyKVStore<NamespaceKey, SourceInternalData> kvStore = storeProvider.getStore(CatalogSourceDataCreator.class);
+
+    // create one; lock required
+    final ManagedStoragePlugin pluginWithValidityCheck;
+    pluginWithValidityCheck = plugins.create(sourceConfigWithValidityCheck, SystemUser.SYSTEM_USERNAME);
+    pluginWithValidityCheck.startAsync().get();
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("user");
+
+    // Ensure for an incomplete datasetConfig, validity is not checked even if option to disable validity is set
+    final MetadataRequestOptions metadataRequestOptions = ImmutableMetadataRequestOptions.newBuilder()
+      .setNewerThan(0L)
+      .setSchemaConfig(SchemaConfig.newBuilder("dremio").build())
+      .setCheckValidity(false)
+      .build();
+    assertFalse(pluginWithValidityCheck.isCompleteAndValid(incompleteDatasetConfig, metadataRequestOptions));
+
+    final SourceConfig sourceConfigDisableValidity = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName("source2")
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setDisableMetadataValidityCheck(true)
+      .setConfig(new Inspector(true).toBytesString());
+
+    final ManagedStoragePlugin pluginWithDisableValidity;
+    pluginWithDisableValidity = plugins.create(sourceConfigDisableValidity, SystemUser.SYSTEM_USERNAME);
+    pluginWithDisableValidity.startAsync().get();
+
+    // Ensure for an incomplete datasetConfig, validity is not checked even if SourceConfig to disable validity is set
+    assertFalse(pluginWithDisableValidity.isCompleteAndValid(incompleteDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
+
+    final ReadDefinition readDefinition = new ReadDefinition();
+    readDefinition.setSplitVersion(0L);
+
+    DatasetConfig completeDatasetConfig = new DatasetConfig();
+    completeDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    completeDatasetConfig.setId(new EntityId("test"));
+    completeDatasetConfig.setFullPathList(ImmutableList.of("test", "file", "foobar"));
+    completeDatasetConfig.setRecordSchema((new BatchSchema(Collections.EMPTY_LIST)).toByteString());
+    completeDatasetConfig.setReadDefinition(readDefinition);
+    completeDatasetConfig.setTotalNumSplits(0);
+
+    // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is set.
+    assertTrue(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions));
+
+    // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is not set but source config option is set to disable.
+    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions));
+
+    // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is set to true but source config option is set to disable.
+    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
+
+    // Ensure for a complete config, isStillValid is called and expiry is checked and fails if request option is set to false and source config option is not set to disable .
+    assertFalse(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
+  }
+
 }

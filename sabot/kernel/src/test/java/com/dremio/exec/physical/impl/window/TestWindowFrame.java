@@ -26,6 +26,7 @@ import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.sabot.op.windowframe.Partition;
+import com.dremio.test.UserExceptionMatcher;
 
 public class TestWindowFrame extends BaseTestQuery {
 
@@ -184,6 +185,38 @@ public class TestWindowFrame extends BaseTestQuery {
       .baselineColumns("lead")
       .build()
       .run();
+  }
+
+  @Test
+  public void testLeadUnderPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(ErrorType.UNSUPPORTED_OPERATION,
+      "only supports (<value expression>) or (<value expression>, 1)"));
+    test("select 1/(LEAD(n_nationKey, 2) over (partition by n_nationKey order by n_nationKey)) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
+
+  @Test
+  public void testLeadUnderNestedPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(ErrorType.UNSUPPORTED_OPERATION,
+      "only supports (<value expression>) or (<value expression>, 1)"));
+    test("select 1/(1/(LEAD(n_nationKey, 2) over (partition by n_nationKey order by n_nationKey))) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
+
+  @Test
+  public void testLagUnderPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(ErrorType.UNSUPPORTED_OPERATION,
+      "only supports (<value expression>) or (<value expression>, 1)"));
+    test("select 1/(LAG(n_nationKey, 2) over (partition by n_nationKey order by n_nationKey)) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
+
+  @Test
+  public void testLagUnderNestedPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(ErrorType.UNSUPPORTED_OPERATION,
+      "only supports (<value expression>) or (<value expression>, 1)"));
+    test("select 1/(1/(LAG(n_nationKey, 2) over (partition by n_nationKey order by n_nationKey))) \n" +
+      "from cp.\"tpch/nation.parquet\"");
   }
 
   @Test

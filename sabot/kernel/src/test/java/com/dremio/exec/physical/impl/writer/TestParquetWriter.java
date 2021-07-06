@@ -20,6 +20,7 @@ import static org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -810,7 +811,7 @@ public class TestParquetWriter extends BaseTestQuery {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any());
 
     for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?

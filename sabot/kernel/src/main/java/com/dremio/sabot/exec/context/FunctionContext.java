@@ -23,6 +23,7 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.PartitionExplorer;
+import com.dremio.options.OptionResolver;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 
@@ -37,14 +38,15 @@ public interface FunctionContext {
   // Map between injectable classes and their respective getter methods
   // used for code generation
   public static final ImmutableMap<Class<?>, String> INJECTABLE_GETTER_METHODS =
-      new ImmutableMap.Builder<Class<?>, String>()
-          .put(ArrowBuf.class, "getManagedBuffer")
-          .put(BufferManager.class, "getBufferManager")
-          .put(PartitionExplorer.class, "getPartitionExplorer")
-          .put(ContextInformation.class, "getContextInformation")
-          .put(FunctionErrorContext.class, "getFunctionErrorContext")
-          .put(EndPointListProvider.class, "getEndPointListProvider")
-          .build();
+    new ImmutableMap.Builder<Class<?>, String>()
+      .put(ArrowBuf.class, "getManagedBuffer")
+      .put(BufferManager.class, "getBufferManager")
+      .put(PartitionExplorer.class, "getPartitionExplorer")
+      .put(ContextInformation.class, "getContextInformation")
+      .put(FunctionErrorContext.class, "getFunctionErrorContext")
+      .put(EndPointListProvider.class, "getEndPointListProvider")
+      .put(OptionResolver.class, "getOptions")
+      .build();
 
 
   /**
@@ -123,8 +125,11 @@ public interface FunctionContext {
    */
   FunctionErrorContext getFunctionErrorContext();
 
+  OptionResolver getOptions();
+
   /**
    * Get Compilation options
+   *
    * @return compilation options.
    */
   CompilationOptions getCompilationOptions();

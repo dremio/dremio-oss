@@ -16,6 +16,7 @@
 package com.dremio.exec.expr;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -149,6 +150,11 @@ public class HashVisitor extends AbstractExprVisitor<Integer,Void,RuntimeExcepti
   @Override
   public Integer visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
     return compute(e, 25);
+  }
+
+  @Override
+  public Integer visitCaseExpression(CaseExpression e, Void value) throws RuntimeException {
+    return compute(e, 26);
   }
 
   private int compute(LogicalExpression e, int seed) {

@@ -114,6 +114,11 @@ public class TestRecursiveDirectoryStream extends DremioTest {
     }
 
     @Override
+    public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
+      return list(f, PathFilters.ALL_FILES);
+    }
+
+    @Override
     public DirectoryStream<FileAttributes> list(Path f, Predicate<Path> filter)
         throws FileNotFoundException, IOException {
       final java.nio.file.Path p = Paths.get(f.toURI().getPath());
@@ -283,6 +288,11 @@ public class TestRecursiveDirectoryStream extends DremioTest {
 
     @Override
     public boolean isMapRfs() {
+      return false;
+    }
+
+    @Override
+    public boolean supportsBlockAffinity() {
       return false;
     }
 

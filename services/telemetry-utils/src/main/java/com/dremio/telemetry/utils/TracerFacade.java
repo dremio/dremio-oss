@@ -20,6 +20,8 @@ import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.noop.NoopScopeManager;
+import io.opentracing.noop.NoopSpan;
 import io.opentracing.noop.NoopTracerFactory;
 import io.opentracing.propagation.Format;
 
@@ -57,6 +59,9 @@ public final class TracerFacade implements Tracer {
 
   @Override
   public Scope activateSpan(Span span) {
+    if (span instanceof NoopSpan) {
+      return NoopScopeManager.NoopScope.INSTANCE;
+    }
     return tracer.activateSpan(span);
   }
 

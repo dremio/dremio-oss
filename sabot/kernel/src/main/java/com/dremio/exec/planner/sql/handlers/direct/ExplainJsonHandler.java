@@ -91,7 +91,7 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
 
   private List<Explain> toResultInner(String phase, List<TransformedNode> nodes) {
     final RelSerializerFactory factory = RelSerializerFactory.getPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult());
-    final LogicalPlanSerializer serializer = factory.getSerializer(config.getConverter().getCluster());
+    final LogicalPlanSerializer serializer = factory.getSerializer(config.getConverter().getCluster(), config.getContext().getFunctionRegistry());
 
     for (TransformedNode n : nodes) {
       if(n.getPhase().equalsIgnoreCase(phase)) {

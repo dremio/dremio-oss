@@ -441,4 +441,49 @@ public class TestUserServices extends BaseTestServer {
         errorDelete.getErrorMessage());
   }
 
+  @Test
+  public void testInvalidUsername() throws Exception {
+    int originalCount = expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class).getUsers().size();
+
+    doc("Creating valid user");
+    User validUserConfig = SimpleUser.newBuilder()
+      .setUserName(testUserName("valid"))
+      .setEmail("valid@dremio.test")
+      .setFirstName("valid")
+      .setLastName("dremio").build();
+
+    expectSuccess(getBuilder(getAPIv2().path("user/" +  testUserName("valid"))).buildPut(
+      Entity.json(new UserForm(validUserConfig, testPassword("valid")))), UserUI.class);
+    expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("valid"))).buildGet(), UserUI.class);
+
+    doc("Get all users");
+    UsersUI allUsers1 = expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class);
+    assertEquals(originalCount + 1, allUsers1.getUsers().size());
+
+    doc("Creating invalid user (includes quotation mark)");
+    User invalidUserConfig1 = SimpleUser.newBuilder()
+      .setUserName(testUserName("v\"alid"))
+      .setEmail("invalid@dremio.test")
+      .setFirstName("invalid")
+      .setLastName("dremio").build();
+
+    expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path("user/" +  testUserName("invalid"))).buildPut(
+      Entity.json(new UserForm(invalidUserConfig1, testPassword("invalid")))));
+
+    doc("Creating invalid user (includes colon)");
+    User invalidUserConfig2 = SimpleUser.newBuilder(invalidUserConfig1).setUserName(testUserName("vali:d")).build();
+
+    expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path("user/" +  testUserName("invalid"))).buildPut(
+      Entity.json(new UserForm(invalidUserConfig2, testPassword("invalid")))));
+
+    doc("Sanity check the number of users");
+    UsersUI allUsers2 = expectSuccess(getBuilder(getAPIv2().path("users/all")).buildGet(), UsersUI.class);
+    assertEquals(originalCount + 1, allUsers1.getUsers().size());
+
+    doc("Try changing a valid username into an invalid one");
+    User invalidUserConfig3 = SimpleUser.newBuilder(validUserConfig).setUserName(testUserName("\"valid\"")).build();
+    expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path("user/" + testUserName("valid"))).buildPost(
+      Entity.json(new UserForm(invalidUserConfig3, testPassword("valid")))));
+  }
+
 }

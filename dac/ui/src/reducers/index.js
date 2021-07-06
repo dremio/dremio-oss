@@ -23,6 +23,8 @@ import developmentOptions from 'dyn-load/reducers/developmentOptions';
 import account from '@inject/reducers/account';
 import admin from '@inject/reducers/admin';
 import init from '@app/reducers/init';
+import privileges from '@inject/reducers/privileges';
+
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 
@@ -33,6 +35,7 @@ import ui from './ui/ui';
 
 import jobs from './jobs/index';
 import modals from './modals/index';
+import { passDataBetweenModalTabs } from './modals/passDataBetweenModalTabs.js';
 
 import serverStatus from './serverStatus';
 
@@ -59,7 +62,9 @@ const appReducers = combineReducers({
   routing: routerReducer,
   confirmation,
   appError: prodError,
-  modulesState
+  modulesState,
+  passDataBetweenModalTabs,
+  privileges
 });
 
 const actionCancelGroups = {};

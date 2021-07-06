@@ -99,10 +99,13 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
         unflattenedRoot.validatedRowType,
         unflattenedRoot.isContextSensitive() || ExpansionNode.isContextSensitive(unflattenedRoot.rel));
       if (expansionNode.isDefault()) {
-        return new RelRoot(expansionNode, unflattenedRoot.validatedRowType, unflattenedRoot.kind, unflattenedRoot.fields, unflattenedRoot.collation);
+        sqlConverter.getFunctionContext().getContextInformation().setPlanCacheable(unflattenedRoot.isPlanCacheable());
+        return new RelRoot(expansionNode, unflattenedRoot.validatedRowType, unflattenedRoot.kind,
+          unflattenedRoot.fields, unflattenedRoot.collation);
       }
     }
     final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true, true);
+    sqlConverter.getFunctionContext().getContextInformation().setPlanCacheable(root.isPlanCacheable());
     if(path == null) {
       return root;
     }

@@ -17,6 +17,9 @@ export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     shouldShowDistribution() {
       return false;
+    },
+    checkForPermissionToAlter() {
+      return true;
     }
   });
 }

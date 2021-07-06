@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, CSSProperties } from 'react';
+import { PureComponent, CSSProperties } from 'react';
 import Immutable from 'immutable';
 import classNames from 'classnames';
-import pureRender from 'pure-render-decorator';
 import { connect } from 'react-redux';
 import { hashHeightTopSplitter } from '@app/constants/explorePage/heightTopSplitter.js';
 import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
@@ -45,8 +44,7 @@ type ExplorePageViewState = {
   isError: boolean,
   errorData: Immutable.Map<any, any>
 };
-@pureRender
-export class ExplorePageView extends Component<ExplorePageViewProps, ExplorePageViewState> {
+export class ExplorePageView extends PureComponent<ExplorePageViewProps, ExplorePageViewState> {
   state = {
     isError: false,
     errorData: Immutable.Map<any, any>()
@@ -90,7 +88,7 @@ export class ExplorePageView extends Component<ExplorePageViewProps, ExplorePage
   startDrag() {}
   render() {
     const { dataset, isResizeInProgress } = this.props;
-    const selectState = isResizeInProgress ? 'text' : 'none';
+    const selectState = isResizeInProgress ? 'text' : undefined;
     const cursor = isResizeInProgress ? 'row-resize' : 'initial';
     const dragStyle: CSSProperties = {
       MozUserSelect: selectState,
@@ -122,7 +120,6 @@ export class ExplorePageView extends Component<ExplorePageViewProps, ExplorePage
         <HistoryLineController
           dataset={dataset}
           location={this.props.location}
-          ref='historyLine'
         />
       </div>
     );

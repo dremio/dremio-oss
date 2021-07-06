@@ -15,30 +15,65 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.ACCESS_KEY_PROVIDER;
+import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.ASSUMED_ROLE_CREDENTIALS_PROVIDER;
+import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.DREMIO_ASSUME_ROLE_PROVIDER;
+import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.EC2_METADATA_PROVIDER;
+import static com.dremio.exec.store.hive.GlueAWSCredentialsFactory.GLUE_DREMIO_ASSUME_ROLE_PROVIDER;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.UUID;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.dremio.common.FSConstants;
-import com.google.common.base.Preconditions;
 import com.dremio.exec.store.hive.GlueAWSCredentialsFactory;
+import com.dremio.exec.store.hive.GlueDremioAssumeRoleCredentialsProviderV1;
+import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
+import com.google.common.base.Preconditions;
 
 /**
  * Assume role credential provider that supports aws sdk 1.11.X - used by hadoop-aws
  */
 public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeable {
+  private static final Logger logger = LoggerFactory.getLogger(STSCredentialProviderV1.class);
 
   private final STSAssumeRoleSessionCredentialsProvider stsAssumeRoleSessionCredentialsProvider;
 
   public STSCredentialProviderV1(Configuration conf) {
-    AWSCredentialsProvider awsCredentialsProvider = GlueAWSCredentialsFactory.getAWSCredentialsProvider(conf);
+    AWSCredentialsProvider awsCredentialsProvider = null;
+    //TODO: Leverage S3AUtils createAwsCredentialProvider
+
+    String assumeRoleProvider = conf.get(ASSUMED_ROLE_CREDENTIALS_PROVIDER);
+    logger.debug("assumed_role_credentials_provider: {}", assumeRoleProvider);
+
+    switch(assumeRoleProvider) {
+      case ACCESS_KEY_PROVIDER:
+        awsCredentialsProvider = new SimpleAWSCredentialsProvider(conf);
+        break;
+      case EC2_METADATA_PROVIDER:
+        awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();
+        break;
+      case DREMIO_ASSUME_ROLE_PROVIDER:
+        awsCredentialsProvider = new DremioAssumeRoleCredentialsProviderV1();
+        break;
+      case GLUE_DREMIO_ASSUME_ROLE_PROVIDER:
+        awsCredentialsProvider = new GlueDremioAssumeRoleCredentialsProviderV1();
+        break;
+      default:
+        throw new IllegalArgumentException("Assumed role credentials provided " + assumeRoleProvider + " is not supported.");
+    }
+
     String region = conf.get(FSConstants.FS_S3A_REGION, "");
     String iamAssumedRole = conf.get(GlueAWSCredentialsFactory.ASSUMED_ROLE_ARN, "");
     Preconditions.checkState(!iamAssumedRole.isEmpty(), "Unexpected empty IAM assumed role");

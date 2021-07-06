@@ -27,7 +27,6 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.expression.LogicalExpression;
@@ -43,7 +42,7 @@ public class NativeProjector implements AutoCloseable {
   private VectorSchemaRoot root;
   private final Schema schema;
   private final FunctionContext functionContext;
-  private final Set<Field> referencedFields;
+  private final Set<ReferencedField> referencedFields;
   private final boolean optimize;
   private final boolean targetHostCPU;
 
@@ -52,7 +51,7 @@ public class NativeProjector implements AutoCloseable {
     this.schema = schema;
     this.functionContext = functionContext;
     // preserve order of insertion
-    referencedFields = Sets.newLinkedHashSet();
+    referencedFields =Sets.newLinkedHashSet();
     this.optimize = optimize;
     this.targetHostCPU = targetHostCPU;
   }
@@ -68,7 +67,9 @@ public class NativeProjector implements AutoCloseable {
     ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())
       .withOptimize(optimize)
       .withTargetCPU(targetHostCPU);
+    referencedFields.clear();
     projector = Projector.make(root.getSchema(), columnExprList, configOptions);
+    columnExprList.clear();
   }
 
   public void execute(int recordCount, List<ValueVector> outVectors) throws Exception {

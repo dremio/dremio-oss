@@ -36,6 +36,8 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -47,6 +49,7 @@ import com.google.common.collect.ImmutableList;
  * Source model
  */
 // Ignoring the type hierarchy/Overriding DatasetContainer annotation
+@JsonInclude(Include.NON_NULL)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = SourceUI.class)
 @JsonIgnoreProperties(value={ "links", "fullPathList", "resourcePath" }, allowGetters=true, ignoreUnknown=true)
 public class SourceUI implements AddressableResource, DatasetContainer {
@@ -65,8 +68,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private String id;
   private UIMetadataPolicy metadataPolicy = UIMetadataPolicy.DEFAULT_UIMETADATA_POLICY;
 
-  private long numberOfDatasets;
-  private boolean datasetCountBounded = false;
+  private Integer numberOfDatasets;
+  private Boolean datasetCountBounded;
   private SourceState state;
 
   private String tag;
@@ -76,6 +79,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private Boolean accelerationNeverExpire;
   private Boolean accelerationNeverRefresh;
   private Boolean allowCrossSourceSelection;
+  private Boolean disableMetadataValidityCheck;
 
   public SourceUI setConfig(ConnectionConf<?, ?> sourceConfig) {
     this.config = sourceConfig;
@@ -117,7 +121,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     return new SourceResourcePath(new SourceName(name));
   }
 
-  public SourceUI setNumberOfDatasets(long numberOfDatasets) {
+  public SourceUI setNumberOfDatasets(Integer numberOfDatasets) {
     this.numberOfDatasets = numberOfDatasets;
     return this;
   }
@@ -126,7 +130,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     this.id = id;
   }
 
-  public long getNumberOfDatasets() {
+  public Integer getNumberOfDatasets() {
     return numberOfDatasets;
   }
 
@@ -214,11 +218,11 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     this.contents = contents;
   }
 
-  public boolean isDatasetCountBounded() {
+  public Boolean isDatasetCountBounded() {
     return datasetCountBounded;
   }
 
-  public void setDatasetCountBounded(boolean datasetCountBounded) {
+  public void setDatasetCountBounded(Boolean datasetCountBounded) {
     this.datasetCountBounded = datasetCountBounded;
   }
 
@@ -248,6 +252,14 @@ public class SourceUI implements AddressableResource, DatasetContainer {
 
   public void setAllowCrossSourceSelection(Boolean allowCrossSourceSelection) {
     this.allowCrossSourceSelection = allowCrossSourceSelection;
+  }
+
+  public Boolean getDisableMetadataValidityCheck() {
+    return disableMetadataValidityCheck;
+  }
+
+  public void setDisableMetadataValidityCheck(Boolean disableMetadataValidityCheck) {
+    this.disableMetadataValidityCheck = disableMetadataValidityCheck;
   }
 
   public Map<String, String> getLinks() {
@@ -282,6 +294,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
     c.setId(new EntityId(getId()));
     c.setAllowCrossSourceSelection(Boolean.TRUE.equals(allowCrossSourceSelection));
+    c.setDisableMetadataValidityCheck(Boolean.TRUE.equals(disableMetadataValidityCheck));
     return c;
   }
 
@@ -328,6 +341,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setAccelerationNeverRefresh(sourceConfig.getAccelerationNeverRefresh());
     source.setId(sourceConfig.getId().getId());
     source.setAllowCrossSourceSelection(sourceConfig.getAllowCrossSourceSelection());
+    source.setDisableMetadataValidityCheck(sourceConfig.getDisableMetadataValidityCheck());
     return source;
   }
 

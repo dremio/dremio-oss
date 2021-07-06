@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import browserUtils from 'utils/browserUtils';
 import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
 import LoginFormContainer from './components/LoginFormContainer';
 
 @Radium
-@pureRender
-export class AuthenticationPage extends Component {
+export class AuthenticationPage extends PureComponent {
   static propTypes = {
     style: PropTypes.object
   };

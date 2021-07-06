@@ -122,6 +122,8 @@ public class ScanOperator implements ProducerOperator {
     PRELOADED_BYTES,           // Number of bytes pre-loaded
     NUM_CACHE_HITS,       // Number of C3 hits
     NUM_CACHE_MISSES,     // Number of C3 misses
+    BLOCK_AFFINITY_CACHE_HITS, // Number of block affinity cache hits
+    BLOCK_AFFINITY_CACHE_MISSES, // Number of block affinity cache hits
     AVG_PROCESSING_TIME_NS,   // Average processing time of request by C3
     JAVA_BUILD_TIME_NS,   // time taken by Java (setup+evaluation) for type conversions in CoercionReader
     JAVA_EXECUTE_TIME_NS,
@@ -161,13 +163,23 @@ public class ScanOperator implements ProducerOperator {
     MIN_METADATA_IO_READ_TIME_NS,  // Minimum IO read time for metadata operations
     MAX_METADATA_IO_READ_TIME_NS,   // Maximum IO read time for metadata operations
     AVG_METADATA_IO_READ_TIME_NS,  // Average IO read time for metadata operations
-    NUM_METADATA_IO_READ
+    NUM_METADATA_IO_READ,
+    HIVE_FILE_FORMATS // File Formats in hive sub scan represented as bitmap. Indices correspond to HiveFilFormat enum
     ;
 
     @Override
     public int metricId() {
       return ordinal();
     }
+  }
+
+  public enum HiveFileFormat {
+    PARQUET,
+    ORC,
+    AVRO,
+    TEXT,
+    RCFILE,
+    OTHER
   }
 
   /** Fields' value vectors indexed by fields' keys. */

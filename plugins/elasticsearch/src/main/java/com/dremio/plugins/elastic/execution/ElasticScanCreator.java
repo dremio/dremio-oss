@@ -27,6 +27,7 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.vector.complex.fn.WorkingBuffer;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.dremio.plugins.elastic.ElasticVersionBehaviorProvider;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.ElasticsearchScanSpec;
@@ -59,8 +60,6 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
       final boolean useEdgeProject = context.getOptions().getOption(ExecConstants.ELASTIC_RULES_EDGE_PROJECT);
       final ImmutableMap<SchemaPath, FieldAnnotation> annotations = FieldAnnotation.getAnnotationMap(tableAttributes.getAnnotationList());
       final int maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
-      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(subScan.getFullSchema(), annotations, workingBuffer, maxCellSize);
-
       for (SplitAndPartitionInfo split : subScan.getSplits()) {
 
         final ElasticConnection connection = plugin.getConnection(FluentIterable.from(split.getDatasetSplitInfo().getAffinitiesList()).transform(new Function<Affinity, String>(){
@@ -70,18 +69,18 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
           }}));
 
         readers.add(new ElasticsearchRecordReader(
-            plugin,
-            Iterables.getOnlyElement(subScan.getReferencedTables()),
-            tableAttributes,
-            context,
-            spec,
-            useEdgeProject,
-            split,
-            connection,
-            subScan.getColumns(),
-            readDefinition,
-            plugin.getConfig()
-            ));
+          plugin,
+          Iterables.getOnlyElement(subScan.getReferencedTables()),
+          tableAttributes,
+          context,
+          spec,
+          useEdgeProject,
+          split,
+          connection,
+          subScan.getColumns(),
+          FieldReadDefinition.getTree(subScan.getFullSchema(), annotations, workingBuffer, maxCellSize, new ElasticVersionBehaviorProvider(connection.getESVersionInCluster())),
+          plugin.getConfig()
+        ));
       }
 
       return new ScanOperator(subScan, context, RecordReaderIterator.from(readers.iterator()));

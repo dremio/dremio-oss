@@ -53,6 +53,13 @@ export class FolderMenu extends Component {
     closeMenu();
   }
 
+  render() {
+    return (
+      <>
+        {this.renderCompletely()}
+      </>
+    );
+  }
 //   renderRenameLink() {
 //     const { location } = this.context;
 //     const { folder, closeMenu } = this.props;

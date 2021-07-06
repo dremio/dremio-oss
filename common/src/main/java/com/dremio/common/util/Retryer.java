@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.io.ExponentialBackoff;
+import com.google.common.base.Preconditions;
 
 /**
  * Simple retrying utility
@@ -42,6 +43,9 @@ public class Retryer<T> implements ExponentialBackoff {
   private int maxRetries = 4; // default
   private int baseMillis = 250;
   private int maxMillis = 2_500;
+  private final Function<Exception, Boolean> isExceptionClassRetriable =
+    (ex) -> retryableExceptionClasses.stream().anyMatch(clz -> clz.isInstance(ex));
+  private Function<Exception, Boolean> isRetriable = isExceptionClassRetriable;
 
   private Retryer() {
   }
@@ -51,7 +55,7 @@ public class Retryer<T> implements ExponentialBackoff {
       try {
         return callable.call();
       } catch (Exception e) {
-        boolean retryable = retryableExceptionClasses.stream().anyMatch(clz -> clz.isInstance(e));
+        boolean retryable = isRetriable.apply(e);
         if (!retryable || attemptNo == maxRetries) {
           throw new OperationFailedAfterRetriesException(e);
         }
@@ -102,7 +106,16 @@ public class Retryer<T> implements ExponentialBackoff {
     private Retryer<T> retryer = new Retryer<>();
 
     public Builder<T> retryIfExceptionOfType(Class<? extends Exception> clazz) {
+      Preconditions.checkState(retryer.isRetriable == retryer.isExceptionClassRetriable,
+        "Retryer does not support mix of exception class and exception function");
       retryer.retryableExceptionClasses.add(clazz);
+      return this;
+    }
+
+    public Builder<T> retryOnExceptionFunc(Function<Exception, Boolean> function) {
+      Preconditions.checkState(retryer.retryableExceptionClasses.isEmpty(),
+        "Retryer does not support mix of exception class and exception function");
+      retryer.isRetriable = function;
       return this;
     }
 
@@ -130,6 +143,7 @@ public class Retryer<T> implements ExponentialBackoff {
     copy.maxMillis = maxMillis;
     copy.maxRetries = maxRetries;
     copy.retryableExceptionClasses.addAll(retryableExceptionClasses);
+    copy.isRetriable = isRetriable;
     return copy;
   }
 

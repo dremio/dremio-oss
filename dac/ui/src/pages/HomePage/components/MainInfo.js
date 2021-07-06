@@ -109,7 +109,7 @@ export class MainInfoView extends Component {
     case 'folder':
       return this.getFolderActionButtons(item);
     case 'file':
-      return this.getFileActionButtons(item);
+      return this.getFileActionButtons(item, item.get('permissions'));
     case 'dataset':
       return this.getShortcutButtons(item, dataType);
     case 'physicalDatasets':
@@ -123,10 +123,12 @@ export class MainInfoView extends Component {
   getFolderActionButtons(folder) {
     const isFileSystemFolder = !!folder.get('fileSystemFolder');
     const isQueryAble = (folder.get('queryable'));
+    const permissions = folder.get('permissions') ? folder.get('permissions').toJS() : null;
+    const isAdmin = localStorageUtils.isUserAnAdmin();
 
     if (isFileSystemFolder && isQueryAble) {
       return this.getShortcutButtons(folder, 'folder');
-    } else if (isFileSystemFolder) {
+    } else if (this.checkToRenderConvertFolderButton(isFileSystemFolder, permissions)) {
       return ([
         this.renderConvertButton(folder, {
           icon: <FontIcon type='FolderConvert' style={{'marginTop': 8, 'marginLeft': -2}} tooltip={la('Format Folder')}/>,
@@ -143,31 +145,39 @@ export class MainInfoView extends Component {
         }),
         this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder)
       ]);
+    } else if (isAdmin || (permissions && permissions.canAlter || permissions.canRead || permissions.canEditAccessControlList || permissions.canDelete)) {
+      return this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder);
+    } else {
+      return;
     }
-    return this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder);
   }
 
-  getFileActionButtons(file) {
+  getFileActionButtons(file, permissions) {
+    const isAdmin = localStorageUtils.isUserAnAdmin();
     const isQueryAble = (file.get('queryable'));
     if (isQueryAble) {
       return this.getShortcutButtons(file, 'file');
     }
     // DX-12874 not queryable files should have only promote button
-    return ([
-      this.renderConvertButton(file, {
-        icon: <FontIcon type='FileConvert' style={{'marginTop': 8}} tooltip={la('Format File')}/>,
-        to: {...this.context.location, state: {
-          modal: 'DatasetSettingsModal',
-          tab: 'format',
-          entityType: file.get('entityType'),
-          entityId: file.get('id'),
-          queryable: file.get('queryable'),
-          fullPath: file.get('filePath'),
-          query: {then: 'query'},
-          isHomePage: true
-        }}
-      })
-    ]);
+    if (this.checkToRenderConvertFileButton(isAdmin, permissions)) {
+      return ([
+        this.renderConvertButton(file, {
+          icon: <FontIcon type='FileConvert' style={{'marginTop': 8}} tooltip={la('Format File')}/>,
+          to: {...this.context.location, state: {
+            modal: 'DatasetSettingsModal',
+            tab: 'format',
+            entityType: file.get('entityType'),
+            entityId: file.get('id'),
+            queryable: file.get('queryable'),
+            fullPath: file.get('filePath'),
+            query: {then: 'query'},
+            isHomePage: true
+          }}
+        })
+      ]);
+    } else {
+      return;
+    }
   }
 
   // this method is targeted for dataset like entities: PDS, VDS and queriable files
@@ -314,7 +324,7 @@ export class MainInfoView extends Component {
   render() {
     const { entity, viewState } = this.props;
     const { pathname } = this.context.location;
-    const showWiki = entity && !entity.get('fileSystemFolder'); // should be removed when DX-13804 would be fixed
+    const showWiki = this.checkToRenderWikiSection(entity); // should be removed when DX-13804 would be fixed
 
     const buttons = entity && <HeaderButtons
       entity={entity}

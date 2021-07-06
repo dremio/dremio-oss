@@ -23,12 +23,13 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
+import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 
 /**
  * Helper class to hold elements needed to construct Dremio PartitionChunk objects. There is one for
- * every Hive Partition object. Each instance is checked by {@link HivePartitionChunkListing} to see
- * if the {@link #inputSplitBatchIterator} has been exhausted to determine if another PartitionChunk
- * is needed for this Hive Partition.
+ * every Hive Partition object. In case of {@link HivePartitionChunkListing.SplitType#INPUT_SPLIT},
+ * each instance is checked by {@link HivePartitionChunkListing} to see if the {@link #inputSplitBatchIterator}
+ * has been exhausted to determine if another PartitionChunk is needed for this Hive Partition.
  */
 public class PartitionMetadata {
 
@@ -36,16 +37,18 @@ public class PartitionMetadata {
   private final Partition partition;
   private final List<PartitionValue> partitionValues;
   private final InputSplitBatchIterator inputSplitBatchIterator;
+  private final DirListInputSplitProto.DirListInputSplit dirListInputSplit;
   private final DatasetSplitBuildConf datasetSplitBuildConf;
   private final PartitionXattr partitionXattr;
 
   private PartitionMetadata(final int partitionId, final Partition partition, List<PartitionValue> partitionValues,
-                            InputSplitBatchIterator inputSplitBatchIterator, DatasetSplitBuildConf datasetSplitBuildConf,
-                            PartitionXattr partitionXattr) {
+                            InputSplitBatchIterator inputSplitBatchIterator, DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+                            DatasetSplitBuildConf datasetSplitBuildConf, PartitionXattr partitionXattr) {
     this.partitionId = partitionId;
     this.partition = partition;
     this.partitionValues = Collections.unmodifiableList(partitionValues);
     this.inputSplitBatchIterator = inputSplitBatchIterator;
+    this.dirListInputSplit = dirListInputSplit;
     this.datasetSplitBuildConf = datasetSplitBuildConf;
     this.partitionXattr = partitionXattr;
   }
@@ -66,6 +69,10 @@ public class PartitionMetadata {
     return inputSplitBatchIterator;
   }
 
+  public DirListInputSplitProto.DirListInputSplit getDirListInputSplit() {
+    return dirListInputSplit;
+  }
+
   public DatasetSplitBuildConf getDatasetSplitBuildConf() {
     return datasetSplitBuildConf;
   }
@@ -83,6 +90,7 @@ public class PartitionMetadata {
     private Partition partition;
     private List<PartitionValue> partitionValues;
     private InputSplitBatchIterator inputSplitBatchIterator;
+    private DirListInputSplitProto.DirListInputSplit dirListInputSplit;
     private DatasetSplitBuildConf datasetSplitBuildConf;
     private PartitionXattr partitionXattr;
 
@@ -109,6 +117,11 @@ public class PartitionMetadata {
       return this;
     }
 
+    public Builder dirListInputSplit(DirListInputSplitProto.DirListInputSplit dirListInputSplit) {
+      this.dirListInputSplit = dirListInputSplit;
+      return this;
+    }
+
     public Builder datasetSplitBuildConf(DatasetSplitBuildConf datasetSplitBuildConf) {
       this.datasetSplitBuildConf = datasetSplitBuildConf;
       return this;
@@ -123,7 +136,7 @@ public class PartitionMetadata {
       Objects.requireNonNull(inputSplitBatchIterator, "input split batch iterator is required");
       Objects.requireNonNull(partitionValues, "partition values is required");
 
-      return new PartitionMetadata(partitionId, partition, partitionValues, inputSplitBatchIterator, datasetSplitBuildConf, partitionXattr);
+      return new PartitionMetadata(partitionId, partition, partitionValues, inputSplitBatchIterator, dirListInputSplit, datasetSplitBuildConf, partitionXattr);
     }
   }
 }

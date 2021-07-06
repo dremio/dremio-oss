@@ -22,12 +22,13 @@ export default class EllipsedText extends Component {
   static propTypes = {
     text: PropTypes.string,
     className: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    title: PropTypes.any
   };
 
   render() {
-    const {text, children, className, ...props} = this.props;
-    return <div className={'EllipsedText ' + (className || '')} title={text} {...props}>
+    const {text, children, className, title, ...props} = this.props;
+    return <div className={'EllipsedText ' + (className || '')} title={title || text} {...props}>
       {children || text}
     </div>;
   }

@@ -29,7 +29,6 @@ import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
@@ -50,9 +49,8 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.common.collect.Iterables;
 
-import io.protostuff.ByteString;
 /**
  * A lightweight object used to manage the creation of a reader. Allows pre-initialization of data before reader
  * construction.
@@ -80,7 +78,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   private final List<SchemaPath> columns;
   private final BatchSchema fullSchema;
   private final FileConfig formatSettings;
-  private final ByteString extendedProperty;
+  private List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields;
   private final Map<String, Set<Integer>> pathToRowGroupsMap;
   private final ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator;
   private final boolean ignoreSchemaLearning;
@@ -125,7 +123,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                                    BatchSchema fullSchema,
                                    boolean arrowCachingEnabled,
                                    FileConfig formatSettings,
-                                   ByteString extendedProperty,
+                                   List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields,
                                    Map<String, Set<Integer>> pathToRowGroupsMap,
                                    ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
                                    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr,
@@ -165,7 +163,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.columns = columns;
     this.fullSchema = fullSchema;
     this.formatSettings = formatSettings;
-    this.extendedProperty = extendedProperty;
+    this.icebergSchemaFields = icebergSchemaFields;
     this.ignoreSchemaLearning = ignoreSchemaLearning;
   }
 
@@ -229,7 +227,8 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
         }
 
         final SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();
-        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, getIcebergColumnIDList());
+        Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
+        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields);
         RecordReader inner;
         if (DatasetHelper.isIcebergFile(formatSettings)) {
           IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(
@@ -285,6 +284,8 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                     splitXAttr,
                     fs,
                     footer,
+                    path.toString(),
+                    Iterables.getFirst(tablePath, null),
                     globalDictionaries,
                     schemaDerivationHelper,
                     vectorize,
@@ -331,29 +332,14 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   }
 
   @Override
+  public void setIcebergSchemaFields(List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields) {
+    this.icebergSchemaFields = icebergSchemaFields;
+  }
+
+  @Override
   public void close() throws Exception {
     AutoCloseables.close(inputStreamProvider);
     inputStreamProvider = null;
   }
 
-  private List<IcebergProtobuf.IcebergSchemaField> getIcebergColumnIDList() {
-    if (formatSettings.getType() != FileType.ICEBERG) {
-      return null;
-    }
-
-    try {
-      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER,
-        extendedProperty.asReadOnlyByteBuffer());
-      return icebergDatasetXAttr.getColumnIdsList();
-    } catch (InvalidProtocolBufferException ie) {
-      try {
-        ParquetProtobuf.ParquetDatasetXAttr parquetDatasetXAttr = LegacyProtobufSerializer.parseFrom(ParquetProtobuf.ParquetDatasetXAttr.PARSER,
-          extendedProperty.asReadOnlyByteBuffer());
-        // found XAttr from 5.0.1 release. return null
-        return null;
-      } catch (InvalidProtocolBufferException pe) {
-        throw new RuntimeException("Could not deserialize Parquet dataset info", pe);
-      }
-    }
-  }
 }

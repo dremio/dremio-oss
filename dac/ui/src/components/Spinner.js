@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import FontIcon from './Icon/FontIcon';
 
 const DEFAULT_ICON_SIZE = 30;
 
 @Radium
-@pureRender
-class Spinner extends Component {
+class Spinner extends PureComponent {
   static propTypes = {
     iconStyle: PropTypes.object,
     containerStyle: PropTypes.object,

@@ -1,0 +1,185 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.dremio</groupId>
+    <artifactId>dremio-dac-parent</artifactId>
+    <version>17.0.0-202107060524010627-31b5222b</version>
+  </parent>
+
+  <artifactId>dremio-ui-lib</artifactId>
+  <packaging>jar</packaging>
+  <name>Dremio UI Library</name>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>3.0</version>
+        <configuration>
+          <excludes combine.children="append">
+            <exclude>**/*.editorconfig</exclude>
+          </excludes>
+          <mapping>
+            <!-- full file names -->
+            <run>SCRIPT_STYLE</run>
+          </mapping>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>generate-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}</directory>
+                  <excludes>
+                    <exclude>example/**</exclude>
+                    <!-- <exclude>dist/**</exclude> -->
+                    <!-- <exclude>node_modules/**</exclude> -->
+                    <exclude>src/**</exclude>
+                    <exclude>target/**</exclude>
+                  </excludes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>jar-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
+              <skipIfEmpty>true</skipIfEmpty>
+              <classifier>resources</classifier>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+
+        <configuration>
+          <workingDirectory>${project.basedir}</workingDirectory>
+          <environmentVariables>
+            <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
+          </environmentVariables>
+        </configuration>
+
+        <executions>
+          <execution>
+            <id>install node and yarn</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>install-node-and-yarn</goal>
+            </goals>
+            <configuration>
+              <nodeVersion>v14.0.0</nodeVersion>
+              <yarnVersion>v1.22.10</yarnVersion>
+              <!-- <npmVersion>6.1.0</npmVersion> -->
+            </configuration>
+          </execution>
+          <execution>
+            <id>yarn install</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>yarn</goal>
+            </goals>
+            <!-- Optional configuration which provides for running any npm
+              command -->
+            <configuration>
+              <arguments>install --prefer-offline --no-audit --network-timeout 300000</arguments>
+            </configuration>
+          </execution>
+
+          <execution>
+            <!-- jest generates [ERROR] records in the log even if all unit tests pass:
+            [ERROR] PASS src/utils/apiUtils.test.js
+            ...
+            [ERROR] Ran all test suites.
+            -->
+            <id>run js linter and unit tests</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>yarn</goal>
+            </goals>
+            <configuration>
+              <arguments>run test</arguments>
+              <skip>${skipTests}</skip>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>build minimized webpack bundle</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>yarn</goal>
+            </goals>
+            <configuration>
+              <arguments>build</arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <includeResources>false</includeResources>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}/node_modules</directory>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+            <fileset>
+              <directory>${project.basedir}/dist</directory>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

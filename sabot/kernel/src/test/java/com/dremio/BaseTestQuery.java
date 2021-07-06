@@ -15,13 +15,18 @@
  */
 package com.dremio;
 
+import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import java.io.DataInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
@@ -42,6 +47,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.Table;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -71,6 +77,13 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.IcebergModelCreator;
+import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieModel;
+import com.dremio.exec.store.metadatarefresh.DatasetCatalogGrpcClient;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
@@ -961,13 +974,13 @@ public class BaseTestQuery extends ExecTest {
     FileAttributes withDict = testAndGetResult(query, tag);
     boolean diff = false;
     final HashMap<String, Void> lines = new HashMap<>();
-    try (DataInputStream in1 = new DataInputStream(localFs.open(original.getPath()))) {
+    try (BufferedReader in1 = new BufferedReader(new InputStreamReader(localFs.open(original.getPath()), UTF_8))) {
       String line = null;
       while ((line = in1.readLine()) != null) {
         lines.put(line, null);
       }
     }
-    try (DataInputStream in2 = new DataInputStream(localFs.open(withDict.getPath()))) {
+    try (BufferedReader in2 = new BufferedReader(new InputStreamReader(localFs.open(withDict.getPath()), UTF_8))) {
       String line = null;
       while ((line = in2.readLine()) != null) {
         if(!lines.containsKey(line)) {
@@ -1027,5 +1040,33 @@ public class BaseTestQuery extends ExecTest {
 
   public static void checkFirstRecordContains(String query, String column, String expected) throws Exception {
     Assert.assertThat(getValueInFirstRecord(query, column), CoreMatchers.containsString(expected));
+  }
+
+  protected IcebergModel getIcebergModel(File tableRoot) {
+    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    IcebergCatalogType catalogType = IcebergModelCreator.getIcebergCatalogType(new Configuration(), getSabotContext());
+    IcebergModel icebergModel = null;
+    switch (catalogType) {
+
+      case UNKNOWN:
+        break;
+      case NESSIE:
+        icebergModel = new IcebergNessieModel(DREMIO_NESSIE_DEFAULT_NAMESPACE, new Configuration(),
+                getSabotContext().getNessieContentsApiBlockingStub(), getSabotContext().getNessieTreeApiBlockingStub(),
+                null, null, null, new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get()));
+
+        when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
+        break;
+      case HADOOP:
+        icebergModel = new IcebergHadoopModel(new Configuration());
+        when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
+        break;
+    }
+    return icebergModel;
+  }
+
+  protected Table getIcebergTable(File tableRoot) {
+    IcebergModel icebergModel = getIcebergModel(tableRoot);
+    return icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
   }
 }

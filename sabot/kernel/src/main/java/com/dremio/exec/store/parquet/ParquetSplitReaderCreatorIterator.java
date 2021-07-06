@@ -20,6 +20,7 @@ import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELER
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,9 +50,9 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.RuntimeFilterEvaluator;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.EmptySplitReaderCreator;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -78,8 +79,6 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import io.protostuff.ByteString;
 
 /**
  * An object that holds the relevant creation fields so we don't have to have an really long lambda.
@@ -112,9 +111,9 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private final BatchSchema fullSchema;
   private final boolean arrowCachingEnabled;
   private final FileConfig formatSettings;
-  private final ByteString extendedProperty;
   private List<SplitAndPartitionInfo> inputSplits;
   private boolean ignoreSchemaLearning = false;
+  private List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields;
 
   private Iterator<ParquetBlockBasedSplit> sortedBlockSplitsIterator;
   private Iterator<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitIterator;
@@ -129,6 +128,12 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private SplitsPathRowGroupsMap splitsPathRowGroupsMap;
   private Map<String, Set<Integer>> pathToRowGroupsMap = new HashMap<>();
   private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators = new ArrayList<>();
+
+  /* this is used for prefetching across record batches in scan table function
+   * This is initially set to false, in which case the iterator wont return the final prefetched splitreadercreators
+   * After there is no more splits to consume from upstream, this is set to true, in which case the prefetched creators are returned
+   */
+  private boolean produceFromBufferedSplits;
 
   public ParquetSplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config,
                                            boolean fromRowGroupBasedSplit) throws ExecutionSetupException {
@@ -147,7 +152,6 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.fullSchema = config.getFullSchema();
     this.arrowCachingEnabled = config.isArrowCachingEnabled();
     this.formatSettings = config.getFormatSettings();
-    this.extendedProperty = config.getExtendedProperty();
     this.context = context;
     this.factory = context.getConfig().getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
     this.prefetchReader = context.getOptions().getOption(ExecConstants.PREFETCH_READER);
@@ -164,6 +168,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
     if (DatasetHelper.isIcebergFile(config.getFormatSettings())) {
       this.realFields = getRealIcebergFields(config.getColumns());
+      this.icebergSchemaFields = getIcebergColumnIDList(config.getExtendedProperty().asReadOnlyByteBuffer());
     } else {
       // TODO (AH )Fix implicit columns with mod time and global dictionaries
       this.realFields = new ImplicitFilesystemColumnFinder(
@@ -193,19 +198,23 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.fromRowGroupBasedSplit = fromRowGroupBasedSplit;
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
+    this.produceFromBufferedSplits = true;  // in non-v2 case there is no prefetching across batches, so set it to true
     processSplits();
+    if (prefetchReader) {
+      initSplits(null, numSplitsToPrefetch);
+    }
   }
 
   public ParquetSplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, OpProps props, final TableFunctionConfig config) throws ExecutionSetupException {
     this.config = null;
     this.inputSplits = null;
     this.tablePath = config.getFunctionContext().getTablePath();
-    this.conditions = config.getFunctionContext().getConditions();
+    ScanFilter scanFilter = config.getFunctionContext().getScanFilter();
+    this.conditions = scanFilter != null ? ((ParquetScanFilter) scanFilter).getConditions() : null;
     this.columns = config.getFunctionContext().getColumns();
     this.fullSchema = config.getFunctionContext().getFullSchema();
     this.arrowCachingEnabled = config.getFunctionContext().isArrowCachingEnabled();
     this.formatSettings = config.getFunctionContext().getFormatSettings();
-    this.extendedProperty = config.getFunctionContext().getExtendedProperty();
     this.context = context;
     this.factory = context.getConfig().getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
     this.prefetchReader = context.getOptions().getOption(ExecConstants.PREFETCH_READER);
@@ -251,11 +260,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.fromRowGroupBasedSplit = false;
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
+    this.produceFromBufferedSplits = false; // initially set to false, after no more to consume from upstream this is set to true
     processSplits();
+    if (prefetchReader) {
+      initSplits(null, numSplitsToPrefetch);
+    }
   }
 
   private void processSplits() {
     if (inputSplits == null) {
+      rowGroupSplitIterator = Collections.emptyIterator();
+      sortedBlockSplitsIterator = Collections.emptyIterator();
       return;
     }
 
@@ -297,9 +312,6 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       splitAndPartitionInfoIterator = inputSplits.iterator();
       pathToRowGroupsMap = null;
     }
-    if (prefetchReader) {
-      initSplits(null, numSplitsToPrefetch);
-    }
   }
 
   // iceberg has no implicit columns.
@@ -324,11 +336,18 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     }
   }
 
-  public RecordReaderIterator getReaders(List<SplitAndPartitionInfo> inputSplits) {
-    this.inputSplits = inputSplits;
+  public RecordReaderIterator getRecordReaderIterator() {
+    return new PrefetchingIterator(this);
+  }
+
+  public void addSplits(List<SplitAndPartitionInfo> splits) {
+    this.inputSplits = splits;
     processSplits();
-    // hasNext() will return false when input is a single block based split and the data file doesn't contain any rowgroup.
-    return hasNext() ? new PrefetchingIterator(this) : RecordReaderIterator.from(new EmptyRecordReader());
+    if (prefetchReader && first == null) {
+      // called either the first time addSplits is called
+      // or when all splits were read in the previous batch
+      initSplits(null, numSplitsToPrefetch);
+    }
   }
 
   private void initSplits(SplitReaderCreator curr, int splitsAhead) {
@@ -405,9 +424,13 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     }
   }
 
+  public void setProduceFromBufferedSplits(boolean produceFromBufferedSplits) {
+    this.produceFromBufferedSplits = produceFromBufferedSplits;
+  }
+
   @Override
   public boolean hasNext() {
-    return rowGroupSplitIterator.hasNext() || sortedBlockSplitsIterator.hasNext() || first != null;
+    return rowGroupSplitIterator.hasNext() || sortedBlockSplitsIterator.hasNext() || (produceFromBufferedSplits && first != null);
   }
 
   @Override
@@ -460,7 +483,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     SplitReaderCreator creator = new ParquetSplitReaderCreator(autoCorrectCorruptDates, context, enableDetailedTracing, factory,
             fs, globalDictionaries, globalDictionaryEncodedColumns, numSplitsToPrefetch, prefetchReader, readInt96AsTimeStamp,
             readerConfig, readerFactory, realFields, supportsColocatedReads, trimRowGroups, vectorize,
-            currentSplitInfo, tablePath, conditions, columns, fullSchema, arrowCachingEnabled, formatSettings, extendedProperty,
+            currentSplitInfo, tablePath, conditions, columns, fullSchema, arrowCachingEnabled, formatSettings, icebergSchemaFields,
             pathToRowGroupsMap, this, rowGroupSplitIterator.next(), this.isIgnoreSchemaLearning());
 
     if (!fromRowGroupBasedSplit && isFirstRowGroup) {
@@ -602,7 +625,9 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
     final Collection<List<String>> referencedTables = tablePath;
     final List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
-    ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, getIcebergColumnIDList());
+
+    Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
+    ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields);
 
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
     boolean readColumnIndices = (context.getOptions().getOption(READ_COLUMN_INDEXES) &&
@@ -625,20 +650,28 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             readColumnIndices);
   }
 
+  public void setIcebergExtendedProperty(byte[] extendedProperty) {
+    this.icebergSchemaFields = getIcebergColumnIDList(ByteBuffer.wrap(extendedProperty));
+    SplitReaderCreator curr = first;
+    while (curr != null) {
+      curr.setIcebergSchemaFields(icebergSchemaFields);
+      curr = curr.getNext();
+    }
+  }
 
-  private List<IcebergProtobuf.IcebergSchemaField> getIcebergColumnIDList() {
+  private List<IcebergProtobuf.IcebergSchemaField> getIcebergColumnIDList(ByteBuffer extendedProperty) {
     if (formatSettings.getType() != FileType.ICEBERG) {
       return null;
     }
 
     try {
       IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER,
-              extendedProperty.asReadOnlyByteBuffer());
+              extendedProperty);
       return icebergDatasetXAttr.getColumnIdsList();
     } catch (InvalidProtocolBufferException ie) {
       try {
         ParquetProtobuf.ParquetDatasetXAttr parquetDatasetXAttr = LegacyProtobufSerializer.parseFrom(ParquetProtobuf.ParquetDatasetXAttr.PARSER,
-                extendedProperty.asReadOnlyByteBuffer());
+                extendedProperty);
         // found XAttr from 5.0.1 release. return null
         return null;
       } catch (InvalidProtocolBufferException pe) {

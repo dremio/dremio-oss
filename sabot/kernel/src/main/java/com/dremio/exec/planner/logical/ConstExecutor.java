@@ -65,7 +65,6 @@ import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.DateString;
-import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
@@ -78,6 +77,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
 import com.dremio.exec.expr.fn.interpreter.InterpreterEvaluator;
+import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -126,7 +126,8 @@ public class ConstExecutor implements RexExecutor {
   }
 
   @Override
-  public void reduce(RexBuilder rexBuilder, List<RexNode> constExps, List<RexNode> reducedValues) {
+  public void reduce(RexBuilder rexBuilderParam, List<RexNode> constExps, List<RexNode> reducedValues) {
+    DremioRexBuilder rexBuilder = (DremioRexBuilder) rexBuilderParam;
 
     for (RexNode newCall : constExps) {
       reducedValues.add(null);
@@ -250,8 +251,7 @@ public class ConstExecutor implements RexExecutor {
               NullableVarCharHolder nullableVarCharHolder = (NullableVarCharHolder) output;
               outputString = StringFunctionHelpers.toStringFromUTF8(nullableVarCharHolder.start, nullableVarCharHolder.end, nullableVarCharHolder.buffer);
             }
-            reducedValues.set(index, rexBuilder.makeVarCharLiteral(new NlsString(outputString,
-              null, null)));
+            reducedValues.set(index, rexBuilder.makeLiteral(outputString));
             break;
           case BIT:
             int bitValue;

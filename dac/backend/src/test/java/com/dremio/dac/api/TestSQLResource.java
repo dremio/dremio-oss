@@ -119,6 +119,54 @@ public class TestSQLResource extends BaseTestServer {
     }
   }
 
+  @Test
+  public void testGrantQueryNotSupported() throws InterruptedException {
+    CreateFromSQL create = new CreateFromSQL("GRANT SELECT ON system TO USER user1", Collections.<String>emptyList());
+    SQLResource.QueryDetails details = expectSuccess(getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)), SQLResource.QueryDetails.class);
+
+    Assert.assertNotNull(details.getId());
+
+    while (true) {
+      JobStatus status = expectSuccess(getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(), JobStatus.class);
+
+      JobState jobState = status.getJobState();
+
+      Assert.assertTrue("expected job to complete successfully", ensureJobIsRunningOrFinishedWith(JobState.FAILED, jobState));
+
+      if (jobState == JobState.FAILED) {
+        Assert.assertTrue(status.getErrorMessage().contains("Enterprise Edition"));
+
+        break;
+      } else {
+        Thread.sleep(TimeUnit.MILLISECONDS.toMillis(100));
+      }
+    }
+  }
+
+  @Test
+  public void testRevokeQueryNotSupported() throws InterruptedException {
+    CreateFromSQL create = new CreateFromSQL("REVOKE SELECT ON system FROM USER user1", Collections.<String>emptyList());
+    SQLResource.QueryDetails details = expectSuccess(getBuilder(getPublicAPI(3).path(PATH)).buildPost(Entity.entity(create, JSON)), SQLResource.QueryDetails.class);
+
+    Assert.assertNotNull(details.getId());
+
+    while (true) {
+      JobStatus status = expectSuccess(getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId())).buildGet(), JobStatus.class);
+
+      JobState jobState = status.getJobState();
+
+      Assert.assertTrue("expected job to complete successfully", ensureJobIsRunningOrFinishedWith(JobState.FAILED, jobState));
+
+      if (jobState == JobState.FAILED) {
+        Assert.assertTrue(status.getErrorMessage().contains("Enterprise Edition"));
+
+        break;
+      } else {
+        Thread.sleep(TimeUnit.MILLISECONDS.toMillis(100));
+      }
+    }
+  }
+
   private boolean ensureJobIsRunningOrFinishedWith(JobState expectedFinalState, JobState state) {
     if (expectedFinalState.equals(state)) {
       return true;

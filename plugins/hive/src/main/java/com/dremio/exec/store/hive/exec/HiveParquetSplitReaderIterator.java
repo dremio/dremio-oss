@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -65,7 +67,6 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
     private final JobConf jobConf;
     private final boolean vectorize;
     private final OperatorContext context;
-    private final HiveProxyingSubScan config;
     private final ManagedHiveSchema hiveSchema;
     private final boolean enableDetailedTracing;
     private final UserGroupInformation readerUGI;
@@ -77,37 +78,35 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
     private final HiveReaderProto.HiveTableXattr tableXattr;
     private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
     private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators;
+    private final BatchSchema fullSchema;
+    private final Collection<List<String>> referencedTables;
 
     HiveParquetSplitReaderIterator(
             final JobConf jobConf,
             final OperatorContext context,
-            final HiveProxyingSubScan config,
             final List<HiveParquetSplit> sortedSplits,
             final UserGroupInformation readerUGI,
             final CompositeReaderConfig compositeReader,
             final BaseHiveStoragePlugin hiveStoragePlugin,
-            final HiveReaderProto.HiveTableXattr tableXattr) {
+            final HiveReaderProto.HiveTableXattr tableXattr,
+            final ScanFilter scanFilter,
+            final BatchSchema fullSchema,
+            final Collection<List<String>> referencedTables) {
         this.location = -1;
         this.nextLocation = 0;
         this.next = null;
 
         this.jobConf = jobConf;
         this.context = context;
-        this.config = config;
         this.hiveSchema = new ManagedHiveSchema(jobConf, tableXattr);
         this.readerUGI = readerUGI;
         this.compositeReader = compositeReader;
         this.hiveStoragePlugin = hiveStoragePlugin;
-
-        final ScanFilter scanFilter = config.getFilter();
-        if (scanFilter == null) {
-            conditions = null;
-        } else {
-            conditions = ((ParquetScanFilter) scanFilter).getConditions();
-        }
-
+        this.conditions = scanFilter == null ? null : ((ParquetScanFilter) scanFilter).getConditions();
         this.tableXattr = tableXattr;
         this.hiveParquetSplits = sortedSplits;
+        this.fullSchema = fullSchema;
+        this.referencedTables = referencedTables;
 
         try {
             currentUGI = UserGroupInformation.getCurrentUser();
@@ -153,7 +152,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
             RecordReader wrappedRecordReader = compositeReader.wrapIfNecessary(context.getAllocator(), curr,
                     hiveParquetSplits.get(location).getDatasetSplit());
             return HiveParquetCoercionReader.newInstance(context, compositeReader.getInnerColumns(),
-                    wrappedRecordReader, config.getFullSchema(), hiveTypeCoercion, curr.getFilterConditions());
+                    wrappedRecordReader, fullSchema, hiveTypeCoercion, curr.getFilterConditions());
         });
     }
 
@@ -202,27 +201,28 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
                     conditions==null ? null:
                             conditions.stream()
                                     .map(c ->
-                                            new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort()))
+                                            new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort(), c.getRexFilter()))
                                     .collect(Collectors.toList());
 
             return new FileSplitParquetRecordReader(
                     hiveStoragePlugin,
                     context,
                     UnifiedParquetReader.getReaderFactory(context.getConfig()),
-                    config.getFullSchema(),
+                    fullSchema,
                     compositeReader.getInnerColumns(),
                     copyOfFilterConditions,
                     hiveParquetSplit.getFileSplit(),
                     hiveParquetSplit.getHiveSplitXAttr(),
                     jobConf,
-                    config.getReferencedTables(),
+                    referencedTables,
                     vectorize,
-                    config.getFullSchema(),
+                    fullSchema,
                     enableDetailedTracing,
                     readerUGI,
                     hiveSchema,
                     pathRowGroupsMap,
-                    compositeReader);
+                    compositeReader
+              );
         }
     }
 

@@ -23,7 +23,7 @@ import { getViewState } from 'selectors/resources';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
-import Header from 'pages/AdminPage/components/Header';
+import SettingHeader from '@app/components/SettingHeader';
 
 import SettingsMicroForm from './SettingsMicroForm';
 import { LABELS, SECTIONS } from './settingsConfig';
@@ -65,7 +65,7 @@ export class Advanced extends PureComponent {
     // SettingsMicroForm has a logic for error display. We should not duplicate it in the viewState
     const viewStateWithoutError = this.props.viewState.set('isFailed', false);
     return <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-      <Header>{la('Queue Control')}</Header>
+      <SettingHeader>{la('Queue Control')}</SettingHeader>
       <ViewStateWrapper viewState={viewStateWithoutError} style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}
         hideChildrenWhenFailed={false}>
         {this.renderSections()}

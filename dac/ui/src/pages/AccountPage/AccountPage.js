@@ -13,41 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
-
 import PropTypes from 'prop-types';
+import { injectIntl } from 'react-intl';
 
 import MainHeader from 'components/MainHeader';
+import SettingPage from '@app/containers/SettingPage';
 import UserNavigation from 'components/UserNavigation';
 import { accountSection } from 'dyn-load/pages/AccountPage/AccountPageConstants';
 import './AccountPage.less';
 
-@pureRender
-export default class AccountPage extends Component {
-  static propTypes = {
-    children: PropTypes.node,
-    style: PropTypes.object
-  };
+const AccountPage = (props) => {
+  const {
+    style,
+    children,
+    intl: {
+      formatMessage
+    }
+  } = props;
 
-  constructor(props) {
-    super(props);
-    this.sections = [accountSection];
-  }
-
-  render() {
-    return (
-      <div id='account-page' style={this.props.style}>
-        <MainHeader />
-        <div className='page-content'>
-          <UserNavigation
-            sections={this.sections}
-          />
-          <div className='main-content'>
-            {this.props.children}
-          </div>
+  return (
+    <SettingPage id='account-page' style={style}>
+      <MainHeader />
+      <div className='page-content'>
+        <UserNavigation
+          title={formatMessage({ id: 'Common.Settings' })}
+          sections={[accountSection]}
+        />
+        <div className='main-content'>
+          {children}
         </div>
       </div>
-    );
-  }
-}
+    </SettingPage>
+  );
+};
+
+AccountPage.propTypes = {
+  children: PropTypes.node,
+  style: PropTypes.object,
+  intl: PropTypes.object
+};
+
+export default injectIntl(AccountPage);

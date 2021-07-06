@@ -68,11 +68,11 @@ import com.google.common.collect.ImmutableSet;
 public class SchemaField extends RexInputRef {
 
   public static final Set<ElasticSpecialType> NON_DOC_TYPES = ImmutableSet.of(
-      // you can't retrieve geo shapes using doc values
-      ElasticSpecialType.GEO_SHAPE,
+    // you can't retrieve geo shapes using doc values
+    ElasticSpecialType.GEO_SHAPE,
 
-      // nested documents require a special nested_aggregation concept, not currently supported in Dremio.
-      ElasticSpecialType.NESTED
+    // nested documents require a special nested_aggregation concept, not currently supported in Dremio.
+    ElasticSpecialType.NESTED
   );
 
   private final static String OPEN_BQ = "[\"";
@@ -84,8 +84,9 @@ public class SchemaField extends RexInputRef {
   private final ElasticSpecialType specialType;
   private final boolean isV5;
   private final boolean isPainless;
+  private final boolean isV7;
 
-  private SchemaField(int index, SchemaPath path, CompleteType type, FieldAnnotation annotation, RelDataTypeFactory factory, ElasticSpecialType specialType, boolean isV5, boolean isPainless, boolean complexTypeSupport) {
+  private SchemaField(int index, SchemaPath path, CompleteType type, FieldAnnotation annotation, RelDataTypeFactory factory, ElasticSpecialType specialType, boolean isV5, boolean isPainless, boolean complexTypeSupport, boolean isV7) {
     super(index, CalciteArrowHelper.wrap(type).toCalciteType(factory, complexTypeSupport));
     this.path = path;
     this.type = type;
@@ -93,6 +94,7 @@ public class SchemaField extends RexInputRef {
     this.specialType = specialType;
     this.isV5 = isV5;
     this.isPainless = isPainless;
+    this.isV7 = isV7;
   }
 
   public SchemaPath getPath() {
@@ -108,7 +110,7 @@ public class SchemaField extends RexInputRef {
   }
 
   public ElasticFieldReference toReference(final boolean useDocIfPossible, final boolean sourceAvailable,
-      final boolean allowPushdownAnalyzedNormalizedFields) {
+                                           final boolean allowPushdownAnalyzedNormalizedFields) {
 
     // doc references have to be scalar or scalar-list return values.
     final boolean isScalarOrScalarListReturn = type.isScalar() || (type.isList() && type.getOnlyChildType().isScalar());
@@ -124,25 +126,25 @@ public class SchemaField extends RexInputRef {
 
     final boolean hasSpecialType = NON_DOC_TYPES.contains(specialType);
     final boolean useDoc = useDocIfPossible && hasDocValue && hasCorrectDocValue &&
-        isScalarOrScalarListReturn && !isIpOnPreES5 && !hasSpecialType;
+      isScalarOrScalarListReturn && !isIpOnPreES5 && !hasSpecialType;
 
     final StringBuilder sb = new StringBuilder();
     final StringBuilder fullPath = new StringBuilder();
     final List<Pair<String, String>> possibleNulls = new ArrayList<>();
 
     if (useDoc && !allowPushdownAnalyzedNormalizedFields && type.isText() && annotation != null &&
-        (annotation.isAnalyzed() || annotation.isNormalized())) {
+      (annotation.isAnalyzed() || annotation.isNormalized())) {
       throw new RuntimeException("Cannot pushdown because of analyzed or normalized text or keyword field.");
     }
 
-    if(useDoc){
+    if (useDoc) {
       sb.append(ElasticsearchConstants.DOC);
       sb.append(OPEN_BQ);
     } else {
       if (!sourceAvailable) {
         throw new RuntimeException("Cannot pushdown because neither _source nor doc value is available.");
       }
-      if(isPainless){
+      if (isPainless) {
         // on V5, we use painless instead of groovy. In that case, source needs to be referenced differently.
         sb.append(ElasticsearchConstants.SOURCE_PAINLESS);
       } else {
@@ -151,22 +153,22 @@ public class SchemaField extends RexInputRef {
     }
 
     final Pointer<Boolean> first = new Pointer<>(true);
-    path.accept(new SchemaPathVisitor<Void, Void>(){
+    path.accept(new SchemaPathVisitor<Void, Void>() {
 
       @Override
       public Void visitName(NameSegment segment, Void in) {
-        if(useDoc){
-          if(segment.isLastPath() && specialType == ElasticSpecialType.GEO_POINT && ("lat".equals(segment.getPath()) || "lon".equals(segment.getPath()))) {
+        if (useDoc) {
+          if (segment.isLastPath() && specialType == ElasticSpecialType.GEO_POINT && ("lat".equals(segment.getPath()) || "lon".equals(segment.getPath()))) {
             // since geo point is a atomic type, we need to exit the type to correctly manage things.
             sb.append(CLOSE_BQ);
             possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
             sb.append('.');
             sb.append(segment.getPath());
-            if(type.isList()){
+            if (type.isList()) {
               sb.append('s');
             }
           } else {
-            if(first.value){
+            if (first.value) {
               first.value = false;
             } else {
               sb.append(".");
@@ -175,16 +177,20 @@ public class SchemaField extends RexInputRef {
             String segmentPath = StringEscapeUtils.escapeJava(segment.getPath());
             sb.append(segmentPath);
             fullPath.append(segmentPath);
-            if(segment.isLastPath()){
+            if (segment.isLastPath()) {
               sb.append(CLOSE_BQ);
               possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
-              if(type.isList()){
+              if (type.isList()) {
                 sb.append(".values");
-              } else if(!isV5 && (annotation != null && annotation.isIpType())){
+              } else if (!isV5 && (annotation != null && annotation.isIpType())) {
                 // for a non v5 install, we need to convert ip to string
                 throw new IllegalStateException("Prior to version 5, ip type cannot be pushed down.");
-              } else if(type.isTemporal()) {
-                sb.append(".date");
+              } else if (type.isTemporal()) {
+                if (isV7) {
+                  sb.append(".value");
+                } else {
+                  sb.append(".date");
+                }
               } else {
                 sb.append(".value");
               }
@@ -197,7 +203,7 @@ public class SchemaField extends RexInputRef {
             // to reference it _source.field_name
             sb.append(".");
             sb.append(segment.getPath());
-          }else{
+          } else {
             sb.append(OPEN_BQ);
             sb.append(StringEscapeUtils.escapeJava(segment.getPath()));
             sb.append(CLOSE_BQ);
@@ -206,38 +212,42 @@ public class SchemaField extends RexInputRef {
           // add all parts of field as possible nulls.
           possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
 
-          if(segment.isLastPath()){
-            switch(type.toMinorType()){
-            case BIGINT:
-              sb.append(".longValue()");
-              break;
+          if (segment.isLastPath()) {
+            switch (type.toMinorType()) {
+              case BIGINT:
+                sb.append(".longValue()");
+                break;
 
-            case FLOAT4:
-              sb.append(".floatValue()");
-              break;
+              case FLOAT4:
+                sb.append(".floatValue()");
+                break;
 
-            case FLOAT8:
-              sb.append(".doubleValue()");
-              break;
+              case FLOAT8:
+                sb.append(".doubleValue()");
+                break;
 
-            case DATE:
-            case TIME:
-            case TIMESTAMP:
-              sb.append(".date");
-              break;
+              case DATE:
+              case TIME:
+              case TIMESTAMP:
+                if (isV7) {
+                  sb.append(".value");
+                } else {
+                  sb.append(".date");
+                }
+                break;
 
-            case INT:
-              sb.append(".intValue()");
-              break;
+              case INT:
+                sb.append(".intValue()");
+                break;
 
-            default:
-              break;
+              default:
+                break;
 
             }
           }
         }
 
-        if(segment.getChild() != null){
+        if (segment.getChild() != null) {
           return segment.getChild().accept(this, in);
         }
         return null;
@@ -245,11 +255,11 @@ public class SchemaField extends RexInputRef {
 
       @Override
       public Void visitArray(ArraySegment segment, Void in) {
-        if(!segment.isLastPath()){
+        if (!segment.isLastPath()) {
           throw new IllegalStateException(String.format("Unable to pushdown reference %s as it includes at least one array index that is non-terminal.", path.getAsUnescapedPath()));
         }
 
-        if(useDoc){
+        if (useDoc) {
           sb.append(CLOSE_BQ);
           sb.append(".values");
           sb.append('[');
@@ -262,14 +272,16 @@ public class SchemaField extends RexInputRef {
 
         return null;
 
-      }}, null);
+      }
+    }, null);
 
-    List<NullReference> nullReferences = FluentIterable.from(possibleNulls).transform(new Function<Pair<String, String>, NullReference>(){
+    List<NullReference> nullReferences = FluentIterable.from(possibleNulls).transform(new Function<Pair<String, String>, NullReference>() {
 
       @Override
       public NullReference apply(Pair<String, String> input) {
         return new NullReference(input.getKey(), input.getValue(), useDoc ? ReferenceType.DOC : ReferenceType.SOURCE);
-      }}).toList();
+      }
+    }).toList();
 
     String ref;
 
@@ -369,18 +381,16 @@ public class SchemaField extends RexInputRef {
    * IllegalStateException is thrown as one or more ITEM operators are expected
    * to always be directly above input refs
    *
-   * @param node
-   *          Node to convert
-   * @param scan
-   *          Elastic scan that is below this expression.
+   * @param node Node to convert
+   * @param scan Elastic scan that is below this expression.
    * @return A new node where RexInputRefs and ITEM operations are all converted
-   *         to RexInputRef subclass SchemaField.
+   * to RexInputRef subclass SchemaField.
    */
-  public static RexNode convert(RexNode node, ElasticIntermediateScanPrel scan){
+  public static RexNode convert(RexNode node, ElasticIntermediateScanPrel scan) {
     return node.accept(new SchemaingShuttle(scan, ImmutableSet.<ElasticSpecialType>of()));
   }
 
-  public static RexNode convert(RexNode node, ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes){
+  public static RexNode convert(RexNode node, ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
     return node.accept(new SchemaingShuttle(scan, disallowedSpecialTypes));
   }
 
@@ -394,11 +404,13 @@ public class SchemaField extends RexInputRef {
     private final boolean isV5;
     private final boolean isPainless;
     private final boolean complexTypeSupport;
+    private final boolean isV7;
 
     public SchemaingShuttle(ElasticIntermediateScanPrel scan, Set<ElasticSpecialType> disallowedSpecialTypes) {
       this.scan = scan;
       this.complexTypeSupport = PrelUtil.getPlannerSettings(scan.getCluster()).isFullNestedSchemaSupport();
       this.isV5 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
+      this.isV7 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V7_FEATURES);
       this.disallowedSpecialTypes = disallowedSpecialTypes;
       ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
       this.isPainless = isV5 && config.isUsePainless();
@@ -408,13 +420,13 @@ public class SchemaField extends RexInputRef {
     public RexNode visitCall(RexCall call) {
       final boolean isItem = call.getOperator().getSyntax() == SqlSyntax.SPECIAL
         && (call.getOperator() == SqlStdOperatorTable.ITEM || call.getOperator() == SqlStdOperatorTable.DOT);
-      if(isItem){
+      if (isItem) {
         return visitCandidate(call);
       }
       return super.visitCall(call);
     }
 
-    private SchemaField visitCandidate(RexNode node){
+    private SchemaField visitCandidate(RexNode node) {
       // build a qualified path.
       SchemaPath path = node.accept(new PathVisitor(scan.getRowType(), IndexMode.ALLOW));
       Preconditions.checkArgument(path != null, "Found an incomplete item path %s.", node);
@@ -426,7 +438,7 @@ public class SchemaField extends RexInputRef {
       Preconditions.checkArgument(fieldId != null, "Unable to resolve item path %s.", node);
       CompleteType type = fieldId.getFinalType();
 
-      return new SchemaField(fieldId.getFieldIds()[0], path, type, annotation, scan.getCluster().getTypeFactory(), specialType, isV5, isPainless, complexTypeSupport);
+      return new SchemaField(fieldId.getFieldIds()[0], path, type, annotation, scan.getCluster().getTypeFactory(), specialType, isV5, isPainless, complexTypeSupport, isV7);
     }
 
     @Override
@@ -454,7 +466,7 @@ public class SchemaField extends RexInputRef {
 
     @Override
     public SchemaPath visitInputRef(RexInputRef inputRef) {
-      if(inputRef instanceof SchemaField){
+      if (inputRef instanceof SchemaField) {
         return ((SchemaField) inputRef).getPath();
       }
 
@@ -476,7 +488,7 @@ public class SchemaField extends RexInputRef {
 
     @Override
     public SchemaPath visitCall(RexCall call) {
-      if(call.getOperator().getSyntax() != SqlSyntax.SPECIAL || (call.getOperator() != SqlStdOperatorTable.ITEM && call.getOperator() != SqlStdOperatorTable.DOT)) {
+      if (call.getOperator().getSyntax() != SqlSyntax.SPECIAL || (call.getOperator() != SqlStdOperatorTable.ITEM && call.getOperator() != SqlStdOperatorTable.DOT)) {
         return null;
       }
       LogicalExpression logExpr = call.getOperands().get(0).accept(this);
@@ -487,24 +499,24 @@ public class SchemaField extends RexInputRef {
 
       SchemaPath left = (SchemaPath) logExpr;
       final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
-      switch(literal.getTypeName()){
-      case DECIMAL:
-      case INTEGER:
-        switch(indexMode){
-        case ALLOW:
-          return left.getChild(((BigDecimal)literal.getValue()).intValue());
-        case SKIP:
-          return left;
-        case DISALLOW:
-        default:
-          return null;
-        }
+      switch (literal.getTypeName()) {
+        case DECIMAL:
+        case INTEGER:
+          switch (indexMode) {
+            case ALLOW:
+              return left.getChild(((BigDecimal) literal.getValue()).intValue());
+            case SKIP:
+              return left;
+            case DISALLOW:
+            default:
+              return null;
+          }
 
-      case CHAR:
-      case VARCHAR:
-        return left.getChild(literal.getValue2().toString());
-      default:
-        // fall through
+        case CHAR:
+        case VARCHAR:
+          return left.getChild(literal.getValue2().toString());
+        default:
+          // fall through
       }
 
       return null;

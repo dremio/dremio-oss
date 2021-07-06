@@ -29,7 +29,7 @@ describe('AccelerationRaw', () => {
         id: '1',
         path: ['path', 'name']
       }),
-      reflections: Immutable.fromJS({}),
+      reflections: Immutable.fromJS({canAlter: true}),
       fields: {
         rawReflections: [{name:{value:'col1'}}, {name:{value:'col2'}}]
       }

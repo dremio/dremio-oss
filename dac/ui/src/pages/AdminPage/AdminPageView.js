@@ -13,19 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
-import UserNavigation from 'components/UserNavigation';
+import withFilteredSections from '@inject/pages/AdminPage/withFilteredSections';
+
+import SettingPage from '@app/containers/SettingPage';
+import UserNavigation from '@app/components/UserNavigation';
 import MainHeader from 'components/MainHeader';
+import { navigationSection, getTitle } from '@inject/pages/AdminPage/navSections';
 
 import './AdminPage.less'; // TODO to Vasyl, need to use Radium for each child component
 
 @Radium
-@pureRender
-class AdminPageView extends Component {
+class AdminPageView extends PureComponent {
   static propTypes = {
     sections: PropTypes.arrayOf(PropTypes.object),
     children: PropTypes.node,
@@ -41,21 +43,22 @@ class AdminPageView extends Component {
   render() {
     const { location, style, children, sections } = this.props;
     return (
-      <div id='admin-page' style={style}>
+      <SettingPage id='admin-page' style={style}>
         <MainHeader />
         <div className='page-content'>
           <UserNavigation
+            title={getTitle()}
             sections={sections}
             location={location}
+            navigationSection={navigationSection}
           />
           <div className='main-content'>
             {children}
           </div>
         </div>
-      </div>
+      </SettingPage>
     );
   }
 }
 
-
-export default AdminPageView;
+export default withFilteredSections(AdminPageView);

@@ -90,6 +90,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   // Credential provider for DCS data roles
   public static final String DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.service.coordinator" +
     ".DremioAssumeRoleCredentialsProviderV1";
+  public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -113,28 +114,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
     }
 
-    String mainAWSCredProvider;
-
-    switch (config.credentialType) {
-      case ACCESS_KEY:
-        if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
-          throw UserException.validationError()
-            .message("Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
-            .build(logger);
-        }
-        mainAWSCredProvider = ACCESS_KEY_PROVIDER;
-        finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
-        finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
-        break;
-      case EC2_METADATA:
-        mainAWSCredProvider = EC2_METADATA_PROVIDER;
-        break;
-      case NONE:
-        mainAWSCredProvider = NONE_PROVIDER;
-        break;
-      default:
-        throw new RuntimeException("Failure creating S3 connection. Invalid credentials type.");
-    }
+    String mainAWSCredProvider = getMainCredentialsProvider(finalProperties);
 
     if (!Strings.isNullOrEmpty(config.assumedRoleARN) && !NONE_PROVIDER.equals(mainAWSCredProvider)) {
       finalProperties.add(new Property(Constants.ASSUMED_ROLE_ARN, config.assumedRoleARN));
@@ -175,6 +155,37 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     logger.debug("getProperties: Create file status check: {}", config.enableFileStatusCheck);
 
     return finalProperties;
+  }
+
+  /**
+   * Populate plugin properties into finalProperties parameter and return the credentials provider.
+   * @param finalProperties
+   * @return
+   */
+  protected String getMainCredentialsProvider(List<Property> finalProperties) {
+    S3PluginConfig config = getConfig();
+    switch (config.credentialType) {
+      case ACCESS_KEY:
+        if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
+          throw UserException.validationError()
+            .message("Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
+            .build(logger);
+        }
+        finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
+        finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
+        return ACCESS_KEY_PROVIDER;
+      case AWS_PROFILE:
+        if (config.awsProfile != null) {
+          finalProperties.add(new Property("com.dremio.awsProfile", config.awsProfile));
+        }
+        return AWS_PROFILE_PROVIDER;
+      case EC2_METADATA:
+        return EC2_METADATA_PROVIDER;
+      case NONE:
+        return NONE_PROVIDER;
+      default:
+        throw new RuntimeException("Failure creating S3 connection. Invalid credentials type.");
+    }
   }
 
   @Override

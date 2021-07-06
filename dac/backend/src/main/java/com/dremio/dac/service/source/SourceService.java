@@ -378,11 +378,13 @@ public class SourceService {
       final StoragePlugin plugin = checkNotNull(catalogService.getSource(sourceName.getName()), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
+        ns.setIsFileSystemSource(true);
+        ns.setIsImpersonationEnabled(((FileSystemPlugin<?>) plugin).getConfig().isImpersonationEnabled());
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(singletonList(sourceName.getName()), userName), sourceName, sourceName.getName());
         fillInTags(ns);
         return ns;
       } else {
-        return newNamespaceTree(namespaceService.list(new NamespaceKey(singletonList(sourceConfig.getName()))));
+        return newNamespaceTree(namespaceService.list(new NamespaceKey(singletonList(sourceConfig.getName()))), false, false);
       }
     } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);
@@ -439,8 +441,9 @@ public class SourceService {
     Folder folder = Folder.newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemPlugin);
     return folder;
   }
-  protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, SOURCE, collaborationService);
+
+  protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children, boolean isFileSystemSource, boolean isImpersonationEnabled) throws DatasetNotFoundException, NamespaceException {
+    return NamespaceTree.newInstance(datasetService, children, SOURCE, collaborationService, isFileSystemSource, isImpersonationEnabled);
   }
 
   public NamespaceTree listFolder(SourceName sourceName, SourceFolderPath folderPath, String userName)
@@ -451,13 +454,15 @@ public class SourceService {
       final StoragePlugin plugin = checkNotNull(catalogService.getSource(name), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
+        ns.setIsFileSystemSource(true);
+        ns.setIsImpersonationEnabled(((FileSystemPlugin<?>) plugin).getConfig().isImpersonationEnabled());
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(folderPath.toPathList(), userName), sourceName, prefix);
 
         fillInTags(ns);
 
         return ns;
       } else {
-        return newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()));
+        return newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()), false, false);
       }
     } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);

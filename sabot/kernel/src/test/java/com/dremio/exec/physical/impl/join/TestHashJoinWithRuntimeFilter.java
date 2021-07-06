@@ -51,6 +51,19 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
     testPlanMatchingPatterns(sql, null, excludedColNames1, excludedColNames2);
   }
 
+  @Test
+  public void testFullOuterHashJoin() throws Exception {
+    String sql = String.format("SELECT nations.N_NAME, count(*) FROM\n"
+      + "%s nations \n"
+      + "FULL OUTER JOIN\n"
+      + "%s regions \n"
+      + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+      + "group by nations.N_NAME", NATION, REGION);
+    String excludedColNames1 =  "runtimeFilterInfo";
+    String excludedColNames2 =  "runtimeFilter";
+    testPlanMatchingPatterns(sql, null, excludedColNames1, excludedColNames2);
+  }
+
 
   @Test
   public void testHashJoinWithFuncJoinCondition() throws Exception {

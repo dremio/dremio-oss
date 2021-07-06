@@ -46,7 +46,8 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
   public enum CloudFileSystemScheme {
     S3_FILE_SYSTEM_SCHEME("dremioS3"),
     ADL_FILE_SYSTEM_SCHEME("dremioAdl"),
-    AZURE_STORAGE_FILE_SYSTEM_SCHEME("dremioAzureStorage://") ;
+    AZURE_STORAGE_FILE_SYSTEM_SCHEME("dremioAzureStorage://"),
+    GOOGLE_CLOUD_FILE_SYSTEM("dremiogcs");
 
     private String scheme;
     CloudFileSystemScheme(String scheme) {
@@ -55,6 +56,20 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
 
     public String getScheme() {
       return scheme;
+    }
+
+    /**
+     * Create a CacheProperties object
+     * @param enabled Whether it should be enabled.
+     * @param limitPct The limit pct.
+     * @return The CacheProperties object.
+     */
+    public static CacheProperties of(boolean enabled, int limitPct) {
+      return new CacheProperties() {
+        @Override
+        public int cacheMaxSpaceLimitPct() {
+          return limitPct;
+        }};
     }
   }
   /**
@@ -70,4 +85,5 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
     }
     return false;
   }
+
 }

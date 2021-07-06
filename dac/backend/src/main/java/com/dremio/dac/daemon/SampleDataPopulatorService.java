@@ -37,6 +37,7 @@ import com.dremio.service.Service;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.ReflectionSettings;
+import com.dremio.service.reflection.ReflectionSettingsImpl;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
 
@@ -139,7 +140,7 @@ public class SampleDataPopulatorService implements Service {
 
     @Override
     public ReflectionSettings getReflectionSettings() {
-      return new ReflectionSettings(() -> namespace, storeProvider);
+      return new ReflectionSettingsImpl(() -> namespace, storeProvider);
     }
   }
 }

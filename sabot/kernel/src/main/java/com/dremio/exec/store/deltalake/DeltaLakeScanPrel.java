@@ -17,9 +17,14 @@ package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_JOINER;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_ADD_PATH;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_ADD_VERSION;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_REMOVE_PATH;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_REMOVE_VERSION;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHMEA_ADD_DATACHANGE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.VERSION;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -30,8 +35,10 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
@@ -44,6 +51,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.expression.SchemaPath;
@@ -57,8 +65,8 @@ import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FilterPrel;
+import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
-import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.JoinPruleBase;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -116,7 +124,10 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
     return new DeltaLakeScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-      projection, getObservedRowcountAdjustment(), filter, arrowCachingEnabled, pruneCondition);
+      projection, getObservedRowcountAdjustment(), filter == null ? filter : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), arrowCachingEnabled,
+      pruneCondition == null ? pruneCondition : pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema()))
+      ;
+
   }
 
   @Override
@@ -164,10 +175,10 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
      *                        +--------------------+
      *                                  |
      *                                  |
-     *                        +--------------------+
-     *                        |       Filter       |
-     *                        | remove_path = null |
-     *                        +--------------------+
+     *              +----------------------------------------------------------+
+     *              |       Filter                                             |
+     *              | isnull(remove_version) || (remove_version = add_version) |
+     *              +----------------------------------------------------------+
      *                                  |
      *                                  |
      *                      +------------------------+
@@ -197,39 +208,60 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
      *               |    +----------------------------+     |
      *               |    |    BroadcastExchangePrel   |     |
      *               |    +----------------------------+     |
-     *               |                   |                   |
-     *               |                   |------------------>|
-     * +----------------------------+          +----------------------------+
-     * |           Filter           |          |           Filter           |
-     * |      add_path <> null      |          |     remove_path <> null    |
-     * |  Partition & stats prune   |          |                            |
-     * +----------------------------+          +----------------------------+
-     *               |                                      |
-     *               |                                      |
-     * +----------------------------+          +----------------------------+
-     * |          Project           |          |          Project           |
-     * |     (Flatten schema)       |          |      (Flatten schema)      |
-     * +----------------------------+          +----------------------------+
-     *               |                                      |
-     *               |                                      |
-     * +----------------------------+          +----------------------------+
-     * | DeltaLakeCommitLogScanPrel |          | DeltaLakeCommitLogScanPrel |
-     * |     (For added paths)      |          |     (For removed paths)    |
-     * +----------------------------+          +----------------------------+
+     *               |                      |                |
+     *               |                      |--------------->|------------------------------------->|
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                           +-------------------------------------------------------------------------------+
+     *               |                                           |                                HashAgg                                        |
+     *               |                                           |              max(remove_version) groupby(remove_path)                         |
+     *               |                                           +-------------------------------------------------------------------------------+
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                                               +----------------------------+
+     *               |                                                               |  HashToRandomExchangePrel  |
+     *               |                                                               +----------------------------+
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                             +-------------------------------------------------------------------------------+
+     *               |                                             |                              Project                                          |
+     *               |                                             |  case(isnotNull(remove_path) then remove_path else add_path), remove_version  |
+     *               |                                             +-------------------------------------------------------------------------------+
+     *               |                                                                              |
+     *               |                                                                              |
+     *               |                                                                              |
+     * +------------------------------------+                                     +----------------------------------+
+     * |           Filter                   |                                     |           Filter                 |
+     * |      add_path <> null              |                                     |     remove_path <> null ||       |
+     * |  Partition & stats prune           |                                     |      add_datachange is false     |
+     * +------------------------------------+                                     +----------------------------------+
+     *               |                                                                        |
+     *               |                                                                        |
+     * +------------------------------------+                         +----------------------------------------------------+
+     * |          Project                   |                         |                  Project                           |
+     * |   (Flatten schema, add_version)    |                         |      (Flatten schema, remove_version)              |
+     * +------------------------------------+                         +----------------------------------------------------+
+     *               |                                                                        |
+     *               |                                                                        |
+     * +------------------------------------+                         +---------------------------------------------------+
+     * | DeltaLakeCommitLogScanPrel         |                         |         DeltaLakeCommitLogScanPrel                |
+     * |  (For added paths, version)        |                         |  (For removed paths, For added paths, version)    |
+     * +------------------------------------+                         +---------------------------------------------------+
      */
-
 
     // Exchange above DeltaLog scan phase
     DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(0);
     DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
     RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
     HashToRandomExchangePrel parquetSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
-            expandDeltaLakeScan(), distributionTrait.getFields(),
-            HashPrelUtil.DREMIO_SPLIT_DISTRIBUTE_HASH_FUNCTION_NAME);
+            expandDeltaLakeScan(), distributionTrait.getFields(), true);
 
     // Parquet scan phase
-    TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getParquetScanTableFunctionConfig(
-      tableMetadata, getConditions(), getProjectedColumns(), arrowCachingEnabled);
+    TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
+      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled);
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), table, parquetSplitsExchange, tableMetadata,
       ImmutableList.copyOf(getProjectedColumns()), parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
@@ -237,7 +269,9 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
   public static RelDataType getSplitRowType(RelOptCluster cluster) {
     final RelDataTypeFactory.Builder builder = cluster.getTypeFactory().builder();
+    builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_IDENTITY, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
     builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_INFORMATION, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
+    builder.add(new RelDataTypeFieldImpl(RecordReader.COL_IDS, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
     return builder.build();
   }
 
@@ -300,22 +334,34 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
       joinCondition, joinRelType, JoinUtils.projectAll(addPathScan.getRowType().getFieldCount() + removePathScan.getRowType().getFieldCount()));
 
     removePathField = findFieldWithIndex(hashJoinPrel, SCHEMA_REMOVE_PATH);
+
     // Filter removed path from the join
-    RexNode filterCondition = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
+    RexNode filterNullRemovePath = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
       rexBuilder.makeInputRef(removePathField.right.getType(), removePathField.left));
-    FilterPrel notRemovedFilter = FilterPrel.create(hashJoinPrel.getCluster(), hashJoinPrel.getTraitSet(), hashJoinPrel, filterCondition);
+
+    Pair<Integer, RelDataTypeField> addVersion = findFieldWithIndex(hashJoinPrel, SCHEMA_ADD_VERSION);
+    Pair<Integer, RelDataTypeField> removeVersion = findFieldWithIndex(hashJoinPrel, SCHEMA_REMOVE_VERSION);
+
+    RexNode filterRemoveVersionAddVersion = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeInputRef(addVersion.right.getType(), addVersion.left),
+      rexBuilder.makeInputRef(removeVersion.right.getType(), removeVersion.left));
+
+    RexNode orCondition = rexBuilder.makeCall(SqlStdOperatorTable.OR,
+      filterNullRemovePath, filterRemoveVersionAddVersion);
+
+    FilterPrel removedNonNullOrAddedVersionEqualRemoveVersion = FilterPrel.create(hashJoinPrel.getCluster(), hashJoinPrel.getTraitSet(), hashJoinPrel, orCondition);
     // Split generation table function
 
-    TableFunctionConfig splitGenTableFunctionConfig = TableFunctionUtil.getSplitGenFunctionConfig(tableMetadata, Collections.EMPTY_LIST);
+    TableFunctionConfig splitGenTableFunctionConfig = TableFunctionUtil.getSplitGenFunctionConfig(tableMetadata, null);
     return new TableFunctionPrel(getCluster(),
             getTraitSet().plus(DistributionTrait.ANY),
             table,
-            notRemovedFilter,
+            removedNonNullOrAddedVersionEqualRemoveVersion,
             tableMetadata,
-            ImmutableList.of(SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION)),
+            ImmutableList.of(SchemaPath.getSimplePath(RecordReader.SPLIT_IDENTITY), SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION), SchemaPath.getSimplePath(RecordReader.COL_IDS)),
             splitGenTableFunctionConfig,
             getSplitRowType(getCluster()),
-            rm -> rm.getRowCount(notRemovedFilter));
+            rm -> rm.getRowCount(removedNonNullOrAddedVersionEqualRemoveVersion));
   }
 
   private boolean checkBroadcastConditions(JoinRelType joinRelType, RelNode probe, RelNode build) {
@@ -353,22 +399,117 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
       isArrowCachingEnabled(),
       scanForAddedPaths);
 
-    // Flatten the row type
-    RelNode flattened = flattenRowType(deltaLakeCommitLogScanPrel, rexBuilder);
+    if(scanForAddedPaths) {
+      return creteAddSideScan(deltaLakeCommitLogScanPrel, rexBuilder);
+    }
+    else {
+      return createRemoveSideScan(deltaLakeCommitLogScanPrel, rexBuilder);
+    }
+  }
 
-    Pair<Integer, RelDataTypeField> flattenedField = findFieldWithIndex(flattened, scanForAddedPaths ? SCHEMA_ADD_PATH : SCHEMA_REMOVE_PATH);
+  private RelNode creteAddSideScan(RelNode deltaLakeCommitLogScanPrel, RexBuilder rexBuilder) {
+    //  Flatten the row type
+    RelNode flattened = flattenRowType(deltaLakeCommitLogScanPrel, rexBuilder, true);
+    Pair<Integer, RelDataTypeField> addPath = findFieldWithIndex(flattened, SCHEMA_ADD_PATH);
+
+    RexNode removeNullAddPathsCond = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL,
+      rexBuilder.makeInputRef(addPath.right.getType(), addPath.left));
 
     // Add a Filter on top to filter out null values and also do partition and stats pruning
     // Only partition pruning to be supported in MVP.
-    RexNode cond = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL,
-      rexBuilder.makeInputRef(flattenedField.right.getType(), flattenedField.left));
-    if (scanForAddedPaths) {
-      final RexNode partitionCond = getPartitionCondition(flattened.getCluster().getRexBuilder(), flattened, pruneCondition);
-      if (partitionCond != null) {
-        cond = rexBuilder.makeCall(SqlStdOperatorTable.AND, cond, partitionCond);
-      }
+    final RexNode partitionCond = getPartitionCondition(flattened.getCluster().getRexBuilder(), flattened, pruneCondition);
+    if (partitionCond != null) {
+      removeNullAddPathsCond = rexBuilder.makeCall(SqlStdOperatorTable.AND, removeNullAddPathsCond, partitionCond);
     }
-    return FilterPrel.create(flattened.getCluster(), flattened.getTraitSet(), flattened, cond);
+
+    return FilterPrel.create(flattened.getCluster(), flattened.getTraitSet(), flattened, removeNullAddPathsCond);
+  }
+
+  private RelNode createRemoveSideScan(RelNode deltaLakeCommitLogScanPrel, RexBuilder rexBuilder) {
+    //  Flatten the row type
+    RelNode flattened = flattenRowType(deltaLakeCommitLogScanPrel, rexBuilder, false);
+    Pair<Integer, RelDataTypeField> removePath = findFieldWithIndex(flattened, SCHEMA_REMOVE_PATH);
+    Pair<Integer, RelDataTypeField> addDataChange = findFieldWithIndex(flattened, SCHMEA_ADD_DATACHANGE);
+
+    //Create Filter Operator
+
+    //remove_path != null
+    RexNode removeNullRemovedPathsCond = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL,
+      rexBuilder.makeInputRef(removePath.right.getType(), removePath.left));
+
+    //add_dataChange == false
+    RexNode addDatachangeFalseCond = rexBuilder.makeCall(SqlStdOperatorTable.IS_FALSE,
+      rexBuilder.makeInputRef(addDataChange.right.getType(), addDataChange.left));
+
+    RexNode orCondition = rexBuilder.makeCall(SqlStdOperatorTable.OR, removeNullRemovedPathsCond, addDatachangeFalseCond);
+
+    //Filter add_dataChange == false || remove_path != null
+    RelNode filterPrel = FilterPrel.create(flattened.getCluster(), flattened.getTraitSet(), flattened, orCondition);
+
+    //Create Project Operator
+    removePath =  findFieldWithIndex(filterPrel, SCHEMA_REMOVE_PATH);
+    Pair<Integer, RelDataTypeField> addPath =  findFieldWithIndex(filterPrel, SCHEMA_ADD_PATH);
+    Pair<Integer, RelDataTypeField> removeVersion = findFieldWithIndex(filterPrel, SCHEMA_REMOVE_VERSION);
+
+    RexNode removePathRef = rexBuilder.makeInputRef(removePath.right.getType(), removePath.left);
+    RexNode addPathRef = rexBuilder.makeInputRef(addPath.right.getType(), addPath.left);
+
+    //remove_path != null
+    RexNode isNotNullRemovePath = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, removePathRef);
+
+    //case(remove_path != null) then remove_path else add_path
+    RexNode caseCondition = rexBuilder.makeCall(SqlStdOperatorTable.CASE, isNotNullRemovePath,
+      removePathRef, addPathRef);
+
+    List<RexNode> projectExpressions = new ArrayList<>();
+    List<String> projectFields = new ArrayList<>();
+
+    projectExpressions.add(caseCondition);
+    projectFields.add(SCHEMA_REMOVE_PATH);
+
+    projectExpressions.add(rexBuilder.makeInputRef(removeVersion.right.getType(), removeVersion.left));
+    projectFields.add(SCHEMA_REMOVE_VERSION);
+
+    RelDataType newRowType = RexUtil.createStructType(rexBuilder.getTypeFactory(), projectExpressions, projectFields, SqlValidatorUtil.F_SUGGESTER);
+
+    //Project( case(remove_path != null) then remove_path else add_path, remove_version)
+    ProjectPrel projectPrel = ProjectPrel.create(getCluster(), filterPrel.getTraitSet(), filterPrel, projectExpressions, newRowType);
+
+
+    DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(0);
+    DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
+    RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
+
+    HashToRandomExchangePrel hashToRandomExchangePrel = new HashToRandomExchangePrel(getCluster(), relTraitSet,
+      projectPrel, distributionTrait.getFields());
+
+    //Create Aggregation operator
+    removeVersion = findFieldWithIndex(hashToRandomExchangePrel, SCHEMA_REMOVE_VERSION);
+    removePath = findFieldWithIndex(hashToRandomExchangePrel, SCHEMA_REMOVE_PATH);
+
+    //max(remove_version)
+    AggregateCall aggByMaxVersion = AggregateCall.create(SqlStdOperatorTable.MAX, false, ImmutableList.of(removeVersion.left), -1, removeVersion.right.getType(), SCHEMA_REMOVE_VERSION);
+    List<Integer> groupingFields = new ArrayList<>();
+
+    //Group by remove_path
+    groupingFields.add(removePath.left);
+    ImmutableBitSet groupSet = ImmutableBitSet.of(groupingFields);
+
+    try {
+      //HashAgg( max(remove_version), groupBy(remove_path))
+      return HashAggPrel.create(
+        getCluster(),
+        hashToRandomExchangePrel.getTraitSet(),
+        hashToRandomExchangePrel,
+        false,
+        groupSet,
+        ImmutableList.of(groupSet),
+        ImmutableList.of(aggByMaxVersion),
+        null);
+    }
+    catch (InvalidRelException e) {
+      throw new RuntimeException("Failed to create HashAggPrel during Deltalake scan expansion.");
+    }
   }
 
   private RexNode getPartitionCondition(RexBuilder builder, RelNode input, PruneFilterCondition pruneCondition) {
@@ -382,12 +523,26 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     return partitionExpression.accept(new ExpressionInputRewriter(builder, getRowType(), input, ""));
   }
 
-  private RelNode flattenRowType(RelNode relNode, RexBuilder rexBuilder) {
+  private RelNode flattenRowType(RelNode relNode, RexBuilder rexBuilder, boolean scanForAddedPath) {
     RelDataType rowType = relNode.getRowType();
     ComplexSchemaFlattener flattener = new ComplexSchemaFlattener(rexBuilder, DELTA_FIELD_JOINER);
     flattener.flatten(rowType);
 
-    RelDataType newRowType = RexUtil.createStructType(relNode.getCluster().getTypeFactory(), flattener.getExps(), flattener.getFields(), SqlValidatorUtil.F_SUGGESTER);
+    //Remove the version from the schema and project add_version or remove_version depending on the schema
+    int versionIndex = flattener.getFields().indexOf(VERSION);
+    Pair<Integer, RelDataTypeField> inputVersion = findFieldWithIndex(relNode, VERSION);
+
+    //Remove version column from the schema
+    List<RexNode> expressions = flattener.getExps();
+    List<String> fields = flattener.getFields();
+    expressions.remove(versionIndex);
+    fields.remove(versionIndex);
+
+    RexNode versionProject = rexBuilder.makeInputRef(inputVersion.right.getType(), inputVersion.left);
+    expressions.add(versionProject);
+    fields.add(scanForAddedPath ? SCHEMA_ADD_VERSION : SCHEMA_REMOVE_VERSION);
+
+    RelDataType newRowType = RexUtil.createStructType(relNode.getCluster().getTypeFactory(), expressions, fields, SqlValidatorUtil.F_SUGGESTER);
 
     return ProjectPrel.create(relNode.getCluster(), relNode.getTraitSet(), relNode,
       flattener.getExps(), newRowType);

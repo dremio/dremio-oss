@@ -41,7 +41,7 @@ public interface UserService {
 
   void deleteUser(String userName, String version) throws UserNotFoundException, IOException;
 
-  void authenticate(String userName, String password) throws UserLoginException;
+  AuthResult authenticate(String userName, String password) throws UserLoginException;
 
   Iterable<? extends User> getAllUsers(Integer pageSize) throws IOException;
 

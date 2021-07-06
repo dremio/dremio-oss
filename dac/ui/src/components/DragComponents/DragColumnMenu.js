@@ -13,23 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { AutoSizer, List } from 'react-virtualized';
 
 import { SearchField } from 'components/Fields';
 import classNames from 'classnames';
-import { rowMargin } from '@app/uiTheme/less/forms.less';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 
+import { rowMargin } from '@app/uiTheme/less/forms.less';
 import ColumnMenuItem from './ColumnMenuItem';
 import { base, search } from './DragColumnMenu.less';
 
 export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST']);
 
-@pureRender
-export default class DragColumnMenu extends Component {
+export default class DragColumnMenu extends PureComponent {
   static propTypes = {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
     disabledColumnNames: PropTypes.instanceOf(Immutable.Set).isRequired,
@@ -41,7 +40,8 @@ export default class DragColumnMenu extends Component {
     style: PropTypes.object,
     type: PropTypes.string,
     fieldType: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    canAlter: PropTypes.any
   }
 
   static sortColumns(columns, disabledColumnNames) {
@@ -90,6 +90,7 @@ export default class DragColumnMenu extends Component {
 
   renderColumn = ({ index, key, style }) => {
     const column = this.filteredSortedColumns.get(index);
+    const isAdmin = localStorageUtils.isUserAnAdmin();
     return <div key={key} style={style}
       className={rowMargin}>
       <ColumnMenuItem
@@ -101,6 +102,7 @@ export default class DragColumnMenu extends Component {
         onDragEnd={this.props.onDragEnd}
         name={this.props.name}
         dragType={this.props.dragType}
+        preventDrag={!(isAdmin || this.props.canAlter)}
       />
     </div>;
   }

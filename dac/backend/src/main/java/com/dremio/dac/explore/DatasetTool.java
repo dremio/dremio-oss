@@ -18,6 +18,7 @@ package com.dremio.dac.explore;
 import static com.dremio.common.utils.Protos.listNotNull;
 import static com.dremio.dac.explore.model.InitialPreviewResponse.INITIAL_RESULTSET_SIZE;
 
+import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -317,6 +318,11 @@ public class DatasetTool {
       jobDetails = jobsService.getJobDetails(request);
       job = new JobUI(jobsService, new JobId(jobId), username());
       final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
+
+      if (!canViewJobResult(jobInfo)) {
+        throw new AccessControlException("Not authorized to access the job results");
+      }
+
       QueryType queryType = jobInfo.getQueryType();
       isApproximate = queryType == QueryType.UI_PREVIEW || queryType == QueryType.UI_INTERNAL_PREVIEW || queryType == QueryType.UI_INITIAL_PREVIEW;
 
@@ -884,4 +890,7 @@ public class DatasetTool {
     return DatasetUI.newInstance(vds, tipVersion, datasetService.getNamespaceService());
   }
 
+  protected boolean canViewJobResult(JobInfo jobInfo) {
+    return true;
+  }
 }

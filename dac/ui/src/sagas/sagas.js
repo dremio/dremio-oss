@@ -17,6 +17,7 @@ import { all, fork } from 'redux-saga/effects';
 
 import loginLogout from 'dyn-load/sagas/loginLogout';
 import { afterAppInit } from 'dyn-load/sagas/appBoot';
+import performTransform from '@inject/sagas/performTransform';
 import wsEvents from './wsEvents';
 import qlik from './qlik';
 import serverStatus from './serverStatus';
@@ -24,7 +25,6 @@ import autoPeek from './autoPeek';
 import downloadDataset from './downloadDataset';
 import downloadFile from './downloadFile';
 import signupUser from './signupUser';
-import performTransform from './performTransform';
 import performLoadDataset from './performLoadDataset';
 import transformHistoryCheck from './transformHistoryCheck';
 import transformCardPreview from './transformCardPreview';

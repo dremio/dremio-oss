@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
@@ -33,8 +32,7 @@ import './JobDetails.less';
 const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
 
 @Radium
-@PureRender
-export class JobDetailsWrapper extends Component {
+export class JobDetailsWrapper extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     jobId: PropTypes.string,

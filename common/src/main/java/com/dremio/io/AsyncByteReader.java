@@ -133,7 +133,7 @@ public interface AsyncByteReader extends AutoCloseable {
     /**
      * Enum list of file-types that support the async-reader interface.
      */
-    enum FileType { PARQUET, ORC, OTHER }
+    enum FileType { PARQUET, ORC, AVRO, OTHER }
 
     List<String> getDatasetKey();
     Path getPath();

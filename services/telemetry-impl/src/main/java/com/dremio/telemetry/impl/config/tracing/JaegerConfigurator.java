@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.jaegertracing.Configuration;
 import io.jaegertracing.Configuration.ReporterConfiguration;
 import io.jaegertracing.Configuration.SamplerConfiguration;
+import io.jaegertracing.Configuration.SenderConfiguration;
 import io.opentracing.Tracer;
 
 /**
@@ -44,6 +45,9 @@ public class JaegerConfigurator extends TracerConfigurator {
   private final String type; // [const | probabilistic | ratelimiting | remote]
   private final Double param;
   private final boolean logSpans; // "Jaeger will simply log the fact that a span was finished, usually by printing the trace and span ID and the operation name."
+  private final String mgrEndpoint;
+  private final String agentHost;
+  private final Integer agentPort;
 
 
   @JsonCreator
@@ -51,18 +55,24 @@ public class JaegerConfigurator extends TracerConfigurator {
     @JsonProperty("serviceName") String name,
     @JsonProperty("samplerType") String type,
     @JsonProperty("samplerParam") Double param,
-    @JsonProperty("logSpans") boolean logSpans
+    @JsonProperty("logSpans") boolean logSpans,
+    @JsonProperty("agentHost") String agentHost,
+    @JsonProperty("agentPort") int agentPort,
+    @JsonProperty("samplerEndpoint") String mgrEndpoint
   ) {
     super();
     this.name = name;
     this.type = type;
     this.param = param;
     this.logSpans = logSpans;
+    this.agentHost = agentHost;
+    this.agentPort = agentPort;
+    this.mgrEndpoint = mgrEndpoint;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, type, param, logSpans);
+    return Objects.hash(name, type, param, logSpans, agentHost, agentPort, mgrEndpoint);
   }
 
   @Override
@@ -77,7 +87,10 @@ public class JaegerConfigurator extends TracerConfigurator {
     return Objects.equals(j.logSpans, logSpans)
       && Objects.equals(j.name, name)
       && Objects.equals(j.param, param)
-      && Objects.equals(j.type, type);
+      && Objects.equals(j.type, type)
+      && Objects.equals(j.agentHost, agentHost)
+      && Objects.equals(j.agentPort, agentPort)
+      && Objects.equals(j.mgrEndpoint, mgrEndpoint);
   }
 
   @Override
@@ -89,8 +102,19 @@ public class JaegerConfigurator extends TracerConfigurator {
       sampleConf.withParam(param);
     }
 
+    if (mgrEndpoint != null) {
+      sampleConf.withManagerHostPort(mgrEndpoint);
+    }
+
     ReporterConfiguration reportConf = ReporterConfiguration.fromEnv()
       .withLogSpans(logSpans);
+
+    if (agentHost != null) {
+      SenderConfiguration senderConf = SenderConfiguration.fromEnv()
+        .withAgentHost(agentHost)
+        .withAgentPort(agentPort);
+      reportConf.withSender(senderConf);
+    }
 
     Configuration config = new Configuration(name)
       .withReporter(reportConf)

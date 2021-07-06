@@ -36,8 +36,8 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.WritePartition;
-import com.dremio.exec.store.iceberg.IcebergCatalog;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 
 class PartitionWriteManager {
   /**
@@ -112,7 +112,7 @@ class PartitionWriteManager {
     }
     maskedContainer.buildSchema();
     if (isIcebergWriter && partitions.size() > 0) {
-      icebergPartitionSpec = IcebergCatalog.getIcebergPartitionSpec(maskedContainer.getSchema(), options.getPartitionColumns());
+      icebergPartitionSpec = IcebergUtils.getIcebergPartitionSpec(maskedContainer.getSchema(), options.getPartitionColumns(), null);
     }
   }
 

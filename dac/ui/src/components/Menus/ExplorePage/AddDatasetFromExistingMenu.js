@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -23,8 +22,7 @@ import MenuItem from './MenuItem';
 import Menu from './Menu';
 
 @Radium
-@pureRender
-export default class AddDatasetFromExistingMenu extends Component {
+export default class AddDatasetFromExistingMenu extends PureComponent {
   static propTypes = {
     type: PropTypes.string,
     action: PropTypes.func

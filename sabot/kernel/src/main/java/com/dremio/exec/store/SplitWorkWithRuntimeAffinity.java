@@ -71,6 +71,7 @@ public class SplitWorkWithRuntimeAffinity extends SplitWork {
     for(NodeEndpoint nodeEndpoint : nodeEndPoints) {
       runTimeAffinity.add(new EndpointAffinity(nodeEndpoint, affinity, false, Integer.MAX_VALUE));
       affinity = affinity / 2;
+      logger.debug("split {} affined to node {} with affinity {}", getDatasetSplit(), nodeEndpoint.getAddress(), affinity);
     }
 
     return runTimeAffinity;

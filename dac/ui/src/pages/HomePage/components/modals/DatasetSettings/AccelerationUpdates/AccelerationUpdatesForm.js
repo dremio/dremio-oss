@@ -33,6 +33,7 @@ const FIELDS = ['method', 'refreshField'].concat(DataFreshnessSection.getFields(
 @Radium
 export class AccelerationUpdatesForm extends Component {
   static propTypes = {
+    entity: PropTypes.instanceOf(Immutable.Map),
     submit: PropTypes.func,
     onCancel: PropTypes.func,
     handleSubmit: PropTypes.func,
@@ -97,7 +98,7 @@ export class AccelerationUpdatesForm extends Component {
   }
 
   renderContent() {
-    const { fields, values } = this.props;
+    const { fields, values, entity } = this.props;
     const helpContent = la('Refresh method for Reflections using data from this dataset.');
     const incrementalLabel = this.props.entityType === 'folder'
       ? la('Incremental update based on new files')
@@ -137,6 +138,7 @@ export class AccelerationUpdatesForm extends Component {
         <DataFreshnessSection
           fields={fields}
           entityType='dataset'
+          entity={entity}
           datasetId={this.props.entityId}
         />
       </div>

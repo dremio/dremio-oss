@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner;
 
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.physical.Prel;
 
 public class CachedPlan {
@@ -23,6 +24,7 @@ public class CachedPlan {
   private int esitimatedSize;   //estimated size in byte
   private int useCount;
   private long creationTime;
+  private SubstitutionInfo substitutionInfo;
 
   private CachedPlan(String query, Prel prel, int useCount, int esitimatedSize) {
     this.queryText = query;
@@ -46,6 +48,14 @@ public class CachedPlan {
 
   public void setUseCount(int useCount) {
     this.useCount = useCount;
+  }
+
+  public SubstitutionInfo getSubstitutionInfo() {
+    return substitutionInfo;
+  }
+
+  public void setSubstitutionInfo(SubstitutionInfo info) {
+    substitutionInfo = info;
   }
 
   public void updateUseCount() {

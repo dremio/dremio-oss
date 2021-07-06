@@ -114,6 +114,7 @@ import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.common.util.ObjectType;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -123,6 +124,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
@@ -736,7 +738,12 @@ public class CompleteType {
     for (Field tableSchemaField : tableFields) {
       Field matchingField = secondFieldMap.remove(tableSchemaField.getName().toLowerCase());
       if (matchingField != null) {
-        mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField)).toField(tableSchemaField.getName()));
+        try {
+          mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField)).toField(tableSchemaField.getName()));
+        } catch (NoSupportedUpPromotionOrCoercionException e) {
+          e.addColumnName(tableSchemaField.getName());
+          throw e;
+        }
       } else {
         mergedList.add(tableSchemaField);
       }
@@ -817,6 +824,15 @@ public class CompleteType {
    */
   public CompleteType mergeFieldListsWithUpPromotionOrCoercion(CompleteType fileType) throws UnsupportedOperationException {
     CompleteType tableType = this;
+
+    if (tableType.isUnion()) {
+      tableType = removeUnions(tableType);
+    }
+
+    if (fileType.isUnion()) {
+      fileType = removeUnions(fileType);
+    }
+
     if (tableType.getType().equals(fileType.getType())) {
       if (tableType.isScalar()) {
         return tableType;
@@ -844,9 +860,18 @@ public class CompleteType {
     if (typeCoercion.isPresent()) {
       return typeCoercion.get();
     }
+    throw new NoSupportedUpPromotionOrCoercionException(fileType, tableType);
+  }
 
-    throw new UnsupportedOperationException(String.format(
-      "No up-promotion or coercion supported from file type: %s to table type: %s", fileType, tableType));
+  @VisibleForTesting
+  static CompleteType removeUnions(CompleteType type) {
+    List<Field> fieldList = type.getChildren();
+    type = new CompleteType(fieldList.get(0).getType(),fieldList.get(0).getChildren());
+    for (Field currentField : fieldList) {
+      CompleteType currentCompleteType = new CompleteType(currentField.getType(),currentField.getChildren());
+      type = type.mergeFieldListsWithUpPromotionOrCoercion(currentCompleteType);
+    }
+    return type;
   }
 
   // TODO : Move following to Output Derivation as part of DX-16966

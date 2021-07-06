@@ -263,7 +263,11 @@ public class TestFrameworkTest extends BaseTestQuery{
           .baselineColumns("employee_id", "first_name", "last_name")
           .build().run();
     } catch (AssertionError ex) {
-      assertEquals("Unexpected extra column `address` returned by query.", ex.getMessage());
+      assertEquals(""
+              + "Incorrect keys, "
+              + "expected:(`employee_id`,`first_name`,`last_name`) "
+              + "actual:(`address`,`employee_id`,`first_name`,`last_name`)",
+          ex.getMessage());
       // this indicates successful completion of the test
       return;
     }
@@ -280,8 +284,12 @@ public class TestFrameworkTest extends BaseTestQuery{
           .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR, MinorType.VARCHAR)
           .baselineColumns("employee_id", "first_name", "last_name", "address")
           .build().run();
-    } catch (Exception ex) {
-      assertTrue(ex.getMessage(), ex.getMessage().startsWith("Expected column(s) `address`,  not found in result set"));
+    } catch (AssertionError ex) {
+      assertTrue(ex.getMessage(),
+          ex.getMessage().startsWith(""
+              + "Incorrect keys,"
+              + " expected:(`address`,`employee_id`,`first_name`,`last_name`)"
+              + " actual:(`employee_id`,`first_name`,`last_name`"));
       // this indicates successful completion of the test
       return;
     }

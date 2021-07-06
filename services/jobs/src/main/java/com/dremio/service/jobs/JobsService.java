@@ -194,6 +194,15 @@ public interface JobsService extends Service {
    * @return
    */
   QueryProfile getReflectionJobProfile(ReflectionJobProfileRequest request) throws JobNotFoundException, ReflectionJobValidationException;
+
+  /**
+   * Check if current user can view the data of a job
+   * @param userName user who creates the job
+   * @return
+   */
+  default boolean canViewJobData(String userName) {
+    return true;
+  };
 }
 
 

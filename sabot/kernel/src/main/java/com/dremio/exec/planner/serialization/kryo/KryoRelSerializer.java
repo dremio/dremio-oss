@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.prepare.RelOptTableImpl;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.hadoop.io.Writable;
@@ -28,6 +29,7 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.planner.serialization.kryo.serializers.AggregateCallSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.BatchSchemaSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.ImmutableCollectionSerializers;
 import com.dremio.exec.planner.serialization.kryo.serializers.JavaSerializers;
@@ -113,6 +115,7 @@ public class KryoRelSerializer {
     kryo.addDefaultSerializer(SourceConfig.class, new ExternalizableSerializer());
     kryo.addDefaultSerializer(ConnectionConf.class, new ExternalizableSerializer());
     kryo.addDefaultSerializer(BatchSchema.class, new BatchSchemaSerializer());
+    kryo.addDefaultSerializer(AggregateCall.class, AggregateCallSerializer.of(kryo, AggregateCall.class));
 
     if (pluginIdSerializerFactory != null) {
       kryo.addDefaultSerializer(StoragePluginId.class, pluginIdSerializerFactory.newStoragePluginIdSerializer(kryo, mapping));

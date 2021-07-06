@@ -31,17 +31,20 @@ public class ElasticsearchConf {
    * ES_ACCOUNT uses elasticsearch account.
    * ACCESS_KEY uses AWS access key and secret as credentials.
    * EC2_METADATA uses EC2 metedata to get credentials.
+   * AWS_PROFILE uses AWS ProfileCredentialsProvider to get credentials.
    */
   public enum AuthenticationType {
     NONE,
     ES_ACCOUNT,
     ACCESS_KEY,
-    EC2_METADATA
+    EC2_METADATA,
+    AWS_PROFILE,
   }
 
   private List<Host> hostList;
   private String username = "";
   private String password = "";
+  private String awsProfile;
   private AuthenticationType authenticationType = AuthenticationType.ES_ACCOUNT;
   private boolean scriptsEnabled = true;
   private boolean showHiddenIndices = false;
@@ -66,6 +69,7 @@ public class ElasticsearchConf {
       String accessKey,
       String accessSecret,
       String regionName,
+      String awsProfile,
       AuthenticationType authenticationType,
       boolean scriptsEnabled,
       boolean showHiddenIndices,
@@ -85,6 +89,7 @@ public class ElasticsearchConf {
     this.accessKey = accessKey;
     this.accessSecret = accessSecret;
     this.regionName = regionName;
+    this.awsProfile = awsProfile;
     this.authenticationType = authenticationType;
     this.scriptsEnabled = scriptsEnabled;
     this.showHiddenIndices = showHiddenIndices;
@@ -110,6 +115,10 @@ public class ElasticsearchConf {
 
   public String getPassword() {
     return password;
+  }
+
+  public String getAwsProfile() {
+    return awsProfile;
   }
 
   public AuthenticationType getAuthenticationType() {

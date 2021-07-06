@@ -15,6 +15,9 @@
  */
 package com.dremio.service.coordinator;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.inject.Provider;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -23,12 +26,16 @@ import com.amazonaws.auth.AWSSessionCredentials;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.AssumeRoleCredentialsProvider;
 
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 
 /**
  * Gives an aws sdk v1 compatible version.
  */
 public class DremioAssumeRoleCredentialsProviderV1 implements AWSCredentialsProvider,AutoCloseable {
+  public static final String ACCESS_KEY = "fs.s3a.access.key";
+  public static final String SECRET_KEY = "fs.s3a.secret.key";
+  public static final String SESSION_TOKEN = "session.token";
 
   private static Provider<AssumeRoleCredentialsProvider> credentialsProvider;
 
@@ -36,18 +43,29 @@ public class DremioAssumeRoleCredentialsProviderV1 implements AWSCredentialsProv
     DremioAssumeRoleCredentialsProviderV1.credentialsProvider = credentialsProvider;
   }
 
+  public Map<String, String> getCredentialsMap() {
+    Map<String, String> map = new HashMap<>(2);
+    AWSCredentials awsCredentials = getCredentials();
+    map.put(ACCESS_KEY, awsCredentials.getAWSAccessKeyId());
+    map.put(SECRET_KEY, awsCredentials.getAWSSecretKey());
+    if (awsCredentials instanceof AWSSessionCredentials) {
+      map.put(SESSION_TOKEN, ((AWSSessionCredentials) awsCredentials).getSessionToken());
+    }
+    return map;
+  }
+
   @Override
   public AWSCredentials getCredentials() {
     // wrap the v2 session credentials to a v1
-    // TODO : this might cause class loader issues with glue
-    // need to resolve with data source roles.
-    final AwsSessionCredentials awsCredentials =
-      (AwsSessionCredentials) credentialsProvider.get().resolveCredentials();
+    final AwsCredentials awsCredentials = credentialsProvider.get().resolveCredentials();
 
     return new AWSSessionCredentials() {
       @Override
       public String getSessionToken() {
-        return awsCredentials.sessionToken();
+        if (awsCredentials instanceof AwsSessionCredentials) {
+          return ((AwsSessionCredentials)awsCredentials).sessionToken();
+        }
+        return "";
       }
 
       @Override

@@ -14,11 +14,26 @@
  * limitations under the License.
  */
 
-.component-container {
-  flex-direction: column;
-}
+ @import '~@app/components/colors.less';
 
-.top-label {
-  font-weight: 500;
-  margin-bottom: -5px;
+:global {
+  .containerSelection {
+    display: flex;
+    flex-direction: column;
+
+    &.--horizontal {
+      flex-direction: row !important;
+    }
+  }
+  .componentContainer {
+    flex-direction: column;
+  }
+  .topLabel {
+    font-weight: 400;
+    font-size: 13px;
+    color: @oslo-gray;
+    display: flex;
+    align-items: center;
+    height: 32px;
+  }
 }

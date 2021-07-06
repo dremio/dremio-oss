@@ -21,11 +21,15 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.WriterRel;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.Path;
 
 public class WriterPrule extends Prule {
@@ -100,20 +104,55 @@ public class WriterPrule extends Prule {
     if (PrelUtil.getPlannerSettings(rel.getCluster()).options.getOption(PlannerSettings.WRITER_TEMP_FILE)) {
 
       final String tempPath = finalStructuredPath.getParent().resolve("." + finalStructuredPath.getName()).toString() + "-" + System.currentTimeMillis();
-
+      FileSystemCreateTableEntry createTableEntryWithTempPath = ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath);
       final WriterPrel childWithTempPath = new WriterPrel(child.getCluster(),
         child.getTraitSet(),
         isSingleWriter ? convert(rel, traits) : rel,
-        ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath),
+        createTableEntryWithTempPath,
         writer.getExpectedInboundRowType()
       );
-      final RelNode newChild = convert(childWithTempPath, traits);
+      final RelNode newChild = getManifestWriterPrelIfNeeded(childWithTempPath, traits, writer, fileEntry, plugin, childDist);
       return new WriterCommitterPrel(writer.getCluster(),
         traits, newChild, plugin, tempPath, finalPath, userName, fileEntry);
     } else {
-      final RelNode newChild = convert(child, traits);
+      final RelNode newChild = getManifestWriterPrelIfNeeded(child, traits, writer, fileEntry, plugin, childDist);
       return new WriterCommitterPrel(writer.getCluster(),
         traits, newChild, plugin, null, finalPath, userName, fileEntry);
     }
+  }
+
+  /***
+   * This function is to get Iceberg Ctas Flow with ManifestWriter. This writer is responsible to consume data files output from ParquetWriter
+   * create ManifestFile out of it and then send to Writter Committer Operator which will commit to iceberg table.
+   */
+  public static RelNode getManifestWriterPrelIfNeeded(RelNode child, RelTraitSet oldTraits, WriterRel writer, FileSystemCreateTableEntry fileEntry, FileSystemPlugin<?> plugin,
+                                                      DistributionTrait childDist) {
+    if(fileEntry.getIcebergTableProps() == null) {
+      return convert(child, oldTraits);
+    } else {
+      final RelTraitSet newTraits = writer.getTraitSet()
+        .plus(DistributionTrait.ROUND_ROBIN)
+        .plus(Prel.PHYSICAL);
+
+      final RelNode newChild = convert(child, newTraits);
+
+      CreateTableEntry icebergCreateTableEntry = getCreateTableEntryForManifestWriter(fileEntry, plugin, fileEntry.getIcebergTableProps().getFullSchema(), fileEntry.getIcebergTableProps());
+      final WriterPrel manifestWriterPrel = new WriterPrel(writer.getCluster(),
+        writer.getTraitSet()
+          .plus(childDist)
+          .plus(Prel.PHYSICAL),
+        newChild, icebergCreateTableEntry, writer.getRowType());
+      RelNode finalManifestWriterPrel = convert(manifestWriterPrel, oldTraits);
+      return finalManifestWriterPrel;
+    }
+  }
+
+  public static CreateTableEntry getCreateTableEntryForManifestWriter(FileSystemCreateTableEntry fileEntry, FileSystemPlugin<?> plugin, BatchSchema writeTableSchema, IcebergTableProps icebergTableProps) {
+    WriterOptions oldOptions = fileEntry.getOptions();
+    WriterOptions manifestWriterOption = new WriterOptions(null, null, null, null,
+      null, false, oldOptions.getRecordLimit(), null, oldOptions.getExtendedProperty(), icebergTableProps);
+    // IcebergTableProps is the only obj we need in manifestWriter
+    FileSystemCreateTableEntry icebergCreateTableEntry = fileEntry.cloneWithFields(plugin.getFormatPlugin("iceberg"), manifestWriterOption);
+    return icebergCreateTableEntry;
   }
 }

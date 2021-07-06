@@ -63,11 +63,11 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/emptyDataFilesNoStatsParsed", java.nio.file.Paths.get(testRootPath + "/emptyDataFilesNoStatsParsed"));
     copyFromJar("deltalake/extraAttrsRemovePath", java.nio.file.Paths.get(testRootPath + "/extraAttrsRemovePath"));
     copyFromJar("deltalake/multibatchCheckpointWithRemove", java.nio.file.Paths.get(testRootPath + "/multibatchCheckpointWithRemove"));
-
     copyFromJar("deltalake/multi_partitioned_remove_only_checkpoint", java.nio.file.Paths.get(testRootPath + "/multi_partitioned_remove_only_checkpoint"));
     copyFromJar("deltalake/repartitioned", java.nio.file.Paths.get(testRootPath + "/repartitioned"));
     copyFromJar("deltalake/schema_change_partition", java.nio.file.Paths.get(testRootPath + "/schema_change_partition"));
-
+    copyFromJar("deltalake/newPlanDataset", java.nio.file.Paths.get((testRootPath + "/newDataset")));
+    copyFromJar("deltalake/paritionenedNewPlan", java.nio.file.Paths.get((testRootPath + "/paritionenedNewPlan")));
   }
 
   @After
@@ -300,6 +300,97 @@ public class TestDeltaScan extends BaseTestQuery {
     }
   }
 
+  /*Tests weather dedup happens if there multiple add commits for the same file on a
+  non-paritioned delta dataset
+  * */
+  @Test
+  public void testMultipleAddCommitsForSameFile() throws Exception{
+    try (AutoCloseable c = enableDeltaLake()) {
+      String sql = "SELECT count(*) as cnt from dfs.tmp.deltalake.newDataset";
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(170L)
+        .unOrdered().go();
+
+      //Added once and removed once
+      sql = "SELECT id from dfs.tmp.deltalake.newDataset where id % 10 = 0";
+
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id")
+        .expectsEmptyResultSet()
+        .unOrdered().go();
+
+      //Added multiple times.
+      sql = "SELECT count(*) as cnt from dfs.tmp.deltalake.newDataset where id > 160 and id < 170";
+
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(4L)
+        .unOrdered().go();
+
+      //Added multiple times and then removed
+      sql = "SELECT id from dfs.tmp.deltalake.newDataset where id > 180 and id < 190";
+
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id")
+        .expectsEmptyResultSet()
+        .unOrdered().go();
+    }
+  }
+
+  /*Tests weather dedup happens if there multiple add commits for the same file on a
+   paritioned delta dataset
+  * */
+  @Test
+  public void testMultipleAddCommitsForSameFilePartitioned() throws Exception{
+    try (AutoCloseable c = enableDeltaLake()) {
+      String sql = "SELECT count(*) as cnt from dfs.tmp.deltalake.paritionenedNewPlan";
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(40L)
+        .unOrdered().go();
+
+      //Ocenia is once added once removed
+      sql = "SELECT count(*) as cnt from dfs.tmp.deltalake.paritionenedNewPlan where continent = 'Oceania'";
+
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(0L)
+        .unOrdered().go();
+
+      //Africa is added multiple times
+      sql = "SELECT count(*) as cnt from dfs.tmp.deltalake.paritionenedNewPlan where continent = 'Africa'";
+
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(10L)
+        .unOrdered().go();
+
+      //South America is added mutiple times but then is removed
+      sql = "SELECT count(*) as cnt from dfs.tmp.deltalake.paritionenedNewPlan where continent = 'South America'";
+
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(0L)
+        .unOrdered().go();
+    }
+  }
   @Test
   public void testMultiPartitionedCheckpointNoAddValsNoParsed() throws Exception {
     /*

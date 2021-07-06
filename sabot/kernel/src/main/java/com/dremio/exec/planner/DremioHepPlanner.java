@@ -18,7 +18,6 @@ package com.dremio.exec.planner;
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Convention;
@@ -58,7 +57,7 @@ public class DremioHepPlanner extends HepPlanner {
   public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase, MatchCountListener matchCountListener) {
     super(program, context, false, null, costFactory);
     plannerSettings = context.unwrap(PlannerSettings.class);
-    this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+    this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS());
     this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = phase;
     this.listener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());

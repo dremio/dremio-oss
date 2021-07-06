@@ -16,7 +16,7 @@
 
 package com.dremio.plugins.azure;
 
-import static com.dremio.plugins.azure.utils.AsyncHttpClientProvider.DEFAULT_REQUEST_TIMEOUT;
+import static com.dremio.http.AsyncHttpClientProvider.DEFAULT_REQUEST_TIMEOUT;
 import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.XMS_VERSION;
 import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.toHttpDateFormat;
 
@@ -82,14 +82,17 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
   private final AsyncHttpClient asyncHttpClient;
   private final int requestTimeoutSeconds = DEFAULT_REQUEST_TIMEOUT / 1_000;
   private final Retryer retryer;
+  private final String azureEndpoint;
   private ImmutableList<String> whitelistedContainers = ImmutableList.of();
 
   AzureAsyncContainerProvider(final AsyncHttpClient asyncHttpClient,
+                              final String azureEndpoint,
                               final String account,
                               final AzureAuthTokenProvider authProvider,
                               final AzureStorageFileSystem parent,
                               boolean isSecure, final String[] containerList) {
     this.authProvider = authProvider;
+    this.azureEndpoint = azureEndpoint;
     this.parent = parent;
     this.account = account;
     this.isSecure = isSecure;
@@ -104,17 +107,18 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
   }
 
   AzureAsyncContainerProvider(final AsyncHttpClient asyncHttpClient,
+                              final String azureEndpoint,
                               final String account,
                               final AzureAuthTokenProvider authProvider,
                               final AzureStorageFileSystem parent,
                               boolean isSecure) {
-    this(asyncHttpClient, account, authProvider, parent, isSecure, null);
+    this(asyncHttpClient, azureEndpoint, account, authProvider, parent, isSecure, null);
   }
 
   @Override
   public Stream<ContainerFileSystem.ContainerCreator> getContainerCreators() {
     if(whitelistedContainers.isEmpty()) {
-      Iterator<String> containerIterator = new DFSContainerIterator(asyncHttpClient, account, authProvider, isSecure, retryer);
+      Iterator<String> containerIterator = new DFSContainerIterator(asyncHttpClient, azureEndpoint, account, authProvider, isSecure, retryer);
       return StreamSupport.stream(Spliterators.spliteratorUnknownSize(containerIterator, Spliterator.ORDERED), false)
         .map(c -> new AzureStorageFileSystem.ContainerCreatorImpl(parent, c));
     } else {
@@ -133,7 +137,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
       .addHeader("x-ms-version", XMS_VERSION)
       .addHeader("Content-Length", 0)
       .addHeader("x-ms-client-request-id", UUID.randomUUID().toString())
-      .setUrl(AzureAsyncHttpClientUtils.getBaseEndpointURL(account, true) + "/" + containerName)
+      .setUrl(AzureAsyncHttpClientUtils.getBaseEndpointURL(azureEndpoint, account, true) + "/" + containerName)
       .addQueryParam("resource", "filesystem")
       .addQueryParam("timeout", String.valueOf(requestTimeoutSeconds)).build();
 
@@ -188,13 +192,14 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
     private Iterator<String> iterator = Collections.emptyIterator();
 
     DFSContainerIterator(final AsyncHttpClient asyncHttpClient,
+                         final String azureEndpoint,
                          final String account,
                          final AzureAuthTokenProvider authProvider,
                          final boolean isSecure,
                          final Retryer retryer) {
       this.authProvider = authProvider;
       this.asyncHttpClient = asyncHttpClient;
-      this.uri = AzureAsyncHttpClientUtils.getBaseEndpointURL(account, isSecure);
+      this.uri = AzureAsyncHttpClientUtils.getBaseEndpointURL(azureEndpoint, account, isSecure);
       this.retryer = retryer;
     }
 

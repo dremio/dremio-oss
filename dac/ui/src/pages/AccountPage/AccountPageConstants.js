@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 export const accountSection = {
-  title: 'Account Settings', //todo loc
+  title: 'Account.Title', //todo loc
+  icon: 'Users.svg',
   items: [
-    {name: 'General Information', url: '/account/info'} //todo loc
+    {name: 'Account.GeneralInformation', url: '/account/info'} //todo loc
   ]
 };

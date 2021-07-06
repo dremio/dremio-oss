@@ -30,24 +30,31 @@ const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;
 
 const SECRET_URL_FIELD_NAME = 'secretResourceUrl';
 const KERBEROS_FIELD_NAME = 'useKerberos';
+const AWS_PROFILE_FIELD_NAME = 'awsProfile';
+const DB_USER_FIELD_NAME = 'dbUser';
 const DEFAULT_TEXT_FIELDS = [
   {propName: 'username', label: 'Username', errMsg: 'Username is required unless you choose no authentication.'},
   {propName: 'password', label: 'Password', errMsg: 'Password is required unless you choose no authentication.', secure: true},
-  {propName: SECRET_URL_FIELD_NAME, label: 'Secret Resource Url', errMsg: 'Secret Resource Url is required unless you choose no authentication.'}
+  {propName: SECRET_URL_FIELD_NAME, label: 'Secret Resource Url', errMsg: 'Secret Resource Url is required unless you choose no authentication.'},
+  {propName: AWS_PROFILE_FIELD_NAME, label: 'AWS Profile', errMsg: 'Some Error Message'},
+  {propName: DB_USER_FIELD_NAME, label: 'DbUser', errMsg: 'Some Error Message'}
 ];
 
-const AUTH_TYPE = {anonymous: 'ANONYMOUS', master: 'MASTER', secret: 'SECRET', kerberos: 'KERBEROS'};
+const AUTH_TYPE = {anonymous: 'ANONYMOUS', master: 'MASTER', secret: 'SECRET', kerberos: 'KERBEROS', awsProfile: 'AWS_PROFILE'};
 const DEFAULT_RADIO_OPTIONS = [
   { label: 'No Authentication', option: AUTH_TYPE.anonymous },
   { label: 'Master Credentials', option: AUTH_TYPE.master }
 ];
 const SECRET_URL_OPTION = { label: 'Secret Resource Url', option: AUTH_TYPE.secret };
 const KERBEROS_OPTION = { label: 'Kerberos', option: AUTH_TYPE.kerberos };
+const AWS_PROFILE_OPTION = { label: 'AWS Profile', option: AUTH_TYPE.awsProfile };
 export const AUTHENTICATION_TYPE_FIELD = addFormPrefixToPropName('authenticationType');
 export const USER_NAME_FIELD = addFormPrefixToPropName('username');
 export const PASSWORD_FIELD = addFormPrefixToPropName('password');
 export const SECRET_RESOURCE_URL_FIELD = addFormPrefixToPropName(SECRET_URL_FIELD_NAME);
 export const KERBEROS_FIELD = addFormPrefixToPropName(KERBEROS_FIELD_NAME);
+export const PROFILE_NAME_FIELD = addFormPrefixToPropName(AWS_PROFILE_FIELD_NAME);
+export const DB_USER_FIELD = addFormPrefixToPropName(DB_USER_FIELD_NAME);
 
 function validate(values, elementConfig) {
   let errors = { [CONFIG_PROP_NAME]: {}};
@@ -61,11 +68,14 @@ function validate(values, elementConfig) {
 
   const isMasterAuth = authTypeValue === AUTH_TYPE.master;
   const isSecretAuth = authTypeValue === AUTH_TYPE.secret;
+  const isProfileAuth = authTypeValue === AUTH_TYPE.awsProfile;
   errors = textFields.reduce((accumulator, textField) => {
     if (!values[CONFIG_PROP_NAME][textField.propName]) {
-      if (textField.propName === 'username'
+      if (textField.propName === 'username' && !isProfileAuth
         || textField.propName === 'password' && isMasterAuth
-        || textField.propName === SECRET_URL_FIELD_NAME && isSecretAuth) {
+        || textField.propName === SECRET_URL_FIELD_NAME && isSecretAuth
+        || textField.propName === AWS_PROFILE_FIELD_NAME && isProfileAuth
+        || textField.propName === DB_USER_FIELD_NAME && isProfileAuth) {
         accumulator[CONFIG_PROP_NAME][textField.propName] = textField.errMsg || `${textField.label} is required unless you choose no authentication`;
       }
     }
@@ -135,8 +145,9 @@ export default class Credentials extends Component {
               const field = FormUtils.getFieldByComplexPropName(fields, addFormPrefixToPropName(textField.propName));
               const type = (textField.secure) ? {type: 'password'} : {};
               if (
-                (authenticationTypeField.value !== AUTH_TYPE.master || textField.propName !== SECRET_URL_FIELD_NAME) &&
-                (authenticationTypeField.value !== AUTH_TYPE.secret || textField.propName !== 'password')) {
+                (authenticationTypeField.value === AUTH_TYPE.master && (textField.propName === 'username' || textField.propName === 'password')) ||
+                (authenticationTypeField.value === AUTH_TYPE.secret && (textField.propName === 'username' || textField.propName === SECRET_URL_FIELD_NAME)) ||
+                (authenticationTypeField.value === AUTH_TYPE.awsProfile && (textField.propName === AWS_PROFILE_FIELD_NAME || textField.propName === DB_USER_FIELD_NAME))) {
                 return (
                   <FieldWithError errorPlacement='bottom' label={textField.label} key={index}
                     {...field} className={flexElementAuto}>
@@ -155,7 +166,10 @@ export default class Credentials extends Component {
 
   getDefaultTextFields() {
     const secretField = this.getSecretField();
-    return (secretField) ? DEFAULT_TEXT_FIELDS : DEFAULT_TEXT_FIELDS.filter(field => field.propName !== SECRET_URL_FIELD_NAME);
+    const awsProfileField = this.getAWSProfileField() && this.getDbUserField();
+    let textFields = (secretField ? DEFAULT_TEXT_FIELDS : DEFAULT_TEXT_FIELDS.filter(field => field.propName !== SECRET_URL_FIELD_NAME));
+    textFields = (awsProfileField ? textFields : textFields.filter(field => field.propName !== AWS_PROFILE_FIELD_NAME || field.propName !== DB_USER_FIELD_NAME));
+    return textFields;
   }
 
   getTextFields() {
@@ -167,12 +181,23 @@ export default class Credentials extends Component {
     const {elementConfig} = this.props;
     let options = (elementConfig && elementConfig.radioOptions) ? elementConfig.radioOptions : DEFAULT_RADIO_OPTIONS;
     options = (this.getSecretField()) ? [...options, SECRET_URL_OPTION] : options;
+    options = (this.getAWSProfileField() && this.getDbUserField()) ? [...options, AWS_PROFILE_OPTION] : options;
     return (this.getKerberosField()) ? [...options, KERBEROS_OPTION] : options;
   }
 
   getSecretField = () => {
     const {fields} = this.props;
     return get(fields, SECRET_RESOURCE_URL_FIELD);
+  };
+
+  getAWSProfileField = () => {
+    const {fields} = this.props;
+    return get(fields, PROFILE_NAME_FIELD);
+  };
+
+  getDbUserField = () => {
+    const {fields} = this.props;
+    return get(fields, DB_USER_FIELD);
   };
 
   getKerberosField = () => {

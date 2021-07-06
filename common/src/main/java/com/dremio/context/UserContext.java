@@ -20,19 +20,19 @@ package com.dremio.context;
  */
 public class UserContext {
   public static final RequestContext.Key<UserContext> CTX_KEY = RequestContext.newKey("user_ctx_key");
-  public static final UserContext DEFAULT_SERVICE_CONTEXT = new UserContext("dremio");
+  public static final UserContext DEFAULT_SERVICE_CONTEXT = new UserContext("77a89f85-c936-4f42-ab21-2ee90e9609b8");
 
-  private final String userName;
+  private final String userId;
 
-  public UserContext(String userName) {
-    this.userName = userName;
+  public UserContext(String userId) {
+    this.userId = userId;
   }
 
-  public String getUserName() {
-    return userName;
+  public String getUserId() {
+    return userId;
   }
 
   public String serialize() {
-    return userName;
+    return userId;
   }
 }

@@ -21,36 +21,7 @@ option optimize_for = SPEED;
 
 option java_outer_classname = "FileProtobuf";
 
-
-enum FileType {
-  UNKNOWN = 0;
-  TEXT = 1;
-  JSON = 2;
-  CSV = 3;
-  TSV = 4;
-  PSV = 5;
-  AVRO = 6 [ deprecated = true ];
-  PARQUET = 7;
-  HTTP_LOG = 8;
-  EXCEL = 9;
-  XLS = 10;
-  ARROW = 11;
-  ICEBERG = 12;
-  DELTA = 13;
-}
-
-message FileConfig {
-  repeated string fullPath = 1;
-  optional FileType type = 2 [default = UNKNOWN];
-  optional string name = 3;
-  optional string owner = 4;
-  optional int64 ctime = 5; // user uploaded files
-  optional bytes extendedConfig = 6; // encoded message specific to file type.
-  optional int64 version = 7 [deprecated = true];
-  optional string location = 8; // path where file is uploaded
-  optional string tag = 9;
-}
-
+import "namespace-file-common.proto";
 
 message TextFileConfig {
   option (extends_class) = "com.dremio.service.namespace.file.FileFormat";

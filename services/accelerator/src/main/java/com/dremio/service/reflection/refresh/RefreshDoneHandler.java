@@ -29,6 +29,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.MaterializationExpander;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.io.file.Path;
 import com.dremio.proto.model.UpdateId;
@@ -89,6 +90,7 @@ public class RefreshDoneHandler {
   private final com.dremio.service.job.JobDetails job;
   private final JobsService jobsService;
   private final BufferAllocator allocator;
+  private final CatalogService catalogService;
 
   public RefreshDoneHandler(
     ReflectionEntry entry,
@@ -100,7 +102,8 @@ public class RefreshDoneHandler {
     DependencyManager dependencyManager,
     Supplier<ExpansionHelper> expansionHelper,
     Path accelerationBasePath,
-    BufferAllocator allocator) {
+    BufferAllocator allocator,
+    CatalogService catalogService) {
     this.reflection = Preconditions.checkNotNull(entry, "reflection entry required");
     this.materialization = Preconditions.checkNotNull(materialization, "materialization required");
     this.job = Preconditions.checkNotNull(job, "jobDetails required");
@@ -111,6 +114,7 @@ public class RefreshDoneHandler {
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "expansion helper required");
     this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath, "acceleration base path required");
     this.allocator = allocator;
+    this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
   }
 
   /**
@@ -279,7 +283,7 @@ public class RefreshDoneHandler {
         }
 
         try (ExpansionHelper helper = expansionHelper.get()){
-          RelNode usedMaterializationLogicalPlan = MaterializationExpander.deserializePlan(usedMaterialization.getLogicalPlan().toByteArray(), helper.getConverter());
+          RelNode usedMaterializationLogicalPlan = MaterializationExpander.deserializePlan(usedMaterialization.getLogicalPlan().toByteArray(), helper.getConverter(), catalogService);
           if (usedMaterialization.getJoinAnalysis() != null) {
             joinAnalysis = JoinAnalyzer.merge(joinAnalysis, usedMaterialization.getJoinAnalysis(), usedMaterializationLogicalPlan, usedMaterialization.getId().getId());
           }

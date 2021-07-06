@@ -21,8 +21,11 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
 
+
+@SuppressForbidden
 public class TestTimePrintMillis {
   final int hour = 5;
   final int minute = 6;

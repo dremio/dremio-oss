@@ -53,7 +53,7 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask implements Legacy
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
 
     try {
       for (SourceConfig source : namespaceService.getSources()) {

@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import classNames from 'classnames';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -41,9 +40,8 @@ import {
   select as selectCls
 } from './ReplaceFooter.less';
 
-@PureRender
 @Radium
-export default class ReplaceFooter extends Component {
+export default class ReplaceFooter extends PureComponent {
   static getFields() {
     return ['replaceType', 'replacementValue', 'replaceSelectionType'];
   }

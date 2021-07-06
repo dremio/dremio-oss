@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
 import './RowsDropdown.less';
 const STEP = 100;
 
-@pureRender
-class RowsDropdown extends Component {
+class RowsDropdown extends PureComponent {
   static propTypes = {
     setMaxNumberOfRows: PropTypes.func.isRequired,
     tableLength: PropTypes.oneOfType([PropTypes.string, PropTypes.number])

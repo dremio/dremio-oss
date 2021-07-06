@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import FontIcon from 'components/Icon/FontIcon';
 import { FLEX_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
@@ -26,8 +25,7 @@ const OVERLAY_COLOR = '#3acbac';
 const OVERLAY_POINTER_SIZE = 10;
 
 @Radium
-@pureRender
-export default class SignupTitle extends Component {
+export default class SignupTitle extends PureComponent {
   render() {
     return (
       <div id='signup-title' style={[styles.base]}>

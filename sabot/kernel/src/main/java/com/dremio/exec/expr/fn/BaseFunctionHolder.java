@@ -214,7 +214,8 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
 
   protected void generateBody(ClassGenerator<?> g, BlockType bt, String body, HoldingContainer[] inputVariables,
       JVar[] workspaceJVars, boolean decConstantInputOnly) {
-    if (!Strings.isNullOrEmpty(body) && !body.trim().isEmpty()) {
+    final String trimmedBody = Strings.nullToEmpty(body).trim();
+    if (!trimmedBody.isEmpty() && !trimmedBody.equals("{}")) {
       JBlock sub = new JBlock(true, true);
       if (decConstantInputOnly) {
         addProtectedBlock(g, sub, body, inputVariables, workspaceJVars, true);
@@ -242,7 +243,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
           JType fieldReadClass = g.getModel()._ref(FieldReader.class);
           sub.decl(fieldReadClass, parameter.name, JExpr._new(singularReaderClass).arg(inputVariable.getHolder()));
         } else {
-          sub.decl(inputVariable.getHolder().type(), parameter.name, inputVariable.getHolder());
+          sub.decl(inputVariable.getJType(), parameter.name, inputVariable.getHolder());
         }
       }
     }

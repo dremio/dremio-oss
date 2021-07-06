@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
@@ -47,9 +46,8 @@ import { base } from './DetailsWizard.less';
 
 export const RECOMMENDED_JOINS_VIEW_ID = 'RecommendedJoins';
 
-@PureRender
 @Radium
-export class DetailsWizard extends Component {
+export class DetailsWizard extends PureComponent {
   static propTypes = {
     detailType: PropTypes.string,
     dataset: PropTypes.instanceOf(Immutable.Map),

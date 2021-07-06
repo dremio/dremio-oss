@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { Link } from 'react-router';
+import { Link, location } from 'react-router';
 import CopyButton from 'components/Buttons/CopyButton';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
@@ -25,6 +25,7 @@ import EllipsedText from 'components/EllipsedText';
 import { injectIntl } from 'react-intl';
 import { constructFullPath, splitFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
 import { getIconDataTypeFromEntity } from 'utils/iconUtils';
+import { checkIfUserShouldGetDeadLink, getHref } from '@inject/utils/mainInfoUtils/mainInfoNameUtil';
 
 @injectIntl
 @Radium
@@ -33,6 +34,7 @@ export default class MainInfoItemName extends Component {
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     intl: PropTypes.object.isRequired,
+    entity: PropTypes.object,
     onMount: PropTypes.func // takes width parameter
   };
 
@@ -60,46 +62,18 @@ export default class MainInfoItemName extends Component {
     return this.wrap.clientWidth;
   }
 
-  getHref(entity) {
-    const fileType = entity.get('fileType');
-    if (entity.get('fileType') === 'file') {
-      if (entity.get('queryable')) {
-        return entity.getIn(['links', 'query']);
-      }
-      return {
-        ...this.context.location, state: {
-          modal: 'DatasetSettingsModal',
-          tab: 'format',
-          entityType: entity.get('entityType'),
-          entityId: entity.get('id'),
-          fullPath: entity.get('filePath'),
-          query: {then: 'query'},
-          isHomePage: true
-        }
-      };
-    }
-    if (fileType === 'folder') {
-      if (entity.get('queryable')) {
-        return entity.getIn(['links', 'query']);
-      }
-      return entity.getIn(['links', 'self']);
-    }
-    return {
-      ...this.context.location,
-      state: {
-        ...this.context.location.state,
-        originalDatasetVersion: entity.get('datasetConfig') && entity.getIn(['datasetConfig', 'version'])
-      },
-      pathname: entity.getIn(['links', 'query'])
-    };
-  }
-
-
-  renderDatasetItemLabel() {
+  renderDatasetItemLabel(shouldGetADeadLink) {
     const { item } = this.props;
     const type = item.get('entityType');
     const typeIcon = getIconDataTypeFromEntity(item);
-    if (type === 'dataset' || type === 'physicalDataset' || type === 'file' && item.get('queryable')
+    if (shouldGetADeadLink) {
+      return (
+        <div style={styles.flexAlign}>
+          <FontIcon type={typeIcon} />
+          <EllipsedText className='--dead-link' style={styles.fullPath} text={item.get('name')} />
+        </div>
+      );
+    } else if (type === 'dataset' || type === 'physicalDataset' || type === 'file' && item.get('queryable')
         || type === 'folder' && item.get('queryable')) {
       return (
         <DatasetItemLabel
@@ -122,16 +96,16 @@ export default class MainInfoItemName extends Component {
     const { item, intl } = this.props;
     const fileType = item.get('fileType');
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
-    const href = this.getHref(item);
+    const href = getHref(item, this.context);
+    const shouldGetADeadLink = checkIfUserShouldGetDeadLink(item);
     const linkStyle = (fileType === 'folder' && !item.get('queryable'))
       ? styles.flexAlign
       : {...styles.flexAlign, ...styles.leafLink};
-    const holderClass = fileType + '-path';
 
     return (
-      <div style={[styles.flexAlign, styles.base]} className={holderClass} ref={this.setWrapRef}>
-        <Link style={linkStyle} to={href}>
-          {this.renderDatasetItemLabel()}
+      <div style={[styles.flexAlign, styles.base]} className={shouldGetADeadLink ? '--dead-link' : null} ref={this.setWrapRef}>
+        <Link style={linkStyle} className={shouldGetADeadLink ? '--dead-link' : null} to={shouldGetADeadLink ? location : href}>
+          {this.renderDatasetItemLabel(shouldGetADeadLink)}
         </Link>
         { fullPath && <CopyButton
           text={fullPath}

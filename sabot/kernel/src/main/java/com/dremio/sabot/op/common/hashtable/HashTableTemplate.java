@@ -34,6 +34,7 @@ import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.SuppressForbidden;
 import com.dremio.exec.compile.sig.RuntimeOverridden;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.VectorAccessible;
@@ -111,6 +112,7 @@ public abstract class HashTableTemplate implements HashTable {
     }
   }
 
+  @SuppressForbidden
   public HashTableTemplate(){
     try{
       this.innerConstructor = (Constructor<BatchHolder>) this.getClass().getDeclaredClasses()[0].getConstructor(this.getClass(), int.class);

@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,9 +29,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.arrow.DremioArrowSchema;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -39,19 +42,23 @@ import com.dremio.sabot.op.scan.OutputMutator;
  * A manager to set up {@link OutputMutator}.
  */
 public class MutatorSetupManager {
-  private static final Logger logger = LoggerFactory.getLogger(IcebergParquetReader.class);
+  private static final Logger logger = LoggerFactory.getLogger(MutatorSetupManager.class);
 
   private final OperatorContext context;
   private final BatchSchema tableSchema;
   private final MutableParquetMetadata footer;
   private final SchemaDerivationHelper schemaHelper;
   private final ParquetColumnResolver columnResolver;
+  private final String filePath;
+  private final List<String> tableSchemaPath;
 
-  public MutatorSetupManager(OperatorContext context, BatchSchema tableSchema, MutableParquetMetadata footer,
+  public MutatorSetupManager(OperatorContext context, BatchSchema tableSchema, MutableParquetMetadata footer, String filePath, List<String> tableScheamaPath,
                              SchemaDerivationHelper schemaHelper, ParquetColumnResolver columnResolver) {
     this.context = context;
     this.tableSchema = tableSchema;
     this.footer = footer;
+    this.filePath = filePath;
+    this.tableSchemaPath = tableScheamaPath;
     this.schemaHelper = schemaHelper;
     this.columnResolver = columnResolver;
   }
@@ -66,7 +73,7 @@ public class MutatorSetupManager {
     try {
       arrowSchema = DremioArrowSchema.fromMetaData(footer.getFileMetaData().getKeyValueMetaData());
     } catch (IOException e) {
-      logger.warn("Invalid Arrow Schema", e);
+      logger.debug("Invalid Arrow Schema", e);
     }
 
     for (SchemaPath schemaPath : resolvedColumns) {
@@ -101,8 +108,7 @@ public class MutatorSetupManager {
       BatchSchema schemaFromBatchField = BatchSchema.of(fieldFromBatchSchema.get());
       BatchSchema schemaFromParquetField = BatchSchema.of(fieldFromParquet.get());
 
-      boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
-      BatchSchema finalSchema = schemaFromBatchField.merge(schemaFromParquetField, mixedTypesDisabled);
+      BatchSchema finalSchema = getFinalSchema(schemaFromBatchField, schemaFromParquetField);
       if (!finalSchema.equalsTypesWithoutPositions(schemaFromBatchField)) {
         // schema of field after merge is not same as original schema, remove old schema and add new one
         outputMutator.removeField(fieldFromBatchSchema.get());
@@ -114,5 +120,18 @@ public class MutatorSetupManager {
         }
       }
     }
+  }
+
+  private BatchSchema getFinalSchema(BatchSchema schemaFromBatchField, BatchSchema schemaFromParquetField) {
+    boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+    BatchSchema finalSchema;
+    try {
+      finalSchema = schemaFromBatchField.merge(schemaFromParquetField, mixedTypesDisabled);
+    } catch (NoSupportedUpPromotionOrCoercionException e) {
+      e.addFilePath(filePath);
+      e.addDatasetPath(tableSchemaPath);
+      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+    }
+    return finalSchema;
   }
 }

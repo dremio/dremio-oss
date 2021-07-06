@@ -33,6 +33,8 @@ public interface RawBatchBuffer extends RawFragmentBatchProvider {
    */
   void enqueue(RawFragmentBatch batch);
 
+  default void init() {}
+
   void streamComplete();
 
 }

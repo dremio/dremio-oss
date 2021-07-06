@@ -18,6 +18,8 @@ package com.dremio.exec.store.easy.json.reader;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.calcite.util.Pair;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.easy.json.JsonProcessor;
 import com.fasterxml.jackson.core.JsonParser;
@@ -81,4 +83,7 @@ public abstract class BaseJsonProcessor implements JsonProcessor {
   public long getDataSizeCounter() {
     return 0;
   }
+
+  @Override
+  public Pair<String, Long> getScrollAndTotalSizeThenSeekToHits() throws IOException { return new Pair<>("default", 0L); };
 }

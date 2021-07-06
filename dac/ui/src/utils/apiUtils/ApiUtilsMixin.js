@@ -23,7 +23,4 @@ export default function(input) {
   input.prototype.getAPIVersion = function(version) {
     return (version === 3) ? API_URL_V3 : API_URL_V2;
   };
-  input.prototype.getParams = function() {
-    return;
-  };
 }

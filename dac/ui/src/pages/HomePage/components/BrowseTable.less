@@ -116,15 +116,11 @@
       position: relative;
 
       .sort-icon() {
-        position: absolute;
-        left: 100%;
-        top: 50%;
-        display: block;
+        display: inline-flex;
         background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
         content: '';
         width: 24px;
         height: 24px;
-        transform: translateY(-50%)
       }
 
       .sort-asc, .sort-desc {
@@ -140,7 +136,7 @@
       .sort-desc{
         &::after{
           .sort-icon();
-          transform: translateY(-50%) rotate(180deg);
+          transform: rotate(180deg);
         }
       }
     }
@@ -148,6 +144,16 @@
 
   .last-File {
     cursor: pointer;
+    &:hover{
+      text-decoration: underline;
+    }
+  }
+
+  .--dead-link {
+    cursor: default;
+    &:hover{
+      text-decoration: none !important;
+    }
   }
 
   .row {

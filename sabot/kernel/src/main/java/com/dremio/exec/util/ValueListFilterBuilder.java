@@ -95,8 +95,8 @@ public class ValueListFilterBuilder implements AutoCloseable{
 
     public boolean insert(final ArrowBuf keyBuf) {
         checkArgument(!isBoolean, "Insertion for boolean should be done via insertTrue() / insertFalse()");
-        checkArgument(keyBuf.capacity() == blockSize, "Invalid key size %s. Compatible key size is %s",
-                keyBuf.capacity(), blockSize);
+        checkArgument(keyBuf.capacity() >= blockSize, "Invalid key size %s. Compatible key size is %s",
+                keyBuf.capacity(), blockSize); // KeyBuf can round up and have extra bytes than the capacity it asked for.
         final long hashIndex = hash(keyBuf);
         int keyIndex = hashBuckets.getInt(hashIndex);
 

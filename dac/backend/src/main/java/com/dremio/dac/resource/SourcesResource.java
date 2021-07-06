@@ -20,10 +20,12 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 import org.slf4j.Logger;
@@ -61,14 +63,16 @@ public class SourcesResource {
   }
 
   @GET
-  public Sources getSources() throws Exception {
+  public Sources getSources(@QueryParam("includeDatasetCount") @DefaultValue("true") boolean includeDatasetCount) throws Exception {
     final Sources sources = new Sources();
     for (SourceConfig sourceConfig : sourceService.getSources()) {
       SourceUI source = newSource(sourceConfig);
 
-      BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(source.getName()), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
-      source.setNumberOfDatasets(datasetCount.getCount());
-      source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
+      if (includeDatasetCount) {
+        BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(source.getName()), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+        source.setNumberOfDatasets(datasetCount.getCount());
+        source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
+      }
 
       SourceState state = sourceService.getStateForSource(sourceConfig);
       source.setState(state);

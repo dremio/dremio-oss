@@ -131,7 +131,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public ParquetScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter, arrowCachingEnabled);
+    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter != null ? filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()) : filter, arrowCachingEnabled);
   }
 
   @Override
@@ -141,7 +141,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   }
 
   @Override
-  protected double getFilterReduction(){
+  public double getFilterReduction(){
     if(filter != null){
       double selectivity = 0.15d;
 

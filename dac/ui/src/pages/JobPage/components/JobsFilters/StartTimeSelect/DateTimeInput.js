@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -25,8 +24,7 @@ import MaskedInput from './MaskedInput';
 const MAX_MONTH = 12;
 
 @Radium
-@PureRender
-export default class DateTimeInput extends Component {
+export default class DateTimeInput extends PureComponent {
   static propTypes = {
     date: PropTypes.object.isRequired,
     label: PropTypes.string.isRequired,

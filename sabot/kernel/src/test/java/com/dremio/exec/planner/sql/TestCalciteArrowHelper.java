@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 
+import org.apache.arrow.vector.types.IntervalUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
@@ -35,12 +36,20 @@ import com.google.common.collect.ImmutableSet;
 public class TestCalciteArrowHelper {
   private static final Field UTF8_FIELD = Field.nullable("utf8_field", ArrowType.Utf8.INSTANCE);
   private static final Field NULL_FIELD = Field.nullable("null_field", ArrowType.Null.INSTANCE);
+  private static final Field INTERVAL_DAY_TIME_FIELD = Field.nullable("interval_field_day", new ArrowType.Interval(IntervalUnit.DAY_TIME));
+  private static final Field INTERVAL_YEAR_MONTH_FIELD = Field.nullable("interval_field_year", new ArrowType.Interval(IntervalUnit.YEAR_MONTH));
 
   private static final ImmutableSet<String> blackList = ImmutableSet.of("utf8_field");
 
   private final static BatchSchema schema = BatchSchema.newBuilder()
     .addField(UTF8_FIELD)
     .addField(NULL_FIELD)
+    .build();
+
+  private final static BatchSchema intervalSchema = BatchSchema.newBuilder()
+    .addField(UTF8_FIELD)
+    .addField(INTERVAL_DAY_TIME_FIELD)
+    .addField(INTERVAL_YEAR_MONTH_FIELD)
     .build();
 
   @Test
@@ -91,4 +100,22 @@ public class TestCalciteArrowHelper {
 
     assertThat(actual, equalTo(expected.build()));
   }
+  @Test
+  public void testToCalciteRecordRowTypeWithInterval() {
+    // Get actual results.
+    RelDataType actual = CalciteArrowHelper.wrap(intervalSchema).toCalciteRecordType(
+      SqlTypeFactoryImpl.INSTANCE, null, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+
+    // Create expected results.
+    RelDataTypeFactory.FieldInfoBuilder expected =
+      new RelDataTypeFactory.FieldInfoBuilder(SqlTypeFactoryImpl.INSTANCE);
+    expected.add(UTF8_FIELD.getName(),
+      CalciteArrowHelper.toCalciteType(UTF8_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    expected.add(INTERVAL_DAY_TIME_FIELD.getName(),
+      CalciteArrowHelper.toCalciteType(INTERVAL_DAY_TIME_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    expected.add(INTERVAL_YEAR_MONTH_FIELD.getName(),
+      CalciteArrowHelper.toCalciteType(INTERVAL_YEAR_MONTH_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
+    assertThat(actual, equalTo(expected.build()));
+  }
+
 }

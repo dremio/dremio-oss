@@ -25,23 +25,28 @@ import com.dremio.service.coordinator.proto.DataCredentials;
  */
 public interface ProjectConfig {
   /**
-   *
-   * @return
+   * Get accelerator config
+   * @return config
    */
   DistPathConfig getAcceleratorConfig();
 
   /**
-   *
-   * @return
+   * Get scratch config
+   * @return config
    */
   DistPathConfig getScratchConfig();
 
   /**
-   *
-   * @return
+   * Get uploads config
+   * @return config
    */
-  DistPathConfig getDownloadsConfig();
+  DistPathConfig getUploadsConfig();
 
+  /**
+   * Get metadata config
+   * @return config
+   */
+  DistPathConfig getMetadataConfig();
 
   /**
    *

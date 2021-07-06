@@ -106,6 +106,20 @@ public class ResourceSchedulingProperties {
     return this;
   }
 
+  /*
+   * Engine and RoutingEngine are both same. Internally, we still use
+   * routingEngine name.
+   * RoutingEngine is retained for backward compatibility
+   */
+  public String getEngine() {
+    return routingEngine;
+  }
+
+  public ResourceSchedulingProperties setEngine(String engine) {
+    this.routingEngine = engine;
+    return this;
+  }
+
   public String getRuleSetEngine() {
     return ruleSetEngine;
   }

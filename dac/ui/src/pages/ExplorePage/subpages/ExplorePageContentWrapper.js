@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
@@ -49,8 +48,7 @@ import {
 
 const EXPLORE_DRAG_TYPE = 'explorePage';
 
-@pureRender
-class ExplorePageContentWrapper extends Component {
+class ExplorePageContentWrapper extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     pageType: pageTypesProp.isRequired,
@@ -132,7 +130,7 @@ class ExplorePageContentWrapper extends Component {
     case PageTypes.wiki: {
       // should allow edit a wiki only if we receive a entity id and permissions allow this.
       // If we do not receive permissions object, that means the current user is admin (CE)
-      const isWikiEditAllowed = entityId && dataset.getIn(['permissions', 'canManageWiki'], true);
+      const isWikiEditAllowed = entityId && dataset.getIn(['permissions', 'canManageWiki'], true) && dataset.getIn(['permissions', 'canAlter'], true);
 
       return <Wiki
         entityId={entityId}

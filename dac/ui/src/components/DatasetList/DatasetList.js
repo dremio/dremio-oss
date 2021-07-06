@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -30,8 +29,7 @@ import { PALE_ORANGE } from 'uiTheme/radium/colors';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 @Radium
-@pureRender
-export default class DatasetList extends Component {
+export default class DatasetList extends PureComponent {
 
   static propTypes = {
     data: PropTypes.instanceOf(Immutable.List).isRequired,

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +38,7 @@ import org.junit.rules.ExpectedException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.sample.SampleSourceMetadata;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
@@ -130,7 +132,17 @@ public class TestDatasetMetadataSaver {
                            boolean quitBeforeSaving, boolean opportunisticSave, long maxSingleSplitPartitionchunks, boolean validateConsistency) throws NamespaceException, IOException {
     try (DatasetMetadataSaver metadataSaver = namespaceService.newDatasetMetadataSaver(dsPath, dsConfig.getId(), currentCompression, maxSingleSplitPartitionchunks, validateConsistency)) {
       final PartitionChunkListing chunks = connector.listPartitionChunks(ds);
-      metadataSaver.savePartitionChunks(chunks);
+      final Iterator<? extends PartitionChunk> chunkIterator = chunks.iterator();
+      while (chunkIterator.hasNext()) {
+        final PartitionChunk chunk = chunkIterator.next();
+
+        final Iterator<? extends com.dremio.connector.metadata.DatasetSplit> splits = chunk.getSplits().iterator();
+        while (splits.hasNext()) {
+          final com.dremio.connector.metadata.DatasetSplit split = splits.next();
+          metadataSaver.saveDatasetSplit(split);
+        }
+        metadataSaver.savePartitionChunk(chunk);
+      }
       if (quitBeforeSaving) {
         return;
       }

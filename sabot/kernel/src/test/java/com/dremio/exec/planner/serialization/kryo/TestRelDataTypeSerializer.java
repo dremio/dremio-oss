@@ -58,7 +58,7 @@ public class TestRelDataTypeSerializer extends PlanTestBase {
     cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
     relBuilder = RelFactories.LOGICAL_BUILDER.create(cluster, null);
     KryoRelSerializerFactory kryoRelSerializerFactory = new KryoRelSerializerFactory(null);
-    serializer = kryoRelSerializerFactory.getSerializer(cluster);
+    serializer = kryoRelSerializerFactory.getSerializer(cluster, null);
     DremioCatalogReader catalogReader = Mockito.mock(DremioCatalogReader.class);
     deserializer = kryoRelSerializerFactory.getDeserializer(cluster, catalogReader, null);
   }

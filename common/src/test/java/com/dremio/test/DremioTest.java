@@ -39,6 +39,7 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -62,6 +63,8 @@ public class DremioTest {
     }
   };
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.create(TEST_CONFIGURATIONS);
+
+  public static final DremioConfig DEFAULT_DREMIO_CONFIG = DremioConfig.create(null, DremioTest.DEFAULT_SABOT_CONFIG);
 
   /**
    * The scan result for the current classpath

@@ -16,6 +16,7 @@
 package com.dremio.dac.resource;
 
 import java.io.IOException;
+import java.security.AccessControlException;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
 
@@ -34,12 +35,14 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.DatasetsResource;
 import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
+import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -300,11 +303,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFileFormat(FileFormat format, @PathParam("path") String path)
       throws SourceFileNotFoundException, SourceNotFoundException, NamespaceException {
-    if (useFastPreview()) {
-      return formatTools.previewData(format, asFilePath(path), false);
-    }
-    SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
-    return executor.previewPhysicalDataset(filePath.toString(), format, getOrCreateAllocator("previewFileFormat"));
+    return previewFormat(format, asFilePath(path));
   }
 
   @POST
@@ -313,12 +312,21 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFolderFormat(FileFormat format, @PathParam("path") String path)
     throws SourceFileNotFoundException, SourceNotFoundException, NamespaceException {
-    if (useFastPreview()) {
-      return formatTools.previewData(format, asFolderPath(path), false);
-    }
+    return previewFormat(format, asFolderPath(path));
+  }
 
-    SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    return executor.previewPhysicalDataset(folderPath.toString(), format, getOrCreateAllocator("previewFolderFormat"));
+  protected JobDataFragment previewFormat(FileFormat format, NamespacePath path) {
+    if (useFastPreview()) {
+      try {
+        return formatTools.previewData(format, path, false);
+      } catch (AccessControlException e) {
+        throw UserException.validationError()
+          .message(e.getMessage())
+          .buildSilently();
+      }
+    }
+    SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path.toPathString());
+    return executor.previewPhysicalDataset(filePath.toString(), format, getOrCreateAllocator("previewFileFormat"));
   }
 
   @DELETE

@@ -108,6 +108,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchStoragePlugin.class);
 
+  public static final BooleanCapability ENABLE_V7_FEATURES = new BooleanCapability("enable_elastic_v7_feature", false);
   public static final BooleanCapability ENABLE_V5_FEATURES = new BooleanCapability("enable_elastic_v5_feature", false);
   public static final BooleanCapability SUPPORTS_NEW_FEATURES = new BooleanCapability("supports_new_features", false);
 
@@ -155,7 +156,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
           config.getPassword(),
           config.getAccessKey(),
           config.getAccessSecret(),
-          config.getRegionName()),
+          config.getRegionName(),
+          config.getAwsProfile()),
         config.getReadTimeoutMillis(),
         config.isUseWhitelist(),
         context.getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR));
@@ -488,7 +490,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
               return SourceState.warnState(
                   String.format("Detected Elastic version %s. Full query pushdown in Dremio requires version %s or above.",
                       connectionPool.getMinVersionInCluster(),
-                      ElasticConnectionPool.MIN_VERSION_TO_ENABLE_NEW_FEATURES));
+                      ElasticsearchConstants.MIN_VERSION_TO_ENABLE_NEW_FEATURES));
             }
           case "yellow":
             return SourceState.warnState(

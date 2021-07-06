@@ -20,6 +20,7 @@ import static com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.g
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
@@ -260,6 +261,30 @@ public class NullableFixedByteAlignedReaders {
       }
     }
   }
+
+  static class NullableDictionaryTimeStampMicrosReader extends NullableColumnReader<TimeStampMilliVector> {
+
+    NullableDictionaryTimeStampMicrosReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
+                                      ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeStampMilliVector v,
+                                      SchemaElement schemaElement) throws ExecutionSetupException {
+      super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
+    }
+
+    // this method is called by its superclass during a read loop
+    @Override
+    protected void readField(long recordsToReadInThisPass) {
+      if (usingDictionary) {
+        for (int i = 0; i < recordsToReadInThisPass; i++){
+          valueVec.setSafe(valuesReadInCurrentPass + i, TimeUnit.MICROSECONDS.toMillis(pageReader.dictionaryValueReader.readLong()));
+        }
+      } else {
+        for (int i = 0; i < recordsToReadInThisPass; i++){
+          valueVec.setSafe(valuesReadInCurrentPass + i, TimeUnit.MICROSECONDS.toMillis(pageReader.valueReader.readLong()));
+        }
+      }
+    }
+  }
+
   static class NullableDictionaryDecimal18Reader extends NullableColumnReader<DecimalVector> {
 
     NullableDictionaryDecimal18Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,

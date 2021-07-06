@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
 import Immutable from 'immutable';
-import PureRender from 'pure-render-decorator';
 import { formatMessage } from 'utils/locale';
 
 import PropTypes from 'prop-types';
@@ -33,9 +32,8 @@ import JobStateIcon from '../JobStateIcon';
 
 const DATASET_HEIGHT = 14;
 
-@PureRender
 @Radium
-export default class JobTr extends Component {
+export default class JobTr extends PureComponent {
   static propTypes = {
     active: PropTypes.bool.isRequired,
     even: PropTypes.bool.isRequired,

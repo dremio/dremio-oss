@@ -53,6 +53,6 @@ describe('JobErrorLog', () => {
       failureInfo: Immutable.fromJS({a: 'a'})
     };
     const wrapper = shallow(<JobErrorLog {...emptylProps}/>);
-    expect(wrapper.unrendered).to.be.defined;
+    expect(wrapper.unrendered).to.not.be.null;
   });
 });

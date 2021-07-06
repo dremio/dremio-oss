@@ -61,7 +61,6 @@ export default class SimpleButton extends Component {
       submitting ? buttonStyles.submitting[buttonStyle] : {},
       style
     ];
-
     return (
       <button
         disabled={submitting || disabled}

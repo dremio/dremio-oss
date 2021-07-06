@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -136,7 +137,9 @@ public class CatalogServiceHelper {
 
     tags,
 
-    jobCount;
+    jobCount,
+
+    children;
 
     private static final Set<String> availableValues;
 
@@ -237,12 +240,11 @@ public class CatalogServiceHelper {
 
   protected NameSpaceContainer getRootContainer(List<String> path) throws NamespaceException {
     NamespaceKey parentKey = new NamespaceKey(path.get(0));
-    List<NameSpaceContainer> entities = namespaceService.getEntities(Collections.singletonList(parentKey));
-
-    return entities.get(0);
+    return namespaceService.getEntities(Collections.singletonList(parentKey)).get(0);
   }
 
-  public Optional<CatalogEntity> getCatalogEntityByPath(List<String> path) throws NamespaceException {
+  public Optional<CatalogEntity> getCatalogEntityByPath(List<String> path, final List<String> include,
+                                                        final List<String> exclude) throws NamespaceException {
     NameSpaceContainer entity = getNamespaceEntity(new NamespaceKey(path));
 
     if (entity == null) {
@@ -252,33 +254,38 @@ public class CatalogServiceHelper {
         return Optional.absent();
       }
 
-      return getCatalogEntityFromCatalogItem(internalItem.get());
+      return getCatalogEntityFromCatalogItem(internalItem.get(), !exclude.contains(DetailType.children.name()));
     } else {
-      return getCatalogEntityFromNamespaceContainer(extractFromNamespaceContainer(entity).get());
+      return getCatalogEntityFromNamespaceContainer(extractFromNamespaceContainer(entity).get(),
+        !exclude.contains(DetailType.children.name()));
     }
   }
 
-  public Optional<CatalogEntity> getCatalogEntityById(String id, final List<String> include) throws NamespaceException {
+  public Optional<CatalogEntity> getCatalogEntityById(String id, final List<String> include,
+                                                      final List<String> exclude) throws NamespaceException {
     Optional<?> entity = getById(id);
 
     if (!entity.isPresent()) {
       return Optional.absent();
     }
 
-    return getCatalogEntityFromNamespaceContainer(entity.get());
+    return getCatalogEntityFromNamespaceContainer(entity.get(), !exclude.contains(DetailType.children.name()));
   }
 
-  private Optional<CatalogEntity> getCatalogEntityFromNamespaceContainer(Object object) throws NamespaceException {
+  private Optional<CatalogEntity> getCatalogEntityFromNamespaceContainer(Object object, boolean includeChildren)
+    throws NamespaceException {
     if (object instanceof SourceConfig) {
       SourceConfig config = (SourceConfig) object;
 
-      Source source = fromSourceConfig(config, getChildrenForPath(new NamespaceKey(config.getName())));
-      return Optional.of((CatalogEntity) source);
+      Source source = fromSourceConfig(config,
+        includeChildren ? getChildrenForPath(new NamespaceKey(config.getName())) : Collections.emptyList());
+      return Optional.of(source);
     } else if (object instanceof SpaceConfig) {
       SpaceConfig config = (SpaceConfig) object;
 
-      Space space = getSpaceFromConfig(config, getChildrenForPath(new NamespaceKey(config.getName())));
-      return Optional.of((CatalogEntity) space);
+      Space space = getSpaceFromConfig(config,
+        includeChildren ? getChildrenForPath(new NamespaceKey(config.getName())) : Collections.emptyList());
+      return Optional.of(space);
     } else if (object instanceof DatasetConfig) {
       DatasetConfig config = (DatasetConfig) object;
 
@@ -292,17 +299,21 @@ public class CatalogServiceHelper {
         dataset = getDatasetFromConfig(config, null);
       }
 
-      return Optional.of((CatalogEntity) dataset);
+      return Optional.of(dataset);
     } else if (object instanceof HomeConfig) {
       HomeConfig config = (HomeConfig) object;
 
-      Home home = getHomeFromConfig(config, getChildrenForPath(new NamespaceKey(HomeName.getUserHomePath(config.getOwner()).getName())));
-      return Optional.of((CatalogEntity) home);
+      List<CatalogItem> children = includeChildren ?
+        getChildrenForPath(new NamespaceKey(HomeName.getUserHomePath(config.getOwner()).getName())) :
+        Collections.emptyList();
+      Home home = getHomeFromConfig(config, children);
+      return Optional.of(home);
     } else if (object instanceof FolderConfig) {
       FolderConfig config = (FolderConfig) object;
 
-      Folder folder = getFolderFromConfig(config, getChildrenForPath(new NamespaceKey(config.getFullPathList())));
-      return Optional.of((CatalogEntity) folder);
+      Folder folder = getFolderFromConfig(config,
+        includeChildren ? getChildrenForPath(new NamespaceKey(config.getFullPathList())) : Collections.emptyList());
+      return Optional.of(folder);
     } else if (object instanceof CatalogEntity) {
       // this is something not in the namespace, a file/folder from a filesystem source
       CatalogEntity catalogEntity = (CatalogEntity) object;
@@ -328,7 +339,14 @@ public class CatalogServiceHelper {
           return Optional.absent();
         }
 
-        return getCatalogEntityFromCatalogItem(catalogItem.get());
+        final CatalogItem item = catalogItem.get();
+
+        // sometimes we can get back a namespace entity for an internal id (like a folder that gets ACLs)
+        if (!isInternalId(item.getId())) {
+          return getById(item.getId());
+        }
+
+        return getCatalogEntityFromCatalogItem(item);
       } else {
         Optional<?> optional = extractFromNamespaceContainer(namespaceService.getEntityById(id));
         if (!optional.isPresent()) {
@@ -342,14 +360,20 @@ public class CatalogServiceHelper {
       return Optional.absent();
     }
   }
-
   private Optional<CatalogEntity> getCatalogEntityFromCatalogItem(CatalogItem catalogItem) throws NamespaceException {
+    return getCatalogEntityFromCatalogItem(catalogItem, true);
+  }
+
+  private Optional<CatalogEntity> getCatalogEntityFromCatalogItem(CatalogItem catalogItem, boolean includeChildren) throws NamespaceException {
     // can either be a folder or a file
     if (catalogItem.getContainerType() == CatalogItem.ContainerSubType.FOLDER) {
-      Folder folder = new Folder(catalogItem.getId(), catalogItem.getPath(), null, getListingForInternalItem(getPathFromInternalId(catalogItem.getId())));
+      final List<CatalogItem> children = includeChildren ?
+        getListingForInternalItem(getPathFromInternalId(catalogItem.getId())) :
+        Collections.emptyList();
+      final Folder folder = new Folder(catalogItem.getId(), catalogItem.getPath(), null, children);
       return Optional.of(folder);
     } else if (catalogItem.getType() == CatalogItem.CatalogItemType.FILE) {
-      File file = new File(catalogItem.getId(), catalogItem.getPath());
+      final File file = new File(catalogItem.getId(), catalogItem.getPath());
       return Optional.of(file);
     }
 
@@ -436,7 +460,9 @@ public class CatalogServiceHelper {
 
   private CatalogItem convertSchemaEntityToCatalogItem(SchemaEntity entity, List<String> parentPath) {
     final List<String> entityPath = Lists.newArrayList(parentPath);
-    entityPath.add(entity.getPath());
+
+    // SchemaEntity will quote the final element in the path, which we don't want in the full path
+    entityPath.add(PathUtils.removeQuotes(entity.getPath()));
 
     CatalogItem catalogItem = null;
 
@@ -451,12 +477,28 @@ public class CatalogServiceHelper {
       }
 
       case FOLDER: {
-        catalogItem = new CatalogItem.Builder()
-          .setId(generateInternalId(entityPath))
-          .setPath(entityPath)
-          .setType(CatalogItem.CatalogItemType.CONTAINER)
-          .setContainerType(CatalogItem.ContainerSubType.FOLDER)
-          .build();
+        final NamespaceKey namespaceKey = new NamespaceKey(entityPath);
+
+        if (namespaceService.exists(namespaceKey)) {
+          try {
+            final FolderConfig folder = namespaceService.getFolder(namespaceKey);
+            catalogItem = new CatalogItem.Builder()
+              .setId(folder.getId().getId())
+              .setPath(entityPath)
+              .setType(CatalogItem.CatalogItemType.CONTAINER)
+              .setContainerType(CatalogItem.ContainerSubType.FOLDER)
+              .build();
+          } catch (NamespaceException e) {
+            logger.warn("Can not find item with path [%s]", entityPath, e);
+          }
+        } else {
+          catalogItem = new CatalogItem.Builder()
+            .setId(generateInternalId(entityPath))
+            .setPath(entityPath)
+            .setType(CatalogItem.CatalogItemType.CONTAINER)
+            .setContainerType(CatalogItem.ContainerSubType.FOLDER)
+            .build();
+        }
         break;
       }
 
@@ -490,10 +532,10 @@ public class CatalogServiceHelper {
     final List<CatalogItem> catalogItems = new ArrayList<>();
 
     // get parent info
-    NameSpaceContainer rootEntity = getNamespaceEntity(new NamespaceKey(path.getPathComponents().get(0)));
+    NameSpaceContainer rootEntity = getRootContainer(path.getPathComponents());
 
     if (rootEntity.getType() == NameSpaceContainer.Type.SOURCE) {
-      catalogItems.addAll(getChildrenForSourcePath(rootEntity.getSource().getName(), path.getPathComponents()));
+      catalogItems.addAll(getChildrenForSourcePath(rootEntity, path.getPathComponents()));
     } else {
       // for non-source roots, go straight to the namespace
       catalogItems.addAll(getNamespaceChildrenForPath(path));
@@ -524,8 +566,9 @@ public class CatalogServiceHelper {
   /**
    *  Returns all children of the listingPath for a source
    */
-  private List<CatalogItem> getChildrenForSourcePath(String sourceName, List<String> listingPath) {
+  protected List<CatalogItem> getChildrenForSourcePath(NameSpaceContainer source, List<String> listingPath) {
     final List<CatalogItem> catalogItems = new ArrayList<>();
+    final String sourceName = source.getSource().getName();
 
     final StoragePlugin plugin = getStoragePlugin(sourceName);
     if (plugin instanceof FileSystemPlugin) {
@@ -836,6 +879,8 @@ public class CatalogServiceHelper {
   public CatalogEntity updateCatalogItem(CatalogEntity entity, String id) throws NamespaceException, UnsupportedOperationException, ExecutionSetupException, IOException {
     Preconditions.checkArgument(entity.getId().equals(id), "Ids must match.");
 
+    String finalId = id;
+
     if (entity instanceof Dataset) {
       Dataset dataset = (Dataset) entity;
       updateDataset(dataset, getNamespaceAttributes(entity));
@@ -847,13 +892,14 @@ public class CatalogServiceHelper {
       updateSpace(space, getNamespaceAttributes(space));
     } else if (entity instanceof Folder) {
       Folder folder = (Folder) entity;
-      updateFolder(folder, getNamespaceAttributes(entity));
+      FolderConfig folderConfig = updateFolder(folder, getNamespaceAttributes(entity));
+      finalId = folderConfig.getId().getId();
     } else {
       throw new UnsupportedOperationException(String.format("Catalog item [%s] of type [%s] can not be edited.", id, entity.getClass().getName()));
     }
 
     // TODO(DX-18416) What to do?
-    Optional<CatalogEntity> newEntity = getCatalogEntityById(id, ImmutableList.of());
+    Optional<CatalogEntity> newEntity = getCatalogEntityById(finalId, ImmutableList.of(), Collections.emptyList());
 
     if (newEntity.isPresent()) {
       return newEntity.get();
@@ -940,18 +986,25 @@ public class CatalogServiceHelper {
     return getFolderFromConfig(namespaceService.getFolder(key), null);
   }
 
-  protected void updateFolder(Folder folder, NamespaceAttribute... attributes) throws NamespaceException {
+  protected FolderConfig updateFolder(Folder folder, NamespaceAttribute... attributes) throws NamespaceException {
+    final NameSpaceContainer rootContainer = getRootContainer(folder.getPath());
     NamespaceKey namespaceKey = new NamespaceKey(folder.getPath());
-    FolderConfig folderConfig = namespaceService.getFolder(namespaceKey);
 
-    Preconditions.checkArgument(CollectionUtils.isEqualCollection(folder.getPath(), folderConfig.getFullPathList()), "Folder path is immutable.");
+    // convert non-ns folder to folder
+    if (rootContainer.getType() == NameSpaceContainer.Type.SOURCE && isInternalId(folder.getId())) {
+      namespaceKey = new NamespaceKey(getPathFromInternalId(folder.getId()));
+      FolderConfig config = getFolderConfig(folder);
+      config.setId(new EntityId(UUID.randomUUID().toString()));
+      namespaceService.addOrUpdateFolder(namespaceKey, config, attributes);
+    } else {
+      FolderConfig folderConfig = namespaceService.getFolder(namespaceKey);
 
-    NameSpaceContainer rootContainer = getRootContainer(folder.getPath());
-    if (rootContainer.getType() == NameSpaceContainer.Type.SOURCE) {
-      throw new UnsupportedOperationException("Can not update a folder inside a source");
+      Preconditions.checkArgument(CollectionUtils.isEqualCollection(folder.getPath(), folderConfig.getFullPathList()), "Folder path is immutable.");
+
+      namespaceService.addOrUpdateFolder(namespaceKey, getFolderConfig(folder), attributes);
     }
 
-    namespaceService.addOrUpdateFolder(namespaceKey, getFolderConfig(folder), attributes);
+    return namespaceService.getFolder(namespaceKey);
   }
 
   public Source fromSourceConfig(SourceConfig config, List<CatalogItem> children) {
@@ -1137,14 +1190,14 @@ public class CatalogServiceHelper {
   }
 
   private static boolean isInternalId(String id) {
-    return id.startsWith(INTERNAL_ID_PREFIX);
+    return id != null && id.startsWith(INTERNAL_ID_PREFIX);
   }
 
   public static List<String> getPathFromInternalId(String id) {
     return com.dremio.common.utils.PathUtils.toPathComponents(id.substring(INTERNAL_ID_PREFIX.length()));
   }
 
-  private StoragePlugin getStoragePlugin(String sourceName) {
+  protected StoragePlugin getStoragePlugin(String sourceName) {
     final StoragePlugin plugin = catalog.getSource(sourceName);
 
     if (plugin == null) {

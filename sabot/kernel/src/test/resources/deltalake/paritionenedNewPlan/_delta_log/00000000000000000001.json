@@ -1,0 +1,2 @@
+{"commitInfo":{"timestamp":1618768885577,"operation":"WRITE","operationParameters":{"mode":"Append","partitionBy":"[\"continent\"]"},"readVersion":0,"isBlindAppend":true,"operationMetrics":{"numFiles":"1","numOutputBytes":"12008","numOutputRows":"10"}}}
+{"add":{"path":"continent=Africa/part-00000-e167df5f-825a-4ac4-a42e-93a108daacba.c000.snappy.parquet","partitionValues":{"continent":"Africa"},"size":12008,"modificationTime":1618768885000,"dataChange":true}}

@@ -27,6 +27,7 @@ import org.apache.arrow.vector.complex.FieldIdUtil2;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -313,6 +314,18 @@ public abstract class MatchGenerator implements AutoCloseable {
       LogicalExpression newElseExpr = ifExpr.elseExpression.accept(this, null);
       IfExpression.IfCondition condition = new IfExpression.IfCondition(newCondition, newExpr);
       return IfExpression.newBuilder().setElse(newElseExpr).setIfCondition(condition).setOutputType(ifExpr.outputType).build();
+    }
+
+    @Override
+    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+      List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+      for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+        caseConditions.add(new CaseExpression.CaseConditionNode(
+          conditionNode.whenExpr.accept(this, value),
+          conditionNode.thenExpr.accept(this, value)));
+      }
+      LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, value);
+      return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
     }
 
     @Override

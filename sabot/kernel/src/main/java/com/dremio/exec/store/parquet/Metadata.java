@@ -37,6 +37,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.DatasetMetadataTooLargeException;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.common.HostAffinityComputer;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.FileSystem;
@@ -246,9 +247,11 @@ public class Metadata {
         length += col.getTotalSize();
       }
 
+      Iterable<FileBlockLocation> fileBlockLocations = fs.getFileBlockLocations(file, rowGroup.getStartingPos(), length);
+      Map<HostAndPort, Float> hostAffinities = HostAffinityComputer.computeAffinitiesForSplit(
+        rowGroup.getStartingPos(), length, fileBlockLocations, fs.preserveBlockLocationsOrder());
       RowGroupMetadata rowGroupMeta =
-          new RowGroupMetadata(rowGroup.getStartingPos(), length, rowGroup.getRowCount(),
-              getHostAffinity(fs, file, rowGroup.getStartingPos(), length), columnMetadataList);
+          new RowGroupMetadata(rowGroup.getStartingPos(), length, rowGroup.getRowCount(), hostAffinities, columnMetadataList);
 
       rowGroupMetadataList.add(rowGroupMeta);
       rowGroupIdx++;
@@ -256,46 +259,6 @@ public class Metadata {
 
     return new ParquetFileMetadata(file, file.size(), rowGroupMetadataList, columnTypeInfo);
   }
-
-  /**
-   * Get the host affinity for a row group
-   *
-   * @param fs         the filesystem
-   * @param fileAttributes the parquet file
-   * @param start      the start of the row group
-   * @param length     the length of the row group
-   * @return
-   * @throws IOException
-   */
-  public static Map<HostAndPort, Float> getHostAffinity(FileSystem fs, FileAttributes fileAttributes, long start, long length)
-      throws IOException {
-    Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(fileAttributes, start, length);
-    Map<HostAndPort, Float> hostAffinityMap = Maps.newHashMap();
-    for (FileBlockLocation blockLocation : blockLocations) {
-      float blockStart = blockLocation.getOffset();
-      float blockEnd = blockStart + blockLocation.getSize();
-      float rowGroupEnd = start + length;
-      Float newAffinity = (blockLocation.getSize() - (blockStart < start ? start - blockStart : 0) -
-          (blockEnd > rowGroupEnd ? blockEnd - rowGroupEnd : 0)) / length;
-      /*
-       * Preserve the order of the hosts for cloud cache to ensure cache hits. It also guarantees
-       * the fragment goes to the next best host in case of failure.
-       */
-      for (HostAndPort host : blockLocation.getHostsWithPorts()) {
-        Float currentAffinity = hostAffinityMap.get(host);
-        if (currentAffinity != null) {
-          hostAffinityMap.put(host, currentAffinity + newAffinity);
-        } else {
-          hostAffinityMap.put(host, newAffinity);
-        }
-        if (fs.preserveBlockLocationsOrder()) {
-          newAffinity /= 2;
-        }
-      }
-    }
-    return hostAffinityMap;
-  }
-
 
   /**
    * Struct which contains the metadata for an entire parquet directory structure

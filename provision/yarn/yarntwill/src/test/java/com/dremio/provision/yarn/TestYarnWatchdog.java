@@ -44,6 +44,8 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.junit.Test;
 
+import com.dremio.common.SuppressForbidden;
+
 /**
  * Tests for YarnWatchdog
  */
@@ -198,6 +200,7 @@ public class TestYarnWatchdog {
    * In Java9 there's native support for p.pid(). Until then, a workaround.
    * WARNING: will throw on windows
    */
+  @SuppressForbidden
   long getPid(Process p) throws Exception {
     long pid = -1;
 

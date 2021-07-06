@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
 import DragAreaColumn from 'components/oldDragComponents/DragAreaColumn';
 
-@pureRender
 @Radium
-class JoinDragAreaColumn extends Component {
+class JoinDragAreaColumn extends PureComponent {
   static propTypes = {
     dragColumntableType: PropTypes.string,
     item: PropTypes.instanceOf(Immutable.Map).isRequired,

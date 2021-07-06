@@ -19,20 +19,26 @@ import java.util.Collections;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.Values;
+import com.dremio.exec.store.EasyCoercionReader;
+import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.easy.json.JSONRecordReader;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import com.google.common.collect.Iterables;
 
 public class ValuesCreator implements ProducerOperator.Creator<Values> {
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, Values config) throws ExecutionSetupException {
-    final JSONRecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, null, Collections.singletonList(SchemaPath.getSimplePath("*")));
-
+    RecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, null, Collections.singletonList(SchemaPath.getSimplePath("*")));
+    if (context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED)) {
+      reader = new EasyCoercionReader(context, config.getColumns(), reader, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), Collections.emptyList());
+    }
     return new ScanOperator(config, context, RecordReaderIterator.from(reader));
   }
 }

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -77,6 +77,10 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-arrow-flight</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie</artifactId>
     </dependency>
 
     <dependency>
@@ -243,6 +247,11 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-statistics</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
       <classifier>tests</classifier>
@@ -260,6 +269,11 @@
       <classifier>tests</classifier>
       <version>${project.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-credentials</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -362,6 +376,17 @@
       <groupId>org.immutables</groupId>
       <artifactId>value</artifactId>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-telemetry-impl</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

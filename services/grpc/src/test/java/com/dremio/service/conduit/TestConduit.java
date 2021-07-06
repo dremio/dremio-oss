@@ -18,6 +18,7 @@ package com.dremio.service.conduit;
 import java.net.InetAddress;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -65,12 +66,14 @@ public class TestConduit {
     final ConduitServiceRegistry serviceRegistry1 = new ConduitServiceRegistryImpl();
     serviceRegistry1.registerService(new ConduitTestService());
 
-    conduitServer1 = new ConduitServer(DirectProvider.wrap(serviceRegistry1), 0, Optional.empty());
+    conduitServer1 = new ConduitServer(DirectProvider.wrap(serviceRegistry1), 0, Optional.empty()
+      , UUID.randomUUID().toString());
     conduitServer1.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer1));
 
     final ConduitServiceRegistry serviceRegistry2 = new ConduitServiceRegistryImpl();
-    conduitServer2 = new ConduitServer(DirectProvider.wrap(serviceRegistry2), 0, Optional.empty());
+    conduitServer2 = new ConduitServer(DirectProvider.wrap(serviceRegistry2), 0, Optional.empty()
+      , UUID.randomUUID().toString());
     conduitServer2.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer2));
 

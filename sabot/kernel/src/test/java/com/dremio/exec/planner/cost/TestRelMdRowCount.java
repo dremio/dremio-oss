@@ -117,7 +117,7 @@ public class TestRelMdRowCount {
     PlannerSettings plannerSettings =
       new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, () -> info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
-    cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
+    cluster.setMetadataQuery(DremioRelMetadataQuery.QUERY_SUPPLIER);
   }
 
   @Test

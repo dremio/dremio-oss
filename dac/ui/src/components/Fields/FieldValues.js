@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -29,9 +28,8 @@ import { formDescription } from 'uiTheme/radium/typography';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
 
-@pureRender
 @Radium
-export default class FieldValues extends Component {
+export default class FieldValues extends PureComponent {
   static propTypes = {
     options: PropTypes.arrayOf(
       PropTypes.shape({

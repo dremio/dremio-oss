@@ -125,7 +125,7 @@ public class TestDatasetManager {
 
     final OptionManager optionManager = mock(OptionManager.class);
 
-    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager);
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username");
     datasetManager.getTable(namespaceKey, metadataRequestOptions, false);
   }
 
@@ -176,7 +176,7 @@ public class TestDatasetManager {
 
     final OptionManager optionManager = mock(OptionManager.class);
 
-    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager);
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username");
     datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
   }
 
@@ -251,7 +251,7 @@ public class TestDatasetManager {
     when(namespaceService.getDataset(namespaceKey)).thenReturn(datasetConfig);
 
     // get table and verify type and field information is properly updated from record schema
-    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager);
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username");
     DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
     View.FieldType updatedField = ((ViewTable) table).getView().getFields().get(0);
     Assert.assertTrue(isComplexType(updatedField.getType()));

@@ -118,6 +118,12 @@ public class FilterFileSystem implements FileSystem {
   }
 
   @Override
+  public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive)
+    throws FileNotFoundException, IOException {
+    return fs.listFiles(f, recursive);
+  }
+
+  @Override
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
       throws FileNotFoundException, IOException {
     return fs.glob(pattern, filter);
@@ -183,6 +189,11 @@ public class FilterFileSystem implements FileSystem {
   @Override
   public boolean isMapRfs() {
     return fs.isMapRfs();
+  }
+
+  @Override
+  public boolean supportsBlockAffinity() {
+    return fs.supportsBlockAffinity();
   }
 
   @Override

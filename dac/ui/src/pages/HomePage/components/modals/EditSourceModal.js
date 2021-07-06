@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
-import pureRender from 'pure-render-decorator';
 import { injectIntl } from 'react-intl';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 
 import Modal from 'components/Modals/Modal';
 import EditSourceView from './EditSourceView';
 
-@pureRender
 @injectIntl
-export class EditSourceModal extends Component {
+export class EditSourceModal extends PureComponent {
   static contextTypes = {
     router: PropTypes.object.isRequired
   };
@@ -45,7 +43,7 @@ export class EditSourceModal extends Component {
     const { isOpen, query, hide, updateFormDirtyState, intl } = this.props;
     return (
       <Modal
-        size='medium'
+        size='large'
         title={intl.formatMessage({ id: 'Source.EditSource' })}
         isOpen={isOpen}
         hide={hide}>

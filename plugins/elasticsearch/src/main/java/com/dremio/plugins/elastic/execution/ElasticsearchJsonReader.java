@@ -84,6 +84,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     this.metaTypeSelected = metaTypeSelected;
   }
 
+  @Override
   public Pair<String, Long> getScrollAndTotalSizeThenSeekToHits() throws IOException {
     final JsonToken token = seekForward(ElasticsearchConstants.SCROLL_ID);
     Preconditions.checkState(token == JsonToken.VALUE_STRING, "Invalid response");

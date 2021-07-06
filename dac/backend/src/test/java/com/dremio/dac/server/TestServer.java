@@ -271,7 +271,7 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testDataGrid() throws Exception {
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
 
     WebTarget pathA = getAPIv2()
         .path(getPathJoiner().join("dataset", "testA.dsA3"));
@@ -683,9 +683,7 @@ public class TestServer extends BaseTestServer {
     assertTrue(headers.containsKey("x-content-type-options"));
     assertTrue(headers.containsKey("x-frame-options"));
     assertTrue(headers.containsKey("x-xss-protection"));
-
-    // no CSP header by default
-    assertFalse(headers.containsKey("content-security-policy"));
+    assertTrue(headers.containsKey("content-security-policy"));
   }
 
   @Test

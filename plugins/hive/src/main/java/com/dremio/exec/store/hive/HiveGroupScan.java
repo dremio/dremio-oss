@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
@@ -30,15 +31,18 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.AbstractGroupScan;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
+import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
+import com.dremio.exec.store.SplitWorkWithRuntimeAffinity;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
+import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.base.Preconditions;
@@ -49,17 +53,20 @@ public class HiveGroupScan extends AbstractGroupScan {
 
   private final ScanFilter filter;
   private final long orcAcidDeltasLimit;
+  private boolean c3RuntimeAffinity;
 
   public HiveGroupScan(
     OpProps props,
     TableMetadata dataset,
     List<SchemaPath> columns,
     ScanFilter filter,
-    QueryContext context) {
+    QueryContext context,
+    boolean c3RuntimeAffinity) {
     super(props, dataset, columns);
     this.filter = filter;
     this.orcAcidDeltasLimit = context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX) *
       context.getOptions().getOption(CatalogOptions.ORC_DELTA_LEAF_COLUMN_FACTOR);
+    this.c3RuntimeAffinity = c3RuntimeAffinity;
   }
 
   @Override
@@ -101,4 +108,21 @@ public class HiveGroupScan extends AbstractGroupScan {
   public int getOperatorType() {
     return CoreOperatorType.HIVE_SUB_SCAN_VALUE;
   }
+
+  @Override
+  public Iterator<SplitWork> getSplits(ExecutionNodeMap nodeMap) {
+    if (c3RuntimeAffinity) {
+      try {
+        HiveReaderProto.HiveTableXattr hiveTableXattr = HiveReaderProto.HiveTableXattr.parseFrom(dataset.getReadDefinition().getExtendedProperty().toByteArray());
+        if (hiveTableXattr.getReaderType().equals(HiveReaderProto.ReaderType.NATIVE_PARQUET)) {
+          return SplitWorkWithRuntimeAffinity.transform(dataset.getSplits(), nodeMap, getDistributionAffinity());
+        }
+        logger.debug("Runtime affinity enabled but non-parquet reader type {} ", hiveTableXattr.getReaderType());
+      } catch (Exception e) {
+        logger.warn("Exception while trying to get reader type for the data set", e);
+      }
+    }
+    return super.getSplits(nodeMap);
+  }
+
 }

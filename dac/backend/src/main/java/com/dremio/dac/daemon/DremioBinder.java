@@ -41,7 +41,6 @@ import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
-import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -51,7 +50,6 @@ import com.dremio.service.BinderImpl.Binding;
 import com.dremio.service.BinderImpl.InstanceBinding;
 import com.dremio.service.BinderImpl.SingletonBinding;
 import com.dremio.service.SingletonRegistry;
-import com.dremio.service.reflection.ReflectionAdministrationService;
 
 /**
  * Class to bind resources to HK2 injector.
@@ -97,7 +95,6 @@ public class DremioBinder extends AbstractBinder {
     bindToSelf(ReflectionServiceHelper.class);
     bindToSelf(CatalogServiceHelper.class);
     bindToSelf(CollaborationHelper.class);
-    bindToSelf(FormatTools.class);
     bindFactory(OptionManagerFactory.class).to(OptionManager.class);
     bind(JobsBasedRecommender.class).to(JoinRecommender.class);
     bind(DACSecurityContext.class).in(RequestScoped.class).to(SecurityContext.class);
@@ -106,11 +103,11 @@ public class DremioBinder extends AbstractBinder {
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(EntityExplorer.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(DatasetCatalog.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(SourceCatalog.class);
-    bindReflectionFactory();
+    bindFormatTools();
   }
 
-  protected void bindReflectionFactory() {
-    bindFactory(ReflectionAdministrationServiceFactory.class).proxy(true).in(RequestScoped.class).to(ReflectionAdministrationService.class);
+  protected void bindFormatTools() {
+    bindToSelf(FormatTools.class);
   }
 
   private <T> ClassBinding<T> bindToSelf(Class<T> serviceType) {
@@ -154,26 +151,6 @@ public class DremioBinder extends AbstractBinder {
     @Override
     public OptionManager get() {
       return context.getOptionManager();
-    }
-  }
-
-  /**
-   * Factory
-   */
-  public static class ReflectionAdministrationServiceFactory implements Supplier<ReflectionAdministrationService> {
-    private final ReflectionAdministrationService.Factory factory;
-    private final SecurityContext securityContext;
-
-    @Inject
-    public ReflectionAdministrationServiceFactory(ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory,
-                                                  SecurityContext securityContext) {
-      this.factory = reflectionAdministrationServiceFactory;
-      this.securityContext = securityContext;
-    }
-
-    @Override
-    public ReflectionAdministrationService get() {
-      return factory.get(new ReflectionContext(securityContext.getUserPrincipal().getName(), true));
     }
   }
 }

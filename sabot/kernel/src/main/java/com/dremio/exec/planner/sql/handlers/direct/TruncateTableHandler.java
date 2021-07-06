@@ -25,7 +25,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
-import com.dremio.exec.store.iceberg.IcebergTableOperations;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 
 public class TruncateTableHandler extends SimpleDirectHandler {
@@ -43,7 +43,7 @@ public class TruncateTableHandler extends SimpleDirectHandler {
     SqlTruncateTable truncateTableNode = SqlNodeUtil.unwrap(sqlNode, SqlTruncateTable.class);
     NamespaceKey path = catalog.resolveSingle(truncateTableNode.getPath());
 
-    Optional<SimpleCommandResult> result = IcebergTableOperations.checkTableExistenceAndMutability(catalog,
+    Optional<SimpleCommandResult> result = IcebergUtils.checkTableExistenceAndMutability(catalog,
         config, path, truncateTableNode.checkTableExistence());
     if(result.isPresent()) {
       return Collections.singletonList(result.get());

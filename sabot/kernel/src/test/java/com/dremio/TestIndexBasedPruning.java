@@ -15,12 +15,10 @@
  */
 package com.dremio;
 
-
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -77,9 +75,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.PruneableScan;
-import com.dremio.options.OptionList;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.OptionResolver;
 import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -90,6 +86,8 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionVal
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.test.DremioTest;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
@@ -247,8 +245,6 @@ public class TestIndexBasedPruning extends DremioTest {
   private static final RexBuilder REX_BUILDER = new RexBuilder(TYPE_FACTORY);
 
   @Mock
-  private OptionManager optionManager;
-  @Mock
   private OptimizerRulesContext optimizerRulesContext;
   @Mock
   private StoragePluginId pluginId;
@@ -311,24 +307,14 @@ public class TestIndexBasedPruning extends DremioTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
-    when(optionManager.getOption(eq(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getOptionName())))
-            .thenReturn(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getOptionName())))
-            .thenReturn(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
-      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.ENABLE_ICEBERG_EXECUTION.getOptionName())))
-      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
-    OptionList optionList = new OptionList();
-    optionList.add(PlannerSettings.FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
-    optionList.add(PlannerSettings.FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR.getDefault());
-    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
+    OptionResolver optionResolver = OptionResolverSpecBuilder.build(
+        new OptionResolverSpec()
+          .addOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION, true));
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager,
+    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionResolver,
       () -> info);
 
     when(optimizerRulesContext.getPlannerSettings()).thenReturn(plannerSettings);

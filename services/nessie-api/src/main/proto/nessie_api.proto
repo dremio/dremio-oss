@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+option java_package = "com.dremio.service.nessieapi";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_outer_classname = "NessieApiRPC";
+package dremio.nessie.api;
+import "google/protobuf/empty.proto";
+
+message NessieConfiguration {
+    string defaultBranch = 1;
+    string version = 2;
+}
+
+message Branch {
+    string name = 1;
+    string hash = 2;
+}
+
+message Tag {
+    string name = 1;
+    string hash = 2;
+}
+
+message Hash {
+    string hash = 1;
+}
+
+message Reference {
+    oneof ref_value {
+        Branch branch = 1;
+        Tag tag = 2;
+        Hash hash = 3;
+    }
+}
+
+message ContentsKey {
+    repeated string elements = 1;
+}
+
+message Contents {
+    enum Type {
+        ICEBERG_TABLE = 0;
+    }
+
+    message IcebergTable {
+        string metadataLocation = 1;
+    }
+
+    Type type = 1;
+    oneof contents {
+        IcebergTable icebergTable = 2;
+    }
+}
+
+message Operation {
+    enum Type {
+        PUT = 0;
+        DELETE = 1;
+        UNCHANGED = 2;
+    }
+
+    Type type = 1;
+    ContentsKey contentsKey = 2;
+    Contents contents = 3;
+}
+
+message CreateReferenceRequest {
+    Reference reference = 1;
+}
+
+message GetReferenceByNameRequest {
+    string refName = 1;
+}
+
+message CommitMultipleOperationsRequest {
+    string branchName = 1;
+    string expectedHash = 2;
+    string message = 3;
+    repeated Operation operations = 4;
+}
+
+message GetContentsRequest {
+    ContentsKey contentsKey = 1;
+    string ref = 2;
+}
+
+message SetContentsRequest {
+    ContentsKey contentsKey = 1;
+    string branch = 2;
+    string hash = 3;
+    string message = 4;
+    Contents contents = 5;
+}
+
+// Service for the TreeApi
+service TreeApi {
+    rpc createReference(CreateReferenceRequest) returns (google.protobuf.Empty);
+
+    rpc getDefaultBranch(google.protobuf.Empty) returns (Branch);
+
+    rpc getReferenceByName(GetReferenceByNameRequest) returns (Reference);
+
+    rpc commitMultipleOperations(CommitMultipleOperationsRequest) returns (google.protobuf.Empty);
+}
+
+// Service for the ContentsApi
+service ContentsApi {
+  rpc getContents(GetContentsRequest) returns (Contents);
+
+  rpc setContents(SetContentsRequest) returns (google.protobuf.Empty);
+}
+
+// Service for the ConfigApi
+service ConfigApi {
+  rpc getConfig(google.protobuf.Empty) returns (NessieConfiguration);
+}

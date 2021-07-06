@@ -66,7 +66,6 @@ public class RendezvousPageHasher {
     private final long offset;
 
     public PathOffset(String path, long offset) {
-      super();
       this.path = path;
       this.offset = offset;
     }
@@ -77,6 +76,14 @@ public class RendezvousPageHasher {
 
     public long getOffset() {
       return offset;
+    }
+
+    @Override
+    public String toString() {
+      return "PathOffset{" +
+        "path='" + path + '\'' +
+        ", offset=" + offset +
+        '}';
     }
   }
 

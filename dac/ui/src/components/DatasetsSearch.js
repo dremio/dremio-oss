@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import ViewStateWrapper from 'components/ViewStateWrapper';
@@ -36,8 +35,7 @@ const emptyList = new Immutable.List();
 
 @injectIntl
 @Radium
-@pureRender
-export default class DatasetsSearch extends Component {
+export default class DatasetsSearch extends PureComponent {
   static propTypes = {
     searchData: PropTypes.instanceOf(Immutable.List).isRequired,
     globalSearch: PropTypes.bool,

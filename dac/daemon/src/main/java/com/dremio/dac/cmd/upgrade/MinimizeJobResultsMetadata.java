@@ -53,7 +53,7 @@ public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpg
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final LegacyIndexedStore<JobId, JobResult> store = context.getKVStoreProvider().getStore(JobsStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> store = context.getLegacyKVStoreProvider().getStore(JobsStoreCreator.class);
 
     AdminLogger.log("  Minimizing job results metadata");
     try {

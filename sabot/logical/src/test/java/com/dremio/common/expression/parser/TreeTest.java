@@ -20,13 +20,10 @@ import java.io.IOException;
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
-import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.expression.parser.ExprLexer;
-import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.test.DremioTest;
 
@@ -48,6 +45,19 @@ public class TreeTest extends DremioTest {
   @Test
   public void testIfWithCase() throws Exception{
     testExpressionParsing("if ($F1) then case when (_MAP.R_NAME = 'AFRICA') then 2 else 4 end else if(4==3) then 1 else if(x==3) then 7 else (if(2==1) then 6 else 4 end) end");
+  }
+
+  @Test
+  public void testCase() throws Exception {
+    testExpressionParsing("case when a == 0 then 0 when a == 1 then 1 else 2 end");
+  }
+
+  @Test
+  public void testNestedCase() throws Exception {
+    testExpressionParsing("case " +
+      "when a == 0 then (case when b == 0 then 0 else -1 end) " +
+      "when a == 1 then (case when b == 0 then 1 else -2 end)  " +
+      "else 2 end");
   }
 
   @Test

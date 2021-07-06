@@ -1,1 +1,16 @@
-io.protostuff.JsonIOUtil
+# Protostuff
+io.protostuff.JsonIOUtil @ Use io.protostuff.JsonIOUtils instead
+
+# XML Factories
+@defaultMessage Use SafeXMLFactories methods instead
+javax.xml.parsers.DocumentBuilderFactory#newInstance()
+javax.xml.parsers.DocumentBuilderFactory#newInstance(java.lang.String, java.lang.ClassLoader)
+javax.xml.parsers.SAXParserFactory#newInstance()
+javax.xml.parsers.SAXParserFactory#newInstance(java.lang.String, java.lang.ClassLoader)
+javax.xml.stream.XMLInputFactory#newFactory()
+javax.xml.stream.XMLInputFactory#newFactory(java.lang.String, java.lang.ClassLoader)
+javax.xml.stream.XMLInputFactory#newInstance()
+javax.xml.stream.XMLInputFactory#newInstance(java.lang.String, java.lang.ClassLoader)
+javax.xml.transform.TransformerFactory#newInstance()
+javax.xml.transform.TransformerFactory#newInstance(java.lang.String, java.lang.ClassLoader)
+

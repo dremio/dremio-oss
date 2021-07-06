@@ -303,6 +303,10 @@ public abstract class JoinRelBase extends Join {
   protected  RelOptCost computeCartesianJoinCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     final double probeRowCount = relMetadataQuery.getRowCount(this.getLeft());
     final double buildRowCount = relMetadataQuery.getRowCount(this.getRight());
+    double rowCount = probeRowCount * buildRowCount;
+    if (PrelUtil.getPlannerSettings(planner).useStatistics()) {
+      rowCount = relMetadataQuery.getRowCount(this);
+    }
 
     final Factory costFactory = (Factory) planner.getCostFactory();
 
@@ -315,7 +319,7 @@ public abstract class JoinRelBase extends Join {
 
     // Cartesian join row count will be product of two inputs. The other factors come from the above estimated DremioCost.
     return costFactory.makeCost(
-        buildRowCount * probeRowCount,
+        rowCount,
         cost.getCpu(),
         cost.getIo(),
         cost.getNetwork(),
@@ -361,6 +365,10 @@ public abstract class JoinRelBase extends Join {
      */
     double probeRowCount = relMetadataQuery.getRowCount(this.getLeft());
     double buildRowCount = relMetadataQuery.getRowCount(this.getRight());
+    double rowCount = probeRowCount + buildRowCount;
+    if (PrelUtil.getPlannerSettings(planner).useStatistics()) {
+      rowCount = relMetadataQuery.getRowCount(this);
+    }
 
     // cpu cost of hashing the join keys for the build side
     double cpuCostBuild = DremioCost.HASH_CPU_COST * keySize * buildRowCount;
@@ -373,9 +381,9 @@ public abstract class JoinRelBase extends Join {
     double joinConditionCost = DremioCost.COMPARE_CPU_COST * keySize;
 
     double factor = PrelUtil.getPlannerSettings(planner).getOptions()
-        .getOption(ExecConstants.HASH_JOIN_TABLE_FACTOR_KEY).getFloatVal();
+        .getOption(ExecConstants.HASH_JOIN_TABLE_FACTOR);
     long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-        .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).getNumVal();
+        .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
 
     // table + hashValues + links
     double memCost =
@@ -390,7 +398,7 @@ public abstract class JoinRelBase extends Join {
 
     Factory costFactory = (Factory) planner.getCostFactory();
 
-    return costFactory.makeCost(buildRowCount + probeRowCount, cpuCost, 0, 0, memCost);
+    return costFactory.makeCost(rowCount, cpuCost, 0, 0, memCost);
   }
 
   private boolean hasScalarSubqueryInput() {

@@ -19,6 +19,7 @@ import { arrayOf } from 'normalizr';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
 import sourceSchema from 'dyn-load/schemas/source';
+import {updatePrivileges} from 'dyn-load/actions/resources/sourcesMixin';
 
 import sourcesMapper from 'utils/mappers/sourcesMapper';
 import { getUniqueName } from 'utils/pathUtils';
@@ -59,11 +60,30 @@ function postCreateSource(sourceModel, meta, _shouldShowFailureNotification = fa
 
 export function createSource(data, sourceType) {
   const sourceModel = sourcesMapper.newSource(sourceType, data);
+  const grantLength = data.accessControlList ? data.accessControlList.grants.length : 0;
+  const userControls = (grantLength > 0 ? data.accessControlList.grants.filter(g => g.granteeType.toLowerCase() === 'user') : []).map(u => ({
+    id: u.id,
+    permissions: u.privileges
+  }));
+  const roleControls = (grantLength > 0 ? data.accessControlList.grants.filter(g => g.granteeType.toLowerCase() === 'role') : []).map(r => ({
+    id: r.id,
+    permissions: r.privileges
+  }));
+  const finalSourceModel = {
+    ...sourceModel,
+    accessControlList: {
+      userControls,
+      roleControls
+    }
+  };
   return (dispatch) => {
-    return dispatch(postCreateSource(sourceModel));
+    return dispatch(postCreateSource(finalSourceModel));
   };
 }
 
+export function updateSourcePrivileges(data, sourceType) {
+  return updatePrivileges(data, sourceType);
+}
 
 export function createSampleSource(meta) {
   return (dispatch, getState) => {
@@ -107,11 +127,12 @@ export const SOURCES_LIST_LOAD_START = 'SOURCES_LIST_LOAD_START';
 export const SOURCES_LIST_LOAD_SUCCESS = 'SOURCES_LIST_LOAD_SUCCESS';
 export const SOURCES_LIST_LOAD_FAILURE = 'SOURCES_LIST_LOAD_FAILURE';
 
-function fetchSourceListData() {
+function fetchSourceListData(includeDatasetCount = false) {
   const meta = {viewId: 'AllSources', mergeEntities: true};
 
   const apiCall = new APIV2Call()
     .path('sources')
+    .params({includeDatasetCount})
     .uncachable();
 
   return {
@@ -129,7 +150,8 @@ function fetchSourceListData() {
 
 export function loadSourceListData() {
   return (dispatch) => {
-    return dispatch(fetchSourceListData());
+    return dispatch(fetchSourceListData())
+      .then(() => dispatch(fetchSourceListData(true)));
   };
 }
 

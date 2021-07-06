@@ -52,6 +52,7 @@ export class ViewStateWrapper extends Component {
     hideChildrenWhenFailed: PropTypes.bool,
     style: PropTypes.object,
     messageStyle: PropTypes.object, // styles that are applied to a error message
+    messageClassName: PropTypes.string, // classname that are applied to a error message
     showMessage: PropTypes.bool,
     dismissViewStateError: PropTypes.func,
     onDismissError: PropTypes.func,
@@ -124,6 +125,7 @@ export class ViewStateWrapper extends Component {
       showMessage,
       onDismissError,
       messageStyle,
+      messageClassName,
       overlayStyle,
       dataQa,
       multilineErrorMessage
@@ -155,6 +157,7 @@ export class ViewStateWrapper extends Component {
         isDismissable={this.props.messageIsDismissable}
         inFlow={hideChildrenWhenFailed}
         style={messageStyle}
+        className={messageClassName}
       />;
     }
   }

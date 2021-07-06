@@ -29,7 +29,7 @@ describe('AccelerationAggregation', () => {
         id: '1',
         path: ['path', 'name']
       }),
-      reflections: Immutable.fromJS({}),
+      reflections: Immutable.fromJS({canAlter: true}),
       fields: {
         aggregationReflections: [{name:{value:'col1'}}, {name:{value:'col2'}}]
       }

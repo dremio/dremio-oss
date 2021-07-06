@@ -68,6 +68,35 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testQueryWithConstant() throws Exception {
+    final String sql = "SELECT count(*) as c1 FROM cp.\"complex/complex_fields.parquet\" as \"x\" where (case " +
+      "when x.c_array_array[0][0] > 3 " +
+      "then x.c_array_array[0][1] " +
+      "else x.c_array_array[0][0] end) = 3;";
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues(14L)
+      .go();
+  }
+
+  @Test
+  public void testInvalidUtf() throws Exception {
+    final String subQuery = "select columns[0] as col0, columns[1] as col1 from cp.\"csv/invalidUtf.csv\" limit 500";
+    final String sql = "SELECT convert_from(col0, 'UTF8', '') as c1 FROM (" + subQuery +
+      ") where is_utf8(col0) is false";
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues("slcken")
+      .baselineValues("undeveopable")
+      .baselineValues("donswing")
+      .go();
+  }
+
+  @Test
   public void testNullInInClause() throws Exception {
     test("select * from cp.\"tpch/lineitem.parquet\" where l_orderkey in (-1, null)");
   }
@@ -103,6 +132,7 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineValues(0, "No")
       .go();
   }
+
 
   // See DX-17817
   @Test
@@ -176,31 +206,60 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void stringLiteralComparison() throws Exception {
-    String sql = "SELECT a = b as e FROM (VALUES('foo', 'foo'),('bar', 'bar ')) tbl(a, b)";
+    String sql = ""
+      + "SELECT\n"
+      + "  a = b as example1,\n"
+      + "  'foo' = 'foo ' as example2,\n"
+      + "  a = 'foo ' as example3,\n"
+      + "  c = 'foo ' as example4,\n"
+      + "  b = CAST('foo' AS CHAR(3)) as example5\n"
+      + "FROM (\n"
+      + "  VALUES('foo', 'foo ', CAST('foo' AS CHAR(3)))) AS t(a, b, c)";
     testBuilder()
       .sqlQuery(sql)
       .ordered()
-      .baselineColumns("e")
-      .baselineValues(true)
-      .baselineValues(false)
+      .baselineColumns("example1", "example2", "example3", "example4", "example5")
+      .baselineValues(false, false, false, false, false)
+      .go();
+  }
+
+  @Test
+  public void testUnionString() throws Exception {
+    String sql = ""
+      + "WITH t1 AS (\n"
+      + "SELECT 0 AS \"First Loan Flag\", 'No' AS \"First Loan\"\n"
+      + "FROM (VALUES ROW(1))\n"
+      + "UNION ALL\n"
+      + "SELECT 1 AS \"First Loan Flag\", 'Yes' AS \"First Loan\"\n"
+      + "FROM (VALUES ROW(1)))\n"
+      + "SELECT count(*) cnt\n"
+      + "FROM   t1 \n"
+      + "WHERE \"First Loan\" = 'Yes'";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("cnt")
+      .baselineValues(1L)
       .go();
   }
 
   @Test
   public void stringLiteralInClause() throws Exception {
-    String sql = "WITH t1 AS \n" +
-      "( \n" +
-      "       SELECT \n" +
-      "              CASE n_regionkey \n" +
-      "                     WHEN 0 THEN 'AFRICA' \n" +
-      "                     WHEN 1 THEN 'AMERICA' \n" +
-      "                     WHEN 2 THEN 'ASIA' \n" +
-      "                     ELSE 'OTHER' \n" +
-      "              END AS region \n" +
-      "       FROM   cp.\"tpch/nation.parquet\") \n" +
-      "SELECT count(*) cnt\n" +
-      "FROM   t1 \n" +
-      "WHERE  region IN ('ASIA')";
+    String sql = ""
+      + "WITH t1 AS \n"
+      + "( \n"
+      + "       SELECT \n"
+      + "              CASE n_regionkey \n"
+      + "                     WHEN 0 THEN 'AFRICA' \n"
+      + "                     WHEN 1 THEN 'AMERICA' \n"
+      + "                     WHEN 2 THEN 'ASIA' \n"
+      + "                     ELSE 'OTHER' \n"
+      + "              END AS region \n"
+      + "       FROM   cp.\"tpch/nation.parquet\") \n"
+      + "SELECT count(*) cnt\n"
+      + "FROM   t1 \n"
+      + "WHERE  region IN ('ASIA')";
 
     testBuilder()
       .sqlQuery(sql)
@@ -522,7 +581,11 @@ public class TestExampleQueries extends PlanTestBase {
   @Test
   public void testValues2() throws Exception {
     String query = "SELECT id FROM (VALUES(''),(''),('non-null-value')) tbl(id) WHERE NULLIF(id,'') IS NOT NULL";
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("id").baselineValues("non-null-value").go();
+    testBuilder().sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("id")
+        .baselineValues("non-null-value")
+        .go();
   }
 
   @Test

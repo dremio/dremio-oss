@@ -47,7 +47,8 @@ export class ColumnReorder extends Component {
     //handlers
     handleDragStart: PropTypes.func.isRequired,
     handleDragEnd: PropTypes.func.isRequired,
-    handleMoveColumn: PropTypes.func.isRequired
+    handleMoveColumn: PropTypes.func.isRequired,
+    hasPermission: PropTypes.bool
   };
   render() {
     const {
@@ -58,7 +59,8 @@ export class ColumnReorder extends Component {
       //handlers
       handleDragStart,
       handleDragEnd,
-      handleMoveColumn
+      handleMoveColumn,
+      hasPermission
     } = this.props;
 
     return (
@@ -74,16 +76,18 @@ export class ColumnReorder extends Component {
                   moveColumn={(dragIndex, currentHoverIndex) => handleMoveColumn(fieldName, dragIndex, currentHoverIndex)}
                   index={index}
                 >
-                  <div style={dragSourceStyle}>
+                  <div style={dragSourceStyle.cursor === 'ns-resize' && hasPermission === true ? dragSourceStyle : { cursor: 'default' }}>
                     <DragSource
                       dragType='sortColumns'
                       index={index}
                       onDragStart={handleDragStart}
                       onDragEnd={() => handleDragEnd(fieldName, column)}
                       isFromAnother
-                      id={columnName}>
-                      <div style={styles.column}>
-                        <div style={styles.columnIndex}>{indexes[columnName] + 1}</div>
+                      id={columnName}
+                      preventDrag={hasPermission ? undefined : true}
+                    >
+                      <div style={hasPermission ? styles.column : styles.disabledColumn}>
+                        <div style={hasPermission ? styles.columnIndex : styles.disabledColumnIndex}>{indexes[columnName] + 1}</div>
                         <span style={{ marginLeft: 10 }}>{columnName}</span>
                       </div>
                     </DragSource>
@@ -114,7 +118,8 @@ export default class CellPopover extends Component {
     onRequestClose: PropTypes.func.isRequired,
     partitionFields: PropTypes.array,
     onSelectPartitionItem: PropTypes.func,
-    onSelectMenuItem: PropTypes.func
+    onSelectMenuItem: PropTypes.func,
+    hasPermission: PropTypes.bool
   };
 
   state = {
@@ -220,20 +225,21 @@ export default class CellPopover extends Component {
       hoverIndex: this.state.hoverIndex,
       handleDragEnd: this.handleDragEnd,
       handleDragStart: this.handleDragStart,
-      handleMoveColumn: this.handleMoveColumn
+      handleMoveColumn: this.handleMoveColumn,
+      hasPermission: this.props.hasPermission
     };
 
     return (<ColumnReorder {...props} />);
   };
 
   renderSortMenu = () => {
-    const { sortFields } = this.props;
+    const { sortFields, hasPermission } = this.props;
     return (
       <div>
         { sortFields.length > 0 &&
           <div>
             <span style={styles.menuHeader}>
-              {la('Drag to change sort order:')}
+              {la(hasPermission ? 'Drag to change sort order:' : 'View only access:')}
             </span>
             {this.renderColumnArea('sortFields')}
           </div>
@@ -243,7 +249,7 @@ export default class CellPopover extends Component {
   };
 
   renderGranularityMenu = () => {
-    const { currentCell } = this.props;
+    const { currentCell, hasPermission } = this.props;
     // our material-ui is old, and MenuItem does not support selected property, thus messing with styles here
     return (
       <div>
@@ -253,7 +259,7 @@ export default class CellPopover extends Component {
         <div style={{marginTop: 5}}>
           <MenuItem
             classes={menuItemClasses}
-            onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.normal)}
+            onClick={hasPermission ? () => this.props.onSelectMenuItem(cellType.dimension, granularityValue.normal) : null}
             selected={currentCell.value === granularityValue.normal}
             style={styles.menuItem}
           >
@@ -261,7 +267,7 @@ export default class CellPopover extends Component {
           </MenuItem>
           <MenuItem
             classes={menuItemClasses}
-            onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.date)}
+            onClick={hasPermission ? () => this.props.onSelectMenuItem(cellType.dimension, granularityValue.date) : null}
             selected={currentCell.value === granularityValue.date}
             style={styles.menuItem}
           >
@@ -289,6 +295,7 @@ export default class CellPopover extends Component {
 
   renderMeasureMenu = () => {
     const typesToDisplay = get(this.props, 'currentCell.measureTypeAll', []);
+    const { hasPermission } = this.props;
     return (
       <div>
         <span style={styles.measureMenuHeader}>
@@ -301,6 +308,7 @@ export default class CellPopover extends Component {
                 checked={Boolean(this.state.measureTypeList.find(item => item === measure))}
                 dataQa={`checkbox-${measure}`}
                 onChange={this.toggleMeasure.bind(this, measure)}
+                disabled={hasPermission ? null : true}
                 label={measureTypeLabels[measure]}/>
             </div>;
           })
@@ -365,6 +373,13 @@ const styles = {
     border: '1px solid #a8e7d9',
     backgroundColor: '#ebf9f6'
   },
+  disabledColumn: {
+    display: 'flex',
+    height: 20,
+    alignItems: 'center',
+    border: '1px solid #f0f0f0',
+    backgroundColor: '#ffffff'
+  },
   columnIndex: {
     ...formLabel,
     width: 20,
@@ -373,6 +388,16 @@ const styles = {
     alignItems: 'center',
     backgroundColor: '#96e3d1',
     height: '100%'
+  },
+  disabledColumnIndex: {
+    ...formLabel,
+    width: 20,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#eeeeee',
+    height: '100%',
+    color: '#D2D2D2'
   },
   menuHeader: {
     marginBottom: 10,

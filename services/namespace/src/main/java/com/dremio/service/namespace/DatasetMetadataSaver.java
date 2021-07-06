@@ -17,7 +17,8 @@ package com.dremio.service.namespace;
 
 import java.io.IOException;
 
-import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
@@ -25,20 +26,26 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
  * The methods need to be invoked in order. In particular, the partition chunk listing must be saved then the dataset.
  * Saving of the dataset always completes with the saving of the dataset config
  * Order of invocation:
- *    - partition chunk listing
+ *      - dataset split +    // one or more invocations to {@link #saveDatasetSplit(DatasetSplit)}
+ *    - partition chunk      // refers to all the dataset split(s) above
+ *      - dataset split +
+ *    - partition chunk      // refers to the dataset split(s) saved after the last partition chunk
  *  - dataset config         // "closes" the save. Refers to all the partition chunks saved above
  */
 public interface DatasetMetadataSaver extends AutoCloseable {
 
   /**
-   * Save a partition chunk listing that refers to all partition chunks since the last invocation
-   * of {@link #savePartitionChunks(PartitionChunkListing)}, or since the creation of this metadata saver, whichever came last.
-   * Also calculates to total number of records across every split and every partition chunk listed.
-   *
-   * @param chunkListing The partition chunks to save.
-   * @return The total record count of all splits in chunkListing.
+   * Save a single split
    */
-  long savePartitionChunks(PartitionChunkListing chunkListing) throws IOException;
+  void saveDatasetSplit(DatasetSplit split);
+
+  /**
+   * Save a partition chunk that refers to all the dataset splits since the last invocation
+   * of {@link #savePartitionChunk(PartitionChunk)}, or since the creation of this metadata saver, whichever came last.
+   * At least one {@link #saveDatasetSplit(DatasetSplit)} must have been invoked, or this method will throw a
+   * RuntimeException
+   */
+  void savePartitionChunk(PartitionChunk partitionChunk) throws IOException;
 
   /**
    * Complete the saving of this dataset. After this method is invoked, invoking any other method on this saver will
@@ -49,8 +56,8 @@ public interface DatasetMetadataSaver extends AutoCloseable {
   void saveDataset(DatasetConfig datasetConfig, boolean opportunisticSave, NamespaceAttribute... attributes) throws NamespaceException;
 
   /**
-   * If {@link #saveDataset} was not invoked, will clean up any effects of
-   * {@link #savePartitionChunks(PartitionChunkListing)} calls.
+   * If {@link #saveDataset} was not invoked, will clean up any effects of the {@link #saveDatasetSplit(DatasetSplit)}
+   * and {@link #savePartitionChunk(PartitionChunk)} calls
    */
   @Override
   void close();

@@ -18,11 +18,13 @@ package com.dremio.datastore;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
+import com.dremio.common.SuppressForbidden;
 import com.google.common.base.Preconditions;
 
 /**
  * Utilities for datastore and other applications
  */
+@SuppressForbidden
 public final class DataStoreUtils {
 
   /**

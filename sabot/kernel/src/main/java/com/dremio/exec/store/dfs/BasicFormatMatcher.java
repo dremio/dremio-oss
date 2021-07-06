@@ -68,13 +68,14 @@ public class BasicFormatMatcher extends FormatMatcher {
     if(!firstFileO.isPresent()) {
       return false;
     }
-    return isFileReadable(fs, firstFileO.get(), codecFactory);
+    return matches(fs, firstFileO.get(), codecFactory);
   }
 
   /*
    * Function returns true if the file extension matches the pattern
    */
-  protected boolean isFileReadable(FileSystem fs, FileAttributes attributes, CompressionCodecFactory codecFactory) throws IOException {
+  @Override
+  public boolean matches(FileSystem fs, FileAttributes attributes, CompressionCodecFactory codecFactory) throws IOException {
   CompressionCodec codec = null;
     if (compressible) {
       codec = codecFactory.getCodec(attributes.getPath());

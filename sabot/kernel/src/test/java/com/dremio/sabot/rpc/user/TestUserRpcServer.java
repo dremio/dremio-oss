@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -92,17 +93,17 @@ public class TestUserRpcServer {
 
   @Captor ArgumentCaptor<ResponseSender> captorSender;
 
-  public void setup(boolean tracingEnabled) {
+  public void setup(boolean tracingEnabled, boolean[] closed) {
     // Use the mock ingestor by default.
-    setup(ingestor, tracingEnabled);
+    setup(ingestor, tracingEnabled, closed);
   }
 
-  public void setup(WorkIngestor ingestor, boolean enabled) {
+  public void setup(WorkIngestor ingestor, boolean enabled, boolean[] closed) {
     // Simply connect the session to the connection.
     // It's up to the individual tests return from calls to the session.
     when(connection.getSession()).thenReturn(userSession);
     when(userSession.isTracingEnabled()).thenReturn(enabled);
-
+    when(connection.newRequestHandle(anyInt())).thenReturn(() -> { closed[0] = true; });
 
     server = new UserRPCServer(rpcConfig, userServiceProvider, nodeEndpointProvider, ingestor, worker, allocator, loopGroup, impersonationManager, tracer, optionValidatorListing);
   }
@@ -123,32 +124,37 @@ public class TestUserRpcServer {
 
   @Test
   public void testHandlePassesNoopTracesByDefault() throws RpcException {
-    setup(false);
+    boolean[] closed = {false};
+    setup(false, closed);
 
-    server.handle(connection, GET_CATALOGS_VALUE, pBody, dBody, responseSender);
+    server.handle(connection, 10, GET_CATALOGS_VALUE, pBody, dBody, responseSender);
 
     verify(ingestor).feedWork(eq(connection), eq(GET_CATALOGS_VALUE), eq(pBody), eq(dBody), captorSender.capture());
     assertEquals(tracer.finishedSpans().size(), 0);
+    assertFalse(closed[0]);
     verifySendResponse(0);
   }
 
   @Test
   public void testHandleCreatesSpansFromTracerWhenTracingEnabled() throws RpcException {
-    setup(true);
+    boolean[] closed = {false};
+    setup(true, closed);
 
-    server.handle(connection, GET_SCHEMAS_VALUE, pBody, dBody, responseSender);
+    server.handle(connection, 11, GET_SCHEMAS_VALUE, pBody, dBody, responseSender);
 
     verify(ingestor).feedWork(eq(connection), eq(GET_SCHEMAS_VALUE), eq(pBody), eq(dBody), captorSender.capture());
     assertEquals(tracer.finishedSpans().size(), 0);
     verifySendResponse(1);
+    assertTrue(closed[0]);
     assertEquals("GET_SCHEMAS", tracer.finishedSpans().get(0).tags().get("rpc_type"));
   }
 
   @Test
   public void testHandleSpansWhileSendingFailure() throws RpcException {
-    setup(true);
+    boolean[] closed = {false};
+    setup(true, closed);
 
-    server.handle(connection, GET_CATALOGS_VALUE, pBody, dBody, responseSender);
+    server.handle(connection, 12, GET_CATALOGS_VALUE, pBody, dBody, responseSender);
 
 
     verify(ingestor).feedWork(eq(connection), eq(GET_CATALOGS_VALUE), eq(pBody), eq(dBody), captorSender.capture());
@@ -159,27 +165,31 @@ public class TestUserRpcServer {
     captorSender.getValue().sendFailure(r);
     verify(responseSender).sendFailure(r);
     assertEquals(1, tracer.finishedSpans().size());
+    assertTrue(closed[0]);
     assertEquals("GET_CATALOGS", tracer.finishedSpans().get(0).tags().get("rpc_type"));
   }
 
   @Test
   public void testHandleFinishesSpanIfFeedFailure() throws RpcException {
     WorkIngestor ingest = (con, rpc, pb, db, sender) -> { throw new RpcException(); };
-    setup(ingest, true);
+    boolean[] closed = {false};
+    setup(ingest, true, closed);
 
     try {
-      server.handle(connection, CANCEL_QUERY_VALUE, pBody, dBody, responseSender);
+      server.handle(connection, 13, CANCEL_QUERY_VALUE, pBody, dBody, responseSender);
     } catch (RpcException e) { }
 
     assertEquals(1, tracer.finishedSpans().size());
     assertEquals("CANCEL_QUERY", tracer.finishedSpans().get(0).tags().get("rpc_type"));
+    assertTrue(closed[0]);
   }
 
   @Test
   public void testSessionOptionManagerLifetime() throws Exception {
     // create and drop a UserClientConnection, spy on factory in server
     WorkIngestor ingest = (con, rpc, pb, db, sender) -> { throw new RpcException(); };
-    setup(ingest, true);
+    boolean[] closed = {false};
+    setup(ingest, true, closed);
 
     when(socketChannel.pipeline())
       .thenReturn(mock(ChannelPipeline.class));

@@ -26,10 +26,6 @@ export default function(input) {
       return QUEUES;
     },
 
-    getBtnLabel() {
-      return la('New Engine');
-    },
-
     openAdd(props, clusterType) {
       props.openAddProvisionModal(clusterType);
     },

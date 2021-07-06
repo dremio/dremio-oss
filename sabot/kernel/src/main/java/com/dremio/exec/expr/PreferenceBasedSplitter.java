@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -26,6 +27,7 @@ import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import com.dremio.exec.compile.sig.ConstantExpressionIdentifier;
 import com.google.common.collect.Lists;
 
 /* Splits one expression into sub-expressions such that each sub-expression can be evaluated
@@ -109,8 +111,9 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     }
 
     int i = 0;
-    // reset this to false, in case we find something that cannot be done in preferred codegenerator
-    boolean canExecuteTreeInSingleCodeGen = (fnExecType == this.preferredEngine);
+    // initially assume we can run in a single code gen
+    boolean canExecuteTreeInSingleCodeGen = true;
+
     logger.trace("Visiting function {}, fnExecType {}", holder, fnExecType);
     // iterate over the arguments and visit them
     for(LogicalExpression arg : holder.args) {
@@ -128,7 +131,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         mustSplitAtArg = false;
       }
 
-      if (newArg.isExpressionExecutableInEngine(fnExecType)) {
+      if (mustSplitAtArg && newArg.isExpressionExecutableInEngine(fnExecType)) {
         // function and arg can be evaluated by the function's execution type
         if (fnExecType == this.preferredEngine) {
           // if fnExecType is preferred, no need to split
@@ -142,11 +145,15 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
             // arg can execute at the preferred codegenerator, but it
             // cannot be split at this point
             mustSplitAtArg = false;
+          } else if (ConstantExpressionIdentifier.isExpressionConstant(newArg.getChild())) {
+            // there is no value in switching this to prefered as it is constant that is executable
+            // in non-prefered
+            mustSplitAtArg = false;
           }
         }
       }
 
-      if (!newArg.isSubExpressionExecutableInEngine(fnExecType)) {
+      if (!newArg.isSubExpressionExecutableInEngine(fnExecType) || mustSplitAtArg) {
         canExecuteTreeInSingleCodeGen = false;
       }
 
@@ -523,5 +530,14 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     // TODO: Need to check how the splitter handles complex data types
     // Ideally like(a.b, "Barbie") should execute in Gandiva with a.b evaluated in Java to produce a ValueVector
     return value.first;
+  }
+
+  @Override
+  public CodeGenContext visitCaseExpression(CaseExpression caseExpression, Tuple<CodeGenContext, SplitDependencyTracker> value) throws Exception {
+    // TODO: Implement splitting for case expressions
+    CodeGenContext caseExpressionContext = CodeGenContext.buildWithNoDefaultSupport(caseExpression);
+    caseExpressionContext.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.JAVA);
+    caseExpressionContext.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.JAVA);
+    return caseExpressionContext;
   }
 }

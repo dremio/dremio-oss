@@ -44,7 +44,7 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.IcebergOperation;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -222,12 +222,12 @@ public class RefreshHandler implements SqlToPlanHandler {
     if (isIcebergInsertRefresh(materialization, refreshDecisions[0])) {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, null,
-        IcebergOperation.Type.INSERT, materialization.getBasePath());
+        IcebergCommandType.INSERT, materialization.getBasePath());
 
     } else {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, null,
-        IcebergOperation.Type.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum());
+        IcebergCommandType.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum());
     }
     return icebergTableProps;
   }
@@ -253,7 +253,7 @@ public class RefreshHandler implements SqlToPlanHandler {
       RefreshDecision[] refreshDecisions) {
 
     final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig, namespace,
-      context.getPlannerSettings().getOptions(), config, goal, entry, materialization,
+      config, goal, entry, materialization,
       reflectionSettings, materializationStore, getForceFullRefresh(materialization));
 
     final RelNode normalizedPlan = planGenerator.generateNormalizedPlan();

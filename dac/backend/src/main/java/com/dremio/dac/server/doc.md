@@ -288,30 +288,33 @@
 
 ## Resource defined by class com.dremio.dac.resource.JobResource
 
- - GET /job/{jobId} (path params: jobId={String})   
+ - GET /job/{jobId}   
    > `<=` [com.dremio.dac.model.job.JobUI](#class-comdremiodacmodeljobjobui)   
 
- - GET /job/{jobId}/data?limit={int}&offset={int} (path params: jobId={com.dremio.service.job.proto.JobId})   
+ - GET /job/{jobId}/data?limit={int}&offset={int}   
    > `<=` [com.dremio.dac.model.job.JobDataFragment](#class-comdremiodacmodeljobjobdatafragment)   
 
- - GET /job/{jobId}/details (path params: jobId={String})   
+ - GET /job/{jobId}/details   
    > `<=` [com.dremio.dac.model.job.JobDetailsUI](#class-comdremiodacmodeljobjobdetailsui)   
 
- - GET /job/{jobId}/r/{rowNum}/c/{columnName} (path params: jobId={com.dremio.service.job.proto.JobId}, rowNum={int}, columnName={String})   
+ - GET /job/{jobId}/r/{rowNum}/c/{columnName} (path params: rowNum={int}, columnName={String})   
    > `<=` java.lang.Object   
 
- - POST /job/{jobId}/reflection/{reflectionId}/cancel (path params: jobId={String}, reflectionId={String})   
+ - POST /job/{jobId}/reflection/{reflectionId}/cancel (path params: reflectionId={String})   
    > `=>`   
    > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
 
- - GET /job/{jobId}/reflection/{reflectionId}/details (path params: jobId={String}, reflectionId={String})   
+ - GET /job/{jobId}/reflection/{reflectionId}/details (path params: reflectionId={String})   
    > `<=` [com.dremio.dac.model.job.JobDetailsUI](#class-comdremiodacmodeljobjobdetailsui)   
 
- - POST /job/{jobId}/cancel (path params: jobId={String})   
+ - GET /job/{jobId}/summary   
+   > `<=` [com.dremio.dac.model.job.JobSummaryUI](#class-comdremiodacmodeljobjobsummaryui)   
+
+ - POST /job/{jobId}/cancel   
    > `=>`   
    > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
 
- - GET /job/{jobId}/download?downloadFormat={com.dremio.dac.explore.model.DownloadFormat} (path params: jobId={com.dremio.service.job.proto.JobId})   
+ - GET /job/{jobId}/download?downloadFormat={com.dremio.dac.explore.model.DownloadFormat}   
    > `<=` javax.ws.rs.core.Response   
 
 
@@ -517,7 +520,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.SourcesResource
 
- - GET /sources   
+ - GET /sources?includeDatasetCount={boolean}true   
    > `<=` [com.dremio.dac.model.sources.Sources](#class-comdremiodacmodelsourcessources)   
 
  - POST /sources/isMetadataImpacting   
@@ -1845,6 +1848,8 @@
       (ref: Folder),
       ...
     ],
+    isFileSystemSource: true | false,
+    isImpersonationEnabled: true | false,
     physicalDatasets: [
       {
         datasetConfig: {
@@ -2128,6 +2133,7 @@
   queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT",
   requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
   resourceScheduling: {
+    engineName: "abc",
     queueId: "abc",
     queueName: "abc",
     ruleContent: "abc",
@@ -2198,6 +2204,52 @@
     },
     ...
   ],
+}
+```
+
+## `class com.dremio.dac.model.job.JobSummaryUI`
+- Example:
+```
+{
+  accelerated: true | false,
+  cancellationInfo: {
+    message: "abc",
+  },
+  datasetPathList: [
+    "abc",
+    ...
+  ],
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetVersion: "abc",
+  description: "abc",
+  endTime: 1,
+  failureInfo: {
+    errors: [
+      {
+        message: "abc",
+        range: {
+          endColumn: 1,
+          endLine: 1,
+          startColumn: 1,
+          startLine: 1,
+        },
+      },
+      ...
+    ],
+    message: "abc",
+    type: "UNKNOWN" | "PARSE" | "VALIDATION" | "EXECUTION",
+  },
+  id: "abc",
+  isComplete: true | false,
+  outputLimited: true | false,
+  outputRecords: 1,
+  processedRecords: 1,
+  requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+  snowflakeAccelerated: true | false,
+  spilled: true | false,
+  startTime: 1,
+  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
+  user: "abc",
 }
 ```
 
@@ -2477,6 +2529,7 @@
       queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT",
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
       resourceSchedulingInfo: {
+        engineName: "abc",
         queryCost: 1.0,
         queueId: "abc",
         queueName: "abc",
@@ -2978,6 +3031,8 @@
       },
       ...
     ],
+    isFileSystemSource: true | false,
+    isImpersonationEnabled: true | false,
     physicalDatasets: [
       {
         datasetConfig: {
@@ -3024,6 +3079,7 @@
   ctime: 1,
   datasetCountBounded: true | false,
   description: "abc",
+  disableMetadataValidityCheck: true | false,
   fullPathList: [
     "abc",
     ...
@@ -3333,6 +3389,8 @@
           },
           ...
         ],
+        isFileSystemSource: true | false,
+        isImpersonationEnabled: true | false,
         physicalDatasets: [
           {
             datasetConfig: {
@@ -3379,6 +3437,7 @@
       ctime: 1,
       datasetCountBounded: true | false,
       description: "abc",
+      disableMetadataValidityCheck: true | false,
       fullPathList: [
         "abc",
         ...
@@ -3682,6 +3741,8 @@
       },
       ...
     ],
+    isFileSystemSource: true | false,
+    isImpersonationEnabled: true | false,
     physicalDatasets: [
       {
         datasetConfig: {
@@ -4014,6 +4075,8 @@
       },
       ...
     ],
+    isFileSystemSource: true | false,
+    isImpersonationEnabled: true | false,
     physicalDatasets: [
       {
         datasetConfig: {
@@ -4335,6 +4398,8 @@
           },
           ...
         ],
+        isFileSystemSource: true | false,
+        isImpersonationEnabled: true | false,
         physicalDatasets: [
           {
             datasetConfig: {

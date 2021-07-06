@@ -18,6 +18,10 @@ export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     showAccelerationButton() {
       return this.isCreatedAndNamedDataset();
+    },
+
+    getExtraSaveDisable() {
+      return false;
     }
 
   });

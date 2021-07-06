@@ -29,12 +29,15 @@ import com.google.common.collect.ImmutableSet;
  */
 public class AsyncReaderUtils {
 
+  public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of("gs","dremiogcs");
+  public static final String DREMIO_GCS = "dremiogcs";
   public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a","s3","s3n", "dremios3");
   public static final Set<String> AZURE_FILE_SYSTEM = ImmutableSet.of("wasbs", "wasb", "abfs",
     "abfss");
   public static final Set<String> HDFS_FILE_SYSTEM = ImmutableSet.of("hdfs");
   public static final String DREMIO_S3 = "dremioS3";
   public static final String FS_DREMIO_S3_IMPL = "fs.dremioS3.impl";
+  public static final String FS_DREMIO_GCS_IMPL = "fs.dremiogcs.impl";
   public static final String DREMIO_AZURE = "dremioAzureStorage";
   public static final String FS_DREMIO_AZURE_IMPL = "fs.dremioAzureStorage.impl";
   public static final String DREMIO_HDFS = "hdfs";
@@ -64,6 +67,10 @@ public class AsyncReaderUtils {
       modifiedURI = new URI(DREMIO_HDFS,  uri.getHost(), uri.getPath(),
         uri.getFragment());
       jobConf.set(FS_DREMIO_HDFS_IMPL, DremioFileSystem.class.getName());
+    } else if (GCS_FILE_SYSTEM.contains(scheme)) {
+      modifiedURI = new URI(DREMIO_GCS,  uri.getRawAuthority(), "/" + uri.getRawAuthority() +  uri.getPath(),
+              uri.getQuery(), uri.getFragment());
+      jobConf.set(FS_DREMIO_GCS_IMPL, DremioFileSystem.class.getName());
     }
     return  modifiedURI;
   }

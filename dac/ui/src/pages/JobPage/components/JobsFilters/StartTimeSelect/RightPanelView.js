@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { DateRange } from 'react-date-range';
 import Radium from 'radium';
 import moment from 'moment';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -26,9 +25,8 @@ import { PALE_GREY, PALE_NAVY } from 'uiTheme/radium/colors';
 import DateTimeInput from './DateTimeInput';
 import './RightPanelView.less';
 
-@PureRender
 @Radium
-class RightPanelView extends Component {
+class RightPanelView extends PureComponent {
   static propTypes = {
     endMoment: PropTypes.object.isRequired,
     startMoment: PropTypes.object.isRequired,

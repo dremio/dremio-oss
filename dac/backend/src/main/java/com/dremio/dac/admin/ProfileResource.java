@@ -188,6 +188,7 @@ public class ProfileResource {
   @GET
   @Path("/{queryid}/reflection/{reflectionId}")
   @Produces(TEXT_HTML)
+  @TemporaryAccess
   public Viewable getReflectionJobProfile(@PathParam("queryid") String queryId,
                              @QueryParam("attempt") @DefaultValue("0") int attempt,
                              @PathParam("reflectionId") String reflectionId) {

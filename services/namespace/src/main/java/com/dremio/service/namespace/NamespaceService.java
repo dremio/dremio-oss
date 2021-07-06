@@ -25,7 +25,6 @@ import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -75,8 +74,6 @@ public interface NamespaceService {
 
   void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes) throws NamespaceException;
 
-  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<PartitionChunk> splits, NamespaceAttribute... attributes) throws NamespaceException;
-
   void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
   void addOrUpdateHome(NamespaceKey homePath, HomeConfig homeConfig) throws NamespaceException;
@@ -105,7 +102,7 @@ public interface NamespaceService {
 
   SpaceConfig getSpaceById(String id) throws NamespaceException;
 
-  NameSpaceContainer getEntityById(String id) throws NamespaceException;
+  NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException;
 
   /**
    * Returns {@link DatasetConfig configuration} corresponding to given path.
@@ -120,9 +117,9 @@ public interface NamespaceService {
    * @param lookupKeys namespace keys
    * @return list of namespace containers with null if no value found for a key.
    *         Order of returned list matches with order of lookupKeys.
-   * @throws NamespaceException
+   * @throws NamespaceNotFoundException
    */
-  List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) throws NamespaceException;
+  List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) throws NamespaceNotFoundException;
 
   List<SpaceConfig> getSpaces();
 
@@ -150,6 +147,8 @@ public interface NamespaceService {
   Iterable<NamespaceKey> getAllDatasets(final NamespaceKey parent) throws NamespaceException;
 
   int getAllDatasetsCount(NamespaceKey path) throws NamespaceException;
+
+  Iterable<NameSpaceContainer> getAllDescendants(final NamespaceKey root);
 
   /**
    * Get the list of datasets under the given path with bounds to stop searching.
@@ -179,7 +178,7 @@ public interface NamespaceService {
 
   void deleteEntity(NamespaceKey entityPath) throws NamespaceException;
 
-  void deleteDataset(NamespaceKey datasetPath, String version) throws NamespaceException;
+  void deleteDataset(NamespaceKey datasetPath, String version, NamespaceAttribute... attributes) throws NamespaceException;
 
   void deleteFolder(NamespaceKey folderPath, String version) throws NamespaceException;
 
@@ -258,5 +257,13 @@ public interface NamespaceService {
    * @param datasetPath
    * @return a data set entity id or null, if there is no dataset by provided path
    */
-  String getEntityIdByPath(NamespaceKey datasetPath) throws NamespaceException;
+  String getEntityIdByPath(NamespaceKey datasetPath) throws NamespaceNotFoundException;
+
+  /**
+   * Returns an entity given its path.
+   *
+   * @param datasetPath namespace key
+   * @return dataset associated with this path or null, if there is no dataset.
+   */
+  NameSpaceContainer getEntityByPath(NamespaceKey datasetPath) throws NamespaceException;
 }

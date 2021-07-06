@@ -48,6 +48,8 @@ message SourceConfig {
   optional int64 configOrdinal = 18;
   optional bool allowCrossSourceSelection = 19 [default = false];
   optional bool checkTableAuthorizer = 20 [default = true];
+  optional bool disableMetadataValidityCheck = 21 [default = false];
+
 }
 
 // Version notes:

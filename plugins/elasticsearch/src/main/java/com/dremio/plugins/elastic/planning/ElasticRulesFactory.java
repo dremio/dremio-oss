@@ -23,8 +23,8 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
+import com.dremio.options.OptionResolver;
 import com.dremio.plugins.elastic.planning.rules.ElasticFilterRule;
 import com.dremio.plugins.elastic.planning.rules.ElasticLimitRule;
 import com.dremio.plugins.elastic.planning.rules.ElasticProjectRule;
@@ -38,7 +38,7 @@ public class ElasticRulesFactory extends StoragePluginTypeRulesFactory {
   @Override
   public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
 
-    final OptionManager options = optimizerContext.getPlannerSettings().getOptions();
+    final OptionResolver options = optimizerContext.getPlannerSettings().getOptions();
 
     switch(phase){
     case LOGICAL:

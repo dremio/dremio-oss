@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
@@ -24,8 +23,7 @@ import * as exploreModals from './../ExplorePage/components/modals';
 
 const BODY_CLASS = 'body-modal-open';
 
-@pureRender
-export default class HomeModals extends Component {
+export default class HomeModals extends PureComponent {
 
   static propTypes = {
     children: PropTypes.node

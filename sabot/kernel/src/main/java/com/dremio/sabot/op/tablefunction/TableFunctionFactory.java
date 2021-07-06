@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.tablefunction;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -25,5 +26,5 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
  */
 public interface TableFunctionFactory {
   TableFunction createTableFunction(FragmentExecutionContext fec, OperatorContext context,
-                                    OpProps props, TableFunctionConfig functionConfig);
+                                    OpProps props, TableFunctionConfig functionConfig) throws ExecutionSetupException;
 }

@@ -25,12 +25,14 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -81,6 +83,21 @@ public interface AttemptObserver {
    * Printing a message to indicate the plan cache is used.
    */
   default void planCacheUsed(int count) {};
+
+  /**
+   * Retrieving the latest acceleration profile
+   */
+  default void setCachedSubstitutionInfo(CachedPlan cachedPlan) {};
+
+  /**
+   * Sets the cached acceleration profile that the profile should show
+   */
+  default void setAccelerationProfile(AccelerationProfile accelerationProfile) {};
+
+  /**
+   * Sets the cachedPlan key for this query
+   */
+  default void setCacheKey(long cacheKey) {};
 
   /**
    * Plan that is serializable, just before convertible scans are converted

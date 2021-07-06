@@ -15,22 +15,21 @@
  */
 import { PureComponent, Component } from 'react';
 import classNames from 'classnames';
-import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import Art from '@app/components/Art';
 import SimpleButton from '@app/components/Buttons/SimpleButton';
-import { isWikiPresent } from '@app/selectors/home';
 import {
   notificationIcon,
   wikiButton as wikiButtonCls,
   wikiButtonSelected
 } from './WikiButton.less';
 
-const mapStateToProps = (state) => {
-  return {
-    hasWiki: isWikiPresent(state)
-  };
-};
+// Commenting this out for now for https://dremio.atlassian.net/browse/DX-31621
+// const mapStateToProps = (state) => {
+//   return {
+//     hasWiki: isWikiPresent(state)
+//   };
+// };
 
 export class WikiButtonView extends PureComponent {
   static propTypes = {
@@ -61,17 +60,15 @@ export class WikiButtonView extends PureComponent {
   }
 }
 
-@connect(mapStateToProps)
+// @connect(mapStateToProps)
 export class WikiButton extends Component {
   static propTypes = {
     isSelected: PropTypes.bool, // toggle state
     onClick: PropTypes.func,
-    hasWiki: PropTypes.bool,
     className: PropTypes.string
   };
   render() {
     const {
-      hasWiki,
       isSelected,
       onClick,
       className
@@ -83,6 +80,6 @@ export class WikiButton extends Component {
       className
     };
 
-    return <WikiButtonView {...props} showNotification={!props.isSelected && hasWiki} />;
+    return <WikiButtonView {...props} showNotification={false} />;
   }
 }

@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-
+import Immutable from 'immutable';
 import SpaceForm from 'pages/HomePage/components/forms/SpaceForm';
-
 import {SpaceModal} from './SpaceModal';
-
 describe('SpaceModal', () => {
   let commonProps;
+  const space = Immutable.Map({
+    permissions: ['MANAGE_GRANTS', 'MODIFY']
+  });
   beforeEach(() => {
     commonProps = {
+      space,
       isOpen: false,
       hide: sinon.spy(),
       createNewSpace: sinon.stub().returns(Promise.resolve()),
       updateSpace: sinon.stub().returns(Promise.resolve()),
+      updateSpacePermissions: sinon.stub().returns(Promise.resolve()),
       showConfirmationDialog: sinon.stub()
     };
   });
-
 
   it('renders <SpaceForm> with no initialValues when no entity', () => {
     const wrapper = shallow(<SpaceModal {...commonProps}/>);
@@ -42,7 +44,7 @@ describe('SpaceModal', () => {
     const wrapper = shallow(<SpaceModal {...commonProps} entityId='test' spaceName='a test space'/>);
     const formProps = wrapper.find(SpaceForm).props();
     expect(formProps.initialValues.name).to.equal('a test space');
-    expect(formProps.initialValues.description).to.be.empty; // we removed a description
+    expect(formProps.initialValues.description).to.be.undefined;
     expect(formProps.editing).to.be.true;
   });
 

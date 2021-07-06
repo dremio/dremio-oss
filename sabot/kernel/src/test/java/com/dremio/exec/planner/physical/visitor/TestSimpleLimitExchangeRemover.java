@@ -17,7 +17,6 @@ package com.dremio.exec.planner.physical.visitor;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -40,7 +39,6 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
@@ -54,9 +52,7 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
-import com.dremio.options.OptionList;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.OptionResolver;
 import com.dremio.options.OptionValue;
 import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.sabot.op.join.JoinUtils;
@@ -64,6 +60,8 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
+import com.dremio.test.specs.OptionResolverSpec;
+import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -75,34 +73,20 @@ public class TestSimpleLimitExchangeRemover {
   private static final RelDataTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
   private static final RexBuilder rexBuilder = new RexBuilder(typeFactory);
 
-  private OptionManager optionManager;
-  private OptionList optionList;
+  private OptionResolver optionResolver;
   private PlannerSettings plannerSettings;
   private RelOptCluster cluster;
+  private ClusterResourceInformation clusterResourceInformation;
 
   @Before
   public void setup() {
-    optionList = new OptionList();
-    optionList.add(ExecConstants.SLICE_TARGET_OPTION.getDefault());
-    optionList.add(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
-    optionList.add(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
-    optionManager = mock(OptionManager.class);
+    optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
 
-    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
-    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
-    when(optionManager.getOption(eq(ExecConstants.SLICE_TARGET)))
-      .thenReturn(ExecConstants.SLICE_TARGET_OPTION.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getOptionName())))
-      .thenReturn(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())))
-      .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
-    when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))
-      .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
-    ClusterResourceInformation info = mock(ClusterResourceInformation.class);
-    when(info.getExecutorNodeCount()).thenReturn(1);
+    clusterResourceInformation = mock(ClusterResourceInformation.class);
+    when(clusterResourceInformation.getExecutorNodeCount()).thenReturn(1);
 
     plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG,
-      optionManager, () -> info);
+        optionResolver, () -> clusterResourceInformation);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
   }
 
@@ -148,9 +132,11 @@ public class TestSimpleLimitExchangeRemover {
   @Test
   public void simpleSelectWithLimitWithSoftScanWithLeafLimitsEnabled() {
     OptionValue optionEnabled = OptionValue.createBoolean(OptionValue.OptionType.QUERY, PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName(), true);
-    when(optionManager.getOption(PlannerSettings.ENABLE_LEAF_LIMITS.getOptionName())).thenReturn(optionEnabled);
-    optionList.remove(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
-    optionList.add(optionEnabled);
+    optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec()
+        .addOption(PlannerSettings.ENABLE_LEAF_LIMITS, optionEnabled.getBoolVal()));
+    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG,
+        optionResolver, () -> clusterResourceInformation);
+
 
     Prel input =
       newScreen(

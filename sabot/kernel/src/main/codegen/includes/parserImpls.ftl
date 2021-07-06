@@ -485,3 +485,90 @@ SqlNode SqlCompactMaterialization() :
         return new SqlCompactMaterialization(pos, materializationPath, newMaterializationId);
     }
 }
+
+/**
+ * Parses a ANALYZE TABLE STATISTICS
+ */
+SqlNode SqlAnalyzeTableStatistics() :
+{
+    final SqlParserPos pos;
+    final SqlIdentifier table;
+    SqlLiteral isAnalyze = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
+    SqlNodeList columns = SqlNodeList.EMPTY;
+}
+{
+    <ANALYZE> { pos = getPos(); }
+    <TABLE> { table = CompoundIdentifier(); }
+    [
+    <FOR>
+      (
+        <ALL> <COLUMNS> { columns = SqlNodeList.EMPTY; }
+        |
+        <COLUMNS> { columns = ParseOptionalFieldList("Columns"); }
+      )
+    ]
+    (
+      <COMPUTE> <STATISTICS> { isAnalyze = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
+      |
+      <DELETE> <STATISTICS> { isAnalyze = SqlLiteral.createBoolean(false, SqlParserPos.ZERO); }
+    )
+    { return new SqlAnalyzeTableStatistics(pos, table, isAnalyze, columns); }
+}
+
+/**
+ * Parses a REFRESH DATASET table_name statement
+ */
+SqlNode SqlRefreshDataset() :
+{
+    SqlParserPos pos;
+    SqlIdentifier tblName;
+    SqlLiteral deleteUnavail = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral promotion = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral forceUp = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral allFilesRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral allPartitionsRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral fileRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral partitionRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlNodeList filesList = SqlNodeList.EMPTY;
+    SqlNodeList partitionList = SqlNodeList.EMPTY;
+}
+{
+    <REFRESH> { pos = getPos(); }
+    <DATASET>
+    { tblName = CompoundIdentifier(); }
+    (
+      <FOR> <ALL>
+      (
+        <FILES> { allFilesRefresh = SqlLiteral.createBoolean(true, pos); }
+      |
+        <PARTITIONS> { allPartitionsRefresh = SqlLiteral.createBoolean(true, pos); }
+      )
+    |
+      <FOR> <FILES> {
+        fileRefresh = SqlLiteral.createBoolean(true, pos);
+        filesList = ParseRequiredFilesList();
+      }
+    |
+      <FOR> <PARTITIONS> {
+        partitionRefresh = SqlLiteral.createBoolean(true, pos);
+        partitionList = ParseRequiredPartitionList();
+      }
+    )?
+    (
+      <AUTO> <PROMOTION> { promotion = SqlLiteral.createBoolean(true, pos); }
+    |
+      <AVOID> <PROMOTION> { promotion = SqlLiteral.createBoolean(false, pos); }
+    )?
+    (
+      <FORCE> <UPDATE> { forceUp = SqlLiteral.createBoolean(true, pos); }
+    |
+      <LAZY> <UPDATE> { forceUp = SqlLiteral.createBoolean(false, pos); }
+    )?
+    (
+      <DELETE> <WHEN> <MISSING> { deleteUnavail = SqlLiteral.createBoolean(true, pos); }
+    |
+      <MAINTAIN> <WHEN> <MISSING> { deleteUnavail = SqlLiteral.createBoolean(false, pos); }
+    )?
+    { return new SqlRefreshDataset(pos, tblName, deleteUnavail, forceUp, promotion, allFilesRefresh,
+        allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList); }
+}

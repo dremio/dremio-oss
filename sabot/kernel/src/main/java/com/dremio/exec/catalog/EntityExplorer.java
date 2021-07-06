@@ -69,7 +69,7 @@ public interface EntityExplorer {
   Iterable<Table> listDatasets(NamespaceKey path);
 
   /**
-   * Retrieve a table
+   * Retrieve a table's definition
    *
    * @param datasetId
    * @return
@@ -77,10 +77,18 @@ public interface EntityExplorer {
   DremioTable getTable(String datasetId);
 
   /**
-   * Retrieve a table, first checking the default schema.
+   * Retrieve a table's definition, first checking the default schema.
    *
    * @param key
    * @return
    */
   DremioTable getTable(NamespaceKey key);
+
+  /**
+   * Retrieve a table when querying the table's data, first checking the default schema.
+   *
+   * @param key
+   * @return
+   */
+  DremioTable getTableForQuery(NamespaceKey key);
 }

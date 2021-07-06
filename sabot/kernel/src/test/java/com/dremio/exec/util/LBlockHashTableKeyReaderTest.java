@@ -387,7 +387,7 @@ public class LBlockHashTableKeyReaderTest {
                     byte[] expectedKey = new byte[32];
                     if (key != null) {
                         expectedKey[0] = (byte) 1;
-                        byte keyLen = (byte) Math.min(key.getBytes(StandardCharsets.UTF_8).length, 31);
+                        byte keyLen = (byte) Math.min(key.getBytes(StandardCharsets.UTF_8).length, 30);
                         expectedKey[1] = keyLen;
                         byte[] stringBytes = key.length() <= 30 ?
                                 padZeroBytes(key.getBytes(StandardCharsets.UTF_8), 30) : key.substring(0, 30).getBytes(StandardCharsets.UTF_8);

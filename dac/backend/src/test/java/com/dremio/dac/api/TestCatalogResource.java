@@ -280,7 +280,7 @@ public class TestCatalogResource extends BaseTestServer {
     Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
 
     // make sure that trying to create the vds again fails
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
+    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
 
     // folder should now have children
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
@@ -984,12 +984,11 @@ public class TestCatalogResource extends BaseTestServer {
     Source source = createSource();
 
     // browse to the json directory
-    String id = getFolderIdByName(source.getChildren(), "\"json\"");
+    String id = getFolderIdByName(source.getChildren(), "json");
     assertNotNull(id, "Failed to find json directory");
 
     // deleting a folder on a source should fail
     expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildDelete());
-
   }
 
   @Test
@@ -997,7 +996,7 @@ public class TestCatalogResource extends BaseTestServer {
     Source source = createSource();
 
     // browse to the json directory
-    String id = getFolderIdByName(source.getChildren(), "\"json\"");
+    String id = getFolderIdByName(source.getChildren(), "json");
     assertNotNull(id, "Failed to find json directory");
 
     // load the json dir
@@ -1009,7 +1008,7 @@ public class TestCatalogResource extends BaseTestServer {
     for (CatalogItem item : folder.getChildren()) {
       List<String> path = item.getPath();
       // get the numbers.json file
-      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("\"numbers.json\"")) {
+      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("numbers.json")) {
         fileId = item.getId();
         break;
       }
@@ -1043,12 +1042,12 @@ public class TestCatalogResource extends BaseTestServer {
     assertEquals(folder.getChildren().size(), 19);
 
     // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
-    String folderId = getFolderIdByName(source.getChildren(), "\"datasets\"");
+    String folderId = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(folderId, "Failed to find datasets directory");
 
     Folder dsFolder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId))).buildGet(), new GenericType<Folder>() {});
 
-    String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "\"folderdataset\"");
+    String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
     // we want to use the path that the backend gives us so fetch the full folder
@@ -1095,12 +1094,11 @@ public class TestCatalogResource extends BaseTestServer {
     Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),  new GenericType<Source>() {});
 
     // browse to the json directory
-    String id = getFolderIdByName(source.getChildren(), "\"json\"");
+    String id = getFolderIdByName(source.getChildren(), "json");
     assertNotNull(id, "Failed to find json directory");
 
     // load the json dir
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {
-    });
+    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
     assertEquals(folder.getChildren().size(), 1);
 
     String fileId = null;
@@ -1108,7 +1106,7 @@ public class TestCatalogResource extends BaseTestServer {
     for (CatalogItem item : folder.getChildren()) {
       List<String> path = item.getPath();
       // get the numbers.json file
-      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("\"numbers.json\"")) {
+      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("numbers.json")) {
         fileId = item.getId();
         break;
       }
@@ -1385,12 +1383,12 @@ public class TestCatalogResource extends BaseTestServer {
     final Source source = createSource();
 
     // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
-    final String folderId = getFolderIdByName(source.getChildren(), "\"datasets\"");
+    final String folderId = getFolderIdByName(source.getChildren(), "datasets");
     assertNotNull(folderId, "Failed to find datasets directory");
 
     Folder dsFolder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId))).buildGet(), new GenericType<Folder>() {});
 
-    final String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "\"folderdataset\"");
+    final String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
     // we want to use the path that the backend gives us so fetch the full folder
@@ -1437,6 +1435,26 @@ public class TestCatalogResource extends BaseTestServer {
 
     // test non-existent path
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path("doesnot").path("exist")).buildGet());
+  }
+
+  @Test
+  public void testExcludeChildren() throws Exception {
+    Space space = createSpace("children test");
+
+    createVDS(Arrays.asList(space.getName(), "vds1"), "select * from sys.version");
+    createVDS(Arrays.asList(space.getName(), "vds2"), "select * from sys.version");
+
+    Space result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(space.getName())).buildGet(), new GenericType<Space>() {});
+    assertEquals(2, result.getChildren().size());
+
+    result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(space.getName()).queryParam("exclude", "children")).buildGet(), new GenericType<Space>() {});
+    assertEquals(0, result.getChildren().size());
+
+    result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+    assertEquals(2, result.getChildren().size());
+
+    result = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId()).queryParam("exclude", "children")).buildGet(), new GenericType<Space>() {});
+    assertEquals(0, result.getChildren().size());
   }
 
   public static String getFolderIdByName(List<CatalogItem> items, String nameToFind) {

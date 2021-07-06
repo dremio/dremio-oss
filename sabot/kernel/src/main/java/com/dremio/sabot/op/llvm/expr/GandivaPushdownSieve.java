@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.llvm.expr;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -23,6 +24,7 @@ import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -139,15 +141,8 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
   private boolean isSupportedField(ValueVectorReadExpression e) throws GandivaException {
     TypedFieldId fieldId = e.getTypedFieldId();
-    // use intermediate type to understand if it is complex.
-    CompleteType type = fieldId.getIntermediateType() != null ? fieldId.getIntermediateType()
-      : fieldId.getFinalType();
-
-    // reads into structs and lists will have same types
-    // and is distinguished by field id list having more
-    // than 1 element.
-    boolean isComplexRead = fieldId.getFieldIds().length > 1;
-    return isSupportedType(type) && !isComplexRead;
+    CompleteType finalType = fieldId.getFinalType();
+    return isSupportedType(finalType) && !fieldId.isListOrUnionInPath();
   }
 
   // Returns true if the entire sub-tree represented by every element in the list can be evaluated in Gandiva
@@ -342,6 +337,39 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
       ((CodeGenContext) ifExpr.elseExpression).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA)) {
       if (gandivaSupportsAllValueVectorReads(codeGenTree)) {
         context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      }
+    }
+
+    return context;
+  }
+
+  @Override
+  public CodeGenContext visitCaseExpression(CaseExpression caseExpression, CodeGenContext context) throws GandivaException {
+    List<LogicalExpression> codeGenTree = new ArrayList<>();
+    for (LogicalExpression e : caseExpression) {
+      codeGenTree.add(e);
+    }
+
+    // check return type of the expression, use context to remove
+    // context nodes before computing the return type.
+    if (!isSupportedType(context.getCompleteType())) {
+      return context;
+    }
+
+    boolean ifExprSupported = gandivaSupportsAllSubExprs(codeGenTree);
+
+    if (ifExprSupported) {
+      context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      return context;
+    }
+
+    for (LogicalExpression e : caseExpression) {
+      if (((CodeGenContext) e).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA)) {
+        if (gandivaSupportsAllValueVectorReads(codeGenTree)) {
+          context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+          break;
+        }
       }
     }
 

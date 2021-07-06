@@ -18,6 +18,7 @@ package com.dremio.exec.planner.acceleration;
 import org.apache.calcite.plan.CopyWithCluster;
 
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Preconditions;
 
 /**
@@ -27,7 +28,7 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
 
   private final DremioMaterialization materialization;
 
-  public CachedMaterializationDescriptor(MaterializationDescriptor descriptor, DremioMaterialization materialization) {
+  public CachedMaterializationDescriptor(MaterializationDescriptor descriptor, DremioMaterialization materialization, CatalogService catalogService) {
     super(descriptor.getLayoutInfo(),
           descriptor.getMaterializationId(),
           descriptor.getVersion(),
@@ -40,7 +41,8 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
           descriptor.getIncrementalUpdateSettings(),
           descriptor.getJoinDependencyProperties(),
           descriptor.getStrippedPlanHash(),
-          materialization.getStripVersion());
+          materialization.getStripVersion(),
+          catalogService);
     this.materialization = Preconditions.checkNotNull(materialization, "materialization is required");
   }
 

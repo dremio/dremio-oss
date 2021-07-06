@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import { connect }   from 'react-redux';
 import { replace } from 'react-router-redux';
@@ -21,7 +21,6 @@ import urlParse from 'url-parse';
 import moment from 'moment';
 
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -44,8 +43,7 @@ import {
 const COUNTDOWN_UPDATE_INTERVAL = 100;
 
 @Radium
-@pureRender
-export class ServerStatusPage extends Component {
+export class ServerStatusPage extends PureComponent {
   static propTypes = {
     serverStatus: PropTypes.instanceOf(Immutable.Map),
     scheduleCheckServerStatus: PropTypes.func.isRequired,

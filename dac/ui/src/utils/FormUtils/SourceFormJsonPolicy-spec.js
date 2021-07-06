@@ -382,7 +382,7 @@ describe('SourceFormJsonPolicy', () => {
       expect(config.form.getTabs()[1].getName()).to.equal('Reflection Refresh');
       expect(config.form.getTabs()[2].getName()).to.equal('Metadata');
       if (numberOfTabs === 4) {
-        expect(config.form.getTabs()[3].getName()).to.equal('Sharing');
+        expect(config.form.getTabs()[3].getName()).to.equal('Privileges');
       }
     });
 

@@ -102,6 +102,10 @@ public class IcebergPartitionData
     return data[pos];
   }
 
+  public Types.StructType getPartitionType() {
+    return partitionType;
+  }
+
   @Override
   public <T> void set(int pos, T value) {
     if (value instanceof Utf8) {

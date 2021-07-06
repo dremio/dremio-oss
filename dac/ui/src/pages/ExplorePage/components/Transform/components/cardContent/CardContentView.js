@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -27,9 +26,8 @@ import FixedWidthForContentCard from './FixedWidthForContentCard';
 
 const MAX_LENGTH_CONTENT = 63;
 
-@pureRender
 @Radium
-class CardContentView extends Component {
+class CardContentView extends PureComponent {
   static getSubstring(example, start, end) {
     const result = example.get('text').substring(start, end);
     return result.replace(/ /g, '\u00a0');

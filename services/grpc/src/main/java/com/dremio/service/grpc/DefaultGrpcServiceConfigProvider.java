@@ -25,7 +25,7 @@ import java.util.Map;
 import com.google.common.collect.Maps;
 
 /**
- * Used to construct default service configuration.
+ * Used to construct service configuration.
  * Follows the configuration mentioned@ https://github.com/grpc/proposal/blob/master/A6-client-retries.md#retry-policy
  */
 public class DefaultGrpcServiceConfigProvider {
@@ -36,6 +36,26 @@ public class DefaultGrpcServiceConfigProvider {
    * @return
    */
   public static Map<String, Object> getDefaultGrpcServiceConfig(List<String> serviceNames) {
+    return setGrpcServiceConfig(serviceNames, getDefaultRetryProperties());
+  }
+
+  /**
+   * Gets the service configuration updated with given properties for given list of service names
+   * @param serviceNames
+   * @param retryPropertiesMap
+   * @return
+   */
+  public static Map<String, Object> getGrpcServiceConfig(List<String> serviceNames, Map<String, Object> retryPropertiesMap) {
+    return setGrpcServiceConfig(serviceNames, retryPropertiesMap);
+  }
+
+  /**
+   * Sets the given service configuration for given list of service names
+   * @param serviceNames
+   * @param retryPropertiesMap
+   * @return
+   */
+  private static Map<String, Object> setGrpcServiceConfig(List<String> serviceNames, Map<String, Object> retryPropertiesMap) {
     Map<String, Object> serviceConfig = Maps.newHashMap();
     List<Map<String, Object>> serviceConfigs = new ArrayList<>();
     for (String serviceName : serviceNames) {
@@ -43,14 +63,14 @@ public class DefaultGrpcServiceConfigProvider {
       Map<String, Object> name = new HashMap<>();
       name.put("service", serviceName);
       methodConfig.put("name", Collections.<Object>singletonList(name));
-      methodConfig.put("retryPolicy", addDefaultRetryProperties());
+      methodConfig.put("retryPolicy", retryPropertiesMap);
       serviceConfigs.add(methodConfig);
     }
     serviceConfig.put("methodConfig", serviceConfigs);
     return serviceConfig;
   }
 
-  private static Map<String, Object> addDefaultRetryProperties() {
+  private static Map<String, Object> getDefaultRetryProperties() {
     Map<String, Object> retryPolicy = new HashMap<>();
     retryPolicy.put("maxAttempts", 10D);
     retryPolicy.put("initialBackoff", "1s");

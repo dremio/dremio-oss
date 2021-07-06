@@ -16,6 +16,7 @@
 package com.dremio.common.expression.visitors;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.ErrorCollector;
@@ -124,6 +125,11 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
   @Override
   public Boolean visitInputReference(InputReference input, ErrorCollector errors) {
       return input.getReference().accept(this, errors);
+  }
+
+  @Override
+  public Boolean visitCaseExpression(CaseExpression caseExpression, ErrorCollector value) throws RuntimeException {
+    return false;
   }
 
   @Override

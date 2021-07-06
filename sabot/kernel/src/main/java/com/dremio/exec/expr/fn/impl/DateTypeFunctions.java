@@ -294,7 +294,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(names = {"now", "statement_timestamp", "transaction_timestamp"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+    @FunctionTemplate(names = {"now", "statement_timestamp", "transaction_timestamp"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDynamic = true)
     public static class NowTimeStamp implements SimpleFunction {
         @Workspace long queryStartDate;
         @Output TimeStampMilliHolder out;

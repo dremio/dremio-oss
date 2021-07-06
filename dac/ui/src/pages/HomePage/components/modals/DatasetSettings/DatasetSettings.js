@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { createSelector } from 'reselect';
@@ -44,10 +43,9 @@ import DatasetOverviewForm from './DatasetOverviewForm';
 const DATASET_SETTINGS_VIEW_ID = 'DATASET_SETTINGS_VIEW_ID';
 
 @injectIntl
-@pureRender
 @Radium
 @DatasetSettingsMixin
-export class DatasetSettings extends Component {
+export class DatasetSettings extends PureComponent {
   static contextTypes = {
     router: PropTypes.object,
     location: PropTypes.object
@@ -121,8 +119,7 @@ export class DatasetSettings extends Component {
   }
 
   updateFormDirtyState = (isFormDirty) => {
-    this.setState({isFormDirty});
-    this.props.updateFormDirtyState(isFormDirty);
+    this.setState({isFormDirty}, () => this.props.updateFormDirtyState(isFormDirty));
   };
 
   handleChangeTab = (tab) => {

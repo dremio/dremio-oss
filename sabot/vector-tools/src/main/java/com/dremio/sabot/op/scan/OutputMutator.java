@@ -21,6 +21,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.record.VectorContainer;
 
 /**
  * Interface that allows a record reader to modify the current schema.
@@ -79,4 +80,8 @@ public interface OutputMutator {
    * @return true if the schema of the underlying batch changed since the initial schema was built
    */
   boolean getSchemaChanged();
+
+  default VectorContainer getContainer() {
+    return null;
+  }
 }

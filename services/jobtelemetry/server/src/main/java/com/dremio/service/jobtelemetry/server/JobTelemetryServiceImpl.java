@@ -154,7 +154,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
 
       // update executor profile.
       profileStore.putExecutorProfile(profile.getQueryId(), profile.getEndpoint(),
-        profile);
+        profile, request.getIsFinal());
 
       responseObserver.onNext(Empty.getDefaultInstance());
       responseObserver.onCompleted();

@@ -19,7 +19,7 @@ import MenuItemLink from 'components/Menus/MenuItemLink';
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
-    render() {
+    renderCompletely() {
       //TODO add renameLink into menu when API will be ready
       const { folder, closeMenu } = this.props;
 

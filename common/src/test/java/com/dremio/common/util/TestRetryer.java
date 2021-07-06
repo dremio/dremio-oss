@@ -112,7 +112,7 @@ public class TestRetryer {
       .retryIfExceptionOfType(SQLException.class)
       .setMaxRetries(MAX_RETRIES).build();
 
-    // Throw IOException first. That should fall under retry. Other exceptions shouldn't
+    // Throw IOException and SQLException first. They should fall under retry. Other exceptions shouldn't
     AtomicInteger counter = new AtomicInteger(0);
     boolean result = retryer.call(() -> {
       if (counter.incrementAndGet() < (MAX_RETRIES - 2)) {
@@ -122,7 +122,33 @@ public class TestRetryer {
       } else if (counter.get() == (MAX_RETRIES - 1)) {
         throw new RuntimeException("Should fail");
       } else {
-        // Retry triggered even after success
+        // Retry triggered even after failure
+        return false;
+      }
+    });
+
+    // fail if didn't come out of call() with runtime exception.
+    assertTrue(result);
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testRetryIfExceptionFunc() {
+    Retryer<Boolean> retryer = new Retryer.Builder<Boolean>()
+      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
+      .retryOnExceptionFunc(ex -> ex instanceof IOException || ex instanceof SQLException)
+      .setMaxRetries(MAX_RETRIES).build();
+
+    // Throw IOException and SQLException first. They should fall under retry. Other exceptions shouldn't
+    AtomicInteger counter = new AtomicInteger(0);
+    boolean result = retryer.call(() -> {
+      if (counter.incrementAndGet() < (MAX_RETRIES - 2)) {
+        throw new IOException("Should retry");
+      } else if (counter.get() == (MAX_RETRIES - 2)) {
+        throw new SQLException("Should retry");
+      } else if (counter.get() == (MAX_RETRIES - 1)) {
+        throw new RuntimeException("Should fail");
+      } else {
+        // Retry triggered even after failure
         return false;
       }
     });

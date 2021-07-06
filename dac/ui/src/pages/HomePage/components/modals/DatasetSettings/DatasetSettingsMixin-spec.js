@@ -76,6 +76,9 @@ describe('DatasetSettingsMixin', () => {
 
     it('should return correct tabs when dataset type is file|folder and queryable', () => {
       wrapper.setProps({
+        location: {
+          pathname: '/share'
+        },
         entity: commonProps.entity.merge({
           entityType: 'file',
           queryable: true
@@ -92,6 +95,9 @@ describe('DatasetSettingsMixin', () => {
 
     it('should return correct tabs when dataset type is file|folder and queryable in home', () => {
       wrapper.setProps({
+        location: {
+          pathname: '/share'
+        },
         entity: commonProps.entity.merge({
           entityType: 'file',
           queryable: true,
@@ -108,6 +114,9 @@ describe('DatasetSettingsMixin', () => {
 
     it('should return correct tabs when dataset type is not file|folder', () => {
       wrapper.setProps({
+        location: {
+          pathname: '/share'
+        },
         entity: commonProps.entity.merge({
           entityType: 'physicalDataset'
         })

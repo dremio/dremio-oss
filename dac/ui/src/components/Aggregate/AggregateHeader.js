@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -22,13 +21,12 @@ import Immutable from 'immutable';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import EllipsedText from 'components/EllipsedText';
 import { ExploreInfoHeader } from 'pages/ExplorePage/components/ExploreInfoHeader';
+import { AggregateHeaderWithMixin } from '@inject/components/Aggregate/AggregateHeaderMixin.js';
 
+export const CLEAR_ALL_HEIGHT = 20;
 
-const CLEAR_ALL_HEIGHT = 20;
-
-@pureRender
 @Radium
-class AggregateHeader extends Component {
+export class AggregateHeader extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     style: PropTypes.object,
@@ -43,11 +41,12 @@ class AggregateHeader extends Component {
    * @return {React.Element} element to render
    */
   renderClearAll(clearFunction) {
+    const renderClearAllButtons = this.checkToRenderClearAllConditionally();
     if (clearFunction) {
       return <SimpleButton
         type='button'
         buttonStyle='secondary'
-        style={styles.clearAll}
+        style={renderClearAllButtons ? styles.clearAll : {display: 'none'}}
         onClick={clearFunction}>
         {la('Clear All')}
       </SimpleButton>;
@@ -85,6 +84,12 @@ const styles = {
     background: '#F3F3F3',
     minHeight: 30
   },
+  clearAll: {
+    minWidth: 'auto',
+    height: CLEAR_ALL_HEIGHT,
+    lineHeight: `${CLEAR_ALL_HEIGHT}px`,
+    marginRight: 5
+  },
   left: {
     width: 275,
     minWidth: 240,
@@ -110,13 +115,7 @@ const styles = {
     paddingLeft: 10,
     width: '100%',
     justifyContent: 'space-between'
-  },
-  clearAll: {
-    minWidth: 'auto',
-    height: CLEAR_ALL_HEIGHT,
-    lineHeight: `${CLEAR_ALL_HEIGHT}px`,
-    marginRight: 5
   }
 };
 
-export default AggregateHeader;
+export default AggregateHeaderWithMixin(AggregateHeader);

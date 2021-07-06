@@ -21,7 +21,7 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 /**
  * Table function interface
  */
-public interface TableFunction extends AutoCloseable{
+public interface TableFunction extends AutoCloseable {
 
   /**
    * Setup table function and return VectorAccessible with output schema
@@ -32,13 +32,14 @@ public interface TableFunction extends AutoCloseable{
   VectorAccessible setup(VectorAccessible accessible) throws Exception;
 
   /**
-   * Start processing an input row
+   * Start processing an input row.
    * @param row to be processed
    */
   void startRow(int row) throws Exception;
 
   /**
-   * Produce output records corresponding to current input row
+   * Produce output records corresponding to current input row.
+   * This will be called after calling {@link #startRow(int)}.
    * @param startOutIndex start index in output vector
    * @param maxRecords maximum number of output records that can be produced
    * @return number of output records produced
@@ -46,9 +47,18 @@ public interface TableFunction extends AutoCloseable{
   int processRow(int startOutIndex, int maxRecords) throws Exception;
 
   /**
-   * Stop processing current input row
+   * Stop processing current input row.
+   * This will be called after calling {@link #processRow(int, int)}.
    */
   void closeRow() throws Exception;
+
+  /**
+   * Check if any remaining records left to produce after there is no more to consume from upstream
+   * @return if records left
+   */
+  default boolean hasBufferedRemaining() {
+    return false;
+  }
 
   /**
    * Handles OOB coming over to the TableFunctionOperator

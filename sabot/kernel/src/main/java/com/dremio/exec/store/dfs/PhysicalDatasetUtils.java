@@ -138,22 +138,20 @@ public class PhysicalDatasetUtils {
         return new ArrowFormatPluginConfig();
       case EXCEL: {
         final ExcelFileConfig excelFileConfig = (ExcelFileConfig) ExcelFileConfig.getForFile(fileConfig);
-        final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig();
+        final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig(false);
 
         excelFormatPluginConfig.sheet = excelFileConfig.getSheetName();
         excelFormatPluginConfig.extractHeader = excelFileConfig.getExtractHeader();
         excelFormatPluginConfig.hasMergedCells = excelFileConfig.getHasMergedCells();
-        excelFormatPluginConfig.xls = false;
         return excelFormatPluginConfig;
       }
       case XLS: {
         final XlsFileConfig xlsFileConfig = (XlsFileConfig) XlsFileConfig.getForFile(fileConfig);
-        final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig();
+        final ExcelFormatPluginConfig excelFormatPluginConfig = new ExcelFormatPluginConfig(true);
 
         excelFormatPluginConfig.sheet = xlsFileConfig.getSheetName();
         excelFormatPluginConfig.extractHeader = xlsFileConfig.getExtractHeader();
         excelFormatPluginConfig.hasMergedCells = xlsFileConfig.getHasMergedCells();
-        excelFormatPluginConfig.xls = true;
         return excelFormatPluginConfig;
       }
       case HTTP_LOG:

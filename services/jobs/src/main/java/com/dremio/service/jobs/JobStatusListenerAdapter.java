@@ -111,6 +111,7 @@ class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
     } else {
       failureCallback.accept(new RuntimeException(t));
     }
+    jobId.setException(t);
   }
 
   @Override

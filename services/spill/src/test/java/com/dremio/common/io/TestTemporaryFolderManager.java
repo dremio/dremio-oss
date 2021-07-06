@@ -127,12 +127,16 @@ public class TestTemporaryFolderManager {
   }
 
   @Test
-  public void testFreshDirsAreNotDeletedOnRestart() throws Exception {
-    TemporaryFolderManager folderManagerUnderTest = createManager();
+  public void testUpdatedPostRestartDirsAreNotDeleted() throws Exception {
+    TemporaryFolderManager folderManagerUnderTest = createManagerOnly(thisExecutor, 1, 1, 1, 1);
+    final Path testPath1 = new Path(testRootDir.newFolder().getPath());
+    final Path oldPath = folderManagerUnderTest.createTmpDirectory(testPath1);
     folderManagerUnderTest.close();
-    folderManagerUnderTest = createManager(thisExecutor, 5000, 5, 2, 1);
+    folderManagerUnderTest = createManagerOnly(thisExecutor, 1, 5, 2, 1);
+    folderManagerUnderTest.createTmpDirectory(testPath1);
+    createLoop(oldPath, 21);
     folderManagerUnderTest.close();
-    assertRootPathsHasTempDirs(1, 2);
+    assertIndividualPath(testPath1, 1, 2);
   }
 
   @Test
@@ -201,7 +205,7 @@ public class TestTemporaryFolderManager {
 
     zkService.waitCycles(3);
 
-    final CompletableFuture<Void> f = CompletableFuture.runAsync(() -> createLoop(tmpPath2));
+    final CompletableFuture<Void> f = CompletableFuture.runAsync(() -> createLoop(tmpPath2, 100));
 
     // fail executor2
     mgr3.close();
@@ -252,10 +256,10 @@ public class TestTemporaryFolderManager {
     }
   }
 
-  private void createLoop(Path tmpPath2) {
+  private void createLoop(Path tmpPath2, int loopCount) {
     try (FileSystem fs = tmpPath2.getFileSystem(TEST_CONFIG)) {
       Path nextPath = tmpPath2;
-      for (int i = 0; i < 100; i++) {
+      for (int i = 0; i < loopCount; i++) {
         if (i % 10 == 0) {
           final Path createdDir = new Path(nextPath, "test" + i);
           fs.mkdirs(createdDir);
@@ -267,6 +271,8 @@ public class TestTemporaryFolderManager {
         }
         Thread.sleep(100);
       }
+      final Path lastCreatedDir = new Path(tmpPath2, "test" + loopCount);
+      fs.mkdirs(lastCreatedDir);
     } catch (IOException | InterruptedException e) {
       fail();
     }
@@ -497,7 +503,7 @@ public class TestTemporaryFolderManager {
 
     @Override
     public int getOneShotCleanupDelaySeconds() {
-      return 1;
+      return stalenessLimitSeconds + 1;
     }
 
     @Override

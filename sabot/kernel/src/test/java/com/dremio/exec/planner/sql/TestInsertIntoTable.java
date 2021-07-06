@@ -31,14 +31,12 @@ import java.util.stream.StreamSupport;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.expressions.Literal;
-import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.types.Types;
 import org.joda.time.DateTimeZone;
@@ -67,8 +65,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
 
-  @Test
-  public void testSimpleInsertCommand() {
+  private void simpleInsertCommandTest() {
     String sql = "INSERT INTO tblName select * from sourceTable";
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.INSERT)));
@@ -82,9 +79,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertCommandInvalidPath() throws Exception {
-    final String tblName = "invalid_path_test";
+  public void testSimpleInsertCommand() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      simpleInsertCommandTest();
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      simpleInsertCommandTest();
+    }
+  }
+
+  private void testInsertCommandInvalidPath(String tblName) throws Exception {
+    try {
       final String createTableQuery = String.format("CREATE TABLE %s.%s(id int, code int)",
         TEMP_SCHEMA, tblName);
       test(createTableQuery);
@@ -104,19 +110,33 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  public void testInsertCommandInvalidPath() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testInsertCommandInvalidPath("invalid_path_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertCommandInvalidPath("invalid_path_test_v2");
+    }
+  }
+
+  @Test
   public void testInsertIntoSysTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String insertQuery = "INSERT INTO sys.version VALUES('A', 'A', 'A', 'A', 'A', 'A')";
       errorMsgTestHelper(insertQuery, "[sys.version] is a SYSTEM_TABLE");
     }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      final String insertQuery = "INSERT INTO sys.version VALUES('A', 'A', 'A', 'A', 'A', 'A')";
+      errorMsgTestHelper(insertQuery, "[sys.version] is a SYSTEM_TABLE");
+    }
   }
 
-  @Test
-  public void testInsertIntoView() throws Exception {
+  private void testInsertIntoView(String tblName) throws Exception {
     try {
       properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
-      final String tblName = "sysverview";
-      try (AutoCloseable c = enableIcebergTables()) {
+      try {
         final String createTableQuery = String.format("CREATE or REPLACE VIEW %s.%s as select * from sys.version",
           TEMP_SCHEMA, tblName);
         test(createTableQuery);
@@ -134,10 +154,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertDuplicateColumnsInSelect() throws Exception {
-    final String table = "dupColsInSelect";
-
+  public void testInsertIntoView() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertIntoView("sysverview");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertIntoView("sysverview_v2");
+    }
+  }
+
+  private void testInsertDuplicateColumnsInSelect(String table) throws Exception {
+    try {
       final String tableCreate = String.format("CREATE TABLE %s.%s(id int, code int)",
           TEMP_SCHEMA, table);
       test(tableCreate);
@@ -162,10 +190,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertColumnNameCaseMismatch() throws Exception {
-    final String tableLower = "tableLower";
-
+  public void testInsertDuplicateColumnsInSelect() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertDuplicateColumnsInSelect("dupColsInSelect");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertDuplicateColumnsInSelect("dupColsInSelect_v2");
+    }
+  }
+
+  private void testInsertColumnNameCaseMismatch(String tableLower) throws Exception {
+    try {
       final String tableLowerCreate = String.format("CREATE TABLE %s.%s(id int, code int) partition by (code)",
         TEMP_SCHEMA, tableLower);
       test(tableLowerCreate);
@@ -190,11 +226,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertIntoPartitionedTable() throws Exception {
-    final String table1 = "table1";
-    final String table2 = "table2";
-
+  public void testInsertColumnNameCaseMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertDuplicateColumnsInSelect("tableLower");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertDuplicateColumnsInSelect("tableLower_v2");
+    }
+  }
+
+  private void testInsertIntoPartitionedTable(String table1, String table2) throws Exception {
+    try {
       final String table1Create = String.format("CREATE TABLE %s.%s(id int, code int) partition by (code)",
         TEMP_SCHEMA, table1);
       test(table1Create);
@@ -241,8 +284,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .build()
         .run();
 
-      File table1Folder = new File(getDfsTestTmpSchemaLocation(), table1);
-      Table icebergTable1 = new HadoopTables(new Configuration()).load(table1Folder.getPath());
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), table1);
+      Table icebergTable1 = getIcebergTable(tableFolder);
+
       List<Integer> partitionValues = StreamSupport.stream(icebergTable1.newScan().planFiles().spliterator(), false)
         .map(fileScanTask -> fileScanTask.file().partition())
         .map(structLike -> structLike.get(0, Integer.class))
@@ -258,9 +302,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertUsingValues() throws Exception {
-    final String insert_values_test = "insert_values_test";
+  public void testInsertIntoPartitionedTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertIntoPartitionedTable("table1", "table2");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertIntoPartitionedTable("table1_v2", "table2_v2");
+    }
+  }
+
+  private void testInsertUsingValues(String insert_values_test) throws Exception {
+    try {
       String createCommandSql = "create table " + TEMP_SCHEMA + "." + insert_values_test +
         "(PolicyID bigint, statecode varchar, county varchar, " +
         "eq_site_limit double, hu_site_limit double, fl_site_limit double, " +
@@ -294,9 +347,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertUsingValuesWithSchemaMismatch() throws Exception {
-    final String insert_values_test = "insert_values_schema_mismatch_test";
+  public void testInsertUsingValues() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertUsingValues("insert_values_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertUsingValues("insert_values_test_v2");
+    }
+  }
+
+  private void testInsertUsingValuesWithSchemaMismatch(String insert_values_test) throws Exception {
+    try {
       String createCommandSql = "create table " + TEMP_SCHEMA + "." + insert_values_test +
         "(PolicyID bigint, statecode varchar, county varchar, " +
         "eq_site_limit double, hu_site_limit double, fl_site_limit double, " +
@@ -326,9 +388,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testTypesNamesMatchExactly() throws Exception {
-    final String newTable = "insert_types_names_match_exactly";
+  public void testInsertUsingValuesWithSchemaMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertUsingValuesWithSchemaMismatch("insert_values_test_mismatch");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertUsingValuesWithSchemaMismatch("insert_values_test_mismatch_v2");
+    }
+  }
+
+  private void testTypesNamesMatchExactly(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(col1 boolean, col4 float, col5 decimal(10,3), " +
       "col6 double, col7 int, col8 bigint, col9 time, col10 timestamp, col11 varchar)";
@@ -373,9 +444,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testTypesMatchExactlyButNotNames() throws Exception {
-    final String newTable = "insert_types_match_not_names_test";
+  public void testTypesNamesMatchExactly() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testTypesNamesMatchExactly("insert_types_names_match_exactly");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testTypesNamesMatchExactly("insert_types_names_match_exactly_v2");
+    }
+  }
+
+  public void testTypesMatchExactlyButNotNames(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 boolean, zcol4 float, zcol5 decimal(10,3), " +
         "zcol6 double, zcol7 int, zcol8 bigint, zcol9 time, zcol10 timestamp, zcol11 varchar)";
@@ -422,9 +502,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testIncomptibleStringToInt() throws Exception {
-    final String newTable = "insert_incompatible_test";
+  public void testTypesMatchExactlyButNotNames() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testTypesMatchExactlyButNotNames("insert_types_match_not_names_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testTypesMatchExactlyButNotNames("insert_types_match_not_names_test_v2");
+    }
+  }
+
+  private void testIncomptibleStringToInt(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable +
         "(col1 int)";
       test(table1);
@@ -439,9 +528,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testUpPromotableInsert() throws Exception {
-    final String newTable = "insert_uppromotable_test";
+  public void testIncomptibleStringToInt() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testIncomptibleStringToInt("insert_incompatible_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testIncomptibleStringToInt("insert_incompatible_test_v2");
+    }
+  }
+
+  private void testUpPromotableInsert(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 boolean, zcol3 date, zcol4 float, zcol5 decimal(10,3), " +
         "zcol6 double, zcol7 int, zcol8 bigint, zcol9 time, zcol10 timestamp, zcol11 varchar)";
@@ -474,9 +572,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testListComplexInsert() throws Exception {
-    final String newTable = "insert_list_test";
+  public void testUpPromotableInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testUpPromotableInsert("insert_uppromotable_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testUpPromotableInsert("insert_uppromotable_test_v2");
+    }
+  }
+
+  private void testListComplexInsert(String newTable) throws Exception {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String listbigint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/listbigint";
 
@@ -513,9 +620,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testListComplexInsertFailure() throws Exception {
-    final String newTable = "insert_list_failure_test";
+  public void testListComplexInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testListComplexInsert("insert_list_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testListComplexInsert("insert_list_test_v2");
+    }
+  }
+
+  private void testListComplexInsertFailure(String newTable) throws Exception {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String listbigint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/listbigint";
       final String listint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/listint";
@@ -548,9 +664,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testStructComplexInsert() throws Exception {
-    final String newTable = "insert_struct_test";
+  public void testListComplexInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testListComplexInsertFailure("insert_list_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testListComplexInsertFailure("insert_list_failure_test_v2");
+    }
+  }
+
+  private void testStructComplexInsert(String newTable) throws Exception {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String structbigint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/structbigint";
 
@@ -587,9 +712,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testStructComplexInsertFailure() throws Exception {
-    final String newTable = "insert_struct_failure_test";
+  public void testStructComplexInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testStructComplexInsert("insert_struct_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testStructComplexInsert("insert_struct_test_v2");
+    }
+  }
+
+  private void testStructComplexInsertFailure(String newTable) throws Exception {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String structbigint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/structbigint";
       final String structint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/structint";
@@ -622,9 +756,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testComplexInsertIncompatibleFailure() throws Exception {
-    final String newTable = "insert_struct_incompatible_test";
+  public void testStructComplexInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testStructComplexInsertFailure("insert_struct_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testStructComplexInsertFailure("insert_struct_failure_test_v2");
+    }
+  }
+
+  private void testComplexInsertIncompatibleFailure(String newTable) throws Exception {
+    try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String structbigint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/structbigint";
       final String structint = testWorkingPath + "/src/test/resources/iceberg/complexTypeTest/structint";
@@ -657,9 +800,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testUpPromotablePartitionInsert() throws Exception {
-    final String newTable = "insert_uppromotable_partition_test";
+  public void testComplexInsertIncompatibleFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testComplexInsertIncompatibleFailure("insert_struct_incompatible_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testComplexInsertIncompatibleFailure("insert_struct_incompatible_test_v2");
+    }
+  }
+
+  private void testUpPromotablePartitionInsert(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 boolean, zcol3 date, zcol4 float, zcol5 decimal(10,3), " +
         "zcol6 double, zcol7 int, zcol8 bigint, zcol9 time, zcol10 timestamp, zcol11 varchar)";
@@ -694,18 +846,28 @@ public class TestInsertIntoTable extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testUpPromotablePartitionInsert() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testUpPromotablePartitionInsert("insert_uppromotable_partition_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testUpPromotablePartitionInsert("insert_uppromotable_partition_test_v2");
+    }
+  }
+
   private void checkSinglePartitionValue(File tableFolder, Class expectedClass, Object expectedValue) {
-    Table table = new HadoopTables(new Configuration()).load(tableFolder.getPath());
+    Table table = getIcebergTable(tableFolder);
+
     for (FileScanTask fileScanTask : table.newScan().planFiles()) {
       StructLike structLike = fileScanTask.file().partition();
       Assert.assertTrue(structLike.get(0, expectedClass).equals(expectedValue));
     }
   }
 
-  @Test
-  public void testUpPromotablePartitionWithStarInsert() throws Exception {
-    final String newTable = "insert_uppromotable_partition_withstar_test";
-    try (AutoCloseable c = enableIcebergTables()) {
+  private void testUpPromotablePartitionWithStarInsert(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 int, zcol2 decimal(10,2), zcol3 float)";
       test(table1);
@@ -739,9 +901,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDecimalInsertMorePrecisionEqualScale() throws Exception {
-    final String newTable = "insert_decimal_more_precision_test";
+  public void testUpPromotablePartitionWithStarInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testUpPromotablePartitionWithStarInsert("insert_uppromotable_partition_withstar_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testUpPromotablePartitionWithStarInsert("insert_uppromotable_partition_withstar_test_v2");
+    }
+  }
+
+  private void testDecimalInsertMorePrecisionEqualScale(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 decimal(10,2))";
       test(table1);
@@ -772,9 +943,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDecimalInsertMorePrecisionUnequalScale() throws Exception {
-    final String newTable = "insert_decimal_more_precision_unequal_scale_test";
+  public void testDecimalInsertMorePrecisionEqualScale() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDecimalInsertMorePrecisionEqualScale("insert_decimal_more_precision_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDecimalInsertMorePrecisionEqualScale("insert_decimal_more_precision_test_v2");
+    }
+  }
+
+  private void testDecimalInsertMorePrecisionUnequalScale(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 decimal(10,5))";
       test(table1);
@@ -800,9 +980,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDecimalInsertLessPrecision() throws Exception {
-    final String newTable = "insert_decimal_less_precision_test";
+  public void testDecimalInsertMorePrecisionUnequalScale() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDecimalInsertMorePrecisionUnequalScale("insert_decimal_more_precision_unequal_scale_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDecimalInsertMorePrecisionUnequalScale("insert_decimal_more_precision_unequal_scale_test_v2");
+    }
+  }
+
+  private void testDecimalInsertLessPrecision(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 decimal(10,2))";
       test(table1);
@@ -828,9 +1017,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDoubleToDecimalInsertFailure() throws Exception {
-    final String newTable = "insert_double_decimal_failure_test";
+  public void testDecimalInsertLessPrecision() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDecimalInsertLessPrecision("insert_decimal_less_precision_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDecimalInsertLessPrecision("insert_decimal_less_precision_test_v2");
+    }
+  }
+
+  private void testDoubleToDecimalInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 double)";
       test(table1);
@@ -868,9 +1066,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testFloatToDecimalInsertFailure() throws Exception {
-    final String newTable = "insert_float_decimal_failure_test";
+  public void testDoubleToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDoubleToDecimalInsertFailure("insert_double_decimal_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDoubleToDecimalInsertFailure("insert_double_decimal_failure_test_v2");
+    }
+  }
+
+  private void testFloatToDecimalInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 float)";
       test(table1);
@@ -907,9 +1114,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testBigIntToDecimalInsertFailure() throws Exception {
-    final String newTable = "insert_bigint_decimal_failure_test";
+  public void testFloatToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testFloatToDecimalInsertFailure("insert_float_decimal_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testFloatToDecimalInsertFailure("insert_float_decimal_failure_test_v2");
+    }
+  }
+
+  private void testBigIntToDecimalInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 bigint)";
       test(table1);
@@ -950,9 +1166,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testIntToDecimalInsertFailure() throws Exception {
-    final String newTable = "insert_int_decimal_failure_test";
+  public void testBigIntToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testBigIntToDecimalInsertFailure("insert_bigint_decimal_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testBigIntToDecimalInsertFailure("insert_bigint_decimal_failure_test_v2");
+    }
+  }
+
+  private void testIntToDecimalInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 int)";
       test(table1);
@@ -993,9 +1218,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDecimalToDoubleInsertFailure() throws Exception {
-    final String newTable = "insert_decimal_double_failure_test";
+  public void testIntToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testIntToDecimalInsertFailure("insert_int_decimal_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testIntToDecimalInsertFailure("insert_int_decimal_failure_test_v2");
+    }
+  }
+
+  private void testDecimalToDoubleInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 decimal(25,9))";
       test(table1);
@@ -1044,9 +1278,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDecimalToFloatInsertFailure() throws Exception {
-    final String newTable = "insert_decimal_float_failure_test";
+  public void testDecimalToDoubleInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDecimalToDoubleInsertFailure("insert_decimal_double_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDecimalToDoubleInsertFailure("insert_decimal_double_failure_test_v2");
+    }
+  }
+
+  private void testDecimalToFloatInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 decimal(10,3))";
       test(table1);
@@ -1095,9 +1338,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testBigIntToIntInsertFailure() throws Exception {
-    final String newTable = "insert_bigint_int_failure_test";
+  public void testDecimalToFloatInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDecimalToFloatInsertFailure("insert_decimal_float_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDecimalToFloatInsertFailure("insert_decimal_float_failure_test_v2");
+    }
+  }
+
+  private void testBigIntToIntInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 bigint)";
       test(table1);
@@ -1123,9 +1375,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testDoubleToFloatInsertFailure() throws Exception {
-    final String newTable = "insert_double_float_failure_test";
+  public void testBigIntToIntInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testBigIntToIntInsertFailure("insert_bigint_int_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testBigIntToIntInsertFailure("insert_bigint_int_failure_test_v2");
+    }
+  }
+
+  private void testDoubleToFloatInsertFailure(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
         "(zcol1 double)";
       test(table1);
@@ -1151,10 +1412,19 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertValuesMatchingTypes() throws Exception {
-    final String insertTable = "insertTable1";
-
+  public void testDoubleToFloatInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testDoubleToFloatInsertFailure("insert_double_float_failure_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testDoubleToFloatInsertFailure("insert_double_float_failure_test_v2");
+    }
+  }
+
+  private void testInsertValuesMatchingTypes(String insertTable) throws Exception {
+
+    try {
       final String tableCreate = String.format("CREATE TABLE %s.%s(id int, code1 varchar, value1 double, correct1 boolean, " +
           "start_time timestamp, id2 decimal(10,3))", TEMP_SCHEMA, insertTable);
       test(tableCreate);
@@ -1180,9 +1450,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testUpPromotableInsertValues() throws Exception {
-    final String newTable = "insertvalues_uppromotable_test";
+  public void testInsertValuesMatchingTypes() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertValuesMatchingTypes("insertTable1");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertValuesMatchingTypes("insertTable1_v2");
+    }
+  }
+
+  private void testUpPromotableInsertValues(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
           "(zcol1 boolean, zcol3 date, zcol4 float, zcol5 decimal(10,3), " +
           "zcol6 double, zcol7 int, zcol8 bigint, zcol9 time, zcol10 timestamp, zcol11 varchar)";
@@ -1214,9 +1493,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testWriteMinMaxAndVerifyPruning() throws Exception {
-    final String tableName = "testWriteMinMaxAndVerifyPruning";
+  public void testUpPromotableInsertValues() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testUpPromotableInsertValues("insertvalues_uppromotable_test");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testUpPromotableInsertValues("insertvalues_uppromotable_test_v2");
+    }
+  }
+
+  private void testWriteMinMaxAndVerifyPruning(String tableName) throws Exception {
+    try {
       test("create table " + TEMP_SCHEMA + "." + tableName +
         " (col1 boolean, col2 int, col3 bigint, col4 float, col5 double, " +
         "col6 decimal(15,3), col7 date, col8 time, " +
@@ -1238,7 +1526,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         "cast('2019-12-27 12:20:00' as timestamp), 'ghi'))");
 
       File tableDir = new File(getDfsTestTmpSchemaLocation(), tableName);
-      Table icebergTable = new HadoopTables(new Configuration()).load(tableDir.getPath());
+      Table icebergTable = getIcebergTable(tableDir);
 
       Iterable<DataFile> files = FindFiles.in(icebergTable)
         .withRecordsMatching(greaterThanOrEqual("col1", true))
@@ -1259,10 +1547,19 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testInsertValuesPartitionedTable() throws Exception {
-    final String table1 = "insertTable2";
-
+  public void testWriteMinMaxAndVerifyPruning() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testWriteMinMaxAndVerifyPruning("testWriteMinMaxAndVerifyPruning");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testWriteMinMaxAndVerifyPruning("testWriteMinMaxAndVerifyPruning_v2");
+    }
+  }
+
+  private void testInsertValuesPartitionedTable(String table1) throws Exception {
+
+    try {
       final String table1Create = String.format("CREATE TABLE %s.%s(id int, code int) partition by (code)",
           TEMP_SCHEMA, table1);
       test(table1Create);
@@ -1295,7 +1592,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       List<Integer> valuesInCodeColumn = IntStream.range(1, 6).boxed().collect(Collectors.toList());
 
       File table1Folder = new File(getDfsTestTmpSchemaLocation(), table1);
-      Table icebergTable1 = new HadoopTables(new Configuration()).load(table1Folder.getPath());
+      Table icebergTable1 = getIcebergTable(table1Folder);
       List<Integer> partitionValues = StreamSupport.stream(icebergTable1.newScan().planFiles().spliterator(), false)
           .map(fileScanTask -> fileScanTask.file().partition())
           .map(structLike -> structLike.get(0, Integer.class))
@@ -1310,9 +1607,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewCols() throws Exception {
-    final String newTable = "insert_select_cols1";
+  public void testInsertValuesPartitionedTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      testInsertValuesPartitionedTable("insertTable2");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testInsertValuesPartitionedTable("insertTable2_v2");
+    }
+  }
+
+  private void insertIntoFewCols(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       String insertTable1 = String.format("insert into %s.%s(id, name) select * from (values(1, 'name1'))", TEMP_SCHEMA, newTable);
@@ -1334,9 +1640,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsDuplicate() throws Exception {
-    final String newTable = "insert_select_cols2";
+  public void insertIntoFewCols() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewCols("insert_select_cols1");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewCols("insert_select_cols1_v2");
+    }
+  }
+
+  private void insertIntoFewColsDuplicate(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       Thread.sleep(1001);
@@ -1349,9 +1664,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsTypeSpecified() throws Exception {
-    final String newTable = "insert_select_cols2002";
+  public void insertIntoFewColsDuplicate() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsDuplicate("insert_select_cols2");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsDuplicate("insert_select_cols2_v2");
+    }
+  }
+
+  private void insertIntoFewColsTypeSpecified(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       Thread.sleep(1001);
@@ -1363,9 +1687,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsNonExistingCol() throws Exception {
-    final String newTable = "insert_select_cols3";
+  public void insertIntoFewColsTypeSpecified() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsTypeSpecified("insert_select_cols2002");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsTypeSpecified("insert_select_cols2002_v2");
+    }
+  }
+
+  private void insertIntoFewColsNonExistingCol(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       Thread.sleep(1001);
@@ -1378,9 +1711,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsSchemaMismatch() throws Exception {
-    final String newTable = "insert_select_cols4";
+  public void insertIntoFewColsNonExistingCol() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsNonExistingCol("insert_select_cols3");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsNonExistingCol("insert_select_cols3_v2");
+    }
+  }
+
+  private void insertIntoFewColsSchemaMismatch(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       Thread.sleep(1001);
@@ -1393,9 +1735,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsOrderedFields() throws Exception {
-    final String newTable = "insert_select_cols5";
+  public void insertIntoFewColsSchemaMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsSchemaMismatch("insert_select_cols4");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsSchemaMismatch("insert_select_cols4_v2");
+    }
+  }
+
+  private void insertIntoFewColsOrderedFields(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar, address varchar, pin int)", TEMP_SCHEMA, newTable);
       test(table);
 
@@ -1418,9 +1769,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsUnorderedFields() throws Exception {
-    final String newTable = "insert_select_cols005";
+  public void insertIntoFewColsOrderedFields() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsOrderedFields("insert_select_cols5");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsOrderedFields("insert_select_cols5_v2");
+    }
+  }
+
+  private void insertIntoFewColsUnorderedFields(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       Thread.sleep(1001);
@@ -1439,9 +1799,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void insertIntoFewColsUppromotableTypes() throws Exception {
-    final String newTable = "insert_select_cols6";
+  public void insertIntoFewColsUnorderedFields() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsUnorderedFields("insert_select_cols005");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsUnorderedFields("insert_select_cols005_v2");
+    }
+  }
+
+  private void insertIntoFewColsUppromotableTypes(String newTable) throws Exception {
+    try {
       String table = String.format("create table %s.%s(id float, name varchar)", TEMP_SCHEMA, newTable);
       test(table);
       Thread.sleep(1001);
@@ -1460,9 +1829,18 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
-  public void testFewColsUpPromotableInsert() throws Exception {
-    final String newTable = "insert_few_cols7";
+  public void insertIntoFewColsUppromotableTypes() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
+      insertIntoFewColsUppromotableTypes("insert_select_cols6");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      insertIntoFewColsUppromotableTypes("insert_select_cols6_v2");
+    }
+  }
+
+  private void testFewColsUpPromotableInsert(String newTable) throws Exception {
+    try {
       String table1 = "create table " + TEMP_SCHEMA + "." + newTable + "_1" +
           "(zcol1 boolean, zcol3 date, zcol4 float, zcol5 decimal(10,3), " +
           "zcol6 double, zcol7 int, zcol8 bigint, zcol9 time, zcol10 timestamp, zcol11 varchar)";
@@ -1492,6 +1870,17 @@ public class TestInsertIntoTable extends BaseTestQuery {
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
+    }
+  }
+
+  @Test
+  public void testFewColsUpPromotableInsert() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testFewColsUpPromotableInsert("insert_few_cols7");
+    }
+    try (AutoCloseable c = enableIcebergTables();
+         AutoCloseable c2 = enableV2Execution()) {
+      testFewColsUpPromotableInsert("insert_few_cols7_v2");
     }
   }
 

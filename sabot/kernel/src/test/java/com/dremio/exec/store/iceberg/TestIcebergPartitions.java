@@ -52,6 +52,7 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.google.common.collect.ImmutableList;
 
 public class TestIcebergPartitions extends BaseTestQuery {
@@ -113,12 +114,13 @@ public class TestIcebergPartitions extends BaseTestQuery {
   @Test
   public void testPartitions() throws Exception {
     File root = tempDir.newFolder();
+    IcebergModel icebergModel = getIcebergModel(root);
     HadoopTables tables = new HadoopTables(conf);
     Table table = tables.create(schema, spec, root.getAbsolutePath());
 
     // test empty table.
     IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(),
-      HadoopFileSystem.get(fs), conf, root.getAbsolutePath()).getTableInfo();
+      HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath()).getTableInfo();
     assertEquals(tableInfo.getRecordCount(), 0);
 
     List<String> expectedColumns = Arrays.asList(ID, NAME);
@@ -138,7 +140,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
     transaction.commitTransaction();
 
     tableInfo = new IcebergTableWrapper(getSabotContext(),
-      HadoopFileSystem.get(fs), conf, root.getAbsolutePath()).getTableInfo();
+      HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath()).getTableInfo();
     assertEquals(1500, tableInfo.getRecordCount());
     assertEquals(2, ImmutableList.copyOf(tableInfo.getPartitionChunkListing().iterator()).size());
 
@@ -163,6 +165,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
   @Test
   public void testNonIdentityPartitions() throws Exception {
     File root = tempDir.newFolder();
+    IcebergModel icebergModel = getIcebergModel(root);
     HadoopTables tables = new HadoopTables(conf);
     PartitionSpec partitionSpec = PartitionSpec
         .builderFor(schema)
@@ -183,7 +186,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
 
     try {
       IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(),
-          HadoopFileSystem.get(fs), conf, root.getAbsolutePath()).getTableInfo();
+          HadoopFileSystem.get(fs), icebergModel, root.getAbsolutePath()).getTableInfo();
       fail("Expected error while reading metadata of iceberg table with non-identity partition field");
     } catch (Exception ex) {
       Assert.assertTrue("UserException expected", ex instanceof UserException);

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -24,9 +23,8 @@ import { FieldWithError, TextField, Checkbox } from 'components/Fields';
 
 import { LINE_START_START, FLEX_COL_START_START } from 'uiTheme/radium/flexStyle';
 
-@PureRender
 @Radium
-export default class SplitContent extends Component {
+export default class SplitContent extends PureComponent {
   static propTypes = {
     matchType: PropTypes.object,
     ignoreCase: PropTypes.object,

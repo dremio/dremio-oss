@@ -856,8 +856,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       return result(newInput, mapping);
     }
 
-    // Create/Rewrite a new window operator by dropping unnecessary groups/agg calls
-    // and permutting the inputs
+    // Create/Rewrite a new window operator by dropping unnecessary groups/agg calls and permuting the inputs
     final RexPermuteInputsShuttle shuttle = new RexPermuteInputsShuttle(inputAndConstantsMapping, newInput);
     final List<Window.Group> newGroups = new ArrayList<>();
 

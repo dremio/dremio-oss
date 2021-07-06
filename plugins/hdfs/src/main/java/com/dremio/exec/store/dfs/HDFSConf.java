@@ -30,6 +30,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.protostuff.Tag;
 
@@ -76,6 +77,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @Tag(8)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  @JsonIgnore
   public boolean allowCreateDrop;
 
   @Tag(12)
@@ -137,7 +139,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+    return SchemaMutability.USER_TABLE;
   }
 
   public ShortCircuitFlag getShortCircuitFlag() {

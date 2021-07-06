@@ -33,7 +33,6 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
-import com.dremio.dac.service.reflection.ReflectionStatusUI;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.google.common.base.Function;
@@ -72,9 +71,7 @@ public class DatasetResource {
     Iterable<ReflectionGoal> reflectionsForDataset = reflectionServiceHelper.getReflectionsForDataset(id);
 
     for (ReflectionGoal goal : reflectionsForDataset) {
-      String reflectionId = goal.getId().getId();
-      ReflectionStatusUI status = reflectionServiceHelper.getStatusForReflection(reflectionId);
-      response.add(new Reflection(goal, status, reflectionServiceHelper.getCurrentSize(reflectionId), reflectionServiceHelper.getTotalSize(reflectionId)));
+      response.add(reflectionServiceHelper.newReflection(goal));
     }
 
     return response;

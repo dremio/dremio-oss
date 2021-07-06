@@ -79,7 +79,7 @@ describe('transformWatcher saga', () => {
       const response = {
         error: true
       };
-      expect(() => {
+      const testException = () => {
         next = gen.next(response); // forces to go to a finally block as exception would be thrown
         next = gen.next(); // put failedExploreJobProgress
         // we should resume data load listener after navigation
@@ -87,7 +87,14 @@ describe('transformWatcher saga', () => {
         next = gen.next();
         expect(next.value).to.be.eql(put(completeDatasetMetadataLoad()));
         next = gen.next();
-      }).to.throw(TransformFailedError);
+      };
+      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      try {
+        testException();
+      } catch (ex) {
+        expect(ex instanceof TransformFailedError).to.be.true;
+      }
+      // expect(testException).to.throw(TransformFailedError);
     });
 
   });
@@ -102,17 +109,29 @@ describe('transformWatcher saga', () => {
     });
 
     it('should throw TransformCanceledError if cancel wins the race', () => {
-      expect(() => {
+      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      try {
         gen.next({cancel: 'cancel'});
-      }).to.throw(TransformCanceledError);
+      } catch (ex) {
+        expect(ex instanceof TransformCanceledError).to.be.true;
+      }
+      // expect(() => {
+      //   gen.next({cancel: 'cancel'});
+      // }).to.throw(TransformCanceledError);
     });
 
     it('should hide the modal and throw TransformCanceledError if resetNewQuery wins the race', () => {
       next = gen.next({resetNewQuery: true});
       expect(next.value).to.eql(put(hideConfirmationDialog()));
-      expect(() => {
+      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      try {
         next = gen.next();
-      }).to.throw(TransformCanceledError);
+      } catch (ex) {
+        expect(ex instanceof TransformCanceledError).to.be.true;
+      }
+      // expect(() => {
+      //   next = gen.next();
+      // }).to.throw(TransformCanceledError);
     });
 
     it('should hide the modal and return tableTransform if transform wins the race', () => {
@@ -126,9 +145,15 @@ describe('transformWatcher saga', () => {
     it('should hide the modal and throw TransformCanceledByLocationChangeError if location change wins', () => {
       next = gen.next({locationChange: 'locationChange'});
       expect(next.value).to.eql(put(hideConfirmationDialog()));
-      expect(() => {
+      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      try {
         next = gen.next();
-      }).to.throw(TransformCanceledByLocationChangeError);
+      } catch (ex) {
+        expect(ex instanceof TransformCanceledByLocationChangeError).to.be.true;
+      }
+      // expect(() => {
+      //   next = gen.next();
+      // }).to.throw(TransformCanceledByLocationChangeError);
     });
   });
 

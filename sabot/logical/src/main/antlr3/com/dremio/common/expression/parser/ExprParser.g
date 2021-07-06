@@ -152,17 +152,19 @@ elseIfStat returns [IfExpression.IfCondition i]
   ;
 
 caseStatement returns [LogicalExpression e]
-	@init {
-	  IfExpression.Builder s = IfExpression.newBuilder();
-	}
-	@after {
-	  $e = s.build();
-	}  
-  : Case (caseWhenStat {s.setIfCondition($caseWhenStat.e); }) + caseElseStat { s.setElse($caseElseStat.e); } End
+  @init {
+    CaseExpression.Builder b = CaseExpression.newBuilder();
+    List<CaseExpression.CaseConditionNode> exprs = new ArrayList<CaseExpression.CaseConditionNode>();
+  }
+  @after {
+    b.setCaseConditions(exprs);
+    $e = b.build();
+  }
+  : Case (caseWhenStat { exprs.add($caseWhenStat.e); })* caseElseStat { b.setElseExpr($caseElseStat.e); } End
   ;
-  
-caseWhenStat returns [IfExpression.IfCondition e]
-  : When e1=expression Then e2=expression {$e = new IfExpression.IfCondition($e1.e, $e2.e); }
+
+caseWhenStat returns [CaseExpression.CaseConditionNode e]
+  : When e1=expression Then e2=expression {$e = new CaseExpression.CaseConditionNode($e1.e, $e2.e); }
   ;
   
 caseElseStat returns [LogicalExpression e]

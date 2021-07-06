@@ -16,41 +16,50 @@
 package com.dremio.sabot.exec.context;
 
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.CachingOptionManager;
+import com.dremio.exec.server.options.CachingOptionResolver;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 
 /**
  * Holds options associated with code generation.
  */
 public class CompilationOptions {
 
-  private final OptionManager optionManager;
+  private final OptionResolver optionResolver;
 
   public CompilationOptions(OptionManager options) {
-    this.optionManager = new CachingOptionManager(options);
+    this.optionResolver = new CachingOptionResolver(options);
   }
 
   public boolean enableOrOptimization() {
-    return optionManager.getOption(ExecConstants.FAST_OR_ENABLE);
+    return optionResolver.getOption(ExecConstants.FAST_OR_ENABLE);
   }
 
   public int getOrOptimizationThreshold() {
-    return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD);
+    return (int) optionResolver.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD);
   }
 
   public int getVarcharOrOptimizationThreshold() {
-    return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_VARCHAR_THRESHOLD);
+    return (int) optionResolver.getOption(ExecConstants.FAST_OR_MIN_VARCHAR_THRESHOLD);
   }
 
   public int getOrOptimizationThresholdForGandiva() {
-    return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD_GANDIVA);
+    return (int) optionResolver.getOption(ExecConstants.FAST_OR_MIN_THRESHOLD_GANDIVA);
   }
 
   public int getVarcharOrOptimizationThresholdForGandiva() {
-    return (int) optionManager.getOption(ExecConstants.FAST_OR_MIN_VARCHAR_THRESHOLD_GANDIVA);
+    return (int) optionResolver.getOption(ExecConstants.FAST_OR_MIN_VARCHAR_THRESHOLD_GANDIVA);
   }
 
   public int getNewMethodThreshold() {
-    return (int) optionManager.getOption(ExecConstants.CODE_GEN_NESTED_METHOD_THRESHOLD);
+    return (int) optionResolver.getOption(ExecConstants.CODE_GEN_NESTED_METHOD_THRESHOLD);
+  }
+
+  public int getConstantArrayThreshold() {
+    return (int) optionResolver.getOption(ExecConstants.CODE_GEN_CONSTANT_ARRAY_THRESHOLD);
+  }
+
+  public OptionResolver getOptionResolver() {
+    return optionResolver;
   }
 }

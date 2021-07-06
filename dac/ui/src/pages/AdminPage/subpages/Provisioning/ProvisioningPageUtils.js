@@ -25,3 +25,8 @@ export const getLoadProvisionFunction = (props) => {
 export const getExtraFunctions = (props) => {
   return [];
 };
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getRemoveConfirmationMsgId = (entity) => {
+  return 'Admin.Engine.DeleteEngine.Confirmation';
+};

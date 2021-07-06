@@ -16,10 +16,15 @@
 package com.dremio.exec.store.iceberg;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -28,11 +33,14 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Files;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,7 +50,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.io.file.Path;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.google.common.collect.Lists;
 
 public class TestIcebergPartitionData extends BaseTestQuery {
@@ -210,13 +220,20 @@ public class TestIcebergPartitionData extends BaseTestQuery {
         .withPartition(partitionData)
         .build();
 
-      IcebergOpCommitter committer = IcebergOperation.getCreateTableCommitter(tableName, Path.of(tableFolder.toPath().toString()),
-        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), new Configuration());
-      committer.consumeData(Lists.newArrayList(d1));
+      FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+      when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+      IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName));
       committer.commit();
 
+      committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()));
+      ManifestFile m1 = writeManifest("manifest1", Arrays.asList(d1), tableFolder);
+      committer.consumeManifestFile(m1);
+      committer.commit();
 
-      Table table = new HadoopTables(new Configuration()).load(tableFolder.getPath());
+      Table table = getIcebergTable(tableFolder);
       for (FileScanTask fileScanTask : table.newScan().planFiles()) {
         StructLike structLike = fileScanTask.file().partition();
         if (expectedClass == ByteBuffer.class) {
@@ -231,5 +248,27 @@ public class TestIcebergPartitionData extends BaseTestQuery {
       tableFolder.delete();
     }
 
+  }
+
+  ManifestFile writeManifest(String fileName, List<DataFile> files, File tableFolder) throws IOException {
+    return writeManifest(fileName, null, files, tableFolder);
+  }
+
+  ManifestFile writeManifest(String fileName, Long snapshotId, List<DataFile> files, File tableFolder) throws IOException {
+    File metadataFolder = new File(tableFolder, "metadata");
+    metadataFolder.mkdir();
+    File manifestFile =  new File(metadataFolder, fileName + ".avro");
+    Table table = getIcebergTable(tableFolder);
+    OutputFile outputFile = table.io().newOutputFile(manifestFile.getCanonicalPath());
+
+    ManifestWriter<DataFile> writer = ManifestFiles.write(1, table.spec(), outputFile, snapshotId);
+    try {
+      for (DataFile file : files) {
+        writer.add(file);
+      }
+    } finally {
+      writer.close();
+    }
+    return writer.toManifestFile();
   }
 }

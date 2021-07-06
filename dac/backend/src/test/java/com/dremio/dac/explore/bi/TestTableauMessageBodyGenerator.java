@@ -22,7 +22,6 @@ import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_VERS
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_NOMINAL;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_ORDINAL;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_QUANTITATIVE;
-import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauExportType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
@@ -60,6 +59,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.dremio.config.DremioConfig;
+import com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauExportType;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.WebServer;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -67,6 +68,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.xml.SafeXMLFactories;
 
 /**
  * Unit tests for {@link TableauMessageBodyGenerator}
@@ -86,7 +88,7 @@ public class TestTableauMessageBodyGenerator {
     };
   }
 
-  private static NodeEndpoint ENDPOINT = NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
+  private static final NodeEndpoint ENDPOINT = NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
 
   private final DatasetPath path;
   private final String tableName;
@@ -95,7 +97,9 @@ public class TestTableauMessageBodyGenerator {
   @Mock
   private Configuration configuration;
   @Mock
-  private OptionManager optionManager;
+  protected OptionManager optionManager;
+  @Mock
+  protected DremioConfig config;
 
   public TestTableauMessageBodyGenerator(String testName, String path, String tableName, String customProperties) {
     this.path = new DatasetPath(path);
@@ -109,6 +113,10 @@ public class TestTableauMessageBodyGenerator {
     when(optionManager.getOption(EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
   }
 
+  protected TableauMessageBodyGenerator getGenerator() {
+    return new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
+  }
+
   @Test
   public void verifyOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
@@ -120,14 +128,14 @@ public class TestTableauMessageBodyGenerator {
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
 
-    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
+    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
     final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
     // Convert the baos into a DOM Tree to verify content
-    final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
     final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
@@ -186,7 +194,15 @@ public class TestTableauMessageBodyGenerator {
     verifySdkOutput("ssl = true", "required");
   }
 
-  private void verifySdkOutput(String properties, String sslmode)
+  @Test
+  public void verifySdkOutputSslOnConfig()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
+    when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
+    verifySdkOutput("", "required");
+  }
+
+  protected Element verifySdkOutput(String properties, String sslmode)
       throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(optionManager.getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES)).thenReturn(properties);
     when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
@@ -196,14 +212,14 @@ public class TestTableauMessageBodyGenerator {
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
-    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
+    TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
-    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
+    assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
+    tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
     // Convert the baos into a DOM Tree to verify content
-    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
     Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
@@ -216,6 +232,7 @@ public class TestTableauMessageBodyGenerator {
     assertEquals(sslmode, connection.getAttribute("sslmode"));
     assertEquals("DREMIO", connection.getAttribute("dbname"));
     assertEquals(path.toParentPath(), connection.getAttribute("schema"));
+    assertEquals("basic", connection.getAttribute("authentication"));
 
     verifyRelationElement(connection);
 
@@ -228,6 +245,8 @@ public class TestTableauMessageBodyGenerator {
     // Also check that Content-Disposition header is set with a filename ending by tds
     ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
+
+    return connection;
   }
 
   @Test
@@ -244,14 +263,14 @@ public class TestTableauMessageBodyGenerator {
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
 
-    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
+    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE));
     generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE, httpHeaders, baos);
 
     // Convert the baos into a DOM Tree to verify content
-    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
     Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     NodeList connections = document.getDocumentElement().getElementsByTagName("connection");

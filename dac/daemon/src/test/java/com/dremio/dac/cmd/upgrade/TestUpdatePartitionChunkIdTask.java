@@ -27,7 +27,7 @@ import java.util.stream.StreamSupport;
 
 import org.junit.Test;
 
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.NamespaceKey;
@@ -49,10 +49,12 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
   @Test
   public void test() throws Exception {
-    try (final LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT)){
+    try (final LocalKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(
+      CLASSPATH_SCAN_RESULT, null, true, false)){
       kvStoreProvider.start();
-      final LegacyIndexedStore<String, NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-      final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore = kvStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
+      final LegacyKVStoreProvider legacyKVStoreProvider = kvStoreProvider.asLegacy();
+      final LegacyIndexedStore<String, NameSpaceContainer> namespace = legacyKVStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore = legacyKVStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
       final DatasetConfig ds1 = addDataset(namespace, partitionChunksStore, "foo_bar", Arrays.asList("test", "foo_bar"), 10);
       final DatasetConfig ds2 = addDataset(namespace, partitionChunksStore, "foo%bar", Arrays.asList("test", "foo%bar"), 20);
@@ -91,7 +93,7 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
       assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count(), is(10L + 20L + 30L));
 
       // Perform upgrade
-      final UpgradeContext context = new UpgradeContext(kvStoreProvider, null, null, null);
+      final UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
 

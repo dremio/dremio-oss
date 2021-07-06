@@ -30,7 +30,6 @@ import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.work.foreman.ForemanSetupException;
-import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -53,7 +52,6 @@ class ReflectionPlanGenerator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionPlanGenerator.class);
 
   private final NamespaceService namespaceService;
-  private final OptionManager optionManager;
   private final SabotConfig config;
   private final SqlHandlerConfig sqlHandlerConfig;
   private final ReflectionGoal goal;
@@ -68,7 +66,6 @@ class ReflectionPlanGenerator {
   public ReflectionPlanGenerator(
       SqlHandlerConfig sqlHandlerConfig,
       NamespaceService namespaceService,
-      OptionManager optionManager,
       SabotConfig config,
       ReflectionGoal goal,
       ReflectionEntry entry,
@@ -78,7 +75,6 @@ class ReflectionPlanGenerator {
       boolean forceFullUpdate
       ) {
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
-    this.optionManager = Preconditions.checkNotNull(optionManager, "option manager required");
     this.config = Preconditions.checkNotNull(config, "sabot config required");
     this.sqlHandlerConfig = Preconditions.checkNotNull(sqlHandlerConfig, "SqlHandlerConfig required.");
     this.entry = entry;

@@ -33,13 +33,6 @@
           {
             "elements": [
               {
-                "propName": "config.allowCreateDrop"
-              }
-            ]
-          },
-          {
-            "elements": [
-              {
                 "propName": "config.rootPath"
               }
             ]

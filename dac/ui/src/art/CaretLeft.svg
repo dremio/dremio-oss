@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon/Caret-Left</title>
+    <g id="Icon/Caret-Left" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <polygon id="Path" points="0 0 24 0 24 24 0 24"></polygon>
+        <g id="Group" transform="translate(12.000000, 12.000000) rotate(90.000000) translate(-12.000000, -12.000000) ">
+            <polygon id="Path" points="0 0 24 0 24 24 0 24"></polygon>
+            <path d="M7.14644661,10.1464466 C7.32001296,9.97288026 7.58943736,9.95359511 7.7843055,10.0885912 L7.85355339,10.1464466 L11.6465,13.9393932 C11.8200555,14.1128963 12.0894136,14.1321744 12.2842211,13.9972651 L12.3534466,13.9394466 L16.1464466,10.1464466 C16.3417088,9.95118446 16.6582912,9.95118446 16.8535534,10.1464466 C17.0271197,10.320013 17.0464049,10.5894374 16.9114088,10.7843055 L16.8535534,10.8535534 L13.0605,14.6466068 C12.5113596,15.1955814 11.6425164,15.2298923 11.0533692,14.7494955 L10.9394466,14.6465534 L7.14644661,10.8535534 C6.95118446,10.6582912 6.95118446,10.3417088 7.14644661,10.1464466 Z" id="Path" fill="#43B8C9"></path>
+        </g>
+    </g>
+</svg>

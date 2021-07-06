@@ -71,7 +71,7 @@ public class HiveTestDataGenerator {
     return getInstance(null);
   }
 
-  public static synchronized HiveTestDataGenerator getInstance(Map<String, String> config) throws Exception {
+  private static synchronized HiveTestDataGenerator getInstance(Map<String, String> config) throws Exception {
     if (instance == null || (config != null && config.size() > 0)) {
       HiveTestDataGenerator localInstance = new HiveTestDataGenerator(config);
       localInstance.generateTestData();
@@ -262,7 +262,7 @@ public class HiveTestDataGenerator {
     }
   }
 
-  public void generateTestData() throws Exception {
+  private void generateTestData() throws Exception {
     try (DriverState driverState = new DriverState(newHiveConf())) {
       Driver hiveDriver = driverState.driver;
       logVersion(hiveDriver);

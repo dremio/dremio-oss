@@ -20,16 +20,16 @@ import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 
+import { CombinedActionMenuMixin } from 'dyn-load/components/Menus/ExplorePage/CombinedActionMenuMixin.js';
 import HoverHelp from '@app/components/HoverHelp';
-import DividerHr from '@app/components/Menus/DividerHr';
 import MenuItem from '@app/components/Menus/MenuItem';
 import { getJobProgress } from '@app/selectors/explore';
 
 import Menu from './Menu';
 import MenuLabel from './MenuLabel';
-import ExportMenu from './ExportMenu';
 
 @injectIntl
+@CombinedActionMenuMixin
 export class CombinedActionMenu extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -76,8 +76,7 @@ export class CombinedActionMenu extends PureComponent {
   };
 
   render() {
-    const { isSettingsDisabled, action, datasetColumns, dataset } = this.props;
-    const datasetSql = dataset.get('sql');
+    const { isSettingsDisabled } = this.props;
     return (
       <Menu>
         <MenuLabel>{la('Dataset')}</MenuLabel>
@@ -87,9 +86,7 @@ export class CombinedActionMenu extends PureComponent {
           disabled={isSettingsDisabled}>
           {la('Settings')}
         </MenuItem>
-        <DividerHr />
-        {this.renderDownloadSectionHeader()}
-        <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql}/>
+        {this.checkToRenderDownloadSection()}
       </Menu>
     );
   }

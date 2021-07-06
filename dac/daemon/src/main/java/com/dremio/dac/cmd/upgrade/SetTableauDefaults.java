@@ -51,14 +51,14 @@ public class SetTableauDefaults extends UpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final Optional<ClusterIdentity> identity =
-      BasicSupportService.getClusterIdentity(context.getKVStoreProvider());
+      BasicSupportService.getClusterIdentity(context.getLegacyKVStoreProvider());
 
     final Version previousVersion = Upgrade.retrieveStoreVersion(identity.get());
 
     final Supplier<SystemOptionManager> optionManagerSupplier = Suppliers.memoize(() ->
       new SystemOptionManager(new OptionValidatorListingImpl(context.getScanResult()),
         context.getLpPersistence(),
-        DirectProvider.wrap(context.getKVStoreProvider()),
+        DirectProvider.wrap(context.getLegacyKVStoreProvider()),
         false));
 
     updateOptionsIfNeeded(previousVersion, optionManagerSupplier, false);

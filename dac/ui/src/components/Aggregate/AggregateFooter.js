@@ -13,42 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
+import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
+import FontIcon from '@app/components/Icon/FontIcon';
 
-import FontIcon from 'components/Icon/FontIcon';
+import AggregateFooterMixin from 'dyn-load/components/Aggregate/AggregateFooterMixin.js';
+import { mapStateToProps } from 'dyn-load/components/Aggregate/AggregateFooterMixin.js';
 import { fieldAreaWidth } from './aggregateStyles';
 
-@pureRender
 @Radium
-class AggregateFooter extends Component {
+@AggregateFooterMixin
+class AggregateFooter extends PureComponent {
   static propTypes = {
     addAnother: PropTypes.func,
     style: PropTypes.object
   };
 
   render() {
+    const conditionalRenderingOfButton = this.checkToRenderFooter();
     return (
-      <div
-        className='aggregate-Footer'
-        style={[styles.base, this.props.style]}>
-        <div style={styles.left}></div>
-        <div style={styles.center}>
-          <div style={[styles.add]}
-            data-qa='add-dimension'
-            onClick={this.props.addAnother.bind(this, 'dimensions')}> {/* todo: ax, consistency: button */}
-            <FontIcon type='Add' hoverType='AddHover'/>
-            <span>{la('Add a Dimension')}</span>
+      <div>
+        <div
+          className='aggregate-Footer'
+          style={[styles.base, this.props.style]}>
+          <div style={styles.left}></div>
+          <div style={styles.center}>
+            <div style={conditionalRenderingOfButton ? [styles.add] : {display: 'none'}}
+              data-qa='add-dimension'
+              onClick={this.props.addAnother.bind(this, 'dimensions')}> {/* todo: ax, consistency: button */}
+              <FontIcon type='Add' hoverType='AddHover'/>
+              <span>{la('Add a Dimension')}</span>
+            </div>
           </div>
-        </div>
-        <div style={styles.right}>
-          <div style={[styles.add]}
-            data-qa='add-measure'
-            onClick={this.props.addAnother.bind(this, 'measures')}> {/* todo: ax, consistency: button */}
-            <FontIcon type='Add' hoverType='AddHover'/>
-            <span>{la('Add a Measure')}</span>
+          <div style={styles.right}>
+            <div style={conditionalRenderingOfButton ? [styles.add] : {display: 'none'}}
+              data-qa='add-measure'
+              onClick={this.props.addAnother.bind(this, 'measures')}> {/* todo: ax, consistency: button */}
+              <FontIcon type='Add' hoverType='AddHover'/>
+              <span>{la('Add a Measure')}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -94,4 +99,4 @@ const styles = {
   }
 };
 
-export default AggregateFooter;
+export default connect(mapStateToProps)(AggregateFooter);

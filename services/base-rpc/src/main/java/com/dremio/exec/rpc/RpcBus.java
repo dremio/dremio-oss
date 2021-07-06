@@ -80,6 +80,17 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
    */
   protected abstract MessageLite getResponseDefaultInstance(int rpcType) throws RpcException;
 
+  protected void handle(
+    C connection,
+    int coordinationId,
+    int rpcType,
+    byte[] pBody,
+    ByteBuf dBody,
+    ResponseSender sender
+  ) throws RpcException {
+    handle(connection, rpcType, pBody, dBody, sender);
+  }
+
   protected void handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender)
       throws RpcException {
     sender.send(handle(connection, rpcType, pBody, dBody));
@@ -461,7 +472,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
     @Override
     public void run() {
       try {
-        handle(connection, rpcType, pBody, dBody, sender);
+        handle(connection, sender.coordinationId, rpcType, pBody, dBody, sender);
       } catch(UserRpcException e){
         sender.sendFailure(e);
       } catch (Exception e) {

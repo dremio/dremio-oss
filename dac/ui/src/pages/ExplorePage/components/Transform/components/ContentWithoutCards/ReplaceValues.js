@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Radium from 'radium';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -34,8 +33,7 @@ export const MAX_SUGGESTIONS = 100;
 // todo: loc
 
 @Radium
-@pureRender
-export default class ReplaceValues extends Component {
+export default class ReplaceValues extends PureComponent {
 
   static getFields() {
     return ['replaceValues'];

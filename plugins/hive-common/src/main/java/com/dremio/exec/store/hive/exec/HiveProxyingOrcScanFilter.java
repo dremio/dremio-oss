@@ -18,10 +18,13 @@ package com.dremio.exec.store.hive.exec;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.calcite.rex.RexNode;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -83,5 +86,11 @@ public class HiveProxyingOrcScanFilter implements ScanFilter {
   @JsonProperty(FILTER_COLUMNS)
   public List<SchemaPath> getPaths() {
     return Collections.singletonList(proxiedOrcScanFilter.getColumn());
+  }
+
+  @Override
+  @JsonIgnore
+  public RexNode getRexFilter() {
+    return getProxiedOrcScanFilter().getRexFilter();
   }
 }

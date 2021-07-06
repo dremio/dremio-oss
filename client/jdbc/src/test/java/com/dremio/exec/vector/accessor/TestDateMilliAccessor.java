@@ -28,6 +28,9 @@ import org.apache.arrow.vector.DateMilliVector;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.common.SuppressForbidden;
+
+@SuppressForbidden
 public class TestDateMilliAccessor {
 
   private static final Date NON_NULL_VALUE = new Date(72, 10, 4);

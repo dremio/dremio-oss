@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import './colorConstants.scss';
+@import './fontConstants.scss';
+
+// Small tablets and large smartphones (landscape view)
+$screen-sm-min: 576px;
+
+// Small tablets (portrait view)
+$screen-md-min: 768px;
+
+// Tablets and small desktops
+$screen-lg-min: 992px;
+
+// Large tablets and desktops
+$screen-xl-min: 1200px;
+
+$gutter-sizes: (none: 0px, quarter: 2px, half: 4px, full: 8px, double: 16px, triple: 24px, quadruple: 32px, octuple: 64px);
+
+$input-height: 32px;
+
+$input-border-radius: 4px;
+
+@mixin input-size {
+  height: 32px !important;
+  border: solid 1px $border-color !important;
+  border-radius: 4px !important;
+  min-width: 100px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0px 8px !important;
+  width: 100% !important;
+  font-weight: 300 !important;
+  font-size: $font-s !important;
+  background-color: $white !important;
+}
+

@@ -73,7 +73,7 @@ public final class AdminCommandRunner {
     }
   }
 
-  static void runCommand(String commandName, Class<?> command, String[] commandArgs) throws Exception {
+  public static void runCommand(String commandName, Class<?> command, String[] commandArgs) throws Exception {
     final Method mainMethod = command.getMethod("main", String[].class);
     Preconditions.checkState(Modifier.isStatic(mainMethod.getModifiers())
         && Modifier.isPublic(mainMethod.getModifiers()), "#main(String[]) must have public and static modifiers");

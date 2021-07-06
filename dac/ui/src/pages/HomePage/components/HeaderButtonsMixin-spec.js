@@ -109,6 +109,7 @@ describe('HeaderButtonsMixin', () => {
           }
         },
         authRule: {
+          capabilities: ['MANAGE_SOURCES'],
           isAdmin: true
         }
       }]);

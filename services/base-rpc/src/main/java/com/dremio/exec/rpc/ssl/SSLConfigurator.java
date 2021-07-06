@@ -17,7 +17,6 @@ package com.dremio.exec.rpc.ssl;
 
 import static java.nio.file.attribute.PosixFilePermission.GROUP_READ;
 import static java.nio.file.attribute.PosixFilePermission.OTHERS_READ;
-import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 
@@ -30,7 +29,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -59,6 +57,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.joda.time.DateTime;
 
 import com.dremio.config.DremioConfig;
+import com.dremio.security.SecurityFolder;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -76,13 +75,7 @@ public class SSLConfigurator {
   public static final String UNSECURE_PASSWORD = "averylongandunsecurepasswordfordremiokeystore";
   private static final char[] UNSECURE_PASSWORD_CHAR_ARRAY = UNSECURE_PASSWORD.toCharArray();
 
-  public static final String KEY_STORE_DIRECTORY = "security";
-  public static final Set<PosixFilePermission> KEY_STORE_DIRECTORY_PERMISSIONS =
-      EnumSet.of(OWNER_READ, OWNER_WRITE, OWNER_EXECUTE);
-
   public static final String KEY_STORE_FILE = "keystore";
-  public static final Set<PosixFilePermission> KEY_STORE_FILE_PERMISSIONS =
-      EnumSet.of(OWNER_READ, OWNER_WRITE);
 
   public static final String TRUST_STORE_FILE = "certs";
   public static final Set<PosixFilePermission> TRUST_STORE_FILE_PERMISSIONS =
@@ -136,11 +129,12 @@ public class SSLConfigurator {
               + "Using auto-generated certificates is not secure. Please consider switching to your own certificates.",
           communicationPath);
 
+      final SecurityFolder securityFolder = SecurityFolder.of(config);
       final String localWritePathString = config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING);
-      final boolean configured = configureUsingPreviouslyGeneratedStores(builder, localWritePathString);
+      final boolean configured = configureUsingPreviouslyGeneratedStores(builder, securityFolder, localWritePathString);
       if (!configured) {
         logger.info("No previous keystore detected, creating certificate. This operation might take time...");
-        generateCertificatesAndConfigure(builder, localWritePathString, hostName, alternativeHostNames);
+        generateCertificatesAndConfigure(builder,securityFolder, localWritePathString, hostName, alternativeHostNames);
       }
 
       builder.setDisablePeerVerification(true); // explicitly set
@@ -166,24 +160,22 @@ public class SSLConfigurator {
     return config.getBoolean(prefix + base);
   }
 
-  private boolean configureUsingPreviouslyGeneratedStores(SSLConfig.Builder builder, String localWritePathString)
+  private boolean configureUsingPreviouslyGeneratedStores(SSLConfig.Builder builder, SecurityFolder securityFolder, String localWritePathString)
       throws GeneralSecurityException, IOException {
-    // get default path for internal keystore
-    final Path keyStorePath = Paths.get(localWritePathString, KEY_STORE_DIRECTORY, KEY_STORE_FILE);
-    if (Files.exists(keyStorePath)) {
+    if (securityFolder.exists(KEY_STORE_FILE)) {
       // if file exists, stores were generated previously
       logger.debug("Using previously generated keystore/truststore");
 
       // Previously key store and trust store were in the KEY_STORE_DIRECTORY. This function moves
       // the trust store from KEY_STORE_DIRECTORY to local data directory, if necessary, and
       // sets appropriate permissions on the file.
-      moveTrustStoreIfNecessary(localWritePathString);
+      moveTrustStoreIfNecessary(securityFolder, localWritePathString);
 
       // must be this path at this point
       final Path trustStorePath = Paths.get(localWritePathString, TRUST_STORE_FILE);
       Preconditions.checkState(Files.exists(trustStorePath), "auto-generated trust store is missing");
 
-      builder.setKeyStorePath(keyStorePath.toString())
+      builder.setKeyStorePath(securityFolder.resolve(KEY_STORE_FILE).toString())
           .setKeyStorePassword(UNSECURE_PASSWORD)
           .setTrustStorePath(trustStorePath.toString())
           .setTrustStorePassword(UNSECURE_PASSWORD);
@@ -194,13 +186,13 @@ public class SSLConfigurator {
     return false;
   }
 
-  private void moveTrustStoreIfNecessary(String localWritePathString) {
+  private void moveTrustStoreIfNecessary(SecurityFolder securityFolder, String localWritePathString) {
     final Path toPath = Paths.get(localWritePathString, TRUST_STORE_FILE);
     if (Files.exists(toPath)) {
       return; // already moved
     }
 
-    final Path fromPath = Paths.get(localWritePathString, KEY_STORE_DIRECTORY, TRUST_STORE_FILE);
+    final Path fromPath = securityFolder.resolve(TRUST_STORE_FILE);
     Preconditions.checkState(Files.exists(fromPath));
     logger.info("Moving trust store from '{}' to '{}'", fromPath, toPath);
     try {
@@ -227,14 +219,11 @@ public class SSLConfigurator {
 
   private void generateCertificatesAndConfigure(
       SSLConfig.Builder builder,
+      SecurityFolder securityFolder,
       String localWritePathString,
       String hostName,
       String... alternativeHostNames
   ) throws GeneralSecurityException, IOException {
-    final Path keyStorePath = Paths.get(localWritePathString, KEY_STORE_DIRECTORY, KEY_STORE_FILE);
-    Files.createDirectories(keyStorePath.getParent(),
-        PosixFilePermissions.asFileAttribute(KEY_STORE_DIRECTORY_PERMISSIONS));
-
     // initialize a new keystore, along with a trust store for clients
     final String storeType = KeyStore.getDefaultType();
     final KeyStore keyStore = KeyStore.getInstance(storeType);
@@ -320,10 +309,9 @@ public class SSLConfigurator {
         new TrustedCertificateEntry(certificate), null);
 
     // save stores and add details to builder
-    try (OutputStream stream = Files.newOutputStream(keyStorePath, StandardOpenOption.CREATE_NEW)) {
+    try (OutputStream stream = securityFolder.newSecureOutputStream(KEY_STORE_FILE, SecurityFolder.OpenOption.CREATE_ONLY)) {
       keyStore.store(stream, UNSECURE_PASSWORD_CHAR_ARRAY);
     }
-    Files.setPosixFilePermissions(keyStorePath, KEY_STORE_FILE_PERMISSIONS);
 
     final Path trustStorePath = Paths.get(localWritePathString, TRUST_STORE_FILE);
     try (OutputStream stream = Files.newOutputStream(trustStorePath, StandardOpenOption.CREATE_NEW)) {
@@ -332,7 +320,7 @@ public class SSLConfigurator {
     Files.setPosixFilePermissions(trustStorePath, TRUST_STORE_FILE_PERMISSIONS);
 
     builder.setKeyStoreType(storeType)
-        .setKeyStorePath(keyStorePath.toString())
+        .setKeyStorePath(securityFolder.resolve(KEY_STORE_FILE).toString())
         .setKeyStorePassword(UNSECURE_PASSWORD)
         .setTrustStoreType(storeType)
         .setTrustStorePath(trustStorePath.toString())

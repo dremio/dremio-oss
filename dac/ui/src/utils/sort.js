@@ -15,8 +15,13 @@
  */
 export const humanSorter = (a, b) => {
   if (typeof a === 'string' && typeof b === 'string') {
-    return a.localeCompare(b, undefined, {numeric: true}); // properly handles "1-foo", "12-foo", "2-foo"
+    if (a[0].match(/\d+/) !== null && a[0].match(/\d+/) !== null) { // checks to see if string starts with an integer DX-29951
+      return a.localeCompare(b, undefined, {numeric: true}); // properly handles "1-foo", "12-foo", "2-foo"
+    } else {
+      return a.localeCompare(b);
+    }
   }
+
   // strings precede numbers in ascending order
   if (typeof a === 'string' && typeof b === 'number') return -1;
   if (typeof a === 'number' && typeof b === 'string') return 1;

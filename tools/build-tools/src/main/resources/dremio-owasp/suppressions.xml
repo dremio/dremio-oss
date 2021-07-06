@@ -579,25 +579,6 @@
   <!-- JQuery -->
   <suppress>
     <notes><![CDATA[
-      file name: scala-compiler-2.10.1.jar: jquery-ui.js
-    ]]></notes>
-    <sha1>81269986fe3d866d0430312c1dc18a718cc2d728</sha1>
-    <cve>CVE-2010-5312</cve>
-    <cve>CVE-2016-7103</cve>
-  </suppress>
-  <suppress>
-    <notes><![CDATA[
-      file name: scala-compiler-2.10.1.jar: jquery.js
-    ]]></notes>
-    <sha1>d09d3a99ed25d0f1fbe6856de9e14ffd33557256</sha1>
-    <cve>CVE-2012-6708</cve>
-    <cve>CVE-2015-9251</cve>
-    <cve>CVE-2019-11358</cve>
-    <cve>CVE-2020-11022</cve>
-    <cve>CVE-2020-11023</cve>
-  </suppress>
-  <suppress>
-    <notes><![CDATA[
      file name: scala-compiler-2.10.1.jar: jquery.js
     ]]></notes>
     <packageUrl regex="true">^pkg:javascript/jquery@.*$</packageUrl>
@@ -867,32 +848,6 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/io\.reactivex/rxjava\-string@.*$</packageUrl>
     <cpe>cpe:/a:docker:docker</cpe>
-  </suppress>
-
-  <!-- Scala -->
-  <suppress>
-    <notes><![CDATA[
-      file name: scala-library-2.10.1.jar
-      compilation daemon not used
-    ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scala\-.*@.*$</packageUrl>
-    <cve>CVE-2017-15288</cve>
-  </suppress>
-  <suppress>
-    <notes><![CDATA[
-     file name: scala-library-2.12.4.jar
-     not used for web page generation
-    ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scala\-library@.*$</packageUrl>
-    <vulnerabilityName>CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</vulnerabilityName>
-  </suppress>
-  <suppress>
-    <notes><![CDATA[
-      file name: scala-reflect-2.12.2.jar
-      note used for web page generation
-    ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scala\-reflect@.*$</packageUrl>
-    <vulnerabilityName>CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</vulnerabilityName>
   </suppress>
 
   <!-- Solr -->

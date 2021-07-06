@@ -15,11 +15,11 @@
  */
 package com.dremio.common.io;
 
-import java.util.Comparator;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -37,15 +37,14 @@ import org.slf4j.LoggerFactory;
  * </p>
  */
 final class TemporaryFolderMonitor {
-  private static final Logger logger = LoggerFactory.getLogger(DefaultTemporaryFolderManager.class);
-  private static final Comparator<HealthTracker> EXPIRY_COMPARATOR = Comparator.comparingInt(o -> o.endCycle);
+  private static final Logger logger = LoggerFactory.getLogger(TemporaryFolderMonitor.class);
 
   private final Supplier<ExecutorId> thisExecutor;
   private final Supplier<Set<ExecutorId>> availableExecutors;
   private final Set<Path> managedRootPaths;
   private final String purpose;
   private final Map<ExecutorId, HealthTracker> healthMap;
-  private final PriorityQueue<HealthTracker> expiryChecker;
+  private final Deque<HealthTracker> expiryChecker;
   private final FileSystemHelper fsWrapper;
   private final int stalenessLimitSeconds;
   private final int minUnhealthyCyclesBeforeDelete;
@@ -62,7 +61,7 @@ final class TemporaryFolderMonitor {
 
     // used only by a single scheduled thread
     this.healthMap = new HashMap<>();
-    this.expiryChecker = new PriorityQueue<>(EXPIRY_COMPARATOR);
+    this.expiryChecker = new ArrayDeque<>();
     this.fsWrapper = fsWrapper;
     this.stalenessLimitSeconds = stalenessLimitSeconds;
     this.minUnhealthyCyclesBeforeDelete = unhealthyCyclesBeforeDelete;
@@ -88,7 +87,7 @@ final class TemporaryFolderMonitor {
         if (v == null) {
           final HealthTracker tracker = new HealthTracker(executor, currentCycle,
             currentCycle + minUnhealthyCyclesBeforeDelete);
-          expiryChecker.add(tracker);
+          expiryChecker.addLast(tracker);
           return tracker;
         } else {
           v.incrementCycle();

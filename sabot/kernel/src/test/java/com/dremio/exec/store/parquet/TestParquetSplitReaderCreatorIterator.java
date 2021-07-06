@@ -18,6 +18,8 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.exec.ExecConstants.NUM_SPLITS_TO_PREFETCH;
 import static com.dremio.exec.ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE;
 import static com.dremio.exec.ExecConstants.PREFETCH_READER;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyByte;
@@ -46,6 +48,8 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -175,7 +179,7 @@ public class TestParquetSplitReaderCreatorIterator {
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
     ParquetSplitReaderCreatorIterator splitReaderCreatorIterator = createSplitReaderCreator(true, 10, 10, inputStreamProvider, footer, 3);
 
-    Assert.assertTrue(splitReaderCreatorIterator.hasNext());
+    assertTrue(splitReaderCreatorIterator.hasNext());
     SplitReaderCreator creator = splitReaderCreatorIterator.next();
 
     InputStreamProvider lastInputStreamProvider = null;
@@ -211,7 +215,7 @@ public class TestParquetSplitReaderCreatorIterator {
     InputStreamProvider lastInputStreamProvider = null;
     MutableParquetMetadata lastFooter = null;
     for (int i = 0; i < 5; ++i) {
-      Assert.assertTrue(splitReaderCreatorIterator.hasNext());
+      assertTrue(splitReaderCreatorIterator.hasNext());
       creator = splitReaderCreatorIterator.next();
       creator.createInputStreamProvider(lastInputStreamProvider, lastFooter);
       lastInputStreamProvider = creator.getInputStreamProvider();
@@ -236,7 +240,7 @@ public class TestParquetSplitReaderCreatorIterator {
     } catch (Exception e) {
       ex = e;
     }
-    Assert.assertTrue(ex instanceof NullPointerException);
+    assertTrue(ex instanceof NullPointerException);
 
     ex = null;
     try {
@@ -244,7 +248,7 @@ public class TestParquetSplitReaderCreatorIterator {
     } catch (Exception e) {
       ex = e;
     }
-    Assert.assertTrue(ex instanceof NullPointerException);
+    assertTrue(ex instanceof NullPointerException);
 
     verify(inputStreamProvider, times(2)).close();
   }
@@ -254,6 +258,47 @@ public class TestParquetSplitReaderCreatorIterator {
     for (int i = 0; i < 3; ++i) {
       testCreatorIteratorPrematurelyClosed(i);
     }
+  }
+
+  @Test
+  public void testPrefetchAcrossBatch() throws Exception {
+    ParquetSplitReaderCreatorIterator creatorIterator = createSplitReaderCreatorIteratorForTableFunction(1);
+
+    // 3 splits and 1 prefetch count
+    List<SplitAndPartitionInfo> splits = new ArrayList<>();
+    IntStream.range(0, 3).forEach(i -> splits.add(createBlockBasedSplit(0, 10, i)));
+
+    // add 3 splits
+    creatorIterator.addSplits(splits);
+
+    // it will return 2 splitCreators (1 prefetched)
+    assertTrue(creatorIterator.hasNext());
+    creatorIterator.next();
+    assertTrue(creatorIterator.hasNext());
+    creatorIterator.next();
+
+    assertFalse(creatorIterator.hasNext());
+
+    // add 3 more splits
+    creatorIterator.addSplits(splits);
+
+    // it will return 3 splitCreators (1 prefetched)
+    assertTrue(creatorIterator.hasNext());
+    creatorIterator.next();
+    assertTrue(creatorIterator.hasNext());
+    creatorIterator.next();
+    assertTrue(creatorIterator.hasNext());
+    creatorIterator.next();
+
+    assertFalse(creatorIterator.hasNext());
+
+    // setProduceRemanining
+    creatorIterator.setProduceFromBufferedSplits(true);
+
+    // return the last prefetched creator
+    assertTrue(creatorIterator.hasNext());
+    creatorIterator.next();
+    assertFalse(creatorIterator.hasNext());
   }
 
   private ParquetSplitReaderCreatorIterator createSplitReaderCreator(boolean prefetch, long numPrefetch, int numSplits, InputStreamProvider inputStreamProvider, MutableParquetMetadata footer, int mode) throws Exception {
@@ -332,6 +377,58 @@ public class TestParquetSplitReaderCreatorIterator {
     when(config.getSplits()).thenReturn(splits);
 
     return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, config, false);
+  }
+
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreatorIteratorForTableFunction(long numPrefetch) throws Exception {
+    FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
+    OperatorContext context = mock(OperatorContext.class);
+    TableFunctionConfig tableFunctionConfig = mock(TableFunctionConfig.class);
+    OperatorStats operatorStats = mock(OperatorStats.class);
+    TableFunctionContext tableFunctionContext = mock(TableFunctionContext.class);
+    when(tableFunctionConfig.getFunctionContext()).thenReturn(tableFunctionContext);
+
+    SabotConfig sabotConfig = mock(SabotConfig.class);
+    InputStreamProviderFactory inputStreamProviderFactory = mock(InputStreamProviderFactory.class);
+    OptionManager optionManager = mock(OptionManager.class);
+    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    FileSystem fs = mock(FileSystem.class);
+    StoragePluginId storagePluginId = mock(StoragePluginId.class);
+    OpProps opProps = mock(OpProps.class);
+    CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
+
+    when(sabotConfig.getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT)).thenReturn(inputStreamProviderFactory);
+    when(sabotConfig.getInstance("dremio.plugins.parquet.factory", ParquetReaderFactory.class, ParquetReaderFactory.NONE)).thenReturn(ParquetReaderFactory.NONE);
+    when(context.getConfig()).thenReturn(sabotConfig);
+    when(context.getOptions()).thenReturn(optionManager);
+    when(optionManager.getOption(PREFETCH_READER)).thenReturn(true);
+    when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
+    when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
+    when(context.getStats()).thenReturn(operatorStats);
+    when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
+    when(fileSystemPlugin.createFS(anyString(), any())).thenReturn(fs);
+    when(fs.supportsPath(any())).thenReturn(true);
+    when(fs.supportsAsync()).thenReturn(true);
+    when(tableFunctionContext.getPluginId()).thenReturn(storagePluginId);
+    when(storagePluginId.getName()).thenReturn("");
+    when(opProps.getUserName()).thenReturn("");
+    when(tableFunctionContext.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
+    when(tableFunctionContext.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
+    when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
+
+    InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
+    MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
+    when(inputStreamProviderFactory.create(any(),any(),any(),anyByte(),anyByte(),any(),any(),any(),any(),anyBoolean(),any(),anyByte(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
+    BlockMetaData blockMetaData = mock(BlockMetaData.class);
+    when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));
+    ColumnChunkMetaData chunkMetaData = mock(ColumnChunkMetaData.class);
+    when(blockMetaData.getColumns()).thenReturn(Collections.singletonList(chunkMetaData));
+    when(chunkMetaData.getFirstDataPageOffset()).thenReturn(0L);
+    when(inputStreamProvider.getFooter()).thenReturn(footer);
+    when(footer.getFileMetaData()).thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
+    when(readerConfig.getPartitionNVPairs(any(), any())).thenReturn(new ArrayList<>());
+    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgumentAt(1, RecordReader.class));
+
+    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, opProps, tableFunctionConfig);
   }
 
   private SplitAndPartitionInfo createBlockBasedSplit(int start, int length, int p) {

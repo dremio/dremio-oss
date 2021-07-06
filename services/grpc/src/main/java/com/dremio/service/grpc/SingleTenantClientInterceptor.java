@@ -17,9 +17,11 @@ package com.dremio.service.grpc;
 
 import javax.inject.Provider;
 
+import com.dremio.context.ExecutorToken;
 import com.dremio.context.RequestContext;
 import com.dremio.context.TenantContext;
 import com.dremio.context.UserContext;
+import com.google.common.base.Preconditions;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -58,6 +60,10 @@ public class SingleTenantClientInterceptor implements ClientInterceptor {
           userContext = defaultRequestContext.get().get(UserContext.CTX_KEY);
         }
         headers.put(HeaderKeys.USER_HEADER_KEY, userContext.serialize());
+
+        ExecutorToken executorToken = RequestContext.current().get(ExecutorToken.CTX_KEY);
+        Preconditions.checkArgument(executorToken == null, "Executor Token should not be " +
+          "propagated out of the service");
 
         super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {
           @Override

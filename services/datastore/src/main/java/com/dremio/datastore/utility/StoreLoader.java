@@ -15,9 +15,12 @@
  */
 package com.dremio.datastore.utility;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.datastore.StoreReplacement;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.api.StoreCreationFunction;
@@ -53,15 +56,36 @@ public final class StoreLoader {
     Set<Class<? extends StoreCreationFunction>> impls, StoreBuildingFactory factory) {
     ImmutableMap.Builder builder = ImmutableMap.<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>builder();
 
+    /*
+      StoreReplacement allows overriding StoreCreationFunction with another instance.  We store a mapping of the
+      replacement class to the replaced class because code may still use the replaced class when creating an instance
+      of the KVStore.  Because of that, we map the replaced class to the KVStore created by the replacement class.
+     */
+    final Map<Class<? extends  StoreCreationFunction>, Class<? extends  StoreCreationFunction>> overrideMap = new HashMap<>();
+
+    impls.forEach(createFunc -> {
+      final StoreReplacement annotation = createFunc.getAnnotation(StoreReplacement.class);
+      if (annotation != null) {
+        overrideMap.putIfAbsent(createFunc, annotation.value());
+      }
+    });
+
     for(Class<? extends StoreCreationFunction> functionClass : impls) {
       try {
+        if (overrideMap.containsValue(functionClass)) {
+          continue;
+        }
         final KVStore<?, ?> store = functionClass.newInstance().build(factory);
         builder.put(functionClass, store);
+
+        // if we have an override, map the overridden StoreCreationFunctions to the newly created store.
+        if (overrideMap.containsKey(functionClass)) {
+          builder.put(overrideMap.get(functionClass), store);
+        }
       } catch (Exception e) {
         logger.warn("Unable to load StoreCreationFunction {}", functionClass.getSimpleName(), e);
       }
     }
-
     final ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> map = builder.build();
     logger.debug("Loaded the following StoreCreationFunctions: {}.", map.keySet());
     return map;

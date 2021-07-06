@@ -20,15 +20,18 @@ import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import {createReflectionFormValues} from 'utils/accelerationUtils';
+import AccelerationRawMixin from '@inject/components/Acceleration/Advanced/AccelerationRawMixin.js';
 
 import { commonStyles } from '../commonStyles';
 import AccelerationGridController from './AccelerationGridController';
 
+@AccelerationRawMixin
 export default class AccelerationRaw extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
-    fields: PropTypes.object
+    fields: PropTypes.object,
+    canAlter: PropTypes.any
   };
 
   static getFields() {
@@ -73,17 +76,19 @@ export default class AccelerationRaw extends Component {
           onClick={this.addNewLayout}
           buttonStyle='secondary'
           children={la('New Reflection')}
+          style={this.checkIfButtonShouldBeRendered() ? null : {display: 'none'}}
           type='button'/>
       </div>
     );
   };
 
   render() {
-    const {dataset, reflections, fields: {rawReflections}} = this.props;
+    const {dataset, reflections, fields: {rawReflections}, canAlter} = this.props;
     return (
       <div style={styles.base}>
         {this.renderHeader()}
         <AccelerationGridController
+          canAlter={canAlter}
           dataset={dataset}
           reflections={reflections}
           layoutFields={rawReflections}

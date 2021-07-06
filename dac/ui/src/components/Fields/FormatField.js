@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
@@ -22,8 +21,7 @@ import { FieldWithError, TextField, Select } from './';
 
 // todo: loc
 
-@pureRender
-export default class FormatField extends Component {
+export default class FormatField extends PureComponent {
 
   static propTypes = {
     label: PropTypes.string,

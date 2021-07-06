@@ -15,14 +15,8 @@
  */
 package com.dremio.dac.service.search;
 
-import static com.dremio.dac.service.search.SearchIndexManager.DATASET_COLUMNS_LC;
-import static com.dremio.dac.service.search.SearchIndexManager.NAME_LC;
-import static com.dremio.dac.service.search.SearchIndexManager.PATH_UNQUOTED_LC;
-import static com.dremio.dac.service.search.SearchIndexManager.TAGS_LC;
-import static com.dremio.datastore.SearchQueryUtils.newBoost;
-import static com.dremio.datastore.SearchQueryUtils.newTermQuery;
-import static com.dremio.datastore.SearchQueryUtils.newWildcardQuery;
-import static com.dremio.datastore.SearchQueryUtils.or;
+import static com.dremio.dac.service.search.SearchIndexManager.*;
+import static com.dremio.datastore.SearchQueryUtils.*;
 import static com.dremio.exec.ExecConstants.SEARCH_SERVICE_RELEASE_LEADERSHIP_MS;
 import static com.dremio.service.namespace.NamespaceServiceImpl.DAC_NAMESPACE;
 import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
@@ -114,6 +108,8 @@ public class SearchServiceImpl implements SearchService {
     manager = new SearchIndexManager(namespaceServiceProvider, collaborationTagStore, configurationStore, searchIndex);
     wakeupHandler = new WakeupHandler(executorService, manager);
 
+    // important to schedule once and schedule it back
+    // since option value can change dynamically
     schedulerService.get().schedule(scheduleForRunningOnceAt(
       getNextRefreshTimeInMillis(),
       LOCAL_TASK_LEADER_NAME, getNextReleaseLeadership(), TimeUnit.MILLISECONDS),

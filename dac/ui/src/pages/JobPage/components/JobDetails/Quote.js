@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
@@ -24,8 +23,7 @@ import FileUtils from 'utils/FileUtils';
 import HoverHelp from 'components/HoverHelp';
 
 @Radium
-@pureRender
-class Quote extends Component {
+class Quote extends PureComponent {
 
   static propTypes = {
     jobIOData: PropTypes.instanceOf(Immutable.Map).isRequired

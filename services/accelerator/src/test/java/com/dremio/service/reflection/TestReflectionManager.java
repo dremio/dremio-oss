@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -32,13 +33,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.service.coordinator.CoordinatorModeInfo;
+import com.dremio.service.coordinator.SoftwareCoordinatorModeInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
@@ -411,6 +417,9 @@ public class TestReflectionManager {
     when(subject.refreshStartHandler.startJob(any(), anyLong(), any())).thenReturn(materializationJobId);
 
     when(subject.sabotContext.getExecutors()).thenReturn(singletonList(null));
+    final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider = mock(Provider.class);
+    when(coordinatorModeInfoProvider.get()).thenReturn(new SoftwareCoordinatorModeInfo());
+    when(subject.sabotContext.getCoordinatorModeInfoProvider()).thenReturn(coordinatorModeInfoProvider);
 
     when(subject.userStore.getAllNotDeleted()).thenReturn(singletonList(reflectionGoal));
     when(subject.userStore.getDeletedBefore(anyLong())).thenReturn(emptyList());
@@ -506,6 +515,7 @@ class Subject {
   @VisibleForTesting SabotContext sabotContext = Mockito.mock(SabotContext.class);
   @VisibleForTesting JobsService jobsService = Mockito.mock(JobsService.class);
   @VisibleForTesting NamespaceService namespaceService = Mockito.mock(NamespaceService.class);
+  @VisibleForTesting CatalogService catalogService = Mockito.mock(CatalogService.class);
   @VisibleForTesting OptionManager optionManager = Mockito.mock(OptionManager.class);
   @VisibleForTesting ReflectionGoalsStore userStore = Mockito.mock(ReflectionGoalsStore.class);
   @VisibleForTesting ReflectionEntriesStore reflectionStore = Mockito.mock(ReflectionEntriesStore.class);
@@ -536,6 +546,7 @@ class Subject {
     allocator,
     Path.of("."), //TODO maybe we want to use JIMFS here,
     reflectionGoalChecker,
-    refreshStartHandler
+    refreshStartHandler,
+    catalogService
   );
 }

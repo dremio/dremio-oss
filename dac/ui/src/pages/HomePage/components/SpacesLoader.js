@@ -60,12 +60,13 @@ export class SpacesLoader extends PureComponent {
   load() {
     if (!isInProgress) {
       isInProgress = true;
-      this.props.loadSpaceListData().then((result) => {
-        isInProgress = false;
-        return result;
-      }). catch(() => {
-        isInProgress = false;
-      });
+      this.props.loadSpaceListData()
+        .then((result) => {
+          isInProgress = false;
+          return result;
+        }).catch(() => {
+          isInProgress = false;
+        });
     }
   }
 

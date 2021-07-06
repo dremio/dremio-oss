@@ -31,11 +31,21 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 public interface RecordReader extends AutoCloseable {
+  String SPLIT_IDENTITY = "splitsIdentity";
   String SPLIT_INFORMATION = "splits";
-  BatchSchema SPLIT_GEN_SCAN_SCHEMA = BatchSchema.newBuilder()
+  String COL_IDS = "colIds";
+  String DATAFILE_PATH = "datafilePath";
+  BatchSchema SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA = BatchSchema.newBuilder()
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType(SPLIT_IDENTITY, Types.optional(MinorType.VARBINARY)))
     .addField(MajorTypeHelper.getFieldForNameAndMajorType(SPLIT_INFORMATION, Types.optional(MinorType.VARBINARY)))
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType(COL_IDS, Types.optional(MinorType.VARBINARY)))
     .setSelectionVectorMode(SelectionVectorMode.NONE)
     .build();
+
+  BatchSchema MANIFEST_SCAN_TABLE_FUNCTION_SCHEMA = BatchSchema.newBuilder()
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType(DATAFILE_PATH, Types.optional(MinorType.VARCHAR)))
+    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+      .build();
 
   /**
    * Configure the RecordReader with the provided schema and the record batch that should be written to.
@@ -70,4 +80,11 @@ public interface RecordReader extends AutoCloseable {
    * @param runtimeFilter
    */
   default void addRuntimeFilter(RuntimeFilter runtimeFilter) {}
+
+  /**
+   * @return The path of the file the reader is scanning.
+   */
+  default String getFilePath() {
+    return "";
+  }
 }

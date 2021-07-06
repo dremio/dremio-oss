@@ -41,14 +41,22 @@ export const primary = {
   backgroundColor: BLUE,
   ':hover': {
     backgroundColor: '#68C6D3'
-  }
+  },
+  borderColor: BLUE
 };
 
-export const danger = {
+export const warn = {
   ...button,
   color: '#E46363',
   backgroundColor: '#FEEAEA',
   border: 'none'
+};
+
+export const outlined = {
+  ...button,
+  color: BLUE,
+  backgroundColor: 'inherit',
+  borderColor: BLUE
 };
 
 
@@ -56,6 +64,7 @@ export const disabled = { // todo: DRY with text field
   ...button,
   color: '#B2B2B2',
   backgroundColor: '#DDD',
+  borderColor: '#D9D9D9',
   cursor: 'default'
 };
 

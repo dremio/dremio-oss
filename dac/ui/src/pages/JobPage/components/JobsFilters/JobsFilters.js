@@ -29,7 +29,7 @@ import JobsFiltersMixin, { getSortItems } from 'dyn-load/pages/JobPage/component
 import ContainsText from './ContainsText';
 import * as IntervalTypes from './StartTimeSelect/IntervalTypes';
 import StartTimeSelect from './StartTimeSelect/StartTimeSelect';
-import { ddSort } from './JobsFilters.less';
+import { ddSort, ddSortList } from './JobsFilters.less';
 
 const itemsForStateFilter = [ // todo: `la` loc not building correctly here
   {id: 'SETUP', label: ('Setup'), icon: 'PendingDiamond'},
@@ -279,6 +279,7 @@ export default class JobsFilters extends Component {
     const {queryState} = this.props;
     return (
       <div style={[styles.base, styles.filtersHeader]}>
+
         {this.renderDefaultFilters()}
         <ContainsText
           defaultValue={queryState.getIn(['filters', 'contains', 0])}
@@ -293,6 +294,7 @@ export default class JobsFilters extends Component {
             valueField='id'
             selectedValueRenderer={noop}
             className={ddSort}
+            listClass={ddSortList}
             value={queryState.get('sort')}
             onChange={this.changeSortItem}
           />

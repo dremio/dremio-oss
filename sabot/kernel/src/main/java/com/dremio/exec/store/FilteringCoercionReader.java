@@ -212,6 +212,13 @@ public class FilteringCoercionReader extends CoercionReader {
     closeCalledByFilteringReader = false;
   }
 
+  @Override
+  public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    if (inner != null) {
+      inner.addRuntimeFilter(runtimeFilter);
+    }
+  }
+
   private void resetReaderState() {
     setupCalledByFilteringReader = false;
     closeCalledByFilteringReader = false;

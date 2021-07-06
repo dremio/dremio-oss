@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * that needs clean up.
  */
 final class FileSystemHelper {
-  private static final Logger logger = LoggerFactory.getLogger(DefaultTemporaryFolderManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(FileSystemHelper.class);
   private static final String NEW_INCARNATION_FORMAT = "%s" + File.separator + "%d";
   private static final FsPermission PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 
@@ -80,7 +80,7 @@ final class FileSystemHelper {
   void safeCleanDirectory(Path rootPath, String prefix, int stalenessLimitSeconds) {
     visitDirectory(rootPath, prefix, fileStatus -> {
       if (fileStatus.isDirectory() && isStaleModify(fileStatus, stalenessLimitSeconds)) {
-        safeCleanOldIncarnation(fileStatus.getPath(), stalenessLimitSeconds);
+        safeCleanOldIncarnation(fileStatus.getPath(), stalenessLimitSeconds, false);
       }
     });
   }
@@ -97,7 +97,7 @@ final class FileSystemHelper {
     throw new IOException("Unable to create temporary directory");
   }
 
-  void safeCleanOldIncarnation(Path incarnationDir, int stalenessLimitSeconds) {
+  void safeCleanOldIncarnation(Path incarnationDir, int stalenessLimitSeconds, boolean warn) {
     try (final LocalFileSystemWrapper wrapper = new LocalFileSystemWrapper(incarnationDir, conf)) {
       final FileSystem fileSystem = wrapper.getWrappedFs();
       final boolean[] canDelete = new boolean[1];
@@ -108,11 +108,14 @@ final class FileSystemHelper {
         }
       });
       if (canDelete[0]) {
-        logger.info("Cleaning up {}", incarnationDir.toString());
+        logger.info("Cleaning up {}", incarnationDir);
         fileSystem.delete(incarnationDir, true);
+        logger.info("Cleanup done for {}", incarnationDir);
+      } else if (warn) {
+        logger.warn("Unable to cleanup directory {} due to unexpected recent access", incarnationDir);
       }
     } catch (IOException e) {
-      logger.warn("Unable to clean {}. Maybe retried in the next iteration", incarnationDir.toString());
+      logger.warn("Unable to clean {}. Cleanup may be retried in the next iteration", incarnationDir);
     }
   }
 

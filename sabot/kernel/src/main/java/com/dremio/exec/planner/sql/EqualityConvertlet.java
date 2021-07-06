@@ -18,7 +18,6 @@ package com.dremio.exec.planner.sql;
 import java.util.List;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -66,9 +65,9 @@ public class EqualityConvertlet implements SqlRexConvertlet {
       final SqlOperandTypeChecker.Consistency consistency = Consistency.LEAST_RESTRICTIVE;
       final List<RelDataType> types = RexUtil.types(exprs);
       final RelDataType type;
-      if (allExactNumeric(types) && anyDecimal(types)) {
+      if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
         // for mixed types, INT and BIGINT will be treated as DECIMAL(10,0) and DECIMAL(19,0) respectively
-        type = consistentDecimalType(cx.getTypeFactory(), types);
+        type = ConsistentTypeUtil.consistentDecimalType(cx.getTypeFactory(), types);
       } else {
         // if there are no Decimal types or some of the types are non-exact, fall back to default Calcite
         // behavior which will convert to Double
@@ -83,23 +82,6 @@ public class EqualityConvertlet implements SqlRexConvertlet {
       }
     }
     return exprs;
-  }
-
-  private static boolean allExactNumeric(List<RelDataType> types) {
-    return types.stream().allMatch(SqlTypeUtil::isExactNumeric);
-  }
-
-  private static boolean anyDecimal(List<RelDataType> types) {
-    return types.stream().anyMatch(t -> t.getSqlTypeName() == SqlTypeName.DECIMAL);
-  }
-
-  private static RelDataType consistentDecimalType(RelDataTypeFactory factory, List<RelDataType> type) {
-    final int scale = type.stream().mapToInt(RelDataType::getScale).max().orElse(0);
-    final int maxPrecision = type.stream().mapToInt(RelDataType::getPrecision).max().orElse(0);
-
-    final int precision = Math.min(maxPrecision, MAX_PRECISION);
-
-    return factory.createSqlType(SqlTypeName.DECIMAL, precision, scale);
   }
 
   private static RexNode convertEquality(SqlRexContext cx, SqlCall call) {

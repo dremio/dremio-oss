@@ -38,12 +38,17 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.EngineId;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.SubEngineId;
+import com.dremio.exec.maestro.GlobalKeysService;
+import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
+import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
+import com.dremio.exec.store.sys.statistics.StatisticsListManager;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -51,12 +56,17 @@ import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.Service;
+import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.conduit.server.ConduitInProcessChannelProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.CoordinatorModeInfo;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.nessieapi.ContentsApiGrpc;
+import com.dremio.service.nessieapi.TreeApiGrpc;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
@@ -80,6 +90,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<MaterializationDescriptorProvider> materializationDescriptorProvider;
   private final Provider<QueryObserverFactory> queryObserverFactory;
   private final Provider<AccelerationManager> accelerationManager;
+  private final Provider<StatisticsService> statisticsService;
   private final Provider<AccelerationListManager> accelerationListManager;
   private final Provider<NamespaceService.Factory> namespaceServiceFactoryProvider;
   private final Provider<DatasetListingService> datasetListingServiceProvider;
@@ -98,7 +109,18 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<EngineId> engineIdProvider;
   private final Provider<SubEngineId> subEngineIdProvider;
   private final Provider<OptionValidatorListing> optionValidatorProvider;
+  private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
+  private final Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider;
+  private final Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider;
+  private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory;
+  private final Provider<StatisticsListManager> statisticsListManagerProvider;
+  private final Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier;
   protected BufferAllocator queryPlannerAllocator;
+  private final Provider<SimpleJobRunner> jobsRunnerProvider;
+  private final Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub;
+  private final Provider<GlobalKeysService> globalCredentailsServiceProvider;
+  private final Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider;
+  private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
 
   private SabotContext context;
 
@@ -131,15 +153,31 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<EngineId> engineIdProvider,
     Provider<SubEngineId> subEngineIdProvider,
     Provider<OptionValidatorListing> optionValidatorProvider,
-    boolean allRoles
-  ) {
+    boolean allRoles,
+    Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
+    Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
+    Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+    Provider<StatisticsService> statisticsService,
+    Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
+    Provider<StatisticsListManager> statisticsListManagerProvider,
+    Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
+    Provider<SimpleJobRunner> jobsRunnerProvider,
+    Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
+    Provider<GlobalKeysService> globalCredentailsServiceProvider,
+    Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
+    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+    ) {
     this(bootstrapContext, coord, resourceInformationProvider, workStats,
       kvStoreProvider, fabric, conduitServer, userServer,
       materializationDescriptorProvider, queryObserverFactory, accelerationManager,
       accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
       conduitProvider, informationSchemaStub, viewCreatorFactory, spillService, connectionReaderProvider, credentialsService,
       jobResultInfoProvider, optionManagerProvider, systemOptionManagerProvider, engineIdProvider, subEngineIdProvider, optionValidatorProvider,
-      allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
+      allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR), coordinatorModeInfoProvider,
+      nessieTreeApiBlockingStubProvider, nessieContentsApiBlockingStuProvider, statisticsService,
+      statisticsAdministrationServiceFactory, statisticsListManagerProvider,
+      relMetadataQuerySupplier, jobsRunnerProvider, datasetCatalogStub,
+      globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider);
   }
 
   public ContextService(
@@ -171,7 +209,19 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<EngineId> engineIdProvider,
     Provider<SubEngineId> subEngineIdProvider,
     Provider<OptionValidatorListing> optionValidatorProvider,
-    Set<ClusterCoordinator.Role> roles
+    Set<ClusterCoordinator.Role> roles,
+    Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
+    Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
+    Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+    Provider<StatisticsService> statisticsService,
+    Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
+    Provider<StatisticsListManager> statisticsListManagerProvider,
+    Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
+    Provider<SimpleJobRunner> jobsRunnerProvider,
+    Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
+    Provider<GlobalKeysService> globalCredentailsServiceProvider,
+    Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
+    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
   ) {
     this.bootstrapContext = bootstrapContext;
     this.workStats = workStats;
@@ -202,6 +252,18 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.engineIdProvider = engineIdProvider;
     this.subEngineIdProvider = subEngineIdProvider;
     this.optionValidatorProvider = optionValidatorProvider;
+    this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
+    this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
+    this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
+    this.statisticsService = statisticsService;
+    this.statisticsAdministrationServiceFactory = statisticsAdministrationServiceFactory;
+    this.statisticsListManagerProvider = statisticsListManagerProvider;
+    this.relMetadataQuerySupplier = relMetadataQuerySupplier;
+    this.jobsRunnerProvider = jobsRunnerProvider;
+    this.datasetCatalogStub = datasetCatalogStub;
+    this.globalCredentailsServiceProvider = globalCredentailsServiceProvider;
+    this.credentialsServiceProvider = credentialsServiceProvider;
+    this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
   }
 
   @Override
@@ -211,6 +273,10 @@ public class ContextService implements Service, Provider<SabotContext> {
   }
 
   protected SabotContext newSabotContext() throws Exception{
+    if (queryPlannerAllocator == null) {
+      throw new IllegalStateException("Context Service has not been #start'ed");
+    }
+
     final FabricService fabric = this.fabric.get();
     final int conduitPort = conduitServer.get().getPort();
     int userport = -1;
@@ -286,7 +352,19 @@ public class ContextService implements Service, Provider<SabotContext> {
       optionManagerProvider.get(),
       systemOptionManagerProvider.get(),
       optionValidatorProvider.get(),
-      bootstrapContext.getExecutor()
+      bootstrapContext.getExecutor(),
+      coordinatorModeInfoProvider,
+      nessieTreeApiBlockingStubProvider,
+      nessieContentsApiBlockingStuProvider,
+      statisticsService,
+      statisticsAdministrationServiceFactory,
+      statisticsListManagerProvider,
+      relMetadataQuerySupplier,
+      jobsRunnerProvider,
+      datasetCatalogStub,
+      globalCredentailsServiceProvider,
+      credentialsServiceProvider,
+      conduitInProcessChannelProviderProvider
     );
   }
 

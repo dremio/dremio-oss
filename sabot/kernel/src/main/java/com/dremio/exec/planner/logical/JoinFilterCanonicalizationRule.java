@@ -33,9 +33,12 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlOperandTypeChecker.Consistency;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
+import com.dremio.exec.planner.sql.ConsistentTypeUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -130,7 +133,21 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
       SqlBinaryOperator operator = filterNulls.get(i) ? SqlStdOperatorTable.EQUALS : SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
       RexNode leftInput = builder.makeInputRef(leftTypes.get(leftKeyOrdinal).getType(), leftKeyOrdinal);
       RexNode rightInput = builder.makeInputRef(rightTypes.get(rightKeyOrdinal).getType(), rightKeyOrdinal + numLeftFields);
-      equijoinList.add(builder.makeCall(operator, leftInput, rightInput));
+
+      List<RelDataType> types = ImmutableList.of(leftInput.getType(), rightInput.getType());
+      RelDataType consistentType;
+      if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
+        consistentType = ConsistentTypeUtil.consistentDecimalType(builder.getTypeFactory(), types);
+      } else {
+        consistentType = SqlTypeUtil.consistentType(builder.getTypeFactory(), Consistency.LEAST_RESTRICTIVE, types);
+      }
+      if (consistentType != null) {
+        equijoinList.add(builder.makeCall(operator, builder.ensureType(consistentType, leftInput, true),
+          builder.ensureType(consistentType, rightInput, true)));
+      } else {
+        equijoinList.add(builder.makeCall(operator, leftInput,
+          rightInput));
+      }
     }
 
     return RexUtil.composeConjunction(builder, equijoinList, false);

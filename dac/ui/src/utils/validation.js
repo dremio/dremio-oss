@@ -47,6 +47,38 @@ export function isRequired(key, label) {
   };
 }
 
+export function when(key) {
+  return {
+    is: (condition) => ({
+      then: (thenValidator) => ({
+        otherwise: (otherwiseValidator) => {
+          return (values) => {
+            const value = result(values, key);
+            let conditionPassed = false;
+            if (typeof condition === 'function') {
+              conditionPassed = condition(value);
+            } else {
+              conditionPassed = value === condition;
+            }
+            if (conditionPassed) {
+              const thenValidate = thenValidator();
+              if (typeof thenValidate === 'function') {
+                return thenValidate(values);
+              }
+            } else {
+              const otherwiseValidate = otherwiseValidator();
+              if (typeof otherwiseValidate === 'function') {
+                return otherwiseValidate(values);
+              }
+            }
+            return {};
+          };
+        }
+      })
+    })
+  };
+}
+
 export function confirmPassword(password, confirm) {
   return function(values) {
     if ((values[password] || values[confirm]) && values[password] !== values[confirm]) {
@@ -190,6 +222,15 @@ export function isRegularExpression(key, message) {
   };
 }
 
+export function isBooleanValue(key, expectedValue, message) {
+  return function(values) {
+    const value = result(values, key);
+    if ((typeof value !== 'boolean') || (value !== expectedValue)) {
+      return set({}, key, message);
+    }
+  };
+}
+
 export function applyBoundValidator(values, fields) {
   const validations = {};
   for (const key of fields) {
@@ -217,6 +258,15 @@ export function noSpaces(key) {
     const value = result(values, key);
     if (value && value.includes(' ')) {
       return set({}, key, 'Spaces are not allowed.');
+    }
+  };
+}
+
+export function noColons(key) {
+  return function(values) {
+    const value = result(values, key);
+    if (value && value.includes(':')) {
+      return set({}, key, 'Colons are not allowed.');
     }
   };
 }

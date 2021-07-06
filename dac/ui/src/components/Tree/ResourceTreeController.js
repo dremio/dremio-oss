@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect }   from 'react-redux';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
@@ -26,8 +25,7 @@ import { constructFullPath, splitFullPath } from 'utils/pathUtils';
 
 import ResourceTree from './ResourceTree';
 
-@PureRender
-export class ResourceTreeController extends Component {
+export class ResourceTreeController extends PureComponent {
   static propTypes = {
     resourceTree: PropTypes.instanceOf(Immutable.List),
     isDatasetsDisabled: PropTypes.bool,

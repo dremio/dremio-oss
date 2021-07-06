@@ -37,7 +37,6 @@ public final class AzureAsyncHttpClientUtils {
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncHttpClientUtils.class);
 
-  private static final String AZURE_ENDPOINT = "dfs.core.windows.net";
   private static final String USER_AGENT_VAL = String.format("azsdk-java-azure-storage-blob/12.4.0 (%s; %s %s)",
     System.getProperty("java.version"),
     System.getProperty("os.name"),
@@ -47,9 +46,9 @@ public final class AzureAsyncHttpClientUtils {
     // Not to be instantiated.
   }
 
-  public static String getBaseEndpointURL(final String accountName, final boolean isSecure) {
+  public static String getBaseEndpointURL(final String azureEndpoint, final String accountName, final boolean isSecure) {
     final String protocol = isSecure ? "https" : "http";
-    return String.format("%s://%s.%s", protocol, accountName, AZURE_ENDPOINT);
+    return String.format("%s://%s.%s", protocol, accountName, azureEndpoint);
   }
 
   public static RequestBuilder newDefaultRequestBuilder() {
@@ -66,7 +65,7 @@ public final class AzureAsyncHttpClientUtils {
   }
 
   public static String toHttpDateFormat(final long timeInMillis) {
-    final OffsetDateTime time = OffsetDateTime.ofInstant(Instant.ofEpochMilli(timeInMillis), ZoneId.of("GMT"));
+    final OffsetDateTime time = OffsetDateTime.ofInstant(Instant.ofEpochMilli(timeInMillis), ZoneId.systemDefault());
     final DateTimeRfc1123 dateTimeRfc1123 = new DateTimeRfc1123(time);
     return dateTimeRfc1123.toString();
   }

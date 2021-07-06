@@ -64,10 +64,8 @@ public class ParquetToMinorTypeConverter {
           case DECIMAL:
             ParquetReaderUtility.checkDecimalTypeEnabled(options);
             return TypeProtos.MinorType.DECIMAL;
-          // TODO - add this back if it is decided to be added upstream, was removed form our pull request July 2014
-//              case TIME_MICROS:
-//                throw new UnsupportedOperationException();
           case TIMESTAMP_MILLIS:
+          case TIMESTAMP_MICROS:
             return TypeProtos.MinorType.TIMESTAMP;
           default:
             throw new UnsupportedOperationException(String.format("unsupported type: %s %s", primitiveTypeName, convertedType));

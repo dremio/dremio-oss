@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
 import EditTextContent from './EditTextContent';
 
-@PureRender
 @Radium
-class ConvertTrimContent extends Component {
+class ConvertTrimContent extends PureComponent {
   static contextTypes = {
     location: PropTypes.object.isRequired
   };

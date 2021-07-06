@@ -39,7 +39,8 @@ describe('QlikStateModal', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ConfirmCancelFooter', () => {
+  //DX-28985
+  xit('should render ConfirmCancelFooter', () => {
     const wrapper = shallow(<QlikStateModal {...commonProps}/>);
     expect(wrapper.find('ConfirmCancelFooter')).to.have.length(1);
   });

@@ -15,6 +15,9 @@
  */
 package com.dremio.common.config;
 
+import java.time.Duration;
+import java.time.Period;
+import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -22,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigList;
+import com.typesafe.config.ConfigMemorySize;
 import com.typesafe.config.ConfigMergeable;
 import com.typesafe.config.ConfigObject;
 import com.typesafe.config.ConfigOrigin;
@@ -74,6 +78,11 @@ public abstract class NestedConfig implements Config {
   @Override
   public boolean hasPath(String path) {
     return config.hasPath(path);
+  }
+
+  @Override
+  public boolean hasPathOrNull(String path) {
+    return config.hasPathOrNull(path);
   }
 
   @Override
@@ -206,14 +215,61 @@ public abstract class NestedConfig implements Config {
     return config.getBytesList(path);
   }
 
+  @Deprecated
   @Override
   public List<Long> getMillisecondsList(String path) {
     return config.getMillisecondsList(path);
   }
 
+  @Deprecated
   @Override
   public List<Long> getNanosecondsList(String path) {
     return config.getNanosecondsList(path);
+  }
+
+  @Override
+  public Duration getDuration(String path) {
+    return config.getDuration(path);
+  }
+
+  @Override
+  public List<Duration> getDurationList(String path) {
+    return config.getDurationList(path);
+  }
+
+  @Override
+  public <T extends Enum<T>> T getEnum(Class<T> enumClass, String path) {
+    return config.getEnum(enumClass, path);
+  }
+
+  @Override
+  public <T extends Enum<T>> List<T> getEnumList(Class<T> enumClass, String path) {
+    return config.getEnumList(enumClass, path);
+  }
+
+  @Override
+  public boolean getIsNull(String path) {
+    return config.getIsNull(path);
+  }
+
+  @Override
+  public ConfigMemorySize getMemorySize(String path) {
+    return config.getMemorySize(path);
+  }
+
+  @Override
+  public List<ConfigMemorySize> getMemorySizeList(String path) {
+    return config.getMemorySizeList(path);
+  }
+
+  @Override
+  public Period getPeriod(String path) {
+    return config.getPeriod(path);
+  }
+
+  @Override
+  public TemporalAmount getTemporal(String path) {
+    return config.getTemporal(path);
   }
 
   @Override

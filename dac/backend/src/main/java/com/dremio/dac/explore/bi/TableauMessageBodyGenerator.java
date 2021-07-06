@@ -47,6 +47,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.server.WebServer;
@@ -73,6 +74,8 @@ import io.protostuff.ByteString;
 @Produces({APPLICATION_TDS, APPLICATION_TDS_DRILL})
 @Options
 public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator {
+  private static final String USER_SSL = "services.coordinator.client-endpoint.ssl.enabled";
+
   public static final String CUSTOMIZATION_ENABLED = "dremio.tableau.customization.enabled";
   private static final String DREMIO_UPDATE_COLUMN = "$_dremio_$_update_$";
   @VisibleForTesting
@@ -175,14 +178,17 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
    * Option to switch between ODBC/TDC and JDBC/SDK connectors for Tableau.
    */
   public static final EnumValidator<TableauExportType> TABLEAU_EXPORT_TYPE =
-    new EnumValidator<>("export.tableau.export-type", TableauExportType.class, TableauExportType.ODBC);
+    new EnumValidator<>("export.tableau.export-type", TableauExportType.class, TableauExportType.NATIVE);
 
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
   private final boolean customizationEnabled;
+  private final DremioConfig config;
 
   @Inject
-  public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager) {
+  public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager,
+                                     DremioConfig config) {
     super(endpoint, optionManager);
+    this.config = config;
     this.customizationEnabled = MoreObjects.firstNonNull((Boolean) configuration.getProperty(CUSTOMIZATION_ENABLED), false);
   }
 
@@ -259,6 +265,15 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
+  /**
+   * Allows child classes to write additional attributes for the SdkConnection by overriding this method
+   *
+   * @param xmlStreamWriter XML writer used by writeSdkConnection
+   */
+  protected void writeSdkConnectionAdditional(XMLStreamWriter xmlStreamWriter) throws XMLStreamException {
+    // Nothing here
+  }
+
   private void writeSdkConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
     final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
 
@@ -269,7 +284,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
     // It has to match what is returned by the driver/Tableau
     xmlStreamWriter.writeAttribute("schema", dataset.toParentPath());
-    xmlStreamWriter.writeAttribute("port", String.valueOf(getEndpoint().getUserPort()));
+    xmlStreamWriter.writeAttribute("port", String.valueOf(getPort()));
     xmlStreamWriter.writeAttribute("server", hostname);
     xmlStreamWriter.writeAttribute("username", "");
 
@@ -278,7 +293,16 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
     // The "parsing" here is rudimentary, and is not meant to be advanced. We simply need a flag to determine if SSL
     // is enabled to allow Tableau to do the right thing. As more options are added, this may need to be more complex.
-    xmlStreamWriter.writeAttribute("sslmode", customExtraProperties.contains("ssl=true") ? "required" : "");
+    if (customExtraProperties.contains("ssl=true") || (config.hasPath(USER_SSL) && config.getBoolean(USER_SSL))) {
+      xmlStreamWriter.writeAttribute("sslmode", "required");
+    } else {
+      xmlStreamWriter.writeAttribute("sslmode", "");
+    }
+
+    // TODO: Authentication will be user configurable in a future version and will need modification
+    xmlStreamWriter.writeAttribute("authentication", "basic");
+
+    writeSdkConnectionAdditional(xmlStreamWriter);
 
     writeRelation(xmlStreamWriter, datasetConfig);
     xmlStreamWriter.writeEndElement();

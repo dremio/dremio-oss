@@ -21,7 +21,7 @@ import spaceSchema from 'dyn-load/schemas/space';
 import APICall from '@app/core/APICall';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
-import { getParamsForSpacesUrl } from 'dyn-load/actions/resources/spacesMixin';
+import { getParamsForSpacesUrl, updateSpacePermissions} from 'dyn-load/actions/resources/spacesMixin';
 import FormUtils from 'dyn-load/utils/FormUtils/FormUtils';
 
 export const SPACES_LIST_LOAD_START = 'SPACES_LIST_LOAD_START';
@@ -29,12 +29,12 @@ export const SPACES_LIST_LOAD_SUCCESS = 'SPACES_LIST_LOAD_SUCCESS';
 export const SPACES_LIST_LOAD_FAILURE = 'SPACES_LIST_LOAD_FAILURE';
 
 export const ALL_SPACES_VIEW_ID = 'AllSpaces';
-export function loadSpaceListData() {
+function fetchSpaceListData(includeDatasetCount = false) {
   const meta = {viewId: ALL_SPACES_VIEW_ID, replaceEntities: true };
 
   const apiCall = new APICall()
     .path('catalog')
-    .params({include: getParamsForSpacesUrl()})
+    .params({include: getParamsForSpacesUrl(includeDatasetCount)})
     .uncachable();
 
   return {
@@ -47,6 +47,13 @@ export function loadSpaceListData() {
       method: 'GET',
       endpoint: apiCall
     }
+  };
+}
+
+export function loadSpaceListData() {
+  return (dispatch) => {
+    return dispatch(fetchSpaceListData())
+      .then(() => dispatch(fetchSpaceListData(true)));
   };
 }
 
@@ -94,6 +101,10 @@ export function createNewSpace(values) {
 
 export function updateSpace(values) {
   return saveSpace(values, false);
+}
+
+export function updateSpacePrivileges(values) {
+  return updateSpacePermissions(values);
 }
 
 export const REMOVE_SPACE_START = 'REMOVE_SPACE_START';

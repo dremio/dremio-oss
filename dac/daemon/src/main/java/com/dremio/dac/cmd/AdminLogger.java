@@ -36,4 +36,11 @@ public final class AdminLogger {
     logger.info(msg, args);
   }
 
+  /**
+   * @param msg String message
+   * @param t   Throwable to log
+   */
+  public static void log(String msg, Throwable t) {
+    logger.info(msg, t);
+  }
 }

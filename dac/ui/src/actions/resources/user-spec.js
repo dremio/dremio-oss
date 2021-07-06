@@ -25,17 +25,19 @@ describe('user actions', () => {
     it('with username', () => {
       const apiCall = new APIV2Call()
         .path('user')
-        .path('test');
+        .path('test')
+        .uncachable();
 
-      expect(Actions.loadUser({userName: 'test'})((obj) => obj)[RSAA].endpoint).to.eql(apiCall);
+      expect(Actions.loadUser({userName: 'test'})((obj) => obj)[RSAA].endpoint.toString().split('=')[0]).to.equal(apiCall.toString().split('=')[0]);
     });
 
     it('with url unsafe username', () => {
       const apiCall = new APIV2Call()
         .path('user')
-        .path('test?./');
+        .path('test?./')
+        .uncachable();
 
-      expect(Actions.loadUser({userName: 'test?./'})((obj) => obj)[RSAA].endpoint).to.eql(apiCall);
+      expect(Actions.loadUser({userName: 'test?./'})((obj) => obj)[RSAA].endpoint.toString().split('=')[0]).to.equal(apiCall.toString().split('=')[0]);
     });
   });
 });

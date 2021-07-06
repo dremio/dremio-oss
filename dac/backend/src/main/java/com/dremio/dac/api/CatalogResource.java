@@ -71,8 +71,9 @@ public class CatalogResource {
   @GET
   @Path("/{id}")
   public CatalogEntity getCatalogItem(@PathParam("id") String id,
-                                      @QueryParam("include") final List<String> include) throws NamespaceException {
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(id, include);
+                                      @QueryParam("include") final List<String> include,
+                                      @QueryParam("exclude") final List<String> exclude) throws NamespaceException {
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(id, include, exclude);
 
     if (!entity.isPresent()) {
       throw new NotFoundException(String.format("Could not find entity with id [%s]", id));
@@ -173,14 +174,21 @@ public class CatalogResource {
 
   @GET
   @Path("/by-path/{segment:.*}")
-  public CatalogEntity getCatalogItemByPath(@PathParam("segment") List<PathSegment> segments) throws NamespaceException, BadRequestException {
+  public CatalogEntity getCatalogItemByPath(
+    @PathParam("segment") List<PathSegment> segments,
+    @QueryParam("include") final List<String> include,
+    @QueryParam("exclude") final List<String> exclude
+  ) throws NamespaceException, BadRequestException {
     List<String> pathList = new ArrayList<>();
 
     for (PathSegment segment : segments) {
-      pathList.add(segment.getPath());
+      // with query parameters we may get a empty final segment
+      if (!segment.getPath().isEmpty()) {
+        pathList.add(segment.getPath());
+      }
     }
 
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList);
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList, include, exclude);
 
     if (!entity.isPresent()) {
       throw new NotFoundException(String.format("Could not find entity with path [%s]", pathList));

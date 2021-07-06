@@ -388,6 +388,32 @@ public class UserException extends RuntimeException {
   /**
    * Creates a new user exception builder .
    *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#RETRY_ATTEMPT_ERROR
+   * @return user exception builder
+   */
+  public static Builder retryAttemptError() {
+    return retryAttemptError(null);
+  }
+
+  /**
+   * wraps the passed exception inside a retry attempt error.
+   * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
+   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#RETRY_ATTEMPT_ERROR
+   *
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
+   *              returned by the builder instead of creating a new user exception
+   * @return user exception builder
+   */
+  public static Builder retryAttemptError(Throwable cause) {
+    return builder(DremioPBError.ErrorType.RETRY_ATTEMPT_ERROR, cause);
+  }
+
+  /**
+   * Creates a new user exception builder .
+   *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFLECTION_ERROR
    * @return user exception builder
    */

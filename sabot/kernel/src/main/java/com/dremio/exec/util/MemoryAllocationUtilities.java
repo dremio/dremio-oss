@@ -16,6 +16,7 @@
 package com.dremio.exec.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -26,17 +27,20 @@ import com.dremio.common.util.PrettyPrintUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
+import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+
 
 public final class MemoryAllocationUtilities {
 
@@ -105,11 +109,23 @@ public final class MemoryAllocationUtilities {
   static void setMemory(final OptionManager optionManager, Map<Fragment, Wrapper> fragments, long maxMemoryPerNodePerQuery) {
     final ArrayListMultimap<NodeEndpoint, PhysicalOperator> consideredOps = ArrayListMultimap.create();
     final ArrayListMultimap<NodeEndpoint, PhysicalOperator> nonConsideredOps = ArrayListMultimap.create();
+    final boolean aggressive = optionManager.getOption(PlannerSettings.ENABLE_AGGRESSIVE_MEMORY_CALCULATION);
+    final long adjustReservedBytes = (aggressive) ?
+      optionManager.getOption(PlannerSettings.ADJUST_RESERVED_WHEN_AGGRESSIVE) * 1024L * 1024L : 0L;
 
     long queryMaxAllocation = Long.MAX_VALUE;
     for(Entry<Fragment, Wrapper> entry: fragments.entrySet()) {
-      FindConsideredOperators fco = new FindConsideredOperators();
-      entry.getKey().getRoot().accept(fco, null);
+      PhysicalOperator root = entry.getKey().getRoot();
+
+      if (entry.getKey().getSendingExchange() != null && aggressive) { // exchange op on sender fragment
+        for (NodeEndpoint e : entry.getValue().getAssignedEndpoints()) {
+          nonConsideredOps.putAll(e, Arrays.asList(root));
+        }
+        root = ((Exchange) root).getChild();
+      }
+      FindConsideredOperators fco = (aggressive) ?
+        new FindConsideredOperators(root.getProps().getMajorFragmentId()) : new FindConsideredOperators(-1);
+      root.accept(fco, null);
       for(NodeEndpoint e : entry.getValue().getAssignedEndpoints()) {
         consideredOps.putAll(e, fco.getConsideredOperators());
       }
@@ -134,14 +150,21 @@ public final class MemoryAllocationUtilities {
       }
 
       final double totalWeights = ops.stream().mapToDouble(t -> t.getProps().getMemoryFactor()).sum();
-      final long memoryForHeavyOperations = maxMemoryPerNodePerQuery - outsideReserve;
+      final long memoryForHeavyOperations = maxMemoryPerNodePerQuery - outsideReserve - adjustReservedBytes;
       if(memoryForHeavyOperations < 1) {
         throw UserException.memoryError()
-          .message("Query was cancelled because it exceeded the memory limits set by the administrator. Expected at least %s bytes, but only had %s available.",
-            PrettyPrintUtils.bytePrint(outsideReserve, true), PrettyPrintUtils.bytePrint(maxMemoryPerNodePerQuery, true))
+          .message("Query was cancelled because it exceeded the memory limits set by the administrator. " +
+              "Expected at least %s bytes, but only had %s available. " + System.lineSeparator() +
+              "Size requirement for memory intensive ops is %s bytes. " + System.lineSeparator() +
+              "Missing memory = %s bytes, Number of Memory intensive ops = %d, Other ops = %d, Endpoint = %s",
+            PrettyPrintUtils.bytePrint(outsideReserve, true),
+            PrettyPrintUtils.bytePrint(maxMemoryPerNodePerQuery, true),
+            PrettyPrintUtils.bytePrint(consideredOpsReserve, true),
+            PrettyPrintUtils.bytePrint(Math.abs(memoryForHeavyOperations), true),
+            consideredOps.size(), nonConsideredOps.size(), ep.getAddress())
           .build(logger);
       }
-      final double baseWeight = memoryForHeavyOperations/totalWeights;
+      final double baseWeight = memoryForHeavyOperations / totalWeights;
       ops.stream()
           .filter(op -> op.getProps().isMemoryBound())
           .forEach(op -> {
@@ -165,12 +188,15 @@ public final class MemoryAllocationUtilities {
   /**
    * Visit expensive operators and collect them for a particular suboperator tree.
    */
-  private static class FindConsideredOperators extends AbstractPhysicalVisitor<Void, Void, RuntimeException> {
+  @VisibleForTesting
+  static class FindConsideredOperators extends AbstractPhysicalVisitor<Void, Void, RuntimeException> {
 
+    private final int majorFragmentId;
     private final List<PhysicalOperator> nonConsidered = new ArrayList<>();
     private final List<PhysicalOperator> considered = new ArrayList<>();
 
-    public FindConsideredOperators() {
+    public FindConsideredOperators(int majorFragmentId) {
+      this.majorFragmentId = majorFragmentId;
     }
 
     public List<PhysicalOperator> getNonConsideredOperators(){
@@ -183,6 +209,11 @@ public final class MemoryAllocationUtilities {
 
     @Override
     public Void visitOp(PhysicalOperator op, Void value) throws RuntimeException {
+
+      if (majorFragmentId >= 0 && majorFragmentId != op.getProps().getMajorFragmentId()) {
+        return null;
+      }
+
       if( (op.getProps().isMemoryExpensive()) ) {
         considered.add(op);
       } else {

@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import invariant from 'invariant';
 import Immutable from 'immutable';
 import Linkify from 'linkifyjs/react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import { FormattedMessage } from 'react-intl';
@@ -35,8 +34,7 @@ import {haveLocKey} from 'utils/locale';
 export const RENDER_NO_DETAILS = Symbol('RENDER_NO_DETAILS');
 
 @Radium
-@pureRender
-export default class Message extends Component {
+export default class Message extends PureComponent {
 
   // must be a superset of the notification system `level` options
   static MESSAGE_TYPES = ['info', 'success', 'warning', 'error'];
@@ -46,6 +44,7 @@ export default class Message extends Component {
   };
 
   static defaultProps = {
+    className: '',
     messageType: 'info',
     isDismissable: true,
     message: Immutable.Map(),
@@ -54,6 +53,7 @@ export default class Message extends Component {
   };
 
   static propTypes = {
+    className: PropTypes.string,
     message: PropTypes.oneOfType([
       PropTypes.node,
       PropTypes.instanceOf(Immutable.Map) // errors with extra details
@@ -275,7 +275,7 @@ export default class Message extends Component {
   }
 
   render() {
-    const { messageType, style, messageTextStyle, inFlow } = this.props;
+    const { className, messageType, style, messageTextStyle, inFlow } = this.props;
 
     if (this.props.dismissed || this.props.dismissed === undefined && this.state.dismissed) {
       return null;
@@ -291,7 +291,7 @@ export default class Message extends Component {
     };
 
     return (
-      <div className={`message ${messageType}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
+      <div className={`message ${messageType} ${className}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
         <div style={[styles.base, styles[messageType]]} ref='messagePanel'>
           {this.renderIcon(messageType)}
           <span className='message-content' style={{...styles.messageText, ...messageTextStyle}} onMouseUp={this.prevent}>

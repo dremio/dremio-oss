@@ -20,10 +20,12 @@ import static com.dremio.exec.expr.TypeHelper.getValueVectorClass;
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -115,14 +117,16 @@ public class DremioTestWrapper {
   // and translated into a map in the builder
   private List<Map<String, Object>> baselineRecords;
 
+  private static Map<String, BaselineValuesForTDigest> baselineValuesForTDigestMap;
+
   private int expectedNumBatches;
 
   private TestResult latestResult;
 
   public DremioTestWrapper(TestBuilder testBuilder, BufferAllocator allocator, Object query, QueryType queryType,
-                          String baselineOptionSettingQueries, String testOptionSettingQueries,
-                          QueryType baselineQueryType, boolean ordered, boolean highPerformanceComparison,
-                          List<Map<String, Object>> baselineRecords, int expectedNumBatches) {
+                           String baselineOptionSettingQueries, String testOptionSettingQueries,
+                           QueryType baselineQueryType, boolean ordered, boolean highPerformanceComparison,
+                           List<Map<String, Object>> baselineRecords, int expectedNumBatches, Map<String, BaselineValuesForTDigest> baselineValuesForTDigestMap) {
     this.testBuilder = testBuilder;
     this.allocator = allocator;
     this.query = query;
@@ -134,6 +138,7 @@ public class DremioTestWrapper {
     this.highPerformanceComparison = highPerformanceComparison;
     this.baselineRecords = baselineRecords;
     this.expectedNumBatches = expectedNumBatches;
+    this.baselineValuesForTDigestMap = baselineValuesForTDigestMap;
   }
 
   public TestResult run() throws Exception {
@@ -154,7 +159,7 @@ public class DremioTestWrapper {
   }
 
   private void compareHyperVectors(Map<String, HyperVectorValueIterator> expectedRecords,
-                                         Map<String, HyperVectorValueIterator> actualRecords) throws Exception {
+                                   Map<String, HyperVectorValueIterator> actualRecords) throws Exception {
     for (String s : expectedRecords.keySet()) {
       assertNotNull("Expected column '" + s + "' not found.", actualRecords.get(s));
       assertEquals(expectedRecords.get(s).getTotalRecords(), actualRecords.get(s).getTotalRecords());
@@ -179,15 +184,15 @@ public class DremioTestWrapper {
   }
 
   public static void compareMergedVectors(Map<String, List<Object>> expectedRecords, Map<String, List<Object>> actualRecords) throws Exception {
+    validateColumnSets(expectedRecords, actualRecords);
     for (String s : actualRecords.keySet()) {
-      assertNotNull("Unexpected extra column " + s + " returned by query.", expectedRecords.get(s));
       List<?> expectedValues = expectedRecords.get(s);
       List<?> actualValues = actualRecords.get(s);
       assertEquals(
-          String.format(
-              "Incorrect number of rows returned by query.\nquery: %s\nexpected: %s\nactual: %s",
-              s, expectedValues, actualValues),
-          expectedValues.size(), actualValues.size());
+        String.format(
+          "Incorrect number of rows returned by query.\nquery: %s\nexpected: %s\nactual: %s",
+          s, expectedValues, actualValues),
+        expectedValues.size(), actualValues.size());
 
       for (int i = 0; i < expectedValues.size(); i++) {
         try {
@@ -199,6 +204,17 @@ public class DremioTestWrapper {
     }
     if (actualRecords.size() < expectedRecords.size()) {
       throw new Exception(findMissingColumns(expectedRecords.keySet(), actualRecords.keySet()));
+    }
+  }
+
+  private static void validateColumnSets(Map<String, List<Object>> expectedRecords,
+      Map<String, List<Object>> actualRecords){
+    Set<String> expectedKeys = expectedRecords.keySet();
+    Set<String> actualKeys = actualRecords.keySet();
+    if (!expectedKeys.equals(actualKeys)) {
+      fail(String.format("Incorrect keys, expected:(%s) actual:(%s)",
+          String.join(",", expectedKeys),
+          String.join(",", actualKeys)));
     }
   }
 
@@ -232,7 +248,7 @@ public class DremioTestWrapper {
 
   private Map<String, HyperVectorValueIterator> addToHyperVectorMap(final List<QueryDataBatch> records,
                                                                     final RecordBatchLoader loader)
-      throws SchemaChangeException, UnsupportedEncodingException {
+    throws SchemaChangeException, UnsupportedEncodingException {
     // TODO - this does not handle schema changes
     Map<String, HyperVectorValueIterator> combinedVectors = new TreeMap<>();
 
@@ -323,13 +339,13 @@ public class DremioTestWrapper {
    * @throws UnsupportedEncodingException
    */
   public static Map<String, List<Object>> addToCombinedVectorResults(Iterable<VectorAccessible> batches)
-       throws SchemaChangeException, UnsupportedEncodingException {
+    throws SchemaChangeException, UnsupportedEncodingException {
     // TODO - this does not handle schema changes
     Map<String, List<Object>> combinedVectors = new TreeMap<>();
 
     long totalRecords = 0;
     BatchSchema schema = null;
-    for (VectorAccessible loader : batches)  {
+    for (VectorAccessible loader : batches) {
       // TODO:  Clean:  DRILL-2933:  That load(...) no longer throws
       // SchemaChangeException, so check/clean throws clause above.
       if (schema == null) {
@@ -422,11 +438,11 @@ public class DremioTestWrapper {
         final String expectedSchemaPath = expectedSchema.get(i).getLeft().getAsUnescapedPath();
         final MinorType expectedMinorType = getArrowMinorType(expectedSchema.get(i).getValue().getMinorType());
 
-        if(!actualSchemaPath.equals(expectedSchemaPath)
-            || !actualMinorType.equals(expectedMinorType)) {
+        if (!actualSchemaPath.equals(expectedSchemaPath)
+          || !actualMinorType.equals(expectedMinorType)) {
           throw new Exception(String.format("Schema path or type mismatch for column #%d:\n" +
-                  "Expected schema path: %s\nActual   schema path: %s\nExpected type: %s\nActual   type: %s",
-              i, expectedSchemaPath, actualSchemaPath, expectedMinorType, actualMinorType));
+              "Expected schema path: %s\nActual   schema path: %s\nExpected type: %s\nActual   type: %s",
+            i, expectedSchemaPath, actualSchemaPath, expectedMinorType, actualMinorType));
         }
       }
 
@@ -585,7 +601,7 @@ public class DremioTestWrapper {
     if (expectedNumBatches != EXPECTED_BATCH_COUNT_NOT_SET) {
       final int actualNumBatches = results.size();
       assertEquals(String.format("Expected %d batches but query returned %d non empty batch(es)%n", expectedNumBatches,
-          actualNumBatches), expectedNumBatches, actualNumBatches);
+        actualNumBatches), expectedNumBatches, actualNumBatches);
     } else {
       if(results.isEmpty() && !baselineRecords.isEmpty()){
         Assert.fail("No records returned.");
@@ -607,7 +623,7 @@ public class DremioTestWrapper {
     Map<SchemaPath, MajorType> typeMap = new TreeMap<>();
     for (int i = 0; i < batch.getHeader().getDef().getFieldCount(); i++) {
       typeMap.put(SchemaPath.getSimplePath(SerializedFieldHelper.create(batch.getHeader().getDef().getField(i)).getName()),
-          batch.getHeader().getDef().getField(i).getMajorType());
+        batch.getHeader().getDef().getField(i).getMajorType());
     }
     return typeMap;
   }
@@ -622,9 +638,9 @@ public class DremioTestWrapper {
   }
 
   public static void addToMaterializedResults(List<Map<String, Object>> materializedRecords,
-                                          List<QueryDataBatch> records,
-                                          RecordBatchLoader loader)
-      throws SchemaChangeException, UnsupportedEncodingException {
+                                              List<QueryDataBatch> records,
+                                              RecordBatchLoader loader)
+    throws SchemaChangeException, UnsupportedEncodingException {
     long totalRecords = 0;
     QueryDataBatch batch;
     int size = records.size();
@@ -662,24 +678,24 @@ public class DremioTestWrapper {
     }
     if (expected == null) {
       throw new Exception("at position " + counter + " column '" + column + "' mismatched values, expected: null " +
-          "but received " + actual + "(" + actual.getClass().getSimpleName() + ")");
+        "but received " + actual + "(" + actual.getClass().getSimpleName() + ")");
     }
     if (actual == null) {
       throw new Exception("unexpected null at position " + counter + " column '" + column + "' should have been:  " + expected);
     }
     if (actual instanceof byte[]) {
       throw new Exception("at position " + counter + " column '" + column + "' mismatched values, expected: "
-          + new String((byte[])expected, "UTF-8") + " but received " + new String((byte[])actual, "UTF-8"));
+        + new String((byte[]) expected, "UTF-8") + " but received " + new String((byte[]) actual, "UTF-8"));
     }
     if (!expected.equals(actual)) {
       throw new Exception(
-          String.format("at position %d column '%s' mismatched values, \nexpected (%s):\n\n%s\n\nbut received (%s):\n\n%s\n\n" +
-                  "Hints:" +
-                  "\n (1) Results are actually wrong" +
-                  "\n (2) If results 'look right', then check if integer type is 'long' and not 'int' (so 1 is 1L)" +
-                  "\n",
-              counter, column, expected.getClass().getSimpleName(), expected, actual.getClass().getSimpleName(),
-              actual));
+        String.format("at position %d column '%s' mismatched values, \nexpected (%s):\n\n%s\n\nbut received (%s):\n\n%s\n\n" +
+            "Hints:" +
+            "\n (1) Results are actually wrong" +
+            "\n (2) If results 'look right', then check if integer type is 'long' and not 'int' (so 1 is 1L)" +
+            "\n",
+          counter, column, expected.getClass().getSimpleName(), expected, actual.getClass().getSimpleName(),
+          actual));
     }
     return true;
   }
@@ -688,7 +704,7 @@ public class DremioTestWrapper {
     if (expected == null) {
       if (actual == null) {
         if (VERBOSE_DEBUG) {
-          logger.debug("(1) at position " + counter + " column '" + column + "' matched value:  " + expected );
+          logger.debug("(1) at position " + counter + " column '" + column + "' matched value:  " + expected);
         }
         return true;
       } else {
@@ -698,12 +714,22 @@ public class DremioTestWrapper {
     if (actual == null) {
       return false;
     }
-    if (actual instanceof byte[]) {
-      if ( ! Arrays.equals((byte[]) expected, (byte[]) actual)) {
+    if (baselineValuesForTDigestMap != null && baselineValuesForTDigestMap.get(column) != null) {
+      if (!approximatelyEqualFromTDigest(expected, actual, baselineValuesForTDigestMap.get(column))) {
         return false;
       } else {
         if (VERBOSE_DEBUG) {
-          logger.debug("at position " + counter + " column '" + column + "' matched value " + new String((byte[])expected, "UTF-8"));
+          logger.debug("at position " + counter + " column '" + column + "' matched value:  " + expected);
+        }
+      }
+      return true;
+    }
+    if (actual instanceof byte[]) {
+      if (!Arrays.equals((byte[]) expected, (byte[]) actual)) {
+        return false;
+      } else {
+        if (VERBOSE_DEBUG) {
+          logger.debug("at position " + counter + " column '" + column + "' matched value " + new String((byte[]) expected, "UTF-8"));
         }
         return true;
       }
@@ -743,17 +769,33 @@ public class DremioTestWrapper {
       return false;
     } else {
       if (VERBOSE_DEBUG) {
-        logger.debug("at position " + counter + " column '" + column + "' matched value:  " + expected );
+        logger.debug("at position " + counter + " column '" + column + "' matched value:  " + expected);
       }
     }
+
+
     return true;
+  }
+
+  private static boolean approximatelyEqualFromTDigest(Object expected, Object actual, BaselineValuesForTDigest value) {
+    if (expected instanceof Double) {
+
+      if (!(actual instanceof byte[])) {
+        return false;
+      }
+      ByteBuffer buffer = ByteBuffer.wrap((byte[]) actual);
+      com.tdunning.math.stats.TDigest tDigest = com.tdunning.math.stats.MergingDigest.fromBytes(buffer);
+      double out = tDigest.quantile(value.quartile);
+      return Math.abs(((Double) expected - (Double) out) / (Double) expected) <= value.tolerance;
+    }
+    return false;
   }
 
   /**
    * Compare two result sets, ignoring ordering.
    *
    * @param expectedRecords - list of records from baseline
-   * @param actualRecords - list of records from test query, WARNING - this list is destroyed in this method
+   * @param actualRecords   - list of records from test query, WARNING - this list is destroyed in this method
    * @throws Exception
    */
   public static void compareResults(List<Map<String, Object>> expectedRecords, List<Map<String, Object>> actualRecords) throws Exception {
@@ -764,7 +806,7 @@ public class DremioTestWrapper {
       String actualRecordExamples = serializeRecordExamplesToString(actualRecords);
       throw new AssertionError(String.format("Different number of records returned - expected:<%d> but was:<%d>\n\n" +
           "Some examples of expected records:\n%s\n\n Some examples of records returned by the test query:\n%s",
-          expectedRecords.size(), actualRecords.size(), expectedRecordExamples, actualRecordExamples));
+        expectedRecords.size(), actualRecords.size(), expectedRecordExamples, actualRecordExamples));
     }
 
     int i;
@@ -778,8 +820,8 @@ public class DremioTestWrapper {
         for (String s : actualRecord.keySet()) {
           if (!expectedRecord.containsKey(s)) {
             throw new AssertionError("Unexpected column '" + s + "' returned by query.\n"
-                + "got: " + actualRecord.keySet()+ "\n"
-                + "expected: " + expectedRecord.keySet());
+              + "got: " + actualRecord.keySet() + "\n"
+              + "expected: " + expectedRecord.keySet());
           }
           if ( ! compareValues(expectedRecord.get(s), actualRecord.get(s), counter, s)) {
             i++;
@@ -797,7 +839,7 @@ public class DremioTestWrapper {
         String actualRecordExamples = serializeRecordExamplesToString(actualRecords);
         throw new Exception(String.format("After matching %d records, did not find expected record in result set:\n %s\n\n" +
             "Some examples of expected records:\n%s\n\n Some examples of records returned by the test query:\n%s",
-            counter, printRecord(expectedRecord), expectedRecordExamples, actualRecordExamples));
+          counter, printRecord(expectedRecord), expectedRecordExamples, actualRecordExamples));
       } else {
         actualRecords.remove(i);
         counter++;
@@ -827,9 +869,20 @@ public class DremioTestWrapper {
   private static String printRecord(Map<String, ?> record) {
     String ret = "";
     for (String s : record.keySet()) {
-      ret += s + " : "  + record.get(s) + ", ";
+      ret += s + " : " + record.get(s) + ", ";
     }
     return ret + "\n";
+  }
+
+  public static class BaselineValuesForTDigest {
+    public double tolerance;
+    public double quartile;
+
+    public BaselineValuesForTDigest(double tolerance, double quartile) {
+      this.tolerance = tolerance;
+      this.quartile = quartile;
+    }
+
   }
 
 }

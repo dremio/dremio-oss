@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
@@ -34,9 +33,8 @@ export const REPLACE_TAB = 'replace';
 export const KEEP_ONLY_TAB = 'keeponly';
 export const EXCLUDE_TAB = 'exclude';
 
-@PureRender
 @Radium
-export class TransformHeader extends Component {
+export class TransformHeader extends PureComponent {
   static propTypes = {
     closeIconHandler: PropTypes.func.isRequired,
     closeIcon: PropTypes.bool,

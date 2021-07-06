@@ -70,13 +70,6 @@
           {
             "elements": [
               {
-                "propName": "config.enableAsync"
-              }
-            ]
-          },
-          {
-            "elements": [
-              {
                 "label": "Connection Properties",
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",

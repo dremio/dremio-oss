@@ -17,12 +17,15 @@ package com.dremio.common.types;
 
 import static com.dremio.common.expression.CompleteType.BIGINT;
 import static com.dremio.common.expression.CompleteType.BIT;
+import static com.dremio.common.expression.CompleteType.DATE;
 import static com.dremio.common.expression.CompleteType.DECIMAL;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.LIST;
 import static com.dremio.common.expression.CompleteType.STRUCT;
+import static com.dremio.common.expression.CompleteType.TIME;
+import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static com.dremio.common.types.TypeCoercionRules.getResultantType;
 import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal;
@@ -71,6 +74,9 @@ public class TypeCoercionRulesTest {
     assertThat(getType(BIGINT, VARCHAR), is(VARCHAR));
     assertThat(getType(FLOAT, VARCHAR), is(VARCHAR));
     assertThat(getType(DOUBLE, VARCHAR), is(VARCHAR));
+    assertThat(getType(DATE, VARCHAR), is(VARCHAR));
+    assertThat(getType(TIME, VARCHAR), is(VARCHAR));
+    assertThat(getType(TIMESTAMP, VARCHAR), is(VARCHAR));
 
     assertThat(getType(DECIMAL, VARCHAR), is(VARCHAR));
     assertThat(getType(DEC_18_18, VARCHAR), is(VARCHAR));
@@ -117,6 +123,9 @@ public class TypeCoercionRulesTest {
     assertThat(getResultantType(VARCHAR, BIGINT), is(Optional.empty()));
     assertThat(getResultantType(VARCHAR, FLOAT), is(Optional.empty()));
     assertThat(getResultantType(VARCHAR, DOUBLE), is(Optional.empty()));
+    assertThat(getResultantType(VARCHAR, DATE), is(Optional.empty()));
+    assertThat(getResultantType(VARCHAR, TIME), is(Optional.empty()));
+    assertThat(getResultantType(VARCHAR, TIMESTAMP), is(Optional.empty()));
 
     assertThat(getResultantType(VARCHAR, DECIMAL), is(Optional.empty()));
     assertThat(getResultantType(VARCHAR, DEC_10_5), is(Optional.empty()));

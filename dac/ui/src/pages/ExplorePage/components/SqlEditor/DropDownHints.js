@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable  from 'immutable';
 
 import './DropDownHints.less';
 
-@pureRender
-class DropDownHints extends Component {
+class DropDownHints extends PureComponent {
   static propTypes = {
     dialog: PropTypes.instanceOf(Immutable.Map).isRequired,
     insertIntoCode: PropTypes.func.isRequired,

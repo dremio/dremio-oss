@@ -29,6 +29,7 @@ import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -82,11 +83,13 @@ class MaterializationCache {
   private final CacheHelper provider;
   private final NamespaceService namespaceService;
   private final ReflectionStatusService reflectionStatusService;
+  private final CatalogService catalogService;
 
-  MaterializationCache(CacheHelper provider, NamespaceService namespaceService, ReflectionStatusService reflectionStatusService) {
+  MaterializationCache(CacheHelper provider, NamespaceService namespaceService, ReflectionStatusService reflectionStatusService, CatalogService catalogService) {
     this.provider = Preconditions.checkNotNull(provider, "materialization provider required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.reflectionStatusService = Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
+    this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
   }
 
   static final class CacheException extends Exception {
@@ -196,7 +199,7 @@ class MaterializationCache {
       if (descriptor != null) {
         final DremioMaterialization expanded = provider.expand(descriptor);
         if (expanded != null) {
-          cache.put(entry.getId(), new CachedMaterializationDescriptor(descriptor, expanded));
+          cache.put(entry.getId(), new CachedMaterializationDescriptor(descriptor, expanded, catalogService));
         }
       }
     } catch (Exception e) {

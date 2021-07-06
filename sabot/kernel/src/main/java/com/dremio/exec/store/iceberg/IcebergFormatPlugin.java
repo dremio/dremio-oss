@@ -15,19 +15,17 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.io.IOException;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.physical.base.AbstractWriter;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -39,6 +37,7 @@ import com.dremio.exec.store.dfs.LayeredPluginFileSelectionProcessor;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
+import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
@@ -94,11 +93,6 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
 
   @Override
   public boolean isLayered() { return this.isLayered; }
-
-  @Override
-  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) {
-    throw new UnsupportedOperationException("iceberg writer not implemented");
-  }
 
   // TODO ravindra: should get the parquet file path by traversing the json file.
   @Override
@@ -163,7 +157,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     List<SchemaPath> columns,
     FragmentExecutionContext fec,
     EasySubScan config) throws ExecutionSetupException {
-    return new IcebergManifestListRecordReader(context, dfs, splitAttributes, columns, fsPlugin.getFsConfCopy(), config);
+    return new IcebergManifestListRecordReader(context, dfs, splitAttributes, fsPlugin, config);
   }
 
   @Override
@@ -178,7 +172,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
 
   @Override
   public int getWriterOperatorType() {
-    return 0;
+    return UserBitShared.CoreOperatorType.MANIFEST_WRITER_VALUE;
   }
 
   @Override
@@ -198,5 +192,11 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
       return new IcebergFormatDatasetAccessor(type, fs, fileSelection, tableSchemaPath,
         this, fsPlugin, previousInfo, maxLeafColumns);
     }
+  }
+
+  @Override
+  public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException {
+    RecordWriter recordWriter = new ManifestFileRecordWriter(context, writer,  getConfig());
+    return recordWriter;
   }
 }

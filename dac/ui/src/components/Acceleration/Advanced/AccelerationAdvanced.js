@@ -33,7 +33,8 @@ export class AccelerationAdvanced extends Component {
     location: PropTypes.object.isRequired,
     updateFormDirtyState: PropTypes.func.isRequired,
     values: PropTypes.object.isRequired,
-    initialValues: PropTypes.any
+    initialValues: PropTypes.any,
+    canAlter: PropTypes.any
   };
 
   static getFields() {
@@ -129,10 +130,10 @@ export class AccelerationAdvanced extends Component {
   }
 
   renderTableQueries() {
-    const { fields, reflections, dataset } = this.props;
+    const { fields, reflections, dataset, canAlter } = this.props;
     return this.getActiveTab() === 'AGGREGATION'
-      ? <AccelerationAggregation reflections={reflections} dataset={dataset} fields={fields}/>
-      : <AccelerationRaw reflections={reflections} dataset={dataset} fields={fields}/>;
+      ? <AccelerationAggregation canAlter={canAlter} reflections={reflections} dataset={dataset} fields={fields}/>
+      : <AccelerationRaw canAlter={canAlter} reflections={reflections} dataset={dataset} fields={fields}/>;
   }
 
   render() {

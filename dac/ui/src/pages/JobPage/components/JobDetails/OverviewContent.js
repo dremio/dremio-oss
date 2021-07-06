@@ -31,7 +31,7 @@ import { flexColumnContainer, flexElementAuto } from '@app/uiTheme/less/layout.l
 
 import { BORDER_TABLE } from 'uiTheme/radium/colors';
 import SqlEditor from 'components/SQLEditor.js';
-import { getQueueName } from 'dyn-load/pages/JobPage/components/JobDetails/OverviewContentUtil';
+import { getQueueName, getRouteLabel } from '@inject/pages/JobPage/components/JobDetails/OverviewContentUtil';
 
 import Quote from './Quote';
 import ListItem from './ListItem';
@@ -155,7 +155,7 @@ class OverviewContent extends PureComponent {
     const attemptDetails = jobDetails.get('attemptDetails');
     const haveMultipleAttempts = attemptDetails.size > 1;
     const durationLabelId = (haveMultipleAttempts) ? 'Job.TotalDuration' : 'Job.Duration';
-
+    const routeLabel = getRouteLabel();
 
     return (
       <div className='detail-row'>
@@ -180,7 +180,7 @@ class OverviewContent extends PureComponent {
           <ListItem label={intl.formatMessage({ id: 'Common.User' })}>
             <span>{jobDetails.get('user')}</span>
           </ListItem>
-          {queueName && <ListItem label={intl.formatMessage({ id: 'Common.Queue' })}>
+          {queueName && <ListItem label={intl.formatMessage({ id: routeLabel })}>
             <span>{queueName}</span>
           </ListItem>}
           <ListItem label={intl.formatMessage({ id: 'Job.JobID' })} style={{position: 'relative'}}>

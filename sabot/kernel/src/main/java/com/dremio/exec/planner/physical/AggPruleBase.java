@@ -71,14 +71,15 @@ public abstract class AggPruleBase extends Prule {
   }
 
   private static final Set<String> twoPhaseFunctions = ImmutableSet.of(
-      "SUM",
-      "MIN",
-      "MAX",
-      "COUNT",
-      "$SUM0",
-      "HLL_MERGE",
-      "HLL"
-      );
+    "SUM",
+    "MIN",
+    "MAX",
+    "COUNT",
+    "$SUM0",
+    "HLL_MERGE",
+    "HLL",
+    "TDIGEST"
+  );
 
   // Create 2 phase aggr plan for aggregates such as SUM, MIN, MAX
   // If any of the aggregate functions are not one of these, then we

@@ -1100,4 +1100,36 @@ public class TestWindowFunctions extends BaseTestQuery {
       assertTrue(e.getMessage().contains("Dremio does not currently support order by with ordinals in over clause"));
     }
   }
+
+  @Test
+  public void testWindowUnderPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+      "DISTINCT for window aggregate functions is not currently supported"));
+    test("select 1/(count(distinct n_nationKey) over (partition by n_nationKey)) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
+
+  @Test
+  public void testWindowUnderNestedPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+      "DISTINCT for window aggregate functions is not currently supported"));
+    test("select 1/(1/(count(distinct n_nationKey) over (partition by n_nationKey))) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
+
+  @Test
+  public void testAggregateWindowCountUnderPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+      "DISTINCT for window aggregate functions is not currently supported"));
+    test("select 1/(count(distinct n_nationKey) over (partition by n_nationKey)) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
+
+  @Test
+  public void testAggregateWindowCountUnderNestedPrecedentOperation() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+      "DISTINCT for window aggregate functions is not currently supported"));
+    test("select 1/(1/(count(distinct n_nationKey) over (partition by n_nationKey))) \n" +
+      "from cp.\"tpch/nation.parquet\"");
+  }
 }

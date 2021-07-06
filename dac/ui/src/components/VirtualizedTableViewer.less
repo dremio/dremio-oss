@@ -20,3 +20,16 @@ div.virtualized-row { // div + .virtualized-row adds an extra layer wrt specfici
   display: flex;
   flex-direction: row;
 }
+
+:global {
+  .virtualizedTable {
+    &__headerContent {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    &__helpIcon {
+      display: inline-flex;
+    }
+  }
+}

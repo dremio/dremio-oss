@@ -17,6 +17,7 @@ package com.dremio.sabot.op.tablefunction;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.util.VectorUtil;
@@ -35,10 +36,8 @@ import com.google.common.base.Preconditions;
 public class TableFunctionOperator implements SingleInputOperator {
 
   public enum Metric implements MetricDef {
-
     NUM_DATA_FILE,
-    NUM_MANIFEST_FILE,
-    PROCESS_TME;
+    NUM_MANIFEST_FILE;
 
     @Override
     public int metricId() {
@@ -51,17 +50,23 @@ public class TableFunctionOperator implements SingleInputOperator {
   private VectorAccessible output;
 
   private  final OperatorContext context;
-  private final TableFunctionPOP functionOperator;
+  private final AbstractTableFunctionPOP functionOperator;
   private final FragmentExecutionContext fec;
-  private final TableFunctionFactory tableFunctionFactory = new InternalTableFunctionFactory();
+  private final TableFunctionFactory tableFunctionFactory;
   private TableFunction tableFunction;
   private int currentrow = -1;
   private int records;
 
-  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, TableFunctionPOP operator) {
+  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator,
+                               TableFunctionFactory tableFunctionFactory) {
     this.context = context;
     this.functionOperator = operator;
     this.fec = fec;
+    this.tableFunctionFactory = tableFunctionFactory;
+  }
+
+  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator) {
+    this(fec, context, operator, new InternalTableFunctionFactory());
   }
 
   @Override
@@ -117,7 +122,8 @@ public class TableFunctionOperator implements SingleInputOperator {
   @Override
   public void noMoreToConsume() throws Exception {
     state.is(State.CAN_CONSUME);
-    state = State.DONE;
+    // if there are any buffered records remaining, we transition back to CAN_PRODUCE state else we are done
+    state = tableFunction.hasBufferedRemaining() ? State.CAN_PRODUCE : State.DONE;
   }
 
   @Override

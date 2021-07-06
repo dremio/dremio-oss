@@ -54,8 +54,7 @@ public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation
   }
 
   // Replace Calcite implementation to normalize empty collation
-  public ImmutableList<RelCollation> collations(RelSubset rel,
-      RelMetadataQuery mq) {
+  public ImmutableList<RelCollation> collations(RelSubset rel, RelMetadataQuery mq) {
     List<RelCollation> collations =
         Preconditions.checkNotNull(
             rel.getTraitSet().getTraits(RelCollationTraitDef.INSTANCE));
@@ -64,18 +63,21 @@ public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation
     return EMPTY.equals(collations) ? ImmutableList.of() : ImmutableList.copyOf(collations);
   }
 
-  public ImmutableList<RelCollation> collations(StreamAggPrel rel,
-      RelMetadataQuery mq) {
 
-    return ImmutableList.of(StreamAggPrel.collation(rel.getGroupSet()));
+  public ImmutableList<RelCollation> collations(StreamAggPrel rel, RelMetadataQuery mq) {
+    RelCollation collation = StreamAggPrel.collation(rel.getGroupSet());
+    return RelCollations.EMPTY.equals(collation)
+        ? ImmutableList.of()
+        : ImmutableList.of(collation);
   }
 
   public ImmutableList<RelCollation> collations(LimitRelBase rel, RelMetadataQuery mq) {
     return ImmutableList.of();
   }
 
-  public ImmutableList<RelCollation> collations(HashToMergeExchangePrel rel,
-      RelMetadataQuery mq) {
-    return ImmutableList.of(rel.getCollation());
-  }
+  public ImmutableList<RelCollation> collations(HashToMergeExchangePrel rel, RelMetadataQuery mq) {
+    RelCollation collation = rel.getCollation();
+    return RelCollations.EMPTY.equals(collation)
+        ? ImmutableList.of()
+        : ImmutableList.of(collation);  }
 }

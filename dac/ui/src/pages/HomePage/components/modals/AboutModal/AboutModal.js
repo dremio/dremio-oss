@@ -28,7 +28,7 @@ import Modal from 'components/Modals/Modal';
 import Art from 'components/Art';
 import Spinner from 'components/Spinner';
 
-import { getEdition } from '@inject/utils/versionUtils';
+import { getEdition, getAboutMode } from '@inject/utils/versionUtils';
 import timeUtils from 'utils/timeUtils';
 
 import TabsNavigationItem from '../../../../JobPage/components/JobDetails/TabsNavigationItem';
@@ -68,8 +68,10 @@ export default class AboutModal extends Component {
   ])
 
   componentDidMount() {
-    this.fetchInfo();
-    this.getMetrics();
+    if (getAboutMode() === 'full') {
+      this.fetchInfo();
+      this.getMetrics();
+    }
   }
 
   handleTabChange = (activeTab) => {
@@ -134,6 +136,9 @@ export default class AboutModal extends Component {
   }
 
   renderTabs() {
+    if (getAboutMode() === 'versionOnly') {
+      return null;
+    }
     return (<div className='tabs-holder' style={styles.base}>
       {
         this.state.tabs.map(item => (
@@ -150,6 +155,14 @@ export default class AboutModal extends Component {
   }
 
   renderTabsContent = (activeTab) => {
+    if (getAboutMode() === 'versionOnly') {
+      return (
+        <dl className='normalFontSize'>
+          <dt style={styles.dtStyle}><FormattedMessage id='App.Edition'/></dt>
+          <dd>{getEdition()}</dd>
+        </dl>
+      );
+    }
     return activeTab === 'build' ? this.renderVersion() : this.renderCluterData();
   };
 

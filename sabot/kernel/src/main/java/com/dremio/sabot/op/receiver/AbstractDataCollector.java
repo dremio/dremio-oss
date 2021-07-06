@@ -109,6 +109,7 @@ public abstract class AbstractDataCollector implements DataCollector {
             buffer = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
           }
           rollbackCloseable.add(buffer);
+          buffer.init();
           buffers[fragment.getMinorFragmentId()] = buffer;
         }
         rollbackCloseable.commit();
@@ -119,11 +120,14 @@ public abstract class AbstractDataCollector implements DataCollector {
       buffers = new RawBatchBuffer[1];
       final String name = String.format("unordered-spooling-recv-%s-%d:*", spooling ? "spool" : "mem", collector.getOppositeMajorFragmentId());
       final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.UNORDERED_RECV_SPOOL_BUFFER : SharedResourceType.UNORDERED_RECV_MEM_BUFFER);
+      final RawBatchBuffer buffer;
       if (spooling) {
-        buffers[0] = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
+        buffer = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
       } else {
-        buffers[0] = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+        buffer = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
       }
+      buffers[0] = buffer;
+      buffers[0].init();
     }
   }
 

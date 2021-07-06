@@ -16,6 +16,7 @@
 package com.dremio.exec.physical.base;
 
 import com.dremio.exec.physical.config.AbstractSort;
+import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.BroadcastSender;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -34,7 +35,6 @@ import com.dremio.exec.physical.config.RoundRobinSender;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.physical.config.SingleSender;
 import com.dremio.exec.physical.config.StreamingAggregate;
-import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.physical.config.UnionAll;
 import com.dremio.exec.physical.config.UnionExchange;
 import com.dremio.exec.physical.config.UnorderedReceiver;
@@ -221,7 +221,7 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
-  public T visitTableFunction(TableFunctionPOP op, X value) throws E {
+  public T visitTableFunction(AbstractTableFunctionPOP op, X value) throws E {
     return visitOp(op, value);
   }
 

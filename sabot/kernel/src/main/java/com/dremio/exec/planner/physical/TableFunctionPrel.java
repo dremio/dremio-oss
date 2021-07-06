@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.planner.physical.PlannerSettings.ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
@@ -28,7 +30,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
@@ -52,6 +56,7 @@ public class TableFunctionPrel extends SinglePrel{
   private final TableFunctionConfig functionConfig;
   private final RelOptTable table;
   final Function<RelMetadataQuery, Double> estimateRowCountFn;
+  private final TableFunctionPOPCreator tableFunctionPOPCreator;
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
@@ -59,7 +64,16 @@ public class TableFunctionPrel extends SinglePrel{
                            TableFunctionConfig functionConfig,
                            RelDataType rowType) {
     this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
-            mq -> TableFunctionPrel.defaultEstimateRowCount(functionConfig, mq));
+      null, TableFunctionPOPCreator.DEFAULT);
+  }
+
+  public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
+                           TableMetadata tableMetadata,
+                           ImmutableList<SchemaPath> projectedColumns,
+                           TableFunctionConfig functionConfig,
+                           RelDataType rowType, TableFunctionPOPCreator tableFunctionPOPCreator) {
+    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
+            null, tableFunctionPOPCreator);
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
@@ -68,13 +82,25 @@ public class TableFunctionPrel extends SinglePrel{
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn) {
+    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType, estimateRowCountFn, TableFunctionPOPCreator.DEFAULT);
+  }
+
+  public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
+                           TableMetadata tableMetadata,
+                           ImmutableList<SchemaPath> projectedColumns,
+                           TableFunctionConfig functionConfig,
+                           RelDataType rowType,
+                           Function<RelMetadataQuery, Double> estimateRowCountFn,
+                           TableFunctionPOPCreator tableFunctionPOPCreator) {
     super(cluster, traits, child);
     this.tableMetadata = tableMetadata;
     this.projectedColumns = projectedColumns;
     this.functionConfig = functionConfig;
     this.rowType = rowType;
-    this.estimateRowCountFn = estimateRowCountFn;
+    this.estimateRowCountFn = estimateRowCountFn == null ?
+            mq -> defaultEstimateRowCount(functionConfig, mq) : estimateRowCountFn;
     this.table = table;
+    this.tableFunctionPOPCreator = tableFunctionPOPCreator;
   }
 
 
@@ -83,8 +109,8 @@ public class TableFunctionPrel extends SinglePrel{
     Prel child = (Prel) this.getInput();
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-    return new TableFunctionPOP(
-      creator.props(this, tableMetadata.getUser(), functionConfig.getOutputSchema(), RESERVE, LIMIT),
+    return tableFunctionPOPCreator.create(creator.props(this, tableMetadata != null ? tableMetadata.getUser() : null,
+        functionConfig.getOutputSchema(), RESERVE, LIMIT),
       childPOP, functionConfig);
   }
 
@@ -96,14 +122,14 @@ public class TableFunctionPrel extends SinglePrel{
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new TableFunctionPrel(getCluster(), traitSet, table, sole(inputs), tableMetadata, projectedColumns,
-            functionConfig, rowType, estimateRowCountFn);
+            functionConfig, rowType, estimateRowCountFn, tableFunctionPOPCreator);
   }
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
-    if(functionConfig.getFunctionContext().getConditions() != null){
-      return pw.item("filters",  functionConfig.getFunctionContext().getConditions());
+    if (functionConfig.getFunctionContext().getScanFilter() != null){
+      return pw.item("filters",  functionConfig.getFunctionContext().getScanFilter().toString());
     }
     return pw;
   }
@@ -113,16 +139,27 @@ public class TableFunctionPrel extends SinglePrel{
     return estimateRowCountFn.apply(mq);
   }
 
-  private static double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
+  private double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
     switch (functionConfig.getType()) {
       case SPLIT_GENERATION:
         // TODO: This should estimate the number of splits that generated
-      case PARQUET_DATA_SCAN:
-        // TODO: This should estimate the row count from the table scan
-        // This should read the partition stats and estimate
-      case ICEBERG_MANIFEST_SCAN:
-        // TODO: This should estimate the number of data files that would be
-        // This can read the partition stats and return the file count
+        break;
+      case DATA_FILE_SCAN:
+        double selectivityEstimateFactor = 1.0;
+        if (functionConfig.getFunctionContext().getScanFilter() != null) {
+          final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
+          selectivityEstimateFactor = plannerSettings.getFilterMinSelectivityEstimateFactor();
+        }
+        return tableMetadata.getReadDefinition().getScanStats().getRecordCount() * selectivityEstimateFactor;
+      case SPLIT_GEN_MANIFEST_SCAN:
+      case METADATA_REFRESH_MANIFEST_SCAN:
+        final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
+        double sliceTarget = ((double)plannerSettings.getSliceTarget() /
+                plannerSettings.getOptions().getOption(ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD));
+        if (tableMetadata.getReadDefinition().getManifestScanStats() == null) {
+          return Math.max(mq.getRowCount(input) * sliceTarget, 1);
+        }
+        return Math.max(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount() * sliceTarget, 1);
     }
 
     return 1;
@@ -139,10 +176,16 @@ public class TableFunctionPrel extends SinglePrel{
   }
 
   public boolean isDataScan() {
-    return TableFunctionConfig.FunctionType.PARQUET_DATA_SCAN.equals(functionConfig.getType());
+    return TableFunctionConfig.FunctionType.DATA_FILE_SCAN.equals(functionConfig.getType());
   }
 
   public TableMetadata getTableMetadata() {
     return tableMetadata;
+  }
+
+  public interface TableFunctionPOPCreator {
+    AbstractTableFunctionPOP create(OpProps props, PhysicalOperator child, TableFunctionConfig tableFunctionConfig);
+
+    TableFunctionPOPCreator DEFAULT = TableFunctionPOP::new;
   }
 }

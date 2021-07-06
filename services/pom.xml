@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -38,6 +38,7 @@
     <module>command-pool</module>
     <module>configuration</module>
     <module>coordinator</module>
+    <module>credentials</module>
     <module>datastore</module>
     <module>exec-selector</module>
     <module>executorservice</module>
@@ -48,6 +49,8 @@
     <module>jobtelemetry</module>
     <module>maestro</module>
     <module>namespace</module>
+    <module>nessie</module>
+    <module>nessie-api</module>
     <module>options</module>
     <module>resourcescheduler</module>
     <module>scheduler</module>
@@ -57,5 +60,6 @@
     <module>telemetry-utils</module>
     <module>tokens</module>
     <module>users</module>
+    <module>statistics</module>
   </modules>
 </project>

@@ -115,11 +115,6 @@ export default class FilterSelectMenu extends PureComponent {
     this.setState({
       pattern: value
     });
-
-    // TODO uncomment when API is done
-    // if (this.props.loadItemsForFilter) {
-    //   this.props.loadItemsForFilter(value, 100);
-    // }
   };
 
   handleItemChange = (checked, id) => {
@@ -190,11 +185,12 @@ export default class FilterSelectMenu extends PureComponent {
 
   renderItemList(selectedToTop) {
     const { items } = this.props;
+    const currentUnselectedItems = this.getUnselectedItems();
     return (<div style={styles.popoverContent}>
-      {selectedToTop ? this.renderItems(this.getSelectedItems()) : null}
-      {this.renderDivider()}
       {this.renderSearch()}
-      {this.renderItems(selectedToTop ? this.getUnselectedItems() : items)}
+      {selectedToTop ? this.renderItems(this.getSelectedItems()) : null}
+      {currentUnselectedItems.length > 0 ? this.renderDivider() : null}
+      {this.renderItems(selectedToTop ? currentUnselectedItems : items)}
     </div>);
   }
 
@@ -270,7 +266,8 @@ const styles = {
     },
     Icon: {
       width: 22,
-      height: 22
+      height: 22,
+      marginTop: '3px'
     }
   }
 };

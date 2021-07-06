@@ -85,6 +85,23 @@ public class PlanTestBase extends BaseTestQuery {
   public static String testPlanMatchingPatterns(String query, String[] expectedPatterns, String... excludedPatterns)
       throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    testMatchingPatterns(plan, expectedPatterns, excludedPatterns);
+    return plan;
+  }
+
+  /**
+   * Check for expected regex patterns (in optiq text format), against the
+   * give plan. Also ensure excluded patterns are not found. Either list can
+   * be empty or null to skip that part of the check.
+   *
+   * See the convenience methods for passing a single string in either the
+   * excluded list, included list or both.
+   *
+   * @param plan - query plan
+   * @param expectedPatterns - list of patterns that should appear in the plan
+   * @param excludedPatterns - list of patterns that should not appear in the plan
+   */
+  public static String testMatchingPatterns(String plan, String[] expectedPatterns, String... excludedPatterns) {
     // Check and make sure all expected patterns are in the plan
     if (expectedPatterns != null) {
       for (final String s : expectedPatterns) {

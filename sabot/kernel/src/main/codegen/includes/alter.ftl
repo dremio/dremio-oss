@@ -28,6 +28,12 @@
     SqlLiteral forceUp = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral dropColumnKeywordPresent = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
     SqlLiteral raw = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+    SqlLiteral allFilesRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral fileRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral allPartitionsRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral partitionRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlNodeList filesList = SqlNodeList.EMPTY;
+    SqlNodeList partitionList = SqlNodeList.EMPTY;
 }
 {
     <ALTER> { pos = getPos(); }
@@ -69,6 +75,24 @@
           |
           <REFRESH> <METADATA>
           (
+            <FOR> <ALL>
+            (
+              <FILES> { allFilesRefresh = SqlLiteral.createBoolean(true, pos); }
+            |
+              <PARTITIONS> { allPartitionsRefresh = SqlLiteral.createBoolean(true, pos); }
+            )
+          |
+            <FOR> <FILES> {
+              fileRefresh = SqlLiteral.createBoolean(true, pos);
+              filesList = ParseRequiredFilesList();
+            }
+          |
+            <FOR> <PARTITIONS> {
+              partitionRefresh = SqlLiteral.createBoolean(true, pos);
+              partitionList = ParseRequiredPartitionList();
+            }
+          )?
+          (
             <AUTO> <PROMOTION> { promotion = SqlLiteral.createBoolean(true, pos); }
           |
             <AVOID> <PROMOTION> { promotion = SqlLiteral.createBoolean(false, pos); }
@@ -83,7 +107,8 @@
           |
             <MAINTAIN> <WHEN> <MISSING> { deleteUnavail = SqlLiteral.createBoolean(false, pos); }
           )?
-          { return new SqlRefreshTable(pos, tblName, deleteUnavail, forceUp, promotion); }
+          { return new SqlRefreshTable(pos, tblName, deleteUnavail, forceUp, promotion, allFilesRefresh,
+              allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList); }
           |
           <ENABLE> (
             <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
@@ -122,6 +147,82 @@
     )
 }
 
+/** Parses a required list of files (SQLLiteral) and makes sure the list is not empty. */
+SqlNodeList ParseRequiredFilesList() :
+{
+    SqlNodeList filesList = new SqlNodeList(getPos());
+}
+{
+    <LPAREN>
+    StringLiteralCommaList(filesList.getList())
+    <RPAREN>
+    {
+        return filesList;
+    }
+}
+
+void StringLiteralCommaList(List<SqlNode> list) :
+{
+    SqlNode literal;
+}
+{
+    literal = StringLiteral() { list.add(literal); }
+    (
+        <COMMA> literal = StringLiteral() {
+            list.add(literal);
+        }
+    )*
+}
+
+/** Parses a required list of partition key-values and mkes sure teh list is not empty */
+SqlNodeList ParseRequiredPartitionList() :
+{
+    SqlNodeList partitionList = new SqlNodeList(getPos());
+}
+{
+    <LPAREN>
+    KeyValueCommaList(partitionList.getList())
+    <RPAREN>
+    {
+        return partitionList;
+    }
+}
+
+
+void KeyValueCommaList(List<SqlNode> list) :
+{
+    SqlNodeList pair;
+}
+{
+    pair = KeyValuePair() { list.add(pair); }
+    (
+        <COMMA> pair = KeyValuePair() {
+            list.add(pair);
+        }
+    )*
+}
+
+SqlNodeList KeyValuePair() :
+{
+    SqlNodeList pair = new SqlNodeList(getPos());
+    SqlNode name;
+    SqlNode value;
+}
+{
+    name = SimpleIdentifier() { pair.add(name); }
+    <EQ>
+    (
+      <NULL> {
+          pair.add(SqlLiteral.createNull(getPos()));
+          return pair;
+      }
+      | value = StringLiteral()
+      {
+          pair.add(value);
+          return pair;
+      }
+    )
+}
 
 /**
    ALTER TABLE tblname 
@@ -393,4 +494,28 @@ SqlColumnDeclaration TypedElement() :
         return new SqlColumnDeclaration(s.add(id).end(this), id,
                 type.withNullable(nullable), null);
     }
+}
+
+/**
+ * ALTER CLEAR PLAN CACHE
+ */
+ SqlNode SqlAlterClearPlanCache() :
+{
+    final Span s;
+    SqlParserPos pos;
+    final String scope;
+}
+{
+    <ALTER> { pos = getPos(); s = span(); }
+    scope = Scope()
+    (
+        <CLEAR> <PLAN> <CACHE>
+        {
+            return new SqlAlterClearPlanCache(pos, scope);
+        }
+        |
+        {
+        return SqlSetOption(s, scope);
+        }
+    )
 }

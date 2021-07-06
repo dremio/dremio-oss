@@ -54,6 +54,7 @@ export class SpaceForm extends Component {
             fields={fields}
             editing={editing}
             sectionDescription={description}
+            entityType='space'
           />
         </FormBody>
       </ModalForm>

@@ -44,11 +44,17 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FieldReference;
+import com.dremio.common.expression.FunctionCall;
+import com.dremio.common.expression.FunctionHolderExpression;
+import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.parser.ExprLexer;
 import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
+import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -60,6 +66,8 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
+import com.dremio.exec.expr.FunctionHolderExpr;
+import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -454,7 +462,8 @@ public class BaseTestOperator extends ExecTest {
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     ExprParser parser = new ExprParser(tokens);
     try {
-      return parser.parse().e;
+      // TODO(ramesh): remove this when case is natively supported in Gandiva
+      return convertCaseToIf(parser.parse().e);
     } catch (RecognitionException e) {
       throw new RuntimeException("Error parsing expression: " + expr);
     }
@@ -466,6 +475,62 @@ public class BaseTestOperator extends ExecTest {
 
   protected NamedExpression straightName(String name){
     return new NamedExpression(new FieldReference(name), new FieldReference(name));
+  }
+
+  private static LogicalExpression convertCaseToIf(LogicalExpression expr) {
+     return expr.accept(new CaseConditionConverter(), null);
+  }
+
+  /**
+   * Convert all cases back to If. This is a temporary measure until Gandiva starts supporting
+   * case natively.
+   */
+  private static class CaseConditionConverter extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+    @Override
+    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) {
+      LogicalExpression elseExpression = caseExpression.elseExpr.accept(this, null);
+      for (int i = caseExpression.caseConditions.size() - 1; i >= 0; i--) {
+        final CaseExpression.CaseConditionNode node = caseExpression.caseConditions.get(i);
+        final LogicalExpression whenExpr = node.whenExpr.accept(this, null);
+        final LogicalExpression thenExpr = node.thenExpr.accept(this, null);
+        elseExpression = IfExpression.newBuilder()
+          .setElse(elseExpression)
+          .setIfCondition(new IfExpression.IfCondition(whenExpr, thenExpr)).build();
+      }
+      return elseExpression;
+    }
+
+    @Override
+    public LogicalExpression visitBooleanOperator(BooleanOperator op, Void value) {
+      List<LogicalExpression> args = new ArrayList<>();
+      for (int i = 0; i < op.args.size(); ++i) {
+        args.add(op.args.get(i).accept(this, null));
+      }
+      return new BooleanOperator(op.getName(), args);
+    }
+
+    @Override
+    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holderExpr, Void value) {
+      final List<LogicalExpression> args = new ArrayList<>();
+      for (int i = 0; i < holderExpr.args.size(); i++) {
+        args.add(holderExpr.args.get(i).accept(this, null));
+      }
+      return new FunctionHolderExpr(holderExpr.nameUsed, (BaseFunctionHolder) holderExpr.getHolder(), args);
+    }
+
+    @Override
+    public LogicalExpression visitFunctionCall(FunctionCall call, Void value) {
+      List<LogicalExpression> args = new ArrayList<>();
+      for (int i = 0; i < call.args.size(); ++i) {
+        args.add(call.args.get(i).accept(this, null));
+      }
+      return new FunctionCall(call.getName(), args);
+    }
+
+    @Override
+    public LogicalExpression visitUnknown(LogicalExpression e, Void value) {
+      return e;
+    }
   }
 
   private static class CreatorVisitor extends AbstractPhysicalVisitor<Operator, OperatorContext,  ExecutionSetupException> {
@@ -753,7 +818,7 @@ public class BaseTestOperator extends ExecTest {
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     ExprParser parser = new ExprParser(tokens);
     parse_return ret = parser.parse();
-    return ret.e;
+    return convertCaseToIf(ret.e);
   }
 
 }

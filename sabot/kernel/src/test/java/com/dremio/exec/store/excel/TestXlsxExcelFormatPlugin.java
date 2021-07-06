@@ -213,4 +213,20 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
   public void testProjectPushdown6() throws Exception {
     getHelper().testProjectPushdown3(testBuilder(), "sheet 1", true,  false);
   }
+
+  @Test
+  public void testUnsafeSheet() throws Exception {
+    final String filePath = getExcelDir() + "sheet-with-dtd.xlsx";
+    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    testAndExpectUserException(query, ErrorType.DATA_READ, "Failure creating parser for entry");
+  }
+
+  @Test
+  public void testUnsafeWorkbook() throws Exception {
+    final String filePath = getExcelDir() + "workbook-with-dtd.xlsx";
+    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    testAndExpectUserException(query, ErrorType.DATA_READ, "Failure creating parser for entry");
+  }
 }

@@ -1,0 +1,124 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import '../../styles/constants/index.scss';
+
+$gutter-half: map-get($map: $gutter-sizes, $key: half);
+$gutter: map-get($map: $gutter-sizes, $key: full);
+$gutter-quadruple: map-get($map: $gutter-sizes, $key: quadruple);
+
+.disable-back-scroll {
+  overscroll-behavior-x: none;
+}
+
+.textAreaRoot {
+  padding: $gutter-half 0px;
+  &__container {
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+  
+    &:hover > .textAreaRoot__icon {
+      visibility: visible;
+    }
+  
+    &:hover > textarea::-webkit-scrollbar-thumb {
+      visibility: visible;
+    }
+  
+    textarea {
+      display: inline-flex;
+      border: solid 1px $border-color;
+      border-radius: 4px;
+      font-size: inherit;
+      font-family: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+      padding: $gutter $gutter-quadruple $gutter $gutter;
+      resize: vertical;
+      width: 100%;
+
+      &[disabled] {
+        background-color: $disabled-color;
+        color: $oslo-gray;
+        border: none;
+      }
+
+      &.--error {
+        border-color: $error-color !important;
+      }
+  
+      &.--noResize {
+        resize: none;
+      }
+
+      &.--singleLine {
+        white-space: nowrap;
+        padding-bottom: 22px;
+        overflow-x: auto !important;
+      }
+
+      &::-webkit-scrollbar {
+        width: 12px;
+        background-color: transparent;
+        &-thumb {
+          visibility: hidden;
+          min-height: 30px;
+          min-width: 10px;
+          border-radius: 10px;
+          -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+          background-color: #9e9e9e; 
+        }
+      }
+    }
+
+    .textAreaRoot__icon {
+      display: block;
+      position: absolute;
+      line-height: 0;
+      right: 12px;
+      bottom: 6px;
+      visibility: hidden;
+      svg {
+        path {
+          fill: $oslo-gray;
+        }
+      }
+    }
+  }
+
+  &__icon {
+    cursor: pointer;
+  }
+
+  &__labelContainer {
+    display: flex;
+    align-items: center;
+    .textAreaRoot__icon {
+      display: flex;
+      svg {
+        height: 22px;
+        width: 22px;
+        path {
+          fill: $primary-color;
+        }
+      }
+    }
+  }
+
+  &__label {
+    flex-grow: 4;
+  }
+}

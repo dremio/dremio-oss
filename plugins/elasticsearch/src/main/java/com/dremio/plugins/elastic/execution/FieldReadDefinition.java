@@ -31,7 +31,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.vector.complex.fn.WorkingBuffer;
 import com.dremio.plugins.elastic.DateFormats;
-import com.dremio.plugins.elastic.DateFormats.FormatterAndType;
+import com.dremio.plugins.elastic.ElasticVersionBehaviorProvider;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.execution.WriteHolders.WriteHolder;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
@@ -53,6 +53,9 @@ public class FieldReadDefinition {
   static class VariableFieldReadDefinition extends FieldReadDefinition {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldReadDefinition.class);
     private final int maxCellSize;
+    public static final String FORMATTER_DEFAULT_CLASS = "DateFormats.FormatterAndType";
+    public static final String FORMATTER_JAVA_TIME_CLASS = "DateFormats.FormatterAndTypeJavaTime";
+    public static final String FORMATTER_MIX_CLASS= "DateFormats.FormatterAndTypeMix";
 
     private VariableFieldReadDefinition(
       SchemaPath path,
@@ -108,14 +111,14 @@ public class FieldReadDefinition {
   }
 
   private FieldReadDefinition(
-      SchemaPath path,
-      final String name,
-      CompleteType type,
-      int maxCellSize,
-      boolean isList,
-      boolean geo,
-      WriteHolder holder,
-      ImmutableMap<String, FieldReadDefinition> children) {
+    SchemaPath path,
+    final String name,
+    CompleteType type,
+    int maxCellSize,
+    boolean isList,
+    boolean geo,
+    WriteHolder holder,
+    ImmutableMap<String, FieldReadDefinition> children) {
     this.type = type;
     this.name = name;
     this.isList = isList;
@@ -180,10 +183,11 @@ public class FieldReadDefinition {
   }
 
   public static FieldReadDefinition getTree(
-      final BatchSchema schema,
-      final Map<SchemaPath, FieldAnnotation> annotationMap,
-      final WorkingBuffer buffer,
-      final int maxCellSize) {
+    final BatchSchema schema,
+    final Map<SchemaPath, FieldAnnotation> annotationMap,
+    final WorkingBuffer buffer,
+    final int maxCellSize,
+    final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider) {
 
     // for all hidden fields, create a list for each parent of the children where we should create field read definition that mark data as hidden.
     ImmutableListMultimap.Builder<SchemaPath, String> hiddenFieldsB = ImmutableListMultimap.builder();
@@ -202,9 +206,9 @@ public class FieldReadDefinition {
     final ImmutableList<String> topLevelHiddenFields = topLevelHiddenFieldsB.build();
 
     return createFieldReadDefinition(null, null, null, 0, false, false, new WriteHolders.InvalidWriteHolder(),
-        FluentIterable.from(schema.getFields())
+      FluentIterable.from(schema.getFields())
 
-        .transform(input -> getDefinition(null, input, maxCellSize, annotationMap, hiddenFields, buffer, false))
+        .transform(input -> getDefinition(null, input, maxCellSize, annotationMap, hiddenFields, buffer, false, elasticVersionBehaviorProvider))
 
         // add hidden fields.
         .append(getHiddenFields(topLevelHiddenFields))
@@ -221,8 +225,8 @@ public class FieldReadDefinition {
   }
 
   private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, int maxCellSize,
-      final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields,
-      final WorkingBuffer buffer, boolean incomingIsGeoShape){
+                                                   final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields,
+                                                   final WorkingBuffer buffer, boolean incomingIsGeoShape, ElasticVersionBehaviorProvider esVersion){
 
     CompleteType type = CompleteType.fromField(field);
     final boolean isList = type.isList();
@@ -234,40 +238,30 @@ public class FieldReadDefinition {
     FieldAnnotation annotation = annotations.get(path);
     final boolean isGeoShape = incomingIsGeoShape || (annotation == null ? false : annotation.isGeoShape());
     final List<String> formats = annotation == null ? ImmutableList.<String>of() : annotation.getDateFormats();
-    final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape);
-
-    if(isGeoShape && type.isUnion() && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())){
+    final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape, esVersion);
+    if(isGeoShape && type.isUnion() && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())) {
       return createFieldReadDefinition(path, field.getName(), type, maxCellSize, true, isGeoShape, holder, ImmutableMap.<String, FieldReadDefinition>of());
     }
 
-    return createFieldReadDefinition(path, field.getName(), type, maxCellSize, isList, isGeoShape, holder,
-        FluentIterable.from(type.getChildren()).transform(new Function<Field, FieldReadDefinition>() {
-          @Override
-          public FieldReadDefinition apply(Field input) {
-            return getDefinition(path, input, maxCellSize, annotations, hiddenFields, buffer, isGeoShape);
-          }
-        }).append(getHiddenFields(hiddenFields.get(path)))
-        .uniqueIndex(new Function<FieldReadDefinition, String>() {
-          @Override
-          public String apply(FieldReadDefinition input) {
-            return input.name;
-          }
-        }));
+    return createFieldReadDefinition(path, field.getName(), type, maxCellSize, isList, isGeoShape, holder, FluentIterable.from(type.getChildren()).transform(new Function<Field, FieldReadDefinition>() {
+      @Override
+      public FieldReadDefinition apply(Field input) {
+        return getDefinition(path, input, maxCellSize, annotations, hiddenFields, buffer, isGeoShape, esVersion);
+      }
+    }).append(getHiddenFields(hiddenFields.get(path)))
+      .uniqueIndex(new Function<FieldReadDefinition, String>() {
+        @Override
+        public String apply(FieldReadDefinition input) {
+          return input.name;
+        }
+      }));
   }
 
-  private static WriteHolder getWriteHolder(String name, boolean isList, MinorType type, List<String> formats, SchemaPath path, WorkingBuffer buffer, boolean isGeoShape){
-    final FormatterAndType[] formatterAndType;
-    if(formats != null && !formats.isEmpty()){
-      formatterAndType = FluentIterable.from(formats).transform(new Function<String, FormatterAndType>(){
-      @Override
-      public FormatterAndType apply(String input) {
-        return DateFormats.getFormatterAndType(input);
-      }}).toArray(FormatterAndType.class);
-    } else {
-      formatterAndType = DateFormats.DEFAULT_FORMATTERS;
-    }
+  private static WriteHolder getWriteHolder(String name, boolean isList, MinorType type, List<String> formats, SchemaPath path, WorkingBuffer buffer, boolean isGeoShape, ElasticVersionBehaviorProvider elasticVersionBehaviorProvider){
+    final DateFormats.AbstractFormatterAndType[] formatterAndType;
+    formatterAndType = elasticVersionBehaviorProvider.getWriteHolderForVersion(formats);
 
-    // special handling for multi-dimensional geo shape types.
+    /* special handling for multi-dimensional geo shape types. */
     if (isGeoShape && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(name)) {
       return new WriteHolders.DoubleWriteHolder(name);
     }
@@ -276,7 +270,7 @@ public class FieldReadDefinition {
       case BIGINT:
         return new WriteHolders.BigIntWriteHolder(name);
       case BIT:
-          return new WriteHolders.BitWriteHolder(name);
+        return new WriteHolders.BitWriteHolder(name);
       case DATE:
         return new WriteHolders.DateWriteHolder(name, path, formatterAndType);
       case FLOAT4:
@@ -301,6 +295,6 @@ public class FieldReadDefinition {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this).add("name", name).add("isList", isList).add("type", type)
-        .add("children", children).add("holder", holder).toString();
+      .add("children", children).add("holder", holder).toString();
   }
 }

@@ -27,7 +27,9 @@ import setupMetrics from '@inject/setupMetrics';
 
 import './vendor/chat';
 import 'imports-loader?this=>window!script-loader!jsplumb/dist/js/jsPlumb-2.1.4-min.js';
+import 'dremio-ui-lib/dist/index.css';
 import './main.less';
+
 // add css here to be sure that its content will appear after compiled main.less content.
 // when import .css file inside of .less file than .css content appears at the top of the file
 // no matter of @import ordering
@@ -56,6 +58,15 @@ window.la = (key) => {
 sentryUtil.install();
 
 const store = configureStore();
+// useful debugging link for looking at stores
+//    to use in the console window of devTools type:
+//    window.store.getState()
+//    This will display all the stores
+//    once you find the store you want type something like
+//    (this is an example)
+//    window.store.getState().resources.entities.toJS()
+window.store = store;
+
 
 startup.run();
 

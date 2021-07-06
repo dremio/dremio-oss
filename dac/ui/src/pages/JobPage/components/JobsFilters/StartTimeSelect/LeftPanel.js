@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 
@@ -25,9 +24,8 @@ import { PALE_BLUE, PALE_NAVY } from 'uiTheme/radium/colors';
 
 import * as IntervalTypes from './IntervalTypes';
 
-@PureRender
 @Radium
-class LeftPanel extends Component {
+class LeftPanel extends PureComponent {
   static propTypes = {
     filterType: PropTypes.string.isRequired,
     activeType: PropTypes.string.isRequired,

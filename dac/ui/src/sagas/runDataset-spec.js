@@ -139,9 +139,15 @@ describe('runDataset saga', () => {
       [null, { error: true }].map(response => {
         goToResponse();
         // throw an exceotion
-        expect(() => {
+        // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+        try {
           checkFinallyBlock(response);
-        }).to.throw(DataLoadError);
+        } catch (ex) {
+          expect(ex instanceof DataLoadError).to.be.true;
+        }
+        // expect(() => {
+        //   checkFinallyBlock(response);
+        // }).to.throw(DataLoadError);
       });
     });
   });

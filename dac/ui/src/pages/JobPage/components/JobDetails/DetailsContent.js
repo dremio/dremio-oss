@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
@@ -31,8 +30,7 @@ import VisibilityToggler from './VisibilityToggler';
 import ListItem from './ListItem';
 
 @Radium
-@PureRender
-class DetailsContent extends Component {
+class DetailsContent extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map)
   };

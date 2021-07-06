@@ -22,7 +22,9 @@ import javax.inject.Inject;
 
 import org.apache.commons.collections.CollectionUtils;
 
+import com.dremio.dac.api.Reflection;
 import com.dremio.dac.service.errors.ReflectionNotFound;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionStatus;
@@ -36,28 +38,32 @@ import com.google.common.base.Optional;
  * Reflection service helper
  */
 public class ReflectionServiceHelper {
-  private final ReflectionAdministrationService reflectionAdministrationService;
+  private final ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory;
   private final ReflectionStatusService reflectionStatusService;
 
   @Inject
   public ReflectionServiceHelper(
-    ReflectionAdministrationService reflectionAdministrationService,
+    ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory,
     ReflectionStatusService reflectionStatusService
   ) {
-    this.reflectionAdministrationService = reflectionAdministrationService;
+    this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
     this.reflectionStatusService = reflectionStatusService;
   }
 
+  protected ReflectionAdministrationService getReflectionAdministrationService() {
+    return reflectionAdministrationServiceFactory.get(ReflectionContext.SYSTEM_USER_CONTEXT);
+  }
+
   public Optional<ReflectionGoal> getReflectionById(String id) {
-    return reflectionAdministrationService.getGoal(new ReflectionId(id));
+    return getReflectionAdministrationService().getGoal(new ReflectionId(id));
   }
 
   public Iterable<ReflectionGoal> getAllReflections() {
-    return reflectionAdministrationService.getAllReflections();
+    return getReflectionAdministrationService().getAllReflections();
   }
 
   public Iterable<ReflectionGoal> getReflectionsForDataset(String datasetid) {
-    return reflectionAdministrationService.getReflectionsByDatasetId(datasetid);
+    return getReflectionAdministrationService().getReflectionsByDatasetId(datasetid);
   }
 
   public ReflectionStatusUI getStatusForReflection(String reflectionId) {
@@ -67,13 +73,13 @@ public class ReflectionServiceHelper {
   }
 
   public ReflectionGoal createReflection(ReflectionGoal goal) {
-    ReflectionId id = reflectionAdministrationService.create(goal);
+    ReflectionId id = getReflectionAdministrationService().create(goal);
 
-    return reflectionAdministrationService.getGoal(id).get();
+    return getReflectionAdministrationService().getGoal(id).get();
   }
 
   public ReflectionGoal updateReflection(ReflectionGoal goal) {
-    Optional<ReflectionGoal> existingGoal = reflectionAdministrationService.getGoal(goal.getId());
+    Optional<ReflectionGoal> existingGoal = getReflectionAdministrationService().getGoal(goal.getId());
 
     if (!existingGoal.isPresent()) {
       throw new ReflectionNotFound(goal.getId().getId());
@@ -88,33 +94,34 @@ public class ReflectionServiceHelper {
       reflection.getState() != goal.getState() ||
       !areReflectionDetailsEqual(reflection.getDetails(), goal.getDetails())
     ) {
-      reflectionAdministrationService.update(goal);
+      getReflectionAdministrationService().update(goal);
     }
 
-    return reflectionAdministrationService.getGoal(goal.getId()).get();
+    return getReflectionAdministrationService().getGoal(goal.getId()).get();
   }
 
   public List<ReflectionGoal> getRecommendedReflections(String id) {
-    return reflectionAdministrationService.getRecommendedReflections(id);
+    return getReflectionAdministrationService().getRecommendedReflections(id);
   }
 
   public void removeReflection(String id) {
-    Optional<ReflectionGoal> goal = reflectionAdministrationService.getGoal(new ReflectionId(id));
+    Optional<ReflectionGoal> goal = getReflectionAdministrationService().getGoal(new ReflectionId(id));
 
     if (goal.isPresent()) {
-      reflectionAdministrationService.remove(goal.get());
+      getReflectionAdministrationService().remove(goal.get());
     } else {
       throw new ReflectionNotFound(id);
     }
   }
 
   public void clearAllReflections() {
-    reflectionAdministrationService.clearAll();
+    getReflectionAdministrationService().clearAll();
   }
 
   public long getCurrentSize(String id) {
     long size = 0;
 
+    final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
     if (reflectionAdministrationService.doesReflectionHaveAnyMaterializationDone(reflectionId)) {
       size = reflectionAdministrationService.getReflectionSize(reflectionId);
@@ -126,6 +133,7 @@ public class ReflectionServiceHelper {
   public long getTotalSize(String id) {
     long total = 0;
 
+    final ReflectionAdministrationService reflectionAdministrationService = getReflectionAdministrationService();
     ReflectionId reflectionId = new ReflectionId(id);
     if (reflectionAdministrationService.doesReflectionHaveAnyMaterializationDone(reflectionId)) {
       total = reflectionAdministrationService.getTotalReflectionSize(reflectionId);
@@ -135,11 +143,11 @@ public class ReflectionServiceHelper {
   }
 
   public void setSubstitutionEnabled(boolean enabled) {
-    reflectionAdministrationService.setSubstitutionEnabled(enabled);
+    getReflectionAdministrationService().setSubstitutionEnabled(enabled);
   }
 
   public boolean isSubstitutionEnabled() {
-    return reflectionAdministrationService.isSubstitutionEnabled();
+    return getReflectionAdministrationService().isSubstitutionEnabled();
   }
 
   public static boolean areReflectionDetailsEqual(ReflectionDetails details1, ReflectionDetails details2) {
@@ -161,28 +169,34 @@ public class ReflectionServiceHelper {
   }
 
   public ReflectionSettings getReflectionSettings() {
-    return reflectionAdministrationService.getReflectionSettings();
+    return getReflectionAdministrationService().getReflectionSettings();
   }
 
   public boolean doesDatasetHaveActiveReflection(String datasetId) {
     // TODO: for performance reasons we just check if there are enabled reflections
-    return reflectionAdministrationService.getEnabledReflectionCountForDataset(datasetId) > 0;
+    return getReflectionAdministrationService().getEnabledReflectionCountForDataset(datasetId) > 0;
   }
 
   public void refreshReflectionsForDataset(String datasetId) {
-    reflectionAdministrationService.requestRefresh(datasetId);
+    getReflectionAdministrationService().requestRefresh(datasetId);
   }
 
   private static boolean areBothListsEqual(Collection collection1, Collection collection2) {
     // CollectionUtils.isEqualCollection is not null safe
     if (collection1 == null || collection2 == null) {
       return CollectionUtils.isEmpty(collection1) && CollectionUtils.isEmpty(collection2);
-    } else {
+    }
+    else {
       return CollectionUtils.isEqualCollection(collection1, collection2);
     }
   }
 
   public boolean isReflectionIncremental(String id) {
-    return reflectionAdministrationService.isReflectionIncremental(new ReflectionId(id));
+    return getReflectionAdministrationService().isReflectionIncremental(new ReflectionId(id));
+  }
+
+  public Reflection newReflection(ReflectionGoal goal) {
+    final String goalId = goal.getId().getId();
+    return new Reflection(goal, getStatusForReflection(goalId), getCurrentSize(goalId), getTotalSize(goalId));
   }
 }

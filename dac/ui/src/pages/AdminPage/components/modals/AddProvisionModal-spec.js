@@ -123,7 +123,7 @@ describe('AddProvisionModal', () => {
       expect(commonProps.editProvision).to.be.calledWith('values', 'AddProvisionModal');
       expect(commonProps.hide).to.be.calledWith(null, true);
 
-      return expect(promise).to.be.resolved;
+      return expect(promise).to.be.fulfilled;
     });
   });
 

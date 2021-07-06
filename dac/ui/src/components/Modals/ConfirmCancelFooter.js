@@ -15,24 +15,24 @@
  */
 import { Component } from 'react';
 
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
 
 import { modalFooter } from 'uiTheme/radium/modal';
+import { ConfirmCancelFooterWithMixin } from '@inject/components/Modals/ConfirmCancelFooterMixin.js';
 
-@pureRender
 @Radium
-export default class ConfirmCancelFooter extends Component {
+export class ConfirmCancelFooter extends Component {
 
   static defaultProps = {
     confirmText: 'Save',
     cancelText: 'Cancel',
     canSubmit: true,
     canCancel: true,
-    modalFooter: true
+    modalFooter: true,
+    confirmButtonStyle: 'primary'
   };
 
   static propTypes = {
@@ -47,7 +47,8 @@ export default class ConfirmCancelFooter extends Component {
     cancel: PropTypes.func,
     modalFooter: PropTypes.bool,
     footerChildren: PropTypes.node,
-    style: PropTypes.object
+    style: PropTypes.object,
+    confirmButtonStyle: PropTypes.string
   };
 
   onCancel = (e) => {
@@ -65,7 +66,19 @@ export default class ConfirmCancelFooter extends Component {
   };
 
   render() {
-    const { confirmText, cancel, cancelText, submitForm, submitting, canSubmit, canCancel, hideCancel, footerChildren } = this.props;
+    const {
+      confirmText,
+      confirmButtonStyle,
+      cancel,
+      cancelText,
+      submitForm,
+      submitting,
+      canSubmit,
+      canCancel,
+      hideCancel,
+      footerChildren
+    } = this.props;
+    const conditionalRenderingButtonStyling = this.checkToRenderSaveAndCancelButtons();
     return (
       <div className='confirm-cancel-footer'
         style={[this.props.modalFooter ? modalFooter : styles.nonModalFooter, styles.base, this.props.style]}>
@@ -77,14 +90,17 @@ export default class ConfirmCancelFooter extends Component {
               type='button'
               buttonStyle='secondary'
               disabled={!canCancel}
-              onClick={this.onCancel}>{cancelText}</SimpleButton>
+              // style={conditionalRenderingButtonStyling}  // Uncomment this line in the case you want conditional rendering of 'cancel' button based on canAlter permissions
+              onClick={this.onCancel}>{this.checkCancelText(cancelText)}
+            </SimpleButton>
         }
         <SimpleButton
           data-qa='confirm'
           type={submitForm ? 'submit' : undefined}
-          buttonStyle='primary'
+          buttonStyle={confirmButtonStyle}
           submitting={submitting}
           disabled={!canSubmit}
+          style={conditionalRenderingButtonStyling}
           onClick={this.onConfirm}>{confirmText}</SimpleButton>
       </div>
     );
@@ -101,3 +117,5 @@ const styles = {
     marginRight: 11
   }
 };
+
+export default ConfirmCancelFooterWithMixin(ConfirmCancelFooter);

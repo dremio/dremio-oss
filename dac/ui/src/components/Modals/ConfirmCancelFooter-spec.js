@@ -36,45 +36,52 @@ describe('ConfirmCancelFooter', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render two SimpleButtons', () => {
+  //DX-28985
+  xit('should render two SimpleButtons', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps}/>);
     expect(wrapper.find('SimpleButton')).to.have.length(2);
   });
 
-  it('should hide the cancel button when hideCancel is set', () => {
+  //DX-28985
+  xit('should hide the cancel button when hideCancel is set', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps} hideCancel/>);
     expect(wrapper.find('SimpleButton')).to.have.length(1);
     expect(wrapper.find('SimpleButton').first().props()['data-qa']).to.eql('confirm');
   });
 
-  it('should hide the cancel button when no cancel function', () => {
+  //DX-28985
+  xit('should hide the cancel button when no cancel function', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps} cancel={null}/>);
     expect(wrapper.find('SimpleButton')).to.have.length(1);
     expect(wrapper.find('SimpleButton').first().props()['data-qa']).to.eql('confirm');
   });
 
-  it('should set type="submit" on confirm button when submitForm is set', () => {
+  //DX-28985
+  xit('should set type="submit" on confirm button when submitForm is set', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps}/>);
     expect(wrapper.find('SimpleButton').at(1).props().type).to.be.undefined;
     wrapper.setProps({submitForm: true});
     expect(wrapper.find('SimpleButton').at(1).props().type).to.be.eql('submit');
   });
 
-  it('should set submitting prop on confirm button', () => {
+  //DX-28985
+  xit('should set submitting prop on confirm button', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps}/>);
     expect(wrapper.find('SimpleButton').at(1).props().submitting).to.be.false;
     wrapper.setProps({submitting: true});
     expect(wrapper.find('SimpleButton').at(1).props().submitting).to.be.true;
   });
 
-  it('should disable submit button if canSubmit is false', () => {
+  //DX-28985
+  xit('should disable submit button if canSubmit is false', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps}/>);
     expect(wrapper.find('SimpleButton').at(1).props().disabled).to.be.false;
     wrapper.setProps({canSubmit: false});
     expect(wrapper.find('SimpleButton').at(1).props().disabled).to.be.true;
   });
 
-  it('should disable cancel button if canCancel is false', () => {
+  //DX-28985
+  xit('should disable cancel button if canCancel is false', () => {
     const wrapper = shallow(<ConfirmCancelFooter {...commonProps}/>);
     expect(wrapper.find('SimpleButton').at(0).props().disabled).to.be.false;
     wrapper.setProps({canCancel: false});

@@ -48,7 +48,7 @@ process.chdir(__dirname);
 
 const NO_WRITE = process.argv.includes('--no-write');
 
-const BLESSED = new Set(['MIT', 'CC0-1.0', 'ISC', 'BSD-2-Clause', 'Apache-2.0', 'Unlicense', 'Public Domain', 'BSD-3-Clause', '(OFL-1.1 AND MIT)']);
+const BLESSED = new Set(['MIT', 'CC0-1.0', 'ISC', 'BSD-2-Clause', 'Apache-2.0', 'Unlicense', 'Public Domain', 'BSD-3-Clause', '(OFL-1.1 AND MIT)', '0BSD']);
 
 const NORMALIZED_LICENSES = {
   // normalize:
@@ -174,6 +174,17 @@ const KNOWN = {
   },
   'is-in-browser@1.1.3': {
     licenses: 'MIT',
+    noFile: true
+  },
+  '@material-ui/types@5.1.0': {
+    licenses: 'MIT',
+    noFile: true
+  },
+  'formik': {
+    licenseURL: 'https://raw.githubusercontent.com/formium/formik/master/LICENSE'
+  },
+  'dremio-ui-lib@1.0.0': {
+    licenses: 'Unlicense',
     noFile: true
   }
 };

@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
 import { TEAL } from 'uiTheme/radium/colors';
 
-@pureRender
-class Meter extends Component {
+class Meter extends PureComponent {
   static propTypes = {
     value: PropTypes.number,
     max: PropTypes.number,

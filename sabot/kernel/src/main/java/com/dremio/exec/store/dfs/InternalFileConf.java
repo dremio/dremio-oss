@@ -26,6 +26,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
+import com.dremio.service.coordinator.proto.DataCredentials;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Supplier;
@@ -38,7 +39,7 @@ import io.protostuff.Tag;
  * Source type used for internal purposes.
  */
 @SourceType(value = "INTERNAL", configurable = false)
-public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSystemPlugin<InternalFileConf>>{
+public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, MayBeDistFileSystemPlugin<InternalFileConf>> {
 
   @Tag(1)
   public String connection;
@@ -60,6 +61,18 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
 
   @Tag(7)
   public boolean enableAsync = true;
+
+  @Tag(8)
+  public String accessKey = null;
+
+  @Tag(9)
+  public String secretKey = null;
+
+  @Tag(10)
+  public String iamRole = null;
+
+  @Tag(11)
+  public String externalId = null;
 
   @Override
   public Path getPath() {
@@ -87,21 +100,50 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   }
 
   @Override
-  public FileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
+  public String getAccessKey() {
+    return accessKey;
+  }
+
+  @Override
+  public String getSecretKey() {
+    return secretKey;
+  }
+
+  @Override
+  public String getIamRole() {
+    return iamRole;
+  }
+
+  @Override
+  public String getExternalId() {
+    return externalId;
+  }
+
+  @Override
+  public MayBeDistFileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new MayBeDistFileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
   public InternalFileConf() {
   }
 
   InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList,
-                          SchemaMutability mutability, boolean enableAsync) {
+                   SchemaMutability mutability, boolean enableAsync, DataCredentials dataCredentials) {
     this.connection = connection;
     this.path = path;
     this.enableImpersonation = enableImpersonation;
     this.propertyList = propertyList;
     this.mutability = mutability;
     this.enableAsync = enableAsync;
+    if (dataCredentials != null) {
+      if (dataCredentials.hasKeys()) {
+        this.accessKey = dataCredentials.getKeys().getAccessKey();
+        this.secretKey = dataCredentials.getKeys().getSecretKey();
+      } else {
+        this.iamRole = dataCredentials.getDataRole().getIamRole();
+        this.externalId = dataCredentials.getDataRole().getExternalId();
+      }
+    }
   }
 
   public static SourceConfig create(
@@ -109,7 +151,8 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
       URI path,
       SchemaMutability mutability,
       MetadataPolicy policy,
-      boolean enableAsync
+      boolean enableAsync,
+      DataCredentials dataCredentials
       ) {
     SourceConfig conf = new SourceConfig();
     final String connection;
@@ -119,7 +162,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
       connection = path.getScheme() + ":///";
     }
 
-    InternalFileConf fc = new InternalFileConf(connection, path.getPath(), false, null, mutability, enableAsync);
+    InternalFileConf fc = new InternalFileConf(connection, path.getPath(), false, null, mutability, enableAsync, dataCredentials);
     conf.setConnectionConf(fc);
     conf.setMetadataPolicy(policy);
     conf.setName(name);

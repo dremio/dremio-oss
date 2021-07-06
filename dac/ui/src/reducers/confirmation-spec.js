@@ -35,6 +35,7 @@ describe('confirmation reducer', () => {
     it('should set required attributes to show dialog ', () => {
       const confirmFn = () => {};
       const cancelFn = () => {};
+      const validateFn = () => {};
       const result = confirmationReducer(initialState, {
         type: SHOW_CONFIRMATION_DIALOG,
         text: 'Confirmation text',
@@ -48,8 +49,10 @@ describe('confirmation reducer', () => {
         hideCancelButton: true,
         showOnlyConfirm: false,
         showPrompt: false,
+        promptLabel: 'Prompt Label',
         promptFieldProps: {},
-        dataQa: 'test'
+        dataQa: 'test',
+        validatePromptText: validateFn
       });
       expect(result).to.be.eql({
         isOpen: true,
@@ -57,6 +60,7 @@ describe('confirmation reducer', () => {
         title: 'Confirm',
         confirmText: 'Ok',
         cancelText: 'Cancel',
+        confirmButtonStyle: undefined,
         confirm: confirmFn,
         cancel: cancelFn,
         doNotAskAgainKey: 'Do not ask again key',
@@ -64,8 +68,10 @@ describe('confirmation reducer', () => {
         hideCancelButton: true,
         showOnlyConfirm: false,
         showPrompt: false,
+        promptLabel: 'Prompt Label',
         promptFieldProps: {},
-        dataQa: 'test'
+        dataQa: 'test',
+        validatePromptText: validateFn
       });
     });
   });

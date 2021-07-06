@@ -19,6 +19,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.inject.Inject;
+
 import org.apache.hadoop.hive.ql.exec.Description;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.UDFType;
@@ -26,20 +28,17 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
-import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.exec.expr.fn.impl.hive.ObjectInspectorHelper;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.HiveUDFOperator;
-import com.dremio.options.OptionManager;
+import com.dremio.exec.planner.sql.OperatorTable;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Sets;
 
-public class HiveFunctionRegistry implements PluggableFunctionRegistry{
+public class HiveFunctionRegistry implements PluggableFunctionRegistry {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveFunctionRegistry.class);
 
   private ArrayListMultimap<String, Class<? extends GenericUDF>> methodsGenericUDF = ArrayListMultimap.create();
@@ -50,11 +49,10 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
    * Scan the classpath for implementation of GenericUDF/UDF interfaces,
    * extracts function annotation and store the
    * (function name) --> (implementation class) mappings.
-   * @param config
+   * @param classpathScan
    */
-  public HiveFunctionRegistry(SabotConfig config) {
-    // TODO: see if we can avoid this. We can't change the constructor right now.
-    ScanResult classpathScan = ClassPathScanner.fromPrescan(config);
+  @Inject
+  public HiveFunctionRegistry(final ScanResult classpathScan) {
     Set<Class<? extends GenericUDF>> genericUDFClasses = classpathScan.getImplementations(GenericUDF.class);
     for (Class<? extends GenericUDF> clazz : genericUDFClasses) {
       register(clazz, methodsGenericUDF);
@@ -219,5 +217,13 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
     } catch (Exception e) { /*ignore this*/ }
 
     return null;
+  }
+
+  ArrayListMultimap<String, Class<? extends GenericUDF>> getMethodsGenericUDF() {
+    return methodsGenericUDF;
+  }
+
+  ArrayListMultimap<String, Class<? extends UDF>> getMethodsUDF() {
+    return methodsUDF;
   }
 }

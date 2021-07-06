@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -279,8 +279,13 @@
         </dependency>
         <dependency>
           <groupId>com.amazon.redshift</groupId>
-          <artifactId>redshift-jdbc42-no-awssdk</artifactId>
-          <version>1.2.36.1060</version>
+          <artifactId>redshift-jdbc42</artifactId>
+          <version>2.0.0.6</version>
+        </dependency>
+        <dependency>
+          <!-- Necessary for IAM authentication in Redshift (marked as optional in redshift-jdbc42) -->
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-redshift</artifactId>
         </dependency>
         <dependency>
           <groupId>com.oracle.ojdbc</groupId>
@@ -341,6 +346,11 @@
         <dependency>
           <groupId>com.dremio.plugins</groupId>
           <artifactId>dremio-adls-plugin</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-gcs-plugin</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>

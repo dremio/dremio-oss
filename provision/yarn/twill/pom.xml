@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>15.7.0-202106112202490252-2fb62d31</version>
+    <version>17.0.0-202107060524010627-31b5222b</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -31,58 +31,6 @@
   <name>Provisioning API - Shaded Twill JAR</name>
 
   <dependencies>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>13.0.1</version>
-    </dependency>
-
-    <!-- Add scala-library and kafka as dependencies here. kafka depends on scala-library.
-     To avoid the security vulnerability described in DX-27903, the version of scala-libary
-     has to be >= 2.10.7. Dremio doesn't depend on kafka anymore, only twill package
-     depends on kafka. -->
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>2.10.7</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_2.10</artifactId>
-      <version>0.8.0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.sun.jdmk</groupId>
-          <artifactId>jmxtools</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jmx</groupId>
-          <artifactId>jmxri</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-simple</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- YarnUtils in Twill explicitly loads LogsCLI class (to determine version). LogsCLI imports classes
-     available in this artifact. There should be no class loading conflicts with glassfish's jersey-client
-     (included elsewhere) because the same classes are in different packages. -->
-    <dependency>
-      <groupId>com.sun.jersey</groupId>
-      <artifactId>jersey-client</artifactId>
-      <version>1.9</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
     <dependency>
       <groupId>org.apache.twill</groupId>
       <artifactId>twill-api</artifactId>
@@ -140,7 +88,7 @@
           <artifactId>commons-logging-api</artifactId>
           <groupId>commons-logging</groupId>
         </exclusion>
-      </exclusions> 
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.twill</groupId>
@@ -278,9 +226,32 @@
           <artifactId>commons-logging</artifactId>
           <groupId>commons-logging</groupId>
         </exclusion>
-      </exclusions> 
-    </dependency>
+      </exclusions>
+     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <!--
+           Override our global Guava version with the version used by Twill.
+           It will be shaded in the package.
+      -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>13.0.1</version>
+      </dependency>
+      <!-- 
+           Add scala-library as a managed dependency here. 
+           Using the latest version of the Scala 2.10.x branch
+      -->
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>2.10.7</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>
@@ -309,20 +280,41 @@
                   <include>org.apache.twill:twill-zookeeper</include>
                   <include>org.apache.twill:twill-ext</include>
                   <include>com.google.guava:*</include>
-                  <include>io.netty:*</include>
-                </includes> 
-              </artifactSet> 
+                  <include>org.apache.kafka:*</include>
+                  <include>com.101tec:zkclient</include>
+                  <include>com.yammer.metrics:metrics-core</include>
+                  <include>net.sf.jopt-simple:jopt-simple</include>
+                  <include>org.scala-lang:scala-library</include>
+                  <include>com.google.code.gson:gson</include>
+                </includes>
+              </artifactSet>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <relocations>
                 <relocation>
-                  <pattern>com.google.common</pattern>
-                  <shadedPattern>twill.com.google.common</shadedPattern>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>twill.com.google</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>twill.com.google.thirdparty</shadedPattern>
+                  <pattern>kafka</pattern>
+                  <shadedPattern>twill.kafka</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>scala</pattern>
+                  <shadedPattern>twill.scala</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yammer</pattern>
+                  <shadedPattern>twill.com.yammer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.I0Itec</pattern>
+                  <shadedPattern>twill.org.I0Itec</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>joptsimple</pattern>
+                  <shadedPattern>twill.joptsimple</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

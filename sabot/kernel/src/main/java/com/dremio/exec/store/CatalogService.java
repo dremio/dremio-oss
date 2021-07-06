@@ -23,6 +23,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.calcite.tools.RuleSet;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -170,4 +171,6 @@ public interface CatalogService extends AutoCloseable, Service {
    * @return boolean
    */
   boolean isComplexTypeSupport();
+
+  ManagedStoragePlugin getManagedSource(String name);
 }

@@ -27,9 +27,13 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 public class TableFunctionConfig {
   public enum FunctionType {
     UNKNOWN,
-    ICEBERG_MANIFEST_SCAN,
-    PARQUET_DATA_SCAN,
-    SPLIT_GENERATION
+    METADATA_REFRESH_MANIFEST_SCAN,
+    SPLIT_GEN_MANIFEST_SCAN,
+    DATA_FILE_SCAN,
+    SPLIT_GENERATION,
+    FOOTER_READER,
+    SCHEMA_AGG,
+    SPLIT_ASSIGNMENT
   }
   private final FunctionType type;
   private final TableFunctionContext functionContext;
@@ -37,7 +41,7 @@ public class TableFunctionConfig {
   public TableFunctionConfig(
     @JsonProperty("type") FunctionType type,
     @JsonProperty("fillBatch") boolean fillBatch,
-    @JsonProperty("functioncontext")  TableFunctionContext functionContext
+    @JsonProperty("functioncontext") TableFunctionContext functionContext
   ) {
     this.type = type;
     this.functionContext = functionContext;
@@ -61,4 +65,10 @@ public class TableFunctionConfig {
     return functionContext.getFullSchema().maskAndReorder(
       functionContext.getColumns());
   }
+
+  @JsonIgnore
+  public BatchSchema getTableSchema() {
+    return functionContext.getTableSchema();
+  }
+
 }

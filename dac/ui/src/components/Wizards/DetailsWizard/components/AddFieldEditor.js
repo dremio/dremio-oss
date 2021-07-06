@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect }   from 'react-redux';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { getExploreState } from '@app/selectors/explore';
@@ -27,9 +26,8 @@ import './AddFieldEditor.less';
 
 // TODO: because api can't return info about one dataset, we load all for space, should be remove in future
 // TODO: remove code duplication with sql part
-@pureRender
 @Radium
-export class AddFieldEditor extends Component {
+export class AddFieldEditor extends PureComponent {
   static propTypes = {
     pageType: PropTypes.string,
     currentQuery: PropTypes.string,

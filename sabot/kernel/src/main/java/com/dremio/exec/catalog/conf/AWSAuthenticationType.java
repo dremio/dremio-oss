@@ -18,11 +18,26 @@ package com.dremio.exec.catalog.conf;
 import io.protostuff.Tag;
 
 /**
- * Authentication type for Amazon Services.
- * ACCESS_KEY uses credentials, EC2_METADATA uses IAM roles in EC2 instance and NONE access S3 as anonymous.
+ * Types of authentication to use with AWS.
  */
 public enum AWSAuthenticationType {
+  /**
+   * Uses raw credentials.
+   */
   @Tag(1) @DisplayMetadata(label = "AWS Access Key") ACCESS_KEY,
+
+  /**
+   * Uses IAM roles from an EC2 instance.
+   */
   @Tag(2) @DisplayMetadata(label = "EC2 Metadata") EC2_METADATA,
-  @Tag(3) @DisplayMetadata(label = "No Authentication") NONE;
+
+  /**
+   * Access S3 as anonymous.
+   */
+  @Tag(3) @DisplayMetadata(label = "No Authentication") NONE,
+
+  /**
+   * Use files from a AWS named profile
+   */
+  @Tag(4) @DisplayMetadata(label = "AWS Profile") AWS_PROFILE;
 }

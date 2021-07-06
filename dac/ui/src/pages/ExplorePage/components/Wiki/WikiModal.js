@@ -98,6 +98,7 @@ export class WikiModalView extends PureComponent {
               readMode={isReadMode}
               onChange={onChange}
               className={editor}
+              isModal
               fitToContainer
             />
           </ViewStateWrapper>

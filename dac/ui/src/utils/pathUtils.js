@@ -147,15 +147,17 @@ export function constructFullPath(pathParts, preventQuoted, shouldEncode) {
   if (!pathParts) {
     return undefined;
   }
-  const quotedPathParts = pathParts.map((part) => {
-    let encodedPart;
-    if (preventQuoted || part.match(/^[A-Z][A-Z0-9]*$/i) && !RESERVED_WORDS.has(part.toUpperCase())) {
-      encodedPart = part;
-    } else {
-      encodedPart = '"' + part.replace(/"/g, '""') + '"';
-    }
-    return shouldEncode ? encodeURIComponent(encodedPart) : encodedPart;
-  });
+  const quotedPathParts = pathParts
+    .filter(part => part !== undefined && part !== null)
+    .map((part) => {
+      let encodedPart;
+      if (preventQuoted || part.match(/^[A-Z][A-Z0-9]*$/i) && !RESERVED_WORDS.has(part.toUpperCase())) {
+        encodedPart = part;
+      } else {
+        encodedPart = '"' + part.replace(/"/g, '""') + '"';
+      }
+      return shouldEncode ? encodeURIComponent(encodedPart) : encodedPart;
+    });
   return quotedPathParts.join('.');
 }
 
@@ -202,14 +204,8 @@ export function getUniqueName(name, isUniqueFunc) {
 
 export function getRouteParamsFromLocation(location) {
   // this logic works only for Explore page
-  let pathname = location && location.pathname;
-  if (pathname) {
-    try {
-      pathname = decodeURI(pathname);
-    } catch (e) { // if pathname is malformed, ignore it
-      pathname = null;
-    }
-  }
+  const pathname = location && location.pathname;
+
   return {
     resourceId: (pathname) ? decodeURIComponent(pathname.split('/')[2]) : '',
     tableId: (pathname) ? decodeURIComponent(pathname.split('/')[3]) : ''

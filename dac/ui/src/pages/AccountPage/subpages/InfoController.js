@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
@@ -23,8 +22,7 @@ import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import Info from './Info';
 
-@pureRender
-export class InfoController extends Component {
+export class InfoController extends PureComponent {
   static contextTypes = {
     router: PropTypes.object.isRequired,
     username: PropTypes.string

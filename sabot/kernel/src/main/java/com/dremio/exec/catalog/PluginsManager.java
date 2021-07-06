@@ -173,6 +173,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     } catch(UserException e) {
       //The creation of Source can fail due to various reasons.
       //In case of failure, we need to cleanup the in-memory state of the source. Hence closing the plugin.
+      logger.error("Exception while creating source.", e);
       try {
         plugin.close();
       } catch (Exception ex) {

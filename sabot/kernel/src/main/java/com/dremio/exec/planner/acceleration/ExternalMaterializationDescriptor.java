@@ -25,6 +25,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.DremioSqlToRelConverter;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.users.SystemUser;
 
 public class ExternalMaterializationDescriptor extends MaterializationDescriptor {
@@ -35,9 +36,10 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
                                            String materializationId,
                                            String version,
                                            List<String> virtualDatasetPath,
-                                           List<String> physicalDatasetPath) {
+                                           List<String> physicalDatasetPath,
+                                           CatalogService catalogService) {
     super(reflection, materializationId, version, Long.MAX_VALUE, null, physicalDatasetPath, 0D, 0,
-        Collections.emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null, Long.MIN_VALUE, StrippingFactory.NO_STRIP_VERSION);
+        Collections.emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null, Long.MIN_VALUE, StrippingFactory.NO_STRIP_VERSION, catalogService);
     this.virtualDatasetPath = virtualDatasetPath;
   }
 

@@ -35,6 +35,11 @@ export default function(input) {
       );
     },
 
+    checkToRenderWikiSection(entity) {
+      const result = entity && !entity.get('fileSystemFolder');
+      return result;
+    },
+
     getShortcutButtonsData(item, entityType, btnTypes) {
       const allBtns = [
         // Per DX-13304 we leave only Edit and Cog (Settings.svg) buttons
@@ -52,6 +57,14 @@ export default function(input) {
         }
       ];
       return allBtns;
+    },
+
+    checkToRenderConvertFolderButton(isFileSystemFolder) {
+      return isFileSystemFolder;
+    },
+
+    checkToRenderConvertFileButton() {
+      return true;
     }
   });
 }

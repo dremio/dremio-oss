@@ -25,7 +25,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 
 /**
  * A Reflection Materialization Stripping Organizer.
@@ -40,10 +40,10 @@ public class StrippingFactory {
   public static final int RETAIN_PROJECT_STRIP_VERSION = 3;
   public static final int LATEST_STRIP_VERSION = 3;
 
-  private final OptionManager options;
+  private final OptionResolver options;
   private final SabotConfig config;
 
-  public StrippingFactory(OptionManager options, SabotConfig config) {
+  public StrippingFactory(OptionResolver options, SabotConfig config) {
     super();
     this.options = options;
     this.config = config;
@@ -69,14 +69,14 @@ public class StrippingFactory {
   private static final class PassThruNodeStripper implements NodeStripper {
 
     @Override
-    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion) {
+    public StripResult apply(OptionResolver options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion) {
       return noStrip(node);
     }
 
   }
 
   public interface NodeStripper {
-    StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion);
+    StripResult apply(OptionResolver options, ReflectionType reflectionType, RelNode node, boolean isIncremental, int stripVersion);
   }
 
   public static class StripResult {

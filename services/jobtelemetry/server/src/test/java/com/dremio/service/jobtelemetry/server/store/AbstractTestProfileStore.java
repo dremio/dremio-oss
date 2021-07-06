@@ -202,13 +202,13 @@ public abstract class AbstractTestProfileStore {
     assertEquals(0, profileStore.getAllExecutorProfiles(queryId).count());
 
     // add one executor profile, should return 1 profile.
-    profileStore.putExecutorProfile(queryId, e1, executorQueryProfile1);
+    profileStore.putExecutorProfile(queryId, e1, executorQueryProfile1, false);
     assertTrue(compareUnordered(
       Stream.of(executorQueryProfile1),
       profileStore.getAllExecutorProfiles(queryId)));
 
     // add second executor profile, should return 2 profiles.
-    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2);
+    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2, false);
     assertTrue(compareUnordered(
       Stream.of(executorQueryProfile1, executorQueryProfile2),
       profileStore.getAllExecutorProfiles(queryId)));
@@ -223,7 +223,7 @@ public abstract class AbstractTestProfileStore {
             .build()
         )
         .build();
-    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2);
+    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile2, false);
     assertTrue(compareUnordered(
       Stream.of(executorQueryProfile1, executorQueryProfile2),
       profileStore.getAllExecutorProfiles(queryId)));
@@ -282,8 +282,8 @@ public abstract class AbstractTestProfileStore {
             .build()
         )
         .build();
-    profileStore.putExecutorProfile(queryId, e1, executorQueryProfile);
-    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile);
+    profileStore.putExecutorProfile(queryId, e1, executorQueryProfile, false);
+    profileStore.putExecutorProfile(queryId, e2, executorQueryProfile, false);
 
     // delete and verify.
     profileStore.deleteSubProfiles(queryId);

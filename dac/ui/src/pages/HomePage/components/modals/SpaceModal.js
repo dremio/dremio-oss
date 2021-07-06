@@ -20,13 +20,14 @@ import { injectIntl } from 'react-intl';
 
 
 import { getViewState } from 'selectors/resources';
-import { getSpaceVersion, getSpaceName } from '@app/selectors/home';
+import { getSpaceVersion, getSpaceName, getSpace } from '@app/selectors/home';
 import Modal from 'components/Modals/Modal';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
-import { createNewSpace, updateSpace } from 'actions/resources/spaces';
+import { createNewSpace, updateSpace, updateSpacePrivileges } from 'actions/resources/spaces';
 
+import { getSpaceUpdated } from 'dyn-load/pages/HomePage/components/modals/SpaceModalMixin';
 import SpaceForm from '../forms/SpaceForm';
 import './Modal.less';
 
@@ -36,7 +37,8 @@ const mapStateToProps = (state, { entityId }) => {
   return {
     spaceName: getSpaceName(state, entityId),
     spaceVersion: getSpaceVersion(state, entityId),
-    viewState: getViewState(state, VIEW_ID)
+    viewState: getViewState(state, VIEW_ID),
+    space: getSpace(state, entityId)
   };
 };
 
@@ -49,10 +51,12 @@ export class SpaceModal extends Component {
     entityId: PropTypes.string,
 
     //connected
+    space: PropTypes.object,
     spaceName: PropTypes.string,
     spaceVersion: PropTypes.string,
     createNewSpace: PropTypes.func,
     updateSpace: PropTypes.func,
+    updateSpacePrivileges: PropTypes.func,
     initialFormValues: PropTypes.object,
     updateFormDirtyState: PropTypes.func,
     intl: PropTypes.object.isRequired
@@ -68,7 +72,7 @@ export class SpaceModal extends Component {
 
   submit = (values) => {
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.entityId ? this.props.updateSpace(values) : this.props.createNewSpace(values)
+      getSpaceUpdated(values, this.props)
     ).then(() => this.props.hide(null, true));
   }
 
@@ -93,7 +97,7 @@ export class SpaceModal extends Component {
     const { isOpen, entityId, intl } = this.props;
     return (
       <Modal
-        size='small'
+        size='large'
         title={entityId ? intl.formatMessage({ id: 'Space.EditSpace' }) : intl.formatMessage({ id: 'Space.AddSpace' })}
         isOpen={isOpen}
         hide={this.hide}>
@@ -105,5 +109,6 @@ export class SpaceModal extends Component {
 
 export default connect(mapStateToProps, {
   createNewSpace,
-  updateSpace
+  updateSpace,
+  updateSpacePrivileges
 })(FormUnsavedWarningHOC(SpaceModal));

@@ -119,9 +119,9 @@ public class HashAggPrel extends AggPrelBase implements Prel{
     // TODO: use distinct row count
     // + hash table template stuff
     double factor = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.HASH_AGG_TABLE_FACTOR_KEY).getFloatVal();
+      .getOption(ExecConstants.HASH_AGG_TABLE_FACTOR);
     long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).getNumVal();
+      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
 
     // table + hashValues + links
     double memCost =

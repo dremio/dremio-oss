@@ -41,7 +41,8 @@ describe('ModalForm', () => {
     expect(wrapper.prop('onKeyDown')).to.equal(wrapper.instance().handleSubmissionEvent);
   });
 
-  it('should pass props to ConfirmCancelFooter', () => {
+  //DX-28985
+  xit('should pass props to ConfirmCancelFooter', () => {
     const wrapper = shallow(<ModalForm {...commonProps} />);
     const footerProps = wrapper.find('ConfirmCancelFooter').props();
 

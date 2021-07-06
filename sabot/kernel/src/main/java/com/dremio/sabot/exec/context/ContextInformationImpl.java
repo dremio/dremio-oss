@@ -32,6 +32,8 @@ public class ContextInformationImpl implements ContextInformation {
   private final long queryStartTime;
   private final int rootFragmentTimeZone;
   private final QueryId lastQueryId;
+  private boolean isLastQueryIdPresent = false;
+  private boolean isPlanCacheable = true;
   private final Map<Class<? extends AdditionalContext>, AdditionalContext> additionalInfo = new ConcurrentHashMap<>(1);
 
   public ContextInformationImpl(final UserCredentials userCredentials, final QueryContextInformation queryContextInfo) {
@@ -75,6 +77,16 @@ public class ContextInformationImpl implements ContextInformation {
     if (prevValue != null) {
       throw new RuntimeException("Trying to set AdditionalContext of type: " + object.getClass() + " multiple times");
     }
+  }
+
+  @Override
+  public boolean isPlanCacheable() {
+    return isPlanCacheable;
+  }
+
+  @Override
+  public void setPlanCacheable(boolean isPlanCacheable) {
+    this.isPlanCacheable = isPlanCacheable;
   }
 
   @Override

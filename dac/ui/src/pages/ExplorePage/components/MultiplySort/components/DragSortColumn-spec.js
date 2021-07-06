@@ -42,7 +42,8 @@ describe('DragSortColumn', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should check that Select, DragAreaColumn, class=drag-sort-column was rendered', () => {
+  //DX-28985
+  xit('should check that Select, DragAreaColumn, class=drag-sort-column was rendered', () => {
     const wrapper = shallow(<DragSortColumn {...commonProps}/>);
     expect(wrapper.find('Select')).to.length(1);
     expect(wrapper.find('DragAreaColumn')).to.length(1);

@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { Cell } from 'fixed-data-table-2';
 import { SelectView } from '@app/components/Fields/SelectView';
 
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 
 import DragSource from 'components/DragComponents/DragSource';
@@ -38,8 +37,7 @@ const COLUMN_HEIGHT = 24;
 const MARGIN_RIGHT = 5;
 
 @Radium
-@pureRender
-export default class ColumnHeader extends Component {
+export default class ColumnHeader extends PureComponent {
   static propTypes = {
     pageType: PropTypes.string,
     defaultColumnWidth: PropTypes.number,

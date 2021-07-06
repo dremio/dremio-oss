@@ -20,8 +20,8 @@ import PropTypes from 'prop-types';
 import { page } from '@app/uiTheme/radium/general';
 import Message from '@app/components/Message';
 import { SingleEngineInfoBar } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineInfoBar';
-import SingleEngineViewMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineViewMixin';
-import { SINGLE_VIEW_TABS } from 'dyn-load/constants/provisioningPage/provisioningConstants';
+import SingleEngineViewMixin from '@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineViewMixin';
+import { SINGLE_VIEW_TABS } from '@inject/constants/provisioningPage/provisioningConstants';
 
 @SingleEngineViewMixin
 export class SingleEngineView extends Component {

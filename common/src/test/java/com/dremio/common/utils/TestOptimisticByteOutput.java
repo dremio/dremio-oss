@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.Test;
 
+import com.dremio.common.SuppressForbidden;
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
@@ -35,6 +36,7 @@ import com.google.protobuf.UnsafeByteOperations;
 /**
  * Test {@link ByteOutput} implementation API usage.
  */
+@SuppressForbidden
 public class TestOptimisticByteOutput {
   private static final byte[] smallData = new byte[]{0, 1, 2, 3, 0, 127};
 

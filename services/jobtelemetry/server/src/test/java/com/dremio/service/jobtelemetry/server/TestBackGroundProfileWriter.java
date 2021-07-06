@@ -233,7 +233,8 @@ public class TestBackGroundProfileWriter {
     @Override
     public void putExecutorProfile(UserBitShared.QueryId queryId,
                                    CoordinationProtos.NodeEndpoint endpoint,
-                                   CoordExecRPC.ExecutorQueryProfile profile) {
+                                   CoordExecRPC.ExecutorQueryProfile profile,
+                                   boolean isFinal) {
       throw new UnsupportedOperationException("not supported yet");
     }
 

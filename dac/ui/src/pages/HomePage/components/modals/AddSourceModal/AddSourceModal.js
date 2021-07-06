@@ -30,9 +30,15 @@ import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 
 import SelectSourceType from 'pages/HomePage/components/modals/AddSourceModal/SelectSourceType';
 import ConfigurableSourceForm from 'pages/HomePage/components/modals/ConfigurableSourceForm';
+import {isCME} from 'dyn-load/utils/versionUtils';
+import { loadGrant } from 'dyn-load/actions/resources/grant';
 
-import AddSourceModalMixin from 'dyn-load/pages/HomePage/components/modals/AddSourceModal/AddSourceModalMixin';
+import AddSourceModalMixin, {
+  mapStateToProps,
+  additionalMapDispatchToProps
+} from '@inject/pages/HomePage/components/modals/AddSourceModal/AddSourceModalMixin';
 import { processUiConfig } from '@app/pages/HomePage/components/modals/EditSourceView';
+import { passDataBetweenTabs } from 'actions/modals/passDataBetweenTabs.js';
 
 
 const VIEW_ID = 'ADD_SOURCE_MODAL';
@@ -55,8 +61,11 @@ export class AddSourceModal extends Component {
     source: PropTypes.object,
     updateFormDirtyState: PropTypes.func,
     createSource: PropTypes.func,
+    initialFormValues: PropTypes.object,
     createSampleSource: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    passDataBetweenTabs: PropTypes.func,
+    loadGrant: PropTypes.func
   };
 
   state = {
@@ -66,11 +75,17 @@ export class AddSourceModal extends Component {
     submitTimer: null,
     sourceTypes: [],
     isAddingSampleSource: false,
-    didSourceTypeLoadFail: false
+    didSourceTypeLoadFail: false,
+    isFileSystemSource: false,
+    errorMessage: 'Failed to load source list.'
   };
 
   componentDidMount() {
     this.setStateWithSourceTypeListFromServer();
+    this.fetchData();
+    if (isCME && !isCME()) {
+      this.props.loadGrant({name: 'PUBLIC', type: 'ROLE'}, {viewId: VIEW_ID});
+    }
   }
 
   setStateWithSourceTypeListFromServer() {
@@ -84,11 +99,16 @@ export class AddSourceModal extends Component {
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
     ApiUtils.fetchJson(`source/type/${typeCode}`, json => {
+      this.modifyFormJson(typeCode, json);
       const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(json));
-      this.setState({isTypeSelected: true, selectedFormType: combinedConfig});
+      const isFileSystemSource = combinedConfig.metadataRefresh;
+      this.setState({isTypeSelected: true, selectedFormType: combinedConfig, isFileSystemSource: isFileSystemSource.isFileSystemSource, isExternalQueryAllowed: json.externalQueryAllowed});
     }, () => {
       this.setState({didSourceTypeLoadFail: true});
-    });
+    })
+      .finally(() => {
+        this.props.passDataBetweenTabs({isFileSystemSource: this.state.isFileSystemSource, isExternalQueryAllowed: this.state.isExternalQueryAllowed});
+      });
   }
 
   componentWillReceiveProps(nextProps) {
@@ -149,11 +169,11 @@ export class AddSourceModal extends Component {
   };
 
   handleAddSourceSubmit = (values) => {
-    this.mutateFormValues(values);
+    const data = this.mutateFormValues(values);
     this.startTrackSubmitTime();
 
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.createSource(values, this.state.selectedFormType.sourceType)
+      this.props.createSource(data, this.state.selectedFormType.sourceType)
     ).then((response) => {
       this.stopTrackSubmitTime();
       if (response && !response.error) {
@@ -175,16 +195,21 @@ export class AddSourceModal extends Component {
   };
 
   render() {
-    const { isOpen, updateFormDirtyState, location } = this.props;
+    const { isOpen, updateFormDirtyState, location, initialFormValues} = this.props;
     const { state: {isExternalSource} = {} } = location;
+    const {
+      isAddingSampleSource,
+      errorMessage,
+      didSourceTypeLoadFail
+    } = this.state;
 
-    const viewState = this.state.didSourceTypeLoadFail ?
-      new Immutable.fromJS({isFailed: true, error: {message: la('Failed to load source list.')}}) :
-      new Immutable.Map({isInProgress: this.state.isAddingSampleSource});
+    const viewState = didSourceTypeLoadFail ?
+      new Immutable.fromJS({isFailed: true, error: {message: errorMessage}}) :
+      new Immutable.Map({isInProgress: isAddingSampleSource});
 
     return (
       <Modal
-        size='medium'
+        size='large'
         title={this.getTitle(isExternalSource)}
         isOpen={isOpen}
         confirm={this.state.isTypeSelected && this.confirm}
@@ -201,6 +226,8 @@ export class AddSourceModal extends Component {
               footerChildren={this.renderLongSubmitLabel()}
               fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
               validate={FormUtils.getValidationsFromConfig(this.state.selectedFormType)}
+              EntityType='source'
+              initialValues={initialFormValues}
             />
           }
         </ViewStateWrapper>
@@ -209,7 +236,10 @@ export class AddSourceModal extends Component {
   }
 }
 
-export default connect(null, {
+export default connect(mapStateToProps, {
   createSource,
-  createSampleSource
+  createSampleSource,
+  passDataBetweenTabs,
+  loadGrant,
+  ...additionalMapDispatchToProps
 })(FormUnsavedWarningHOC(AddSourceModal));

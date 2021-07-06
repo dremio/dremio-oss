@@ -17,9 +17,12 @@ package com.dremio.sabot.op.common.ht2;
 
 import java.lang.reflect.Field;
 
+import com.dremio.common.SuppressForbidden;
+
 import io.netty.util.internal.PlatformDependent;
 import sun.misc.Unsafe;
 
+@SuppressForbidden
 @SuppressWarnings("restriction")
 public class Copier {
 

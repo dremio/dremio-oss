@@ -58,6 +58,13 @@ public final class CatalogOptions {
   // Disable cross source select
   public static final BooleanValidator DISABLE_CROSS_SOURCE_SELECT = new BooleanValidator("planner.cross_source_select.disable", false);
 
+  // Support limited metadata refresh (certain files/partitions)
+  public static final BooleanValidator DMP_METADATA_REFRESH = new BooleanValidator("unlimited_splits.metadata.refresh.enabled", false);
+  public static final BooleanValidator DMP_METADATA_REFRESH_PARTIAL = new BooleanValidator("unlimited_splits.partial.metadata.refresh.enabled", false);
+
+  // Disable inline refresh
+  public static final BooleanValidator SHOW_METADATA_VALIDITY_CHECKBOX = new BooleanValidator("store.plugin.show_metadata_validity_checkbox", false);
+
   // Do not instantiate
   private CatalogOptions() {
   }

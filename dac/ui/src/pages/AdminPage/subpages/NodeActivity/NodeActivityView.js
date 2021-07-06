@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import StatefulTableViewer from '@app/components/StatefulTableViewer';
 import NumberFormatUtils from '@app/utils/numberFormatUtils';
 import { getViewState } from '@app/selectors/resources';
-import Header from '@app/pages/AdminPage/components/Header';
+import SettingHeader from '@app/components/SettingHeader';
 import NodeTableCell from '@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell';
 import { NodeTableCellColors } from '@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell';
 import NodeActivityViewMixin from 'dyn-load/pages/AdminPage/subpages/NodeActivity/NodeActivityViewMixin';
@@ -63,9 +62,8 @@ export const COLUMNS_CONFIG = [ //TODO intl
 ];
 
 @Radium
-@pureRender
 @NodeActivityViewMixin
-class NodeActivityView extends Component {
+class NodeActivityView extends PureComponent {
 
   static propTypes = {
     sourceNodesList: PropTypes.instanceOf(Immutable.Map),
@@ -135,13 +133,13 @@ class NodeActivityView extends Component {
           value: node.get('ip')
         },
         [port]: {
-          node: () => node.get('port')
+          node: () => node.get('port') !== -1 ? node.get('port') : 'N/A'
         },
         [cpu]: {
-          node: () => `${NumberFormatUtils.roundNumberField(node.get('cpu'))}%`
+          node: () => node.get('cpu') !== 0 ? `${NumberFormatUtils.roundNumberField(node.get('cpu'))}%` : 'N/A'
         },
         [memory]: {
-          node: () => `${NumberFormatUtils.roundNumberField(node.get('memory'))}%` // todo: check comps for digits. and fix so no need for parseFloat
+          node: () => node.get('memory') !== 0 ? `${NumberFormatUtils.roundNumberField(node.get('memory'))}%` : 'N/A' // todo: check comps for digits. and fix so no need for parseFloat
         },
         [version]: {
           node: () => node.get('version') || '-'
@@ -165,8 +163,8 @@ class NodeActivityView extends Component {
     const columns = this.getTableColumns();
     const endChildren = this.getHeaderEndChildren();
     const header = (endChildren) ?
-      <Header title={la('Node Activity')} endChildren={endChildren}/> :
-      <Header title={la('Node Activity')}/>;
+      <SettingHeader title={la('Node Activity')} endChildren={endChildren}/> :
+      <SettingHeader title={la('Node Activity')}/>;
 
     return (
       <div id='admin-nodeActivity' style={page}>

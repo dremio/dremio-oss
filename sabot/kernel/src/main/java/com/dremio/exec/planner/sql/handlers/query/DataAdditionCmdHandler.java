@@ -32,6 +32,7 @@ import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -67,9 +68,9 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.IcebergOperation;
-import com.dremio.exec.store.iceberg.IcebergTableOperations;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -238,7 +239,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       icebergTableProps = new IcebergTableProps(null, queryId,
         null,
         isCreate() ? options.getPartitionColumns() : partitionColumns,
-        isCreate() ? IcebergOperation.Type.CREATE : IcebergOperation.Type.INSERT,
+        isCreate() ? IcebergCommandType.CREATE : IcebergCommandType.INSERT,
         key.getName());
 
     }
@@ -273,14 +274,13 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
   public void validateIcebergSchemaForInsertCommand(List<String> fieldNames) {
     IcebergTableProps icebergTableProps = icebergCreateTableEntry.getIcebergTableProps();
-    Preconditions.checkState(icebergTableProps.getIcebergOpType() == IcebergOperation.Type.INSERT,
+    Preconditions.checkState(icebergTableProps.getIcebergOpType() == IcebergCommandType.INSERT,
       "unexpected state found");
 
     BatchSchema querySchema = icebergTableProps.getFullSchema();
-    IcebergTableOperations tableOperations = new IcebergTableOperations(
-      new org.apache.hadoop.fs.Path(icebergTableProps.getTableLocation()), icebergCreateTableEntry.getPlugin().getFsConfCopy());
-
-    BatchSchema icebergSchema = SchemaConverter.fromIceberg(tableOperations.current().schema());
+    IcebergModel icebergModel = icebergCreateTableEntry.getPlugin().getIcebergModel();
+    Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
+    BatchSchema icebergSchema = SchemaConverter.fromIceberg(table.schema());
 
     // this check can be removed once we support schema evolution in dremio.
     if (!icebergSchema.equalsIgnoreCase(tableSchemaFromKVStore)) {
@@ -288,7 +288,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         tableSchemaFromKVStore, icebergSchema).buildSilently();
     }
 
-    List<String> icebergPartitionColumns = tableOperations.current().spec().fields().stream()
+    List<String> icebergPartitionColumns = table.spec().fields().stream()
       .map(PartitionField::name).collect(Collectors.toList());
 
     // this check can be removed once we support partition spec evolution in dremio.

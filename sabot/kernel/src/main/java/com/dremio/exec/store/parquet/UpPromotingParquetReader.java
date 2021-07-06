@@ -59,18 +59,21 @@ public class UpPromotingParquetReader implements RecordReader {
   private final ParquetScanProjectedColumns projectedColumns;
   private final List<ParquetFilterCondition> filterConditions;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
-
+  private final String filePath;
+  private final List<String> tableSchemaPath;
   private UnifiedParquetReader currentReader;
 
   public UpPromotingParquetReader(OperatorContext context, ParquetReaderFactory readerFactory,
                                   BatchSchema tableSchema, ParquetScanProjectedColumns projectedColumns,
                                   Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
                                   List<ParquetFilterCondition> filterConditions, ParquetDatasetSplitScanXAttr readEntry,
-                                  FileSystem fs, MutableParquetMetadata footer, GlobalDictionaries dictionaries,
+                                  FileSystem fs, MutableParquetMetadata footer, String filePath, List<String> tableSchemaPath, GlobalDictionaries dictionaries,
                                   SchemaDerivationHelper schemaHelper, boolean vectorize, boolean enableDetailedTracing,
                                   boolean supportsColocatedReads, InputStreamProvider inputStreamProvider) {
     this.fs = fs;
     this.footer = footer;
+    this.filePath = filePath;
+    this.tableSchemaPath = tableSchemaPath;
     this.context = context;
     this.vectorize = vectorize;
     this.readEntry = readEntry;
@@ -88,7 +91,7 @@ public class UpPromotingParquetReader implements RecordReader {
   }
 
   public void setupMutator(OutputMutator outputMutator) {
-    MutatorSetupManager mutatorSetupManager = new MutatorSetupManager(context, tableSchema, footer, schemaHelper, columnResolver);
+    MutatorSetupManager mutatorSetupManager = new MutatorSetupManager(context, tableSchema, footer, filePath, tableSchemaPath, schemaHelper, columnResolver);
     AdditionalColumnResolver additionalColumnResolver = new AdditionalColumnResolver(tableSchema, columnResolver);
     BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
     Collection<SchemaPath> resolvedColumns = additionalColumnResolver.resolveColumns(block.getColumns());
@@ -143,7 +146,7 @@ public class UpPromotingParquetReader implements RecordReader {
 
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
-    if (runtimeFilter != null) {
+    if (this.currentReader != null) {
       this.currentReader.addRuntimeFilter(runtimeFilter);
     }
   }
@@ -151,5 +154,6 @@ public class UpPromotingParquetReader implements RecordReader {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(currentReader);
+    currentReader = null;
   }
 }

@@ -40,6 +40,7 @@ data: {
     numericTypes:             tdd(../data/NumericTypes.tdd),
     sumzero:                  tdd(../data/SumZero.tdd),
     countAggrTypes:           tdd(../data/CountAggrTypes.tdd)
+    alltypes:                 tdd(../data/AllTypes.tdd)
 }
 freemarkerLinks: {
     includes: includes/

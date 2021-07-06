@@ -33,6 +33,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 
+import com.dremio.common.SuppressForbidden;
+
 public class TextPool {
   // private static final int DEFAULT_TEXT_POOL_SIZE = 300 * 1024 * 1024;
   private static final int DEFAULT_TEXT_POOL_SIZE = 30 * 1024 * 1024;
@@ -194,6 +196,7 @@ public class TextPool {
       this.bytes = new byte[size];
     }
 
+    @SuppressForbidden
     public void append(String string) {
       // This is safe because the data is ASCII
       // noinspection deprecation

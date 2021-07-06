@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
+import java.security.AccessControlException;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -87,15 +88,18 @@ class DatasetManager {
   private final PluginRetriever plugins;
   private final NamespaceService userNamespaceService;
   private final OptionManager optionManager;
+  private final String userName;
 
   public DatasetManager(
       PluginRetriever plugins,
       NamespaceService userNamespaceService,
-      OptionManager optionManager
-      ) {
+      OptionManager optionManager,
+      String userName
+   ) {
     this.userNamespaceService = userNamespaceService;
     this.plugins = plugins;
     this.optionManager = optionManager;
+    this.userName = userName;
   }
 
   /**
@@ -345,23 +349,10 @@ class DatasetManager {
       datasetConfig = MetadataObjectsUtils.newShallowConfig(handle.get());
     }
 
-    //Todo: Use a single call like getEntities which supports ACLs
-    try {
-      // We will attempt to save the dataset, so ensure we have access to the source before saving
-      userNamespaceService.getSource(new NamespaceKey(key.getRoot()));
-    } catch (NamespaceException ignored) {
-      try {
-        //this additional check is required to check if the root is Home.
-        userNamespaceService.getHome(new NamespaceKey(key.getRoot()));
-      } catch (NamespaceException nse) {
-        logger.debug("Unable to obtain source {}.", key.getRoot());
-        return null;
-      }
-    }
-
     try {
       plugin.getSaver()
-          .save(datasetConfig, handle.get(), plugin.unwrap(StoragePlugin.class), opportunisticSave, retrievalOptions);
+          .save(datasetConfig, handle.get(), plugin.unwrap(StoragePlugin.class), opportunisticSave, retrievalOptions,
+                userName);
     } catch (ConcurrentModificationException cme) {
       // Some other query, or perhaps the metadata refresh, must have already created this dataset. Re-obtain it
       // from the namespace
@@ -380,6 +371,8 @@ class DatasetManager {
           .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(),
               stopwatch.elapsed(TimeUnit.MILLISECONDS));
       return namespaceTable;
+    } catch (AccessControlException ignored) {
+      return null;
     }
 
     options.getStatsCollector()
@@ -392,6 +385,13 @@ class DatasetManager {
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(), datasetConfig,
         accessUserName, DatasetSplitsPointer.of(userNamespaceService, datasetConfig));
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+  }
+
+  /**
+   * Return whether or not saves are allowed
+   */
+  protected boolean checkCanSave(NamespaceKey key) {
+    return true;
   }
 
   // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
@@ -492,7 +492,7 @@ class DatasetManager {
 
       NamespaceUtils.copyFromOldConfig(currentConfig, newConfig);
       plugin.getSaver()
-          .save(newConfig, handle.get(), plugin.unwrap(StoragePlugin.class), false, retrievalOptions, attributes);
+          .save(newConfig, handle.get(), plugin.unwrap(StoragePlugin.class), false, retrievalOptions, userName, attributes);
     } catch (Exception e) {
       Throwables.propagateIfPossible(e, NamespaceException.class);
       throw new RuntimeException("Failed to get new dataset ", e);
@@ -572,7 +572,7 @@ class DatasetManager {
           options.asListPartitionChunkOptions(nsConfig));
 
       final long recordCountFromSplits = saver == null || chunkListing == null ? 0 :
-        saver.savePartitionChunks(chunkListing);
+        CatalogUtil.savePartitionChunksInSplitsStores(saver,chunkListing);
       final DatasetMetadata datasetMetadata = sourceMetadata.getDatasetMetadata(handle, chunkListing,
           options.asGetMetadataOptions(nsConfig));
       MetadataObjectsUtils.overrideExtended(nsConfig, datasetMetadata, Optional.empty(),

@@ -48,8 +48,8 @@ public class ReIndexAllStores extends UpgradeTask implements LegacyUpgradeTask {
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    Preconditions.checkArgument(context.getKVStoreProvider() instanceof LocalKVStoreProvider);
-    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getKVStoreProvider());
+    Preconditions.checkArgument(context.getLegacyKVStoreProvider() instanceof LocalKVStoreProvider);
+    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getLegacyKVStoreProvider());
 
     StreamSupport.stream(localStore.spliterator(), false)
         .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)

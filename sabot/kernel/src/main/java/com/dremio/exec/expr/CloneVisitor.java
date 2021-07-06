@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
@@ -158,6 +160,18 @@ public class CloneVisitor extends AbstractExprVisitor<LogicalExpression,Void,Run
   @Override
   public LogicalExpression visitConvertExpression(ConvertExpression e, Void value) throws RuntimeException {
     return visitUnknown(e, value);
+  }
+
+  @Override
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+    for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+      caseConditions.add(new CaseExpression.CaseConditionNode(
+        conditionNode.whenExpr.accept(this, null),
+        conditionNode.thenExpr.accept(this, null)));
+    }
+    LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, null);
+    return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
   }
 
   @Override

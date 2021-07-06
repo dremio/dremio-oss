@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
+import java.security.AccessControlException;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -53,6 +55,8 @@ import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.SupportsGlobalKeys;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
@@ -327,6 +331,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
 
     addDefaults(config);
+    addGlobalKeys(config);
 
     if(!create) {
       updateConfig(userNamespace, config, attributes);
@@ -391,6 +396,9 @@ public class ManagedStoragePlugin implements AutoCloseable {
     } catch (ConcurrentModificationException ex) {
       throw UserException.concurrentModificationError(ex).message(
           "Source update failed due to a concurrent update. Please try again [%s].", config.getName()).build(logger);
+    } catch (AccessControlException ex) {
+      throw UserException.permissionError(ex).message(
+        "Update privileges on source [%s] failed: %s", config.getName(), ex.getMessage()).build(logger);
     } catch (Exception ex) {
       String suggestedUserAction = getState().getSuggestedUserAction();
       if (suggestedUserAction == null || suggestedUserAction.isEmpty()) {
@@ -400,6 +408,20 @@ public class ManagedStoragePlugin implements AutoCloseable {
       throw UserException.validationError(ex)
         .message(suggestedUserAction)
         .build(logger);
+    }
+  }
+
+  private void addGlobalKeys(SourceConfig config) {
+    final ConnectionConf<?, ?> connectionConf = config.getConnectionConf(reader);
+    if (connectionConf instanceof SupportsGlobalKeys) {
+      SupportsGlobalKeys sgc = (SupportsGlobalKeys) connectionConf;
+      try {
+        List<Property> globalKeys = context.getGlobalCredentailsServiceProvider().get().getGlobalKeys();
+        sgc.setGlobalKeys(globalKeys);
+        config.setConnectionConf(connectionConf);
+      } catch (IllegalStateException e) {
+        // If GlobalKeys is not provided by the GlobalKeysServiceProvider, then ignore.
+      }
     }
   }
 
@@ -603,7 +625,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param attributes
    * @return if table options are modified
    */
-  public boolean alterDataset(final NamespaceKey key, final DatasetConfig datasetConfig, final Map<String, AttributeValue> attributes) {
+  public boolean alterDataset(final NamespaceKey key, final DatasetConfig datasetConfig,
+                              final Map<String, AttributeValue> attributes) {
     if (!(plugin instanceof SupportsAlteringDatasetMetadata)) {
       throw UserException.unsupportedError()
                          .message("Source [%s] doesn't support modifying options", this.name)
@@ -626,27 +649,27 @@ public class ManagedStoragePlugin implements AutoCloseable {
                          .buildSilently();
     }
 
-    boolean changed;
+    boolean changed = false;
+    final DatasetMetadata oldDatasetMetadata = new DatasetMetadataAdapter(datasetConfig);
+    DatasetMetadata newDatasetMetadata;
     try (AutoCloseableLock l = readLock()) {
-      final DatasetMetadata oldDatasetMetadata = new DatasetMetadataAdapter(datasetConfig);
-      final DatasetMetadata newDatasetMetadata = ((SupportsAlteringDatasetMetadata) plugin).alterMetadata(handle.get(),
-          oldDatasetMetadata, attributes);
-
-      if (oldDatasetMetadata == newDatasetMetadata) {
-        changed = false;
-      } else {
-        Preconditions.checkState(newDatasetMetadata.getDatasetStats().getRecordCount() >= 0,
-          "Record count should already be filled in when altering dataset metadata.");
-        MetadataObjectsUtils.overrideExtended(datasetConfig, newDatasetMetadata, Optional.empty(),
-                newDatasetMetadata.getDatasetStats().getRecordCount(), getMaxMetadataColumns());
-        //systemUserNamespaceService.addOrUpdateDataset(key, datasetConfig);
-        // Force a full refresh
-        saveDatasetAndMetadataInNamespace(datasetConfig, handle.get(), retrievalOptions.toBuilder().setForceUpdate(true).build());
-        changed = true;
-      }
+      newDatasetMetadata = ((SupportsAlteringDatasetMetadata) plugin).alterMetadata(handle.get(),
+        oldDatasetMetadata, attributes);
     } catch (ConnectorException e) {
       throw UserException.validationError(e)
-                         .buildSilently();
+        .buildSilently();
+    }
+
+    if (oldDatasetMetadata == newDatasetMetadata) {
+      changed = false;
+    } else {
+      Preconditions.checkState(newDatasetMetadata.getDatasetStats().getRecordCount() >= 0,
+        "Record count should already be filled in when altering dataset metadata.");
+      MetadataObjectsUtils.overrideExtended(datasetConfig, newDatasetMetadata, Optional.empty(),
+        newDatasetMetadata.getDatasetStats().getRecordCount(), getMaxMetadataColumns());
+      // Force a full refresh
+      saveDatasetAndMetadataInNamespace(datasetConfig, handle.get(), retrievalOptions.toBuilder().setForceUpdate(true).build());
+      changed = true;
     }
     return changed;
   }
@@ -765,16 +788,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @return true iff the metadata is complete and meets validity constraints
    */
   public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions) {
-    try(AutoCloseableLock l = readLock()) {
+    try (AutoCloseableLock l = readLock()) {
       checkState();
+      final boolean checkValidity = requestOptions.checkValidity() && !getConfig().getDisableMetadataValidityCheck();
       return isComplete(datasetConfig) &&
-          (!requestOptions.checkValidity() || metadataManager.isStillValid(requestOptions, datasetConfig));
+        metadataManager.isStillValid(ImmutableMetadataRequestOptions.copyOf(requestOptions)
+          .withCheckValidity(checkValidity), datasetConfig);
     }
   }
 
   public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
-    try(AutoCloseableLock l = readLock()) {
-      checkState();
+    checkState();
+    try {
       return metadataManager.refreshDataset(key, retrievalOptions);
     } catch (StoragePluginChanging e) {
       throw UserException.validationError(e).message("Storage plugin was changing during refresh attempt.").build(logger);
@@ -787,8 +812,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
                                                 DatasetHandle datasetHandle,
                                                 DatasetRetrievalOptions retrievalOptions
   ) {
-    try (AutoCloseableLock l = readLock()) {
-      checkState();
+    checkState();
+    try {
       metadataManager.saveDatasetAndMetadataInNamespace(datasetConfig, datasetHandle, retrievalOptions);
     } catch (StoragePluginChanging e) {
       throw UserException.validationError(e)

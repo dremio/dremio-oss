@@ -34,6 +34,41 @@ public interface ElasticsearchConstants {
 
   public static final Version VERSION_0_0 = new Version(0, 0, 0);
 
+  public static final Version MIN_ELASTICSEARCH_VERSION = new Version(2, 0, 0);
+
+  // Defines a cutoff for enabling newer features that have been added to elasticsearch. Rather than
+  // maintain an exact matrix of what is supported, We simply try to make use of all features available
+  // above this version and disable them for connections to any version below. This cutoff is inclusive
+  // on the ENABLE side so all new features must be available in 2.1.2 and up. Everything missing in
+  // a version between 2.0 and 2.1.1 is disabled for all versions in that range.
+  public static final Version MIN_VERSION_TO_ENABLE_NEW_FEATURES = new Version(2, 1, 2);
+
+  // Version 5x or higher
+  public static final Version ELASTICSEARCH_VERSION_5X = new Version(5, 0, 0);
+
+  //Version 5.3.x or higher
+  public static final Version ELASTICSEARCH_VERSION_5_3_X = new Version(5, 3, 0);
+
+  // Version 6.0.x or higher
+  public static final Version ELASTICSEARCH_VERSION_DEFAULT = new Version(6, 0, 0);
+
+  // Version 6.8.x or higher
+  public static final Version ELASTICSEARCH_VERSION_6_8_X = new Version(6, 8, 0);
+
+  //Version 7.0.x or higher
+  public static final Version ELASTICSEARCH_VERSION_7_0_X = new Version(7, 0, 0);
+
+  // Elasticsearch formats
+  public static final String ES_GENERIC_FORMAT1 = "[ddMMMyyyy:HH:mm:ss";
+  public static final String ES_GENERIC_FORMAT2 = "[ ][Z][X]]";
+  public static final String ES_GENERIC_FORMAT3 = "[yyyy[-][/]MM[-][/]dd['T'][ ]HH:mm[:][.]ss";
+  public static final String ES_GENERIC_FORMAT4 = "[Z][X]]";
+  public static final String ES_GENERIC_FORMAT5 = "[EEE, dd MMM yyyy HH:mm:ss zzz]";
+  public static final String ES_GENERIC_FORMAT6 =  "[yyyyMMdd['T']HHmmss[.][SSS][zzz]]";
+  public static final String ES_GENERIC_FORMAT7 = "[yyyy[-][/][MM]]";
+  public static final String ES_GENERIC_FORMAT8 =  "[yyyy[-][/]DDD['T']HH[:]mm[:]sszz]";
+  public static final String ES_GENERIC_FORMAT9 = "[HH[:]mm[:]ss[.][SSS][Z]]";
+
   /* Elasticsearch keywords */
   String SCROLL_ID = "_scroll_id";
   String HITS = "hits";
@@ -46,7 +81,14 @@ public interface ElasticsearchConstants {
   String ID = "_id";
   String UID = "_uid";
   String TOTAL_HITS = "total";
+  String TOTAL_HITS_VALUE = "value";
+  String RELATION = "relation";
   String DOC = "doc";
+
+  String DISABLE_COORD_FIELD = "\"disable_coord\" : false,";
+  String USE_DIS_MAX = "\"use_dis_max\" : true,";
+  String AUTO_GENERATE_PHRASE_QUERIES = "\"auto_generate_phrase_queries\" : false,";
+  String SPLIT_ON_WHITESPACE = "\"split_on_whitespace\" : true,";
 
   String STRICT = "strict_";
 

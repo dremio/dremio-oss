@@ -20,6 +20,7 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,13 +47,17 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.DatasetCatalogServiceImpl;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.exception.NodeStartupException;
+import com.dremio.exec.maestro.GlobalKeysService;
 import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.maestro.MaestroServiceImpl;
 import com.dremio.exec.maestro.NoOpMaestroForwarder;
+import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
+import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
@@ -71,6 +76,9 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
+import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
+import com.dremio.exec.store.sys.statistics.StatisticsListManager;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenTool;
@@ -103,18 +111,22 @@ import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.service.catalog.DatasetCatalogServiceGrpc;
+import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.conduit.client.ConduitProviderImpl;
+import com.dremio.service.conduit.server.ConduitInProcessChannelProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.LocalExecutorSetService;
+import com.dremio.service.coordinator.SoftwareCoordinatorModeInfo;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
 import com.dremio.service.execselector.ExecutorSelectorFactory;
@@ -134,6 +146,9 @@ import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.nessie.NessieService;
+import com.dremio.service.nessieapi.ContentsApiGrpc;
+import com.dremio.service.nessieapi.TreeApiGrpc;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.SpillService;
@@ -490,6 +505,17 @@ public class SabotNode implements AutoCloseable {
         conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
           bootstrap::getExecutor));
 
+        final NessieService nessieService = new NessieService(
+          registry.provider(KVStoreProvider.class),
+          config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN),
+          config.getInt(DremioConfig.NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES)
+        );
+        nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
+        registry.bindSelf(nessieService);
+
+        conduitServiceRegistry.registerService(
+          new DatasetCatalogServiceImpl(getProvider(CatalogService.class), getProvider(NamespaceService.class)));
+
         // cluster coordinator
         bind(ClusterCoordinator.class).toInstance(clusterCoordinator);
 
@@ -521,11 +547,13 @@ public class SabotNode implements AutoCloseable {
         );
         bind(FabricService.class).toInstance(fabricService);
 
+        final String inProcessServerName = UUID.randomUUID().toString();
         bind(ConduitServer.class).toInstance(new ConduitServer(getProvider(ConduitServiceRegistry.class), 0,
-          Optional.empty()));
+          Optional.empty(), inProcessServerName));
         final ConduitProvider conduitProvider = new ConduitProviderImpl(
           getProvider(NodeEndpoint.class), Optional.empty()
         );
+        bind(ConduitInProcessChannelProvider.class).toInstance(new ConduitInProcessChannelProvider(inProcessServerName));
         bind(ConduitProvider.class).toInstance(conduitProvider);
 
         conduitServiceRegistry.registerService(new OptionNotificationService(registry.provider(SystemOptionManager.class)));
@@ -576,6 +604,10 @@ public class SabotNode implements AutoCloseable {
 
         bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
         bind(RuleBasedEngineSelector.class).toInstance(RuleBasedEngineSelector.NO_OP);
+        bind(StatisticsService.class).toInstance(StatisticsService.NO_OP);
+        bind(StatisticsAdministrationService.Factory.class).toInstance((context) -> StatisticsService.NO_OP);
+        bind(StatisticsListManager.class).toProvider(Providers.of(null));
+        bind(RelMetadataQuerySupplier.class).toInstance(DremioRelMetadataQuery.QUERY_SUPPLIER);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -662,7 +694,18 @@ public class SabotNode implements AutoCloseable {
             Provider<ConnectionReader> connectionReader,
             Provider<OptionManager> optionManagerProvider,
             Provider<SystemOptionManager> systemOptionManagerProvider,
-            Provider<OptionValidatorListing> optionValidatorListingProvider
+            Provider<OptionValidatorListing> optionValidatorListingProvider,
+            Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
+            Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+            Provider<StatisticsService> statisticsService,
+            Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
+            Provider<StatisticsListManager> statisticsListManagerProvider,
+            Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
+            Provider<SimpleJobRunner> jobsRunnerProvider,
+            Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
+            Provider<GlobalKeysService> globalKeysServiceProvider,
+            Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
+            Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
     ) {
       return new ContextService(
               bootstrap,
@@ -693,8 +736,32 @@ public class SabotNode implements AutoCloseable {
               Providers.of(null),
               Providers.of(null),
               optionValidatorListingProvider,
-              allRoles
+              allRoles,
+              () -> new SoftwareCoordinatorModeInfo(),
+              nessieTreeApiBlockingStubProvider,
+              nessieContentsApiBlockingStuProvider,
+              statisticsService,
+              statisticsAdministrationServiceFactory,
+              statisticsListManagerProvider,
+              relMetadataQuerySupplier,
+              jobsRunnerProvider,
+              datasetCatalogStub,
+              globalKeysServiceProvider,
+              credentialsServiceProvider,
+              conduitInProcessChannelProviderProvider
       );
+    }
+
+    @Singleton
+    @Provides
+    GlobalKeysService getGlobalKeysService() {
+      return GlobalKeysService.NO_OP;
+    }
+
+    @Singleton
+    @Provides
+    com.dremio.services.credentials.CredentialsService getCredentialsServiceProvider() {
+      return com.dremio.services.credentials.CredentialsService.newInstance(config, classpathScan);
     }
 
     @Singleton
@@ -904,6 +971,12 @@ public class SabotNode implements AutoCloseable {
 
     @Provides
     @Singleton
+    SimpleJobRunner getSimpleJobService(ContextService contextService) {
+      return getSabotContext(contextService).getJobsRunner().get();
+    }
+
+    @Provides
+    @Singleton
     LegacyKVStoreProvider getLegacyKVStoreProvider(KVStoreProvider kvStoreProvider) {
       return new LegacyKVStoreProviderAdapter(kvStoreProvider);
     }
@@ -911,6 +984,21 @@ public class SabotNode implements AutoCloseable {
     @Provides
     InformationSchemaServiceBlockingStub getInformationSchemaServiceBlockingStub(ConduitProvider conduitProvider) {
       return InformationSchemaServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
+    }
+
+    @Provides
+    TreeApiGrpc.TreeApiBlockingStub getNessieTreeApiBlockingStub(ConduitProvider conduitProvider) {
+      return TreeApiGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
+    }
+
+    @Provides
+    ContentsApiGrpc.ContentsApiBlockingStub getNessieContentsApiBlockingStub(ConduitProvider conduitProvider) {
+      return ContentsApiGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
+    }
+
+    @Provides
+    DatasetCatalogServiceBlockingStub getDatasetCatalogServiceBlockingStub(ConduitProvider conduitProvider) {
+      return DatasetCatalogServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
     }
   }
 }

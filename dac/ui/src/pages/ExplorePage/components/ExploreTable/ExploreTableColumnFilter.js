@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { withRouter } from 'react-router';
@@ -31,8 +30,7 @@ import { changePageTypeInUrl } from 'pages/ExplorePage/pageTypeUtils';
 
 import { columnFilterWrapper, searchField, columnStats } from './ExploreTableColumnFilter.less';
 
-@pureRender
-export class ExploreTableColumnFilter extends Component {
+export class ExploreTableColumnFilter extends PureComponent {
 
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,

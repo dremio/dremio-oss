@@ -13,26 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
-import pureRender from 'pure-render-decorator';
 
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import { h2White } from 'uiTheme/radium/typography';
 import { modalPadding } from 'uiTheme/radium/modal';
 
-@pureRender
-export default class ModalHeader extends Component {
+export default class ModalHeader extends PureComponent {
 
   static propTypes = {
     title: PropTypes.string,
     hideCloseButton: PropTypes.bool,
-    hide: PropTypes.func
+    hide: PropTypes.func,
+    className: PropTypes.string,
+    endChildren: PropTypes.node
   };
 
   static defaultProps = {
-    hideCloseButton: false
+    hideCloseButton: false,
+    className: ''
   }
 
   constructor(props) {
@@ -40,10 +41,11 @@ export default class ModalHeader extends Component {
   }
 
   render() {
-    const {title, hide, hideCloseButton} = this.props;
+    const { title, hide, hideCloseButton, className, endChildren } = this.props;
     return (
-      <div className='modal-header' style={styles.base}>
+      <div className={`modal-header ${className}`} style={styles.base}>
         <EllipsedText style={styles.title} text={title} />
+        {endChildren && endChildren}
         {!hideCloseButton && <FontIcon
           type='XBigWhite'
           onClick={hide}
@@ -59,7 +61,6 @@ const styles = {
   base: {
     ...modalPadding,
     height: 44,
-    backgroundColor: '#999999',
     display: 'flex',
     justifyContent: 'space-between',
     flexShrink: 0,

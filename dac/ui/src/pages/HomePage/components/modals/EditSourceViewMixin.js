@@ -18,6 +18,8 @@ import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 import { VIEW_ID } from 'pages/HomePage/components/modals/EditSourceView';
 
+export const additionalMapDispatchToProps = {};
+
 export const mapStateToProps = (state) => {
   const createdSource = getCreatedSource(state); // todo: why is this called "created" source here in "edit"?
   const messages = createdSource && createdSource.getIn(['state', 'messages']);
@@ -34,9 +36,16 @@ export const mapStateToProps = (state) => {
   };
 };
 
+export const getFinalSubmit = (form, sourceType, props) => {
+  return props.createSource(form, sourceType);
+};
+
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
-    mutateFormValues() {
+    mutateFormValues(values) {
+      return values;
+    },
+    fetchData() {
     }
   });
 }

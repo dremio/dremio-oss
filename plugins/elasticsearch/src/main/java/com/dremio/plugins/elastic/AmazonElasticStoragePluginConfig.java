@@ -89,6 +89,10 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
   @DisplayMetadata(label = "Region")
   public String regionName = "";
 
+  @Tag(18)
+  @DisplayMetadata(label = "AWS Profile")
+  public String awsProfile;
+
   public AmazonElasticStoragePluginConfig() {
   }
 
@@ -99,6 +103,7 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       String accessSecret,
       boolean overwriteRegion,
       String regionName,
+      String awsProfile,
       AWSAuthenticationType authenticationType,
       boolean scriptsEnabled,
       boolean showHiddenIndices,
@@ -118,6 +123,7 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
     this.accessSecret = accessSecret;
     this.overwriteRegion = overwriteRegion;
     this.regionName = regionName;
+    this.awsProfile = awsProfile;
     this.authenticationType = authenticationType;
   }
 
@@ -145,17 +151,31 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       case EC2_METADATA:
         authenticationType = ElasticsearchConf.AuthenticationType.EC2_METADATA;
         break;
+      case AWS_PROFILE:
+        authenticationType = ElasticsearchConf.AuthenticationType.AWS_PROFILE;
+        break;
       default:
         authenticationType = ElasticsearchConf.AuthenticationType.NONE;
         break;
     }
-    ElasticsearchConf elasticsearchConf = new ElasticsearchConf(hostList, "",
-      "", amazonElasticStoragePluginConfig.accessKey, amazonElasticStoragePluginConfig.accessSecret,
+    ElasticsearchConf elasticsearchConf = new ElasticsearchConf(
+      hostList,
+      "",
+      "",
+      amazonElasticStoragePluginConfig.accessKey,
+      amazonElasticStoragePluginConfig.accessSecret,
       amazonElasticStoragePluginConfig.overwriteRegion ? amazonElasticStoragePluginConfig.regionName : "",
-      authenticationType, amazonElasticStoragePluginConfig.scriptsEnabled,
-      amazonElasticStoragePluginConfig.showHiddenIndices, true, amazonElasticStoragePluginConfig.showIdColumn,
-      amazonElasticStoragePluginConfig.readTimeoutMillis, amazonElasticStoragePluginConfig.scrollTimeoutMillis,
-      amazonElasticStoragePluginConfig.usePainless, true, amazonElasticStoragePluginConfig.scrollSize,
+      amazonElasticStoragePluginConfig.awsProfile,
+      authenticationType,
+      amazonElasticStoragePluginConfig.scriptsEnabled,
+      amazonElasticStoragePluginConfig.showHiddenIndices,
+      true,
+      amazonElasticStoragePluginConfig.showIdColumn,
+      amazonElasticStoragePluginConfig.readTimeoutMillis,
+      amazonElasticStoragePluginConfig.scrollTimeoutMillis,
+      amazonElasticStoragePluginConfig.usePainless,
+      true,
+      amazonElasticStoragePluginConfig.scrollSize,
       amazonElasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
       amazonElasticStoragePluginConfig.warnOnRowCountMismatch,
       amazonElasticStoragePluginConfig.encryptionValidationMode);

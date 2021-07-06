@@ -16,9 +16,11 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
+import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_REMOVE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PATH;
+import static com.dremio.exec.store.deltalake.DeltaConstants.VERSION;
 import static org.apache.parquet.hadoop.ParquetFileWriter.MAGIC;
 
 import java.io.FileNotFoundException;
@@ -59,6 +61,8 @@ import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyScanOperatorCreator;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
+import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
+import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.easy.json.JSONRecordReader;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.exec.store.parquet.BulkInputStream;
@@ -70,6 +74,7 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -195,7 +200,7 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
 
   private boolean readingAddLogsOfPartitionedDataset(EasySubScan scanConfig, List<SchemaPath> columns) {
     return CollectionUtils.isNotEmpty(scanConfig.getPartitionColumns()) && // partitioned table
-      columns.contains(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PATH)); /* scanning for 'add' logs */
+      !columns.contains(SchemaPath.getCompoundPath(DELTA_FIELD_REMOVE, SCHEMA_PATH)); /* not scanning for 'remove' logs */
   }
 
   @Override
@@ -228,10 +233,17 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
                                                       List<SchemaPath> innerFields, EasySubScan easyScanConfig,
                                                       List<EasyScanOperatorCreator.SplitAndExtended> workList) {
     final DeltaCheckpointParquetSplitReaderCreator parquetSplitReaderCreator = new DeltaCheckpointParquetSplitReaderCreator(fs, opCtx, easyScanConfig);
+
     final Stream<RecordReader> readers = workList.stream().map(input -> {
               try {
                 final EasyProtobuf.EasyDatasetSplitXAttr easyXAttr = input.getExtended();
                 final Path inputFilePath = Path.of(easyXAttr.getPath());
+
+                DeltaLakeProtobuf.DeltaCommitLogSplitXAttr deltaExtended;
+                deltaExtended = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr.parseFrom(easyXAttr.getExtendedProperty());
+
+                final long version = deltaExtended.getVersion();
+                RecordReader deltaRecordReader;
 
                 if (!fs.supportsPath(inputFilePath)) {
                   throw UserException.invalidMetadataError()
@@ -245,11 +257,19 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
 
                 final boolean addWithPartitionCols = readingAddLogsOfPartitionedDataset(easyScanConfig, innerFields);
                 if (easyXAttr.getPath().endsWith("json")) {
-                  return getCommitJsonRecordReader(fs, opCtx, easyScanConfig, addWithPartitionCols, easyXAttr, innerFields);
+                  deltaRecordReader =  getCommitJsonRecordReader(fs, opCtx, easyScanConfig, addWithPartitionCols, easyXAttr, innerFields);
                 } else {
-                  return parquetSplitReaderCreator.getParquetRecordReader(input, addWithPartitionCols);
+                  deltaRecordReader = parquetSplitReaderCreator.getParquetRecordReader(input, addWithPartitionCols);
                 }
-              } catch (ExecutionSetupException e) {
+                //Wrap the record reader to have the version column as additional columns
+                return new AdditionalColumnsRecordReader(opCtx, deltaRecordReader, Arrays.asList(new ConstantColumnPopulators.BigIntNameValuePair(VERSION, version)), context.getAllocator());
+              }
+              catch (com.google.protobuf.InvalidProtocolBufferException e) {
+                throw UserException.dataReadError()
+                  .addContext("Unable to retrive version info of commit ", input.getExtended().getPath())
+                  .build(logger);
+              }
+              catch (ExecutionSetupException e) {
                 if (e.getCause() instanceof FileNotFoundException) {
                   throw UserException.invalidMetadataError(e.getCause())
                           .addContext("File not found")

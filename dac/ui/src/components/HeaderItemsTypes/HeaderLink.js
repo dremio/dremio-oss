@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { Link } from 'react-router';
 
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
@@ -25,8 +24,7 @@ import { bodyWhite } from 'uiTheme/radium/typography';
 
 import './HeaderLink.less';
 
-@pureRender
-export default class HeaderLink extends Component {
+export default class HeaderLink extends PureComponent {
   static propTypes = {
     children: PropTypes.node,
     to: PropTypes.string.isRequired

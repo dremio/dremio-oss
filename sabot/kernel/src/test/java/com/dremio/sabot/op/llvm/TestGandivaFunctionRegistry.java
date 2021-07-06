@@ -133,6 +133,35 @@ public class TestGandivaFunctionRegistry extends ExecTest {
     System.out.println("Total : " + totalFuncs + " unSupported : " + unSupportedFn);
   }
 
+  @Test
+  public void getAllGandivaFunctions() throws GandivaException {
+    Set<FunctionSignature> supportedFunctions = ExpressionRegistry.getInstance()
+      .getSupportedFunctions();
+    for (FunctionSignature signature : supportedFunctions ) {
+      StringBuilder fnName = new StringBuilder((signature.getName().toLowerCase()));
+      for (ArrowType param : signature.getParamTypes()) {
+        fnName.append("##").append(param.toString());
+      }
+      System.out.println(("function signature registered in gandiva : " +  fnName));
+    }
+    System.out.println("Total functions in Gandiva : " + supportedFunctions.size());
+  }
+
+  @Test
+  public void getAllDremioJavaFunctions() {
+    ArrayListMultimap<String, AbstractFunctionHolder> functionMap = new FunctionImplementationRegistry(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT)
+      .getFunctionRegistry().getRegisteredFunctions();
+    for (Map.Entry<String, AbstractFunctionHolder> e : functionMap.entries()) {
+      AbstractFunctionHolder functionHolder = e.getValue();
+      StringBuilder fnName = new StringBuilder(e.getKey());
+      for (int i = 0; i < functionHolder.getParamCount(); ++i) {
+        fnName.append("##").append(functionHolder.getParamType(i));
+      }
+      System.out.println(fnName);
+    }
+    System.out.println("Total # of functions: " + functionMap.size());
+  }
+
   private boolean isFunctionSupported(String name, BaseFunctionHolder holder, Set<String> fns) throws
     GandivaException {
     String fnToSearch = FunctionCallFactory.replaceOpWithFuncName(name) + "##";

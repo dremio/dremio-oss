@@ -45,6 +45,7 @@ import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
+import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
@@ -323,7 +324,7 @@ public class FragmentWorkManager implements Service, SafeExit {
         executor,
         bitContext.getOptionManager(),
         connectionCreator,
-        bitContext.getClasspathScan(),
+        new OperatorCreatorRegistry(bitContext.getClasspathScan()),
         bitContext.getPlanReader(),
         bitContext.getNamespaceService(SystemUser.SYSTEM_USERNAME),
         sources.get(),

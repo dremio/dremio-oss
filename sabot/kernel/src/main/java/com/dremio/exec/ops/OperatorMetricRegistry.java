@@ -79,6 +79,8 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.NESTED_LOOP_JOIN_VALUE, NLJEOperator.Metric.class);
     register(builder, CoreOperatorType.TABLE_FUNCTION_VALUE, Arrays.asList(ScanOperator.Metric.class, TableFunctionOperator.Metric.class));
     register(builder, CoreOperatorType.DELTALAKE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.ICEBERG_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.MANIFEST_WRITER_VALUE, ParquetRecordWriter.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

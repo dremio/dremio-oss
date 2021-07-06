@@ -56,7 +56,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
@@ -232,13 +231,9 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         logger.warn("Invalid Arrow Schema", e);
       }
 
-      boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
-      if (!schemaHelper.isAllowMixedDecimals() && !mixedTypesDisabled) {
-        verifyDecimalTypesAreSame(output, columnResolver);
-      }
+      verifyDecimalTypesAreSame(output, columnResolver);
 
       MessageType projection;
-
       if (isStarQuery()) {
         projection = schema;
       } else {
@@ -322,7 +317,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       Field fieldInSchema = vector.getField();
       try {
         areDecimalTypesCompatible(schema.getType(columnResolver.getParquetColumnName(
-          fieldInSchema.getName())), fieldInSchema);
+          fieldInSchema.getName())), fieldInSchema, output);
       } catch (InvalidRecordException e) {
         // the field in Arrow schema may not be present in Hive schema
       }
@@ -334,7 +329,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
    *
    * @throws UserException if file and table have incompatible decimals (different scale and/or precision)
    */
-  private void areDecimalTypesCompatible(Type fileType, Field tableType) {
+  private void areDecimalTypesCompatible(Type fileType, Field tableType, OutputMutator output) {
     Preconditions.checkArgument(tableType != null, "Invalid argument");
 
     // ignore if there is no corresponding field in file
@@ -350,11 +345,15 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       // throw exception if both file and table types are incompatible decimals (decimals with different scale and/or precision)
       if (areFileAndTableTypesPrimitiveDecimals(fieldTypeInTable, fileType)
         && !areDecimalTypesEqual(fieldTypeInTable, logicalTypeInFile)) {
+        if (!schemaHelper.allowMixedDecimals()) {
           final String errorMessage = String.format("Mixed types %s and %s for field \"%s\" are not supported",
             tableType.getType().toString().toLowerCase(), logicalTypeInFile.toString().toLowerCase(), fileType.getName());
           throw UserException.schemaChangeError()
             .message(errorMessage)
             .build(logger);
+        }
+        // set schema change flag so that preview reader can stop reading the file
+        output.getCallBack().doWork();
       }
 
       // ignore if they are both compatible primitive decimals or at least one of them is not a decimal
@@ -373,7 +372,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     if (isFileFieldListType(logicalTypeInFile)) {
       areDecimalTypesCompatible(
         fileTypeChildren.get(0).asGroupType().getType(0),
-        tableTypeChildren.get(0));
+        tableTypeChildren.get(0), output);
     }
 
     // if table contains a struct, recursively check all the children
@@ -385,7 +384,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       );
       for (Field tableField : tableType.getChildren()) {
         areDecimalTypesCompatible(fileFieldChildren.getOrDefault(
-          tableField.getName().toLowerCase(), null), tableField);
+          tableField.getName().toLowerCase(), null), tableField, output);
       }
     }
   }

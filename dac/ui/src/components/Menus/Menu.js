@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
+import React, { PureComponent } from 'react';
 import MenuList from '@material-ui/core/MenuList';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import DividerHr from './DividerHr';
 
-@pureRender
-export default class Menu extends Component {
+export default class Menu extends PureComponent {
   static propTypes = {
     children: PropTypes.node,
     style: PropTypes.object

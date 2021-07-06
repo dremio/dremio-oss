@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.hadoop.HadoopTables;
 
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
@@ -48,6 +47,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.file.proto.FileProtobuf;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -95,11 +95,17 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
     return type;
   }
 
+  public FileConfig getFileConfig() {
+    return PhysicalDatasetUtils.toFileFormat(formatPlugin).asFileConfig().setLocation(fileSelection.getSelectionRoot());
+  }
+
   @Override
   public DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException {
-    Table table = (new HadoopTables(this.fsPlugin.getFsConfCopy())).load(fileSelection.getSelectionRoot());
+    IcebergModel icebergModel = this.fsPlugin.getIcebergModel();
+    Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
     BatchSchema batchSchema = SchemaConverter.fromIceberg(table.schema());
     long numRecords = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-records", "0"));
+    long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
 
     return new FileConfigMetadata() {
 
@@ -111,6 +117,11 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
       @Override
       public DatasetStats getDatasetStats() {
         return DatasetStats.of(numRecords, true, ScanCostFactor.PARQUET.getFactor());
+      }
+
+      @Override
+      public DatasetStats getManifestStats() {
+        return DatasetStats.of(numDataFiles, ScanCostFactor.EASY.getFactor());
       }
 
       @Override
@@ -145,7 +156,7 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
   }
 
   @Override
-  public PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options) throws ConnectorException {
+  public PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options) {
     List<PartitionValue> partition = Collections.emptyList();
     EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
       .setPath(fileSelection.getSelectionRoot())

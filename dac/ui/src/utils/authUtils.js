@@ -19,7 +19,8 @@ import config from 'dyn-load/utils/config';
 import { getUser } from '@app/reducers';
 
 export const Capabilities = {
-  manageSpaces: 'MANAGE_SPACES'
+  manageSpaces: 'MANAGE_SPACES',
+  manageSources: 'MANAGE_SOURCES'
 };
 
 export const authInfoPropType = PropTypes.shape({
@@ -37,50 +38,17 @@ export const getAuthInfoSelector = state => {
   };
 };
 
-export const check = (capability, authInfo) => {
-  let checkResult = false;
-
-  switch (capability) {
-  case Capabilities.manageSpaces:
-    checkResult = authInfo.isAdmin || !!authInfo.allowSpaceManagement;
-    break;
-  default:
-    throw `Not supported capability type: '${capability}'`;
-  }
-
-  return checkResult;
-};
-
 export const rulePropType = PropTypes.shape({
   capabilities: PropTypes.arrayOf(PropTypes.oneOf(Object.values(Capabilities))),
   isAdmin: PropTypes.bool
 });
 
 export const isAuthorized = (/* rule */ {
-  capabilities = [],
   isAdmin = false
 }, // see authInfoPropType for format
 authInfo // see rulePropType for format
 ) => {
-  let result = false;
-
-  if (isAdmin) {
-    if (authInfo.isAdmin) {
-      result = true;
-    }
-  }
-
-  if (!result && capabilities && capabilities.length) { // check capabilities if any presented in the rule
-    result = true;
-    capabilities.forEach(capability => {
-      if (!check(capability, authInfo)) {
-        result = false;
-        return false;
-      }
-    });
-  }
-
-  return result;
+  return isAdmin && authInfo.isAdmin;
 };
 
 /**
@@ -92,5 +60,6 @@ export const manageSpaceRule = {
 };
 
 export const manageSourceRule = {
+  capabilities: [Capabilities.manageSources],
   isAdmin: true // only admins are allowed to edit/remove source
 };

@@ -117,7 +117,12 @@ public final class JoinAnalyzer {
       .transform(new Function<OperatorProfile, Long>() {
         @Override
         public Long apply(OperatorProfile operatorProfile) {
-          return findMetric(operatorProfile, metricId);
+          try {
+            return findMetric(operatorProfile, metricId);
+          } catch (Exception ex) {
+            logger.debug("Failed to get metric value from operator id: {} and metric id: {}", operatorProfile.getOperatorId(), metricId);
+            return 0L;
+          }
         }
       })) {
       totalCount += count;

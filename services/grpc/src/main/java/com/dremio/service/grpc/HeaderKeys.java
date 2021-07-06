@@ -24,6 +24,9 @@ public class HeaderKeys {
   public static final Metadata.Key<String> PROJECT_ID_HEADER_KEY =
     Metadata.Key.of("x-dremio-project-id-key", Metadata.ASCII_STRING_MARSHALLER);
 
+  public static final Metadata.Key<String> TOKEN_HEADER_KEY =
+    Metadata.Key.of("x-dremio-token-key", Metadata.ASCII_STRING_MARSHALLER);
+
   public static final Metadata.Key<String> ORG_ID_HEADER_KEY =
     Metadata.Key.of("x-dremio-org-id-key", Metadata.ASCII_STRING_MARSHALLER);
 

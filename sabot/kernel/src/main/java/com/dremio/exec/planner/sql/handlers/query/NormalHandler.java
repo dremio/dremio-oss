@@ -47,7 +47,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.cache.Cache;
 
 /**
@@ -62,24 +62,25 @@ public class NormalHandler implements SqlToPlanHandler {
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     try{
       final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+      final PlanCache planCache = config.getContext().getPlanCache();
+      final Cache<Long, CachedPlan> cachedPlans = (planCache != null) ? planCache.getCachePlans():null;
+      final long cachedKey = planCache.generateCacheKey(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
+        config.getContext().getWorkloadType().name());
+      config.getObserver().setCacheKey(cachedKey);
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
       ViewAccessEvaluator viewAccessEvaluator = null;
-      final PlanCache planCache = config.getContext().getPlanCache();
-      final Cache<Long, CachedPlan> cachedPlans = (planCache != null) ? planCache.getCachePlans():null;
-      final long cachedKey = planCache.generateCacheKey(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
-                                            config.getContext().getWorkloadType().name());
+      if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
+        final RelNode convertedRelWithExpansionNodes = ((DremioVolcanoPlanner) queryRelNode.getCluster().getPlanner()).getOriginalRoot();
+        viewAccessEvaluator = new ViewAccessEvaluator(convertedRelWithExpansionNodes, config);
+        config.getContext().getExecutorService().submit(viewAccessEvaluator);
+      }
       final Catalog catalog = config.getContext().getCatalog();
       CachedPlan cachedPlan = (cachedPlans != null) ? planCache.getIfPresentAndValid(catalog, cachedKey) : null;
       Prel prel;
+      boolean supportPlanCache = config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable();
       if (!plannerSettings.isPlanCacheEnabled() || cachedPlan == null) {
-        if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
-          final RelNode convertedRelWithExpansionNodes = ((DremioVolcanoPlanner) queryRelNode.getCluster().getPlanner()).getOriginalRoot();
-          viewAccessEvaluator = new ViewAccessEvaluator(convertedRelWithExpansionNodes, config);
-          config.getContext().getExecutorService().submit(viewAccessEvaluator);
-        }
-
         final Rel drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
 
         final Pair<Prel, String> convertToPrel = PrelTransformer.convertToPrel(config, drel);
@@ -87,21 +88,30 @@ public class NormalHandler implements SqlToPlanHandler {
         textPlan = convertToPrel.getValue();
 
         //after we generate a physical plan, save it in the plan cache if plan cache is present
-        if(plannerSettings.isPlanCacheEnabled() && planCache!= null && cachedPlans!= null) {
-          cachedPlans.put(cachedKey, CachedPlan.createCachedPlan(sql, prel, prel.getEstimatedSize()));
+        if(plannerSettings.isPlanCacheEnabled() && planCache!= null && cachedPlans!= null && supportPlanCache) {
+          boolean isPlanCacheable = false;
           Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
           for (DremioTable dataset : datasets) {
             if (dataset instanceof NamespaceTable) {
-              PhysicalDataset physicalDataset = dataset.getDatasetConfig().getPhysicalDataset();
-              if (physicalDataset != null) {
-                planCache.addCacheToDatasetMap(physicalDataset, cachedKey);
+              DatasetConfig datasetConfig = dataset.getDatasetConfig();
+              if (datasetConfig.getPhysicalDataset() != null) {
+                planCache.addCacheToDatasetMap(datasetConfig.getId().getId(), cachedKey);
+                isPlanCacheable = true;
               }
             }
+          }
+          if (isPlanCacheable) {
+            CachedPlan newCachedPlan = CachedPlan.createCachedPlan(sql, prel, prel.getEstimatedSize());
+            config.getObserver().setCachedSubstitutionInfo(newCachedPlan);
+            cachedPlans.put(cachedKey, newCachedPlan);
           }
         }
       } else {
         prel = cachedPlan.getPrel();
         cachedPlan.updateUseCount();
+        if (cachedPlan.getSubstitutionInfo() != null) {
+          config.getObserver().planAccelerated(cachedPlan.getSubstitutionInfo());
+        }
         config.getObserver().planCacheUsed(cachedPlan.getUseCount());
         //update writer if needed
         final OptionManager options = config.getContext().getOptions();

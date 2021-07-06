@@ -13,9 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+export const additionalMapDispatchToProps = {};
+export const mapStateToProps = () => {
+  return null;
+};
+
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
-    mutateFormValues() {
+    mutateFormValues(values) {
+      return values;
+    },
+    modifyFormJson() {
+    },
+    fetchData() {
     }
   });
 }

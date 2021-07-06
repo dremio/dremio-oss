@@ -74,6 +74,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
@@ -194,7 +195,22 @@ public class FormatTools {
     }
 
     if(attributes.isRegularFile()) {
-      return asFormat(key, path, false);
+      FileFormat fileFormat = asFormat(key, path, false, null);
+      if(fileFormat.getFileType() != FileType.UNKNOWN) {
+        return fileFormat;
+      }
+
+      try {
+        fileFormat = plugin.findFileFormatMatch(fs, attributes);
+        if (fileFormat != null) {
+          return asFormat(key, path,false, fileFormat);
+        }
+      } catch(IOException ex) {
+        // we could return unknown but if there no files, what's the point.
+        throw UserException.ioExceptionError(ex)
+          .message("No files detected or unable to read file format with selected option.")
+          .build(logger);
+      }
     }
 
     // was something other than file.
@@ -204,7 +220,7 @@ public class FormatTools {
           continue;
         }
 
-        return asFormat(key, child.getPath(), true);
+        return asFormat(key, child.getPath(), true, null);
       }
 
       // if we fall through, we didn't find any files.
@@ -239,7 +255,7 @@ public class FormatTools {
     };
   }
 
-  private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder) {
+  private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder, FileFormat fileFormat) {
 
     String name = path.getName();
     if(name.endsWith(".zip")) {
@@ -250,11 +266,19 @@ public class FormatTools {
       name = name.substring(0, name.length() - 3);
     }
 
+    FileType fileType;
+    if(fileFormat == null) {
+      fileType = FileFormat.getFileFormatType(Collections.singletonList(FilenameUtils.getExtension(name)));
+    } else {
+      fileType = fileFormat.getFileType();
+    }
+
+
     final FileConfig config = new FileConfig()
         .setCtime(System.currentTimeMillis())
         .setFullPathList(key.getPathComponents())
         .setName(key.getName())
-        .setType(FileFormat.getFileFormatType(Collections.singletonList(FilenameUtils.getExtension(name))))
+        .setType(fileType)
         .setTag(null);
     return isFolder ? FileFormat.getForFolder(config) : FileFormat.getForFile(config);
   }
@@ -361,6 +385,10 @@ public class FormatTools {
             continue readersLoop;
           }
           reader.setup(mutator);
+          if (!first && mutator.getSchemaChanged()) {
+            // let's stop early and not add this data. For format preview we'll just show data until a schema change.
+            break;
+          }
 
           int output = 0;
 
@@ -402,6 +430,13 @@ public class FormatTools {
             }
           }
         }
+      }
+
+      if (batches.size() == 0) {
+        // add an empty batch
+        container.buildSchema();
+        container.setRecordCount(0);
+        batches.add();
       }
 
       data = new ReleasingData(cls, batches);

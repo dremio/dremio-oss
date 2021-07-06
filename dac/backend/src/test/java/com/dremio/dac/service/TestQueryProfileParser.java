@@ -44,7 +44,7 @@ public class TestQueryProfileParser extends BaseTestServer {
 
   @Test
   public void testQueryParser() throws Exception {
-    TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
+    TestSpacesStoragePlugin.setup();
 
     getPreview(getDataset(new DatasetPath("testA.dsA1")));
     final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()

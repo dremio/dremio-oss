@@ -64,7 +64,9 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
         return visit(prel, ((HashToMergeExchangePrel) prel).getDistFields(), child);
       }
       if (prel instanceof HashToRandomExchangePrel) {
-        return visit(prel, ((HashToRandomExchangePrel) prel).getFields(), child, ((HashToRandomExchangePrel) prel).getHashFunctionName());
+        HashToRandomExchangePrel hashToRandomExchangePrel = (HashToRandomExchangePrel) prel;
+        return visit(hashToRandomExchangePrel, hashToRandomExchangePrel.getFields(), child,
+          hashToRandomExchangePrel.getHashFunctionName(), hashToRandomExchangePrel.assignFromTableFunction());
       }
     }
 
@@ -72,16 +74,18 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
   }
 
   private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child) {
-    return visit(hashPrel, fields, child, HashPrelUtil.HASH32_FUNCTION_NAME);
+    return visit(hashPrel, fields, child, HashPrelUtil.HASH32_FUNCTION_NAME, false);
   }
 
-  private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child, String hashFunctionName) {
+  private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child,
+                     String hashFunctionName, boolean assignFromTableFunction) {
     final List<String> childFields = child.getRowType().getFieldNames();
 
 
-    // Insert Project SqlOperatorImpl with new column that will be a hash for HashToRandomExchange fields
-    final ProjectPrel addColumnprojectPrel = HashPrelUtil.addHashProject(fields, child, null, hashFunctionName);
-    final Prel newPrel = (Prel) hashPrel.copy(hashPrel.getTraitSet(), Collections.<RelNode>singletonList(addColumnprojectPrel));
+    // Insert Project/TableFunction SqlOperatorImpl with new column that will be a hash for HashToRandomExchange fields
+    final Prel addHashColumnPrel = assignFromTableFunction ? HashPrelUtil.addSplitAssignTableFunction(child)
+      : HashPrelUtil.addHashProject(fields, child, null, hashFunctionName);
+    final Prel newPrel = (Prel) hashPrel.copy(hashPrel.getTraitSet(), Collections.<RelNode>singletonList(addHashColumnPrel));
 
     int validRows = newPrel.getRowType().getFieldCount() - 1;
     final List<RelDataTypeField> all = newPrel.getRowType().getFieldList();

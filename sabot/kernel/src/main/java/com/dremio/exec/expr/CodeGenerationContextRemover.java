@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -66,6 +68,18 @@ public class CodeGenerationContextRemover extends AbstractExprVisitor<LogicalExp
     IfExpression.IfCondition newCondition = new IfExpression.IfCondition(conditionExpression,
       thenExpression);
     return IfExpression.newBuilder().setIfCondition(newCondition).setElse(elseExpression).build();
+  }
+
+  @Override
+  public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+    List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+    for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+      caseConditions.add(new CaseExpression.CaseConditionNode(
+        conditionNode.whenExpr.accept(this, value),
+        conditionNode.thenExpr.accept(this, value)));
+    }
+    LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, value);
+    return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
   }
 
   @Override

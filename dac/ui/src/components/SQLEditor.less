@@ -26,22 +26,28 @@
     opacity: 0.4;
   }
 
-  .monaco-editor .mtk4 {
-    color: #a100ff;
-  }
+  .monaco-editor {
+    .mtk4 {
+      color: #a100ff;
+    }
+    
+    .margin {
+      margin: 0 !important;
+    }
 
-  .monaco-editor .dremio-error-line {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    .dremio-error-line {
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-    //circle
-    &:before {
-      content: '';
-      display: block;
-      width: 2px;
-      height: 100%;
-      background: @monaco-error;
+      //circle
+      &:before {
+        content: '';
+        display: block;
+        width: 2px;
+        height: 100%;
+        background: @monaco-error;
+      }
     }
   }
 

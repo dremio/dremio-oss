@@ -13,24 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import mergeWith from 'lodash/mergeWith';
 
-import { createSource, loadSource, removeSource } from 'actions/resources/sources';
+import { createSource, loadSource, removeSource, updateSourcePrivileges } from 'actions/resources/sources';
 import sourcesMapper from 'utils/mappers/sourcesMapper';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import FormUtils from 'utils/FormUtils/FormUtils';
 import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
 import { showConfirmationDialog } from 'actions/confirmation';
+import { passDataBetweenTabs } from 'actions/modals/passDataBetweenTabs.js';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import Message from 'components/Message';
 import ConfigurableSourceForm from 'pages/HomePage/components/modals/ConfigurableSourceForm';
 
-import EditSourceViewMixin, { mapStateToProps } from 'dyn-load/pages/HomePage/components/modals/EditSourceViewMixin';
+import EditSourceViewMixin, {
+  mapStateToProps,
+  additionalMapDispatchToProps,
+  getFinalSubmit
+} from '@inject/pages/HomePage/components/modals/EditSourceViewMixin';
 import { isExternalSourceType } from '@app/constants/sourceTypes';
 
 import { viewStateWrapper } from 'uiTheme/less/forms.less';
@@ -50,14 +54,14 @@ export const processUiConfig = (uiConfig) => {
   };
 };
 
-@pureRender
 @EditSourceViewMixin
-export class EditSourceView extends Component {
+export class EditSourceView extends PureComponent {
   static propTypes = {
     sourceName: PropTypes.string.isRequired,
     sourceType: PropTypes.string.isRequired,
     hide: PropTypes.func.isRequired,
     createSource: PropTypes.func.isRequired,
+    updateSourcePrivileges: PropTypes.func,
     removeSource: PropTypes.func.isRequired,
     loadSource: PropTypes.func,
     messages: PropTypes.instanceOf(Immutable.List),
@@ -65,14 +69,16 @@ export class EditSourceView extends Component {
     source: PropTypes.instanceOf(Immutable.Map),
     initialFormValues: PropTypes.object,
     updateFormDirtyState: PropTypes.func,
-    showConfirmationDialog: PropTypes.func
+    showConfirmationDialog: PropTypes.func,
+    passDataBetweenTabs: PropTypes.func
   };
 
   constructor() {
     super();
     this.state = {
       isConfigLoaded: false,
-      selectedFormType: {}
+      selectedFormType: {},
+      isFileSystemSource: false
     };
   }
 
@@ -82,28 +88,34 @@ export class EditSourceView extends Component {
   };
 
   state = {
-    didLoadFail: false
+    didLoadFail: false,
+    errorMessage: 'Failed to load source configuration.'
   };
 
-  componentWillMount() {
+  componentDidMount() {
     const { sourceName, sourceType } = this.props;
     this.props.loadSource(sourceName, VIEW_ID);
+    this.fetchData();
     this.setStateWithSourceTypeConfigFromServer(sourceType);
   }
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
     ApiUtils.fetchJson(`source/type/${typeCode}`, json => {
       const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(json));
-      this.setState({isTypeSelected: true, isConfigLoaded: true, selectedFormType: combinedConfig});
+      const isFileSystemSource = combinedConfig.metadataRefresh;
+      this.setState({isTypeSelected: true, isConfigLoaded: true, selectedFormType: combinedConfig, isFileSystemSource: isFileSystemSource.isFileSystemSource, isExternalQueryAllowed: json.externalQueryAllowed});
     }, () => {
       this.setState({didLoadFail: true});
-    });
+    })
+      .finally(() => {
+        this.props.passDataBetweenTabs({isFileSystemSource: this.state.isFileSystemSource, isExternalQueryAllowed: this.state.isExternalQueryAllowed});
+      });
   }
 
   reallySubmitEdit = (form, sourceType) => {
     const url = isExternalSourceType(sourceType) ? '/sources/external/list' : '/sources/datalake/list';
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.createSource(form, sourceType)
+      getFinalSubmit(form, sourceType, this.props)
     ).then(() => {
       this.context.router.replace(url);
     });
@@ -125,10 +137,10 @@ export class EditSourceView extends Component {
   submitEdit = (form) => {
     const { sourceType } = this.props;
 
-    this.mutateFormValues(form);
+    const formData = this.mutateFormValues(form);
 
     return ApiUtils.attachFormSubmitHandlers(new Promise((resolve, reject) => {
-      const sourceModel = sourcesMapper.newSource(sourceType, form);
+      const sourceModel = sourcesMapper.newSource(sourceType, formData);
       this.checkIsMetadataImpacting(sourceModel)
         .then((data) => {
           if (data && data.isMetadataImpacting) {
@@ -138,12 +150,12 @@ export class EditSourceView extends Component {
               confirmText: la('Confirm'),
               dataQa: 'metadata-impacting',
               confirm: () => {
-                this.reallySubmitEdit(form, sourceType).then(resolve).catch(reject);
+                this.reallySubmitEdit(formData, sourceType).then(resolve).catch(reject);
               },
               cancel: reject
             });
           } else {
-            this.reallySubmitEdit(form, sourceType).then(resolve).catch(reject);
+            this.reallySubmitEdit(formData, sourceType).then(resolve).catch(reject);
           }
         }).catch(reject);
     }));
@@ -172,7 +184,7 @@ export class EditSourceView extends Component {
     let vs = viewState;
 
     if (this.state.didLoadFail) {
-      vs = new Immutable.fromJS({isFailed: true, error: {message: la('Failed to load source configuration.')}});
+      vs = new Immutable.fromJS({isFailed: true, error: {message: this.state.errorMessage}});
     }
 
     return <ViewStateWrapper viewState={vs} className={viewStateWrapper}>
@@ -188,6 +200,8 @@ export class EditSourceView extends Component {
         fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
         validate={FormUtils.getValidationsFromConfig(this.state.selectedFormType)}
         initialValues={initValues}
+        permissions={source.get('permissions')}
+        EntityType='source'
       />}
     </ViewStateWrapper>;
   }
@@ -197,8 +211,11 @@ export class EditSourceView extends Component {
 export default connect(mapStateToProps, {
   loadSource,
   createSource,
+  updateSourcePrivileges,
   removeSource,
-  showConfirmationDialog
+  showConfirmationDialog,
+  passDataBetweenTabs,
+  ...additionalMapDispatchToProps
 })(EditSourceView);
 
 function arrayAsPrimitiveMerger(objValue, srcValue) {

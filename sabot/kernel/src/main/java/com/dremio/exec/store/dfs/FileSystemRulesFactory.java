@@ -86,7 +86,6 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   private static class EasyFilesystemScanPrule extends ConverterRule {
-
     public EasyFilesystemScanPrule(SourceType pluginType) {
       super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "EasyFileSystemScanPrule");
     }
@@ -120,10 +119,10 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       if (context.getPlannerSettings().getOptions().getOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION)) {
         FilesystemScanDrel drel = (FilesystemScanDrel) rel;
-        boolean singleton = !drel.getTableMetadata().getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) && drel.getTableMetadata().getSplitCount() == 1;
-        return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL).plus(singleton ? DistributionTrait.SINGLETON : DistributionTrait.ANY),
+        return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
                 drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-                drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter());
+                drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(),
+                drel.getPartitionFilter());
       } else {
         FilesystemScanDrel drel = (FilesystemScanDrel) rel;
         return new ParquetScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
@@ -200,14 +199,14 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   private static boolean isIcebergDataset(TableMetadata datasetPointer) {
-    return datasetPointer.getFormatSettings().getType() == FileType.ICEBERG;
+    return datasetPointer.getFormatSettings() != null && datasetPointer.getFormatSettings().getType() == FileType.ICEBERG;
   }
 
   private static boolean isDeltaLakeDataset(TableMetadata datasetPointer) {
-    return datasetPointer.getFormatSettings().getType() == FileType.DELTA;
+    return datasetPointer.getFormatSettings() != null && datasetPointer.getFormatSettings().getType() == FileType.DELTA;
   }
 
   private static boolean isParquetDataset(TableMetadata datasetPointer) {
-    return DatasetHelper.hasParquetDataFiles(datasetPointer.getFormatSettings());
+    return datasetPointer.getFormatSettings() != null && DatasetHelper.hasParquetDataFiles(datasetPointer.getFormatSettings());
   }
 }

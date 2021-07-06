@@ -27,6 +27,8 @@ import static com.dremio.common.expression.CompleteType.VARBINARY;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,6 +44,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.BinaryType;
 import org.apache.iceberg.types.Types.BooleanType;
@@ -68,8 +71,11 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.FieldIdBroker.SeededFieldIdBroker;
 import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
+import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.test.DremioTest;
 
 public class TestSchemaConverter extends DremioTest {
@@ -240,9 +246,15 @@ public class TestSchemaConverter extends DremioTest {
 
     String rootPath = folder.getRoot().toString();
     Configuration conf = new Configuration();
-    IcebergCatalog catalog = new IcebergCatalog(rootPath, conf);
-    catalog.beginCreateTable("testTableName", schema, Collections.emptyList());
-    catalog.endCreateTable();
+
+    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+    when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+
+    IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter("testTableName",
+            icebergHadoopModel.getTableIdentifier(rootPath), schema, Collections.emptyList());
+    createTableCommitter.commit();
+
 
     Table table = new HadoopTables(conf).load(rootPath);
     assertEquals(expectedSchema.toString(), table.schema().toString());
@@ -309,7 +321,7 @@ public class TestSchemaConverter extends DremioTest {
     assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
 
     FieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
-    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+    assertEquals(icebergSchema.toString(), TypeUtil.assignIncreasingFreshIds(SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker)).toString());
   }
 
   @Test

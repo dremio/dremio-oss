@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
@@ -22,9 +21,7 @@ import menuUtils from 'utils/menuUtils';
 
 import MenuItem from './../MenuItem';
 
-@pureRender
-
-export default class ColumnMenuItem extends Component {
+export default class ColumnMenuItem extends PureComponent {
   static propTypes = {
     disabled: PropTypes.bool,
     columnType: PropTypes.string,

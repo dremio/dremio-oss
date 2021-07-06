@@ -27,14 +27,26 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExternalResource;
 
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.daemon.DACDaemonModule;
-import com.dremio.dac.server.tracing.TracingUtils;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.telemetry.api.Telemetry;
+import com.dremio.telemetry.impl.config.tracing.sampler.SpanAttributeBasedSampler;
 import com.dremio.telemetry.utils.TracerFacade;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentracing.Tracer;
 import io.opentracing.mock.MockTracer;
 
@@ -45,6 +57,9 @@ public class TestServerTracing extends BaseTestServer {
   private MockTracer currentTracer;
   private static List<SingletonRegistry> singletonRegistries = new ArrayList<>();
   private static Tracer originalTracer;
+
+  @Rule
+  public OpenTelemetrySetup openTelemetrySetup = OpenTelemetrySetup.create();
 
   @BeforeClass
   public static void init() throws Exception {
@@ -76,25 +91,26 @@ public class TestServerTracing extends BaseTestServer {
 
   @Test
   public void testTracingHeaderDisabled() {
-    expectSuccess(getBuilder(getAPIv2().path("server_status")).header(TracingUtils.TRACING_HEADER, Boolean.FALSE).buildGet());
+    expectSuccess(getBuilder(getAPIv2().path("server_status")).header("x-tracing-enabled", Boolean.FALSE).buildGet());
     assertFinishedSpans(0);
   }
 
   @Test
+  @Ignore
   public void testTracingHeaderEnabled() {
-    expectSuccess(getBuilder(getAPIv2().path("server_status")).header(TracingUtils.TRACING_HEADER, Boolean.TRUE).buildGet());
+    expectSuccess(getBuilder(getAPIv2().path("server_status")).header("x-tracing-enabled", Boolean.TRUE).buildGet());
     assertFinishedSpans(1);
   }
 
   @Test
   public void testTracingHeaderMangled() {
-    expectSuccess(getBuilder(getAPIv2().path("server_status")).header(TracingUtils.TRACING_HEADER, "not-a-valid-value").buildGet());
+    expectSuccess(getBuilder(getAPIv2().path("server_status")).header("x-tracing-enabled", "not-a-valid-value").buildGet());
     assertFinishedSpans(0);
   }
 
   @Test
   public void testTracingNonExistentEndpointWithTracingHeader() {
-    expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getAPIv2().path("does-not-exist")).header(TracingUtils.TRACING_HEADER, Boolean.TRUE).buildGet());
+    expect(FamilyExpectation.CLIENT_ERROR, getBuilder(getAPIv2().path("does-not-exist")).header("x-tracing-enabled", Boolean.TRUE).buildGet());
     assertFinishedSpans(0);
   }
 
@@ -104,7 +120,8 @@ public class TestServerTracing extends BaseTestServer {
    the expected finished spans.
    */
   private void assertFinishedSpans(long finishedSpanCount) {
-    assertWaitForCondition(String.format("Expected %d finished spans.", finishedSpanCount), () -> (currentTracer.finishedSpans().size() == finishedSpanCount), 90, TimeUnit.SECONDS);
+    System.out.println(openTelemetrySetup.getSpans().size());
+    assertWaitForCondition(String.format("Expected %d finished spans.", finishedSpanCount), () -> (openTelemetrySetup.getSpans().size() == finishedSpanCount), 90, TimeUnit.SECONDS);
   }
 
   /*
@@ -137,6 +154,64 @@ public class TestServerTracing extends BaseTestServer {
       Assert.fail("Thread was interrupted waiting for condition.");
     } finally {
       thread.interrupt();
+    }
+  }
+
+  public static class OpenTelemetrySetup extends ExternalResource {
+
+    /**
+     * Returns a {@link OpenTelemetrySetup} with a default SDK initialized with an in-memory span
+     * exporter and W3C trace context propagation.
+     */
+    public static OpenTelemetrySetup create() {
+      InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+
+      SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder()
+          .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+          .setSampler(SpanAttributeBasedSampler.builder().setAttributeKey(Telemetry.FORCE_SAMPLING_ATTRIBUTE).build())
+          .build();
+
+      OpenTelemetrySdk openTelemetry =
+        OpenTelemetrySdk.builder()
+          .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+          .setTracerProvider(tracerProvider)
+          .build();
+
+      return new OpenTelemetrySetup(openTelemetry, spanExporter);
+    }
+
+    private final OpenTelemetrySdk openTelemetry;
+    private final InMemorySpanExporter spanExporter;
+
+    private OpenTelemetrySetup(OpenTelemetrySdk openTelemetry, InMemorySpanExporter spanExporter) {
+      this.openTelemetry = openTelemetry;
+      this.spanExporter = spanExporter;
+    }
+
+    /** Returns all the exported {@link SpanData} so far. */
+    public List<SpanData> getSpans() {
+      return spanExporter.getFinishedSpanItems();
+    }
+
+    /**
+     * Clears the collected exported {@link SpanData}. Consider making your test smaller instead of
+     * manually clearing state using this method.
+     */
+    public void clearSpans() {
+      spanExporter.reset();
+    }
+
+    @Override
+    protected void before() {
+      GlobalOpenTelemetry.resetForTest();
+      GlobalOpenTelemetry.set(openTelemetry);
+      clearSpans();
+    }
+
+    @Override
+    protected void after() {
+      GlobalOpenTelemetry.resetForTest();
     }
   }
 }

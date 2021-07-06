@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+ @import '~@app/components/colors.less';
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
     
   .ReactModalPortal {
@@ -143,5 +143,9 @@
 
   .tall-modal .modal-form-wrapper {
     overflow-y: auto;
+  }
+
+  .modal-header {
+    background-color: @brand-color
   }
 }

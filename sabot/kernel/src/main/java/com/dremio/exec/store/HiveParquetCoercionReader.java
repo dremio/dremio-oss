@@ -56,28 +56,28 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
   protected final OperatorContext context;
   protected final ExpressionEvaluationOptions projectorOptions;
 
+  protected int recordCount;
   protected VectorContainer incoming;
   protected VectorContainer outgoing;
   protected OutputMutator outputMutator;
+  protected OutputMutator outgoingMutator;
+  protected NextMethodState nextMethodState;
+  protected VectorContainer projectorOutput; // can be this.outgoing or this.filteringReaderInputMutator.container
+  protected boolean initialProjectorSetUpDone;
+  protected boolean needsFilteringAfterCoercion; // true if a pushdown filter is modified
+  protected CopyingFilteringReader filteringReader;
+  protected ScanOperator.ScanMutator filteringReaderInputMutator;
+  protected Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
+  protected Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
 
   SampleMutator mutator;
 
   private final BatchSchema originalSchema; // actual schema including varchar and non-varchar fields
-  private boolean needsFilteringAfterCoercion; // true if a pushdown filter is modified
   private final HiveParquetReader hiveParquetReader;
   private final List<ParquetFilterCondition> filterConditions;
-  private CopyingFilteringReader filteringReader;
 
-  private int recordCount;
-  private OutputMutator outgoingMutator;
-  private NextMethodState nextMethodState;
-  private VectorContainer projectorOutput; // can be this.outgoing or this.filteringReaderInputMutator.container
-  private boolean initialProjectorSetUpDone;
   private boolean setupCalledByFilteringReader; // setUp() state
   private boolean closeCalledByFilteringReader; // close() state
-  private ScanOperator.ScanMutator filteringReaderInputMutator;
-  protected Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
-  protected Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
 
   public static HiveParquetCoercionReader newInstance(OperatorContext context, List<SchemaPath> columns,
                                                       RecordReader inner, BatchSchema originalSchema,
@@ -85,9 +85,9 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
     return new HiveParquetCoercionReader(context, columns, inner, originalSchema, hiveTypeCoercion, filterConditions);
   }
 
-  private HiveParquetCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
-                                   BatchSchema originalSchema, TypeCoercion hiveTypeCoercion,
-                                   List<ParquetFilterCondition> parqfilterConditions) {
+  protected HiveParquetCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
+                                      BatchSchema originalSchema, TypeCoercion hiveTypeCoercion,
+                                      List<ParquetFilterCondition> parqfilterConditions) {
     super(context, columns);
     mutator = new SampleMutator(context.getAllocator());
     this.incoming = mutator.getContainer();
@@ -250,13 +250,13 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
     inner.addRuntimeFilter(runtimeFilter);
   }
 
-  private enum NextMethodState {
+  protected enum NextMethodState {
     NOT_CALLED_BY_FILTERING_READER,
     FIRST_CALL_BY_FILTERING_READER,
     REPEATED_CALL_BY_FILTERING_READER
   }
 
-  private void resetReaderState() {
+  protected void resetReaderState() {
     setupCalledByFilteringReader = false;
     closeCalledByFilteringReader = false;
     projectorOutput = outgoing;

@@ -30,6 +30,7 @@ import com.dremio.common.util.ConstructorChecker;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
+import com.dremio.exec.store.easy.excel.ExcelFormatPluginConfig;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
@@ -109,6 +110,8 @@ public class FormatCreator {
     defaultFormats.put("dremarrow1", new ArrowFormatPluginConfig());
     defaultFormats.put("iceberg", new IcebergFormatConfig());
     defaultFormats.put("delta", new DeltaLakeFormatConfig());
+    defaultFormats.put("xls", new ExcelFormatPluginConfig(true));
+    defaultFormats.put("excel", new ExcelFormatPluginConfig(false));
     return defaultFormats;
   }
 

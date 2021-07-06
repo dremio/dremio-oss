@@ -93,21 +93,6 @@ public class ElasticConnectionPool implements AutoCloseable {
   private static final String REQUEST_LOGGER_NAME = "elastic.requests";
   private static final Logger REQUEST_LOGGER = LoggerFactory.getLogger(REQUEST_LOGGER_NAME);
 
-  private static final Version MIN_ELASTICSEARCH_VERSION = new Version(2, 0, 0);
-
-  // Defines a cutoff for enabling newer features that have been added to elasticsearch. Rather than
-  // maintain an exact matrix of what is supported, We simply try to make use of all features available
-  // above this version and disable them for connections to any version below. This cutoff is inclusive
-  // on the ENABLE side so all new features must be available in 2.1.2 and up. Everything missing in
-  // a version between 2.0 and 2.1.1 is disabled for all versions in that range.
-  public static final Version MIN_VERSION_TO_ENABLE_NEW_FEATURES = new Version(2, 1, 2);
-
-  // Version 5x or higher
-  private static final Version ELASTICSEARCH_VERSION_5X = new Version(5, 0, 0);
-
-  //Version 5.3.x or higher
-  private static final Version ELASTICSEARCH_VERSION_5_3_X = new Version(5, 3, 0);
-
   enum TLSValidationMode {
     STRICT,
     VERIFY_CA,
@@ -156,6 +141,10 @@ public class ElasticConnectionPool implements AutoCloseable {
    */
   private Version minVersionInCluster;
 
+  /**
+   * Flag to indicate if the current cluster has a high enough version for 7x features.  For example, boolean group by is supported for 7x cluster.
+   */
+  private boolean enable7vFeatures;
 
   public ElasticConnectionPool(
     List<Host> hosts,
@@ -167,12 +156,12 @@ public class ElasticConnectionPool implements AutoCloseable {
   }
 
   public ElasticConnectionPool(
-      List<Host> hosts,
-      TLSValidationMode tlsMode,
-      ElasticsearchAuthentication elasticsearchAuthentication,
-      int readTimeoutMillis,
-      boolean useWhitelist,
-      long actionRetries){
+    List<Host> hosts,
+    TLSValidationMode tlsMode,
+    ElasticsearchAuthentication elasticsearchAuthentication,
+    int readTimeoutMillis,
+    boolean useWhitelist,
+    long actionRetries){
     this.sslMode = tlsMode;
     this.protocol = tlsMode != TLSValidationMode.OFF ? "https" : "http";
     this.hosts = ImmutableList.copyOf(hosts);
@@ -193,20 +182,20 @@ public class ElasticConnectionPool implements AutoCloseable {
     }
 
     final ClientBuilder builder = ClientBuilder.newBuilder()
-        .withConfig(configuration);
+      .withConfig(configuration);
 
     switch(sslMode) {
-    case UNSECURE:
-      builder.sslContext(SSLHelper.newAllTrustingSSLContext("SSL"));
-      // fall-through
-    case VERIFY_CA:
-      builder.hostnameVerifier(SSLHelper.newAllValidHostnameVerifier());
-      // fall-through
-    case STRICT:
-      break;
+      case UNSECURE:
+        builder.sslContext(SSLHelper.newAllTrustingSSLContext("SSL"));
+        // fall-through
+      case VERIFY_CA:
+        builder.hostnameVerifier(SSLHelper.newAllValidHostnameVerifier());
+        // fall-through
+      case STRICT:
+        break;
 
-    case OFF:
-      // no TLS/SSL configuration
+      case OFF:
+        // no TLS/SSL configuration
     }
 
     client = builder.build();
@@ -217,10 +206,10 @@ public class ElasticConnectionPool implements AutoCloseable {
     if (REQUEST_LOGGER.isDebugEnabled()) {
       java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger(REQUEST_LOGGER_NAME);
       client.register(new LoggingFeature(
-          julLogger,
-          Level.FINE,
-          REQUEST_LOGGER.isTraceEnabled() ? LoggingFeature.Verbosity.PAYLOAD_TEXT : LoggingFeature.Verbosity.HEADERS_ONLY,
-          65536));
+        julLogger,
+        Level.FINE,
+        REQUEST_LOGGER.isTraceEnabled() ? LoggingFeature.Verbosity.PAYLOAD_TEXT : LoggingFeature.Verbosity.HEADERS_ONLY,
+        65536));
     }
 
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
@@ -256,12 +245,12 @@ public class ElasticConnectionPool implements AutoCloseable {
         // for each host, create a separate jest client factory.
         for (HostAndAddress host : hosts) {
 
-            // avoid adding duplicate addresses if on same machine.
-            if (!hostSet.add(host.getHost())) {
-              continue;
-            }
-            final String connection = protocol + "://" + host.getHttpAddress();
-            builder.put(host.getHost(), client.target(connection));
+          // avoid adding duplicate addresses if on same machine.
+          if (!hostSet.add(host.getHost())) {
+            continue;
+          }
+          final String connection = protocol + "://" + host.getHttpAddress();
+          builder.put(host.getHost(), client.target(connection));
         }
 
         this.clients = builder.build();
@@ -357,10 +346,11 @@ public class ElasticConnectionPool implements AutoCloseable {
 
   public SourceCapabilities getCapabilities(){
     return new SourceCapabilities(
-        new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES, enable5vFeatures),
-        new BooleanCapabilityValue(ElasticsearchStoragePlugin.SUPPORTS_NEW_FEATURES, enableNewFeatures),
-        new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, enableContains)
-        );
+      new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V7_FEATURES, enable7vFeatures),
+      new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES, enable5vFeatures),
+      new BooleanCapabilityValue(ElasticsearchStoragePlugin.SUPPORTS_NEW_FEATURES, enableNewFeatures),
+      new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, enableContains)
+    );
   }
 
   public Version getMinVersionInCluster(){
@@ -388,7 +378,7 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     NodesInfo nodesInfo = new NodesInfo();
     nodesResult = new ElasticConnection(client.target(protocol + "://" + initialHost)).executeAndHandleResponseCode(nodesInfo, true,
-        "Cannot gather Elasticsearch nodes information. Please make sure that the user has [cluster:monitor/nodes/info] privilege.");
+      "Cannot gather Elasticsearch nodes information. Please make sure that the user has [cluster:monitor/nodes/info] privilege.");
 
     minVersionInCluster = null;
     JsonObject nodes = nodesResult.getAsJsonObject().getAsJsonObject("nodes");
@@ -447,17 +437,19 @@ public class ElasticConnectionPool implements AutoCloseable {
     }
 
     // Assert minimum version for Elasticsearch
-    if (minVersionInCluster.compareTo(MIN_ELASTICSEARCH_VERSION) < 0) {
+    if (minVersionInCluster.compareTo(ElasticsearchConstants.MIN_ELASTICSEARCH_VERSION) < 0) {
       throw new RuntimeException(
-          format("Dremio only supports Elasticsearch versions above %s. Found a node with version %s",
-              MIN_ELASTICSEARCH_VERSION, minVersionInCluster));
+        format("Dremio only supports Elasticsearch versions above %s. Found a node with version %s",
+          ElasticsearchConstants.MIN_ELASTICSEARCH_VERSION, minVersionInCluster));
     }
 
-    enableNewFeatures = minVersionInCluster.compareTo(MIN_VERSION_TO_ENABLE_NEW_FEATURES) >= 0;
+    enableNewFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.MIN_VERSION_TO_ENABLE_NEW_FEATURES) >= 0;
 
-    enable5vFeatures = minVersionInCluster.compareTo(ELASTICSEARCH_VERSION_5X) >= 0;
+    enable5vFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5X) >= 0;
 
-    enableContains = minVersionInCluster.compareTo(ELASTICSEARCH_VERSION_5_3_X) >= 0;
+    enableContains = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5_3_X) >= 0;
+
+    enable7vFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
 
     return hosts;
   }
@@ -552,7 +544,7 @@ public class ElasticConnectionPool implements AutoCloseable {
   private static UserException handleException(Throwable e, ElasticAction2<?> action, ContextListenerImpl listener) {
     if (e instanceof ResponseProcessingException) {
       final UserException.Builder builder = UserException.dataReadError(e)
-          .message("Failure consuming response from Elastic cluster during %s.", action.getAction());
+        .message("Failure consuming response from Elastic cluster during %s.", action.getAction());
 
       listener.addContext(builder);
 
@@ -568,20 +560,21 @@ public class ElasticConnectionPool implements AutoCloseable {
       final Response response = ((WebApplicationException) e).getResponse();
       if (response == null) {
         builder = UserException.dataReadError(e)
-            .message("Failure executing Elastic request %s.", action.getAction());
+          .message("Failure executing Elastic request %s.", action.getAction());
 
         listener.addContext(builder);
       } else {
         switch (Response.Status.fromStatusCode(response.getStatus())) {
-        case NOT_FOUND: { // index not found
-          builder = UserException.invalidMetadataError(e)
+          case NOT_FOUND: { // index not found
+            builder = UserException.invalidMetadataError(e)
+// TODO-Formatting of messages (all similar instances) to be handled as part of ticket DX-33402:Formatting error messages in exception handling flow
               .message("Failure executing Elastic request %s: HTTP 404 Not Found.", action.getAction());
-          break;
-        }
-        default:
-          builder = UserException.dataReadError(e)
+            break;
+          }
+          default:
+            builder = UserException.dataReadError(e)
               .message("Failure executing Elastic request %s: HTTP %d.", action.getAction(), response.getStatus());
-          break;
+            break;
         }
 
         listener.addContext(builder);
@@ -592,8 +585,8 @@ public class ElasticConnectionPool implements AutoCloseable {
     }
 
     return listener.addContext(UserException.dataReadError(e)
-        .message("Failure executing Elastic request %s.", action.getAction()))
-        .build(logger);
+      .message("Failure executing Elastic request %s.", action.getAction()))
+      .build(logger);
   }
 
   private static class CheckedAsyncCallback<T> implements InvocationCallback<T> {
@@ -635,11 +628,11 @@ public class ElasticConnectionPool implements AutoCloseable {
       final SettableFuture<T> future = SettableFuture.create();
       invocation.submit(new GenericType<>(action.getResponseClass()),
         new CheckedAsyncCallback<>(future,  e -> {
-        if (e instanceof ExecutionException) {
-          e = e.getCause();
-        }
-        return handleException(e, action, listener);
-      }));
+          if (e instanceof ExecutionException) {
+            e = e.getCause();
+          }
+          return handleException(e, action, listener);
+        }));
 
       return future;
     }
@@ -668,6 +661,16 @@ public class ElasticConnectionPool implements AutoCloseable {
         throw handleException(e, action, listener);
       }
 
+    }
+
+    public <T> T execute(ElasticAction2<T> action, boolean enable7vFeatures){
+      final ContextListenerImpl listener = new ContextListenerImpl();
+      final Invocation invocation = action.buildRequest(target, listener, enable7vFeatures);
+      try {
+        return executeWithRetries(invocation, action.getResponseClass());
+      } catch (Exception e){
+        throw handleException(e, action, listener);
+      }
     }
 
     private Result getResultWithRetries(ElasticAction action) {
@@ -701,7 +704,7 @@ public class ElasticConnectionPool implements AutoCloseable {
 
       if (result == null) {
         addContextAndThrow(UserException.connectionError().message("Something went wrong. "
-            + "Please make sure the source is available. %s", unauthorizedMsg), contextWithAlias);
+          + "Please make sure the source is available. %s", unauthorizedMsg), contextWithAlias);
       }
 
       if (!handleResponseCode) {
@@ -716,7 +719,7 @@ public class ElasticConnectionPool implements AutoCloseable {
         final int responseCode = result.getResponseCode();
         if (responseCode == 401) {
           addContextAndThrow(UserException.permissionError().message("Unauthorized to connect to Elasticsearch cluster. "
-              + "Please make sure that the username and the password provided are correct."), contextWithAlias);
+            + "Please make sure that the username and the password provided are correct."), contextWithAlias);
         }
         if (responseCode == 403) {
           addContextAndThrow(UserException.permissionError().message(unauthorizedMsg), contextWithAlias);
@@ -724,10 +727,10 @@ public class ElasticConnectionPool implements AutoCloseable {
         contextWithAlias.add("error message");
         contextWithAlias.add(result.getErrorMessage());
         addContextAndThrow(
-            UserException.connectionError()
-                .message("Something went wrong, error code " + responseCode + ".  Please provide the correct host and credentials.")
-                .addContext("responseCode", responseCode),
-            contextWithAlias
+          UserException.connectionError()
+            .message("Something went wrong, error code " + responseCode + ".  Please provide the correct host and credentials.")
+            .addContext("responseCode", responseCode),
+          contextWithAlias
         );
 
         // will not reach here
@@ -738,6 +741,10 @@ public class ElasticConnectionPool implements AutoCloseable {
     @Deprecated
     public WebTarget getTarget(){
       return target;
+    }
+
+    public Version getESVersionInCluster(){
+      return ElasticConnectionPool.this.getMinVersionInCluster();
     }
   }
 

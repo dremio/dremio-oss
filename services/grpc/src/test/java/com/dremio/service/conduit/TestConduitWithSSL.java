@@ -19,6 +19,7 @@ package com.dremio.service.conduit;
 import java.net.InetAddress;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +35,6 @@ import com.dremio.service.conduit.server.ConduitServerTestUtils;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.ssl.SSLEngineFactory;
-import com.dremio.ssl.SSLEngineFactoryImpl;
 import com.google.common.collect.Sets;
 
 /**
@@ -61,17 +61,19 @@ public class TestConduitWithSSL extends TestConduit {
     final SSLConfigurator sslConfigurator =
       new SSLConfigurator(config, ConduitUtils.CONDUIT_SSL_PREFIX, "test-conduit");
     final Optional<SSLEngineFactory> conduitSslEngineFactory =
-      SSLEngineFactoryImpl.create(sslConfigurator.getSSLConfig(false, address));
+      SSLEngineFactory.create(sslConfigurator.getSSLConfig(false, address));
 
     final ConduitServiceRegistry serviceRegistry1 = new ConduitServiceRegistryImpl();
     serviceRegistry1.registerService(new ConduitTestService());
 
-    conduitServer1 = new ConduitServer(DirectProvider.wrap(serviceRegistry1), 0, conduitSslEngineFactory);
+    conduitServer1 = new ConduitServer(DirectProvider.wrap(serviceRegistry1), 0,
+      conduitSslEngineFactory, UUID.randomUUID().toString());
     conduitServer1.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer1));
 
     final ConduitServiceRegistry serviceRegistry2 = new ConduitServiceRegistryImpl();
-    conduitServer2 = new ConduitServer(DirectProvider.wrap(serviceRegistry2), 0, conduitSslEngineFactory);
+    conduitServer2 = new ConduitServer(DirectProvider.wrap(serviceRegistry2), 0,
+      conduitSslEngineFactory, UUID.randomUUID().toString());
     conduitServer2.start();
     grpcCleanupRule.register(ConduitServerTestUtils.getServer(conduitServer2));
 

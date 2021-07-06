@@ -1,0 +1,103 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ @import '../../styles/constants/index.scss';
+
+.btn {
+  border-right: none;
+  border-left: none;
+  border-top: none;
+  position: relative;
+  min-width: 100px;
+  height: 32px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  font-size: $font-s;
+  font-family: inherit;
+  outline: 0;
+  cursor: pointer;
+  border: 1px solid $border-color;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &__primary {
+    border: 1px solid $primary-color;
+
+    &.--contained {
+      background-color: $primary-color;
+      color: $white;
+      &:hover {
+        background-color: $lighter-primary-color;
+      }  
+    }
+
+    &.--outlined {
+      background-color: $white;
+      color: $primary-color;
+      &:hover {
+        background-color: $white;
+      }
+    }
+
+    &.--disabled {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  }
+
+  &__secondary, &__default {
+    color: $dark-gray;
+    &.--contained {
+      background-color: $neutral-color;
+      &:hover {
+        background-color: $lighter-neutral-color;
+      }
+    }
+    &.--outlined {
+      background-color: $white;
+      &:hover {
+        background-color: $white;
+      }
+    }
+
+    &.--disabled {
+      background-color: $alto;
+      color: $silver-chalice;
+      opacity: unset;
+      pointer-events: none;
+    }
+  }
+
+  &__warn {
+    border: 1px solid $bridesmaid;
+
+    color: $sunglo;
+    &.--contained {
+      background-color: $bridesmaid;
+    }
+
+    &.--disabled {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  }
+
+  .btn__content {
+    position: relative;
+    line-height: 28px;
+  }
+}

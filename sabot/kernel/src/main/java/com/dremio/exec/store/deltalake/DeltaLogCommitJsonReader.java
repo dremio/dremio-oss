@@ -56,6 +56,7 @@ import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -78,7 +79,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
     }
 
     @Override
-    public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes) throws IOException {
+    public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes, long version) throws IOException {
       final Path commitFilePath = fileAttributes.getPath();
         try (final FSInputStream commitFileIs = fs.open(commitFilePath);
              final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
@@ -108,7 +109,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
                 }
             }
 
-            snapshot.setSplits(generateSplits(fileAttributes, snapshot.getDataFileEntryCount()));
+            snapshot.setSplits(generateSplits(fileAttributes, snapshot.getDataFileEntryCount(), version));
             if (snapshot.isMissingRequiredValues()) {
               logger.debug("{} has missing required values", commitFilePath);
               // the snapshot is missing required values
@@ -230,9 +231,13 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
       return (node==null) ? defaultVal:typeFunc.apply(node);
     }
 
-    private List<DatasetSplit> generateSplits(FileAttributes fileAttributes, long totalFileEntries) {
+    private List<DatasetSplit> generateSplits(FileAttributes fileAttributes, long totalFileEntries, long version) {
       List<DatasetSplit> splits = new ArrayList<>(1);
       Preconditions.checkNotNull(fileAttributes, "File attributes are not set");
+
+      DeltaLakeProtobuf.DeltaCommitLogSplitXAttr deltaExtended = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr
+        .newBuilder().setVersion(version).build();
+
       final EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
         .setPath(fileAttributes.getPath().toString())
         .setStart(0)
@@ -241,6 +246,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
           .setPath(fileAttributes.getPath().toString())
           .setLength(fileAttributes.size())
           .setLastModificationTime(fileAttributes.lastModifiedTime().toMillis()))
+        .setExtendedProperty(deltaExtended.toByteString())
         .build();
 
       splits.add(DatasetSplit.of(

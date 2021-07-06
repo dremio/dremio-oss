@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import ReactDOM from 'react-dom';
 import Mousetrap from 'mousetrap';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { TEXT, LIST } from '@app/constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';
 import { withLocation } from 'containers/dremioLocation';
+
+import { showCuration } from '@inject/pages/ExplorePage/utils';
+
 import SelectedTextPopover from './SelectedTextPopover';
 
 const PADDING_TOP_FOR_TEXT = -2;
@@ -31,9 +33,8 @@ const PADDING_TOP_FOR_NUMB = 4;
 const PADDING_SELECTED_NUMB = 5;
 const PADDING_SELECTED_TEXT = 5;
 
-@pureRender
 @Radium
-export class DropdownForSelectedTextView extends Component {
+export class DropdownForSelectedTextView extends PureComponent {
   static propTypes = {
     hideDrop: PropTypes.func.isRequired,
     dropPositions: PropTypes.instanceOf(Immutable.Map),
@@ -102,6 +103,11 @@ export class DropdownForSelectedTextView extends Component {
       <div onMouseUp={this.stopPropagation} onMouseDown={this.stopPropagation}>
         {selectedText}
         <SelectedTextPopover
+          /* SelectedTextPopover ignores visibleItems if its null, undefined or empty array.
+          So null will actually show all the action items and
+          array with null as element will not show any items
+          */
+          visibleItems={showCuration() ? null : [null]}
           anchor={this.state.anchor}
           copySelection={this.copyText}
           hideDrop={this.props.hideDrop}

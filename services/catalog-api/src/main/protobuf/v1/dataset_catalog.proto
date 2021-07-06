@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+package dremio.catalog;
+
+option java_package = "com.dremio.service.catalog";
+option optimize_for = SPEED;
+
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_outer_classname = "DatasetCatalogRPC";
+
+import "dataset-common.proto";
+import "namespace-common.proto";
+import "namespace-file-common.proto";
+import "google/protobuf/empty.proto";
+
+// Service a Catalog-like RPC.
+service DatasetCatalogService {
+  rpc AddOrUpdateDataset (AddOrUpdateDatasetRequest) returns (google.protobuf.Empty);
+  rpc GetDataset (GetDatasetRequest) returns (UpdatableDatasetConfigFields);
+}
+
+enum OperationType {
+  CREATE = 1;
+  UPDATE = 2;
+}
+
+message UpdatableDatasetConfigFields {
+  optional bytes batchSchema = 1;
+  optional com.dremio.service.namespace.dataset.proto.ReadDefinition readDefinition = 2;
+  optional com.dremio.service.namespace.dataset.proto.DatasetType datasetType = 3;
+  optional com.dremio.service.namespace.file.proto.FileConfig fileFormat = 4;
+  optional string tag = 5;
+}
+
+message AddOrUpdateDatasetRequest {
+  required OperationType operationType = 1;
+  repeated string datasetPath = 2;
+  required UpdatableDatasetConfigFields datasetConfig = 3;
+}
+
+message GetDatasetRequest {
+  repeated string datasetPath = 1;
+}

@@ -59,6 +59,9 @@ public class TypeCoercionRules {
     if (fileType.isValidDecimal()) {
       return getResultantTypeForDecimalFileType(tableType);
     }
+    if (fileType.isTemporal()) {
+      return getResultantTypeForTemporalFileType(tableType);
+    }
     return Optional.empty();
   }
 
@@ -106,6 +109,13 @@ public class TypeCoercionRules {
 
   private static Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType tableType) {
     if (tableType.isValidDecimal() || tableType.isText() || tableType.equals(DOUBLE)) {
+      return Optional.of(tableType);
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<CompleteType> getResultantTypeForTemporalFileType(CompleteType tableType) {
+    if (tableType.isText()) {
       return Optional.of(tableType);
     }
     return Optional.empty();

@@ -22,11 +22,10 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.parquet.ParquetFilterCondition;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
 
@@ -36,9 +35,10 @@ import io.protostuff.ByteString;
  */
 @JsonTypeName("table-function-context")
 public class TableFunctionContext {
-  private List<SchemaPath> columns;
-  private final List<ParquetFilterCondition> conditions;
+  private final List<SchemaPath> columns;
+  private final ScanFilter scanFilter;
   private final StoragePluginId pluginId;
+  private final StoragePluginId internalTablePluginId;
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
   private final List<List<String>> tablePath;
@@ -53,8 +53,9 @@ public class TableFunctionContext {
                               @JsonProperty("schema") BatchSchema fullSchema,
                               @JsonProperty("tableschema") BatchSchema tableSchema,
                               @JsonProperty("referencedTables") List<List<String>> tablePath,
-                              @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
+                              @JsonProperty("scanFilter") ScanFilter scanFilter,
                               @JsonProperty("pluginId") StoragePluginId pluginId,
+                              @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
                               @JsonProperty("columns") List<SchemaPath> columns,
                               @JsonProperty("partitionColumns") List<String> partitionColumns,
                               @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
@@ -66,8 +67,9 @@ public class TableFunctionContext {
     this.columns = columns;
     this.formatSettings = formatSettings;
     this.tablePath = tablePath;
-    this.conditions = conditions == null ? null : ImmutableList.copyOf(conditions);
+    this.scanFilter = scanFilter;
     this.pluginId = pluginId;
+    this.internalTablePluginId = internalTablePluginId;
     this.partitionColumns = partitionColumns;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
@@ -94,12 +96,16 @@ public class TableFunctionContext {
     return extendedProperty;
   }
 
-  public List<ParquetFilterCondition> getConditions() {
-    return conditions;
+  public ScanFilter getScanFilter() {
+    return scanFilter;
   }
 
   public StoragePluginId getPluginId() {
     return pluginId;
+  }
+
+  public StoragePluginId getInternalTablePluginId() {
+    return internalTablePluginId;
   }
 
   public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {

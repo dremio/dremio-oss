@@ -71,7 +71,16 @@ public interface SupportsExternalQuery {
     Preconditions.checkNotNull(schemaBuilder, "schemaBuilder cannot be null.");
     Preconditions.checkNotNull(rowTypeBuilder, "rowTypeBuilder cannot be null.");
     return (tableSchemaPath.size() == FUNCTION_CALL_NUM_PATHS &&
-      tableSchemaPath.get(tableSchemaPath.size() - 1).equalsIgnoreCase(EXTERNAL_QUERY))?
-      Optional.of(new ExternalQuery(schemaBuilder, rowTypeBuilder, pluginId)) : Optional.empty();
+      isExternalQuery(tableSchemaPath) ?
+      Optional.of(new ExternalQuery(schemaBuilder, rowTypeBuilder, pluginId)) : Optional.empty());
+  }
+
+  /**
+   * Checks if the given tableSchemaPath contains an external query table function call.
+   * @param tableSchemaPath The table schema path of the function call.
+   * @return true if the path is an external query.
+   */
+  static boolean isExternalQuery(List<String> tableSchemaPath) {
+    return tableSchemaPath.get(tableSchemaPath.size() - 1).equalsIgnoreCase(EXTERNAL_QUERY);
   }
 }

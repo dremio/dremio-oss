@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
 
@@ -22,8 +21,7 @@ import Spinner from 'components/Spinner';
 
 import './JobProgress.less';
 
-@pureRender
-export default class JobProgress extends Component {
+export default class JobProgress extends PureComponent {
   static propTypes = {
     start: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     end: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

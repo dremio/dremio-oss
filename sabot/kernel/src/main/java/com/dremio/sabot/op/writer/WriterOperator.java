@@ -64,6 +64,7 @@ public class WriterOperator implements SingleInputOperator {
   private VarBinaryVector metadataVector;
   private VarBinaryVector icebergMetadataVector;
   private IntVector partitionNumberVector;
+  private VarBinaryVector schemaVector;
 
   private PartitionWriteManager partitionManager;
 
@@ -115,6 +116,7 @@ public class WriterOperator implements SingleInputOperator {
     metadataVector = output.addOrGet(RecordWriter.METADATA);
     partitionNumberVector = output.addOrGet(RecordWriter.PARTITION);
     icebergMetadataVector = output.addOrGet(RecordWriter.ICEBERG_METADATA);
+    schemaVector = output.addOrGet(RecordWriter.FILE_SCHEMA);
     output.buildSchema();
     output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
@@ -201,6 +203,10 @@ public class WriterOperator implements SingleInputOperator {
         partitionNumberVector.setSafe(i, e.partitionNumber);
       }
 
+      if (e.schema != null) {
+        schemaVector.setSafe(i, e.schema, 0, e.schema.length);
+      }
+
       fileSizeVector.setSafe(i, e.fileSize);
 
       i++;
@@ -251,8 +257,8 @@ public class WriterOperator implements SingleInputOperator {
     private final List<OutputEntry> entries = new ArrayList<>();
 
     @Override
-    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata) {
-      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber));
+    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata, byte[] schema) {
+      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema));
     }
 
   }
@@ -270,15 +276,17 @@ public class WriterOperator implements SingleInputOperator {
     private final String path;
     private final byte[] metadata;
     private final byte[] icebergMetadata;
+    private final byte[] schema;
     private final Integer partitionNumber;
 
-    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, byte[] icebergMetadata, Integer partitionNumber) {
+    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, byte[] icebergMetadata, Integer partitionNumber, byte[] schema) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
       this.metadata = metadata;
       this.icebergMetadata = icebergMetadata;
       this.partitionNumber = partitionNumber;
+      this.schema = schema;
     }
 
   }

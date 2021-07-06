@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
+import static org.junit.Assume.assumeFalse;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +45,8 @@ public class ITTestNullColumns extends ElasticBaseTestQuery {
     // In this test, we are just running without checking the results since we have _uid here.
     // Also, note that in the pushdown query, we are not selecting any of null/unmapped fields!
     // So, when we actually do read the json from elasticsearch, we will have several columns without any column definition.
+    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String query = "select * from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(query, new String[] {
       "[{\n" +

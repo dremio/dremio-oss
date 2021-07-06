@@ -47,6 +47,7 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
+import com.dremio.file.SourceFilePath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceUtils;
@@ -76,6 +77,8 @@ public class NamespaceTree {
   private final List<PhysicalDataset> physicalDatasets;
 
   private boolean canTagsBeSkipped;
+  private Boolean isFileSystemSource = null;
+  private Boolean isImpersonationEnabled = null;
 
   public NamespaceTree() {
     folders = new ArrayList<>();
@@ -87,11 +90,24 @@ public class NamespaceTree {
 
   // Spaces, home and sources are top level folders hence can never show in children.
   public static NamespaceTree newInstance(
+    final DatasetVersionMutator datasetService,
+    List<NameSpaceContainer> children,
+    Type rootEntityType,
+    CollaborationHelper collaborationService) throws NamespaceException, DatasetNotFoundException {
+
+    return newInstance(datasetService, children, rootEntityType, collaborationService, null, null);
+  }
+
+  public static NamespaceTree newInstance(
       final DatasetVersionMutator datasetService,
       List<NameSpaceContainer> children,
       Type rootEntityType,
-      CollaborationHelper collaborationService) throws NamespaceException, DatasetNotFoundException {
+      CollaborationHelper collaborationService,
+      Boolean fileSystemSource,
+      Boolean isImpersonationEnabled) throws NamespaceException, DatasetNotFoundException {
     NamespaceTree result = new NamespaceTree();
+    result.setIsFileSystemSource(fileSystemSource);
+    result.setIsImpersonationEnabled(isImpersonationEnabled);
 
     populateInstance(result, datasetService, children, rootEntityType, collaborationService);
 
@@ -120,7 +136,7 @@ public class NamespaceTree {
       switch (container.getType()) {
         case FOLDER: {
           if (rootEntityType == SOURCE) {
-            tree.addFolder(new SourceFolderPath(container.getFullPathList()), container.getFolder(), null, rootEntityType);
+            tree.addFolder(new SourceFolderPath(container.getFullPathList()), container.getFolder(), null, rootEntityType, false, false);
           } else {
             tree.addFolder(new FolderPath(container.getFullPathList()), container.getFolder(), rootEntityType);
           }
@@ -160,9 +176,32 @@ public class NamespaceTree {
               break;
 
             case PHYSICAL_DATASET_SOURCE_FILE:
+              final String sourceFileDSId = container.getDataset().getId().getId();
+              final FileFormat sourceFileFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
+              tree.addFile(
+                sourceFileDSId,
+                new SourceFilePath(container.getFullPathList()),
+                sourceFileFormat,
+                datasetService.getJobsCount(datasetPath.toNamespaceKey()), false, false,
+                sourceFileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType(),
+                tags.get(sourceFileDSId)
+              );
+              break;
+
             case PHYSICAL_DATASET_SOURCE_FOLDER:
+              final FileFormat sourceFolderFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
+              final FolderConfig folderConfig = new FolderConfig()
+                .setId(container.getDataset().getId())
+                .setFullPathList(container.getFullPathList())
+                .setName(container.getDataset().getName())
+                .setTag(container.getDataset().getTag());
+
+              tree.addFolder(new SourceFolderPath(container.getFullPathList()), folderConfig, sourceFolderFormat, rootEntityType,
+                sourceFolderFormat.getFileType() != FileType.UNKNOWN, true);
+              break;
+
             case PHYSICAL_DATASET:
-              PhysicalDatasetPath path = new PhysicalDatasetPath(datasetConfig.getFullPathList());
+              final PhysicalDatasetPath path = new PhysicalDatasetPath(datasetConfig.getFullPathList());
               tree.addPhysicalDataset(
                 new PhysicalDatasetResourcePath(new SourceName(container.getFullPathList().get(0)), path),
                 new PhysicalDatasetName(path.getFileName().getName()),
@@ -188,14 +227,15 @@ public class NamespaceTree {
     folders.add(f);
   }
 
-  public void addFolder(SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NameSpaceContainer.Type rootEntityType) throws NamespaceNotFoundException {
-    Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, false, false);
+  public void addFolder(SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat,
+                        NameSpaceContainer.Type rootEntityType, boolean isQueryable, boolean isPromoted) throws NamespaceNotFoundException {
+    Folder folder = Folder.newInstance(folderPath, folderConfig, fileFormat, null, isQueryable, isFileSystemSource != null && isFileSystemSource);
     addFolder(folder);
   }
 
 
   public void addFolder(FolderPath folderPath, FolderConfig folderConfig, NameSpaceContainer.Type rootEntityType) throws NamespaceNotFoundException {
-    Folder folder = Folder.newInstance(folderPath, folderConfig, null, false, false);
+    Folder folder = Folder.newInstance(folderPath, folderConfig, null, false, isFileSystemSource != null && isFileSystemSource);
     addFolder(folder);
   }
 
@@ -204,7 +244,7 @@ public class NamespaceTree {
   }
 
   protected void addFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
-      boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType, CollaborationTag collaborationTag) {
+      boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType, CollaborationTag collaborationTag) throws NamespaceNotFoundException {
     final File file = File.newInstance(
         id,
         filePath,
@@ -275,4 +315,21 @@ public class NamespaceTree {
   public void setCanTagsBeSkipped(boolean canTagsBeSkipped) {
     this.canTagsBeSkipped = canTagsBeSkipped;
   }
+
+  public void setIsFileSystemSource(final Boolean isFileSystemSource) {
+    this.isFileSystemSource = isFileSystemSource;
+  }
+
+  public Boolean getIsFileSystemSource() {
+    return isFileSystemSource;
+  }
+
+  public Boolean getIsImpersonationEnabled() {
+    return isImpersonationEnabled;
+  }
+
+  public void setIsImpersonationEnabled(final Boolean isImpersonationEnabled) {
+    this.isImpersonationEnabled = isImpersonationEnabled;
+  }
+
 }

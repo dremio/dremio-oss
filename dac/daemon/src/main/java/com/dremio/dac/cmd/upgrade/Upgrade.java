@@ -46,6 +46,7 @@ import com.dremio.dac.support.BasicSupportService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.services.configuration.ConfigurationStore;
@@ -182,7 +183,7 @@ public class Upgrade {
     try (final LocalKVStoreProvider storeProvider = storeOptional.get()) {
       storeProvider.start();
 
-      run(storeProvider.asLegacy());
+      run(storeProvider, storeProvider.asLegacy());
     }
 
   }
@@ -208,10 +209,10 @@ public class Upgrade {
     }
   }
 
-  public void run(final LegacyKVStoreProvider storeProvider) throws Exception {
+  public void run(final KVStoreProvider kvStoreProvider, final LegacyKVStoreProvider legacyKVStoreProvider) throws Exception {
     final Optional<ClusterIdentity> identity =
-      BasicSupportService.getClusterIdentity(storeProvider);
-    final UpgradeStore upgradeStore = new UpgradeStore(storeProvider);
+      BasicSupportService.getClusterIdentity(legacyKVStoreProvider);
+    final UpgradeStore upgradeStore = new UpgradeStore(legacyKVStoreProvider);
 
     if (!identity.isPresent()) {
       AdminLogger.log("No cluster identity found. Skipping upgrade");
@@ -219,7 +220,7 @@ public class Upgrade {
     }
 
     ClusterIdentity clusterIdentity = identity.get();
-    validateUpgrade(storeProvider, DremioEdition.getAsString());
+    validateUpgrade(legacyKVStoreProvider, DremioEdition.getAsString());
 
     final Version kvStoreVersion = retrieveStoreVersion(clusterIdentity);
 
@@ -246,7 +247,7 @@ public class Upgrade {
       final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
       final ConnectionReader connectionReader = ConnectionReader.of(classpathScan, sabotConfig);
 
-      final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader, classpathScan);
+      final UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, lpPersistence, connectionReader, classpathScan);
 
       for (UpgradeTask task : tasksToRun) {
         AdminLogger.log(task.toString());
@@ -256,7 +257,7 @@ public class Upgrade {
 
     try {
       clusterIdentity.setVersion(toClusterVersion(VERSION));
-      BasicSupportService.updateClusterIdentity(storeProvider, clusterIdentity);
+      BasicSupportService.updateClusterIdentity(legacyKVStoreProvider, clusterIdentity);
     } catch (Throwable e) {
       throw new RuntimeException("Failed to update store version", e);
     }

@@ -47,6 +47,7 @@ export default { // defaults, and defaults for unit tests
   lowerProvisioningSettingsEnabled: false,
   allowFileUploads: true,
   allowSpaceManagement: false,
+  allowSourceManagement: false,
   subhourAccelerationPoliciesEnabled: false,
   versionInfo: {
     buildTime: 0,
@@ -68,5 +69,7 @@ export default { // defaults, and defaults for unit tests
   queryBundleUsersEnabled: false,
   downloadRecordsLimit: 1000000,
   ...((window && window.dremioConfig) || {}),
-  displayTutorialsLink: false
+  displayTutorialsLink: false,
+  showMetadataValidityCheckbox: false,
+  ...((window && window.dremioConfig) || {})
 };

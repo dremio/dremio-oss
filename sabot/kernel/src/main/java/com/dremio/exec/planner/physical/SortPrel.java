@@ -83,7 +83,7 @@ public class SortPrel extends SortRelBase implements Prel {
     // avgFieldWidth * numFields * inputRows
     double numFields = this.getRowType().getFieldCount();
     long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).getNumVal();
+      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH);
 
     double memCost = fieldWidth * numFields * inputRows;
 

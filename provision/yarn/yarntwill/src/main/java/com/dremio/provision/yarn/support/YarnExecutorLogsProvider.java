@@ -40,6 +40,7 @@ import java.util.Queue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.inject.Inject;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -91,23 +92,24 @@ public class YarnExecutorLogsProvider implements ExecutorLogsProvider {
   // a queue to store the info needed for all executors' logs download and exceptions with their error message
   private Queue<ExecutorLogMetadata> executorLogsMetadata = new LinkedList<>();
 
-  public YarnExecutorLogsProvider() {
-    this(DremioConfig.create());
-  }
 
+  @Inject
   public YarnExecutorLogsProvider(DremioConfig dremioConfig) {
     this.certificateValidationEnabled = dremioConfig.getBoolean(DremioConfig.YARN_CERTIFICATE_VALIDATION_ENABLED);
     try {
       insecureSslContext = SSLContext.getInstance("SSL");
       TrustManager[] trustAllCerts = new TrustManager[]{
         new X509TrustManager() {
+          @Override
           public X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];
           }
 
+          @Override
           public void checkClientTrusted(X509Certificate[] certs, String authType) {
           }
 
+          @Override
           public void checkServerTrusted(X509Certificate[] certs, String authType) {
           }
         }

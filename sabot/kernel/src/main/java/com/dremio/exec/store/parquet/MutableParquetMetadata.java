@@ -43,6 +43,10 @@ public class MutableParquetMetadata {
     return footer.getBlocks();
   }
 
+  public long getRowCount() {
+    return getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
+  }
+
   public FileMetaData getFileMetaData() {
     return footer.getFileMetaData();
   }

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable from 'immutable';
-import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
@@ -23,8 +22,7 @@ import * as IntervalTypes from './IntervalTypes';
 import RightPanelView from './RightPanelView';
 
 @Radium
-@PureRender
-export default class RightPanel extends Component {
+export default class RightPanel extends PureComponent {
   static propTypes = {
     handleChange: PropTypes.func.isRequired,
     options: PropTypes.object.isRequired

@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import Immutable  from 'immutable';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 
 import { formDefault } from 'uiTheme/radium/typography';
 import { SECONDARY_BORDER } from 'uiTheme/radium/colors';
 
-@pureRender
 @Radium
-export default class TabControl extends Component {
+export default class TabControl extends PureComponent {
   static propTypes = {
     tabs: PropTypes.instanceOf(Immutable.Map),
     onTabChange: PropTypes.func,

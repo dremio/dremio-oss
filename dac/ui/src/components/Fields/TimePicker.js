@@ -83,7 +83,7 @@ const styles = {
     alignItems: 'center',
     background: CELL_EXPANSION_HEADER,
     borderRadius: '1px 1px 0px 0px',
-    fontFamily: 'Roboto-Regular',
+    fontFamily: 'Inter var',
     fontSize: 11,
     color: '#999999',
     height: 30,

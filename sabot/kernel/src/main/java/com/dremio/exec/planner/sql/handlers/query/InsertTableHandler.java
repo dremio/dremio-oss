@@ -24,7 +24,7 @@ import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
-import com.dremio.exec.store.iceberg.IcebergTableOperations;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -59,7 +59,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
   @VisibleForTesting
   public void validateInsertTableFormatOptions(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
     validateTableFormatOptions(catalog, path, config.getContext().getOptions());
-    IcebergTableOperations.checkTableExistenceAndMutability(catalog, config, path, false);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
   }
 
   @Override

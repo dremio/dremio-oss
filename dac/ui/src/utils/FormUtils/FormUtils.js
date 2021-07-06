@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { merge, get, set } from 'lodash/object';
-import { applyValidators, isRequired, isNumber, isWholeNumber, isRequiredIfAnotherPropertyEqual } from 'utils/validation';
+import { applyValidators, isRequired, isNumber, isWholeNumber, isRequiredIfAnotherPropertyEqual, when  } from 'utils/validation';
 import { getCreatedSource } from 'selectors/resources';
 import { MEMORY_UNITS } from 'utils/numberFormatUtils';
 import { ENTITY_TYPES } from '@app/constants/Constants';
@@ -289,6 +289,22 @@ export default class FormUtils {
         elementConfigJson.validate.isRequiredIf.otherPropValue,
         elementConfigJson.validate.label));
     }
+
+    if (elementConfigJson.validate.isRequiredWhen) {
+      const { key, value, otherPropName, otherPropValue } = elementConfigJson.validate.isRequiredWhen;
+      accumulator.validators.push(
+        when(key)
+          .is(value)
+          .then(() => isRequiredIfAnotherPropertyEqual(
+            elementConfigJson.propName,
+            otherPropName,
+            otherPropValue,
+            elementConfigJson.validate.label
+          ))
+          .otherwise(() => {})
+      );
+    }
+
     return accumulator;
   }
 

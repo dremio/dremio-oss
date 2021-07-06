@@ -100,6 +100,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Tag(8)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  @JsonIgnore
   public boolean allowCreateDrop = false;
 
   @Tag(9)
@@ -153,7 +154,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+    return SchemaMutability.USER_TABLE;
   }
 
   /**

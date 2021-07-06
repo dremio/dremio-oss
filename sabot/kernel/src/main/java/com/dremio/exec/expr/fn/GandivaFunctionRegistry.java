@@ -27,16 +27,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 public class GandivaFunctionRegistry implements PrimaryFunctionRegistry {
 
   static final Logger logger = LoggerFactory.getLogger(GandivaFunctionRegistry.class);
 
-  private final Map<String, List<AbstractFunctionHolder>> supportedFunctions = Maps.newHashMap();
+  private final Map<String, List<AbstractFunctionHolder>> supportedFunctions = CaseInsensitiveMap.newHashMap();
 
     public GandivaFunctionRegistry(boolean isDecimalV2Enabled) {
     try {

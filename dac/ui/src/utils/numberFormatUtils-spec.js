@@ -19,7 +19,7 @@ import { MEMORY_UNITS } from './numberFormatUtils';
 describe('NumberFormatUtils', () => {
 
   it('should have memory units map', () => {
-    expect(MEMORY_UNITS).to.be.defined;
+    expect(MEMORY_UNITS).to.not.be.undefined;
     expect(MEMORY_UNITS.size).to.equal(4);
     expect(MEMORY_UNITS.get('KB')).to.equal(1024);
     expect(MEMORY_UNITS.get('GB')).to.equal(1024 * 1024 * 1024);

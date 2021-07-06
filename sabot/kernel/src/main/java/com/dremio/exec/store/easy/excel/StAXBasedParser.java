@@ -522,7 +522,7 @@ public class StAXBasedParser implements ExcelParser {
           break;
 
         case TIMESTAMP:
-          writer.timeMilli(finalColumnName);
+          writer.timeStampMilli(finalColumnName);
           break;
 
         case VARCHAR:

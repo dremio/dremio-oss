@@ -115,7 +115,20 @@ public interface ExecConstants {
   // Number above which we stop replacing a group of ORs with a set operation.
   PositiveLongValidator FAST_OR_MAX_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.max", Integer.MAX_VALUE, 1500);
 
+  // Number above which JAVA codegen starts nesting methods
   PositiveLongValidator CODE_GEN_NESTED_METHOD_THRESHOLD = new PositiveLongValidator("exec.operator.codegen.nested_method.threshold", Integer.MAX_VALUE, 100);
+
+  /**
+   * Number of constants in expression above which constants are defined inside JAVA arrays in codegen.
+   * When arrays are used, each constant takes up one element in the array. Otherwise, each constant is generated as a
+   * separate class variable. The array approach gives more real estate in a generated class, before JAVA hits the
+   * constant pool limit, as an array symbol takes up only 1 entry in the JAVA constant pool and an array can contain
+   * as many constants of a given type.
+   */
+  PositiveLongValidator CODE_GEN_CONSTANT_ARRAY_THRESHOLD = new PositiveLongValidator("exec.operator.codegen.constant_array.threshold", Integer.MAX_VALUE, 5000);
+
+  // if this option is set to false then CodeGenOption will be set to Java for any expression containing a complex struct
+  BooleanValidator ENABLE_GANDIVA_CODEGEN_FOR_COMPOSITE = new BooleanValidator("exec.enable.composite.codegen.gandiva", true);
 
   /*
    * Currently if a query is cancelled, but one of the fragments reports the status as FAILED instead of CANCELLED or
@@ -327,13 +340,13 @@ public interface ExecConstants {
     NON_BLOCKING_OPERATORS_MEMORY_KEY, 1 << 11, 1 << 6);
 
   String HASH_JOIN_TABLE_FACTOR_KEY = "planner.memory.hash_join_table_factor";
-  OptionValidator HASH_JOIN_TABLE_FACTOR = new DoubleValidator(HASH_JOIN_TABLE_FACTOR_KEY, 1.1d);
+  DoubleValidator HASH_JOIN_TABLE_FACTOR = new DoubleValidator(HASH_JOIN_TABLE_FACTOR_KEY, 1.1d);
 
   String HASH_AGG_TABLE_FACTOR_KEY = "planner.memory.hash_agg_table_factor";
-  OptionValidator HASH_AGG_TABLE_FACTOR = new DoubleValidator(HASH_AGG_TABLE_FACTOR_KEY, 1.1d);
+  DoubleValidator HASH_AGG_TABLE_FACTOR = new DoubleValidator(HASH_AGG_TABLE_FACTOR_KEY, 1.1d);
 
   String AVERAGE_FIELD_WIDTH_KEY = "planner.memory.average_field_width";
-  OptionValidator AVERAGE_FIELD_WIDTH = new PositiveLongValidator(AVERAGE_FIELD_WIDTH_KEY, Long.MAX_VALUE, 8);
+  LongValidator AVERAGE_FIELD_WIDTH = new PositiveLongValidator(AVERAGE_FIELD_WIDTH_KEY, Long.MAX_VALUE, 8);
 
   /**
    * Compression used to send fragments over RPC
@@ -427,6 +440,7 @@ public interface ExecConstants {
   LongValidator VOTING_SCHEDULE = new PositiveLongValidator("vote.schedule.millis", Long.MAX_VALUE, 0);
   PositiveLongValidator LAST_SEARCH_REINDEX  = new PositiveLongValidator("dac.search.last_reindex",  Long.MAX_VALUE, 0);
   PositiveLongValidator SEARCH_MANAGER_REFRESH_MILLIS  = new PositiveLongValidator("dac.search.refresh",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
+  PositiveLongValidator LISTING_SERVICE_REFRESH_MILLIS  = new PositiveLongValidator("dac.listing.refresh.ms",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
 
   // this option sets the frequency of task leader refresh for the executor selectors
   PositiveLongValidator EXEC_SELECTOR_TASK_LEADER_REFRESH_MILLIS  = new PositiveLongValidator("exec.selection.refresh",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
@@ -461,7 +475,7 @@ public interface ExecConstants {
   AdminBooleanValidator COORDINATOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("coordinator.heap.monitoring.enable", true);
   RangeLongValidator COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("coordinator.heap.monitoring.thresh.percentage", 50, 100, 85);
 
-  AdminBooleanValidator ENABLE_RECONCILE_QUERIES = new AdminBooleanValidator("coordinator.reconcile.queries.enable", false);
+  AdminBooleanValidator ENABLE_RECONCILE_QUERIES = new AdminBooleanValidator("coordinator.reconcile.queries.enable", true);
   RangeLongValidator RECONCILE_QUERIES_FREQUENCY_SECS = new RangeLongValidator("coordinator.reconcile.queries.frequency.secs", 1, 1800, 300);
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
@@ -469,7 +483,7 @@ public interface ExecConstants {
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
-  BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", false);
+  BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", true);
   PositiveLongValidator SLICING_THREAD_MIGRATION_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.migration_multiple", Long.MAX_VALUE, 50);
   PositiveLongValidator SLICING_THREAD_SPINDOWN_MULTIPLE = new com.dremio.options.TypeValidators.PositiveLongValidator("dremio.sliced.spindown_multiple", Long.MAX_VALUE, 100);
 
@@ -500,8 +514,8 @@ public interface ExecConstants {
   BooleanValidator EXEC_CODE_CACHE_SAVE_EXPR = new BooleanValidator("exec.code_cache.save_expr", false);
 
   BooleanValidator ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET =  new BooleanValidator("exec.non_partitioned_parquet.enable_runtime_filter", false); // in beta right now
-  RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE =  new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
-  RangeLongValidator RUNTIME_FILTER_KEY_MAX_SIZE =  new RangeLongValidator("exec.runtime_filter.max_key_size", 32, 1_024, 128);
+  RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE = new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
+  RangeLongValidator RUNTIME_FILTER_KEY_MAX_SIZE = new RangeLongValidator("exec.runtime_filter.max_key_size", 32, 1_024, 128);
 
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
@@ -511,8 +525,8 @@ public interface ExecConstants {
 
   BooleanValidator PREFETCH_READER = new BooleanValidator("store.parquet.prefetch_reader", true);
   BooleanValidator READ_COLUMN_INDEXES = new BooleanValidator("store.parquet.read_column_indexes", true);
-    // Increasing this will increase the number of splits that are prefetched. Unfortunately, it can also lead to multiple footer reads
-    // if the future splits are from the same file
+  // Increasing this will increase the number of splits that are prefetched. Unfortunately, it can also lead to multiple footer reads
+  // if the future splits are from the same file
   RangeLongValidator NUM_SPLITS_TO_PREFETCH = new RangeLongValidator("store.parquet.num_splits_to_prefetch", 1, 20L, 1);
 
   // Use this as a factor to scale the rowcount estimation of number of rows in a data file
@@ -520,4 +534,12 @@ public interface ExecConstants {
   StringValidator DISABLED_GANDIVA_FUNCTIONS = new StringValidator("exec.disabled.gandiva-functions", "");
   BooleanValidator GANDIVA_TARGET_HOST_CPU = new BooleanValidator("exec.gandiva.target_host_cpu", true);
   BooleanValidator GANDIVA_OPTIMIZE = new BooleanValidator("exec.gandiva.optimize_ir", true);
+  String ICEBERG_CATALOG_TYPE_KEY = "iceberg.catalog_type";
+  String ICEBERG_NAMESPACE_KEY = "iceberg.namespace";
+  BooleanValidator HADOOP_BLOCK_CACHE_ENABLED = new BooleanValidator("hadoop_block_affinity_cache.enabled", true);
+
+  /**
+   * Controls the 'compression' factor for the TDigest algorithm.
+   */
+  LongValidator TDIGEST_COMPRESSION = new PositiveLongValidator("exec.statistics.tdigest_compression", 10000L, 100);
 }

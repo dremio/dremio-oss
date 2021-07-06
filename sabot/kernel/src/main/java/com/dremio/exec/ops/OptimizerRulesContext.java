@@ -19,6 +19,7 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface OptimizerRulesContext extends FunctionContext {
@@ -39,4 +40,6 @@ public interface OptimizerRulesContext extends FunctionContext {
    * @return PlannerSettings
    */
   public PlannerSettings getPlannerSettings();
+
+  public CatalogService getCatalogService();
 }

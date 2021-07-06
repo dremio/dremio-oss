@@ -382,6 +382,7 @@ public class CatalogServiceImpl implements CatalogService {
     boolean afterUnknownEx = false;
 
     try(final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName())) {
+      logger.debug("Obtained distributed lock for source {}", "-source-"+config.getName());
       setInfluxSource(config.getName());
       getPlugins().create(config, userName, attributes);
       communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
@@ -391,8 +392,10 @@ public class CatalogServiceImpl implements CatalogService {
       throw ex;
     } catch (Exception ex) {
       afterUnknownEx = true;
+      logger.error("Exception encountered: {}", ex.getMessage(), ex);
       throw UserException.validationError(ex).message("Failed to create source with name %s.", config.getName()).buildSilently();
     } finally {
+      logger.debug("Releasing distributed lock for source {}", "-source-"+config.getName());
       removeInfluxSource(config.getName(), afterUnknownEx);
     }
   }
@@ -402,6 +405,7 @@ public class CatalogServiceImpl implements CatalogService {
     boolean afterUnknownEx = false;
 
     try (final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName());) {
+      logger.debug("Obtained distributed lock for source {}", "-source-"+config.getName());
       setInfluxSource(config.getName());
       ManagedStoragePlugin plugin = getPlugins().get(config.getName());
       if (plugin == null) {
@@ -419,6 +423,7 @@ public class CatalogServiceImpl implements CatalogService {
       afterUnknownEx = true;
       throw UserException.validationError(ex).message("Failed to update source with name %s.", config.getName()).buildSilently();
     } finally {
+      logger.debug("Releasing distributed lock for source {}", "-source-"+config.getName());
       removeInfluxSource(config.getName(), afterUnknownEx);
     }
   }
@@ -444,6 +449,7 @@ public class CatalogServiceImpl implements CatalogService {
     boolean afterUnknownEx = false;
 
     try (AutoCloseable l = getDistributedLock(config.getName()) ) {
+      logger.debug("Obtained distributed lock for source {}", "-source-"+config.getName());
       setInfluxSource(config.getName());
       if(!getPlugins().closeAndRemoveSource(config)) {
         throw UserException.invalidMetadataError().message("Unable to remove source as the provided definition is out of date.").buildSilently();
@@ -458,6 +464,7 @@ public class CatalogServiceImpl implements CatalogService {
       afterUnknownEx = true;
       throw UserException.validationError(ex).message("Failure deleting source [%s].", config.getName()).build(logger);
     } finally {
+      logger.debug("Releasing distributed lock for source {}", "-source-"+config.getName());
       removeInfluxSource(config.getName(), afterUnknownEx);
     }
 
@@ -706,12 +713,6 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     public <T extends StoragePlugin> T getSource(String name) {
-      try {
-        // Check userNamespace to resolve permissions since CatalogServiceImpl does not
-        CatalogServiceImpl.this.context.get().getNamespaceService(userName).getSource(new NamespaceKey(name));
-      } catch (NamespaceException ignored) {
-        // Other errors should be handled by call to CatalogService
-      }
       return CatalogServiceImpl.this.getSource(name);
     }
 

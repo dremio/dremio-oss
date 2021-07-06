@@ -24,6 +24,7 @@ import java.util.Set;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 
+import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -144,10 +145,6 @@ public class BaseTestFunction extends BaseTestOperator {
     }
 
   }
-//
-//  private void testCompiledFunction(String stringExpression, Object... fields) {
-//
-//  }
 
   public class FieldExpressionCollector extends AbstractExprVisitor<Void, Void, RuntimeException> {
 
@@ -168,6 +165,11 @@ public class BaseTestFunction extends BaseTestOperator {
         child.accept(this,  null);
       }
       return null;
+    }
+
+    @Override
+    public Void visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+      return visitUnknown(caseExpression, value);
     }
 
   }

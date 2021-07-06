@@ -28,6 +28,9 @@ import org.apache.arrow.vector.TimeStampMilliVector;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.common.SuppressForbidden;
+
+@SuppressForbidden
 public class TestTimeStampMilliAccessor {
 
   private static final Timestamp NON_NULL_VALUE = new Timestamp(72, 10, 4, 11, 10, 8, 957000000);

@@ -17,6 +17,15 @@ import { shallow } from 'enzyme';
 
 import DurationField from './DurationField';
 
+const MULTIPLIERS = new Map([
+  ['Millisecond(s)', 1],
+  ['Second(s)', 1000],
+  ['Minute(s)', 60 * 1000],
+  ['Hour(s)', 60 * 60 * 1000],
+  ['Day(s)', 24 * 60 * 60 * 1000],
+  ['Week(s)', 7 * 24 * 60 * 60 * 1000]
+]);
+
 describe('DurationField', () => {
 
   let minimalProps, commonProps;
@@ -25,7 +34,8 @@ describe('DurationField', () => {
       onChange: sinon.spy()
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
+      multipliers: MULTIPLIERS
     };
   });
 

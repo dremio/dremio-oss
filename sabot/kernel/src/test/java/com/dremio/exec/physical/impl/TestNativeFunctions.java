@@ -18,10 +18,12 @@ package com.dremio.exec.physical.impl;
 import static com.dremio.sabot.Fixtures.NULL_BIGINT;
 import static com.dremio.sabot.Fixtures.NULL_BINARY;
 import static com.dremio.sabot.Fixtures.NULL_BOOLEAN;
+import static com.dremio.sabot.Fixtures.NULL_DATE;
 import static com.dremio.sabot.Fixtures.NULL_DECIMAL;
 import static com.dremio.sabot.Fixtures.NULL_DOUBLE;
 import static com.dremio.sabot.Fixtures.NULL_FLOAT;
 import static com.dremio.sabot.Fixtures.NULL_INT;
+import static com.dremio.sabot.Fixtures.NULL_TIMESTAMP;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.date;
 import static com.dremio.sabot.Fixtures.interval_day;
@@ -1115,5 +1117,117 @@ public class TestNativeFunctions extends BaseTestFunction {
         {"add(c0, 1)", 1, 2}
       });
     }
+  }
+
+  @Test
+  public void testTrigonometry() throws Exception {
+    testFunctions(new Object[][]{
+      {"sin(c0)", 0, Math.sin(0)},
+      {"sin(c0)", Math.PI, Math.sin(Math.PI)},
+      {"cos(c0)", 0, Math.cos(0)},
+      {"cos(c0)", Math.PI, Math.cos(Math.PI)},
+      {"asin(c0)", 0, Math.asin(0)},
+      {"asin(c0)", Math.PI, Math.asin(Math.PI)},
+      {"acos(c0)", 0, Math.acos(0)},
+      {"acos(c0)", Math.PI, Math.acos(Math.PI)},
+      {"tan(c0)", 0, Math.tan(0)},
+      {"tan(c0)", Math.PI, Math.tan(Math.PI)},
+      {"atan(c0)", 0, Math.atan(0)},
+      {"atan(c0)", Math.PI, Math.atan(Math.PI)},
+      {"sinh(c0)", 0, Math.sinh(0)},
+      {"sinh(c0)", Math.PI, Math.sinh(Math.PI)},
+      {"cosh(c0)", 0, Math.cosh(0)},
+      {"cosh(c0)", Math.PI, Math.cosh(Math.PI)},
+      {"tanh(c0)", 0, Math.tanh(0)},
+      {"tanh(c0)", Math.PI, Math.tanh(Math.PI)},
+      {"atan2(c0, c1)", 1, 0, Math.atan2(1, 0)},
+      {"atan2(c0, c1)", -1, 0, Math.atan2(-1, 0)},
+      {"radians(c0)", 0, Math.toRadians(0)},
+      {"radians(c0)", 180, Math.toRadians(180)},
+      {"degrees(c0)", 0, Math.toDegrees(0)},
+      {"degrees(c0)", Math.PI, Math.toDegrees(Math.PI)},
+    });
+  }
+
+  @Test
+  public void testHashSHA() throws Exception {
+    String nullHash1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+    String nullHash256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    testFunctionsCompiledOnly(new Object[][]{
+      {"hashSHA1(c0)", NULL_VARCHAR, nullHash1},
+      {"hashSHA1(c0)", "abc", "a9993e364706816aba3e25717850c26c9cd0d89d"},
+      {"hashSHA1(c0)", NULL_BIGINT, nullHash1},
+      {"hashSHA1(c0)", 12345, "7963aaf7bfffbb0bc0ee3d461063d76073f6b790"},
+      {"hashSHA1(c0)", NULL_DECIMAL, nullHash1},
+      {"hashSHA1(c0)", BigDecimal.valueOf(10, 2), "6de872e6538d84ea0c18f8bfe328c2cd0fdb8b03"},
+      {"hashSHA256(c0)", NULL_VARCHAR, nullHash256},
+      {"hashSHA256(c0)", "abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},
+      {"hashSHA256(c0)", NULL_BIGINT, nullHash256},
+      {"hashSHA256(c0)", 12345, "2dbcbc659508f21be09acdbe180465ded85327f3fd4c00cc746bf3cb4838e95d"},
+      {"hashSHA256(c0)", NULL_DECIMAL, nullHash256},
+      {"hashSHA256(c0)", BigDecimal.valueOf(10, 2), "3aeae1c06c3eeeb5c12b00ddfe28e936ceeca6e735b275915fe3381e1c9def4f"},
+    });
+  }
+
+  @Test
+  public void testLastDay() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+      {"extractDay(last_day(c0))", date("2000-05-01"), 31L},
+      {"extractDay(last_day(c0))", date("2000-06-01"), 30L},
+      {"extractDay(last_day(c0))", date("2021-12-12"), 31L},
+      {"extractDay(last_day(c0))", NULL_DATE, NULL_BIGINT},
+      {"extractDay(last_day(c0))", ts("2000-05-01"), 31L},
+      {"extractDay(last_day(c0))", ts("2000-06-01"), 30L},
+      {"extractDay(last_day(c0))", ts("2021-12-12"), 31L},
+      {"extractDay(last_day(c0))", NULL_TIMESTAMP, NULL_BIGINT},
+    });
+  }
+
+  @Test
+  public void testCastNumericToVarchar() throws Exception {
+    testFunctions(new Object[][]{
+      {"castVARCHAR(c0, c1)", 12345, 0, ""},
+      {"castVARCHAR(c0, c1)", 12345, 2, "12"},
+      {"castVARCHAR(c0, c1)", -12345, 6, "-12345"},
+      {"castVARCHAR(c0, c1)", 1.2345, 5, "1.234"},
+      {"castVARCHAR(c0, c1)", 0.00001, 7, "1.0E-5"},
+      {"castVARCHAR(c0, c1)", 0.00099999f, 10, "9.9999E-4"},
+      {"castVARCHAR(c0, c1)", 10.0000000000, 13, "10.0"},
+    });
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testCastNumericToVarcharNegativeLength() throws Exception {
+    try {
+      testFunctions(new Object[][]{
+        {"castVARCHAR(c0, c1)", 12345, -1, ""}
+      });
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getCause().getCause().getMessage()
+        .contains("Buffer length can not be negative"));
+      throw re;
+    }
+  }
+
+  @Test
+  public void testCastTime() throws Exception {
+    testFunctions(new Object[][]{
+      {"extractHour(castTIME(c0))", ts("2000-05-01T10:20:34"), 10L},
+      {"extractMinute(castTIME(c0))", ts("2000-05-01T10:20:34"), 20L},
+      {"extractSecond(castTIME(c0))", ts("2000-05-01T10:20:34"), 34L},
+      {"extractHour(castTIME(c0))", ts("1985-05-01T15:13:08"), 15L},
+      {"extractMinute(castTIME(c0))", ts("1985-05-01T15:13:08"), 13L},
+      {"extractSecond(castTIME(c0))", ts("1985-05-01T15:13:08"), 8L},
+    });
+  }
+
+  @Ignore("DX-32437; temporarily ignoring as this function is temporarily blacklisted")
+  @Test
+  public void testConvertReplaceUTF8() throws Exception {
+    testFunctions(new Object[][]{
+      {"convert_replaceUTF8(binary_string(c0), 'a')", "ABC", "ABC"},
+      {"convert_replaceUTF8(binary_string(c0), 'z')", "ABC-\\xf8-\\x41\\x42\\x43", "ABC-z-ABC"},
+      {"convert_replaceUTF8(binary_string(c0), 'z')", "\\xf8-ABC-\\xf8-\\x41\\x42\\x43-\\xf8", "z-ABC-z-ABC-z"},
+    });
   }
 }

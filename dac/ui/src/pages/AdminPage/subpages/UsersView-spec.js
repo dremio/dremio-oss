@@ -42,7 +42,7 @@ describe('UsersView', () => {
   it('render elements', () => {
     const wrapper = shallow(<UsersView {...commonProps}/>, {context});
     expect(wrapper.find('#admin-user')).have.length(1);
-    expect(wrapper.find('.admin-header')).have.length(1);
+    expect(wrapper.find('SettingHeader')).have.length(1);
     expect(wrapper.find('.filter')).have.length(1);
     expect(wrapper.find('StatefulTableViewer')).have.length(1);
   });

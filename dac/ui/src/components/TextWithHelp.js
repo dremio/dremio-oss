@@ -13,50 +13,78 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, createRef } from 'react';
+import { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
+
 import { Tooltip } from 'components/Tooltip';
-import { container, tooltip, textWithHelp } from './TextWithHelp.less';
 
-export class TextWithHelp extends PureComponent {
-  static propTypes = {
-    text: PropTypes.string
+import './TextWithHelp.less';
+
+export const DARK = 'dark';
+export const LIGHT = 'light';
+
+const TextWithHelp = (props) => {
+  const {
+    text,
+    className,
+    color
+  } = props;
+
+  const textRef = useRef(null);
+  const [isHover, setIsHover] = useState(false);
+
+  const onMouseEnter = () => {
+    const {
+      clientWidth,
+      scrollWidth
+    } = textRef.current || {};
+    setIsHover(clientWidth < scrollWidth);
   };
 
-  state = {
-    isHover: false
+  const onMouseLeave = () => {
+    setIsHover(false);
   };
 
-  onMouseEnter = () => {
-    this.setState({
-      isHover: true
-    });
-  };
+  const tooltipClass = classNames(
+    'textWithHelp__tooltip',
+    { '--light': color === LIGHT }
+  );
 
-  onMouseLeave = () => {
-    this.setState({
-      isHover: false
-    });
-  };
+  const arrowClass = classNames(
+    'textWithHelp__tooltipArrow',
+    { '--light': color === LIGHT }
+  );
 
-  textRef = createRef()
+  const contentClass = classNames(
+    'textWithHelp__content',
+    { [className]: className }
+  );
 
-  render() {
-    const { text } = this.props;
-    const { isHover } = this.state;
+  return (
+    <div className='textWithHelp' onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+      <div className={contentClass} ref={textRef}>{text}</div>
+      <Tooltip key='tooltip'
+        target={() => isHover ? textRef.current : null}
+        placement='bottom-start'
+        tooltipInnerClass={tooltipClass}
+        tooltipArrowClass={arrowClass}
+      >
+        {text}
+      </Tooltip>
+    </div>
+  );
+};
 
-    return (
-      <span className={container} onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave}>
-        <div className={textWithHelp} ref={this.textRef}>{text}</div>
-        <Tooltip key='tooltip'
-          target={() => isHover ? this.textRef.current : null}
-          placement='bottom-start'
-          className={tooltip}
-          tooltipInnerStyle={{ width: 'auto', whiteSpace: 'nowrap' }}
-        >
-          {text}
-        </Tooltip>
-      </span>
-    );
-  }
-}
+TextWithHelp.propTypes = {
+  text: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  className: PropTypes.string,
+  color: PropTypes.oneOf([DARK, LIGHT])
+};
+
+TextWithHelp.defaultProps = {
+  className: '',
+  color: DARK
+};
+
+export default TextWithHelp;
