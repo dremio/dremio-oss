@@ -485,3 +485,21 @@ SqlNode SqlCompactMaterialization() :
         return new SqlCompactMaterialization(pos, materializationPath, newMaterializationId);
     }
 }
+
+/**
+ * Parses a CREATE FOLDER statement
+ */
+SqlNode SqlCreateFolderRecursive() :
+{
+    SqlParserPos pos;
+    SqlIdentifier folderPath;
+}
+{
+    <CREATE> { pos = getPos(); }
+    <FOLDER>
+    { folderPath = CompoundIdentifier(); }
+    <RECURSIVE>
+    {
+        return new SqlCreateFolderRecursive(pos, folderPath);
+    }
+}

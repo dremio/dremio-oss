@@ -76,6 +76,7 @@
     "LAZY",
     "MAINTAIN",
     "MISSING",
+    "FOLDER",
     "COLUMNS",
     "CHANGE"
   ]
@@ -118,6 +119,7 @@
     "LAZY",
     "MAINTAIN",
     "MISSING",
+    "FOLDER",
     "COLUMNS",
     "CHANGE"
   ]
@@ -139,6 +141,7 @@
     "SqlRefreshReflection()",
     "SqlLoadMaterialization()",
     "SqlCompactMaterialization()",
+    "SqlCreateFolderRecursive()",
     "SqlExplainJson()"
   ]
 
