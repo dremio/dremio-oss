@@ -15,11 +15,13 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -110,6 +112,13 @@ public class TestGandivaFunctionRegistry extends ExecTest {
   }
 
   @Test
+  public void getAllRegisteredFunctionsAndGenerateYAML() throws IOException {
+    // Retrieve the function registry and generate the YAML files with the available information
+    FunctionImplementationRegistry fnRegistry = FUNCTIONS();
+    fnRegistry.generateYAMLWithRegisteredFunctions();
+  }
+
+  @Test
   public void getUnSupportedFunctions() throws GandivaException {
     FunctionImplementationRegistry fnRegistry = FUNCTIONS();
     ArrayListMultimap<String, AbstractFunctionHolder> functions = fnRegistry.getRegisteredFunctions();
@@ -186,10 +195,10 @@ public class TestGandivaFunctionRegistry extends ExecTest {
   }
 
   private FunctionCall getDecimalAddFn() {
-      List<LogicalExpression> args = Lists.newArrayList(
-        ValueExpressions.getDecimal(BigDecimal.valueOf(1), 1, 0),
-        ValueExpressions.getDecimal(BigDecimal.valueOf(2), 1, 0));
-      return new FunctionCall("add", args);
+    List<LogicalExpression> args = Lists.newArrayList(
+      ValueExpressions.getDecimal(BigDecimal.valueOf(1), 1, 0),
+      ValueExpressions.getDecimal(BigDecimal.valueOf(2), 1, 0));
+    return new FunctionCall("add", args);
   }
 
   private FunctionCall getDecimalSameFn() {
