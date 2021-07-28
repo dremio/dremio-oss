@@ -343,4 +343,13 @@ public class TestStringFunctions extends BaseTestFunction {
     });
   }
 
+  @Test
+  public void quote(){
+    testFunctionsInterpretedOnly(new Object[][]{
+      { "quote(c0)", "dont", "'dont'"},
+      { "quote(c0)", "don't", "'don\\'t'"},
+      { "quote(c0)", "'", "'\\''"}
+    });
+  }
+
 }

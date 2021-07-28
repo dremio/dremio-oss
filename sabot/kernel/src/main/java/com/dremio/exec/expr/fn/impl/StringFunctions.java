@@ -1717,4 +1717,40 @@ public class StringFunctions{
       out.end = outBytea.length;
     }
   }
+
+  /**
+   * Returns the quoted string (Includes escape character for any single quotes)
+   */
+  @FunctionTemplate(name = "quote", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class Quote implements SimpleFunction {
+    @Param  VarCharHolder in;
+    @Output VarCharHolder out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      final int len = in.end - in.start;
+      out.start = 0;
+      out.buffer = buffer = buffer.reallocIfNeeded(len * 2L);
+      int counter = 1;
+      // Set the initial single quote (' -> 39) byte
+      buffer.setByte(0, 39);
+      for (int i = in.start; i < in.end; i++) {
+        // Check if the byte is a single quote
+        if (in.buffer.getByte(i) == 39) {
+          out.buffer.setByte(counter, 92);
+          counter++;
+          out.buffer.setByte(counter, 39);
+        } else {
+          out.buffer.setByte(counter, in.buffer.getByte(i));
+        }
+        counter++;
+      }
+      out.buffer.setByte(counter, 39);
+      out.end = counter + 1;
+    }
+  }
 }
