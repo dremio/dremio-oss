@@ -1717,4 +1717,27 @@ public class StringFunctions{
       out.end = outBytea.length;
     }
   }
+
+  /**
+   * Returns the soundex encoding for a given string.
+   */
+  @FunctionTemplate(name = "soundex", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class SoundexEncoding implements SimpleFunction {
+    @Param  VarCharHolder in;
+    @Output VarCharHolder out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+      byte[] outBytes = org.apache.commons.codec.language.Soundex.US_ENGLISH.soundex(
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer)).getBytes();
+      out.buffer = buffer = buffer.reallocIfNeeded(outBytes.length);
+      out.buffer.setBytes(0, outBytes);
+      out.start = 0;
+      out.end = outBytes.length;
+    }
+  }
 }

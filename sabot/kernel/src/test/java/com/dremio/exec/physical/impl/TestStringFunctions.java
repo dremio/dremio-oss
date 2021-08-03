@@ -343,4 +343,14 @@ public class TestStringFunctions extends BaseTestFunction {
     });
   }
 
+  @Test
+  public void soundex(){
+    testFunctions(new Object[][]{
+      { "soundex('Miller')", "M460"},
+      { "soundex('test')", "T230"},
+      { "soundex('')", ""},
+      { "soundex('abc')", "A120"}
+    });
+  }
+
 }
