@@ -47,8 +47,6 @@ public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
     final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
 
     final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
-      wrapper.getClient().getInfo(command):
-      wrapper.getClient().getInfo(command, wrapper.getTokenCallOption());
+    return wrapper.getClient().getInfo(command, wrapper.getTokenCallOption());
   }
 }

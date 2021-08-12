@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight;
 
-import java.io.IOException;
 import java.sql.SQLException;
 
 import org.apache.arrow.flight.FlightInfo;
@@ -44,11 +44,11 @@ public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightServer {
 
   @Override
   public FlightInfo getFlightInfo(String query) throws SQLException {
-    final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
+    final FlightClientUtils.FlightClientWrapper clientWrapper = getFlightClientWrapper();
 
-    final FlightSqlClient.PreparedStatement prepare = wrapper.getSqlClient().prepare(query);
+    final FlightSqlClient.PreparedStatement preparedStatement =
+      clientWrapper.getSqlClient().prepare(query, clientWrapper.getTokenCallOption());
 
-    //TODO add a call with the call options.
-    return prepare.execute();
+    return preparedStatement.execute();
   }
 }
