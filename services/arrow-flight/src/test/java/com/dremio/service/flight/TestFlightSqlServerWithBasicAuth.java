@@ -25,7 +25,7 @@ import org.junit.BeforeClass;
 import com.dremio.service.flight.impl.FlightWorkManager;
 
 /**
- * Test FlightServer with basic authentication.
+ * Test FlightServer with basic authentication using FlightSql producer.
  */
 public class TestFlightSqlServerWithBasicAuth extends AbstractTestFlightServer {
   @BeforeClass

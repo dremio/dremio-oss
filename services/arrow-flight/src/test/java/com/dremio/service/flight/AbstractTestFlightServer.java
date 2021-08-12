@@ -197,10 +197,6 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
         .appendText(" not found in the exception.");
     }
   }
-//
-//  private static FlightDescriptor toFlightDescriptor(String query) {
-//    return FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-//  }
 
   public abstract FlightInfo getFlightInfo(String query) throws IOException, SQLException;
 
