@@ -13,7 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight;
+
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetCatalogs;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetExportedKeys;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetImportedKeys;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetPrimaryKeys;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetSchemas;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetSqlInfo;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetTableTypes;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandGetTables;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandPreparedStatementQuery;
+import static org.apache.arrow.flight.sql.impl.FlightSql.CommandStatementQuery;
 
 import javax.inject.Provider;
 
@@ -31,6 +43,7 @@ import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.PutResult;
 import org.apache.arrow.flight.Result;
 import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.flight.sql.FlightSqlUtils;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.work.protector.UserWorker;
@@ -39,12 +52,16 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.impl.FlightPreparedStatement;
 import com.dremio.service.flight.impl.FlightWorkManager;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
+import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * A FlightProducer implementation which exposes Dremio's catalog and produces results from SQL queries.
  */
 public class DremioFlightProducer implements FlightProducer {
+
+  private final DremioFlightSqlProducer flightSqlProducer;
+
   private final FlightWorkManager flightWorkManager;
   private final Location location;
   private final DremioFlightSessionsManager sessionsManager;
@@ -52,24 +69,37 @@ public class DremioFlightProducer implements FlightProducer {
 
   public DremioFlightProducer(Location location, DremioFlightSessionsManager sessionsManager,
                               Provider<UserWorker> workerProvider, Provider<OptionManager> optionManagerProvider,
-                              BufferAllocator allocator, RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) {
+                              BufferAllocator allocator,
+                              RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) {
     this.location = location;
     this.sessionsManager = sessionsManager;
     this.allocator = allocator;
 
     flightWorkManager = new FlightWorkManager(workerProvider, optionManagerProvider, runQueryResponseHandlerFactory);
+
+    flightSqlProducer =
+      new DremioFlightSqlProducer(sessionsManager, workerProvider, optionManagerProvider, allocator,
+        runQueryResponseHandlerFactory);
   }
 
   @Override
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener serverStreamListener) {
+    if (isFlightSqlCommand(ticket)) {
+      this.flightSqlProducer.getStream(callContext, ticket, serverStreamListener);
+      return;
+    }
+
     try {
       final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
       final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
-      final TicketContent.PreparedStatementTicket preparedStatementTicket = TicketContent.PreparedStatementTicket.parseFrom(ticket.getBytes());
+      final TicketContent.PreparedStatementTicket preparedStatementTicket =
+        TicketContent.PreparedStatementTicket.parseFrom(ticket.getBytes());
 
       flightWorkManager.runPreparedStatement(preparedStatementTicket, serverStreamListener, allocator, session);
     } catch (InvalidProtocolBufferException ex) {
-      final RuntimeException error = CallStatus.INVALID_ARGUMENT.withCause(ex).withDescription("Invalid ticket used in getStream").toRuntimeException();
+      final RuntimeException error =
+        CallStatus.INVALID_ARGUMENT.withCause(ex).withDescription("Invalid ticket used in getStream")
+          .toRuntimeException();
       serverStreamListener.error(error);
       throw error;
     }
@@ -82,6 +112,10 @@ public class DremioFlightProducer implements FlightProducer {
 
   @Override
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor flightDescriptor) {
+    if (isFlightSqlCommand(flightDescriptor)) {
+      return this.flightSqlProducer.getFlightInfo(callContext, flightDescriptor);
+    }
+
     final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
     final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
     final FlightPreparedStatement flightPreparedStatement = flightWorkManager
@@ -90,12 +124,22 @@ public class DremioFlightProducer implements FlightProducer {
   }
 
   @Override
-  public Runnable acceptPut(CallContext callContext, FlightStream flightStream, StreamListener<PutResult> streamListener) {
+  public Runnable acceptPut(CallContext callContext, FlightStream flightStream,
+                            StreamListener<PutResult> streamListener) {
+    if (isFlightSqlCommand(flightStream.getDescriptor())) {
+      return this.flightSqlProducer.acceptPut(callContext, flightStream, streamListener);
+    }
+
     throw CallStatus.UNIMPLEMENTED.withDescription("acceptPut is unimplemented").toRuntimeException();
   }
 
   @Override
   public void doAction(CallContext callContext, Action action, StreamListener<Result> streamListener) {
+    if (isFlightSqlAction(action)) {
+      this.flightSqlProducer.doAction(callContext, action, streamListener);
+      return;
+    }
+
     throw CallStatus.UNIMPLEMENTED.withDescription("doAction is unimplemented").toRuntimeException();
   }
 
@@ -112,5 +156,37 @@ public class DremioFlightProducer implements FlightProducer {
    */
   private CallHeaders retrieveHeadersFromCallContext(CallContext callContext) {
     return callContext.getMiddleware(FlightConstants.HEADER_KEY).headers();
+  }
+
+  // TODO: Add this to FlightSqlUtils
+  private boolean isFlightSqlCommand(Any command) {
+    return command.is(CommandStatementQuery.class) || command.is(CommandPreparedStatementQuery.class) ||
+      command.is(CommandGetCatalogs.class) || command.is(CommandGetSchemas.class) ||
+      command.is(CommandGetTables.class) || command.is(CommandGetTableTypes.class) ||
+      command.is(CommandGetSqlInfo.class) || command.is(CommandGetPrimaryKeys.class) ||
+      command.is(CommandGetExportedKeys.class) || command.is(CommandGetImportedKeys.class);
+  }
+
+  private boolean isFlightSqlCommand(byte[] bytes) {
+    try {
+      Any command = Any.parseFrom(bytes);
+      return isFlightSqlCommand(command);
+    } catch (InvalidProtocolBufferException e) {
+      return false;
+    }
+  }
+
+  private boolean isFlightSqlCommand(FlightDescriptor flightDescriptor) {
+    return isFlightSqlCommand(flightDescriptor.getCommand());
+  }
+
+  private boolean isFlightSqlCommand(Ticket ticket) {
+    return isFlightSqlCommand(ticket.getBytes());
+  }
+
+  // TODO: Add this to FlightSqlUtils
+  private boolean isFlightSqlAction(Action action) {
+    String actionType = action.getType();
+    return FlightSqlUtils.FLIGHT_SQL_ACTIONS.stream().anyMatch(action2 -> action2.getType().equals(actionType));
   }
 }

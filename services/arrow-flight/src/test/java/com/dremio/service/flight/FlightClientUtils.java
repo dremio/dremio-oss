@@ -21,6 +21,7 @@ import java.util.Optional;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.grpc.CredentialCallOption;
+import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
@@ -36,6 +37,7 @@ public final class FlightClientUtils {
   public static final class FlightClientWrapper implements AutoCloseable {
     private BufferAllocator allocator;
     private FlightClient client;
+    private FlightSqlClient sqlClient;
     private String authMode;
     private CredentialCallOption tokenCallOption;
 
@@ -43,8 +45,13 @@ public final class FlightClientUtils {
                                String authMode) {
       this.allocator = allocator;
       this.client = client;
+      this.sqlClient = new FlightSqlClient(this.client);
       this.authMode = authMode;
       this.tokenCallOption = null;
+    }
+
+    public FlightSqlClient getSqlClient() {
+      return sqlClient;
     }
 
     public BufferAllocator getAllocator() {

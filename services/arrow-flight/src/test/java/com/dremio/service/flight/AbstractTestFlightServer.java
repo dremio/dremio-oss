@@ -18,12 +18,12 @@ package com.dremio.service.flight;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
@@ -198,25 +198,17 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     }
   }
 
-  private static FlightDescriptor toFlightDescriptor(String query) {
-    return FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-  }
+  public abstract FlightInfo getFlightInfo(String query) throws IOException, SQLException;
 
-  private FlightInfo getFlightInfo(String query) {
-    final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
-    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
-      wrapper.getClient().getInfo(toFlightDescriptor(query)):
-      wrapper.getClient().getInfo(toFlightDescriptor(query), wrapper.getTokenCallOption());
-  }
-
-  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) {
+  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query)
+    throws IOException, SQLException {
     // Assumption is that we have exactly one endpoint returned.
     return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
       wrapper.getClient().getStream(getFlightInfo(query).getEndpoints().get(0).getTicket()):
       wrapper.getClient().getStream(getFlightInfo(query).getEndpoints().get(0).getTicket(), wrapper.getTokenCallOption());
   }
 
-  private FlightStream executeQuery(String query) {
+  private FlightStream executeQuery(String query) throws IOException, SQLException {
     // Assumption is that we have exactly one endpoint returned.
     return executeQuery(getFlightClientWrapper(), query);
   }
