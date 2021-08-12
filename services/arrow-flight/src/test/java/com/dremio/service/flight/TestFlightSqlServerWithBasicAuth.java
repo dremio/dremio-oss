@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.dremio.service.flight;
 
 import java.sql.SQLException;
@@ -21,12 +20,11 @@ import java.sql.SQLException;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 
 /**
- * Test FlightServer with basic authentication using FlightSql producer.
+ * Test FlightServer with basic authentication.
  */
 public class TestFlightSqlServerWithBasicAuth extends AbstractTestFlightServer {
   @BeforeClass
@@ -46,9 +44,10 @@ public class TestFlightSqlServerWithBasicAuth extends AbstractTestFlightServer {
 
   @Override
   public FlightInfo getFlightInfo(String query) throws SQLException {
-    final FlightClientUtils.FlightClientWrapper clientWrapper = getFlightClientWrapper();
+    final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
 
-    final FlightSqlClient.PreparedStatement preparedStatement = clientWrapper.getSqlClient().prepare(query);
-    return preparedStatement.execute();
+    final FlightSqlClient.PreparedStatement prepare = wrapper.getSqlClient().prepare(query);
+
+    return prepare.execute();
   }
 }

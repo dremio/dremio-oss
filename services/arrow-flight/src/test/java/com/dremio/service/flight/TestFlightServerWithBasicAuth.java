@@ -16,7 +16,10 @@
 
 package com.dremio.service.flight;
 
+import static org.junit.Assert.assertEquals;
+
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
@@ -45,9 +48,11 @@ public class TestFlightServerWithBasicAuth extends AbstractTestFlightServer {
 
   @Override
   public FlightInfo getFlightInfo(String query) {
-    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+    final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
 
     final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-    return wrapper.getClient().getInfo(command);
+    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
+      wrapper.getClient().getInfo(command):
+      wrapper.getClient().getInfo(command, wrapper.getTokenCallOption());
   }
 }
