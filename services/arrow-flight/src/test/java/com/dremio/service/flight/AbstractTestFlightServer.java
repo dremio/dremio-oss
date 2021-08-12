@@ -201,6 +201,10 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
         .appendText(" not found in the exception.");
     }
   }
+//
+//  private static FlightDescriptor toFlightDescriptor(String query) {
+//    return FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
+//  }
 
   private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
