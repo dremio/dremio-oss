@@ -17,10 +17,15 @@
 package com.dremio.service.flight;
 
 import java.sql.SQLException;
+import java.util.Collections;
 
 import org.apache.arrow.flight.FlightInfo;
+import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.sql.FlightSqlClient;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 
@@ -49,5 +54,75 @@ public class TestFlightSqlServerWithBasicAuth extends AbstractTestFlightServer {
 
     final FlightSqlClient.PreparedStatement preparedStatement = clientWrapper.getSqlClient().prepare(query);
     return preparedStatement.execute();
+  }
+
+  @Test
+  public void testGetTablesWithoutFiltering() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getTables(null, null, null,
+      null, false);
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+      Assert.assertTrue(root.getRowCount() > 0);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testGetTablesFilteringByCatalogPattern() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getTables("DREMIO", null, null,
+      null, false);
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+      Assert.assertTrue(root.getRowCount() > 0);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testGetTablesFilteringBySchemaPattern() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getTables(null, "INFORMATION_SCHEMA", null,
+      null, false);
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+      Assert.assertTrue(root.getRowCount() > 0);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testGetTablesFilteringByTablePattern() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getTables(null, null, "COLUMNS",
+      null, false);
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+      Assert.assertTrue(root.getRowCount() > 0);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testGetTablesFilteringByTableTypePattern() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getTables(null, null, null,
+      Collections.singletonList("system_table"), false);
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+      Assert.assertTrue(root.getRowCount() > 0);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
