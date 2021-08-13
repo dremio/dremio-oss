@@ -35,10 +35,10 @@ public final class FlightClientUtils {
    * Container class for holding a FlightClient and its associated allocator.
    */
   public static final class FlightClientWrapper implements AutoCloseable {
-    private BufferAllocator allocator;
-    private FlightClient client;
-    private FlightSqlClient sqlClient;
-    private String authMode;
+    private final BufferAllocator allocator;
+    private final FlightClient client;
+    private final FlightSqlClient sqlClient;
+    private final String authMode;
     private CredentialCallOption tokenCallOption;
 
     public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
@@ -79,8 +79,6 @@ public final class FlightClientUtils {
       // Note - client must close first as it creates a child allocator from
       // the input allocator.
       AutoCloseables.close(client, allocator);
-      client = null;
-      allocator = null;
       tokenCallOption = null;
     }
   }

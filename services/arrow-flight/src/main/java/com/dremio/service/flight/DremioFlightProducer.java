@@ -80,7 +80,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
 
   @Override
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener serverStreamListener) {
-    if (isFlightSqlCommand(ticket)) {
+    if (isFlightSqlTicket(ticket)) {
       FlightSqlProducer.super.getStream(callContext, ticket, serverStreamListener);
       return;
     }
@@ -370,7 +370,8 @@ public class DremioFlightProducer implements FlightSqlProducer {
     return isFlightSqlCommand(flightDescriptor.getCommand());
   }
 
-  private boolean isFlightSqlCommand(Ticket ticket) {
+  private boolean isFlightSqlTicket(Ticket ticket) {
+    // The byte array on ticket is a serialized FlightSqlCommand
     return isFlightSqlCommand(ticket.getBytes());
   }
 
