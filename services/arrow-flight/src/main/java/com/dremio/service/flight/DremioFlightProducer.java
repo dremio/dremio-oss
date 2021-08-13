@@ -158,7 +158,6 @@ public class DremioFlightProducer implements FlightProducer {
     return callContext.getMiddleware(FlightConstants.HEADER_KEY).headers();
   }
 
-  // TODO: Add this to FlightSqlUtils
   private boolean isFlightSqlCommand(Any command) {
     return command.is(CommandStatementQuery.class) || command.is(CommandPreparedStatementQuery.class) ||
       command.is(CommandGetCatalogs.class) || command.is(CommandGetSchemas.class) ||
@@ -184,7 +183,6 @@ public class DremioFlightProducer implements FlightProducer {
     return isFlightSqlCommand(ticket.getBytes());
   }
 
-  // TODO: Add this to FlightSqlUtils
   private boolean isFlightSqlAction(Action action) {
     String actionType = action.getType();
     return FlightSqlUtils.FLIGHT_SQL_ACTIONS.stream().anyMatch(action2 -> action2.getType().equals(actionType));
