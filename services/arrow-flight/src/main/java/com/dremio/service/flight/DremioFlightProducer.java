@@ -241,9 +241,8 @@ public class DremioFlightProducer implements FlightSqlProducer {
     ActionClosePreparedStatementRequest actionClosePreparedStatementRequest,
     CallContext callContext,
     StreamListener<Result> listener) {
-    UserProtos.PreparedStatementHandle preparedStatementHandle;
     try {
-      preparedStatementHandle =
+      UserProtos.PreparedStatementHandle preparedStatementHandle =
         UserProtos.PreparedStatementHandle.parseFrom(actionClosePreparedStatementRequest.getPreparedStatementHandle());
 
       flightPreparedStatementCache.invalidate(preparedStatementHandle);
