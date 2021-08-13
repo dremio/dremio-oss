@@ -37,13 +37,15 @@ import org.apache.arrow.flight.Criteria;
 import org.apache.arrow.flight.FlightConstants;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
-import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.PutResult;
 import org.apache.arrow.flight.Result;
+import org.apache.arrow.flight.SchemaResult;
 import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.flight.sql.FlightSqlProducer;
 import org.apache.arrow.flight.sql.FlightSqlUtils;
+import org.apache.arrow.flight.sql.impl.FlightSql;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.work.protector.UserWorker;
@@ -58,9 +60,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 /**
  * A FlightProducer implementation which exposes Dremio's catalog and produces results from SQL queries.
  */
-public class DremioFlightProducer implements FlightProducer {
-
-  private final DremioFlightSqlProducer flightSqlProducer;
+public class DremioFlightProducer implements FlightSqlProducer {
 
   private final FlightWorkManager flightWorkManager;
   private final Location location;
@@ -76,16 +76,12 @@ public class DremioFlightProducer implements FlightProducer {
     this.allocator = allocator;
 
     flightWorkManager = new FlightWorkManager(workerProvider, optionManagerProvider, runQueryResponseHandlerFactory);
-
-    flightSqlProducer =
-      new DremioFlightSqlProducer(sessionsManager, workerProvider, optionManagerProvider, allocator,
-        runQueryResponseHandlerFactory);
   }
 
   @Override
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener serverStreamListener) {
     if (isFlightSqlCommand(ticket)) {
-      this.flightSqlProducer.getStream(callContext, ticket, serverStreamListener);
+      FlightSqlProducer.super.getStream(callContext, ticket, serverStreamListener);
       return;
     }
 
@@ -113,7 +109,7 @@ public class DremioFlightProducer implements FlightProducer {
   @Override
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor flightDescriptor) {
     if (isFlightSqlCommand(flightDescriptor)) {
-      return this.flightSqlProducer.getFlightInfo(callContext, flightDescriptor);
+      return FlightSqlProducer.super.getFlightInfo(callContext, flightDescriptor);
     }
 
     final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
@@ -127,7 +123,7 @@ public class DremioFlightProducer implements FlightProducer {
   public Runnable acceptPut(CallContext callContext, FlightStream flightStream,
                             StreamListener<PutResult> streamListener) {
     if (isFlightSqlCommand(flightStream.getDescriptor())) {
-      return this.flightSqlProducer.acceptPut(callContext, flightStream, streamListener);
+      return FlightSqlProducer.super.acceptPut(callContext, flightStream, streamListener);
     }
 
     throw CallStatus.UNIMPLEMENTED.withDescription("acceptPut is unimplemented").toRuntimeException();
@@ -136,7 +132,7 @@ public class DremioFlightProducer implements FlightProducer {
   @Override
   public void doAction(CallContext callContext, Action action, StreamListener<Result> streamListener) {
     if (isFlightSqlAction(action)) {
-      this.flightSqlProducer.doAction(callContext, action, streamListener);
+      FlightSqlProducer.super.doAction(callContext, action, streamListener);
       return;
     }
 
@@ -146,6 +142,201 @@ public class DremioFlightProducer implements FlightProducer {
   @Override
   public void listActions(CallContext callContext, StreamListener<ActionType> streamListener) {
     throw CallStatus.UNIMPLEMENTED.withDescription("listActions is unimplemented").toRuntimeException();
+  }
+
+  @Override
+  public void createPreparedStatement(
+    FlightSql.ActionCreatePreparedStatementRequest actionCreatePreparedStatementRequest,
+    CallContext callContext,
+    StreamListener<Result> streamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("createPreparedStatement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void closePreparedStatement(
+    FlightSql.ActionClosePreparedStatementRequest actionClosePreparedStatementRequest,
+    CallContext callContext,
+    StreamListener<Result> listener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("closePreparedStatement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoStatement(
+    CommandStatementQuery commandStatementQuery,
+    CallContext callContext, FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("Statement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoPreparedStatement(
+    CommandPreparedStatementQuery commandPreparedStatementQuery,
+    CallContext callContext, FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("PreparedStatement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public SchemaResult getSchemaStatement(
+    CommandStatementQuery commandStatementQuery,
+    CallContext callContext, FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("Statement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamStatement(CommandStatementQuery commandStatementQuery,
+                                 CallContext callContext, Ticket ticket,
+                                 ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("Statement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamPreparedStatement(
+    CommandPreparedStatementQuery commandPreparedStatementQuery,
+    CallContext callContext, Ticket ticket,
+    ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("PreparedStatement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public Runnable acceptPutStatement(
+    FlightSql.CommandStatementUpdate commandStatementUpdate,
+    CallContext callContext, FlightStream flightStream,
+    StreamListener<PutResult> streamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("Statement not supported.").toRuntimeException();
+  }
+
+  @Override
+  public Runnable acceptPutPreparedStatementUpdate(
+    FlightSql.CommandPreparedStatementUpdate commandPreparedStatementUpdate,
+    CallContext callContext, FlightStream flightStream,
+    StreamListener<PutResult> streamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("PreparedStatement with parameter binding not supported.")
+      .toRuntimeException();
+  }
+
+  @Override
+  public Runnable acceptPutPreparedStatementQuery(
+    CommandPreparedStatementQuery commandPreparedStatementQuery,
+    CallContext callContext, FlightStream flightStream,
+    StreamListener<PutResult> streamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("PreparedStatement with parameter binding not supported.")
+      .toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoSqlInfo(CommandGetSqlInfo commandGetSqlInfo,
+                                         CallContext callContext,
+                                         FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSqlInfo not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamSqlInfo(CommandGetSqlInfo commandGetSqlInfo,
+                               CallContext callContext, Ticket ticket,
+                               ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSqlInfo not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoCatalogs(
+    CommandGetCatalogs commandGetCatalogs, CallContext callContext,
+    FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetCatalogs not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamCatalogs(CallContext callContext, Ticket ticket,
+                                ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetCatalogs not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoSchemas(CommandGetSchemas commandGetSchemas,
+                                         CallContext callContext,
+                                         FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSchemas not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamSchemas(CommandGetSchemas commandGetSchemas,
+                               CallContext callContext, Ticket ticket,
+                               ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSchemas not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoTables(CommandGetTables commandGetTables,
+                                        CallContext callContext,
+                                        FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTables not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamTables(CommandGetTables commandGetTables,
+                              CallContext callContext, Ticket ticket,
+                              ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTables not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoTableTypes(
+    CommandGetTableTypes commandGetTableTypes, CallContext callContext,
+    FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTableTypes not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamTableTypes(CallContext callContext, Ticket ticket,
+                                  ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTableTypes not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoPrimaryKeys(
+    CommandGetPrimaryKeys commandGetPrimaryKeys,
+    CallContext callContext, FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetPrimaryKeys not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamPrimaryKeys(CommandGetPrimaryKeys commandGetPrimaryKeys,
+                                   CallContext callContext, Ticket ticket,
+                                   ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetPrimaryKeys not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoExportedKeys(
+    CommandGetExportedKeys commandGetExportedKeys,
+    CallContext callContext, FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetExportedKeys not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamExportedKeys(
+    CommandGetExportedKeys commandGetExportedKeys,
+    CallContext callContext, Ticket ticket,
+    ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetExportedKeys not supported.").toRuntimeException();
+  }
+
+  @Override
+  public FlightInfo getFlightInfoImportedKeys(
+    CommandGetImportedKeys commandGetImportedKeys,
+    CallContext callContext, FlightDescriptor flightDescriptor) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetImportedKeys not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void getStreamImportedKeys(
+    CommandGetImportedKeys commandGetImportedKeys,
+    CallContext callContext, Ticket ticket,
+    ServerStreamListener serverStreamListener) {
+    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetImportedKeys not supported.").toRuntimeException();
+  }
+
+  @Override
+  public void close() throws Exception {
+
   }
 
   /**
