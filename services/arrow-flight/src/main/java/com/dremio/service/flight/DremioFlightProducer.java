@@ -317,13 +317,16 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public FlightInfo getFlightInfoCatalogs(
     CommandGetCatalogs commandGetCatalogs, CallContext callContext,
     FlightDescriptor flightDescriptor) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetCatalogs not supported.").toRuntimeException();
+    return getFlightInfoForFlightSqlCommands(commandGetCatalogs, flightDescriptor, getSchemaCatalogs().getSchema());
   }
 
   @Override
   public void getStreamCatalogs(CallContext callContext, Ticket ticket,
                                 ServerStreamListener serverStreamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetCatalogs not supported.").toRuntimeException();
+    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
+    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+
+    flightWorkManager.getCatalogs(serverStreamListener, allocator, session);
   }
 
   @Override

@@ -109,6 +109,18 @@ public class FlightWorkManager {
     workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
   }
 
+  public void getCatalogs(FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
+                          UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+    final UserRequest userRequest =
+      new UserRequest(UserProtos.RpcType.GET_CATALOGS, UserProtos.GetCatalogsReq.newBuilder().build());
+
+    final UserResponseHandler responseHandler = new GetCatalogsResponseHandler(allocator, listener);
+
+    workerProvider.get()
+      .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+  }
+
   @VisibleForTesting
   static String getQuery(FlightDescriptor descriptor) {
     if (!descriptor.isCommand()) {
