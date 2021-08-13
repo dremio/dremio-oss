@@ -92,7 +92,6 @@ public class DremioFlightProducer implements FlightSqlProducer {
     this.allocator = allocator;
 
     flightWorkManager = new FlightWorkManager(workerProvider, optionManagerProvider, runQueryResponseHandlerFactory);
-
     flightPreparedStatementCache = CacheBuilder.newBuilder()
       .maximumSize(1024)
       .expireAfterAccess(30, TimeUnit.MINUTES)
@@ -187,7 +186,8 @@ public class DremioFlightProducer implements FlightSqlProducer {
       throw CallStatus.NOT_FOUND.withDescription("PreparedStatement not found.").toRuntimeException();
     }
 
-    return getFlightInfoForFlightSqlCommands(commandPreparedStatementQuery, flightDescriptor, preparedStatement);
+    Schema schema = preparedStatement.getSchema();
+    return getFlightInfoForFlightSqlCommands(commandPreparedStatementQuery, flightDescriptor, schema);
   }
 
   @Override
@@ -245,11 +245,11 @@ public class DremioFlightProducer implements FlightSqlProducer {
     try {
       preparedStatementHandle =
         UserProtos.PreparedStatementHandle.parseFrom(actionClosePreparedStatementRequest.getPreparedStatementHandle());
+
+      flightPreparedStatementCache.invalidate(preparedStatementHandle);
     } catch (InvalidProtocolBufferException e) {
       throw CallStatus.INVALID_ARGUMENT.withDescription("Invalid PreparedStatementHandle").toRuntimeException();
     }
-
-    flightPreparedStatementCache.invalidate(preparedStatementHandle);
   }
 
   @Override
@@ -439,10 +439,8 @@ public class DremioFlightProducer implements FlightSqlProducer {
   }
 
   private <T extends Message> FlightInfo getFlightInfoForFlightSqlCommands(
-    T commandPreparedStatementQuery, FlightDescriptor flightDescriptor, FlightPreparedStatement preparedStatement) {
-    Schema schema = preparedStatement.getSchema();
-
-    final Ticket ticket = new Ticket(pack(commandPreparedStatementQuery).toByteArray());
+    T command, FlightDescriptor flightDescriptor, Schema schema) {
+    final Ticket ticket = new Ticket(pack(command).toByteArray());
 
     final FlightEndpoint flightEndpoint = new FlightEndpoint(ticket, location);
     return new FlightInfo(schema, flightDescriptor, ImmutableList.of(flightEndpoint), -1, -1);
