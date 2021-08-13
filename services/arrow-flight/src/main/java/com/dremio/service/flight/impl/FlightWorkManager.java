@@ -24,6 +24,7 @@ import javax.inject.Provider;
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightProducer;
+import org.apache.arrow.flight.sql.impl.FlightSql;
 import org.apache.arrow.flight.sql.FlightSqlProducer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarCharVector;
@@ -156,6 +157,39 @@ public class FlightWorkManager {
       listener.putNext();
       listener.completed();
     }
+    workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+  }
+
+  public void runGetTables(FlightSql.CommandGetTables commandGetTables, FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
+                           UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+    final UserProtos.GetTablesReq.Builder builder = UserProtos.GetTablesReq.newBuilder();
+
+    if (commandGetTables.hasSchemaFilterPattern()) {
+      builder.setSchemaNameFilter(UserProtos.LikeFilter.newBuilder()
+        .setPattern(commandGetTables.getSchemaFilterPattern().getValue()).build());
+    }
+
+    if (commandGetTables.hasTableNameFilterPattern()) {
+      builder.setTableNameFilter(UserProtos.LikeFilter.newBuilder()
+        .setPattern(commandGetTables.getTableNameFilterPattern().getValue()).build());
+    }
+
+    if (commandGetTables.hasCatalog()) {
+      builder.setCatalogNameFilter(UserProtos.LikeFilter.newBuilder()
+        .setPattern(commandGetTables.getCatalog().getValue()).build());
+    }
+
+    if (!commandGetTables.getTableTypesList().isEmpty()) {
+      builder.addAllTableTypeFilter(commandGetTables.getTableTypesList());
+    }
+
+    final UserRequest userRequest =
+      new UserRequest(UserProtos.RpcType.GET_TABLES, builder.build());
+
+    final UserResponseHandler responseHandler = new GetTablesResponseHandler(allocator, listener);
+
+    workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
   }
 
   @VisibleForTesting
