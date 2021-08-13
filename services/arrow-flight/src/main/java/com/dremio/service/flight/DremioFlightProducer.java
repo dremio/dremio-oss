@@ -17,6 +17,7 @@
 package com.dremio.service.flight;
 
 import static com.google.protobuf.Any.pack;
+import static java.util.Collections.singletonList;
 import static org.apache.arrow.flight.sql.impl.FlightSql.ActionClosePreparedStatementRequest;
 import static org.apache.arrow.flight.sql.impl.FlightSql.ActionCreatePreparedStatementRequest;
 import static org.apache.arrow.flight.sql.impl.FlightSql.ActionCreatePreparedStatementResult;
@@ -34,6 +35,7 @@ import static org.apache.arrow.flight.sql.impl.FlightSql.CommandStatementQuery;
 import static org.apache.arrow.flight.sql.impl.FlightSql.CommandStatementUpdate;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -344,14 +346,22 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public FlightInfo getFlightInfoTables(CommandGetTables commandGetTables,
                                         CallContext callContext,
                                         FlightDescriptor flightDescriptor) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTables not supported.").toRuntimeException();
+    final Schema schema = getSchemaTables().getSchema();
+
+    final Ticket ticket = new Ticket(pack(commandGetTables).toByteArray());
+    final List<FlightEndpoint> endpoints = singletonList(new FlightEndpoint(ticket, location));
+
+    return new FlightInfo(schema, flightDescriptor, endpoints, -1, -1);
   }
 
   @Override
   public void getStreamTables(CommandGetTables commandGetTables,
                               CallContext callContext, Ticket ticket,
                               ServerStreamListener serverStreamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTables not supported.").toRuntimeException();
+    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
+    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+
+    flightWorkManager.runGetTables(commandGetTables, serverStreamListener, allocator, session);
   }
 
   @Override
