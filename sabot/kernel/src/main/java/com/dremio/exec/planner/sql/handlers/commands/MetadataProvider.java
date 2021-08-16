@@ -45,6 +45,8 @@ import com.dremio.exec.proto.UserProtos.GetSchemasReq;
 import com.dremio.exec.proto.UserProtos.GetSchemasResp;
 import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.GetTablesResp;
+import com.dremio.exec.proto.UserProtos.GetTablesTypesReq;
+import com.dremio.exec.proto.UserProtos.GetTablesTypesResp;
 import com.dremio.exec.proto.UserProtos.LikeFilter;
 import com.dremio.exec.proto.UserProtos.RequestStatus;
 import com.dremio.exec.proto.UserProtos.RpcType;
@@ -255,6 +257,48 @@ public class MetadataProvider {
       final GetSchemasResp.Builder respBuilder = GetSchemasResp.newBuilder();
       respBuilder.setQueryId(queryId);
       respBuilder.addAllSchemas(schemaMetadata);
+      respBuilder.setStatus(RequestStatus.OK);
+      return respBuilder.build();
+    }
+  }
+
+  public static class TablesTypesHandler extends ResponseSenderHandler<GetTablesTypesResp> {
+
+    public TablesTypesHandler(ResponseSender sender) {
+      super(RpcType.TABLES_TYPES, GetTablesTypesResp.class, sender);
+    }
+
+    @Override
+    protected GetTablesTypesResp getException(UserException e) {
+      final GetTablesTypesResp.Builder respBuilder = GetTablesTypesResp.newBuilder();
+      respBuilder.setStatus(RequestStatus.FAILED);
+      respBuilder.setError(createPBError("get tables", e));
+      return respBuilder.build();
+    }
+  }
+
+  /**
+   * Runnable that fetches the table metadata for given {@link GetTablesReq} and sends response at the end.
+   */
+  public static class TablesTypesProvider extends MetadataCommand<GetTablesTypesResp> {
+
+    private final GetTablesTypesReq req;
+    private final QueryId queryId;
+
+    public TablesTypesProvider(
+      Provider<ConduitInProcessChannelProvider> catalogStub,
+      MetadataCommandParameters parameters,
+      GetTablesTypesReq req
+    ) {
+      super(catalogStub, parameters);
+      this.req = Preconditions.checkNotNull(req);
+      this.queryId = parameters.getQueryId();
+    }
+
+    @Override
+    public GetTablesTypesResp execute() throws Exception {
+      final GetTablesTypesResp.Builder respBuilder = GetTablesTypesResp.newBuilder();
+      respBuilder.setQueryId(queryId);
       respBuilder.setStatus(RequestStatus.OK);
       return respBuilder.build();
     }
