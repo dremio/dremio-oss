@@ -116,7 +116,7 @@ public class TestFlightSqlServerWithBasicAuth extends AbstractTestFlightServer {
   public void testGetTablesFilteringByTableTypePattern() {
     FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
     FlightInfo flightInfo = flightSqlClient.getTables(null, null, null,
-      Collections.singletonList("system_table"), false);
+      Collections.singletonList("SYSTEM_TABLE"), false);
     try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
       Assert.assertTrue(stream.next());
       VectorSchemaRoot root = stream.getRoot();
