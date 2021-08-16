@@ -27,11 +27,15 @@ import org.apache.arrow.flight.sql.impl.FlightSql;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResponseHandler;
+import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -140,6 +144,31 @@ public class FlightWorkManager {
     final UserResponseHandler responseHandler = new GetTablesResponseHandler(allocator, listener);
 
     workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+  }
+
+  public void runGetTableTypes(FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
+                               UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+    final UserProtos.GetTablesTypesReq.Builder builder = UserProtos.GetTablesTypesReq.newBuilder();
+
+    final UserRequest userRequest =
+      new UserRequest(UserProtos.RpcType.GET_TABLES_TYPES, builder.build());
+
+    final UserResponseHandler responseHandler = new UserResponseHandler() {
+      @Override
+      public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener,
+                           QueryWritableBatch result) {
+        // TODO just printing here to check on debug if the results as we expected
+        System.out.println("Testing");
+      }
+
+      @Override
+      public void completed(UserResult result) {
+        // TODO just printing here to check on debug if the results as we expected
+        System.out.println("Testing");
+      }
+    };
+        workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
   }
 
   @VisibleForTesting
