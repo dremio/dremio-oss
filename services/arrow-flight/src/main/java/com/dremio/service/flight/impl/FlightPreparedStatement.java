@@ -79,10 +79,6 @@ public class FlightPreparedStatement {
         .build();
   }
 
-  public UserProtos.PreparedStatementHandle getServerHandle() {
-    UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
-    return createPreparedStatementResp.getPreparedStatement().getServerHandle();
-  }
 
   /**
    * Returns the schema.
@@ -92,17 +88,6 @@ public class FlightPreparedStatement {
   public Schema getSchema() {
     final UserProtos.CreatePreparedStatementArrowResp resp = responseHandler.get();
     return buildSchema(resp.getPreparedStatement().getArrowSchema());
-  }
-
-  public ActionCreatePreparedStatementResult createAction() {
-    final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
-    final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
-
-    return ActionCreatePreparedStatementResult.newBuilder()
-      .setDatasetSchema(ByteString.copyFrom(schema.toByteArray()))
-      .setParameterSchema(ByteString.EMPTY)
-      .setPreparedStatementHandle(getServerHandle().toByteString())
-      .build();
   }
 
   public UserProtos.PreparedStatementHandle getServerHandle() {
