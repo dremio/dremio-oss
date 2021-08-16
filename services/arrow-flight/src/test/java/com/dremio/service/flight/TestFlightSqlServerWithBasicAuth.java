@@ -16,18 +16,8 @@
 
 package com.dremio.service.flight;
 
-import java.sql.SQLException;
-
 import org.apache.arrow.flight.CallOption;
-import org.apache.arrow.flight.FlightInfo;
-import org.apache.arrow.flight.FlightStream;
-import org.apache.arrow.flight.sql.FlightSqlClient;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 

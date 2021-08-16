@@ -16,13 +16,8 @@
 
 package com.dremio.service.flight;
 
-import java.sql.SQLException;
-
 import org.apache.arrow.flight.CallOption;
-import org.apache.arrow.flight.FlightInfo;
-import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 
@@ -47,6 +42,6 @@ public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightSqlServe
   @Override
   CallOption[] getCallOptions() {
     final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
-    return new CallOption[] { wrapper.getTokenCallOption() };
+    return new CallOption[] {wrapper.getTokenCallOption()};
   }
 }
