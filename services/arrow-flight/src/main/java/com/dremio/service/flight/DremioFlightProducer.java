@@ -368,13 +368,21 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public FlightInfo getFlightInfoTableTypes(
     CommandGetTableTypes commandGetTableTypes, CallContext callContext,
     FlightDescriptor flightDescriptor) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTableTypes not supported.").toRuntimeException();
+    final Schema schema = getSchemaTableTypes().getSchema();
+
+    final Ticket ticket = new Ticket(pack(commandGetTableTypes).toByteArray());
+    final List<FlightEndpoint> endpoints = singletonList(new FlightEndpoint(ticket, location));
+
+    return new FlightInfo(schema, flightDescriptor, endpoints, -1, -1);
   }
 
   @Override
   public void getStreamTableTypes(CallContext callContext, Ticket ticket,
                                   ServerStreamListener serverStreamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetTableTypes not supported.").toRuntimeException();
+    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
+    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+
+    flightWorkManager.runGetTableTypes(serverStreamListener, allocator, session);
   }
 
   @Override
