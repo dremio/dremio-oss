@@ -48,7 +48,6 @@ public class GetTablesResponseHandler implements UserResponseHandler {
       VarCharVector tableNameVector = (VarCharVector) vectorSchemaRoot.getVector("table_name");
       VarCharVector tableTypeVector = (VarCharVector) vectorSchemaRoot.getVector("table_type");
 
-
       final int tablesCount = getTablesResp.getTablesCount();
       final IntStream range = IntStream.range(1, tablesCount);
 
