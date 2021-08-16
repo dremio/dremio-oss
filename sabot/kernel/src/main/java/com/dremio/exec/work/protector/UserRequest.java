@@ -87,6 +87,7 @@ public class UserRequest {
     case GET_QUERY_PLAN_FRAGMENTS:
     case GET_SCHEMAS:
     case GET_TABLES:
+    case GET_TABLES_TYPES:
     case GET_SERVER_META:
       return NRT;
 
@@ -110,6 +111,7 @@ public class UserRequest {
     case GET_COLUMNS:
     case GET_SCHEMAS:
     case GET_TABLES:
+    case GET_TABLES_TYPES:
     case GET_SERVER_META:
       return MAX_MEMORY_UTIL;
     case RUN_QUERY:
@@ -152,6 +154,10 @@ public class UserRequest {
       GetTablesReq req = unwrap(GetTablesReq.class);
       return String.format("[Get Tables] Catalog Filter: %s, Schema Filter: %s, Table Filter %s.",
         req.getCatalogNameFilter(), req.getSchemaNameFilter(), req.getTableNameFilter());
+    }
+
+    case GET_TABLES_TYPES: {
+      return "Get Tables Types";
     }
 
     case GET_SERVER_META: {
@@ -211,6 +217,9 @@ public class UserRequest {
       return RequestType.GET_SCHEMAS;
     case GET_TABLES:
       return RequestType.GET_TABLES;
+    case GET_TABLES_TYPES:
+      // TODO Check how to create a requestType.GET_TABLE_TYPES
+     return RequestType.GET_TABLES;
     case GET_SERVER_META:
       return RequestType.GET_SERVER_META;
     case RUN_QUERY:
