@@ -15,6 +15,8 @@
  */
 package com.dremio.service.flight.impl;
 
+import static org.apache.arrow.flight.sql.impl.FlightSql.ActionCreatePreparedStatementResult;
+
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
@@ -56,7 +58,7 @@ public class FlightPreparedStatement {
 
     final PreparedStatementTicket preparedStatementTicketContent = PreparedStatementTicket.newBuilder()
       .setQuery(query)
-      .setHandle(createPreparedStatementResp.getPreparedStatement().getServerHandle())
+      .setHandle(getServerHandle())
       .build();
 
     final Ticket ticket = new Ticket(preparedStatementTicketContent.toByteArray());
@@ -73,6 +75,22 @@ public class FlightPreparedStatement {
   public Schema getSchema() {
     final UserProtos.CreatePreparedStatementArrowResp resp = responseHandler.get();
     return buildSchema(resp.getPreparedStatement().getArrowSchema());
+  }
+
+  public ActionCreatePreparedStatementResult createAction() {
+    final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
+    final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
+
+    return ActionCreatePreparedStatementResult.newBuilder()
+      .setDatasetSchema(ByteString.copyFrom(schema.toByteArray()))
+      .setParameterSchema(ByteString.EMPTY)
+      .setPreparedStatementHandle(getServerHandle().toByteString())
+      .build();
+  }
+
+  public UserProtos.PreparedStatementHandle getServerHandle() {
+    UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
+    return createPreparedStatementResp.getPreparedStatement().getServerHandle();
   }
 
   private static Schema buildSchema(ByteString arrowSchema) {

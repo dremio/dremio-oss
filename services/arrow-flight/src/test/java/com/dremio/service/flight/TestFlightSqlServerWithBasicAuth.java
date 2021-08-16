@@ -28,7 +28,6 @@ import com.dremio.service.flight.impl.FlightWorkManager;
 /**
  * Test FlightServer with basic authentication using FlightSql producer.
  */
-@Ignore
 public class TestFlightSqlServerWithBasicAuth extends AbstractTestFlightServer {
   @BeforeClass
   public static void setup() throws Exception {

@@ -28,7 +28,6 @@ import com.dremio.service.flight.impl.FlightWorkManager;
 /**
  * Test FlightServer with bearer token authentication using FlightSql producer.
  */
-@Ignore
 public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightServer {
   @BeforeClass
   public static void setup() throws Exception {
