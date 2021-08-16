@@ -15,7 +15,7 @@
  */
 package com.dremio.service.flight.impl;
 
-import static org.apache.arrow.flight.sql.impl.FlightSql.*;
+import static org.apache.arrow.flight.sql.impl.FlightSql.ActionCreatePreparedStatementResult;
 
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
