@@ -45,6 +45,7 @@ enum RpcType {
   GET_SERVER_META = 8; // user is sending a request to receive server metadata
   // user is sending a request to create prepared statement with arrow formatted metadata
   CREATE_PREPARED_STATEMENT_ARROW = 24;
+  GET_TABLES_TYPES = 26; // user is request the metadata of table(s) types;
 
   // bit to user
   QUERY_DATA = 6; // node is sending a query result data batch to the user
@@ -58,6 +59,7 @@ enum RpcType {
   SERVER_META = 9; // return server infos in respose to GET_SERVER_META
   // return prepared statement with arrow formatted metadata in response to CREATE_PREPARED_STATEMENT
   PREPARED_STATEMENT_ARROW = 25;
+  TABLES_TYPES = 27; // return tables type metadata in response to GET_TABLES_TYPES
 
   QUERY_RESULT = 10; // node is reporting a query status change, most likely a terminal message, to the user
 }
@@ -262,6 +264,26 @@ message TableMetadata {
 message GetTablesResp {
   optional RequestStatus status = 1;
   repeated TableMetadata tables = 2;
+  optional exec.shared.DremioPBError error = 3;
+  optional exec.shared.QueryId query_id = 13;
+}
+
+message GetTablesTypesReq {
+}
+
+/*
+ * Message encapsulating metadata for a Table types.
+ */
+message TableTypesMetadata {
+  optional string table_type = 1; // Type. Ex. "TABLE", "VIEW" etc.
+}
+
+/*
+ * Response message for GetTablesReq.
+ */
+message GetTablesTypesResp {
+  optional RequestStatus status = 1;
+  repeated TableTypesMetadata tableTypes = 2;
   optional exec.shared.DremioPBError error = 3;
   optional exec.shared.QueryId query_id = 13;
 }
