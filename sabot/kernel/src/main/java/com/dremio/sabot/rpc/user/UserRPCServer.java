@@ -16,6 +16,7 @@
 package com.dremio.sabot.rpc.user;
 
 import static com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowReq;
+import static com.dremio.exec.proto.UserProtos.GetTablesTypesReq;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -81,6 +82,7 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.service.catalog.TableType;
 import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserService;
@@ -376,6 +378,13 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         final GetTablesReq req = parse(pBody, GetTablesReq.PARSER, GetTablesReq.class);
         UserRequest request = new UserRequest(RpcType.GET_TABLES, req);
         worker.submitWork(connection.getSession(), new MetadataProvider.TablesHandler(responseSender), request, registry);
+        break;
+      }
+
+      case RpcType.TABLES_TYPES_VALUE: {
+        final GetTablesTypesReq req = parse(pBody, GetTablesTypesReq.PARSER, GetTablesTypesReq.class);
+        UserRequest request = new UserRequest(RpcType.GET_TABLES_TYPES, req);
+        worker.submitWork(connection.getSession(), new MetadataProvider.TablesTypesHandler(responseSender), request, registry);
         break;
       }
 
