@@ -233,6 +233,13 @@ public class FlightWorkManager {
     }
   }
 
+  /**
+   * Submits a GET_SCHEMAS job to a worker and sends the response to given ServerStreamListener.
+   *
+   * @param listener    ServerStreamListener listening to the job result.
+   * @param allocator   BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param userSession The session for the user which made the request.
+   */
   public void getSchemas(String catalog, String schemaFilterPattern,
                          FlightProducer.ServerStreamListener listener,
                          BufferAllocator allocator,
