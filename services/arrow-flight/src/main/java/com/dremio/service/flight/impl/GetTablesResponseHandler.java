@@ -50,7 +50,7 @@ public class GetTablesResponseHandler implements UserResponseHandler {
 
 
       final int tablesCount = getTablesResp.getTablesCount();
-      final IntStream range = IntStream.range(1, tablesCount);
+      final IntStream range = IntStream.range(0, tablesCount);
 
       range.forEach(i ->{
         final UserProtos.TableMetadata tables = getTablesResp.getTables(i);
