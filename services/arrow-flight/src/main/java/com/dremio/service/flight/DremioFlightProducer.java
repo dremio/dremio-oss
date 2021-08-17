@@ -335,10 +335,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
                                          CallContext callContext,
                                          FlightDescriptor flightDescriptor) {
     final Schema schema = getSchemaSchemas().getSchema();
-    final Ticket ticket = new Ticket(pack(commandGetSchemas).toByteArray());
-    final FlightEndpoint flightEndpoint = new FlightEndpoint(ticket, location);
-
-    return new FlightInfo(schema, flightDescriptor, ImmutableList.of(flightEndpoint), -1, -1);
+    return getFlightInfoForFlightSqlCommands(commandGetSchemas, flightDescriptor, schema);
   }
 
   @Override
