@@ -18,6 +18,7 @@ package com.dremio.service.flight.protector;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -132,8 +133,13 @@ public class TestCancellableUserResponseHandler {
     thrown.expect(FlightRuntimeException.class);
 
     final CancellableUserResponseHandler<BigDecimal> cancellableUserResponseHandler =
-      new CancellableUserResponseHandler<>(externalId, userSession, mockedUserWorkerProvider, isCancelled,
-        BigDecimal.class);
+      new CancellableUserResponseHandler<BigDecimal>(externalId, userSession, mockedUserWorkerProvider, isCancelled,
+        BigDecimal.class) {
+        @Override
+        public void completed(UserResult result) {
+          fail();
+        }
+      };
 
     try {
       // Act

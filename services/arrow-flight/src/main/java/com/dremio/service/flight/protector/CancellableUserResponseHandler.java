@@ -69,7 +69,7 @@ public class CancellableUserResponseHandler<T> implements UserResponseHandler {
   }
 
   @Override
-  public final void completed(UserResult result) {
+  public void completed(UserResult result) {
     switch (result.getState()) {
       case COMPLETED:
         getCompletableFuture().complete(result.unwrap(responseType));
