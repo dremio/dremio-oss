@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight.protector;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -35,11 +35,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.ExternalIdHelper;
-import com.dremio.common.utils.protos.QueryWritableBatch;
-import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -55,6 +53,8 @@ public class TestCancellableUserResponseHandler {
   private final UserSession userSession = mock(UserSession.class);
   private final UserWorker userWorker = mock(UserWorker.class);
   private final Provider<UserWorker> mockedUserWorkerProvider = mock(Provider.class);
+  private final UserBitShared.QueryId queryId = UserBitShared.QueryId.getDefaultInstance();
+  private final UserBitShared.QueryProfile resultProfile = UserBitShared.QueryProfile.getDefaultInstance();
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -69,20 +69,14 @@ public class TestCancellableUserResponseHandler {
   public void testSuccessfulResultPropagation() {
     final BigDecimal expected = new BigDecimal(1);
     final CancellableUserResponseHandler<BigDecimal> cancellableUserResponseHandler =
-      new CancellableUserResponseHandler<BigDecimal>(externalId, userSession, mockedUserWorkerProvider, () -> false) {
-        @Override
-        public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
-          fail();
-        }
-
-        @Override
-        public void completed(UserResult result) {
-          getCompletableFuture().complete(expected);
-        }
-      };
+      new CancellableUserResponseHandler<>(externalId, userSession, mockedUserWorkerProvider, () -> false,
+        BigDecimal.class);
 
     // Act
-    cancellableUserResponseHandler.completed(null);
+    UserResult userResult =
+      new UserResult(expected, queryId, UserBitShared.QueryResult.QueryState.COMPLETED, resultProfile, null, null,
+        false);
+    cancellableUserResponseHandler.completed(userResult);
 
     // Assert
     final BigDecimal actual = cancellableUserResponseHandler.get();
@@ -104,18 +98,15 @@ public class TestCancellableUserResponseHandler {
     thrown.expect(FlightRuntimeException.class);
 
     final CancellableUserResponseHandler<BigDecimal> cancellableUserResponseHandler =
-      new CancellableUserResponseHandler<BigDecimal>(externalId, userSession, mockedUserWorkerProvider, () -> false) {
-        @Override
-        public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
-          fail();
-        }
+      new CancellableUserResponseHandler<>(externalId, userSession, mockedUserWorkerProvider, () -> false,
+        BigDecimal.class);
 
-        @Override
-        public void completed(UserResult result) {
-          getCompletableFuture().completeExceptionally(thrownRootException);
-        }
-      };
-    cancellableUserResponseHandler.completed(null);
+    UserException userException = UserException.parseError(expected).buildSilently();
+    UserResult userResult =
+      new UserResult(null, queryId, UserBitShared.QueryResult.QueryState.FAILED, resultProfile, userException, null,
+        false);
+    cancellableUserResponseHandler.completed(
+      userResult);
 
     // Act
     cancellableUserResponseHandler.get();
@@ -141,17 +132,8 @@ public class TestCancellableUserResponseHandler {
     thrown.expect(FlightRuntimeException.class);
 
     final CancellableUserResponseHandler<BigDecimal> cancellableUserResponseHandler =
-      new CancellableUserResponseHandler<BigDecimal>(externalId, userSession, mockedUserWorkerProvider, isCancelled) {
-        @Override
-        public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
-          fail();
-        }
-
-        @Override
-        public void completed(UserResult result) {
-          fail();
-        }
-      };
+      new CancellableUserResponseHandler<>(externalId, userSession, mockedUserWorkerProvider, isCancelled,
+        BigDecimal.class);
 
     try {
       // Act

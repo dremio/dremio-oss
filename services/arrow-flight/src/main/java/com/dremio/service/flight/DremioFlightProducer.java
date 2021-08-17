@@ -326,7 +326,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
     final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
     final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
 
-    flightWorkManager.getCatalogs(serverStreamListener, allocator, session);
+    flightWorkManager.getCatalogs(serverStreamListener, allocator, callContext::isCancelled, session);
   }
 
   @Override
