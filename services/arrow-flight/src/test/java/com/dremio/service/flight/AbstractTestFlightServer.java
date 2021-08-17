@@ -236,8 +236,14 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     }
   }
 
+  /**
+   * Return an array of {@link CallOption} used in all calls to Flight Server (getFlightInfo, getStream, etc.).
+   */
   abstract CallOption[] getCallOptions();
 
+  /**
+   * Returns a FlightInfo for executing given query.
+   */
   public FlightInfo getFlightInfo(String query) throws SQLException {
     final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
 
