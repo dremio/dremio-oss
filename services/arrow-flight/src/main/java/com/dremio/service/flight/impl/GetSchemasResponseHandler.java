@@ -30,6 +30,9 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.protector.UserResponseHandler;
 import com.dremio.exec.work.protector.UserResult;
 
+/**
+ * {@link UserResponseHandler} implementation for {@link FlightWorkManager#getSchemas}.
+ */
 class GetSchemasResponseHandler implements UserResponseHandler {
   private final BufferAllocator allocator;
   private final FlightProducer.ServerStreamListener listener;
