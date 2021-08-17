@@ -233,6 +233,30 @@ public class FlightWorkManager {
     }
   }
 
+  public void getSchemas(String catalog, String schemaFilterPattern,
+                         FlightProducer.ServerStreamListener listener,
+                         BufferAllocator allocator,
+                         UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+
+    UserProtos.GetSchemasReq.Builder reqBuilder = UserProtos.GetSchemasReq.newBuilder();
+    if (catalog != null) {
+      UserProtos.LikeFilter filter = UserProtos.LikeFilter.newBuilder().setPattern(catalog).build();
+      reqBuilder.setCatalogNameFilter(filter);
+    }
+    if (schemaFilterPattern != null) {
+      UserProtos.LikeFilter filter = UserProtos.LikeFilter.newBuilder().setPattern(schemaFilterPattern).build();
+      reqBuilder.setSchemaNameFilter(filter);
+    }
+
+    final UserRequest userRequest = new UserRequest(UserProtos.RpcType.GET_SCHEMAS, reqBuilder.build());
+
+    final UserResponseHandler responseHandler = new GetSchemasResponseHandler(allocator, listener);
+
+    workerProvider.get()
+      .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+  }
+
   @VisibleForTesting
   static String getQuery(FlightDescriptor descriptor) {
     if (!descriptor.isCommand()) {

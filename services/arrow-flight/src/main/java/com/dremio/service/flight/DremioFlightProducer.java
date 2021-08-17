@@ -334,14 +334,25 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public FlightInfo getFlightInfoSchemas(CommandGetSchemas commandGetSchemas,
                                          CallContext callContext,
                                          FlightDescriptor flightDescriptor) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSchemas not supported.").toRuntimeException();
+    final Schema schema = getSchemaSchemas().getSchema();
+    final Ticket ticket = new Ticket(pack(commandGetSchemas).toByteArray());
+    final FlightEndpoint flightEndpoint = new FlightEndpoint(ticket, location);
+
+    return new FlightInfo(schema, flightDescriptor, ImmutableList.of(flightEndpoint), -1, -1);
   }
 
   @Override
   public void getStreamSchemas(CommandGetSchemas commandGetSchemas,
                                CallContext callContext, Ticket ticket,
                                ServerStreamListener serverStreamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSchemas not supported.").toRuntimeException();
+    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
+    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+
+    String catalog = commandGetSchemas.hasCatalog() ? commandGetSchemas.getCatalog().getValue() : null;
+    String schemaFilterPattern =
+      commandGetSchemas.hasSchemaFilterPattern() ? commandGetSchemas.getSchemaFilterPattern().getValue() : null;
+
+    flightWorkManager.getSchemas(catalog, schemaFilterPattern, serverStreamListener, allocator, session);
   }
 
   @Override

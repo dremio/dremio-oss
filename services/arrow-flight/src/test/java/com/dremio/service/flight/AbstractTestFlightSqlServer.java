@@ -142,4 +142,51 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
       Assert.assertEquals(root.getRowCount(), 0);
     }
   }
+
+  @Test
+  public void testGetSchemasWithNoFilter() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getSchemas(null, null, getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(), getCallOptions())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+
+      final String[] expectedSchemas =
+        {"INFORMATION_SCHEMA", "cp", "dacfs", "dfs", "dfs_root", "dfs_test", "sys", "sys.cache"};
+
+      Assert.assertEquals(expectedSchemas.length, root.getRowCount());
+
+      VarCharVector catalogNameVector = (VarCharVector) root.getVector("catalog_name");
+      VarCharVector schemaNameVector = (VarCharVector) root.getVector("schema_name");
+
+      for (int i = 0; i < expectedSchemas.length; i++) {
+        String catalogName = catalogNameVector.getObject(i).toString();
+        String schemaName = schemaNameVector.getObject(i).toString();
+        Assert.assertEquals("DREMIO", catalogName);
+        Assert.assertEquals(expectedSchemas[i], schemaName);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testGetSchemasWithFilters() {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getSchemas("DREMIO", "INFORMATION_SCHEMA", getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(), getCallOptions())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+
+      Assert.assertEquals(1, root.getRowCount());
+
+      VarCharVector catalogNameVector = (VarCharVector) root.getVector("catalog_name");
+      VarCharVector schemaNameVector = (VarCharVector) root.getVector("schema_name");
+
+      Assert.assertEquals("DREMIO", catalogNameVector.getObject(0).toString());
+      Assert.assertEquals("INFORMATION_SCHEMA", schemaNameVector.getObject(0).toString());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
 }
