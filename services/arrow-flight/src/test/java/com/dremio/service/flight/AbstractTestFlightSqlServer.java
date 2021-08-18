@@ -36,7 +36,7 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
     final FlightSqlClient.PreparedStatement preparedStatement =
       clientWrapper.getSqlClient().prepare(query, getCallOptions());
 
-    return preparedStatement.execute();
+    return preparedStatement.execute(getCallOptions());
   }
 
   @Test
