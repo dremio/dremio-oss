@@ -68,6 +68,12 @@ public class FlightPreparedStatement {
     return new FlightInfo(schema, flightDescriptor, ImmutableList.of(flightEndpoint), -1, -1);
   }
 
+
+  /**
+   * Create an action to create a prepared statement.
+   *
+   * @return a ActionCreatePreparedStatementResult;
+   */
   public ActionCreatePreparedStatementResult createAction() {
     final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
     final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
