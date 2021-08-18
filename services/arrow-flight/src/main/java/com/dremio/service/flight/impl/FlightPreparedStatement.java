@@ -26,6 +26,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.service.flight.TicketContent.PreparedStatementTicket;
+import com.dremio.service.flight.protector.CancellableUserResponseHandler;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
@@ -37,10 +38,10 @@ public class FlightPreparedStatement {
 
   private final FlightDescriptor flightDescriptor;
   private final String query;
-  private final CreatePreparedStatementResponseHandler responseHandler;
+  private final CancellableUserResponseHandler<UserProtos.CreatePreparedStatementArrowResp> responseHandler;
 
   public FlightPreparedStatement(FlightDescriptor flightDescriptor, String query,
-                                 CreatePreparedStatementResponseHandler responseHandler) {
+                                 CancellableUserResponseHandler<UserProtos.CreatePreparedStatementArrowResp> responseHandler) {
     this.flightDescriptor = flightDescriptor;
     this.query = query;
     this.responseHandler = responseHandler;

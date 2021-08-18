@@ -40,6 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
 import com.dremio.service.flight.TicketContent;
+import com.dremio.service.flight.protector.CancellableUserResponseHandler;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
@@ -81,7 +82,7 @@ public class TestFlightPreparedStatement {
       .build())
     .build();
 
-  private static CreatePreparedStatementResponseHandler mockHandler;
+  private static CancellableUserResponseHandler<UserProtos.CreatePreparedStatementArrowResp> mockHandler;
   private static Location mockLocation;
 
   @Rule
@@ -89,7 +90,7 @@ public class TestFlightPreparedStatement {
 
   @Before
   public void setup() {
-    mockHandler = mock(CreatePreparedStatementResponseHandler.class);
+    mockHandler = mock(CancellableUserResponseHandler.class);
     mockLocation = mock(Location.class);
   }
 

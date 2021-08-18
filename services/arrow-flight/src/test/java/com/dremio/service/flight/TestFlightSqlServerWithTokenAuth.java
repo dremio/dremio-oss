@@ -16,19 +16,15 @@
 
 package com.dremio.service.flight;
 
-import java.sql.SQLException;
-
-import org.apache.arrow.flight.FlightInfo;
-import org.apache.arrow.flight.sql.FlightSqlClient;
+import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 
 /**
  * Test FlightServer with bearer token authentication using FlightSql producer.
  */
-public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightServer {
+public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightSqlServer {
   @BeforeClass
   public static void setup() throws Exception {
     setupBaseFlightQueryTest(
@@ -44,12 +40,8 @@ public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightServer {
   }
 
   @Override
-  public FlightInfo getFlightInfo(String query) throws SQLException {
-    final FlightClientUtils.FlightClientWrapper clientWrapper = getFlightClientWrapper();
-
-    final FlightSqlClient.PreparedStatement preparedStatement =
-      clientWrapper.getSqlClient().prepare(query, clientWrapper.getTokenCallOption());
-
-    return preparedStatement.execute();
+  CallOption[] getCallOptions() {
+    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+    return new CallOption[] {wrapper.getTokenCallOption()};
   }
 }

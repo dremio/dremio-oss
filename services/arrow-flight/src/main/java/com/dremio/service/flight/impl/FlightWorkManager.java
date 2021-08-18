@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight.impl;
 
 import java.nio.charset.StandardCharsets;
@@ -23,7 +24,11 @@ import javax.inject.Provider;
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightProducer;
+import org.apache.arrow.flight.sql.FlightSqlProducer;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.util.Text;
 
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.proto.UserBitShared;
@@ -35,9 +40,9 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.DremioFlightServiceOptions;
-import com.dremio.service.flight.TicketContent;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BackpressureHandlingResponseHandler;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandler;
+import com.dremio.service.flight.protector.CancellableUserResponseHandler;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -67,7 +72,8 @@ public class FlightWorkManager {
    * @return A FlightPreparedStatement which consumes the result of the job.
    */
   public FlightPreparedStatement createPreparedStatement(FlightDescriptor flightDescriptor,
-                                                         Supplier<Boolean> isRequestCancelled, UserSession userSession) {
+                                                         Supplier<Boolean> isRequestCancelled,
+                                                         UserSession userSession) {
     final String query = getQuery(flightDescriptor);
 
     final UserProtos.CreatePreparedStatementArrowReq createPreparedStatementReq =
@@ -79,8 +85,10 @@ public class FlightWorkManager {
     final UserRequest userRequest =
       new UserRequest(UserProtos.RpcType.CREATE_PREPARED_STATEMENT_ARROW, createPreparedStatementReq);
 
-    final CreatePreparedStatementResponseHandler createPreparedStatementResponseHandler =
-      new CreatePreparedStatementResponseHandler(prepareExternalId, userSession, workerProvider, isRequestCancelled);
+    final CancellableUserResponseHandler<UserProtos.CreatePreparedStatementArrowResp>
+      createPreparedStatementResponseHandler =
+      new CancellableUserResponseHandler<>(prepareExternalId, userSession,
+        workerProvider, isRequestCancelled, UserProtos.CreatePreparedStatementArrowResp.class);
 
     workerProvider.get().submitWork(prepareExternalId, userSession, createPreparedStatementResponseHandler,
       userRequest, TerminationListenerRegistry.NOOP);
@@ -89,8 +97,8 @@ public class FlightWorkManager {
   }
 
   public void runPreparedStatement(UserProtos.PreparedStatementHandle preparedStatementHandle,
-                                    FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
-                                    UserSession userSession) {
+                                   FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
+                                   UserSession userSession) {
     final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
     final UserRequest userRequest =
       new UserRequest(UserProtos.RpcType.RUN_QUERY,
@@ -106,7 +114,48 @@ public class FlightWorkManager {
     final UserResponseHandler responseHandler = runQueryResponseHandlerFactory.getHandler(runExternalId, userSession,
       workerProvider, optionManagerProvider, listener, allocator);
 
-    workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+    workerProvider.get()
+      .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+  }
+
+  /**
+   * Submits a GET_CATALOGS job to a worker and sends the response to given ServerStreamListener.
+   *
+   * @param listener    ServerStreamListener listening to the job result.
+   * @param allocator   BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param userSession The session for the user which made the request.
+   */
+  public void getCatalogs(FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
+                          Supplier<Boolean> isRequestCancelled, UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+    final UserRequest userRequest =
+      new UserRequest(UserProtos.RpcType.GET_CATALOGS, UserProtos.GetCatalogsReq.newBuilder().build());
+
+    final CancellableUserResponseHandler<UserProtos.GetCatalogsResp> responseHandler =
+      new CancellableUserResponseHandler<>(runExternalId, userSession, workerProvider, isRequestCancelled,
+        UserProtos.GetCatalogsResp.class);
+
+    workerProvider.get()
+      .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+
+    UserProtos.GetCatalogsResp response = responseHandler.get();
+    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_CATALOGS_SCHEMA,
+      allocator)) {
+      listener.start(vectorSchemaRoot);
+
+      vectorSchemaRoot.allocateNew();
+      VarCharVector catalogNameVector = (VarCharVector) vectorSchemaRoot.getVector("catalog_name");
+
+      int i = 0;
+      for (UserProtos.CatalogMetadata catalogMetadata : response.getCatalogsList()) {
+        catalogNameVector.setSafe(i, new Text(catalogMetadata.getCatalogName()));
+        i++;
+      }
+
+      vectorSchemaRoot.setRowCount(response.getCatalogsCount());
+      listener.putNext();
+      listener.completed();
+    }
   }
 
   @VisibleForTesting
