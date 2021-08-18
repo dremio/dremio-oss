@@ -357,8 +357,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public void getStreamTables(CommandGetTables commandGetTables,
                               CallContext callContext, Ticket ticket,
                               ServerStreamListener serverStreamListener) {
-    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
-    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+    final UserSession session = getUserSessionFromCallContext(callContext);
 
     flightWorkManager.runGetTables(commandGetTables, serverStreamListener, callContext::isCancelled,
       allocator, session);
