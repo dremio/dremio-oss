@@ -123,9 +123,10 @@ public class FlightWorkManager {
   /**
    * Submits a GET_CATALOGS job to a worker and sends the response to given ServerStreamListener.
    *
-   * @param listener    ServerStreamListener listening to the job result.
-   * @param allocator   BufferAllocator used to allocate the response VectorSchemaRoot.
-   * @param userSession The session for the user which made the request.
+   * @param listener           ServerStreamListener listening to the job result.
+   * @param allocator          BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param isRequestCancelled A supplier to evaluate if the client cancelled the request.
+   * @param userSession        The session for the user which made the request.
    */
   public void getCatalogs(FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
                           Supplier<Boolean> isRequestCancelled, UserSession userSession) {
@@ -140,7 +141,7 @@ public class FlightWorkManager {
     workerProvider.get()
       .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
 
-    UserProtos.GetCatalogsResp response = responseHandler.get();
+    final UserProtos.GetCatalogsResp response = responseHandler.get();
     try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_CATALOGS_SCHEMA,
       allocator)) {
       listener.start(vectorSchemaRoot);
@@ -236,9 +237,12 @@ public class FlightWorkManager {
   /**
    * Submits a GET_SCHEMAS job to a worker and sends the response to given ServerStreamListener.
    *
-   * @param listener    ServerStreamListener listening to the job result.
-   * @param allocator   BufferAllocator used to allocate the response VectorSchemaRoot.
-   * @param userSession The session for the user which made the request.
+   * @param catalog             catalog name to filter schemas
+   * @param schemaFilterPattern pattern to filter schemas
+   * @param listener            ServerStreamListener listening to the job result.
+   * @param allocator           BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param isRequestCancelled  A supplier to evaluate if the client cancelled the request.
+   * @param userSession         The session for the user which made the request.
    */
   public void getSchemas(String catalog, String schemaFilterPattern,
                          FlightProducer.ServerStreamListener listener,
@@ -247,7 +251,7 @@ public class FlightWorkManager {
                          UserSession userSession) {
     final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
 
-    UserProtos.GetSchemasReq.Builder reqBuilder = UserProtos.GetSchemasReq.newBuilder();
+    final UserProtos.GetSchemasReq.Builder reqBuilder = UserProtos.GetSchemasReq.newBuilder();
     if (catalog != null) {
       UserProtos.LikeFilter filter = UserProtos.LikeFilter.newBuilder().setPattern(catalog).build();
       reqBuilder.setCatalogNameFilter(filter);
@@ -266,7 +270,7 @@ public class FlightWorkManager {
     workerProvider.get()
       .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
 
-    UserProtos.GetSchemasResp response = responseHandler.get();
+    final UserProtos.GetSchemasResp response = responseHandler.get();
     try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_SCHEMAS_SCHEMA,
       allocator)) {
       listener.start(vectorSchemaRoot);

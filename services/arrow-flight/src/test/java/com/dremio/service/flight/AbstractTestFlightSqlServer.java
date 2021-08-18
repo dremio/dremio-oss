@@ -17,6 +17,8 @@
 package com.dremio.service.flight;
 
 import java.sql.SQLException;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.Collections;
 
 import org.apache.arrow.flight.CallOption;
@@ -27,6 +29,10 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.junit.Assert;
 import org.junit.Test;
+
+import com.dremio.exec.expr.fn.impl.RegexpUtil;
+import com.dremio.exec.planner.sql.handlers.commands.MetadataProviderConditions;
+import com.dremio.exec.proto.UserProtos;
 
 import com.google.common.collect.ImmutableList;
 
@@ -141,46 +147,63 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
     }
   }
 
-  @Test
-  public void testGetSchemasWithNoFilter() throws Exception {
+  private void testGetSchemas(String catalog, String schemaPattern, boolean expectNonEmptyResult) throws Exception {
     FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
-    FlightInfo flightInfo = flightSqlClient.getSchemas(null, null, getCallOptions());
-    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(), getCallOptions())) {
+    FlightInfo flightInfo = flightSqlClient.getSchemas(catalog, schemaPattern, getCallOptions());
+    try (
+      FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(), getCallOptions())) {
       Assert.assertTrue(stream.next());
       VectorSchemaRoot root = stream.getRoot();
 
-      final String[] expectedSchemas =
-        {"INFORMATION_SCHEMA", "cp", "dacfs", "dfs", "dfs_root", "dfs_test", "sys", "sys.cache"};
-
-      Assert.assertEquals(expectedSchemas.length, root.getRowCount());
+      Predicate<String> catalogNamePredicate = MetadataProviderConditions.getCatalogNamePredicate(
+        catalog != null ? UserProtos.LikeFilter.newBuilder().setPattern(catalog).build() : null);
+      Pattern schemaFilterPattern = schemaPattern != null ? Pattern.compile(RegexpUtil.sqlToRegexLike(schemaPattern)) :
+        Pattern.compile(".*");
 
       VarCharVector catalogNameVector = (VarCharVector) root.getVector("catalog_name");
       VarCharVector schemaNameVector = (VarCharVector) root.getVector("schema_name");
 
-      for (int i = 0; i < expectedSchemas.length; i++) {
+      for (int i = 0; i < root.getRowCount(); i++) {
         String catalogName = catalogNameVector.getObject(i).toString();
         String schemaName = schemaNameVector.getObject(i).toString();
-        Assert.assertEquals("DREMIO", catalogName);
-        Assert.assertEquals(expectedSchemas[i], schemaName);
+
+        Assert.assertTrue(catalogNamePredicate.test(catalogName));
+        Assert.assertTrue(schemaFilterPattern.matcher(schemaName).matches());
+      }
+
+      if (expectNonEmptyResult) {
+        Assert.assertTrue(root.getRowCount() > 0);
       }
     }
   }
 
   @Test
-  public void testGetSchemasWithFilters() throws Exception {
-    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
-    FlightInfo flightInfo = flightSqlClient.getSchemas("DREMIO", "INFORMATION_SCHEMA", getCallOptions());
-    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(), getCallOptions())) {
-      Assert.assertTrue(stream.next());
-      VectorSchemaRoot root = stream.getRoot();
+  public void testGetSchemasWithNoFilter() throws Exception {
+    testGetSchemas(null, null, true);
+  }
 
-      Assert.assertEquals(1, root.getRowCount());
+  @Test
+  public void testGetSchemasWithBothFilters() throws Exception {
+    testGetSchemas("DREMIO", "INFORMATION_SCHEMA", true);
+  }
 
-      VarCharVector catalogNameVector = (VarCharVector) root.getVector("catalog_name");
-      VarCharVector schemaNameVector = (VarCharVector) root.getVector("schema_name");
+  @Test
+  public void testGetSchemasWithCatalog() throws Exception {
+    testGetSchemas("DREMIO", null, true);
+  }
 
-      Assert.assertEquals("DREMIO", catalogNameVector.getObject(0).toString());
-      Assert.assertEquals("INFORMATION_SCHEMA", schemaNameVector.getObject(0).toString());
-    }
+  @Test
+  public void testGetSchemasWithSchemaFilterPattern() throws Exception {
+    testGetSchemas(null, "sys", true);
+  }
+
+  @Test
+  public void testGetSchemasWithNonMatchingSchemaFilter() throws Exception {
+    testGetSchemas(null, "NON_EXISTING_SCHEMA", false);
+  }
+
+  @Test
+  public void testGetSchemasWithNonMatchingCatalog() throws Exception {
+    testGetSchemas("NON_EXISTING_CATALOG", null, false);
   }
 }

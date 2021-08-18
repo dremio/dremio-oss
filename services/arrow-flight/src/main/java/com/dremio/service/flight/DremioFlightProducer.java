@@ -49,6 +49,7 @@ import org.apache.arrow.flight.FlightConstants;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
+import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.PutResult;
@@ -324,8 +325,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
   @Override
   public void getStreamCatalogs(CallContext callContext, Ticket ticket,
                                 ServerStreamListener serverStreamListener) {
-    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
-    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+    final UserSession session = getUserSessionFromCallContext(callContext);
 
     flightWorkManager.getCatalogs(serverStreamListener, allocator, callContext::isCancelled, session);
   }
@@ -342,8 +342,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public void getStreamSchemas(CommandGetSchemas commandGetSchemas,
                                CallContext callContext, Ticket ticket,
                                ServerStreamListener serverStreamListener) {
-    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
-    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+    final UserSession session = getUserSessionFromCallContext(callContext);
 
     String catalog = commandGetSchemas.hasCatalog() ? commandGetSchemas.getCatalog().getValue() : null;
     String schemaFilterPattern =
