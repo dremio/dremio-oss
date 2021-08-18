@@ -216,7 +216,6 @@ public class FlightWorkManager {
       VarCharVector tableNameVector = (VarCharVector) vectorSchemaRoot.getVector("table_name");
       VarCharVector tableTypeVector = (VarCharVector) vectorSchemaRoot.getVector("table_type");
 
-
       final int tablesCount = getTablesResp.getTablesCount();
       final IntStream range = IntStream.range(0, tablesCount);
 
