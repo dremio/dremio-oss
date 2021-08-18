@@ -18,6 +18,7 @@ package com.dremio.service.flight.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import javax.inject.Provider;
 
@@ -32,11 +33,15 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.util.Text;
 
 import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResponseHandler;
+import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -160,7 +165,10 @@ public class FlightWorkManager {
     workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
   }
 
-  public void runGetTables(FlightSql.CommandGetTables commandGetTables, FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
+  public void runGetTables(FlightSql.CommandGetTables commandGetTables,
+                           FlightProducer.ServerStreamListener listener,
+                           Supplier<Boolean> isRequestCancelled,
+                           BufferAllocator allocator,
                            UserSession userSession) {
     final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
     final UserProtos.GetTablesReq.Builder builder = UserProtos.GetTablesReq.newBuilder();
@@ -187,9 +195,40 @@ public class FlightWorkManager {
     final UserRequest userRequest =
       new UserRequest(UserProtos.RpcType.GET_TABLES, builder.build());
 
-    final UserResponseHandler responseHandler = new GetTablesResponseHandler(allocator, listener);
+    final CancellableUserResponseHandler<UserProtos.GetTablesResp> responseHandler =
+      new CancellableUserResponseHandler<>(runExternalId, userSession, workerProvider, isRequestCancelled,
+        UserProtos.GetTablesResp.class);
 
     workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+
+    final UserProtos.GetTablesResp getTablesResp = responseHandler.get();
+
+    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_TABLES_SCHEMA,
+      allocator)) {
+      listener.start(vectorSchemaRoot);
+
+      vectorSchemaRoot.allocateNew();
+      VarCharVector catalogNameVector = (VarCharVector) vectorSchemaRoot.getVector("catalog_name");
+      VarCharVector schemaNameVector = (VarCharVector) vectorSchemaRoot.getVector("schema_name");
+      VarCharVector tableNameVector = (VarCharVector) vectorSchemaRoot.getVector("table_name");
+      VarCharVector tableTypeVector = (VarCharVector) vectorSchemaRoot.getVector("table_type");
+
+
+      final int tablesCount = getTablesResp.getTablesCount();
+      final IntStream range = IntStream.range(0, tablesCount);
+
+      range.forEach(i ->{
+        final UserProtos.TableMetadata tables = getTablesResp.getTables(i);
+        catalogNameVector.setSafe(i, new Text(tables.getCatalogName()));
+        schemaNameVector.setSafe(i, new Text(tables.getSchemaName()));
+        tableNameVector.setSafe(i, new Text(tables.getTableName()));
+        tableTypeVector.setSafe(i, new Text(tables.getType()));
+      });
+
+      vectorSchemaRoot.setRowCount(tablesCount);
+      listener.putNext();
+      listener.completed();
+    }
   }
 
   @VisibleForTesting
