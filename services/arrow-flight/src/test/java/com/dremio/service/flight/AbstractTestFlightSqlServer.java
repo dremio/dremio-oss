@@ -75,8 +75,9 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   public void testGetTablesFilteringByCatalogPattern() throws Exception {
     FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
     FlightInfo flightInfo = flightSqlClient.getTables("DREMIO", null, null,
-      null, false);
-    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      null, false, getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+      getCallOptions())) {
       Assert.assertTrue(stream.next());
       VectorSchemaRoot root = stream.getRoot();
 
@@ -87,9 +88,10 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   @Test
   public void testGetTablesFilteringBySchemaPattern() throws Exception {
     FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
-    FlightInfo flightInfo = flightSqlClient.getTables(null, "INFORMATION_SCHEMA", null,
-      null, false);
-    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+    FlightInfo flightInfo = flightSqlClient.getTables(null, "INFORMATION_SCHEMA",
+      null, null, false, getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+      getCallOptions())) {
       Assert.assertTrue(stream.next());
       VectorSchemaRoot root = stream.getRoot();
 
@@ -101,8 +103,9 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   public void testGetTablesFilteringByTablePattern() throws Exception {
     FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
     FlightInfo flightInfo = flightSqlClient.getTables(null, null, "COLUMNS",
-      null, false);
-    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      null, false, getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+      getCallOptions())) {
       Assert.assertTrue(stream.next());
       VectorSchemaRoot root = stream.getRoot();
 
@@ -114,8 +117,9 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   public void testGetTablesFilteringByTableTypePattern() throws Exception {
     FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
     FlightInfo flightInfo = flightSqlClient.getTables(null, null, null,
-      Collections.singletonList("SYSTEM_TABLE"), false);
-    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket())) {
+      Collections.singletonList("SYSTEM_TABLE"), false, getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+      getCallOptions())) {
       Assert.assertTrue(stream.next());
       VectorSchemaRoot root = stream.getRoot();
 
