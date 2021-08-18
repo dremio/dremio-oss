@@ -349,7 +349,8 @@ public class DremioFlightProducer implements FlightSqlProducer {
     String schemaFilterPattern =
       commandGetSchemas.hasSchemaFilterPattern() ? commandGetSchemas.getSchemaFilterPattern().getValue() : null;
 
-    flightWorkManager.getSchemas(catalog, schemaFilterPattern, serverStreamListener, allocator, session);
+    flightWorkManager.getSchemas(
+      catalog, schemaFilterPattern, serverStreamListener, allocator, callContext::isCancelled, session);
   }
 
   @Override

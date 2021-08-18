@@ -243,6 +243,7 @@ public class FlightWorkManager {
   public void getSchemas(String catalog, String schemaFilterPattern,
                          FlightProducer.ServerStreamListener listener,
                          BufferAllocator allocator,
+                         Supplier<Boolean> isRequestCancelled,
                          UserSession userSession) {
     final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
 
@@ -258,10 +259,33 @@ public class FlightWorkManager {
 
     final UserRequest userRequest = new UserRequest(UserProtos.RpcType.GET_SCHEMAS, reqBuilder.build());
 
-    final UserResponseHandler responseHandler = new GetSchemasResponseHandler(allocator, listener);
+    final CancellableUserResponseHandler<UserProtos.GetSchemasResp> responseHandler =
+      new CancellableUserResponseHandler<>(runExternalId, userSession, workerProvider, isRequestCancelled,
+        UserProtos.GetSchemasResp.class);
 
     workerProvider.get()
       .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+
+    UserProtos.GetSchemasResp response = responseHandler.get();
+    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_SCHEMAS_SCHEMA,
+      allocator)) {
+      listener.start(vectorSchemaRoot);
+
+      vectorSchemaRoot.allocateNew();
+      VarCharVector catalogNameVector = (VarCharVector) vectorSchemaRoot.getVector("catalog_name");
+      VarCharVector schemaNameVector = (VarCharVector) vectorSchemaRoot.getVector("schema_name");
+
+      int i = 0;
+      for (UserProtos.SchemaMetadata schemaMetadata : response.getSchemasList()) {
+        catalogNameVector.setSafe(i, new Text(schemaMetadata.getCatalogName()));
+        schemaNameVector.setSafe(i, new Text(schemaMetadata.getSchemaName()));
+        i++;
+      }
+
+      vectorSchemaRoot.setRowCount(response.getSchemasCount());
+      listener.putNext();
+      listener.completed();
+    }
   }
 
   @VisibleForTesting
