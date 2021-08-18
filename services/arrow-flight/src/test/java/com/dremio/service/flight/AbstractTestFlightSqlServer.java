@@ -28,6 +28,8 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableList;
+
 public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServer {
 
   @Override
@@ -124,6 +126,20 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
       VectorSchemaRoot root = stream.getRoot();
 
       Assert.assertEquals(root.getRowCount(), 28);
+    }
+  }
+
+  @Test
+  public void testGetTablesFilteringByMultiTableTypes() throws Exception {
+    FlightSqlClient flightSqlClient = getFlightClientWrapper().getSqlClient();
+    FlightInfo flightInfo = flightSqlClient.getTables(null, null, null,
+      ImmutableList.of("TABLE", "VIEW"), false, getCallOptions());
+    try (FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+      getCallOptions())) {
+      Assert.assertTrue(stream.next());
+      VectorSchemaRoot root = stream.getRoot();
+
+      Assert.assertEquals(root.getRowCount(), 0);
     }
   }
 }
