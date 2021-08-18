@@ -350,10 +350,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
                                         FlightDescriptor flightDescriptor) {
     final Schema schema = getSchemaTables().getSchema();
 
-    final Ticket ticket = new Ticket(pack(commandGetTables).toByteArray());
-    final List<FlightEndpoint> endpoints = singletonList(new FlightEndpoint(ticket, location));
-
-    return new FlightInfo(schema, flightDescriptor, endpoints, -1, -1);
+    return getFlightInfoForFlightSqlCommands(commandGetTables, flightDescriptor, schema);
   }
 
   @Override
@@ -363,7 +360,8 @@ public class DremioFlightProducer implements FlightSqlProducer {
     final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
     final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
 
-    flightWorkManager.runGetTables(commandGetTables, serverStreamListener, allocator, session);
+    flightWorkManager.runGetTables(commandGetTables, serverStreamListener, callContext::isCancelled,
+      allocator, session);
   }
 
   @Override
