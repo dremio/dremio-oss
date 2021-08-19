@@ -18,12 +18,14 @@ package com.dremio.service.flight.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import javax.inject.Provider;
 
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightProducer;
+import org.apache.arrow.flight.sql.impl.FlightSql;
 import org.apache.arrow.flight.sql.FlightSqlProducer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VarCharVector;
@@ -153,6 +155,79 @@ public class FlightWorkManager {
       }
 
       vectorSchemaRoot.setRowCount(response.getCatalogsCount());
+      listener.putNext();
+      listener.completed();
+    }
+    workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+  }
+
+  /**
+   * Submits a GET_TABLES job to a worker and sends the response to given ServerStreamListener.
+   *
+   * @param listener    ServerStreamListener listening to the job result.
+   * @param allocator   BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param userSession The session for the user which made the request.
+   */
+  public void runGetTables(FlightSql.CommandGetTables commandGetTables,
+                           FlightProducer.ServerStreamListener listener,
+                           Supplier<Boolean> isRequestCancelled,
+                           BufferAllocator allocator,
+                           UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+    final UserProtos.GetTablesReq.Builder builder = UserProtos.GetTablesReq.newBuilder();
+
+    if (commandGetTables.hasSchemaFilterPattern()) {
+      builder.setSchemaNameFilter(UserProtos.LikeFilter.newBuilder()
+        .setPattern(commandGetTables.getSchemaFilterPattern().getValue()).build());
+    }
+
+    if (commandGetTables.hasTableNameFilterPattern()) {
+      builder.setTableNameFilter(UserProtos.LikeFilter.newBuilder()
+        .setPattern(commandGetTables.getTableNameFilterPattern().getValue()).build());
+    }
+
+    if (commandGetTables.hasCatalog()) {
+      builder.setCatalogNameFilter(UserProtos.LikeFilter.newBuilder()
+        .setPattern(commandGetTables.getCatalog().getValue()).build());
+    }
+
+    if (!commandGetTables.getTableTypesList().isEmpty()) {
+      builder.addAllTableTypeFilter(commandGetTables.getTableTypesList());
+    }
+
+    final UserRequest userRequest =
+      new UserRequest(UserProtos.RpcType.GET_TABLES, builder.build());
+
+    final CancellableUserResponseHandler<UserProtos.GetTablesResp> responseHandler =
+      new CancellableUserResponseHandler<>(runExternalId, userSession, workerProvider, isRequestCancelled,
+        UserProtos.GetTablesResp.class);
+
+    workerProvider.get().submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+
+    final UserProtos.GetTablesResp getTablesResp = responseHandler.get();
+
+    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_TABLES_SCHEMA,
+      allocator)) {
+      listener.start(vectorSchemaRoot);
+
+      vectorSchemaRoot.allocateNew();
+      VarCharVector catalogNameVector = (VarCharVector) vectorSchemaRoot.getVector("catalog_name");
+      VarCharVector schemaNameVector = (VarCharVector) vectorSchemaRoot.getVector("schema_name");
+      VarCharVector tableNameVector = (VarCharVector) vectorSchemaRoot.getVector("table_name");
+      VarCharVector tableTypeVector = (VarCharVector) vectorSchemaRoot.getVector("table_type");
+
+      final int tablesCount = getTablesResp.getTablesCount();
+      final IntStream range = IntStream.range(0, tablesCount);
+
+      range.forEach(i ->{
+        final UserProtos.TableMetadata tables = getTablesResp.getTables(i);
+        catalogNameVector.setSafe(i, new Text(tables.getCatalogName()));
+        schemaNameVector.setSafe(i, new Text(tables.getSchemaName()));
+        tableNameVector.setSafe(i, new Text(tables.getTableName()));
+        tableTypeVector.setSafe(i, new Text(tables.getType()));
+      });
+
+      vectorSchemaRoot.setRowCount(tablesCount);
       listener.putNext();
       listener.completed();
     }

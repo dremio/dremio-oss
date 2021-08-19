@@ -68,6 +68,24 @@ public class FlightPreparedStatement {
     return new FlightInfo(schema, flightDescriptor, ImmutableList.of(flightEndpoint), -1, -1);
   }
 
+
+  /**
+   * Create an action to create a prepared statement.
+   *
+   * @return a ActionCreatePreparedStatementResult;
+   */
+  public ActionCreatePreparedStatementResult createAction() {
+    final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
+    final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
+
+    return ActionCreatePreparedStatementResult.newBuilder()
+        .setDatasetSchema(ByteString.copyFrom(schema.toByteArray()))
+        .setParameterSchema(ByteString.EMPTY)
+        .setPreparedStatementHandle(getServerHandle().toByteString())
+        .build();
+  }
+
+
   /**
    * Returns the schema.
    *
@@ -76,17 +94,6 @@ public class FlightPreparedStatement {
   public Schema getSchema() {
     final UserProtos.CreatePreparedStatementArrowResp resp = responseHandler.get();
     return buildSchema(resp.getPreparedStatement().getArrowSchema());
-  }
-
-  public ActionCreatePreparedStatementResult createAction() {
-    final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
-    final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
-
-    return ActionCreatePreparedStatementResult.newBuilder()
-      .setDatasetSchema(ByteString.copyFrom(schema.toByteArray()))
-      .setParameterSchema(ByteString.EMPTY)
-      .setPreparedStatementHandle(getServerHandle().toByteString())
-      .build();
   }
 
   public UserProtos.PreparedStatementHandle getServerHandle() {
