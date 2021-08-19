@@ -22,12 +22,14 @@ import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.flight.sql.impl.FlightSql;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.service.flight.TicketContent.PreparedStatementTicket;
 import com.dremio.service.flight.protector.CancellableUserResponseHandler;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 
 /**
@@ -36,13 +38,11 @@ import com.google.protobuf.ByteString;
  */
 public class FlightPreparedStatement {
 
-  private final FlightDescriptor flightDescriptor;
   private final String query;
   private final CancellableUserResponseHandler<UserProtos.CreatePreparedStatementArrowResp> responseHandler;
 
-  public FlightPreparedStatement(FlightDescriptor flightDescriptor, String query,
+  public FlightPreparedStatement(String query,
                                  CancellableUserResponseHandler<UserProtos.CreatePreparedStatementArrowResp> responseHandler) {
-    this.flightDescriptor = flightDescriptor;
     this.query = query;
     this.responseHandler = responseHandler;
   }
@@ -57,12 +57,13 @@ public class FlightPreparedStatement {
     final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
     final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
 
-    final PreparedStatementTicket preparedStatementTicketContent = PreparedStatementTicket.newBuilder()
-      .setQuery(query)
-      .setHandle(getServerHandle())
-      .build();
+    UserProtos.PreparedStatementHandle preparedStatementHandle = getServerHandle();
 
-    final Ticket ticket = new Ticket(preparedStatementTicketContent.toByteArray());
+    final FlightSql.CommandPreparedStatementQuery command = FlightSql.CommandPreparedStatementQuery.newBuilder()
+      .setPreparedStatementHandle(preparedStatementHandle.toByteString())
+      .build();
+    final FlightDescriptor flightDescriptor = FlightDescriptor.command(Any.pack(command).toByteArray());
+    final Ticket ticket = new Ticket(Any.pack(command).toByteArray());
 
     final FlightEndpoint flightEndpoint = new FlightEndpoint(ticket, location);
     return new FlightInfo(schema, flightDescriptor, ImmutableList.of(flightEndpoint), -1, -1);

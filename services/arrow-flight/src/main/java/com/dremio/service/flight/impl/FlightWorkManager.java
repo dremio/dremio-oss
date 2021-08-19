@@ -77,7 +77,12 @@ public class FlightWorkManager {
                                                          Supplier<Boolean> isRequestCancelled,
                                                          UserSession userSession) {
     final String query = getQuery(flightDescriptor);
+    return createPreparedStatement(query, isRequestCancelled, userSession);
+  }
 
+  public FlightPreparedStatement createPreparedStatement(String query,
+                                                         Supplier<Boolean> isRequestCancelled,
+                                                         UserSession userSession) {
     final UserProtos.CreatePreparedStatementArrowReq createPreparedStatementReq =
       UserProtos.CreatePreparedStatementArrowReq.newBuilder()
         .setSqlQuery(query)
@@ -95,7 +100,7 @@ public class FlightWorkManager {
     workerProvider.get().submitWork(prepareExternalId, userSession, createPreparedStatementResponseHandler,
       userRequest, TerminationListenerRegistry.NOOP);
 
-    return new FlightPreparedStatement(flightDescriptor, query, createPreparedStatementResponseHandler);
+    return new FlightPreparedStatement(query, createPreparedStatementResponseHandler);
   }
 
   public void runPreparedStatement(UserProtos.PreparedStatementHandle preparedStatementHandle,

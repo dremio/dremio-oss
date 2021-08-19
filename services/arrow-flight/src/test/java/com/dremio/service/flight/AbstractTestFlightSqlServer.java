@@ -41,11 +41,7 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   @Override
   public FlightInfo getFlightInfo(String query) throws SQLException {
     final FlightClientUtils.FlightClientWrapper clientWrapper = getFlightClientWrapper();
-
-    final FlightSqlClient.PreparedStatement preparedStatement =
-      clientWrapper.getSqlClient().prepare(query, getCallOptions());
-
-    return preparedStatement.execute(getCallOptions());
+    return clientWrapper.getSqlClient().execute(query, getCallOptions());
   }
 
   @Test
