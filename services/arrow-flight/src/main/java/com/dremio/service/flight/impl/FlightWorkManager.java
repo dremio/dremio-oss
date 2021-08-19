@@ -123,9 +123,10 @@ public class FlightWorkManager {
   /**
    * Submits a GET_CATALOGS job to a worker and sends the response to given ServerStreamListener.
    *
-   * @param listener    ServerStreamListener listening to the job result.
-   * @param allocator   BufferAllocator used to allocate the response VectorSchemaRoot.
-   * @param userSession The session for the user which made the request.
+   * @param listener           ServerStreamListener listening to the job result.
+   * @param allocator          BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param isRequestCancelled A supplier to evaluate if the client cancelled the request.
+   * @param userSession        The session for the user which made the request.
    */
   public void getCatalogs(FlightProducer.ServerStreamListener listener, BufferAllocator allocator,
                           Supplier<Boolean> isRequestCancelled, UserSession userSession) {
@@ -140,7 +141,7 @@ public class FlightWorkManager {
     workerProvider.get()
       .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
 
-    UserProtos.GetCatalogsResp response = responseHandler.get();
+    final UserProtos.GetCatalogsResp response = responseHandler.get();
     try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_CATALOGS_SCHEMA,
       allocator)) {
       listener.start(vectorSchemaRoot);
@@ -228,6 +229,64 @@ public class FlightWorkManager {
       });
 
       vectorSchemaRoot.setRowCount(tablesCount);
+      listener.putNext();
+      listener.completed();
+    }
+  }
+
+  /**
+   * Submits a GET_SCHEMAS job to a worker and sends the response to given ServerStreamListener.
+   *
+   * @param catalog             catalog name to filter schemas
+   * @param schemaFilterPattern pattern to filter schemas
+   * @param listener            ServerStreamListener listening to the job result.
+   * @param allocator           BufferAllocator used to allocate the response VectorSchemaRoot.
+   * @param isRequestCancelled  A supplier to evaluate if the client cancelled the request.
+   * @param userSession         The session for the user which made the request.
+   */
+  public void getSchemas(String catalog, String schemaFilterPattern,
+                         FlightProducer.ServerStreamListener listener,
+                         BufferAllocator allocator,
+                         Supplier<Boolean> isRequestCancelled,
+                         UserSession userSession) {
+    final UserBitShared.ExternalId runExternalId = ExternalIdHelper.generateExternalId();
+
+    final UserProtos.GetSchemasReq.Builder reqBuilder = UserProtos.GetSchemasReq.newBuilder();
+    if (catalog != null) {
+      UserProtos.LikeFilter filter = UserProtos.LikeFilter.newBuilder().setPattern(catalog).build();
+      reqBuilder.setCatalogNameFilter(filter);
+    }
+    if (schemaFilterPattern != null) {
+      UserProtos.LikeFilter filter = UserProtos.LikeFilter.newBuilder().setPattern(schemaFilterPattern).build();
+      reqBuilder.setSchemaNameFilter(filter);
+    }
+
+    final UserRequest userRequest = new UserRequest(UserProtos.RpcType.GET_SCHEMAS, reqBuilder.build());
+
+    final CancellableUserResponseHandler<UserProtos.GetSchemasResp> responseHandler =
+      new CancellableUserResponseHandler<>(runExternalId, userSession, workerProvider, isRequestCancelled,
+        UserProtos.GetSchemasResp.class);
+
+    workerProvider.get()
+      .submitWork(runExternalId, userSession, responseHandler, userRequest, TerminationListenerRegistry.NOOP);
+
+    final UserProtos.GetSchemasResp response = responseHandler.get();
+    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_SCHEMAS_SCHEMA,
+      allocator)) {
+      listener.start(vectorSchemaRoot);
+
+      vectorSchemaRoot.allocateNew();
+      VarCharVector catalogNameVector = (VarCharVector) vectorSchemaRoot.getVector("catalog_name");
+      VarCharVector schemaNameVector = (VarCharVector) vectorSchemaRoot.getVector("schema_name");
+
+      int i = 0;
+      for (UserProtos.SchemaMetadata schemaMetadata : response.getSchemasList()) {
+        catalogNameVector.setSafe(i, new Text(schemaMetadata.getCatalogName()));
+        schemaNameVector.setSafe(i, new Text(schemaMetadata.getSchemaName()));
+        i++;
+      }
+
+      vectorSchemaRoot.setRowCount(response.getSchemasCount());
       listener.putNext();
       listener.completed();
     }

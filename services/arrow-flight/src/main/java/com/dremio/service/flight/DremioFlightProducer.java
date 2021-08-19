@@ -49,6 +49,7 @@ import org.apache.arrow.flight.FlightConstants;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
+import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.PutResult;
@@ -324,8 +325,7 @@ public class DremioFlightProducer implements FlightSqlProducer {
   @Override
   public void getStreamCatalogs(CallContext callContext, Ticket ticket,
                                 ServerStreamListener serverStreamListener) {
-    final CallHeaders headers = retrieveHeadersFromCallContext(callContext);
-    final UserSession session = sessionsManager.getUserSession(callContext.peerIdentity(), headers);
+    final UserSession session = getUserSessionFromCallContext(callContext);
 
     flightWorkManager.getCatalogs(serverStreamListener, allocator, callContext::isCancelled, session);
   }
@@ -334,14 +334,22 @@ public class DremioFlightProducer implements FlightSqlProducer {
   public FlightInfo getFlightInfoSchemas(CommandGetSchemas commandGetSchemas,
                                          CallContext callContext,
                                          FlightDescriptor flightDescriptor) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSchemas not supported.").toRuntimeException();
+    final Schema schema = getSchemaSchemas().getSchema();
+    return getFlightInfoForFlightSqlCommands(commandGetSchemas, flightDescriptor, schema);
   }
 
   @Override
   public void getStreamSchemas(CommandGetSchemas commandGetSchemas,
                                CallContext callContext, Ticket ticket,
                                ServerStreamListener serverStreamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("CommandGetSchemas not supported.").toRuntimeException();
+    final UserSession session = getUserSessionFromCallContext(callContext);
+
+    String catalog = commandGetSchemas.hasCatalog() ? commandGetSchemas.getCatalog().getValue() : null;
+    String schemaFilterPattern =
+      commandGetSchemas.hasSchemaFilterPattern() ? commandGetSchemas.getSchemaFilterPattern().getValue() : null;
+
+    flightWorkManager.getSchemas(
+      catalog, schemaFilterPattern, serverStreamListener, allocator, callContext::isCancelled, session);
   }
 
   @Override
