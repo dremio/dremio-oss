@@ -18,9 +18,6 @@ package com.dremio.exec.expr.fn;
 import java.util.List;
 import java.util.Set;
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -62,10 +59,11 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   private static final Set<String> aggrFunctionNames = Sets.newHashSet("sum", "$sum0", "min",
     "max", "hll");
   protected boolean isDecimalV2Enabled;
+  private SabotConfig sabotConfig;
 
   public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan){
     Stopwatch w = Stopwatch.createStarted();
-
+    this.sabotConfig = config;
     logger.debug("Generating function registry.");
     functionRegistry = new FunctionRegistry(classpathScan);
     initializePrimaryRegistries();
@@ -110,6 +108,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     this(config, classpathScan);
     this.optionManager = optionManager;
     this.generateYAMLWithRegisteredFunctions();
+//    this.saveRegisteredFunctionsListToSysTable();
   }
 
   public ArrayListMultimap<String, AbstractFunctionHolder> getRegisteredFunctions() {
@@ -231,13 +230,9 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     return isDecimalV2Enabled;
   }
 
-  public void generateYAMLWithRegisteredFunctions() {
-    logger.info("Starting to generate yaml with registered functions...");
+  public Map<String, Map<String, Object>> generateMapWithRegisteredFunctions() {
     // Retrieve the registered functions on the function registry
     ArrayListMultimap<String, AbstractFunctionHolder> functions = this.getRegisteredFunctions();
-
-    // ObjectMapper is instantiated to map the YAML file
-    ObjectMapper om = new ObjectMapper(new YAMLFactory());
 
     Map<String, Map<String, Object>> functionsToSave = new HashMap<>();
     Map<String, Object> stringObjectMap;
@@ -287,6 +282,15 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
       functionsToSave.put(functionName, stringObjectMap);
     }
+    return functionsToSave;
+  }
+
+  public void generateYAMLWithRegisteredFunctions() {
+    logger.info("Starting to generate yaml with registered functions...");
+    // ObjectMapper is instantiated to map the YAML file
+    ObjectMapper om = new ObjectMapper(new YAMLFactory());
+    Map<String, Map<String, Object>> functionsToSave =  this.generateMapWithRegisteredFunctions();
+
     try {
       File fileToSave = new File(System.getProperty("user.dir") + "/target/registered_functions.yaml");
       om.writeValue(fileToSave, functionsToSave);
@@ -295,4 +299,44 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
       logger.warn("Failed generating YAML function files: " + exception.getMessage());
     }
   }
+
+//  public void saveRegisteredFunctionsListToSysTable() {
+//    logger.info("Starting to save the list of generated functions to sys.functions table...");
+//
+//    DremioClient client = new DremioClient(this.sabotConfig);
+//
+////    Map<String, Map<String, Object>> functionsMap = generateMapWithRegisteredFunctions();
+////
+////    for (Map.Entry<String, Map<String, Object>> functionEntry : functionsMap.entrySet()) {
+////      String functionName = functionEntry.getKey();
+////      Map<String, Object> functionInfo = functionEntry.getValue();
+////      List<Map<String, Object>> signaturesList = (List<Map<String, Object>>) functionInfo.get("signatures");
+////      for (Map<String, Object> signature : signaturesList) {
+////        String returnType = (String) signature.get("returnType");
+////        List<Map<String, Object>> parametersList = (List<Map<String, Object>>) signature.get("parameterList");
+////        List<FunctionParameterInfo> functionParameterInfoList = new ArrayList<>();
+////        for (Map<String, Object> parameter : parametersList) {
+////          String parameterName = (String) parameter.get("parameterName");
+////          String parameterType = (String) parameter.get("parameterType");
+////          Boolean isOptional = Objects.equals((String) parameter.get("parameterType"), "true");
+////          functionParameterInfoList.add(new FunctionParameterInfo(parameterName, parameterType, isOptional));
+////        }
+////
+////        // Convert the List.toString notation from [item0, item1, ...] to (item0, item1, ...)
+////        String functionParameterInfoListString = functionParameterInfoList.stream().map(info -> info.toString())
+////          .collect(Collectors.joining(",", "(", ")"));
+////
+////        String queryString = String.format("INSERT INTO sys.functions (name, return_type, parameters)" +
+////          "VALUES ('%s', '%s', %s)", functionName, returnType, functionParameterInfoListString);
+////
+////        try {
+////          client.runQuery(UserBitShared.QueryType.SQL, queryString);
+////        } catch (Exception e) {
+////          logger.warn("Failed to save the function {} to list of generated functions to sys.functions table!", functionName);
+////          e.printStackTrace();
+////        }
+////      }
+////    }
+//    logger.info("Finished to save the list of generated functions to sys.functions table...");
+//  }
 }
