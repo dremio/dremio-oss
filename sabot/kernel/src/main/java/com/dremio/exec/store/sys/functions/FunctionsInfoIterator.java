@@ -23,11 +23,13 @@ public class FunctionsInfoIterator implements Iterator<Object> {
 
   private Map<String, Map<String, Object>> funcsMap;
   private Iterator<SysTableFunctionsInfo> iterator;
+  private List<SysTableFunctionsInfo> sqlOperatorsList;
 
 
   public FunctionsInfoIterator(final SabotContext sabotContext) {
     Map<String, Map<String, Object>> map = sabotContext.getFunctionImplementationRegistry().generateMapWithRegisteredFunctions();
     this.funcsMap = map;
+    this.sqlOperatorsList = sabotContext.getFunctionImplementationRegistry().generateListWithCalciteFunctions();
     this.iterator = this.getIterator(map);
   }
 
@@ -36,6 +38,7 @@ public class FunctionsInfoIterator implements Iterator<Object> {
     functionsMap.entrySet().iterator();
     for (Map.Entry<String, Map<String, Object>> functionEntry : functionsMap.entrySet()) {
       String functionName = functionEntry.getKey();
+      String functionDescription = "";
       Map<String, Object> functionInfo = functionEntry.getValue();
       List<Map<String, Object>> signaturesList = (List<Map<String, Object>>) functionInfo.get("signatures");
       for (Map<String, Object> signature : signaturesList) {
@@ -48,9 +51,10 @@ public class FunctionsInfoIterator implements Iterator<Object> {
           Boolean isOptional = Objects.equals((String) parameter.get("parameterType"), "true");
           functionParameterInfoList.add(new FunctionParameterInfo(parameterName, parameterType, isOptional));
         }
-        sysTableFunctionsInfoList.add(new SysTableFunctionsInfo(functionName, returnType, functionParameterInfoList.toString()));
+        sysTableFunctionsInfoList.add(new SysTableFunctionsInfo(functionName, functionDescription, returnType, functionParameterInfoList.toString()));
       }
     }
+    sysTableFunctionsInfoList.addAll(this.sqlOperatorsList);
     return sysTableFunctionsInfoList.iterator();
   }
 
