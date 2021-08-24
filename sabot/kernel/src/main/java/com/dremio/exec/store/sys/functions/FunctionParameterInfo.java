@@ -66,11 +66,11 @@ public class FunctionParameterInfo {
   @Override
   public String toString() {
     return new StringBuilder()
-      .append("'{")
+      .append("{")
       .append("\"name\":\"" + name + "\",")
       .append("\"data_type\":\"" + data_type + "\",")
       .append("\"is_optional\":\"" + is_optional + "\",")
-      .append("}'")
+      .append("}")
       .toString();
   }
 }
