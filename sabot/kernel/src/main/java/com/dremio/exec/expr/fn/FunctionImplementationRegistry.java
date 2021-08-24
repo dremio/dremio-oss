@@ -313,7 +313,6 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
     for (SqlOperator operator : operatorTable.getOperatorList()) {
       String opName = operator.getName();
-      String opDescription = "";
       // Only SQL's functions are uppercased
       opName = opName.toLowerCase(Locale.ROOT);
       logger.info("opName: {}", opName);
@@ -327,12 +326,15 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
           syntax.toString() == "ORDERED_FUNCTION") {
         String signaturesString = "";
         try {
+          // Get the function's signature, it will come like FUNCTION_NAME(<PARAM1_TYPE> <PARAM2_TYPE>)
           signaturesString = operator.getAllowedSignatures();
         } catch (Exception e) {
           logger.warn("Failed to read Calcite {} function's allowed signatures, with exception {}. ", opName, e);
         }
+        // Get a list of allowed signatures that come in a single string
         List<String> signatures = Arrays.asList(signaturesString.split("\\r?\\n"));
         for (String signature : signatures) {
+          // Get only the param's type for each signature
           String[] ps = StringUtils.substringsBetween(signature, "<", ">");
           if (ps != null) {
             List<String> params = Arrays.asList(ps);
@@ -347,7 +349,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
                 false));
             }
           }
-          functionsInfoList.add(new SysTableFunctionsInfo(opName, opDescription, returnType, parameterInfoList.toString()));
+          functionsInfoList.add(new SysTableFunctionsInfo(opName, returnType, parameterInfoList.toString()));
         }
       }
     }

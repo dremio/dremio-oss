@@ -24,13 +24,11 @@ import java.util.Objects;
 public class SysTableFunctionsInfo {
 
   public final String name;
-  public final String description;
   public final String return_type;
   public final String parameters;
 
-  public SysTableFunctionsInfo(String name, String description, String return_type, String parameters) {
+  public SysTableFunctionsInfo(String name, String return_type, String parameters) {
     this.name = name;
-    this.description = description;
     this.return_type = return_type;
     this.parameters = parameters;
   }
@@ -43,17 +41,13 @@ public class SysTableFunctionsInfo {
     return return_type;
   }
 
-  public String getDescription() {
-    return description;
-  }
-
   public String getParameters() {
     return parameters;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.name, this.return_type, this.description, this.parameters);
+    return Objects.hash(this.name, this.return_type, this.parameters);
   }
 
   @Override
@@ -67,7 +61,6 @@ public class SysTableFunctionsInfo {
     SysTableFunctionsInfo other = (SysTableFunctionsInfo) o;
     return Objects.equals(this.name, other.getName()) &&
       Objects.equals(this.return_type, other.getReturn_type()) &&
-      Objects.equals(this.description, other.getDescription()) &&
       Objects.equals(this.parameters, other.getParameters());
   }
 
@@ -76,7 +69,6 @@ public class SysTableFunctionsInfo {
     return "SysTableFunctionsInfo{" +
       "name='" + name + '\'' +
       ", return_type='" + return_type + '\'' +
-      ", description='" + return_type + '\'' +
       ", parameters=" + parameters +
       '}';
   }
