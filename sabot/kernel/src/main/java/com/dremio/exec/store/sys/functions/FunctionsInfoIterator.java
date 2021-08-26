@@ -18,12 +18,14 @@ package com.dremio.exec.store.sys.functions;
 import com.dremio.exec.server.SabotContext;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class FunctionsInfoIterator implements Iterator<Object> {
 
   private Map<String, Map<String, Object>> funcsMap;
   private Iterator<SysTableFunctionsInfo> iterator;
   private List<SysTableFunctionsInfo> sqlOperatorsList;
+  private final boolean filterEmptyReturnType;
 
 
   public FunctionsInfoIterator(final SabotContext sabotContext) {
@@ -31,6 +33,7 @@ public class FunctionsInfoIterator implements Iterator<Object> {
     this.funcsMap = map;
     this.sqlOperatorsList = sabotContext.getFunctionImplementationRegistry().generateListWithCalciteFunctions();
     this.iterator = this.getIterator(map);
+    this.filterEmptyReturnType = true;
   }
 
   private Iterator<SysTableFunctionsInfo> getIterator(Map<String, Map<String, Object>> functionsMap) {
@@ -53,7 +56,23 @@ public class FunctionsInfoIterator implements Iterator<Object> {
         sysTableFunctionsInfoList.add(new SysTableFunctionsInfo(functionName, returnType, functionParameterInfoList.toString()));
       }
     }
-    sysTableFunctionsInfoList.addAll(this.sqlOperatorsList);
+    // Check if we have duplicate functions in Calcite's list that have no return type
+    if (this.filterEmptyReturnType) {
+      for (SysTableFunctionsInfo item : sysTableFunctionsInfoList) {
+        List<SysTableFunctionsInfo> filteredSqlItems = this.sqlOperatorsList.stream()
+          .filter(sqlItem -> sqlItem.getName() == item.getName()
+            && sqlItem.getReturn_type() == ""
+            && sqlItem.getParameters() == "[]")
+          .collect(Collectors.toList());
+        this.sqlOperatorsList.removeAll(filteredSqlItems);
+      }
+      sysTableFunctionsInfoList.addAll(this.sqlOperatorsList);
+      List<SysTableFunctionsInfo> cleanedSysTableFunctionsInfoList = sysTableFunctionsInfoList.stream()
+        .filter(item -> item.getReturn_type() != "" && item.getParameters() != "[]")
+        .collect(Collectors.toList());
+      sysTableFunctionsInfoList = cleanedSysTableFunctionsInfoList;
+    }
+
     return sysTableFunctionsInfoList.iterator();
   }
 
