@@ -345,7 +345,12 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
                 false));
             }
           }
+          if (returnType.equals("") || returnType.isEmpty()) {
+            returnType = "inferred at runtime";
+          }
           SysTableFunctionsInfo toAdd = new SysTableFunctionsInfo(opName, returnType, parameterInfoList.toString());
+
+          // Avoid possible duplicates
           if (!functionsInfoList.contains(toAdd)) {
             functionsInfoList.add(toAdd);
           }

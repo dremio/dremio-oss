@@ -33,7 +33,7 @@ public class FunctionsInfoIterator implements Iterator<Object> {
     this.funcsMap = map;
     this.sqlOperatorsList = sabotContext.getFunctionImplementationRegistry().generateListWithCalciteFunctions();
     this.iterator = this.getIterator(map);
-    this.filterEmptyReturnType = true;
+    this.filterEmptyReturnType = false;
   }
 
   private Iterator<SysTableFunctionsInfo> getIterator(Map<String, Map<String, Object>> functionsMap) {
@@ -61,16 +61,17 @@ public class FunctionsInfoIterator implements Iterator<Object> {
       for (SysTableFunctionsInfo item : sysTableFunctionsInfoList) {
         List<SysTableFunctionsInfo> filteredSqlItems = this.sqlOperatorsList.stream()
           .filter(sqlItem -> sqlItem.getName() == item.getName()
-            && sqlItem.getReturn_type() == ""
-            && sqlItem.getParameters() == "[]")
+            && sqlItem.getReturn_type() == "")
           .collect(Collectors.toList());
         this.sqlOperatorsList.removeAll(filteredSqlItems);
       }
       sysTableFunctionsInfoList.addAll(this.sqlOperatorsList);
       List<SysTableFunctionsInfo> cleanedSysTableFunctionsInfoList = sysTableFunctionsInfoList.stream()
-        .filter(item -> item.getReturn_type() != "" && item.getParameters() != "[]")
+        .filter(item -> item.getReturn_type() != "")
         .collect(Collectors.toList());
       sysTableFunctionsInfoList = cleanedSysTableFunctionsInfoList;
+    } else {
+      sysTableFunctionsInfoList.addAll(this.sqlOperatorsList);
     }
 
     return sysTableFunctionsInfoList.iterator();
