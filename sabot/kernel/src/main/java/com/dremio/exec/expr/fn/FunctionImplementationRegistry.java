@@ -112,7 +112,6 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan, OptionManager optionManager) {
     this(config, classpathScan);
     this.optionManager = optionManager;
-//    this.generateYAMLWithRegisteredFunctions();
   }
 
   public ArrayListMultimap<String, AbstractFunctionHolder> getRegisteredFunctions() {
@@ -290,21 +289,6 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     }
     return functionsToSave;
   }
-
-//  public void generateYAMLWithRegisteredFunctions() {
-//    logger.info("Starting to generate yaml with registered functions...");
-//    // ObjectMapper is instantiated to map the YAML file
-//    ObjectMapper om = new ObjectMapper(new YAMLFactory());
-//    Map<String, Map<String, Object>> functionsToSave = this.generateMapWithRegisteredFunctions();
-//
-//    try {
-//      File fileToSave = new File(System.getProperty("user.dir") + "/target/registered_functions.yaml");
-//      om.writeValue(fileToSave, functionsToSave);
-//      logger.info("Finished to generate yaml with registered functions at {}.", fileToSave.getAbsolutePath());
-//    } catch (Exception exception) {
-//      logger.warn("Failed generating YAML function files: " + exception.getMessage());
-//    }
-//  }
 
   public List<SysTableFunctionsInfo> generateListWithCalciteFunctions() {
     OperatorTable operatorTable = new OperatorTable(this);
