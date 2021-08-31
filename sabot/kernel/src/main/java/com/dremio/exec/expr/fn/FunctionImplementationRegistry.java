@@ -17,14 +17,11 @@ package com.dremio.exec.expr.fn;
 
 import java.util.List;
 import java.util.Set;
-import java.io.File;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.exec.store.sys.functions.FunctionParameterInfo;
 import com.dremio.exec.store.sys.functions.SysTableFunctionsInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.config.SabotConfig;

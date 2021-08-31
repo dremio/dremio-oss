@@ -111,13 +111,6 @@ public class TestGandivaFunctionRegistry extends ExecTest {
     Assert.assertNull(holder);
   }
 
-//  @Test
-//  public void getAllRegisteredFunctionsAndGenerateYAML() throws IOException {
-//    // Retrieve the function registry and generate the YAML files with the available information
-//    FunctionImplementationRegistry fnRegistry = FUNCTIONS();
-//    fnRegistry.generateYAMLWithRegisteredFunctions();
-//  }
-
   @Test
   public void getUnSupportedFunctions() throws GandivaException {
     FunctionImplementationRegistry fnRegistry = FUNCTIONS();
