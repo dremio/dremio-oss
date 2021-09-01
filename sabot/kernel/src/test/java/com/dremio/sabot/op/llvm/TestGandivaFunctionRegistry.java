@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 
+import com.dremio.exec.store.sys.functions.SysTableFunctionsInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
@@ -162,6 +163,13 @@ public class TestGandivaFunctionRegistry extends ExecTest {
       System.out.println(fnName);
     }
     System.out.println("Total # of functions: " + functionMap.size());
+  }
+
+  @Test
+  public void getMapWithRegisteredFunctions() {
+    FunctionImplementationRegistry fnRegistry = FUNCTIONS();
+    Map<String, Map<String, Object>> map = fnRegistry.generateMapWithRegisteredFunctions();
+    System.out.println("Total # of registered functions: " + map.size());
   }
 
   private boolean isFunctionSupported(String name, BaseFunctionHolder holder, Set<String> fns) throws

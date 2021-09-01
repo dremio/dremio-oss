@@ -43,6 +43,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.ProvisionException;
 import org.apache.calcite.sql.*;
+import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.commons.lang3.StringUtils;
 
@@ -300,7 +301,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
       String returnType = "";
       List<FunctionParameterInfo> parameterInfoList = new ArrayList<>();
       SqlSyntax syntax = operator.getSyntax();
-      if (syntax.toString() == "FUNCTION") {
+      if (syntax.toString().equals("FUNCTION")) {
         String signaturesString = "";
         try {
           // Get the function's signature, it will come like FUNCTION_NAME(<PARAM1_TYPE> <PARAM2_TYPE>)
@@ -309,7 +310,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
           logger.warn("Failed to read Calcite {} function's allowed signatures, with exception {}. ", opName, e);
         }
         // Get a list of allowed signatures that come in a single string
-        List<String> signatures = Arrays.asList(signaturesString.split("\\r?\\n"));
+        String[] signatures = signaturesString.split("\\r?\\n");
         for (String signature : signatures) {
           // Get only the param's type for each signature
           String[] ps = StringUtils.substringsBetween(signature, "<", ">");
@@ -326,7 +327,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
                 false));
             }
           }
-          if (returnType.equals("") || returnType.isEmpty()) {
+          if (returnType.isEmpty()) {
             returnType = "inferred at runtime";
           }
           SysTableFunctionsInfo toAdd = new SysTableFunctionsInfo(opName, returnType, parameterInfoList.toString());
