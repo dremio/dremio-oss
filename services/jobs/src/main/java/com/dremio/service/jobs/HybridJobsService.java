@@ -303,6 +303,8 @@ public class HybridJobsService implements JobsService {
     case PERMISSION_DENIED:
       throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job [%s]", username, jobId));
+    case INVALID_ARGUMENT:
+      throw new JobNotFoundException(jobId, sre);
     default:
       throw sre;
     }

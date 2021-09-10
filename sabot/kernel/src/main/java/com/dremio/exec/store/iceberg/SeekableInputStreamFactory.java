@@ -29,9 +29,10 @@ public interface SeekableInputStreamFactory {
 
   String KEY = "dremio.plugins.iceberg.manifests.input_stream_factory";
 
-  SeekableInputStream getStream(FileSystem fs, OperatorContext context, Path path, long fileLength, long mtime, List<String> dataset) throws IOException;
+  SeekableInputStream getStream(FileSystem fs, OperatorContext context, Path path, long fileLength, long mtime,
+                                List<String> dataset, String datasourcePluginUID) throws IOException;
 
-  SeekableInputStreamFactory DEFAULT = (fs, context, path, fileLength, mtime, dataset) -> wrap(fs.open(path));
+  SeekableInputStreamFactory DEFAULT = (fs, context, path, fileLength, mtime, dataset, pluginUID) -> wrap(fs.open(path));
 
   static SeekableInputStream wrap(FSInputStream is) {
     return new SeekableInputStream() {

@@ -21,7 +21,6 @@ import AdminPage from '@app/pages/AdminPage/AdminPage';
 import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
 import NodeActivity from '@app/pages/AdminPage/subpages/NodeActivity/NodeActivity';
 import Users from '@app/pages/AdminPage/subpages/Users';
-import Roles from '@inject/pages/AdminPage/subpages/Roles';
 import Advanced from '@app/pages/AdminPage/subpages/Advanced';
 import Provisioning from '@app/pages/AdminPage/subpages/Provisioning';
 import Activation from '@inject/pages/AdminPage/subpages/Activation';
@@ -37,10 +36,9 @@ export const AdminPageRouting = () => (
         <Route path='/admin/acceleration' component={Acceleration} />
         <Route path='/admin/nodeActivity' component={NodeActivity} />
         <Route path='/admin/users' component={UserIsAdmin(Users)} />
-        <Route path='/admin/roles' component={Roles} />
         <Route path='/admin/advanced' component={Advanced} />
         <Route path='/admin/provisioning' component={Provisioning} />
-        <Route path='/admin/activation' component={Activation}/>
+        <Route path='/admin/activation' component={Activation} />
         <Route path='/admin/support' component={Support} />
         <Route path='/admin/queues' component={Queues} />
         <Route path='/admin/rules' component={QAssignments} />

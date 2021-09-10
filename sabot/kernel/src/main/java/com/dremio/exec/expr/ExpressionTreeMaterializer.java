@@ -154,11 +154,11 @@ public class ExpressionTreeMaterializer {
       codeGenOption = SupportedEngines.CodeGenOption.Java;
     }
 
-    // temporary short circuit to bypass Gandiva codegen, if expression has case
-    // TODO(ramesh) : remove this when Gandiva supports case natively
-    if (contextAnnotator.isExpHasCase()) {
+    // temporary short circuit to bypass Gandiva codegen, if expression has very large case
+    // TODO(ramesh) : remove or adjust this when Gandiva supports large case natively (DX-34386 or DX-29559)
+    if (contextAnnotator.isExpHasVeryLargeCase()) {
       if (contextTree.isMixedModeExecution()) {
-        errorCollector.addGeneralError("Currently large case statements cannot have Gandiva only functions");
+        errorCollector.addGeneralError("Currently Very large case statements cannot have Gandiva only functions");
       }
       codeGenOption = SupportedEngines.CodeGenOption.Java;
     }

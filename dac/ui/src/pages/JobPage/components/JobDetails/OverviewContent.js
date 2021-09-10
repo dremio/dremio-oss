@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
 import Immutable from 'immutable';
-import jobsUtils from 'utils/jobsUtils';
+import jobsUtils from '@inject/utils/jobsUtils';
 import timeUtils from 'utils/timeUtils';
 import { getIconByEntityType } from 'utils/iconUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
@@ -111,6 +111,8 @@ class OverviewContent extends PureComponent {
         return 'Job.FlightExecute';
       }
       return 'Job.FlightClient';
+    case 'METADATA_REFRESH':
+      return 'Job.MetadataRefresh';
     case 'UNKNOWN':
     default:
       return 'File.Unknown';

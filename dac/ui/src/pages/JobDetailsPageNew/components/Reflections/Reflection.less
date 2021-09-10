@@ -1,0 +1,100 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/pages/JobDetailsPageNew/components/OverView/OverView.less";
+:global {
+  .reflection {
+    &-header {
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+
+      &__title {
+        flex-basis: 83%;
+        padding-bottom: 5px;
+        color: @font-color1;
+        font-size: @font-size;
+        font-weight: @font-weight;
+        line-height: @line-height;
+      }
+      &__iconWrapper {
+        flex-basis: 35%;
+        display: flex;
+        align-items: center;
+      }
+    }
+    &-content {
+      &__title {
+        font-size: 14px;
+        line-height: 20px;
+        color: @DARK_800;
+        padding-top: 18px;
+      }
+      &__rowWrapper {
+        display: flex;
+        align-items: center;
+        margin-left: 10px;
+      }
+      &__dataWrapper {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+      &__dataHeader {
+        display: inline-block;
+        padding: 10px;
+        flex-basis: 72.50%;
+        padding-left: 4px;
+      }
+      &__dataLabel {
+        font-size: 14px;
+        font-weight: @font-weight;
+        line-height: 20px;
+        color: @greyish-blue;
+        &__algbric {
+          font-size: 16px;
+          color: @liteSlate-grey;
+          font-style: italic;
+          font-weight: 400;
+          padding-left: 4px;
+        }
+      }
+      &__dataLabelSubscription {
+        font-size: 12px;
+        line-height: 16px;
+        color: @DARK_700;
+      }
+      &__dataHeaderContent {
+        color: @DARK_700;
+        flex-basis: 27.50%;
+      }
+    }
+  }
+  .reflectionIcon {
+    width: 24px;
+    height: 24px;
+  }
+  .reflectionNotUsed {
+    height: 24px;
+    width: 24px;
+  }
+  .starflakeNotUsed {
+    height: 19px;
+    width: 24px;
+  }
+}

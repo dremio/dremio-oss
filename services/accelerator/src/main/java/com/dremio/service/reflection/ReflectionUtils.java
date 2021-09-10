@@ -605,7 +605,9 @@ public class ReflectionUtils {
         "Empty write path for job %s", jobId.getId());
 
       // relative path to the acceleration base path
-      final String path = PathUtils.relativePath(Path.of(text.toString()), accelerationBasePath);
+      final String path = PathUtils.relativePath(
+              Path.of(Path.getContainerSpecificRelativePath(Path.of(text.toString()))),
+              Path.of(Path.getContainerSpecificRelativePath(accelerationBasePath)));
 
       // extract first 2 components of the path "<reflection-id>."<modified-materialization-id>"
       List<String> components = PathUtils.toPathComponents(path);
@@ -675,14 +677,11 @@ public class ReflectionUtils {
       .setNumFiles(numFiles);
   }
 
-  public static String getIcebergReflectionBasePath(Materialization materialization, List<String> refreshPath, boolean isIcebergRefresh) {
-    if (materialization.getBasePath() != null && !materialization.getBasePath().isEmpty()) {
-      return materialization.getBasePath();
+  public static String getIcebergReflectionBasePath(List<String> refreshPath, boolean isIcebergRefresh) {
+    if (!isIcebergRefresh) {
+      return "";
     }
-    if (isIcebergRefresh) {
-      Preconditions.checkState(refreshPath.size() >= 2, "Unexpected state");
-      return refreshPath.get(refreshPath.size() - 1);
-    }
-    return "";
+    Preconditions.checkState(refreshPath.size() >= 2, "Unexpected state");
+    return refreshPath.get(refreshPath.size() - 1);
   }
 }

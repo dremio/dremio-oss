@@ -20,7 +20,7 @@ import MonacoEditor from 'react-monaco-editor';
 import Immutable from 'immutable';
 import * as SQLLanguage from 'monaco-editor/dev/vs/basic-languages/src/sql';
 
-import {RESERVED_WORDS} from 'utils/pathUtils';
+import { RESERVED_WORDS } from 'utils/pathUtils';
 import { runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
 import { SQLAutoCompleteProvider } from './SQLAutoCompleteProvider';
 import './SQLEditor.less';
@@ -72,8 +72,12 @@ export class SQLEditor extends PureComponent {
   _focusOnMount = false;
 
   state = {
-    language: 'sql'
+    language: 'sql',
+    theme: 'vs'
   };
+  static defaultProps = {
+    theme: null
+  }
 
   componentDidMount() {
     if (this.props.defaultValue !== undefined) {
@@ -97,6 +101,9 @@ export class SQLEditor extends PureComponent {
 
     if (this.props.autoCompleteEnabled !== prevProps.autoCompleteEnabled) {
       this.setAutocompletion(this.props.autoCompleteEnabled);
+    }
+    if (this.props.theme !== prevProps.theme) {
+      this.setEditorTheme();
     }
   }
 
@@ -253,15 +260,31 @@ export class SQLEditor extends PureComponent {
     }
     this.autoCompleteResources = [];
   }
-
+  setEditorTheme = () => {
+    if (this.props.customTheme) {
+      this.monaco.editor.defineTheme('sqlEditorTheme', {
+        base: this.props.theme,
+        inherit: true,
+        rules: [],
+        colors: {
+          'editor.background': this.props.background
+        }
+      });
+      this.monaco.editor.setTheme('sqlEditorTheme');
+      this.setState({
+        theme: 'sqlEditorTheme'
+      });
+    }
+  }
   editorDidMount = (editor, monaco) => {
-    this.monaco = monaco;
-    editor.getDomNode()._monacoEditor = editor; // for e2e tests
 
+    this.monaco = monaco;
+    this.setEditorTheme();
+    editor.getDomNode()._monacoEditor = editor; // for e2e tests
     // if this is our first time using monaco it will lazy load
     // only once it's loaded can we set up languages, etc
     if (!haveLoaded) {
-      const {language: tokenProvider, conf} = SQLLanguage;
+      const { language: tokenProvider, conf } = SQLLanguage;
       tokenProvider.builtinVariables = [];
       tokenProvider.keywords = [...RESERVED_WORDS];
 
@@ -294,7 +317,7 @@ export class SQLEditor extends PureComponent {
 
     this.fitHeightToContent();
 
-    this.setState({language});
+    this.setState({ language });
 
     if (this._focusOnMount) {
       this.focus();
@@ -315,7 +338,7 @@ export class SQLEditor extends PureComponent {
     editor.addAction({
       id: 'keys-preview',
       label: 'Preview',
-      keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter ], // eslint-disable-line no-bitwise
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter], // eslint-disable-line no-bitwise
       precondition: null,
       keybindingContext: null,
       run: this.onKbdPreview
@@ -323,7 +346,7 @@ export class SQLEditor extends PureComponent {
     editor.addAction({
       id: 'keys-run',
       label: 'Run',
-      keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter ], // eslint-disable-line no-bitwise
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter], // eslint-disable-line no-bitwise
       precondition: null,
       keybindingContext: null,
       run: this.onKbdRun
@@ -342,7 +365,7 @@ export class SQLEditor extends PureComponent {
       contextMenu,
       // monaco does not support fitHeightToContent, so exclude it from monacoProps
       fitHeightToContent,  // eslint-disable-line @typescript-eslint/no-unused-vars
-      ...monacoProps} = this.props;
+      ...monacoProps } = this.props;
 
     return (
       // div wrapper is required for FF and IE. Without it a editor has uncontrolled grow on jobs page.
@@ -354,22 +377,24 @@ export class SQLEditor extends PureComponent {
           ref={(ref) => this.monacoEditorComponent = ref}
           width='100%'
           language={this.state.language}
-          theme='vs'
+          theme={this.state.theme}
           options={{
             wordWrap: 'on',
             lineNumbersMinChars: 3,
             scrollBeyondLastLine: false,
-            scrollbar: {vertical: 'visible', useShadows: false},
+            scrollbar: { vertical: 'visible', useShadows: false },
             automaticLayout: true,
             lineDecorationsWidth: 12,
+            fontSize: 14,
             minimap: {
               enabled: false
             },
             suggestLineHeight: 25,
             readOnly,
-            contextmenu: contextMenu // a case is important here
+            contextmenu: contextMenu, // a case is important here
+            ...(this.props.customOptions && this.props.customOptions)
           }}
-          requireConfig={{url: '/vs/loader.js', paths: {vs: '/vs'}}}
+          requireConfig={{ url: '/vs/loader.js', paths: { vs: '/vs' } }}
         />
       </div>
     );
@@ -379,4 +404,4 @@ export class SQLEditor extends PureComponent {
 export default connect(null, {
   runDatasetSql,
   previewDatasetSql
-}, null, {forwardRef: true})(SQLEditor);
+}, null, { forwardRef: true })(SQLEditor);

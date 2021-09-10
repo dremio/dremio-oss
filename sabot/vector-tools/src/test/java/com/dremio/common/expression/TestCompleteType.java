@@ -109,6 +109,7 @@ public class TestCompleteType {
         {TIMESTAMP, NULL, TIMESTAMP},
         {TIME, NULL, TIME},
         {DATE, NULL, DATE},
+        {NULL, NULL, NULL}
       });
     }
 
@@ -458,7 +459,17 @@ public class TestCompleteType {
         {new CompleteType(new ArrowType.Decimal(10, 10, 128)), DECIMAL, DECIMAL},
         {DATE, VARCHAR, VARCHAR},
         {TIME, VARCHAR, VARCHAR},
-        {TIMESTAMP, VARCHAR, VARCHAR}
+        {TIMESTAMP, VARCHAR, VARCHAR},
+        {NULL, INT, INT},
+        {NULL, BIGINT, BIGINT},
+        {NULL, FLOAT, FLOAT},
+        {NULL, DOUBLE, DOUBLE},
+        {NULL, VARCHAR, VARCHAR},
+        {NULL, BIT, BIT},
+        {NULL, DECIMAL, DECIMAL},
+        {NULL, TIMESTAMP, TIMESTAMP},
+        {NULL, TIME, TIME},
+        {NULL, DATE, DATE}
       });
     }
 

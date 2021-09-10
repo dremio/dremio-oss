@@ -77,4 +77,18 @@ public class JobFilters {
       throw new DACRuntimeException(jpe);
     }
   }
+
+  public String toJobListingUrl() {
+    try {
+      String filterStr = new ObjectMapper().writeValueAsString(filters);
+      String escapedFilter = PathUtils.encodeURIComponent(filterStr);
+      if (sort != null) {
+        return format("/jobs-listing/v1.0?filters=%s&sort=%s&order=%s", escapedFilter, PathUtils.encodeURIComponent(sort), order);
+      } else {
+        return format("/jobs-listing/v1.0?filters=%s", escapedFilter);
+      }
+    } catch (JsonProcessingException jpe) {
+      throw new DACRuntimeException(jpe);
+    }
+  }
 }

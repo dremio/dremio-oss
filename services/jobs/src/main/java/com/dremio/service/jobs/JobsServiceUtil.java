@@ -49,6 +49,7 @@ import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.beans.NodeEndpoint;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.parquet.ParquetWriter;
+import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobSummary;
@@ -488,6 +489,39 @@ public final class JobsServiceUtil {
     return jobSummaryBuilder.build();
   }
 
+  static ActiveJobSummary toActiveJobSummary(Job job){
+
+    final JobAttempt firstJobAttempt = job.getAttempts().get(0);
+    final JobInfo firstJobAttemptInfo = firstJobAttempt.getInfo();
+    final JobAttempt lastJobAttempt = job.getJobAttempt();
+    final JobInfo lastJobAttemptInfo = lastJobAttempt.getInfo();
+
+    ActiveJobSummary.Builder activeJobSummaryBuilder = ActiveJobSummary.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(job.getJobId()).getId())
+      .setStatus(JobsProtoUtil.toBuf(lastJobAttempt.getState()).toString())
+      .setUserName(firstJobAttemptInfo.getUser())
+      .setQueryType(JobsProtoUtil.toBuf(lastJobAttemptInfo.getQueryType()).toString())
+      .setAccelerated(lastJobAttemptInfo.getAcceleration() != null);
+
+    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getOutputRecords() != null) {
+      activeJobSummaryBuilder.setRowCount(lastJobAttempt.getDetails().getOutputRecords());
+    }
+
+    if(lastJobAttemptInfo.getFailureInfo() != null) {
+      activeJobSummaryBuilder.setErrorMsg(lastJobAttemptInfo.getFailureInfo());
+    }
+
+    if(firstJobAttemptInfo.getStartTime() != null) {
+      activeJobSummaryBuilder.setStart(firstJobAttemptInfo.getStartTime());
+    }
+
+    if(lastJobAttemptInfo.getFinishTime() != null) {
+      activeJobSummaryBuilder.setFinish(lastJobAttemptInfo.getFinishTime());
+    }
+
+  return activeJobSummaryBuilder.build();
+  }
+
   static JobDetails toJobDetails(Job job, boolean provideResultInfo) {
     final JobDetails.Builder jobDetailsBuilder = JobDetails.newBuilder();
     int numAttempts = job.getAttempts().size();
@@ -512,6 +546,8 @@ public final class JobsServiceUtil {
     }
     return jobDetailsBuilder.build();
   }
+
+
 
   public static JobTypeStats.Types toType(JobStats.Type type) {
     switch (type) {

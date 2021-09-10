@@ -34,7 +34,7 @@ public class TestBoundCommandPool {
 
   private final AtomicInteger counter = new AtomicInteger();
 
-  private CommandPool newTestCommandPool() {
+  CommandPool newTestCommandPool() {
     return new BoundCommandPool(1, NoopTracerFactory.create());
   }
 
@@ -48,7 +48,7 @@ public class TestBoundCommandPool {
     // single threaded pool to have a deterministic ordering of execution
     final CommandPool pool = newTestCommandPool();
 
-    final BlockingCommand blocking = new BlockingCommand();
+    final BlockingCommand blocking = new BlockingCommand(new StartAndStop());
     pool.submit(CommandPool.Priority.HIGH, "test", blocking, false);
 
     // submitting multiple suppliers with the same priority should be executed in their submitted order
@@ -69,7 +69,7 @@ public class TestBoundCommandPool {
     // single threaded pool to have a deterministic ordering of execution
     final CommandPool pool = newTestCommandPool();
 
-    final BlockingCommand blocking = new BlockingCommand();
+    final BlockingCommand blocking = new BlockingCommand(new StartAndStop());
     pool.submit(CommandPool.Priority.HIGH, "test", blocking, false);
 
     // submitting multiple suppliers with different priorities, to a single thread pool, should be executed according to their priority
@@ -86,8 +86,13 @@ public class TestBoundCommandPool {
   /**
    * Runnable that starts in a blocked state and can be unblocked
    */
-  private static final class BlockingCommand implements CommandPool.Command<Void> {
+  protected static final class BlockingCommand implements CommandPool.Command<Void> {
     private final Semaphore semaphore = new Semaphore(0);
+    private final StartAndStop startAndStop;
+
+    BlockingCommand(StartAndStop startAndStop) {
+      this.startAndStop = startAndStop;
+    }
 
     void unblock() {
       semaphore.release();
@@ -96,11 +101,18 @@ public class TestBoundCommandPool {
     @Override
     public Void get(long waitInMillis) {
       try {
+        startAndStop.start();
         semaphore.acquire();
+        startAndStop.stop();
         return null;
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  protected static class StartAndStop {
+    void start() {}
+    void stop() {}
   }
 }

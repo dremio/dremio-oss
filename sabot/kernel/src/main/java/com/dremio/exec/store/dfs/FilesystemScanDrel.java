@@ -116,6 +116,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     return new FilesystemScanDrel(this, newDatasetPointer);
   }
 
+  @Override
   public FilesystemScanDrel applyPartitionFilter(PruneFilterCondition partitionFilter) {
     Preconditions.checkArgument(supportsPruneFilter(getTableMetadata().getDatasetConfig()));
     return new FilesystemScanDrel(this, partitionFilter);
@@ -129,6 +130,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     return filter;
   }
 
+  @Override
   public PruneFilterCondition getPartitionFilter() {
     return partitionFilter;
   }

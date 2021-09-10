@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.store.hive.exec.dfs;
 
+import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
+import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.WEBHDFS_SCHEME;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -88,11 +93,6 @@ public class DremioHadoopFileSystemWrapper
   private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
   private static int FORCE_REFRESH_LEVELS_VALUE = Integer.getInteger(FORCE_REFRESH_LEVELS, 2);
 
-  public static final String HDFS_SCHEME = "hdfs";
-  public static final String MAPRFS_SCHEME = "maprfs";
-  public static final String NAS_SCHEME = "file";
-  public static final String WEBHDFS_SCHEME = "webhdfs";
-
   private static final String NON_EXISTENT_FILE_SUFFIX = ".___NoFile___._";
   private static long NON_EXISTENT_FILE_COUNTER = 1;
 
@@ -131,7 +131,7 @@ public class DremioHadoopFileSystemWrapper
 
   private static boolean isNAS(FileSystem fs) {
     try {
-      return fs instanceof LocalSyncableFileSystem || NAS_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
+      return fs instanceof LocalSyncableFileSystem || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
     } catch (UnsupportedOperationException e) {
     }
     return false;
@@ -327,7 +327,7 @@ public class DremioHadoopFileSystemWrapper
   public DirectoryStream<FileAttributes> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getMetadataWaitRecorder(operatorStats, f)) {
       return new FetchOnDemandDirectoryStream(underlyingFs.listFiles(toHadoopPath(f), recursive), f, operatorStats);
-    } catch(FSError e) {
+    } catch (FSError e) {
       throw propagateFSError(e);
     }
   }

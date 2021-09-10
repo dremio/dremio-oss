@@ -15,9 +15,15 @@
  */
 package com.dremio.exec.hive;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.ql.processors.CommandProcessorResponse;
+import org.apache.hadoop.hive.ql.session.SessionState;
 
 public class HiveTestUtilities {
 
@@ -49,5 +55,37 @@ public class HiveTestUtilities {
       throw new RuntimeException(String.format("Failed to execute command '%s', errorMsg = '%s'",
           query, (response != null ? response.getErrorMessage() : "")), cause);
     }
+  }
+
+  public static class DriverState implements AutoCloseable {
+    public final Driver driver;
+    public final SessionState sessionState;
+
+    public DriverState(HiveConf conf) {
+      this.driver = new Driver(conf);
+      this.sessionState = new SessionState(conf);
+      SessionState.start(sessionState);
+    }
+
+    @Override
+    public void close() throws IOException {
+      sessionState.close();
+    }
+  }
+
+  public static void logVersion(Driver hiveDriver) throws Exception {
+    hiveDriver.run("SELECT VERSION()");
+    hiveDriver.resetFetch();
+    hiveDriver.setMaxRows(1);
+    List<String> result = new ArrayList<>();
+    hiveDriver.getResults(result);
+
+    for (String values : result) {
+      System.out.println("Test Hive instance version: " + values);
+    }
+  }
+
+  public static void pingHive(Driver hiveDriver) throws Exception {
+    executeQuery(hiveDriver, "CREATE DATABASE db_ping");
   }
 }

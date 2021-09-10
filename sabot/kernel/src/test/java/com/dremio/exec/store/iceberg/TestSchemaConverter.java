@@ -79,8 +79,12 @@ import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.test.DremioTest;
 
 public class TestSchemaConverter extends DremioTest {
+
+  private final SchemaConverter schemaConverter = new SchemaConverter();
+
   @Rule
   public ExpectedException expectedEx = ExpectedException.none();
+
 
   @Test
   public void primitiveBasic() {
@@ -114,8 +118,8 @@ public class TestSchemaConverter extends DremioTest {
       .addField(TIMESTAMP.toField("timestamp"))
       .build();
 
-    assertEquals(schema, SchemaConverter.fromIceberg(icebergSchema));
-    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(schema).toString());
+    assertEquals(schema,  schemaConverter.fromIceberg(icebergSchema));
+    assertEquals(icebergSchema.toString(),  schemaConverter.toIcebergSchema(schema).toString());
   }
 
   @Test
@@ -133,8 +137,8 @@ public class TestSchemaConverter extends DremioTest {
       .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
       .build();
 
-    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
-    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
+    Schema icebergSchema =  schemaConverter.toIcebergSchema(schema);
+    BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
@@ -148,7 +152,7 @@ public class TestSchemaConverter extends DremioTest {
       .addField(new CompleteType(new FixedSizeBinary(16)).toField("uuid"))
       .build();
 
-    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
+    BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
@@ -159,8 +163,8 @@ public class TestSchemaConverter extends DremioTest {
       .addField(INT.asList().asList().toField("list_list_int"))
       .build();
 
-    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
-    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
+    Schema icebergSchema =  schemaConverter.toIcebergSchema(schema);
+    BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
@@ -176,8 +180,8 @@ public class TestSchemaConverter extends DremioTest {
       .addField(struct)
       .build();
 
-    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
-    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
+    Schema icebergSchema =  schemaConverter.toIcebergSchema(schema);
+    BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
     assertEquals(result, schema);
   }
 
@@ -196,11 +200,11 @@ public class TestSchemaConverter extends DremioTest {
       .addField(new CompleteType(new ArrowType.Map(false), children).toField("map"))
       .build();
 
-    BatchSchema result = SchemaConverter.fromIceberg(icebergSchema);
+    BatchSchema result =  schemaConverter.fromIceberg(icebergSchema);
     // dremio silently drops map type columns
     assertEquals(result.getFieldCount(), 0);
 
-    Schema icebergResult = SchemaConverter.toIcebergSchema(schema);
+    Schema icebergResult =  schemaConverter.toIcebergSchema(schema);
     assertEquals(icebergSchema.toString(), icebergResult.toString());
   }
 
@@ -238,7 +242,7 @@ public class TestSchemaConverter extends DremioTest {
         ))
     );
 
-    Schema icebergResult = SchemaConverter.toIcebergSchema(schema);
+    Schema icebergResult =  schemaConverter.toIcebergSchema(schema);
     assertEquals(expectedSchema.toString(), icebergResult.toString());
 
     TemporaryFolder folder = new TemporaryFolder();
@@ -252,7 +256,7 @@ public class TestSchemaConverter extends DremioTest {
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
 
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter("testTableName",
-            icebergHadoopModel.getTableIdentifier(rootPath), schema, Collections.emptyList());
+            icebergHadoopModel.getTableIdentifier(rootPath), schema, Collections.emptyList(), null);
     createTableCommitter.commit();
 
 
@@ -272,7 +276,7 @@ public class TestSchemaConverter extends DremioTest {
       optional(1, "boolean", BooleanType.get()),
       optional(2, "int", IntegerType.get()));
 
-    assertEquals(SchemaConverter.toIcebergSchema(inputschema).toString(), expectedSchema.toString());
+    assertEquals( schemaConverter.toIcebergSchema(inputschema).toString(), expectedSchema.toString());
   }
 
   @Test
@@ -285,8 +289,8 @@ public class TestSchemaConverter extends DremioTest {
       .build();
 
     expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("conversion from arrow type to iceberg type failed for field union_field");
-    SchemaConverter.toIcebergSchema(inputSchema);
+    expectedEx.expectMessage("Type conversion error for column union_field");
+     schemaConverter.toIcebergSchema(inputSchema);
   }
 
   @Test
@@ -296,8 +300,8 @@ public class TestSchemaConverter extends DremioTest {
     );
 
     expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("conversion from iceberg type to arrow type failed for field timestamp_nozone_field");
-    SchemaConverter.fromIceberg(schema);
+    expectedEx.expectMessage("Type conversion error for column timestamp_nozone_field");
+     schemaConverter.fromIceberg(schema);
   }
 
   @Test
@@ -318,10 +322,10 @@ public class TestSchemaConverter extends DremioTest {
       .addField(DOUBLE.toField("double"))
       .build();
 
-    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+    assertEquals(batchSchema,  schemaConverter.fromIceberg(icebergSchema));
 
     FieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
-    assertEquals(icebergSchema.toString(), TypeUtil.assignIncreasingFreshIds(SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker)).toString());
+    assertEquals(icebergSchema.toString(), TypeUtil.assignIncreasingFreshIds( schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker)).toString());
   }
 
   @Test
@@ -342,11 +346,11 @@ public class TestSchemaConverter extends DremioTest {
       .addField(DOUBLE.toField("double"))
       .build();
 
-    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+    assertEquals(batchSchema,  schemaConverter.fromIceberg(icebergSchema));
 
     Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
     FieldIdBroker fieldIdBroker = new SeededFieldIdBroker(CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap));
-    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+    assertEquals(icebergSchema.toString(),  schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
   }
 
   @Test
@@ -361,11 +365,11 @@ public class TestSchemaConverter extends DremioTest {
       optional(2, "struct_struct", StructType.of(optional(5, "struct", StructType.of(optional(6, "varchar", StringType.get()))))),
       optional(3, "list_struct_struct", ListType.ofOptional(7, StructType.of(optional(8, "struct", StructType.of(optional(9, "varchar", StringType.get()))))))
     );
-    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+    assertEquals(batchSchema,  schemaConverter.fromIceberg(icebergSchema));
 
     Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
     FieldIdBroker fieldIdBroker = new SeededFieldIdBroker(CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap));
-    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+    assertEquals(icebergSchema.toString(),  schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
   }
 
   @Test
@@ -380,11 +384,11 @@ public class TestSchemaConverter extends DremioTest {
       optional(2, "list_list", ListType.ofOptional(5, ListType.ofOptional(6, IntegerType.get()))),
       optional(3, "list_struct_struct", ListType.ofOptional(7, StructType.of(optional(8, "struct", StructType.of(optional(9, "varchar", StringType.get()))))))
     );
-    assertEquals(batchSchema, SchemaConverter.fromIceberg(icebergSchema));
+    assertEquals(batchSchema,  schemaConverter.fromIceberg(icebergSchema));
 
     Map<String, Integer> columnIdMap = IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema);
     FieldIdBroker fieldIdBroker = new SeededFieldIdBroker(CaseInsensitiveImmutableBiMap.newImmutableMap(columnIdMap));
-    assertEquals(icebergSchema.toString(), SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
+    assertEquals(icebergSchema.toString(),  schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker).toString());
   }
 
   @Test
@@ -397,7 +401,7 @@ public class TestSchemaConverter extends DremioTest {
 
     List<Field> children = Arrays.asList(INT.toField("int"), VARCHAR.asList().toField("varchar"));
     Field mapField = new Field("map", FieldType.nullable(new ArrowType.Map(false)), children);
-    Types.NestedField nestedField = SchemaConverter.toIcebergColumn(mapField, new SeededFieldIdBroker(columnIdMapping));
+    Types.NestedField nestedField =  schemaConverter.toIcebergColumn(mapField, new SeededFieldIdBroker(columnIdMapping));
     assertEquals(nestedField, icebergSchema.columns().get(0));
   }
 
@@ -433,6 +437,6 @@ public class TestSchemaConverter extends DremioTest {
       .addField(TIMESTAMP.toField("timestamp"))
       .build();
 
-    assertEquals(icebergFields, SchemaConverter.toIcebergFields(schema.getFields()));
+    assertEquals(icebergFields,  schemaConverter.toIcebergFields(schema.getFields()));
   }
 }

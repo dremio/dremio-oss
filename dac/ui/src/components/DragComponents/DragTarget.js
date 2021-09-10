@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { DropTarget } from 'react-dnd';
 import { findDOMNode } from 'react-dom';
 import classNames from 'classnames';
-import { base } from './DragTarget.less';
+import { base } from '@app/uiTheme/less/DragComponents/DragTarget.less';
 
 const DEFAULT_TYPE = 'groupBy';
 

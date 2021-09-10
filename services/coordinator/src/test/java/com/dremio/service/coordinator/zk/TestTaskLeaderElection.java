@@ -413,12 +413,21 @@ public class TestTaskLeaderElection {
       return leaders.get(0);
   }
 
-  private TaskLeaderElection getCurrentLeaderFilter(List <TaskLeaderElection> taskLeaderElectionMap) {
+  private TaskLeaderElection getCurrentLeaderFilter(List <TaskLeaderElection> taskLeaderElectionMap) throws InterruptedException {
+    final int retries = 10;
+    for (int i = 0; i <= retries; i++) {
       List<TaskLeaderElection> leaders = taskLeaderElectionMap
         .stream()
         .filter(TaskLeaderElection::isTaskLeader).collect(Collectors.toList());
-      assertEquals(1, leaders.size());
-      return leaders.get(0);
+      assertTrue("The number of leader was more than 1.", leaders.size() <= 1);
+      if (leaders.size() == 1) {
+        return leaders.get(0);
+      } else {
+        logger.warn("Failed to get current leader. Will wait a while for the new leader.");
+        Thread.sleep(1000);
+      }
+    }
+    throw new RuntimeException("Failed to get current leader.");
   }
 }
 

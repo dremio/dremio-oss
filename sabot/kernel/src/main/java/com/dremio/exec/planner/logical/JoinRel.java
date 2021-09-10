@@ -37,12 +37,12 @@ public class JoinRel extends JoinRelBase implements Rel {
    * */
   private JoinRel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
       JoinRelType joinType)  {
-    this(cluster, traits, left, right, condition, joinType, null);
+    this(cluster, traits, left, right, condition, joinType, null, false);
   }
 
   private JoinRel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                  JoinRelType joinType, ImmutableBitSet projectedFields)  {
-    super(cluster, traits, left, right, condition, joinType, projectedFields);
+                  JoinRelType joinType, ImmutableBitSet projectedFields, boolean allowRowTypeMismatch)  {
+    super(cluster, traits, left, right, condition, joinType, projectedFields, allowRowTypeMismatch);
     assert traits.contains(Rel.LOGICAL);
   }
 
@@ -54,11 +54,12 @@ public class JoinRel extends JoinRelBase implements Rel {
   }
 
   public static JoinRel create(RelOptCluster cluster, RelTraitSet traitSet, RelNode left, RelNode right, RexNode condition,
-                               JoinRelType joinType, ImmutableBitSet projectedFields) {
+                               JoinRelType joinType, ImmutableBitSet projectedFields, boolean allowRowTypeMismatch) {
     final RelTraitSet traits = adjustTraits(traitSet);
 
-    return new JoinRel(cluster, traits, left, right, condition, joinType, projectedFields);
+    return new JoinRel(cluster, traits, left, right, condition, joinType, projectedFields, allowRowTypeMismatch);
   }
+
   @Override public boolean isValid(Litmus litmus, Context context) {
     if (condition != null) {
       if (condition.getType().getSqlTypeName() != SqlTypeName.BOOLEAN) {
@@ -88,11 +89,11 @@ public class JoinRel extends JoinRelBase implements Rel {
     if (getProjectedFields() == null) {
       return new JoinRel(getCluster(), traitSet, left, right, condition, joinType);
     }
-    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType, getProjectedFields());
+    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType, getProjectedFields(), false);
   }
 
   @Override
   public JoinRel copy(RelTraitSet traitSet, RexNode condition, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
-    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType, projectedFields);
+    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType, projectedFields, false);
   }
 }

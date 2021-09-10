@@ -16,9 +16,12 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESH;
+import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
@@ -31,24 +34,33 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Random;
 import java.util.Set;
 
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.iceberg.ManageSnapshots;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.CoordinatorModeInfo;
 import com.dremio.service.coordinator.SoftwareCoordinatorModeInfo;
+import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.materialization.AccelerationStoragePlugin;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
@@ -59,6 +71,9 @@ import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.ReflectionType;
+import com.dremio.service.reflection.proto.Refresh;
+import com.dremio.service.reflection.proto.RefreshDecision;
+import com.dremio.service.reflection.refresh.RefreshHandler;
 import com.dremio.service.reflection.refresh.RefreshStartHandler;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -66,7 +81,9 @@ import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
 import com.sun.tools.javac.util.List;
 
 /**
@@ -414,7 +431,7 @@ public class TestReflectionManager {
     when(subject.reflectionGoalChecker.checkHash(reflectionGoal,reflectionEntry)).thenReturn(false);//but only fields not used to update the reflection
     when(subject.reflectionGoalChecker.calculateReflectionGoalVersion(reflectionGoal)).thenReturn(reflectionGoalHash);
 
-    when(subject.refreshStartHandler.startJob(any(), anyLong(), any())).thenReturn(materializationJobId);
+    when(subject.refreshStartHandler.startJob(any(), anyLong(), any(), any())).thenReturn(materializationJobId);
 
     when(subject.sabotContext.getExecutors()).thenReturn(singletonList(null));
     final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider = mock(Provider.class);
@@ -435,7 +452,7 @@ public class TestReflectionManager {
     verify(subject.reflectionGoalChecker).checkHash(reflectionGoal, reflectionEntry);
     verify(subject.descriptorCache).invalidate(materializationId);
 
-    verify(subject.refreshStartHandler).startJob(any(), anyLong(), any()); //Mockito does not support using a mix of any matchers....
+    verify(subject.refreshStartHandler).startJob(any(), anyLong(), any(), any()); //Mockito does not support using a mix of any matchers....
 
     verifyNoMoreInteractions(subject.reflectionStore);
     verifyNoMoreInteractions(subject.refreshStartHandler);
@@ -509,6 +526,229 @@ public class TestReflectionManager {
     assertEquals(MaterializationState.DELETED, materialization2.getState());
     assertEquals(MaterializationState.DELETED, materialization3.getState());
   }
+
+  @Test
+  public void testIcebergIncrementalRefreshJobFailedAfterCommit() throws Exception {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+
+    Materialization m = new Materialization()
+      .setId(materializationId)
+      .setReflectionId(reflectionId)
+      .setState(MaterializationState.RUNNING)
+      .setIsIcebergDataset(true)
+      .setBasePath("/base/path")
+      .setPreviousIcebergSnapshot(1L);
+
+    ReflectionEntry entry = new ReflectionEntry()
+      .setId(reflectionId)
+      .setState(ReflectionState.REFRESHING);
+
+
+    RefreshDecision refreshDecision = new RefreshDecision().setInitialRefresh(false);
+
+    JobProtobuf.ExtraInfo extraInfo = JobProtobuf.ExtraInfo.newBuilder()
+      .setName(RefreshDecision.class.getName())
+      .setData(ByteString.copyFrom(RefreshHandler.ABSTRACT_SERIALIZER.serialize(refreshDecision)))
+      .build();
+
+    JobProtobuf.JobInfo jobInfo = JobProtobuf.JobInfo.newBuilder()
+      .setJobId(JobProtobuf.JobId.newBuilder().setId("jobid").build())
+      .setSql("sql")
+      .setDatasetVersion("version")
+      .setQueryType(JobProtobuf.QueryType.ACCELERATOR_CREATE)
+      .build();
+
+    JobProtobuf.JobAttempt jobAttempt = JobProtobuf.JobAttempt.newBuilder()
+      .setState(JobProtobuf.JobState.FAILED)
+      .setInfo(jobInfo)
+      .addExtraInfo(extraInfo)
+      .build();
+
+    JobDetails job = JobDetails.newBuilder()
+      .setCompleted(true)
+      .addAttempts(jobAttempt)
+      .build();
+
+    JobId jobId = new JobId().setId("jobid").setName("jobname");
+    entry.setRefreshJobId(jobId);
+
+    IcebergModel icebergModel = mock(IcebergModel.class);
+    FileSelection fileSelection = mock(FileSelection.class);
+    Table icebergTable = mock(Table.class);
+    Snapshot snapshot = mock(Snapshot.class);
+    ManageSnapshots manageSnapshots = mock(ManageSnapshots.class);
+    long newSnapshotId = 2; // committed new snapshot
+
+    Subject subject = new Subject();
+
+    when(subject.materializationStore.getLastMaterialization(reflectionId)).thenReturn(m);
+    when(subject.jobsService.getJobDetails(any())).thenReturn(job);
+    when(subject.dependencyManager.reflectionHasKnownDependencies(any())).thenReturn(false);
+    when(subject.accelerationPlugin.getIcebergModel()).thenReturn(icebergModel);
+    when(subject.accelerationPlugin.getIcebergFileSelection(anyString())).thenReturn(fileSelection);
+    when(icebergModel.getIcebergTable(any())).thenReturn(icebergTable);
+    when(icebergTable.currentSnapshot()).thenReturn(snapshot);
+    when(snapshot.snapshotId()).thenReturn(newSnapshotId);
+    when(icebergTable.manageSnapshots()).thenReturn(manageSnapshots);
+    when(manageSnapshots.rollbackTo(anyLong())).thenReturn(manageSnapshots);
+
+    // Test
+    subject.reflectionManager.handleEntry(entry, 0, new ReflectionManager.EntryCounts());
+
+
+    assertEquals(MaterializationState.FAILED, m.getState());
+    verify(icebergTable, times(1)).manageSnapshots();
+    verify(manageSnapshots, times(1)).rollbackTo(1L);
+    verify(manageSnapshots, times(1)).commit();
+  }
+
+  @Test
+  public void testIcebergIncrementalRefreshJobFailedBeforeCommit() throws Exception {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+
+    Materialization m = new Materialization()
+      .setId(materializationId)
+      .setReflectionId(reflectionId)
+      .setState(MaterializationState.RUNNING)
+      .setIsIcebergDataset(true)
+      .setBasePath("/base/path")
+      .setPreviousIcebergSnapshot(1L);
+
+    ReflectionEntry entry = new ReflectionEntry()
+      .setId(reflectionId)
+      .setState(ReflectionState.REFRESHING);
+
+
+    RefreshDecision refreshDecision = new RefreshDecision().setInitialRefresh(false);
+
+    JobProtobuf.ExtraInfo extraInfo = JobProtobuf.ExtraInfo.newBuilder()
+      .setName(RefreshDecision.class.getName())
+      .setData(ByteString.copyFrom(RefreshHandler.ABSTRACT_SERIALIZER.serialize(refreshDecision)))
+      .build();
+
+    JobProtobuf.JobInfo jobInfo = JobProtobuf.JobInfo.newBuilder()
+      .setJobId(JobProtobuf.JobId.newBuilder().setId("jobid").build())
+      .setSql("sql")
+      .setDatasetVersion("version")
+      .setQueryType(JobProtobuf.QueryType.ACCELERATOR_CREATE)
+      .build();
+
+    JobProtobuf.JobAttempt jobAttempt = JobProtobuf.JobAttempt.newBuilder()
+      .setState(JobProtobuf.JobState.FAILED)
+      .setInfo(jobInfo)
+      .addExtraInfo(extraInfo)
+      .build();
+
+    JobDetails job = JobDetails.newBuilder()
+      .setCompleted(true)
+      .addAttempts(jobAttempt)
+      .build();
+
+    JobId jobId = new JobId().setId("jobid").setName("jobname");
+    entry.setRefreshJobId(jobId);
+
+    IcebergModel icebergModel = mock(IcebergModel.class);
+    FileSelection fileSelection = mock(FileSelection.class);
+    Table icebergTable = mock(Table.class);
+    Snapshot snapshot = mock(Snapshot.class);
+    ManageSnapshots manageSnapshots = mock(ManageSnapshots.class);
+    long newSnapshotId = 1; // didn't commit
+
+    Subject subject = new Subject();
+
+    when(subject.materializationStore.getLastMaterialization(reflectionId)).thenReturn(m);
+    when(subject.jobsService.getJobDetails(any())).thenReturn(job);
+    when(subject.dependencyManager.reflectionHasKnownDependencies(any())).thenReturn(false);
+    when(subject.accelerationPlugin.getIcebergModel()).thenReturn(icebergModel);
+    when(subject.accelerationPlugin.getIcebergFileSelection(anyString())).thenReturn(fileSelection);
+    when(icebergModel.getIcebergTable(any())).thenReturn(icebergTable);
+    when(icebergTable.currentSnapshot()).thenReturn(snapshot);
+    when(snapshot.snapshotId()).thenReturn(newSnapshotId);
+    when(icebergTable.manageSnapshots()).thenReturn(manageSnapshots);
+    when(manageSnapshots.rollbackTo(anyLong())).thenReturn(manageSnapshots);
+
+    // Test
+    subject.reflectionManager.handleEntry(entry, 0, new ReflectionManager.EntryCounts());
+
+
+    assertEquals(MaterializationState.FAILED, m.getState());
+    verify(icebergTable, times(0)).manageSnapshots();
+    verify(manageSnapshots, times(0)).rollbackTo(1L);
+    verify(manageSnapshots, times(0)).commit();
+  }
+
+  @Test
+  public void testStartRefreshForIcebergReflection() throws Exception {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+
+    ReflectionEntry reflectionEntry = new ReflectionEntry()
+      .setId(reflectionId)
+      .setState(REFRESH);
+
+    Refresh refresh = new Refresh()
+      .setIsIcebergRefresh(true)
+      .setBasePath("/basepath");
+
+    JobId jobId = new JobId()
+      .setId("jobid");
+
+    IcebergModel icebergModel = mock(IcebergModel.class);
+    FileSelection fileSelection = mock(FileSelection.class);
+    Table icebergTable = mock(Table.class);
+    Snapshot snapshot = mock(Snapshot.class);
+    long snapshotId = new Random().nextLong();
+
+    CoordinatorModeInfo coordinatorModeInfo = mock(CoordinatorModeInfo.class);
+
+    Subject subject = new Subject();
+
+    when(subject.materializationStore.getRefreshesByReflectionId(reflectionId)).thenReturn(FluentIterable.from(Collections.singletonList(refresh)));
+    when(subject.accelerationPlugin.getIcebergModel()).thenReturn(icebergModel);
+    when(subject.accelerationPlugin.getIcebergFileSelection(anyString())).thenReturn(fileSelection);
+    when(subject.sabotContext.getCoordinatorModeInfoProvider()).thenReturn(() -> coordinatorModeInfo);
+    when(subject.refreshStartHandler.startJob(eq(reflectionEntry), anyLong(), eq(subject.optionManager), eq(snapshotId))).thenReturn(jobId);
+    when(icebergModel.getIcebergTable(any())).thenReturn(icebergTable);
+    when(icebergTable.currentSnapshot()).thenReturn(snapshot);
+    when(snapshot.snapshotId()).thenReturn(snapshotId);
+
+    // Test
+    subject.reflectionManager.handleEntry(reflectionEntry, 0, new ReflectionManager.EntryCounts());
+
+    assertEquals(REFRESHING, reflectionEntry.getState());
+    verify(icebergTable, times(1)).currentSnapshot();
+    verify(subject.refreshStartHandler, times(1)).startJob(eq(reflectionEntry), anyLong(), eq(subject.optionManager), eq(snapshotId));
+  }
+
+  @Test
+  public void testStartRefreshForNonIcebergReflection() throws Exception {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+
+    ReflectionEntry reflectionEntry = new ReflectionEntry()
+      .setId(reflectionId)
+      .setState(REFRESH);
+
+    Refresh refresh = new Refresh()
+      .setIsIcebergRefresh(false);
+
+    JobId jobId = new JobId()
+      .setId("jobid");
+
+    CoordinatorModeInfo coordinatorModeInfo = mock(CoordinatorModeInfo.class);
+
+    Subject subject = new Subject();
+
+    when(subject.materializationStore.getRefreshesByReflectionId(reflectionId)).thenReturn(FluentIterable.from(Collections.singletonList(refresh)));
+    when(subject.sabotContext.getCoordinatorModeInfoProvider()).thenReturn(() -> coordinatorModeInfo);
+    when(subject.refreshStartHandler.startJob(eq(reflectionEntry), anyLong(), eq(subject.optionManager), any())).thenReturn(jobId);
+
+    // Test
+    subject.reflectionManager.handleEntry(reflectionEntry, 0, new ReflectionManager.EntryCounts());
+
+    assertEquals(REFRESHING, reflectionEntry.getState());
+    verify(subject.refreshStartHandler, times(1)).startJob(eq(reflectionEntry), anyLong(), eq(subject.optionManager), eq(null));
+  }
 }
 
 class Subject {
@@ -529,24 +769,26 @@ class Subject {
   @VisibleForTesting BufferAllocator allocator = Mockito.mock(BufferAllocator.class);
   @VisibleForTesting ReflectionGoalChecker reflectionGoalChecker = Mockito.mock(ReflectionGoalChecker.class);
   @VisibleForTesting RefreshStartHandler refreshStartHandler = Mockito.mock(RefreshStartHandler.class);
+  @VisibleForTesting AccelerationStoragePlugin accelerationPlugin = Mockito.mock(AccelerationStoragePlugin.class);
   @VisibleForTesting ReflectionManager reflectionManager = new ReflectionManager(
-    sabotContext,
-    jobsService,
-    namespaceService,
-    optionManager,
-    userStore,
-    reflectionStore,
-    externalReflectionStore,
-    materializationStore,
-    dependencyManager,
-    descriptorCache,
-    reflectionsToUpdate,
-    wakeUpCallback,
-    expansionHelper,
-    allocator,
-    Path.of("."), //TODO maybe we want to use JIMFS here,
-    reflectionGoalChecker,
-    refreshStartHandler,
-    catalogService
-  );
+      sabotContext,
+      jobsService,
+      namespaceService,
+      optionManager,
+      userStore,
+      reflectionStore,
+      externalReflectionStore,
+      materializationStore,
+      dependencyManager,
+      descriptorCache,
+      reflectionsToUpdate,
+      wakeUpCallback,
+      expansionHelper,
+      allocator,
+      accelerationPlugin,
+      Path.of("."), //TODO maybe we want to use JIMFS here,
+      reflectionGoalChecker,
+      refreshStartHandler,
+      catalogService
+    );
 }

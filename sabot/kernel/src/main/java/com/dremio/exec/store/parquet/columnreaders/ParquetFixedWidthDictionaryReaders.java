@@ -37,6 +37,7 @@ import org.apache.parquet.io.api.Binary;
 import com.dremio.common.exceptions.ExecutionSetupException;
 
 public class ParquetFixedWidthDictionaryReaders {
+  public static long MICROS_PER_MILLI_LONG = 1_000L;
 
   static class DictionaryIntReader extends FixedByteAlignedReader<IntVector> {
     DictionaryIntReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
@@ -236,6 +237,26 @@ public class ParquetFixedWidthDictionaryReaders {
 
       for (int i = 0; i < recordsReadInThisIteration; i++) {
         valueVec.setSafe(valuesReadInCurrentPass + i, TimeUnit.MICROSECONDS.toMillis(pageReader.dictionaryValueReader.readLong()));
+      }
+    }
+  }
+
+  static class DictionaryTimeMicrosReader extends FixedByteAlignedReader<TimeMilliVector> {
+    DictionaryTimeMicrosReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
+                                    ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeMilliVector v,
+                                    SchemaElement schemaElement) throws ExecutionSetupException {
+      super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
+    }
+
+    // this method is called by its superclass during a read loop
+    @Override
+    protected void readField(long recordsToReadInThisPass) {
+
+      recordsReadInThisIteration = Math.min(pageReader.currentPageCount
+        - pageReader.valuesRead, recordsToReadInThisPass - valuesReadInCurrentPass);
+
+      for (int i = 0; i < recordsReadInThisIteration; i++) {
+        valueVec.setSafe(valuesReadInCurrentPass + i, (int)(pageReader.dictionaryValueReader.readLong() / MICROS_PER_MILLI_LONG));
       }
     }
   }

@@ -30,6 +30,7 @@ public class User {
   private final String email;
   private final String tag;
   private final String extra;
+  private final Boolean active;
   /**
    * A password. Used only when we going to update a user. So api consumer could send a password, but could not read it
    * (A internal getter)
@@ -45,7 +46,8 @@ public class User {
     @JsonProperty("email") String email,
     @JsonProperty("tag") String tag,
     @JsonProperty("password") String password,
-    @JsonProperty("extra") String extra
+    @JsonProperty("extra") String extra,
+    @JsonProperty("active") Boolean active
   ) {
     this.id = id;
     this.name = name;
@@ -55,6 +57,12 @@ public class User {
     this.tag = tag;
     this.password = password;
     this.extra = extra;
+    this.active = active == null || active;
+  }
+
+  public User(String id, String name, String firstName, String lastName, String email, String tag,
+              String password, String extra) {
+    this(id, name, firstName, lastName, email, tag, password, extra, true);
   }
 
   public String getId() {
@@ -84,6 +92,7 @@ public class User {
   public String getExtra() {
     return extra;
   }
+
   @JsonIgnore
   public String getPassword() {
     return password;
@@ -91,7 +100,11 @@ public class User {
 
   public static User fromUser(com.dremio.service.users.User user) {
     return new User(user.getUID().getId(), user.getUserName(), user.getFirstName(), user.getLastName(),
-      user.getEmail(), user.getVersion(), null, user.getExtra()); // never send a password to a consumer
+      user.getEmail(), user.getVersion(), null, user.getExtra(), user.isActive()); // never send a password to a consumer
+  }
+
+  public Boolean isActive() {
+    return active;
   }
 
 }

@@ -95,6 +95,8 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
    */
   @VisibleForTesting
   static class DataSourceReference {
+    private static final String PROTOCOL = "dremio";
+
     private DSRConnectionInfo connectionInfo;
 
     DataSourceReference(DSRConnectionInfo info) {
@@ -102,7 +104,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
 
     public String getProtocol() {
-      return "dremio";
+      return PROTOCOL;
     }
 
     public DSRConnectionInfo getAddress() {
@@ -161,6 +163,10 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     addTargetOutputFileHeader(datasetConfig, "pbids", httpHeaders);
   }
 
+  DataSourceReference getDataSourceReference(DSRConnectionInfo connectionInfo) {
+    return new DataSourceReference(connectionInfo);
+  }
+
   /**
    * Populate a DSRFile POJO according to the given host, port and dataset.
    * @param hostname The host to use for the DSR file.
@@ -172,7 +178,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   @VisibleForTesting
   DSRFile createDSRFile(String hostname, DatasetConfig datasetConfig) {
     final DSRConnectionInfo connInfo = createDSRConnectionInfo(hostname, getPort(), datasetConfig);
-    final DataSourceReference dsr = new DataSourceReference(connInfo);
+    final DataSourceReference dsr = getDataSourceReference(connInfo);
     final Connection conn = new Connection();
     conn.dsr = dsr;
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.gcs;
 
+import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
+import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.io.IOException;
@@ -31,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -69,7 +72,7 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
   @Override
   protected List<Property> getProperties() {
     List<Property> properties = new ArrayList<>();
-    properties.add(new Property(String.format("fs.%s.impl", GoogleBucketFileSystem.SCHEME_NAME),GoogleBucketFileSystem.class.getName()));
+    properties.add(new Property(String.format("fs.%s.impl", DREMIO_GCS_SCHEME),GoogleBucketFileSystem.class.getName()));
     properties.add(new Property(GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.getKey(),
             GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE_DEFAULT));
 
@@ -124,7 +127,8 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
           NamespaceKey key,
           IcebergTableProps icebergProps,
           WriterOptions writerOptions,
-          Map<String, Object> storageOptions
+          Map<String, Object> storageOptions,
+          boolean isResultsTable
   ) {
     Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
     final String containerName = key.getPathComponents().get(1);
@@ -134,7 +138,7 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
           .build(logger);
     }
 
-    final CreateTableEntry entry = super.createNewTable(config, key, icebergProps, writerOptions, storageOptions);
+    final CreateTableEntry entry = super.createNewTable(config, key, icebergProps, writerOptions, storageOptions, isResultsTable);
 
     final GoogleBucketFileSystem fs = getSystemUserFS().unwrap(GoogleBucketFileSystem.class);
 
@@ -178,7 +182,7 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
 
   private void ensureDefaultName() throws IOException {
     String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
-    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, GoogleBucketFileSystem.SCHEME_NAME + urlSafeName);
+    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, DREMIO_GCS_SCHEME + SCHEME_SEPARATOR + urlSafeName);
     final FileSystem fs = createFS(SYSTEM_USERNAME);
     // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
     org.apache.hadoop.fs.FileSystem hadoopFs = fs.unwrap(org.apache.hadoop.fs.FileSystem.class);
@@ -188,6 +192,10 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
   @Override
   protected boolean isAsyncEnabledForQuery(OperatorContext context) {
     return context != null && context.getOptions().getOption(ASYNC_READS);
+  }
+
+  public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
+    return false;
   }
 
 }

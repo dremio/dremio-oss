@@ -40,8 +40,8 @@ public class NdvAccumulatorsNoSpill {
   public static class IntNdvAccumulatorsNoSpill extends BaseNdvAccumulatorNoSpill {
     private static final int WIDTH = 4;
 
-    public IntNdvAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public IntNdvAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -66,8 +66,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
         sketch.update(newVal);
       }
     }
@@ -75,8 +75,8 @@ public class NdvAccumulatorsNoSpill {
 
   public static class VarLenNdvAccumulatorsNoSpill extends BaseNdvAccumulatorNoSpill {
 
-    public VarLenNdvAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public VarLenNdvAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -104,8 +104,8 @@ public class NdvAccumulatorsNoSpill {
         final int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         final int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
 
         //get the offset of incoming record
         final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
@@ -123,8 +123,8 @@ public class NdvAccumulatorsNoSpill {
     private static final long INIT = 0x7f7fffff7f7fffffl;
     private static final int WIDTH = 4;
 
-    public FloatNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public FloatNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -149,8 +149,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
         sketch.update(newVal);
       }
     }
@@ -160,8 +160,8 @@ public class NdvAccumulatorsNoSpill {
 
     private static final int WIDTH = 8;
 
-    public BigIntNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public BigIntNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -186,8 +186,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
 
         sketch.update(newVal);
       }
@@ -199,8 +199,8 @@ public class NdvAccumulatorsNoSpill {
     private static final long INIT = Double.doubleToLongBits(Double.MAX_VALUE);
     private static final int WIDTH = 8;
 
-    public DoubleNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public DoubleNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -225,8 +225,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
         sketch.update(newVal);
       }
     }
@@ -237,8 +237,8 @@ public class NdvAccumulatorsNoSpill {
     private static final int WIDTH_INPUT = 16;      // decimal inputs
     byte[] valBuf = new byte[WIDTH_INPUT];
 
-    public DecimalNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public DecimalNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -265,8 +265,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
         sketch.update(newVal.doubleValue());
       }
     }
@@ -278,8 +278,8 @@ public class NdvAccumulatorsNoSpill {
     private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
     private static final int WIDTH_INPUT = 16;      // decimal inputs
 
-    public DecimalNdvAccumulatorNoSpillV2(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public DecimalNdvAccumulatorNoSpillV2(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -305,8 +305,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
 
         sketch.update(Memory.wrap(buffer), 0, WIDTH_INPUT);
       } //for
@@ -320,8 +320,8 @@ public class NdvAccumulatorsNoSpill {
     private static final int BITS_PER_LONG = (1<<BITS_PER_LONG_SHIFT);
     private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
 
-    public BitNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public BitNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -360,8 +360,8 @@ public class NdvAccumulatorsNoSpill {
           final int inputVal = (int)((inputBatch >>> bitNum) & 0x01);
           final int minBitUpdateVal = inputBitVal << (chunkOffset & 31);
 
-          final HllAccumHolder ah =  this.accumulators[chunkIndex];
-          final HllSketch sketch = ah.getAccums()[chunkOffset];
+          final HllAccumHolder ah = this.accumulators[chunkIndex];
+          final HllSketch sketch = ah.getAccumSketch(chunkOffset);
           sketch.update(inputBitVal);
         }
 
@@ -373,8 +373,8 @@ public class NdvAccumulatorsNoSpill {
     private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
     private static final int WIDTH_INPUT = 8;       // pair-of-ints inputs
 
-    public IntervalDayNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public IntervalDayNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -399,8 +399,8 @@ public class NdvAccumulatorsNoSpill {
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
 
-        final HllAccumHolder ah =  this.accumulators[chunkIndex];
-        final HllSketch sketch = ah.getAccums()[chunkOffset];
+        final HllAccumHolder ah = this.accumulators[chunkIndex];
+        final HllSketch sketch = ah.getAccumSketch(chunkOffset);
         sketch.update(newVal);
       }
     }
@@ -409,8 +409,8 @@ public class NdvAccumulatorsNoSpill {
 
   public static class NdvUnionAccumulatorsNoSpill extends BaseNdvUnionAccumulatorNoSpill{
 
-    public NdvUnionAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager) {
-      super(input, output, bufferManager);
+    public NdvUnionAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
+      super(input, output, bufferManager, reduceNdvHeap);
     }
 
     @Override
@@ -445,8 +445,8 @@ public class NdvAccumulatorsNoSpill {
         ByteBuffer buffer = inputBuf.nioBuffer(startOffset, len);
 
         //apply the update
-        final HllUnionAccumHolder ah =  this.accumulators[chunkIndex];
-        final Union unionSketch = ah.getAccums()[chunkOffset];
+        final HllUnionAccumHolder ah = this.accumulators[chunkIndex];
+        final Union unionSketch = ah.getAccumSketch(chunkOffset);
         final HllSketch sketch = HllSketch.wrap(Memory.wrap(buffer));
         unionSketch.update(sketch);
       } //for

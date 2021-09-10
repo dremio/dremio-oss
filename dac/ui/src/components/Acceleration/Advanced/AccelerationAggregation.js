@@ -22,7 +22,8 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 import {createReflectionFormValues} from 'utils/accelerationUtils';
 import AccelerationAggregationMixin from '@inject/components/Acceleration/Advanced/AccelerationAggregationMixin.js';
 
-import { commonStyles } from '../commonStyles';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import { commonThemes } from '../commonThemes';
 import AccelerationGridController from './AccelerationGridController';
 
 @AccelerationAggregationMixin
@@ -70,16 +71,17 @@ export default class AccelerationAggregation extends Component {
 
   renderHeader = () => {
     return (
-      <div style={commonStyles.header}>
-        <h3 style={commonStyles.toggleLabel}>
-          <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
+      <div className={'AccelerationAggregation__header'}>
+        <h3 className={'AccelerationAggregation__toggleLabel'}>
+          <FontIcon type='Aggregate' theme={commonThemes.aggregationIconTheme}/>
           {la('Aggregation Reflections')}
         </h3>
         <SimpleButton
           onClick={this.addNewLayout}
           buttonStyle='secondary'
           children={la('New Reflection')}
-          style={this.checkIfButtonShouldBeRendered() ? null : {display: 'none'}}
+          // DX-34369
+          style={this.checkIfButtonShouldBeRendered() ? {minWidth: '110px'} : {display: 'none'}}
           type='button'/>
       </div>
     );
@@ -88,7 +90,7 @@ export default class AccelerationAggregation extends Component {
   render() {
     const {dataset, reflections, fields: {aggregationReflections}, canAlter} = this.props;
     return (
-      <div style={styles.base}>
+      <div className={'AccelerationAggregation'}>
         {this.renderHeader()}
         <AccelerationGridController
           canAlter={canAlter}
@@ -101,11 +103,3 @@ export default class AccelerationAggregation extends Component {
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1
-  }
-};

@@ -63,7 +63,7 @@ class RocksDbBroker {
   private RocksDBState readState = RocksDBState.OK;
   private RocksDBState writeState = RocksDBState.OK;
 
-  static RocksDbBroker getInstance(String dbDirectory) throws RuntimeRocksDBException {
+  static RocksDbBroker getInstance(String dbDirectory) throws RocksDBException {
     if (instance != null) {
       Preconditions.checkArgument(dbDirectory.equals(instance.dbDirectory), "getInstance should be called on the same dir");
       return instance;
@@ -94,7 +94,7 @@ class RocksDbBroker {
   }
 
   @VisibleForTesting
-  RocksDbBroker(String dbDir) {
+  RocksDbBroker(String dbDir) throws RocksDBException {
     validatePresence(dbDir);
     DBOptions options = getDbOptions();
     List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(DESCRIPTORS.size());
@@ -166,15 +166,11 @@ class RocksDbBroker {
     }
   }
 
-  private static RocksDB openDb(String dbDirectory, DBOptions dbOptions, List<ColumnFamilyHandle> columnFamilyHandles) {
-    try {
-      List<Integer> ttlValues = Arrays.asList(TTL_TIME_IN_SEC, 0); // 0 TTL (no expiration) for the default column family
-      RocksDB db = TtlDB.open(dbOptions, dbDirectory, DESCRIPTORS, columnFamilyHandles, ttlValues, false);
-      validateColumnFamilyHandles(columnFamilyHandles);
-      return db;
-    } catch (RocksDBException e) {
-      throw new RuntimeRocksDBException(e);
-    }
+  private static RocksDB openDb(String dbDirectory, DBOptions dbOptions, List<ColumnFamilyHandle> columnFamilyHandles) throws RocksDBException {
+    List<Integer> ttlValues = Arrays.asList(TTL_TIME_IN_SEC, 0); // 0 TTL (no expiration) for the default column family
+    RocksDB db = TtlDB.open(dbOptions, dbDirectory, DESCRIPTORS, columnFamilyHandles, ttlValues, false);
+    validateColumnFamilyHandles(columnFamilyHandles);
+    return db;
   }
 
   private static DBOptions getDbOptions() {
@@ -184,40 +180,34 @@ class RocksDbBroker {
     return dbOptions;
   }
 
-  private static void validatePresence(String dbDirectory) {
+  private static void validatePresence(String dbDirectory) throws RocksDBException {
     try (Options options = new Options()) {
       List<byte[]> loadedColumnFamilies = RocksDB.listColumnFamilies(options, dbDirectory);
       if (!loadedColumnFamilies.isEmpty()) {
         validateColumnFamilies(loadedColumnFamilies);
       }
-    } catch (RocksDBException e) {
-      throw new RuntimeRocksDBException(e);
     }
   }
 
-  private static void validateColumnFamilyHandles(List<ColumnFamilyHandle> columnFamilyHandles) {
+  private static void validateColumnFamilyHandles(List<ColumnFamilyHandle> columnFamilyHandles) throws RocksDBException {
     List<byte[]> list = new ArrayList<>();
     for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-      try {
-        list.add(columnFamilyHandle.getName());
-      } catch (RocksDBException e) {
-        throw new RuntimeRocksDBException(e);
-      }
+      list.add(columnFamilyHandle.getName());
     }
     validateColumnFamilies(list);
   }
 
   @VisibleForTesting
-  static void validateColumnFamilies(List<byte[]> loadedColumnFamilies) {
+  static void validateColumnFamilies(List<byte[]> loadedColumnFamilies) throws RocksDBException {
     int loadedSize = loadedColumnFamilies.size();
     if (DEFINED_COLUMN_FAMILIES.size() != loadedSize) {
-      throw new RuntimeRocksDBException("Did not load the expected number of column families. " +
+      throw new RocksDBException("Did not load the expected number of column families. " +
         "Expected: " + DEFINED_COLUMN_FAMILIES.size() + ", but found: " + loadedSize);
     }
 
     for (byte[] loaded : loadedColumnFamilies) {
       if (!isKnownColumnFamily(loaded)) {
-        throw new RuntimeRocksDBException("Unexpected column family: " + Arrays.toString(loaded));
+        throw new RocksDBException("Unexpected column family: " + Arrays.toString(loaded));
       }
     }
   }

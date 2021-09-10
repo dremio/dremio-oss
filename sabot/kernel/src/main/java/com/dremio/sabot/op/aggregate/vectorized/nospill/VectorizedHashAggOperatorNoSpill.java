@@ -88,8 +88,9 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
-    this.accumulator = AccumulatorBuilderNoSpill.getAccumulator(context.getAllocator(), context
-      .getClassProducer(), popConfig.getAggrExprs(), incoming, outgoing, decimalCompleteEnabled, context.getBufferManager());
+    this.accumulator = AccumulatorBuilderNoSpill.getAccumulator(
+      context.getAllocator(), context.getClassProducer(), popConfig.getAggrExprs(), incoming, outgoing,
+      decimalCompleteEnabled, context.getBufferManager(), context.getOptions().getOption(ExecConstants.ENABLE_NDV_REDUCE_HEAP));
     this.outgoing.buildSchema();
     this.table = new LBlockHashTableNoSpill(HashConfig.getDefault(), pivot, context.getAllocator(), (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE, accumulator);
 

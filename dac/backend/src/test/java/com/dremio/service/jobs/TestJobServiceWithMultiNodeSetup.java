@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import static com.dremio.BaseTestQuery.getFile;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -84,21 +86,29 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
   @BeforeClass // same signature to shadow parent's #init
   public static void init() throws Exception {
+    // ignore the tests if not multinode.
+    assumeTrue(isMultinode());
+
     // set the log path so we can read logs and confirm that is working.
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
     Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
     System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
-    System.setProperty("dremio_multinode", "true");
 
     // now start server.
-    BaseTestServer.init(true);
+    BaseTestServer.init();
     populateInitialData();
     query1 = getFile("tpch_quoted.sql");
     LocalJobsService localJobsService = getMasterDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
     localJobsService = getCurrentDremioDaemon().getBindingProvider().lookup(LocalJobsService.class);
     localJobsService.getLocalAbandonedJobsHandler().reschedule(100);
+  }
+
+  @Before
+  public void checkSetup() {
+    // ignore the tests if not multinode.
+    assumeTrue(isMultinode());
   }
 
   private ManagedChannel getChannelToCoord(boolean master) {

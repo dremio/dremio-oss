@@ -310,7 +310,7 @@ public class TestNewTextReader extends BaseTestQuery {
 
       Path path = Path.of("/notExist");
       try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, optionManager, 1000);
+           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, optionManager, 1000);
            FileSystem dfs = HadoopFileSystem.get(path, new Configuration(), null);
            SampleMutator mutator = new SampleMutator(sampleAllocator);
            CompliantTextRecordReader reader = new CompliantTextRecordReader(split, HadoopCompressionCodecFactory.DEFAULT, dfs, operatorContext, settings, columns);

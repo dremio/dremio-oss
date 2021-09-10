@@ -38,13 +38,11 @@ public class ElasticVersionBehaviorProvider {
   private final boolean enable7vFeatures;
   private final boolean es5Version;
   private final boolean es68Version;
-  private final boolean esVersionFlag;
 
   public ElasticVersionBehaviorProvider(Version esVersionInCluster) {
     es5Version = esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_5X) >= 0;
     enable7vFeatures = esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
     es68Version = esVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_6_8_X) >= 0;
-    esVersionFlag = isEnable7vFeatures() || isEs68Version() ? true : false;
   }
 
   public BaseJsonProcessor createCountingElasticSearchReader(ArrowBuf managedBuf, List<SchemaPath> columns, String resource,
@@ -174,17 +172,11 @@ public class ElasticVersionBehaviorProvider {
   }
 
   public byte[] getSearchBytes(ElasticConnectionPool.ElasticConnection connection, ElasticActions.Search<byte[]> search) {
-    if (esVersionFlag) {
-      return connection.execute(search, esVersionFlag);
-    }
-    return connection.execute(search);
+      return connection.execute(search, enable7vFeatures || es68Version);
   }
 
   public <T> T executeMapping(ElasticConnectionPool.ElasticConnection connection, ElasticActions.ElasticAction2<T> putMapping) {
-    if (esVersionFlag) {
-      return connection.execute(putMapping, esVersionFlag);
-    }
-    return connection.execute(putMapping);
+      return connection.execute(putMapping, enable7vFeatures || es68Version);
   }
 
   private static DateFormats.AbstractFormatterAndType[] getFormatterTypeArr(List<String> formats, Function<String, DateFormats.AbstractFormatterAndType> formatterFunction) {

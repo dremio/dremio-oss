@@ -169,6 +169,11 @@ public class CoercionReader extends AbstractRecordReader {
     stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
+
+    // when individual fields of a struct column are projected, currently it results
+    // in setting schema changed flag. Resetting the flag in iceberg flow, since
+    // schema learning should not happen in iceberg flow
+    outputMutator.getAndResetSchemaChanged();
   }
 
   @Override
@@ -190,6 +195,7 @@ public class CoercionReader extends AbstractRecordReader {
     }
 
     runProjector(recordCount);
+    outgoing.setAllCount(recordCount);
     return recordCount;
   }
 

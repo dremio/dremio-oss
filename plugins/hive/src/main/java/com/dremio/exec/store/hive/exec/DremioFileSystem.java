@@ -15,7 +15,15 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.*;
+import static com.dremio.io.file.UriSchemes.DREMIO_AZURE_SCHEME;
+import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
+import static com.dremio.io.file.UriSchemes.DREMIO_HDFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.DREMIO_S3_SCHEME;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ID;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -26,7 +34,6 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Set;
 
-import com.dremio.common.FSConstants;
 import org.apache.commons.compress.utils.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -40,6 +47,7 @@ import org.apache.hadoop.fs.azurebfs.services.AuthType;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
+import com.dremio.common.FSConstants;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -74,18 +82,18 @@ public class DremioFileSystem extends FileSystem {
   public void initialize(URI name, Configuration conf) throws IOException {
     originalURI = name;
     switch (name.getScheme()) {
-      case AsyncReaderUtils.DREMIO_S3:
+      case DREMIO_S3_SCHEME:
         conf.set(AsyncReaderUtils.FS_DREMIO_S3_IMPL, "com.dremio.plugins.s3.store.S3FileSystem");
         updateS3Properties(conf);
         break;
-      case AsyncReaderUtils.DREMIO_HDFS:
+      case DREMIO_HDFS_SCHEME:
         conf.set(AsyncReaderUtils.FS_DREMIO_HDFS_IMPL, "org.apache.hadoop.hdfs.DistributedFileSystem");
         break;
-      case AsyncReaderUtils.DREMIO_AZURE:
+      case DREMIO_AZURE_SCHEME:
         conf.set(AsyncReaderUtils.FS_DREMIO_AZURE_IMPL, "com.dremio.plugins.azure.AzureStorageFileSystem");
         updateAzureConfiguration(conf, name);
         break;
-      case AsyncReaderUtils.DREMIO_GCS:
+      case DREMIO_GCS_SCHEME:
         conf.set(AsyncReaderUtils.FS_DREMIO_GCS_IMPL, "com.dremio.plugins.gcs.GoogleBucketFileSystem");
         break;
       default:
@@ -261,9 +269,7 @@ public class DremioFileSystem extends FileSystem {
 
   @Override
   public URI getUri() {
-    if (scheme.equals(AsyncReaderUtils.DREMIO_AZURE) ||
-            scheme.equals(AsyncReaderUtils.DREMIO_S3) ||
-            scheme.equals(AsyncReaderUtils.DREMIO_GCS)) {
+    if (scheme.equals(DREMIO_AZURE_SCHEME) || scheme.equals(DREMIO_S3_SCHEME) || scheme.equals(DREMIO_GCS_SCHEME)) {
       // GCS, Azure File System and S3 File system have modified URIs.
       return originalURI;
     }

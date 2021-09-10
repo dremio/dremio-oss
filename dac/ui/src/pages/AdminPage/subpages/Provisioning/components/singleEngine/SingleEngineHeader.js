@@ -73,7 +73,6 @@ class SingleEngineHeader extends PureComponent {
           {doubleCaretIcon} {statusIcon} {engineName}
           {region && <div style={styles.region}>({region})</div>}
         </div>
-        {this.renderDescription(engine)}
       </SettingHeader>
     );
   }

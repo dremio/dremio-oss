@@ -15,20 +15,12 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.util.List;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil.InputFinder;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexPermuteInputsShuttle;
-import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.calcite.util.mapping.Mapping;
-import org.apache.calcite.util.mapping.MappingType;
-import org.apache.calcite.util.mapping.Mappings;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
@@ -56,21 +48,16 @@ public class ProjectNLJMergeRule extends RelOptRule {
 
     ImmutableBitSet topProjectedColumns = InputFinder.bits(project.getProjects(), null);
 
-    ImmutableBitSet bottomProjectedColumns = null;
-    if (nlj.getProjectedFields() == null) {
-      bottomProjectedColumns = ImmutableBitSet.range(nlj.getRowType().getFieldCount());
-    } else {
-      bottomProjectedColumns = nlj.getProjectedFields();
+    ImmutableBitSet bottomProjectedColumns = ImmutableBitSet.range(nlj.getRowType().getFieldCount());
+
+    if (bottomProjectedColumns.cardinality() == topProjectedColumns.cardinality()) {
+      return;
     }
 
     ImmutableBitSet.Builder builder = ImmutableBitSet.builder();
-    int field = 0;
-    Mapping mapping = Mappings.create(MappingType.SURJECTION, bottomProjectedColumns.cardinality(), topProjectedColumns.cardinality());
     for (Ord<Integer> ord : Ord.zip(bottomProjectedColumns)) {
       if (topProjectedColumns.get(ord.i)) {
         builder.set(ord.e);
-        mapping.set(ord.i, field);
-        field++;
       }
     }
 
@@ -90,11 +77,8 @@ public class ProjectNLJMergeRule extends RelOptRule {
       return;
     }
 
-    RexShuttle shuttle = new RexPermuteInputsShuttle(mapping);
-    List<RexNode> newProjects = shuttle.apply(project.getProjects());
-
     NestedLoopJoinPrel newJoin = (NestedLoopJoinPrel) nlj.copy(newJoinProjectedFields);
-    ProjectPrel newProject = ProjectPrel.create(nlj.getCluster(), project.getTraitSet(), newJoin, newProjects, project.getRowType());
+    ProjectPrel newProject = ProjectPrel.create(nlj.getCluster(), project.getTraitSet(), newJoin, project.getChildExps(), project.getRowType());
     call.transformTo(newProject);
   }
 }

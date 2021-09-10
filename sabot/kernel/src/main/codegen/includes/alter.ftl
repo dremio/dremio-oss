@@ -23,6 +23,7 @@
     SqlParserPos pos;
     SqlIdentifier tblName;
     SqlIdentifier name;
+    SqlIdentifier columnName;
     SqlLiteral deleteUnavail = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral promotion = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral forceUp = SqlLiteral.createNull(SqlParserPos.ZERO);
@@ -49,9 +50,23 @@
       (<TABLE> | <VDS> | <PDS> | <DATASET>)
         tblName = CompoundIdentifier()
         (
+          <ROUTE> (
+            (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName);}
+          )
+          |
           <ADD> <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList()); }
           |
-          <CHANGE> { return new SqlAlterTableChangeColumn(pos, tblName, SimpleIdentifier(), TypedElement()); }
+          (<CHANGE> | <ALTER> | <MODIFY>)
+            [<COLUMN>]
+            columnName = SimpleIdentifier() {
+              SqlSetOption option;
+              SqlColumnDeclaration typedElement;
+            }
+            (
+              typedElement = TypedElement() { return new SqlAlterTableChangeColumn(pos, tblName, columnName, typedElement); }
+            |
+              { return new SqlAlterTableChangeColumnSetOption(pos, tblName, columnName, SqlSetOption(Span.of(), "COLUMN")); }
+            )
           |
           <DROP> (
             <REFLECTION> {return SqlDropReflection(pos, tblName);}
@@ -225,7 +240,7 @@ SqlNodeList KeyValuePair() :
 }
 
 /**
-   ALTER TABLE tblname 
+   ALTER TABLE tblname
    ADD AGGREGATE REFLECTION name
    DIMENSIONS (field1, field2)
    MEASURES (field1, field2)
@@ -233,7 +248,7 @@ SqlNodeList KeyValuePair() :
    [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ LOCALSORT BY (field1, field2, ..) ]
    [ PARTITION BY (field1, field2, ..) ]
-   [ LOCALSORT BY (field1, field2, ..) ] 
+   [ LOCALSORT BY (field1, field2, ..) ]
  */
 SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name) :
 {
@@ -260,7 +275,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     dimensionList = ParseRequiredFieldListWithGranularity("Dimensions")
     <MEASURES>
     measureList = ParseRequiredFieldListWithMeasures("Measures")
-    
+
     (   <DISTRIBUTE> <BY>
         distributionList = ParseRequiredFieldList("Distribution")
     )?
@@ -319,11 +334,11 @@ void SimpleIdentifierCommaListWithGranularity(List<SqlNode> list) :
 {
     id = SimpleIdentifier() {pos = getPos();}
     (
-      <BY> <DAY> 
-      { byDay = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);} 
-    )? 
+      <BY> <DAY>
+      { byDay = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);}
+    )?
     {list.add(new IdentifierWithGranularity(id, byDay, pos));}
-    
+
     (<COMMA> SimpleIdentifierCommaListWithGranularity(list)) *
 }
 
@@ -362,7 +377,7 @@ void SimpleIdentifierCommaListWithMeasures(List<SqlNode> list) :
     <RPAREN>
     )?
     {list.add(new IdentifierWithMeasures(id, measures, getPos()));}
-    
+
     (<COMMA> SimpleIdentifierCommaListWithMeasures(list)) *
 }
 
@@ -380,13 +395,13 @@ void MeasureList(List<SqlNode> measures) :
         |
         (<APPROXIMATE> | <APPROX>) <COUNT> <DISTINCT>  { measures.add(SqlLiteral.createSymbol(MeasureType.APPROX_COUNT_DISTINCT, getPos()));}
         )
-        
+
         (<COMMA> MeasureList(measures)) *
 }
 
 
 /**
-   ALTER TABLE tblname 
+   ALTER TABLE tblname
    ADD RAW REFLECTION name
    USING
    DISPLAY (field1, field2)
@@ -415,7 +430,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     <USING>
     <DISPLAY>
     displayList = ParseOptionalFieldList("Display")
-    
+
     (   <DISTRIBUTE> <BY>
         distributionList = ParseRequiredFieldList("Distribution")
     )?
@@ -471,6 +486,33 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     {
         return new SqlAddExternalReflection(pos, tblName, name, target);
     }
+}
+
+/**
+ * ALTER TABLE tblname ROUTE ALL REFLECTIONS TO QUEUE queuename
+ */
+SqlNode SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName) :
+{
+  SqlLiteral isDefault;
+  SqlIdentifier queueName;
+}
+{
+  {
+    isDefault = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+  }
+  <TO>
+  (
+    <DEFAULT_> { isDefault = SqlLiteral.createBoolean(true, pos);}
+  )?
+  <QUEUE>
+  {
+    if (isDefault.booleanValue())
+    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, null);
+  }
+  queueName = SimpleIdentifier()
+  {
+    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, queueName);
+  }
 }
 
 SqlColumnDeclaration TypedElement() :

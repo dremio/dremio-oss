@@ -182,14 +182,14 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   CACHE_MANAGER_DATASETS(true, CacheManagerDatasetInfo.class, "cache", "datasets") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return new CacheManagerDatasetIterator(sContext, context);
+      return new CacheManagerDatasetIterator(sContext);
     }
   },
 
   CACHE_MANAGER_FILES(true, CacheManagerFilesInfo.class, "cache", "objects") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return new CacheManagerFilesIterator(sContext, context);
+      return new CacheManagerFilesIterator(sContext);
     }
   },
 

@@ -27,6 +27,7 @@ import "dataset-common.proto";
 import "namespace-common.proto";
 import "namespace-file-common.proto";
 import "google/protobuf/empty.proto";
+import "partition.proto";
 
 // Service a Catalog-like RPC.
 service DatasetCatalogService {
@@ -45,6 +46,9 @@ message UpdatableDatasetConfigFields {
   optional com.dremio.service.namespace.dataset.proto.DatasetType datasetType = 3;
   optional com.dremio.service.namespace.file.proto.FileConfig fileFormat = 4;
   optional string tag = 5;
+  optional com.dremio.service.namespace.dataset.proto.PartitionChunk partitionChunk = 6; // Allows upto one root level spit to be configured in the dataset
+  optional bool icebergMetadataEnabled = 7; // For this selection, iceberg metadata is present. False by default.
+  optional com.dremio.service.namespace.dataset.proto.IcebergMetadata icebergMetadata = 8;
 }
 
 message AddOrUpdateDatasetRequest {

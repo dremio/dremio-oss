@@ -103,4 +103,7 @@ public final class DeltaConstants {
     public static final String SCHMEA_ADD_DATACHANGE = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_DATA_CHANGE;
     public static final String SCHEMA_ADD_SIZE = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_SIZE;
     public static final String SCHEMA_ADD_MODIFICATION_TIME = DELTA_FIELD_ADD + DELTA_FIELD_JOINER + SCHEMA_MODIFICATION_TIME;
+
+    // Suffix for partition column names as we want to avoid any clashes with non-partition column names.
+    public static final String PARTITION_NAME_SUFFIX = "_val";
 }

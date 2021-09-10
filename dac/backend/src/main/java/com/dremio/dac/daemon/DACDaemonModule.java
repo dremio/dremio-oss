@@ -51,6 +51,7 @@ import com.dremio.dac.server.DremioServer;
 import com.dremio.dac.server.DremioServlet;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.RestServerV2;
+import com.dremio.dac.server.ScimServer;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.admin.KVStoreReportService;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -60,6 +61,8 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.exec.MasterElectionService;
 import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.dac.service.exec.MasterlessStatusListener;
+import com.dremio.dac.service.flight.CoordinatorFlightProducer;
+import com.dremio.dac.service.flight.FlightCloseableBindableService;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.search.SearchServiceImpl;
@@ -139,6 +142,7 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.plugins.sysflight.SysFlightPluginConfigProvider;
 import com.dremio.provision.service.ProvisioningService;
 import com.dremio.provision.service.ProvisioningServiceImpl;
 import com.dremio.resource.ClusterResourceInformation;
@@ -206,12 +210,12 @@ import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
 import com.dremio.service.grpc.MultiTenantGrpcServerBuilderFactory;
 import com.dremio.service.grpc.SingleTenantGrpcChannelBuilderFactory;
+import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobresults.server.JobResultsGrpcServerFacade;
 import com.dremio.service.jobs.Chronicle;
-import com.dremio.service.jobs.FlightCloseableBindableService;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobResultToLogEntryConverter;
 import com.dremio.service.jobs.JobResultsStore;
@@ -245,6 +249,7 @@ import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.service.statistics.StatisticsListManagerImpl;
 import com.dremio.service.statistics.StatisticsServiceImpl;
+import com.dremio.service.sysflight.SysFlightProducer;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.tokens.TokenManagerImpl;
 import com.dremio.service.users.SimpleUserService;
@@ -268,7 +273,6 @@ public class DACDaemonModule implements DACModule {
 
   public static final String JOBS_STORAGEPLUGIN_NAME = "__jobResultsStore";
   public static final String SCRATCH_STORAGEPLUGIN_NAME = "$scratch";
-  public static final String METADATA_STORAGEPLUGIN_NAME = "__metadata";
 
   public DACDaemonModule() {}
 
@@ -342,7 +346,7 @@ public class DACDaemonModule implements DACModule {
     bootstrapRegistry.bind(RequestContext.class,
       RequestContext.empty()
         .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
-        .with(UserContext.CTX_KEY, new UserContext(SYSTEM_USERNAME))
+        .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT)
     );
 
   }
@@ -474,6 +478,10 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindProvider(DatasetCatalogServiceBlockingStub.class,
       () -> DatasetCatalogServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
+
+
+    registry.bindProvider(ChronicleGrpc.ChronicleBlockingStub.class,
+      () -> ChronicleGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
 
     registry.bindProvider(TreeApiGrpc.TreeApiBlockingStub.class,
             () -> TreeApiGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
@@ -725,6 +733,8 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindSelf(new SystemTablePluginConfigProvider());
 
+    registry.bind(SysFlightPluginConfigProvider.class, new SysFlightPluginConfigProvider(registry.provider(NodeEndpoint.class)));
+
     final MetadataRefreshInfoBroadcaster metadataRefreshInfoBroadcaster =
       new MetadataRefreshInfoBroadcaster(
         registry.provider(ConduitProvider.class),
@@ -756,6 +766,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
         registry.provider(SystemTablePluginConfigProvider.class),
+        registry.provider(SysFlightPluginConfigProvider.class),
         registry.provider(FabricService.class),
         registry.provider(ConnectionReader.class),
         registry.provider(BufferAllocator.class),
@@ -772,7 +783,7 @@ public class DACDaemonModule implements DACModule {
     if (isCoordinator) {
       conduitServiceRegistry.registerService(new CatalogServiceSynchronizer(registry.provider(CatalogService.class)));
       conduitServiceRegistry.registerService(new DatasetCatalogServiceImpl(
-        registry.provider(CatalogService.class), registry.provider(NamespaceService.class)));
+        registry.provider(CatalogService.class), registry.provider(NamespaceService.Factory.class)));
     }
 
     // Run initializers only on coordinator.
@@ -1015,7 +1026,8 @@ public class DACDaemonModule implements DACModule {
         registry.provider(SchedulerService.class),
         registry.provider(JobsService.class),
         namespaceServiceProvider,
-        registry.provider(BufferAllocator.class));
+        registry.provider(BufferAllocator.class),
+        registry.provider(SabotContext.class));
       registry.replace(StatisticsService.class, statisticsService);
       registry.bind(StatisticsAdministrationService.Factory.class, (context) -> statisticsService);
       registry.replace(RelMetadataQuerySupplier.class, DremioRelMetadataQuery.getSupplier(statisticsService));
@@ -1145,34 +1157,13 @@ public class DACDaemonModule implements DACModule {
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
       registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
+      registry.bind(ScimServer.class, new ScimServer(bootstrap.getClasspathScan()));
 
       registry.bind(DremioServlet.class, new DremioServlet(dacConfig.getConfig(),
         registry.provider(ServerHealthMonitor.class),
         optionsProvider,
         registry.provider(SupportService.class)
       ));
-
-      // if we have at least one user registered, disable firstTimeApi and checkNoUser
-      // but for userGroupService is not started yet so we cannot check for now
-      registry.bind(WebServer.class, new WebServer(registry,
-          dacConfig,
-          registry.provider(ServerHealthMonitor.class),
-          registry.provider(NodeEndpoint.class),
-          registry.provider(SabotContext.class),
-          registry.provider(RestServerV2.class),
-          registry.provider(APIServer.class),
-          registry.provider(DremioServer.class),
-          new DremioBinder(registry),
-          bootstrapRegistry.lookup(Tracer.class),
-          "ui",
-          isInternalUGS));
-
-      registry.bind(TokenManager.class, new TokenManagerImpl(
-          registry.provider(LegacyKVStoreProvider.class),
-          registry.provider(SchedulerService.class),
-          registry.provider(OptionManager.class),
-          isDistributedMaster,
-          config));
     }
 
     LivenessService livenessService = new LivenessService(config);
@@ -1184,6 +1175,7 @@ public class DACDaemonModule implements DACModule {
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
+    registry.bindSelf(NamespaceServiceImpl.class);
     registry.bindSelf(ReflectionServiceHelper.class);
     registry.bindSelf(CatalogServiceHelper.class);
     registry.bindSelf(CollaborationHelper.class);
@@ -1233,6 +1225,29 @@ public class DACDaemonModule implements DACModule {
     registerHeapMonitorManager(registry, isCoordinator);
 
     registerActiveQueryListService(registry, isCoordinator, isDistributedMaster, conduitServiceRegistry);
+
+    // NOTE : Should be last after all other services
+    // used as health check to know when to start serving traffic.
+    if (isCoordinator) {
+      // if we have at least one user registered, disable firstTimeApi and checkNoUser
+      // but for userGroupService is not started yet so we cannot check for now
+      registry.bind(WebServer.class, new WebServer(registry,
+        dacConfig,
+        registry.provider(RestServerV2.class),
+        registry.provider(APIServer.class),
+        registry.provider(DremioServer.class),
+        registry.provider(ScimServer.class),
+        new DremioBinder(registry),
+        "ui",
+        isInternalUGS));
+
+      registry.bind(TokenManager.class, new TokenManagerImpl(
+        registry.provider(LegacyKVStoreProvider.class),
+        registry.provider(SchedulerService.class),
+        registry.provider(OptionManager.class),
+        isDistributedMaster,
+        config));
+    }
   }
 
   private void registerActiveQueryListService(SingletonRegistry registry, boolean isCoordinator,
@@ -1294,10 +1309,12 @@ public class DACDaemonModule implements DACModule {
     // 2. chronicle
     conduitServiceRegistry.registerService(new Chronicle(registry.provider(LocalJobsService.class)));
 
-    // 3. jobs flight producer
-    final BufferAllocator jobAllocator = bootstrap.getAllocator().newChildAllocator(JobsFlightProducer.class.getName(), 0, Long.MAX_VALUE);
-    final JobsFlightProducer producer = new JobsFlightProducer(registry.provider(LocalJobsService.class), jobAllocator);
-    conduitServiceRegistry.registerService(new FlightCloseableBindableService(jobAllocator, producer, null, null));
+    // 3. jobs, sys flight producers registered together as CoordinatorFlightProducer, as individual binding is masking one of them
+    final BufferAllocator coordFlightAllocator = bootstrap.getAllocator().newChildAllocator(CoordinatorFlightProducer.class.getName(), 0, Long.MAX_VALUE);
+    final JobsFlightProducer jobsFlightProducer = new JobsFlightProducer(registry.provider(LocalJobsService.class), coordFlightAllocator);
+    final SysFlightProducer sysFlightProducer = new SysFlightProducer(coordFlightAllocator, registry.provider(ChronicleGrpc.ChronicleBlockingStub.class));
+    final CoordinatorFlightProducer coordFlightProducer = new CoordinatorFlightProducer(jobsFlightProducer, sysFlightProducer);
+    conduitServiceRegistry.registerService(new FlightCloseableBindableService(coordFlightAllocator, coordFlightProducer, null, null));
 
     //4. MaestroGrpcServerFacade
     conduitServiceRegistry.registerService(new MaestroGrpcServerFacade(registry.provider(ExecToCoordStatusHandler.class)));
@@ -1356,7 +1373,9 @@ public class DACDaemonModule implements DACModule {
     final String authType = config.getString(WEB_AUTH_TYPE);
 
     if ("internal".equals(authType)) {
-      registry.bindProvider(UserService.class, () -> new SimpleUserService(registry.provider(LegacyKVStoreProvider.class)));
+      final SimpleUserService simpleUserService = new SimpleUserService(registry.provider(LegacyKVStoreProvider.class), isMaster);
+      registry.bindProvider(UserService.class, () -> simpleUserService);
+      registry.bindSelf(simpleUserService);
       logger.info("Internal user/group service is configured.");
       return true;
     }

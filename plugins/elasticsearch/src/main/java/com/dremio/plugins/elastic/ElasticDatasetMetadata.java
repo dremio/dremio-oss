@@ -136,6 +136,7 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
       BufferAllocator sampleAllocator = datasetHandle.getContext().getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
       OperatorContextImpl operatorContext =
         new OperatorContextImpl(datasetHandle.getContext().getConfig(),
+          datasetHandle.getContext().getDremioConfig(),
           sampleAllocator, datasetHandle.getContext().getOptionManager(),
           SAMPLE_FETCH_SIZE)
     ) {

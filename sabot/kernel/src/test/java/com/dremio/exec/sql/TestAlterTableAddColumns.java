@@ -38,163 +38,179 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
 
   @Test
   public void typeNotSpecified() throws Exception {
-    String tableName = "addcol0";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol0";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      Thread.sleep(1001);
-      String[] queries = {
-          String.format("ALTER TABLE %s.%s ADD COLUMNS(col1, col2 int)", TEMP_SCHEMA, tableName),
-          String.format("ALTER TABLE %s.%s ADD COLUMNS(col1)", TEMP_SCHEMA, tableName),
-          String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col3)", TEMP_SCHEMA, tableName)
-      };
-      for (String q : queries) {
-        errorMsgTestHelper(q, "Column type not specified");
+        Thread.sleep(1001);
+        String[] queries = {
+          String.format("ALTER TABLE %s.%s ADD COLUMNS(col1, col2 int)", testSchema, tableName),
+          String.format("ALTER TABLE %s.%s ADD COLUMNS(col1)", testSchema, tableName),
+          String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col3)", testSchema, tableName)
+        };
+        for (String q : queries) {
+          errorMsgTestHelper(q, "Column type not specified");
+        }
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
     }
   }
 
   @Test
   public void invalidType() throws Exception {
-    String tableName = "addcol1";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol1";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col3 inte)", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col3 inte)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Invalid column type [`inte`] specified for column [col3].");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        errorMsgTestHelper(query, "Invalid column type [`inte`] specified for column [col3].");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void unsupportedType() throws Exception {
-    String tableName = "addcol7";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol7";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col3 MAP)", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col2 int, col3 MAP)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "conversion from arrow type to iceberg type failed for field col3");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        errorMsgTestHelper(query, "Type conversion error for column col3");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void noContextFail() throws Exception {
-    String tableName = "addcol07";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol07";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s ADD COLUMNS(col1 varchar, col2 int, col3 MAP)", tableName);
-      errorMsgTestHelper(query, "Table [addcol07] not found");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        String query = String.format("ALTER TABLE %s ADD COLUMNS(col1 varchar, col2 int, col3 MAP)", tableName);
+        errorMsgTestHelper(query, "Table [addcol07] not found");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void addExistingColumn() throws Exception {
-    String tableName = "addcol2";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol2";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Column [VERSION] already in the table.");
+        errorMsgTestHelper(query, "Column [VERSION] already in the table.");
 
-      query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col1 int, col3 int)", TEMP_SCHEMA,
+        query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col1 int, col3 int)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void invalidTable() throws Exception {
-    String tableName = "addcol3";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol3";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Table [dfs_test.addcol3] not found");
+        errorMsgTestHelper(query, "Table [" + testSchema + ".addcol3] not found");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void icebergNotEnabled() throws Exception {
-    String tableName = "addcol4";
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol4";
+      try {
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-    try {
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
-
-      String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "contact customer support for steps to enable the iceberg tables");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        errorMsgTestHelper(query, "contact customer support for steps to enable the iceberg tables");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void nonIcebergTable() throws Exception {
-    String tableName = "addcol5";
-    final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-        TEMP_SCHEMA, tableName);
-    test(createTableQuery);
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol5";
+      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        testSchema, tableName);
+      test(createTableQuery);
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Table [dfs_test.addcol5] is not configured to support DML operations");
+        errorMsgTestHelper(query, "Table [" + testSchema + ".addcol5] is not configured to support DML operations");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void addColumnAndInsert() throws Exception {
-    String tableName = "addcol6";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "addcol6";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -204,12 +220,12 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String alterQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(newcol1 varchar, newcol2 int, newcol3 int)", TEMP_SCHEMA,
+        Thread.sleep(1001);
+        String alterQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(newcol1 varchar, newcol2 int, newcol3 int)", testSchema,
           tableName);
-      test(alterQuery);
+        test(alterQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey", "newcol1", "newcol2", "newcol3")
@@ -218,12 +234,12 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String insertQuery = String.format("INSERT INTO %s.%s VALUES(2, 'ab', 1, 2)", TEMP_SCHEMA,
+        Thread.sleep(1001);
+        String insertQuery = String.format("INSERT INTO %s.%s VALUES(2, 'ab', 1, 2)", testSchema,
           tableName);
-      test(insertQuery);
+        test(insertQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey", "newcol1", "newcol2", "newcol3")
@@ -233,8 +249,9 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 

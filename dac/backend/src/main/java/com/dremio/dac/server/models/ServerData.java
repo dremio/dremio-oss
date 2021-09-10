@@ -43,6 +43,7 @@ public class ServerData {
   private final boolean queryBundleUsersEnabled;
   private final long downloadRecordsLimit;
   private final boolean showMetadataValidityCheckbox;
+  private final boolean showNewJobsPage;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -66,6 +67,7 @@ public class ServerData {
     this.queryBundleUsersEnabled = builder.queryBundleUsersEnabled;
     this.downloadRecordsLimit = builder.downloadRecordsLimit;
     this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
+    this.showNewJobsPage = builder.showNewJobsPage;
   }
 
   public String getServerEnvironment() {
@@ -161,6 +163,10 @@ public class ServerData {
     return showMetadataValidityCheckbox;
   }
 
+  public boolean isShowNewJobsPage() {
+    return showNewJobsPage;
+  }
+
   /**
    * A builder for server data
    */
@@ -186,6 +192,7 @@ public class ServerData {
     private boolean queryBundleUsersEnabled;
     private long downloadRecordsLimit;
     private boolean showMetadataValidityCheckbox;
+    private boolean showNewJobsPage;
 
     protected Builder() {
     }
@@ -212,6 +219,7 @@ public class ServerData {
       this.queryBundleUsersEnabled = builder.queryBundleUsersEnabled;
       this.downloadRecordsLimit = builder.downloadRecordsLimit;
       this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
+      this.showNewJobsPage = builder.showNewJobsPage;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -316,6 +324,11 @@ public class ServerData {
 
     public Builder setShowMetadataValidityCheckbox(boolean showMetadataValidityCheckbox) {
       this.showMetadataValidityCheckbox = showMetadataValidityCheckbox;
+      return this;
+    }
+
+    public Builder setShowNewJobsPage(boolean showNewJobsPage) {
+      this.showNewJobsPage = showNewJobsPage;
       return this;
     }
 

@@ -30,7 +30,9 @@ import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
+import com.google.inject.AbstractModule;
 
 /**
  * Base class for Hive test. Takes care of generating and adding Hive test plugin before tests and deleting the
@@ -48,12 +50,26 @@ public class HiveTestBase extends PlanTestBase {
 
   @BeforeClass
   public static void generateHive() throws Exception{
-    dataGenerator = HiveTestDataGenerator.getInstance();
-    Objects.requireNonNull(dataGenerator);
+    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
+      try {
+        runSQL(query); // queries we get here are inner 'refresh dataset' queries
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    };
 
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(SimpleJobRunner.class).toInstance(jobRunner);
+      }
+    });
+    setupDefaultTestCluster();
     SabotContext sabotContext = getSabotContext();
     Objects.requireNonNull(sabotContext);
 
+    dataGenerator = HiveTestDataGenerator.getInstance();
+    Objects.requireNonNull(dataGenerator);
     dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
     dataGenerator.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
   }

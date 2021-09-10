@@ -21,6 +21,7 @@ import org.codehaus.commons.compiler.CompileException;
 
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
@@ -190,13 +191,18 @@ public class ClassTransformer {
 
       Class<?> c = classLoader.findClass(set.generated.dot);
       if (templateDefinition.getExternalInterface().isAssignableFrom(c)) {
-        logger.debug("Done compiling (bytecode size={}, time:{} millis).", DremioStringUtils.readable(totalBytecodeSize), (System.nanoTime() - t1) / 1000000);
+        if (logger.isDebugEnabled()) {
+          logger.debug("Done compiling (bytecode size={}, time:{} millis).", DremioStringUtils.readable(totalBytecodeSize), (System.nanoTime() - t1) / 1000000);
+        }
         return c;
       }
 
       throw new ClassTransformationException("The requested class did not implement the expected interface.");
     } catch (CompileException | IOException | ClassNotFoundException e) {
-      throw new ClassTransformationException(String.format("Failure generating transformation classes for value: \n %s", entireClass), e);
+      if (optionManager.getOption(ExecConstants.JAVA_CODE_DUMP)) {
+        logger.info(String.format("Failure generating transformation classes for value: \n %s", entireClass));
+      }
+      throw new ClassTransformationException("Failure generating transformation classes.", e);
     }
   }
 

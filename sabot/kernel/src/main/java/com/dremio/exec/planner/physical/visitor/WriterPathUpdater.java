@@ -20,6 +20,7 @@ import static com.dremio.exec.planner.physical.PlannerSettings.QUERY_RESULTS_STO
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -82,7 +83,8 @@ public class WriterPathUpdater extends BasePrelVisitor<Prel, CreateTableEntry, R
     final FileSystemCreateTableEntry fileEntry = (FileSystemCreateTableEntry) createTableEntry;
 
     WriterCommitterPrel committerPrel = new WriterCommitterPrel(prel.getCluster(),
-      prel.getTraitSet(), ((Prel) prel.getInput(0)).accept(this, createTableEntry), fileEntry.getPlugin(), null, fileEntry.getLocation(), fileEntry.getUserName(), fileEntry);
+      prel.getTraitSet(), ((Prel) prel.getInput(0)).accept(this, createTableEntry), fileEntry.getPlugin(),
+      null, fileEntry.getLocation(), fileEntry.getUserName(), fileEntry, Optional.empty(), prel.isPartialRefresh(), prel.isReadSignatureEnabled());
     return committerPrel;
   }
 

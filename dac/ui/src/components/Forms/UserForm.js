@@ -26,7 +26,7 @@ import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import * as VersionUtils from '@app/utils/versionUtils';
 
 //export for testing only
-export const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'tag', 'extra'];
+export const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'tag', 'extra', 'id', 'active', 'roles', 'source'];
 
 @Radium
 export default class UserForm extends Component { // todo: rename, make proper "Section", since this is not a full "Form"

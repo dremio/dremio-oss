@@ -18,9 +18,11 @@ package com.dremio.exec.store;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.schema.Function;
 
+import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -112,6 +114,15 @@ public interface StoragePlugin extends Service, SourceMetadata {
 
   @Deprecated // Remove this method as the namespace should keep track of views.
   ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig);
+
+  /**
+   * Converts a byte string to a list of column extended properties grouped by column name.
+   * @param bytes the byte string to parse
+   * @return the column extended properties grouped by column name
+   */
+  default Map<String, List<ColumnExtendedProperty>> parseColumnExtendedProperties(ByteString bytes) throws ConnectorException {
+    return null;
+  }
 
   /**
    * Get the factory class for rules for this source registry. Is designed to

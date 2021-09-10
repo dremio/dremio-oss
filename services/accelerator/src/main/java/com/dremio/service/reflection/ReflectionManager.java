@@ -47,11 +47,16 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.iceberg.Table;
 
 import com.dremio.common.util.DremioEdition;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
@@ -75,6 +80,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
+import com.dremio.service.reflection.materialization.AccelerationStoragePlugin;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Failure;
@@ -102,6 +108,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -143,19 +150,21 @@ public class ReflectionManager implements Runnable {
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
   private final RefreshStartHandler refreshStartHandler;
+  private final AccelerationStoragePlugin accelerationPlugin;
   private volatile Path accelerationBasePath;
   private final CatalogService catalogService;
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
   private long lastOrphanCheckTime;
+  private IcebergModel icebergModel;
 
   ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService,
                     OptionManager optionManager, ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
                     DependencyManager dependencyManager, DescriptorCache descriptorCache,
                     Set<ReflectionId> reflectionsToUpdate, WakeUpCallback wakeUpCallback,
-                    Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator, Path accelerationBasePath,
-                    ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
+                    Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator, FileSystemPlugin accelerationPlugin,
+                    Path accelerationBasePath, ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
                     CatalogService catalogService) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
@@ -172,6 +181,7 @@ public class ReflectionManager implements Runnable {
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
+    this.accelerationPlugin = (AccelerationStoragePlugin) Preconditions.checkNotNull(accelerationPlugin);
     this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath);
     this.reflectionGoalChecker = Preconditions.checkNotNull(reflectionGoalChecker);
     this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
@@ -351,14 +361,16 @@ public class ReflectionManager implements Runnable {
   /**
    * Small class that stores the results of reflection entry review
    */
-  private final class EntryCounts {
+  @VisibleForTesting
+  static final class EntryCounts {
     private long failed;
     private long refreshing;
     private long active;
     private long unknown;
   }
 
-  private void handleEntry(ReflectionEntry entry, final long noDependencyRefreshPeriodMs, EntryCounts counts) {
+  @VisibleForTesting
+  void handleEntry(ReflectionEntry entry, final long noDependencyRefreshPeriodMs, EntryCounts counts) {
     final ReflectionState state = entry.getState();
     switch (state) {
       case FAILED:
@@ -460,6 +472,7 @@ public class ReflectionManager implements Runnable {
           // try to update the dependencies even when a refreshing job fails
           updateDependenciesIfPossible(entry, lastAttempt);
         }
+        rollbackIcebergTableIfNecessary(m, lastAttempt);
         m.setState(MaterializationState.CANCELED);
         materializationStore.save(m);
         entry.setState(ACTIVE);
@@ -471,6 +484,7 @@ public class ReflectionManager implements Runnable {
           // try to update the dependencies even when a refreshing job fails
           updateDependenciesIfPossible(entry, lastAttempt);
         }
+        rollbackIcebergTableIfNecessary(m, lastAttempt);
         final String jobFailure = Optional.fromNullable(lastAttempt.getInfo().getFailureInfo())
           .or("Reflection Job failed without reporting an error message");
         m.setState(MaterializationState.FAILED)
@@ -481,6 +495,30 @@ public class ReflectionManager implements Runnable {
       default:
         // nothing to do for non terminal states
         break;
+    }
+  }
+
+  /**
+   * It is possible that the iceberg reflection table is updated and commited, before the refresh job fails/cancelled.
+   * In that case we need to rollback the table to the previous snapshot. Or else we will insert the same records again
+   * in next refresh.
+   */
+  private void rollbackIcebergTableIfNecessary(final Materialization m, final JobAttempt jobAttempt) {
+    if (m.getIsIcebergDataset() != null && m.getIsIcebergDataset()) {
+      if(jobAttempt.getExtraInfoList() == null || jobAttempt.getExtraInfoList().isEmpty()) {
+        // It can happen that refresh plan was not generated successfully (for example, if source is unavailable) and so
+        // the refresh decision was not set, in which case there is no need to rollback
+        return;
+      }
+      final RefreshDecision refreshDecision = RefreshDoneHandler.getRefreshDecision(jobAttempt);
+      if (refreshDecision.getInitialRefresh() != null && !refreshDecision.getInitialRefresh()) {
+        final Table table = getIcebergTable(m.getReflectionId(), m.getBasePath());
+
+        // rollback table if the snapshotId changed
+        if (table.currentSnapshot().snapshotId() != m.getPreviousIcebergSnapshot()) {
+          table.manageSnapshots().rollbackTo(m.getPreviousIcebergSnapshot()).commit();
+        }
+      }
     }
   }
 
@@ -888,7 +926,7 @@ public class ReflectionManager implements Runnable {
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, JobsProtoUtil.toStuff(job.getJobId()));
     final List<String> refreshPath = ReflectionUtils.getRefreshPath(JobsProtoUtil.toStuff(job.getJobId()), accelerationBasePath, jobsService, allocator);
     final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
-    final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(materialization, refreshPath, isIcebergRefresh);
+    final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(refreshPath, isIcebergRefresh);
     final Refresh refresh = ReflectionUtils.createRefresh(materialization.getReflectionId(), refreshPath, seriesId,
       0, new UpdateId(), jobDetails, metrics, dataPartitions, isIcebergRefresh, icebergBasePath);
     refresh.setCompacted(true);
@@ -974,7 +1012,8 @@ public class ReflectionManager implements Runnable {
     }
 
     try {
-      final JobId refreshJobId = refreshStartHandler.startJob(entry, jobSubmissionTime, optionManager);
+
+      final JobId refreshJobId = refreshStartHandler.startJob(entry, jobSubmissionTime, optionManager, getIcebergSnapshot(entry));
 
       entry.setState(REFRESHING)
         .setRefreshJobId(refreshJobId);
@@ -993,6 +1032,23 @@ public class ReflectionManager implements Runnable {
       }
       reportFailure(entry, ACTIVE);
     }
+  }
+
+  /**
+   * Get currrent iceberg snapshot corresponding to the reflection entry
+   * Return null if it is not an iceberg reflection
+   */
+  private Long getIcebergSnapshot(ReflectionEntry entry) {
+    Long icebergSnapshot = null;
+    final FluentIterable<Refresh> refreshes = materializationStore.getRefreshesByReflectionId(entry.getId());
+    if (refreshes != null && !refreshes.isEmpty()) {
+      final Refresh latestRefresh = refreshes.get(refreshes.size() - 1);
+      if (latestRefresh.getIsIcebergRefresh() != null && latestRefresh.getIsIcebergRefresh()) {
+        final Table table = getIcebergTable(entry.getId(), latestRefresh.getBasePath());
+        icebergSnapshot = table.currentSnapshot().snapshotId();
+      }
+    }
+    return icebergSnapshot;
   }
 
   private void reportFailure(ReflectionEntry entry, ReflectionState newState) {
@@ -1034,5 +1090,21 @@ public class ReflectionManager implements Runnable {
 
   public long getLastWakeupTime() {
     return lastWakeupTime;
+  }
+
+  private Table getIcebergTable(ReflectionId reflectionId, String basePath) {
+    final String path = PathUtils.getPathJoiner().join(ImmutableList.of(
+      reflectionId.getId(),
+      basePath));
+    final FileSelection fileSelection = accelerationPlugin.getIcebergFileSelection(path);
+    final IcebergModel icebergModel = getIcebergModel();
+    return icebergModel.getIcebergTable(icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
+  }
+
+  private IcebergModel getIcebergModel() {
+    if (icebergModel == null) {
+      icebergModel = accelerationPlugin.getIcebergModel();
+    }
+    return icebergModel;
   }
 }

@@ -1,0 +1,140 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
+  .jobsContent {
+    &__durationSpill{
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    &__spillIcon{
+      height: 20px;
+    }
+    &__columnCell {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    &__columnTooltipText {
+      color: @font-color1;
+      font-size: 12px;
+      line-height: 20px;
+    }
+    &__numericContent {
+      display: flex;
+      justify-content: flex-end;
+      margin-right: 10px;
+    }
+    &__tooltip {
+      left: 100%;
+      top: 0;
+    }
+    &__sqlTooltipText {
+      color: @font-color1;
+      font-family: Menlo;
+      font-size: 12px;
+      line-height: 20px;
+    }
+    &__jobIdWrapper {
+      width: 11ch;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    &__sqlWrapper {
+      font-style: normal;
+      font-weight: normal;
+      font-size: 12px;
+      line-height: 18px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: @greyish-blue;
+    }
+    &__twoColumnWrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    &-dataset {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      &__accelerationIconWrapper {
+        flex-basis: 12%;
+      }
+      &__accelerationIcon {
+        height: 24px;
+      }
+      &__tooltip {
+        left: 100%;
+        top: 0;
+      }
+      &__dataset {
+        flex-basis: 15%;
+      }
+      &__name {
+        flex-basis: 72%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: @font-color1;
+      }
+      &__tooltipWrapper {
+        margin-top:10px;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+      }
+      &__label {
+        font-family: Inter;
+        font-style: normal;
+        font-weight: 600;
+        font-size: 12px;
+        line-height: 16px;
+        color: @font-color1;
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+      &__path {
+        font-style: normal;
+        font-weight: normal;
+        font-size: 12px;
+        line-height: 16px;
+        color: @font-color1;
+        text-overflow: ellipsis;
+      }
+      &__nameWrapper {
+        padding-left: 6px;
+        overflow: hidden;
+      }
+    }
+  }
+  .ReactVirtualized__Table__Grid::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    border-radius: 8px;
+    background-color: @white;
+
+  }
+  .ReactVirtualized__Table__Grid::-webkit-scrollbar-thumb{
+    width: 8px;
+    height: 5px;
+    border-radius: 8px;
+    background-color: fade( @chinese-silver, 80% ) ;
+  }
+  .ReactVirtualized__Table .ReactVirtualized__Table__row:hover {
+    background: #E9F5F9;
+  }
+}

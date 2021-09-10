@@ -44,6 +44,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.google.common.io.Resources;
 
@@ -91,10 +92,10 @@ public class TestRefresh extends BaseTestQuery {
     try (AutoCloseable c = enableIcebergTables()) {
       Path rootPath = Paths.get(getDfsTestTmpSchemaLocation(), "iceberg", "metadata_refresh");
       File tableRoot = rootPath.toFile();
-      IcebergModel icebergModel = getIcebergModel(tableRoot);
+      IcebergModel icebergModel = getIcebergModel(tableRoot, IcebergCatalogType.HADOOP);
       Files.createDirectories(rootPath);
       String root = rootPath.toString();
-      String tableName = "dfs_test.iceberg.metadata_refresh";
+      String tableName = "dfs_test_hadoop.iceberg.metadata_refresh";
 
       HadoopTables tables = new HadoopTables(conf);
       Table table = tables.create(schema, null, root);

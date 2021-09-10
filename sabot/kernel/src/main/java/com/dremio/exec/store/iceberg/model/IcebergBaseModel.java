@@ -23,9 +23,11 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.metadatarefresh.DatasetCatalogGrpcClient;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
  * Base class for common Iceberg model operations
@@ -56,35 +58,47 @@ public abstract class IcebergBaseModel implements IcebergModel {
 
     @Override
     public IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
-                                                      BatchSchema batchSchema, List<String> partitionColumnNames) {
+                                                      BatchSchema batchSchema, List<String> partitionColumnNames, OperatorStats operatorStats) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
-        return new IcebergTableCreationCommitter(tableName, batchSchema, partitionColumnNames, icebergCommand);
+        return new IcebergTableCreationCommitter(tableName, batchSchema, partitionColumnNames, icebergCommand, operatorStats);
     }
 
     @Override
-    public IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier) {
+    public IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier, OperatorStats operatorStats) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
-        return new IcebergInsertOperationCommitter(icebergCommand);
+        return new IcebergInsertOperationCommitter(icebergCommand, operatorStats);
     }
 
   @Override
-  public IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, String tableLocation, IcebergTableIdentifier tableIdentifier,
-                                                            BatchSchema batchSchema, List<String> partitionColumnNames) {
+  public IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
+                                                            String tableUuid, IcebergTableIdentifier tableIdentifier,
+                                                            BatchSchema batchSchema, List<String> partitionColumnNames,
+                                                            DatasetConfig datasetConfig, OperatorStats operatorStats) {
     IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
-    return new FullMetadataRefreshCommitter(tableName, tableLocation, batchSchema, partitionColumnNames, icebergCommand, client);
+    return new FullMetadataRefreshCommitter(tableName, datasetPath, tableLocation, tableUuid, batchSchema, configuration,
+      partitionColumnNames, icebergCommand, client, datasetConfig, operatorStats);
   }
 
   @Override
-  public IcebergOpCommitter getIncrementalMetadataRefreshCommitter(String tableName, String tableLocation, IcebergTableIdentifier tableIdentifier,
-                                                                   BatchSchema batchSchema, List<String> partitionColumnNames) {
+  public IcebergOpCommitter getIncrementalMetadataRefreshCommitter(OperatorContext operatorContext, String tableName, List<String> datasetPath, String tableLocation,
+                                                                   String tableUuid, IcebergTableIdentifier tableIdentifier,
+                                                                   BatchSchema batchSchema, List<String> partitionColumnNames,
+                                                                   boolean isFileSystem, DatasetConfig datasetConfig) {
     IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
-    return new IncrementalMetadataRefreshCommitter(tableName, tableLocation, batchSchema, partitionColumnNames, icebergCommand, client);
+    return new IncrementalMetadataRefreshCommitter(operatorContext, tableName, datasetPath, tableLocation, tableUuid, batchSchema, configuration,
+      partitionColumnNames, icebergCommand, isFileSystem, client, datasetConfig);
   }
 
     @Override
     public void truncateTable(IcebergTableIdentifier tableIdentifier) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         icebergCommand.truncateTable();
+    }
+
+    @Override
+    public void deleteTable(IcebergTableIdentifier tableIdentifier) {
+      IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+      icebergCommand.deleteTable();
     }
 
     @Override
@@ -115,5 +129,11 @@ public abstract class IcebergBaseModel implements IcebergModel {
     public Table getIcebergTable(IcebergTableIdentifier tableIdentifier) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         return icebergCommand.loadTable();
+    }
+
+    @Override
+    public IcebergTableLoader getIcebergTableLoader(IcebergTableIdentifier tableIdentifier) {
+        IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+        return new IcebergTableLoader(icebergCommand);
     }
 }

@@ -320,6 +320,7 @@ public class FragmentWorkManager implements Service, SafeExit {
         bitContext.getEndpoint(),
         maestroProxy,
         bitContext.getConfig(),
+        bitContext.getDremioConfig(),
         bitContext.getClusterCoordinator(),
         executor,
         bitContext.getOptionManager(),

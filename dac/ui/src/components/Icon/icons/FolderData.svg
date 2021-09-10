@@ -16,29 +16,7 @@
     limitations under the License.
 
 -->
-<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
-    <title>Icon/FolderData</title>
-    <desc>Created with Sketch.</desc>
-    <defs>
-        <polygon id="path-1" points="4.94444444 0.5 0.5 0.5 0.5 15.5 16.5 15.5 16.5 2.51680672 6.72222222 2.51680672"></polygon>
-        <mask id="mask-2" maskContentUnits="userSpaceOnUse" maskUnits="objectBoundingBox" x="0" y="0" width="16" height="15" fill="white">
-            <use xlink:href="#path-1"></use>
-        </mask>
-    </defs>
-    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <g id="Icon/FolderData">
-            <g>
-                <g id="icon-box-24-copy-12">
-                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
-                </g>
-                <g id="Stroke-3409" transform="translate(4.000000, 4.000000)" stroke="#A672BB" fill="#A672BB" stroke-linecap="round" stroke-linejoin="round">
-                    <use mask="url(#mask-2)" stroke-width="2" xlink:href="#path-1"></use>
-                </g>
-                <g id="Group" transform="translate(5.000000, 7.000000)" fill="#FFFFFF">
-                    <path d="M2,2 L5,2 L5,4 L2,4 L2,2 Z M6,2 L9,2 L9,4 L6,4 L6,2 Z M10,2 L13,2 L13,4 L10,4 L10,2 Z M2,5 L5,5 L5,7 L2,7 L2,5 Z M6,5 L9,5 L9,7 L6,7 L6,5 Z M10,5 L13,5 L13,7 L10,7 L10,5 Z M2,8 L5,8 L5,10 L2,10 L2,8 Z M6,8 L9,8 L9,10 L6,10 L6,8 Z M10,8 L13,8 L13,10 L10,10 L10,8 Z" id="Rectangle-125"></path>
-                </g>
-            </g>
-        </g>
-    </g>
+<svg width="24" height="24" viewBox="1 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M19.5 6H13.268L11.416 3.223C11.323 3.084 11.167 3 11 3H4.5C3.122 3 2 4.121 2 5.5V18.5C2 19.879 3.122 21 4.5 21H19.5C20.878 21 22 19.879 22 18.5V8.5C22 7.121 20.878 6 19.5 6Z" fill="#A672BB"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 9.5H6.5V11.5H8.5V9.5ZM11.5 9.5H9.5V11.5H11.5V9.5ZM12.5 9.5H14.5V11.5H12.5V9.5ZM17.5 9.5H15.5V11.5H17.5V9.5ZM8.5 12.5H6.5V14.5H8.5V12.5ZM11.5 12.5H9.5V14.5H11.5V12.5ZM12.5 12.5H14.5V14.5H12.5V12.5ZM17.5 12.5H15.5V14.5H17.5V12.5ZM6.5 15.5H8.5V17.5H6.5V15.5ZM9.5 15.5H11.5V17.5H9.5V15.5ZM14.5 15.5H12.5V17.5H14.5V15.5ZM15.5 15.5H17.5V17.5H15.5V15.5Z" fill="white"/>
 </svg>

@@ -28,6 +28,7 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
+import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobresults.JobResultsResponse;
@@ -100,9 +101,10 @@ public class MaestroForwarderImpl implements MaestroForwarder {
   }
 
   public void dataArrived(JobResultsRequest jobResultsRequest, ResponseSender sender) {
+    String queryId = QueryIdHelper.getQueryId(jobResultsRequest.getHeader().getQueryId());
     if (mustForwardRequest(jobResultsRequest.getForeman())) {
       logger.debug("Forwarding DataArrived request for Query {} to target {}",
-        QueryIdHelper.getQueryId(jobResultsRequest.getHeader().getQueryId()), jobResultsRequest.getForeman().getAddress());
+        queryId, jobResultsRequest.getForeman().getAddress());
 
       final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(jobResultsRequest.getForeman());
       final JobResultsServiceGrpc.JobResultsServiceStub stub = JobResultsServiceGrpc.newStub(channel);
@@ -113,7 +115,9 @@ public class MaestroForwarderImpl implements MaestroForwarder {
         @Override
         public void onError(Throwable t) {
           try {
-            ackit(sender);
+            logger.error("Failed to forward job results request to {} for queryId {}",
+              jobResultsRequest.getForeman().getAddress(), queryId, t);
+            sender.sendFailure(new UserRpcException(jobResultsRequest.getForeman(), "Failed to forward job results request", t));
           } catch (IllegalStateException e) {
             // if the "sender" has illegal state, then no point of sending ack. So ignore the exception.
             logger.debug("Exception raised while acking onError for JobResultsResponse: {}", e);
@@ -127,8 +131,9 @@ public class MaestroForwarderImpl implements MaestroForwarder {
       streamObserver.onNext(jobResultsRequest);
 
     } else {
-      logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.",
-        QueryIdHelper.getQueryId(jobResultsRequest.getHeader().getQueryId()));
+      logger.info("User data arrived post query termination from {}, dropping. Data was from QueryId: {}.",
+        jobResultsRequest.getForeman().getAddress(), queryId);
+      sender.sendFailure(new UserRpcException(jobResultsRequest.getForeman(), "Failed to forward job results request", new Throwable("Query Already Terminated")));
     }
   }
 

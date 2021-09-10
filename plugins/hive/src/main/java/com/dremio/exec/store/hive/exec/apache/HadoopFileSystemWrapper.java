@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.hive.exec.apache;
 
+import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -70,15 +72,9 @@ public class HadoopFileSystemWrapper
   extends FileSystem {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopFileSystemWrapper.class);
 
-  public static final String MAPRFS_SCHEME = "maprfs";
-
   private final FileSystem underlyingFs;
   private final OperatorStats operatorStats;
   private final boolean isMapRfs;
-
-//  public HadoopFileSystemWrapper(Configuration fsConf) throws IOException {
-//    this(fsConf, null, null);
-//  }
 
   public boolean isMapRfs() {
     return isMapRfs;

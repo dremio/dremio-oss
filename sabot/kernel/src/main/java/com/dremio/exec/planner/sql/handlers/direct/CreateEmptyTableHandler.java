@@ -67,7 +67,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     // path is valid but source is not valid
     if (!DataAdditionCmdHandler.validatePluginSupportForIceberg(this.catalog, key)) {
       throw UserException.unsupportedError()
-      .message(String.format("Source [%s] does not support CREATE TABLE", key.getRoot()))
+      .message(String.format("Source [%s] does not support CREATE TABLE. Please use correct catalog", key.getRoot()))
       .buildSilently();
     }
 

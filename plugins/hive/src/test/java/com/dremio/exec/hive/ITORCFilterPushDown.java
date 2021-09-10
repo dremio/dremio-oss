@@ -17,22 +17,12 @@ package com.dremio.exec.hive;
 
 import static java.util.regex.Pattern.quote;
 
-import java.util.concurrent.TimeUnit;
-
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
-
-import com.dremio.common.util.TestTools;
 
 /**
  * Test pushing filter into ORC vectorized reader.
  */
 public class ITORCFilterPushDown extends HiveTestBase {
-
-  @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
-
   @Test
   public void equal() throws Exception {
     final String query = "SELECT * from hive.orc_region where r_regionkey = 3";

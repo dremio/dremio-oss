@@ -24,7 +24,6 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.SeekableInputStream;
 
 import com.dremio.exec.hadoop.DremioHadoopUtils;
-import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -41,16 +40,18 @@ public class DremioInputFile implements InputFile {
   private final Long fileSize;
   private final OperatorContext context;
   private final List<String> dataset;
-  private FileAttributes attributes = null;
+  private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
   private final String locationWithScheme;
   private final HadoopInputFile hadoopInputFile;
 
-  public DremioInputFile(FileSystem fs, Path path, Long fileSize, OperatorContext context, List<String> dataset, Configuration conf) {
+  public DremioInputFile(FileSystem fs, Path path, Long fileSize, OperatorContext context, List<String> dataset,
+                         String datasourcePluginUID, Configuration conf) {
     this.fs = fs;
     this.path = path;
     this.fileSize = fileSize;
     this.context = context;
     this.dataset = dataset;
+    this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
     String scheme = fs != null ? fs.getScheme() : DremioHadoopUtils.getHadoopFSScheme(
       DremioHadoopUtils.toHadoopPath(path),
       conf);
@@ -68,7 +69,8 @@ public class DremioInputFile implements InputFile {
     try {
       if(context != null && fs != null) {
         SeekableInputStreamFactory factory = context.getConfig().getInstance(SeekableInputStreamFactory.KEY, SeekableInputStreamFactory.class, SeekableInputStreamFactory.DEFAULT);
-        return factory.getStream(fs, context, path, fileSize, /* Since manifest avro files are immutable, we are passing 0 as mtime */ 0, dataset);
+        return factory.getStream(fs, context, path,
+          fileSize, /* Since manifest avro files are immutable, we are passing 0 as mtime */ 0, dataset, datasourcePluginUID);
       } else {
         return hadoopInputFile.newStream();
       }

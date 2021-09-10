@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-
 import { arrayOf } from 'normalizr';
 import userSchema from 'schemas/user';
-
 import { APIV2Call } from '@app/core/APICall';
 
 export const SOURCE_NODES_START = 'SOURCE_NODES_START';
@@ -29,16 +26,16 @@ export const SOURCE_NODES_FAILURE = 'SOURCE_NODES_FAILURE';
 // NODES
 
 function fetchNodeCredentials(viewId) {
-  const meta = {viewId};
+  const meta = { viewId };
 
   const apiCall = new APIV2Call().paths('system/nodes');
 
   return {
     [RSAA]: {
       types: [
-        {type: SOURCE_NODES_START, meta},
-        {type: SOURCE_NODES_SUCCESS, meta},
-        {type: SOURCE_NODES_FAILURE, meta}
+        { type: SOURCE_NODES_START, meta },
+        { type: SOURCE_NODES_SUCCESS, meta },
+        { type: SOURCE_NODES_FAILURE, meta }
       ],
       method: 'GET',
       endpoint: apiCall
@@ -63,14 +60,14 @@ export const LOAD_FILTERED_USER_FAILURE = 'LOAD_FILTERED_USER_FAILURE';
 
 // todo: backend doesn't actually do filtering yet
 function fetchFilteredUsers(value = '') {
-  const meta = {viewId: USERS_VIEW_ID}; // todo: see need ability to list users from anywhere
+  const meta = { viewId: USERS_VIEW_ID }; // todo: see need ability to list users from anywhere
 
   const apiCall = new APIV2Call();
 
   if (value) {
     apiCall
       .paths('users/search')
-      .params({filter: value});
+      .params({ filter: value });
   } else {
     apiCall
       .paths('users/all')
@@ -80,9 +77,9 @@ function fetchFilteredUsers(value = '') {
   return {
     [RSAA]: {
       types: [
-        {type: LOAD_FILTERED_USER_START, meta},
+        { type: LOAD_FILTERED_USER_START, meta },
         schemaUtils.getSuccessActionTypeWithSchema(LOAD_FILTERED_USER_SUCCESS, { users: arrayOf(userSchema) }, meta),
-        {type: LOAD_FILTERED_USER_FAILURE, meta}
+        { type: LOAD_FILTERED_USER_FAILURE, meta }
       ],
       method: 'GET',
       endpoint: apiCall
@@ -121,10 +118,10 @@ export function createFirstUser(form, meta) {
       types: [
         { type: CREATE_FIRST_USER_START },
         { type: CREATE_FIRST_USER_SUCCESS, meta: metaSuccess },
-        { type: CREATE_FIRST_USER_FAILURE, meta: {viewId} }
+        { type: CREATE_FIRST_USER_FAILURE, meta: { viewId } }
       ],
       method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
       endpoint: apiCall
     }
@@ -147,7 +144,7 @@ function deleteUser(user) {
   const apiCall = new APIV2Call()
     .path('user')
     .path(user.get('userName'))
-    .params({version: user.getIn(['userConfig', 'version'])});
+    .params({ version: user.getIn(['userConfig', 'version']) });
 
   return {
     [RSAA]: {
@@ -157,7 +154,7 @@ function deleteUser(user) {
         { type: REMOVE_USER_FAILURE, meta: { notification: true } }
       ],
       method: 'DELETE',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       endpoint: apiCall
     }
   };

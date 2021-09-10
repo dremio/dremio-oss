@@ -191,7 +191,7 @@ public class TestTableauMessageBodyGenerator {
   @Test
   public void verifySdkOutputSslOn()
     throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifySdkOutput("ssl = true", "required");
+    verifySdkOutput("ssl = true", TableauSDKConstants.REQUIRE);
   }
 
   @Test
@@ -199,7 +199,25 @@ public class TestTableauMessageBodyGenerator {
     throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
-    verifySdkOutput("", "required");
+    verifySdkOutput("", TableauSDKConstants.REQUIRE);
+  }
+
+  protected void verifySdkCustomOutput(Element connection) {
+    assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
+    assertEquals("", connection.getAttribute(TableauSDKConstants.ENGINE));
+    assertEquals("", connection.getAttribute(TableauSDKConstants.TAG));
+  }
+
+  protected void verifySdkAuthenticationOutput(Element connection) {
+    assertEquals(TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
+  }
+
+  protected void verifySdkSSLOutput(Element connection, String sslmode) {
+    assertEquals(sslmode, connection.getAttribute(TableauSDKConstants.SSL));
+  }
+
+  protected void verifySdkProduct(Element connection) {
+    assertEquals(TableauSDKConstants.SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
   }
 
   protected Element verifySdkOutput(String properties, String sslmode)
@@ -224,15 +242,17 @@ public class TestTableauMessageBodyGenerator {
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
 
-    NodeList connections = document.getDocumentElement().getElementsByTagName("connection");
+    NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
 
     assertEquals(1, connections.getLength());
     Element connection = (Element) connections.item(0);
-    assertEquals("dremio", connection.getAttribute("class"));
-    assertEquals(sslmode, connection.getAttribute("sslmode"));
-    assertEquals("DREMIO", connection.getAttribute("dbname"));
-    assertEquals(path.toParentPath(), connection.getAttribute("schema"));
-    assertEquals("basic", connection.getAttribute("authentication"));
+    assertEquals("dremio", connection.getAttribute(TableauSDKConstants.CLASS));
+    assertEquals("DREMIO", connection.getAttribute(TableauSDKConstants.DBNAME));
+    assertEquals(path.toParentPath(), connection.getAttribute(TableauSDKConstants.SCHEMA));
+
+    verifySdkAuthenticationOutput(connection);
+    verifySdkSSLOutput(connection, sslmode);
+    verifySdkCustomOutput(connection);
 
     verifyRelationElement(connection);
 

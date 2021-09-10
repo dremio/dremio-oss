@@ -22,6 +22,8 @@ import java.util.Objects;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.JobConf;
 
 import com.dremio.common.util.Closeable;
 import com.dremio.connector.metadata.DatasetSplit;
@@ -126,6 +128,11 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
             .build())
         .dirListInputSplit(null)
         .build();
+
+      metadataAccumulator.setTableLocation(tableMetadata.getTable().getSd().getLocation());
+      final JobConf job = new JobConf(hiveConf);
+      final Class<? extends InputFormat> inputFormatClazz = HiveMetadataUtils.getInputFormatClass(job, tableMetadata.getTable(), null);
+      metadataAccumulator.accumulateReaderType(inputFormatClazz);
       return;
     }
 

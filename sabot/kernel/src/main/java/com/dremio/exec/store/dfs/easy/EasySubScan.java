@@ -44,6 +44,7 @@ public class EasySubScan extends SubScanWithProjection {
 
   private final FileConfig fileConfig;
   private final StoragePluginId pluginId;
+  private StoragePluginId datasourcePluginId;
   private final ByteString extendedProperty;
   private final List<String> partitionColumns;
 
@@ -57,6 +58,7 @@ public class EasySubScan extends SubScanWithProjection {
     BatchSchema fullSchema,
     List<String> tablePath,
     StoragePluginId pluginId,
+    StoragePluginId datasourcePluginId,
     List<SchemaPath> columns,
     List<String> partitionColumns,
     ByteString extendedProperty) {
@@ -64,6 +66,7 @@ public class EasySubScan extends SubScanWithProjection {
     this.fileConfig = config;
     this.splits = splits;
     this.pluginId = pluginId;
+    this.datasourcePluginId = datasourcePluginId;
     this.extendedProperty = extendedProperty;
     this.partitionColumns = partitionColumns;
   }
@@ -75,11 +78,12 @@ public class EasySubScan extends SubScanWithProjection {
     @JsonProperty("fullSchema") BatchSchema fullSchema,
     @JsonProperty("tableSchemaPath") List<String> tablePath,
     @JsonProperty("pluginId") StoragePluginId pluginId,
+    @JsonProperty("datasourcePluginId") StoragePluginId datasourcePluginId,
     @JsonProperty("columns") List<SchemaPath> columns,
     @JsonProperty("partitionColumns") List<String> partitionColumns,
     @JsonProperty("extendedProperty") ByteString extendedProperty) {
 
-    this(props, config, null, fullSchema, tablePath, pluginId, columns, partitionColumns, extendedProperty);
+    this(props, config, null, fullSchema, tablePath, pluginId, datasourcePluginId, columns, partitionColumns, extendedProperty);
   }
 
   public List<SplitAndPartitionInfo> getSplits() {
@@ -96,6 +100,10 @@ public class EasySubScan extends SubScanWithProjection {
 
   public StoragePluginId getPluginId() {
     return pluginId;
+  }
+
+  public StoragePluginId getDatasourcePluginId() {
+    return datasourcePluginId;
   }
 
   public FileConfig getFileConfig() {

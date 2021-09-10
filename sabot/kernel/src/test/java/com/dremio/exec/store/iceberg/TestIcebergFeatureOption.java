@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -47,33 +48,35 @@ public class TestIcebergFeatureOption extends BaseTestQuery {
 
   @Test
   public void Insert() throws Exception {
-    final String tableName = "nation_insert_auto_refresh";
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      final String tableName = "nation_insert_auto_refresh";
 
-    try (AutoCloseable ac = enableIcebergTables()) {
-      final String ctasQuery =
-        String.format(
-          "CREATE TABLE %s.%s  "
-            + " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 2",
-          TEST_SCHEMA,
-          tableName);
+      try (AutoCloseable ac = enableIcebergTables()) {
+        final String ctasQuery =
+          String.format(
+            "CREATE TABLE %s.%s  "
+              + " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 2",
+            testSchema,
+            tableName);
 
-      test(ctasQuery);
-    }
+        test(ctasQuery);
+      }
 
-    expectedEx.expectMessage(ERROR_MESSAGE_SUBSTRING);
-    try {
-      // mac stores mtime in units of sec. so, atleast this much time should elapse to detect the
-      // change.
-      Thread.sleep(1001);
-      final String insertQuery =
-        String.format(
-          "INSERT INTO %s.%s "
-            + "SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 3",
-          TEST_SCHEMA, tableName);
+      expectedEx.expectMessage(ERROR_MESSAGE_SUBSTRING);
+      try {
+        // mac stores mtime in units of sec. so, atleast this much time should elapse to detect the
+        // change.
+        Thread.sleep(1001);
+        final String insertQuery =
+          String.format(
+            "INSERT INTO %s.%s "
+              + "SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 3",
+            testSchema, tableName);
 
-      test(insertQuery);
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        test(insertQuery);
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 

@@ -35,4 +35,5 @@ public interface DatafileProcessor extends AutoCloseable {
   int processDatafile(DataFile dataFile, int startOutIndex, int currentOutputCount) throws IOException;
 
   void closeDatafile();
+
 }

@@ -16,6 +16,7 @@
 package com.dremio.service.statistics.store;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
@@ -31,6 +32,9 @@ import com.dremio.service.statistics.proto.StatisticMessage;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.Weigher;
 
 /**
  * store for external reflections
@@ -38,8 +42,9 @@ import com.google.common.base.Suppliers;
 public class StatisticStore {
   private static final String TABLE_NAME = "statistic_store";
   private final Supplier<LegacyKVStore<StatisticId, StatisticMessage>> store;
+  private final Cache<StatisticId, Statistic> cache;
 
-  public StatisticStore(final Provider<LegacyKVStoreProvider> provider) {
+  public StatisticStore(final Provider<LegacyKVStoreProvider> provider, long max, long timeout) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
     this.store = Suppliers.memoize(new Supplier<LegacyKVStore<StatisticId, StatisticMessage>>() {
       @Override
@@ -47,20 +52,34 @@ public class StatisticStore {
         return provider.get().getStore(StoreCreator.class);
       }
     });
+    this.cache = CacheBuilder.newBuilder()
+      .maximumWeight(max)
+      .weigher((Weigher<StatisticId, Statistic>) (key, val) -> 1)
+      .softValues()
+      .expireAfterAccess(timeout, TimeUnit.MINUTES)
+      .build();
   }
 
   public void save(StatisticId id, Statistic statistic) {
     statistic.setCreatedAt(System.currentTimeMillis());
+    cache.put(id, statistic);
     store.get().delete(id);
     store.get().put(id, statistic.getStatisticMessage());
   }
 
   public Statistic get(StatisticId statisticId) {
+    Statistic stat = cache.getIfPresent(statisticId);
+    if (stat != null) {
+      return stat;
+    }
+
     StatisticMessage statisticMessage = store.get().get(statisticId);
     if (statisticMessage == null) {
       return null;
     }
-    return new Statistic(statisticMessage);
+    Statistic statistic = new Statistic(statisticMessage);
+    cache.put(statisticId, statistic);
+    return statistic;
   }
 
   public Iterable<Map.Entry<StatisticId, StatisticMessage>> getAll() {
@@ -68,6 +87,7 @@ public class StatisticStore {
   }
 
   public void delete(StatisticId statisticId) {
+    cache.invalidate(statisticId);
     store.get().delete(statisticId);
   }
 

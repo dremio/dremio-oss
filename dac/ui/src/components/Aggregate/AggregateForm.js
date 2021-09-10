@@ -17,7 +17,8 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { WHITE } from 'uiTheme/radium/colors';
+import classNames from 'classnames';
+import { base } from '@app/uiTheme/less/Aggregate/AggregateForm.less';
 import { getColumnByName, isAlreadySelected } from 'utils/explore/aggregateUtils';
 import ColumnDragItem from 'utils/ColumnDragItem';
 
@@ -47,10 +48,9 @@ class AggregateForm extends Component {
     canUseFieldAsBothDimensionAndMeasure: PropTypes.bool,
     location: PropTypes.object,
     style: PropTypes.object,
-    footerStyle: PropTypes.object,
     contentStyle: PropTypes.object,
-    headerStyle: PropTypes.object,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
+    className: PropTypes.any
   };
 
   static defaultProps = {
@@ -151,11 +151,10 @@ class AggregateForm extends Component {
   };
 
   render() {
-    const {style, headerStyle, dataset, fields, values, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure, contentStyle, columns, canAlter, footerStyle} = this.props;
+    const {style, dataset, fields, values, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure, contentStyle, columns, canAlter, className } = this.props;
     return (
-      <div className='aggregate-form' style={[styles.base, style]}>
+      <div className={classNames('aggregate-form', base, className)} style={style}>
         <AggregateHeader
-          style={headerStyle}
           dataset={dataset}
           onClearAllDimensions={this.handleClearAllDimensions}
           onClearAllMeasures={this.handleClearAllMeasures}
@@ -176,7 +175,6 @@ class AggregateForm extends Component {
           canAlter={canAlter}
         />
         <AggregateFooter
-          style={footerStyle}
           addAnother={this.addAnother}
         />
       </div>
@@ -185,13 +183,3 @@ class AggregateForm extends Component {
 }
 
 export default AggregateForm;
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    flexGrow: 1,
-    backgroundColor: WHITE,
-    overflow: 'hidden'
-  }
-};

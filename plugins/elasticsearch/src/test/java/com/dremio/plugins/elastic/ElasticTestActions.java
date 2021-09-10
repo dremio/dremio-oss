@@ -165,15 +165,13 @@ public class ElasticTestActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context) {
-      WebTarget target = initial.path(index).path("_mapping").path(type);
-      context.addContext(target);
-      return target.request().buildPut(Entity.json(mapping));
-    }
-
-    @Override
     Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
-      WebTarget target = initial.path(index).path("_mapping").path(type).queryParam("include_type_name", true);
+      final WebTarget target;
+      if(enable7vFeatures) {
+        target = initial.path(index).path("_mapping").path(type).queryParam("include_type_name", true);
+      } else {
+        target = initial.path(index).path("_mapping").path(type);
+      }
       context.addContext(target);
       return target.request().buildPut(Entity.json(mapping));
     }

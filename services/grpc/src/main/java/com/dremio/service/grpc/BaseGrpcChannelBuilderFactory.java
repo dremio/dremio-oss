@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.netty.NettyChannelBuilder;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.grpc.TracingClientInterceptor;
 
@@ -119,5 +120,10 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
       .maxInboundMetadataSize(setMaxMetaDataSizeToEightMB)
       .maxInboundMessageSize(defaultMaxInboundMessageSize)
       .maxRetryAttempts(MAX_RETRY);
+
+    if (builder instanceof NettyChannelBuilder) {
+      // disable auto flow control
+      ((NettyChannelBuilder) builder).flowControlWindow(NettyChannelBuilder.DEFAULT_FLOW_CONTROL_WINDOW);
+    }
   }
 }

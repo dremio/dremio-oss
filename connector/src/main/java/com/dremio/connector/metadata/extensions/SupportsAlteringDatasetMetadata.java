@@ -43,4 +43,25 @@ public interface SupportsAlteringDatasetMetadata {
       final Map<String, AttributeValue> attributes,
       final AlterMetadataOption... options
   ) throws ConnectorException;
+
+  /**
+   * Updates dataset metadata with a given attribute being applied to a given column.
+   * Returns new metadata object if attribute values changed else returns passed metadata reference
+   * @param datasetHandle
+   * @param metadata
+   * @param columnName
+   * @param attributeName
+   * @param attributeValue
+   * @param options
+   * @return
+   * @throws ConnectorException
+   */
+  default DatasetMetadata alterDatasetSetColumnOption(
+    final DatasetHandle datasetHandle, final DatasetMetadata metadata,
+    final String columnName,
+    final String attributeName, final AttributeValue attributeValue,
+    final AlterMetadataOption... options
+  ) throws ConnectorException {
+    throw new ConnectorException(String.format("Invalid Option [%s]", attributeName));
+  }
 }

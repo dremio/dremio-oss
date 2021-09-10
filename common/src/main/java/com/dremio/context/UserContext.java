@@ -21,6 +21,8 @@ package com.dremio.context;
 public class UserContext {
   public static final RequestContext.Key<UserContext> CTX_KEY = RequestContext.newKey("user_ctx_key");
   public static final UserContext DEFAULT_SERVICE_CONTEXT = new UserContext("77a89f85-c936-4f42-ab21-2ee90e9609b8");
+  // represents the Dremio System User ($dremio$)
+  public static final UserContext SYSTEM_USER_CONTEXT = new UserContext("678cc92c-01ed-4db3-9a28-d1f871042d9f");
 
   private final String userId;
 

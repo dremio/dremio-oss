@@ -28,7 +28,6 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -87,7 +86,7 @@ public final class DateFormats {
           return Long.parseLong(value);
         } else {
           // isEpochSeconds
-          return Long.parseLong(value) * 1000L;
+          return Long.parseLong(value) * ElasticsearchConstants.MILLIS_PER_SECOND;
         }
       }
       return LocalDateTimes.getLocalMillis(formatter.parseLocalDateTime(value));
@@ -104,20 +103,19 @@ public final class DateFormats {
           return new LocalDateTime(Long.parseLong(value), ISOChronology.getInstanceUTC());
         } else {
           // isEpochSeconds
-          return new LocalDateTime(Long.parseLong(value) * 1000L, ISOChronology.getInstanceUTC());
+          return new LocalDateTime(Long.parseLong(value) * ElasticsearchConstants.MILLIS_PER_SECOND, ISOChronology.getInstanceUTC());
         }
       }
       return formatter.parseLocalDateTime(value);
     }
 
-    //TODO-Name of method will be changed as part of ticket DX-33249:Name of method seems misleading.
-    public String print(LocalDateTime value) {
+    public String dateFormatString(LocalDateTime value) {
       //TODO-Following logic will be refactored using seperate subclasses for each flag. DX-33250:Polymorphic behaviour required for seperate behaviors.
       if (printer == null) {
         if (isEpochMillis) {
           return Long.toString(com.dremio.common.util.DateTimes.toMillis(value));
         } else {
-          return Long.toString(com.dremio.common.util.DateTimes.toMillis(value) / 1000L);
+          return Long.toString(com.dremio.common.util.DateTimes.toMillis(value) / ElasticsearchConstants.MILLIS_PER_SECOND);
         }
       }
       return printer.print(com.dremio.common.util.DateTimes.toDateTime(value));
@@ -361,7 +359,7 @@ public final class DateFormats {
           return Long.parseLong(value);
         } else {
           // isEpochSeconds
-          return Long.parseLong(value) * 1000L;
+          return Long.parseLong(value) * ElasticsearchConstants.MILLIS_PER_SECOND;
         }
       }
       try {
@@ -469,7 +467,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter basicordinalDatetimeFormatter = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("[yyyyDDD]")
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(basicordinalDatetimeFormatter, ElasticMappingSet.Type.TIMESTAMP);
 
@@ -478,7 +476,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter basicordinalDatetimeFormatterNoMillis = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("[yyyyDDD]")
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(basicordinalDatetimeFormatterNoMillis, ElasticMappingSet.Type.TIMESTAMP);
 
@@ -492,7 +490,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter basicweekDateTimeFormatter = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("[[YYYY]'W'wwe]")
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(basicweekDateTimeFormatter, ElasticMappingSet.Type.TIMESTAMP);
 
@@ -501,7 +499,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter basicweekDateTimeFormatterNoMillis = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("[[YYYY]'W'wwe]")
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(basicweekDateTimeFormatterNoMillis, ElasticMappingSet.Type.TIMESTAMP);
 
@@ -583,7 +581,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter ordinalDatetimeFormatter = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .append(java.time.format.DateTimeFormatter.ISO_ORDINAL_DATE)
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(ordinalDatetimeFormatter, ElasticMappingSet.Type.TIMESTAMP);
         case "ordinalDateTimeNoMillis":
@@ -591,7 +589,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter ordinalDatetimeFormatterNomillis = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .append(java.time.format.DateTimeFormatter.ISO_ORDINAL_DATE)
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(ordinalDatetimeFormatterNomillis, ElasticMappingSet.Type.TIMESTAMP);
         case "weekDate":
@@ -603,7 +601,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter weekFormatter = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .append(java.time.format.DateTimeFormatter.ISO_WEEK_DATE)
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(weekFormatter, ElasticMappingSet.Type.TIMESTAMP);
 
@@ -612,7 +610,7 @@ public final class DateFormats {
           final java.time.format.DateTimeFormatter weekFormatterNomillis = new java.time.format.DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .append(java.time.format.DateTimeFormatter.ISO_WEEK_DATE)
-            .appendPattern("[['T']HH[:]mm[:]ss[.][SSS][z]]")
+            .appendPattern(ElasticsearchConstants.ES_TIME_FORMAT)
             .toFormatter();
           return new FormatterAndTypeJavaTime(weekFormatterNomillis, ElasticMappingSet.Type.TIMESTAMP);
 
@@ -646,6 +644,11 @@ public final class DateFormats {
 
         default:
           try {
+            // To handle formats prefixed with 8. For ES 7 format should be considered as Javatime regardless whether prefixed with 8 or not.
+            if (format.startsWith("8")) {
+              final String modifiedPattern = format.substring(1);
+              return new FormatterAndTypeJavaTime(java.time.format.DateTimeFormatter.ofPattern(modifiedPattern), ElasticMappingSet.Type.TIMESTAMP);
+            }
             return new FormatterAndTypeJavaTime(java.time.format.DateTimeFormatter.ofPattern(format), ElasticMappingSet.Type.TIMESTAMP);
           } catch (IllegalArgumentException e) {
             throw UserException.unsupportedError().message("Found invalid custom date format, " + format).build(logger);
@@ -697,7 +700,7 @@ public final class DateFormats {
           return Long.parseLong(value);
         } else {
           // isEpochSeconds
-          return Long.parseLong(value) * 1000L;
+          return Long.parseLong(value) * ElasticsearchConstants.MILLIS_PER_SECOND;
         }
       }
       if (formatterJT != null && formatterJD == null) {
@@ -920,6 +923,9 @@ public final class DateFormats {
 
         default:
           try {
+            // To handle formats prefixed with 8.
+            // For ES 6.8 if format prefixed with 8 then it should be considered as JavaTime otherwise should be considered as JodaTime.
+            // For ES 7 format should be considered as Javatime regardless whether prefixed with 8 or not.
             if (format.startsWith("8")) {
               final String pattern = format.substring(1);
               return new FormatterAndTypeMix(java.time.format.DateTimeFormatter.ofPattern(pattern), ElasticMappingSet.Type.TIMESTAMP);
@@ -1185,6 +1191,7 @@ public final class DateFormats {
 
         default:
           try {
+            // To handle formats prefixed with 8. For ES 7 format should be considered as Javatime regardless whether prefixed with 8 or not.
             if (format.startsWith("8")) {
               final String pattern = format.substring(1);
               return new FormatterAndTypeMix(java.time.format.DateTimeFormatter.ofPattern(pattern), ElasticMappingSet.Type.TIMESTAMP);
@@ -1199,68 +1206,63 @@ public final class DateFormats {
 
   public static long parseLongMillis(String value, java.time.format.DateTimeFormatter dateTimeFormatter) {
     long parsedValue = 0L;
-    TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, OffsetDateTime::from, LocalDate::from, OffsetTime::from, LocalTime::from, Instant::from, YearMonth::from, Year::from);
+    final TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, OffsetDateTime::from, LocalDate::from, OffsetTime::from, LocalTime::from, Instant::from, YearMonth::from, Year::from);
     final String temporalAccessorClass = temporalAccessor.getClass().getSimpleName();
     switch (temporalAccessorClass) {
-      case "ZonedDateTime":
-        final java.time.ZonedDateTime zonedDateTime = java.time.ZonedDateTime.parse(value, dateTimeFormatter);
-        parsedValue = TimeUnit.SECONDS.toMillis(zonedDateTime.toEpochSecond()) + TimeUnit.MILLISECONDS.convert(zonedDateTime.getNano(), TimeUnit.NANOSECONDS);
+      case "ZonedDateTime": {
+        final ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
+        parsedValue = zonedDateTime.toEpochSecond() * ElasticsearchConstants.MILLIS_PER_SECOND + zonedDateTime.getNano() / ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG;
         break;
-      case "LocalDateTime":
+      }
+      case "LocalDateTime": {
         final java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(value, dateTimeFormatter);
-        parsedValue =  TimeUnit.SECONDS.toMillis(localDateTime.toEpochSecond(ZoneOffset.UTC)) + TimeUnit.MILLISECONDS.convert(localDateTime.getNano(), TimeUnit.NANOSECONDS);
+        parsedValue = localDateTime.toEpochSecond(ZoneOffset.UTC) * ElasticsearchConstants.MILLIS_PER_SECOND + localDateTime.getNano() / ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG;
         break;
-      case "LocalDate":
-        final java.time.LocalDate localDate = LocalDate.parse(value, dateTimeFormatter);
-        parsedValue =  TimeUnit.DAYS.toMillis(localDate.toEpochDay());
+      }
+      case "LocalDate": {
+        final LocalDate localDate = LocalDate.parse(value, dateTimeFormatter);
+        parsedValue = localDate.toEpochDay() * ElasticsearchConstants.MILLIS_PER_DAY;
         break;
-      case "LocalTime":
-        final java.time.LocalTime localTime = java.time.LocalTime.parse(value, dateTimeFormatter);
-        java.time.LocalDateTime localDateTimeLT = java.time.LocalDate.of(1970, 01, 01).atTime((localTime)).withNano(localTime.getNano());
-        parsedValue = localDateTimeLT.toEpochSecond(ZoneOffset.UTC) * 1000L + TimeUnit.MILLISECONDS.convert(localDateTimeLT.getNano(), TimeUnit.NANOSECONDS);
+      }
+      case "LocalTime": {
+        final LocalTime localTime = LocalTime.parse(value, dateTimeFormatter);
+        final java.time.LocalDateTime localDateTime = LocalDate.of(1970, 01, 01).atTime((localTime)).withNano(localTime.getNano());
+        parsedValue = localDateTime.toEpochSecond(ZoneOffset.UTC) * ElasticsearchConstants.MILLIS_PER_SECOND + localDateTime.getNano() / ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG;
         break;
-      case "OffsetTime":
-        final java.time.OffsetTime offsetTime = java.time.OffsetTime.parse(value, dateTimeFormatter);
-        java.time.OffsetDateTime offsetDateTime = java.time.OffsetDateTime.of(java.time.LocalDateTime.from(LocalDate.of(1970, 01, 01).atTime(offsetTime)), offsetTime.getOffset());
-        parsedValue = offsetDateTime.toEpochSecond();
+      }
+      case "YearMonth": {
+        final YearMonth yearMonth = YearMonth.parse(value);
+        final int year = yearMonth.getYear();
+        final int month = yearMonth.getMonthValue();
+        final LocalDate localDate = LocalDate.of(year, month, 01);
+        parsedValue = localDate.toEpochDay() * ElasticsearchConstants.MILLIS_PER_DAY;
         break;
-      case "YearMonth":
-        YearMonth ym = YearMonth.parse(value);
-        int year = ym.getYear();
-        int month = ym.getMonthValue();
-        java.time.LocalDate ld= LocalDate.of(year,month,01);
-        parsedValue =  TimeUnit.DAYS.toMillis(ld.toEpochDay());
+      }
+      case "Year": {
+        final int year = Year.parse(value).getValue();
+        final LocalDate localDate = LocalDate.of(year, 01, 01);
+        parsedValue = localDate.toEpochDay() * ElasticsearchConstants.MILLIS_PER_DAY;
         break;
-      case "Year":
-        final int y = Year.parse(value).getValue();
-        java.time.LocalDate localDateYear= LocalDate.of(y,01,01);
-        parsedValue =  TimeUnit.DAYS.toMillis(localDateYear.toEpochDay());
-        break;
+      }
     }
     return parsedValue;
   }
 
   public static java.time.LocalDateTime parseLocalDateTime(String value, java.time.format.DateTimeFormatter dateTimeFormatter) {
-    TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, LocalDate::from,OffsetTime::from, LocalTime::from);
+    final TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, LocalDate::from,OffsetTime::from, LocalTime::from);
     final String temporalAccessorClass = temporalAccessor.getClass().getSimpleName();
     switch(temporalAccessorClass){
       case "ZonedDateTime":
-        final java.time.ZonedDateTime zonedDateTime = java.time.ZonedDateTime.parse(value, dateTimeFormatter);
+        final ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
         return zonedDateTime.toLocalDateTime().withNano(zonedDateTime.getNano());
       case "LocalDateTime":
-        final java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(value, dateTimeFormatter);
-        return localDateTime;
+        return java.time.LocalDateTime.parse(value, dateTimeFormatter);
       case "LocalDate":
-        final java.time.LocalDate localDate = LocalDate.parse(value, dateTimeFormatter);
+        final LocalDate localDate = LocalDate.parse(value, dateTimeFormatter);
         return localDate.atTime(0,0,0,1).minusNanos(1);
       case "LocalTime":
-        final java.time.LocalTime localTime = java.time.LocalTime.parse(value, dateTimeFormatter);
-        java.time.LocalDateTime localDateTime2 = java.time.LocalDate.of(1970,01,01).atTime((localTime));
-        return localDateTime2;
-      case "OffsetTime":
-        final java.time.OffsetTime offsetTime = java.time.OffsetTime.parse(value, dateTimeFormatter);
-        java.time.LocalDateTime offsetDateTime2 = java.time.LocalDateTime.from(LocalDate.of(1970,01,01).atTime(offsetTime));
-        return offsetDateTime2;
+        final LocalTime localTime = LocalTime.parse(value, dateTimeFormatter);
+        return LocalDate.of(1970, 01, 01).atTime((localTime));
     }
     return java.time.LocalDateTime.parse(value, dateTimeFormatter);
   }

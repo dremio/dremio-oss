@@ -52,7 +52,7 @@ export default class ColumnMenuItem extends PureComponent {
 
   renderDraggableIcon(item) {
     return !item.get('disabled') ? <FontIcon theme={theme.Draggable}
-      type='Draggable' class='draggable-icon'/> : null;
+      type='Draggable' class='column-draggable-icon'/> : null;
   }
 
   render() {

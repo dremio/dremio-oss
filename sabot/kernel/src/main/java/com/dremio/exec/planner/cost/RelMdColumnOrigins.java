@@ -41,7 +41,6 @@ import org.apache.calcite.util.BuiltInMethod;
 
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.JdbcRelBase;
-import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.physical.CustomPrel;
@@ -117,42 +116,6 @@ public class RelMdColumnOrigins implements MetadataHandler<BuiltInMetadata.Colum
 
   public Set<RelColumnOrigin> getColumnOrigins(SelectionVectorRemoverPrel selectionVectorRemoverPrel, RelMetadataQuery mq, int iOutputColumn) {
     return mq.getColumnOrigins(selectionVectorRemoverPrel.getInput(), iOutputColumn);
-  }
-
-  public Set<RelColumnOrigin> getColumnOrigins(JoinRelBase join, RelMetadataQuery mq, int iOutputColumn) {
-    int idx;
-    if (join.getProjectedFields() != null) {
-      idx = join.getProjectedFields().asList().get(iOutputColumn);
-    } else {
-      idx = iOutputColumn;
-    }
-    return getOriginsForJoin(join, mq, idx);
-  }
-
-  /**
-   * copied from calcite's {@link org.apache.calcite.rel.metadata.RelMdColumnOrigins}
-   */
-  private Set<RelColumnOrigin> getOriginsForJoin(JoinRelBase join, RelMetadataQuery mq, int iOutputColumn) {
-    int nLeftColumns = join.getLeft().getRowType().getFieldList().size();
-    Set<RelColumnOrigin> set;
-    boolean derived = false;
-    if (iOutputColumn < nLeftColumns) {
-      set = mq.getColumnOrigins(join.getLeft(), iOutputColumn);
-      if (join.getJoinType().generatesNullsOnLeft()) {
-        derived = true;
-      }
-    } else {
-      set = mq.getColumnOrigins(join.getRight(), iOutputColumn - nLeftColumns);
-      if (join.getJoinType().generatesNullsOnRight()) {
-        derived = true;
-      }
-    }
-    if (derived) {
-      // nulls are generated due to outer join; that counts
-      // as derivation
-      set = createDerivedColumnOrigins(set);
-    }
-    return set;
   }
 
   @SuppressWarnings("unused") // Called through reflection

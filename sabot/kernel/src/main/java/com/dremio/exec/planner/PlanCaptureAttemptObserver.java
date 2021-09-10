@@ -18,6 +18,7 @@ package com.dremio.exec.planner;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +94,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   private int numPlanCacheUses = 0;
 
-  private SubstitutionInfo latestSubstitutionInfo;
+  private final CachedAccelDetails accelDetails = new CachedAccelDetails();
 
   public PlanCaptureAttemptObserver(final boolean verbose, final boolean includeDatasetProfiles,
                                     final FunctionImplementationRegistry funcRegistry,
@@ -126,8 +127,25 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
-  public void setCachedSubstitutionInfo(CachedPlan cachedPlan) {
-    cachedPlan.setSubstitutionInfo(latestSubstitutionInfo);
+  public void setCachedAccelDetails(CachedPlan cachedPlan) {
+    cachedPlan.setAccelDetails(accelDetails);
+  }
+
+  @Override
+  public void applyAccelDetails(final CachedAccelDetails accelDetails) {
+    accelerated = true;
+    List<RelNode> dummy = new ArrayList<>();
+    dummy.add(null);
+    for (Map.Entry<DremioMaterialization, RelNode> entry : accelDetails.getMaterializationStore().entrySet()) {
+      DremioMaterialization materialization = entry.getKey();
+      String key = materialization.getReflectionId();
+      LayoutMaterializedViewProfile profile = accelDetails.getLmvProfile(key);
+      mapIdToAccelerationProfile.put(key, profile);
+      detailsPopulator.planSubstituted(
+        materialization, dummy,
+        entry.getValue(), 0, profile.getDefaultReflection());
+    }
+    detailsPopulator.planAccelerated(accelDetails.getSubstitutionInfo());
   }
 
   public Iterable<UserBitShared.DatasetProfile> getDatasets() {
@@ -160,16 +178,18 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void planAccelerated(final SubstitutionInfo info) {
     accelerated = true;
+    accelDetails.setSubstitutionInfo(info);
     for (Substitution sub : info.getSubstitutions()) {
       final MaterializationDescriptor descriptor = sub.getMaterialization();
       final String key = descriptor.getLayoutId();
 
       final LayoutMaterializedViewProfile lmvProfile = mapIdToAccelerationProfile.get(key);
       if (lmvProfile != null) {
-        mapIdToAccelerationProfile.put(key, LayoutMaterializedViewProfile.newBuilder(lmvProfile).setNumUsed(lmvProfile.getNumUsed() + 1).build());
+        LayoutMaterializedViewProfile profile = LayoutMaterializedViewProfile.newBuilder(lmvProfile).setNumUsed(lmvProfile.getNumUsed() + 1).build();
+        accelDetails.addLmvProfile(key, profile);
+        mapIdToAccelerationProfile.put(key, profile);
       }
     }
-    latestSubstitutionInfo = info;
     detailsPopulator.planAccelerated(info);
   }
 
@@ -244,7 +264,10 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
           }
         }));
     }
-    mapIdToAccelerationProfile.put(key, layoutBuilder.build());
+    LayoutMaterializedViewProfile profile = layoutBuilder.build();
+    mapIdToAccelerationProfile.put(key, profile);
+    accelDetails.addLmvProfile(key, profile);
+    accelDetails.addMaterialization(materialization, target);
     substitutionMillis += millisTaken;
     numSubstitutions += substitutions.size();
 

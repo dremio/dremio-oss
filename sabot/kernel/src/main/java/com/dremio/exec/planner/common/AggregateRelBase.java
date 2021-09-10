@@ -18,6 +18,8 @@ package com.dremio.exec.planner.common;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollationTraitDef;
@@ -65,5 +67,14 @@ public abstract class AggregateRelBase extends Aggregate {
       rowCount *= 1.0 - Math.pow(.9, groupCount);
       return rowCount;
     }
+  }
+
+  @Override
+  public RelOptCost computeSelfCost(RelOptPlanner planner,
+                                    RelMetadataQuery mq) {
+    if (getGroupSets().size() > 1) {
+      return planner.getCostFactory().makeInfiniteCost();
+    }
+    return super.computeSelfCost(planner, mq);
   }
 }

@@ -277,23 +277,17 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
 
     @Override
     public List<ColumnOriginScan> visitJoin(JoinPrel join, Integer outputIndex) {
-      int idx;
-      if (join.getProjectedFields() == null) {
-        idx = outputIndex;
-      } else {
-        idx = join.getProjectedFields().asList().get(outputIndex);
-      }
-      if (idx < join.getLeft().getRowType().getFieldCount()) {
+      if (outputIndex < join.getLeft().getRowType().getFieldCount()) {
         if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT) {
           if (!(join.getLeft() instanceof Prel)) {
             return ImmutableList.of();
           }
           Prel left = (Prel) join.getLeft();
-          return left.accept(this, idx);
+          return left.accept(this, outputIndex);
         }
       } else {
         if (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.RIGHT) {
-          int newIdx = idx - join.getLeft().getRowType().getFieldCount();
+          int newIdx = outputIndex - join.getLeft().getRowType().getFieldCount();
           if (!(join.getRight() instanceof Prel)) {
             return ImmutableList.of();
           }

@@ -79,6 +79,8 @@ export function getIconByEntityType(type) {
     return 'File';
   case 'FOLDER':
     return 'Folder';
+  case 'OTHERS':
+    return 'OtherDataSets';
   default:
     return 'FileEmpty';
   }

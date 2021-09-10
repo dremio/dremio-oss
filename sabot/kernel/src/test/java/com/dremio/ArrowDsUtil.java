@@ -84,6 +84,14 @@ public class ArrowDsUtil {
     return structrow;
   }
 
+  public static JsonStringHashMap<String, Object> textStruct(String fieldName, String... texts) {
+    JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
+    for (String text : texts) {
+      structrow.put(fieldName, text);
+    }
+    return structrow;
+  }
+
   public static JsonStringArrayList<JsonStringArrayList<Long>> wrapListInList(JsonStringArrayList<Long> underlying) {
     JsonStringArrayList<JsonStringArrayList<Long>> list = new JsonStringArrayList<>();
     list.add(underlying);
@@ -102,9 +110,9 @@ public class ArrowDsUtil {
     return structrow;
   }
 
-  public static JsonStringArrayList<JsonStringHashMap<String, Object>> wrapStructInList(JsonStringHashMap<String, Object> struct) {
+  public static JsonStringArrayList<JsonStringHashMap<String, Object>> wrapStructInList(JsonStringHashMap<String, Object>... structs) {
     JsonStringArrayList<JsonStringHashMap<String, Object>> list = new JsonStringArrayList<>();
-    list.add(struct);
+    list.addAll(Arrays.asList(structs));
     return list;
   }
 

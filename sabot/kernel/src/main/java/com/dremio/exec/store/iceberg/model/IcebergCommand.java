@@ -16,10 +16,12 @@
 package com.dremio.exec.store.iceberg.model;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
@@ -34,13 +36,14 @@ public interface IcebergCommand {
      * @param tableName name of the table
      * @param writerSchema schema of the table
      * @param partitionColumns partition specification of the table
+     * @param tableParameters icebeg table parameters
      */
-    void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns);
+    void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters);
 
     /**
      * End of Create command
      */
-    void endCreateTableTransaction();
+    Snapshot endCreateTableTransaction();
 
     /**
      * Start of Insert command
@@ -50,7 +53,7 @@ public interface IcebergCommand {
     /**
      * End of Insert command
      */
-    void endInsertTableTransaction();
+    Snapshot endInsertTableTransaction();
 
     /**
      * Start of MetadataRefresh
@@ -60,7 +63,7 @@ public interface IcebergCommand {
     /**
      * End of MetadataRefresh
      */
-    void endMetadataRefreshTransaction();
+    Snapshot endMetadataRefreshTransaction();
 
     /**
      * Commit the delete operation
@@ -94,6 +97,27 @@ public interface IcebergCommand {
      * @param filesList list of DataFile entries
      */
     void consumeDeleteDataFiles(List<DataFile> filesList);
+
+    /**
+     * consumes list of columns to be dropped
+     * as part of metadata refresh transaction.
+     * Used only in new metadata refresh flow
+     */
+    void consumeDroppedColumns(List<Types.NestedField> columns);
+
+    /**
+     * consumes list of columns to be updated
+     * as part of metadata refresh transaction.
+     * Used only in new metadata refresh flow
+     */
+    void consumeUpdatedColumns(List<Types.NestedField> columns);
+
+    /**
+     * consumes list of columns to be added to the schema
+     * as part of metadata refresh transaction. Used
+     * only in new metadata refresh flow
+     */
+    void consumeAddedColumns(List<Types.NestedField> columns);
 
     /**
      * truncates the table
@@ -131,4 +155,13 @@ public interface IcebergCommand {
      * @return Iceberg table instance
      */
     Table loadTable();
+
+    /**
+     *
+     * @return return Iceberg table metadata file location
+     */
+    String getRootPointer();
+
+
+    void deleteTable();
 }

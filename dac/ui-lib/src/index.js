@@ -32,6 +32,8 @@ export { default as FormikSelect } from './components/FormikSelect';
 
 export { default as FormValidationMessage } from './components/FormValidationMessage';
 
+export { default as Input } from './components/Input';
+
 export { default as IconInput } from './components/IconInput';
 
 export { default as Label } from './components/Label';
@@ -59,6 +61,7 @@ export { default as FlexTable } from './components/FlexTable';
 export { default as HoverHelp } from './components/HoverHelp';
 
 export { default as SimpleMessage } from './components/SimpleMessage';
+export { default as SearchableMultiSelect } from './components/SearchableMultiSelect';
 
 // Utils
 

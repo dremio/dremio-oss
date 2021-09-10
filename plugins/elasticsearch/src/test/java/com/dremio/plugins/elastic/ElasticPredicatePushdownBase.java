@@ -53,7 +53,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   private static QueryContext context;
 
-  public String disableCoordOrBlank;
+  protected String disableCoordOrBlank;
   private ElasticVersionBehaviorProvider elasticVersionBehaviorProvider;
   protected static final String NOT_PUSHABLE_TO_QUERY_ONLY_SCRIPTS = "float_field = integer_field";
 
@@ -67,7 +67,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
   public void before() throws Exception {
     super.before();
     elastic.populate(schema, table, 1);
-    disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
+    disableCoordOrBlank = getDisableCoord();
     elasticVersionBehaviorProvider =  new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
   }
 

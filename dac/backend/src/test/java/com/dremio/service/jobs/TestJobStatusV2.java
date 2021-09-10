@@ -313,6 +313,13 @@ public class TestJobStatusV2 extends BaseTestServer {
       Thread.sleep(10);
     }
     JobId jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+    // TODO(DX-26192): Job was not found
+    // wait till job available to avoid JobNotFoundException
+    while (getJob(jobId) == null) {
+      Thread.sleep(10);
+    }
+
     StateProgressListener stateListener = new StateProgressListener();
     registerJobStatusListener(jobId, stateListener);
 
@@ -382,6 +389,13 @@ public class TestJobStatusV2 extends BaseTestServer {
       Thread.sleep(10);
     }
     JobId jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+    // TODO(DX-26192): Job was not found
+    // wait till job available to avoid JobNotFoundException
+    while (getJob(jobId) == null) {
+      Thread.sleep(10);
+    }
+
     StateProgressListener stateListener = new StateProgressListener();
     registerJobStatusListener(jobId, stateListener);
 
@@ -425,6 +439,13 @@ public class TestJobStatusV2 extends BaseTestServer {
         Thread.sleep(10);
       }
       JobId jobId = new JobId(new UUID(queryId.getPart1(), queryId.getPart2()).toString());
+
+      // TODO(DX-26192): Job was not found
+      // wait till job available to avoid JobNotFoundException
+      while (getJob(jobId) == null) {
+        Thread.sleep(10);
+      }
+
       StateProgressListener stateListener = new StateProgressListener();
       registerJobStatusListener(jobId, new StateProgressListener());
 

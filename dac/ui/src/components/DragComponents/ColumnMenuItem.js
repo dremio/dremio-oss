@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import classNames  from 'classnames';
+import { injectIntl } from 'react-intl';
 
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
@@ -26,11 +27,11 @@ import { typeToIconType } from '@app/constants/DataTypes';
 import { constructFullPath } from 'utils/pathUtils';
 
 import Art from '@app/components/Art';
+import { base, content, disabled as disabledCls, icon as iconCls } from '@app/uiTheme/less/DragComponents/ColumnMenuItem.less';
 import DragSource from './DragSource';
-import { base, content, disabled as disabledCls, icon as iconCls } from './ColumnMenuItem.less';
 
 @Radium
-export default class ColumnMenuItem extends PureComponent {
+class ColumnMenuItem extends PureComponent {
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     disabled: PropTypes.bool,
@@ -44,7 +45,8 @@ export default class ColumnMenuItem extends PureComponent {
     preventDrag: PropTypes.bool,
     name: PropTypes.string,
     fieldType: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    intl: PropTypes.any
   }
   static defaultProps = {
     fullPath: Immutable.List()
@@ -58,12 +60,17 @@ export default class ColumnMenuItem extends PureComponent {
   }
 
   renderDraggableIcon() {
-    return !this.props.preventDrag && !this.props.disabled ? <FontIcon theme={theme.Draggable}
-      type='Draggable' class='draggable-icon'/> : null;
+    return !this.props.preventDrag && !this.props.disabled ?
+      (
+        <div style={{position: 'relative', width: 0, height: 0}}>
+          <FontIcon type='DropdownEnabled' class='column-draggable-icon'/>
+          <FontIcon type='DropdownDisabled' class='column-draggable-icon--static'/>
+        </div>
+      ) : null;
   }
 
   render() {
-    const { item, disabled, preventDrag, fieldType, className } = this.props;
+    const { item, disabled, preventDrag, fieldType, className, intl: { formatMessage } } = this.props;
     const font = disabled
       ? unavailable
       : {};
@@ -94,7 +101,7 @@ export default class ColumnMenuItem extends PureComponent {
           >
             <FontIcon type={typeToIconType[item.get('type')]} theme={styles.type}/>
             <EllipsedText style={!preventDrag ? {paddingRight: 10} : {} /* leave space for knurling */}
-              text={item.get('name')}>
+              text={item.get('name')} title={preventDrag ? formatMessage({ id: 'Read.Only'}) : item.get('name')}>
               <span data-qa={item.get('name')} style={[styles.name, font]}>{item.get('name')}</span>
             </EllipsedText>
             {/*
@@ -152,10 +159,4 @@ const styles = {
   }
 };
 
-const theme = {
-  Draggable: {
-    Icon: {
-      width: 10
-    }
-  }
-};
+export default injectIntl(ColumnMenuItem);

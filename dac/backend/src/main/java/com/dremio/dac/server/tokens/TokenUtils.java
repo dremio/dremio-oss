@@ -21,6 +21,8 @@ import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.HttpHeaders;
 
+import com.dremio.common.collections.Tuple;
+
 /**
  * Utility methods for tokens.
  */
@@ -50,13 +52,29 @@ public final class TokenUtils {
    * @param context request-specific information
    * @return token string. Return null if authorization header is not present.
    */
-  public static String getAuthHeaderToken(ContainerRequestContext context) {
+  public static Tuple<TokenType, String> getAuthHeaderToken(ContainerRequestContext context) {
     final String authHeader = context.getHeaderString(HttpHeaders.AUTHORIZATION.toLowerCase());
     if (authHeader == null) {
       return null;
     }
 
-    return authHeader.startsWith(AUTH_HEADER_PREFIX)? authHeader.substring(AUTH_HEADER_PREFIX.length()).trim() : authHeader.trim();
+    final String[] splitToken = authHeader.split("\\s+");
+    if (splitToken.length == 2 && splitToken[0].equalsIgnoreCase(BEARER_TOKEN_PREFIX)) {
+      return Tuple.of(TokenType.BEARER, splitToken[1]);
+    }
+
+    return Tuple.of(TokenType.CUSTOM,
+      authHeader.startsWith(AUTH_HEADER_PREFIX) ?
+        authHeader.substring(AUTH_HEADER_PREFIX.length()).trim() :
+        authHeader.trim());
+  }
+
+  /**
+   * Token type.
+   */
+  public enum TokenType {
+    CUSTOM,
+    BEARER
   }
 
   /**

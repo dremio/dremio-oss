@@ -15,6 +15,7 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.service.job.proto.QueryType.METADATA_REFRESH;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -41,6 +42,9 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.options.OptionManager;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.job.JobEvent;
+import com.dremio.service.job.JobState;
+import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
@@ -100,18 +104,34 @@ public class TestLocalJobsService {
   }
 
   @Test
-  public void runQueryAsJobSuccess() {
+  public void runQueryAsJobSuccess() throws Exception {
     final LocalJobsService spy = spy(localJobsService);
+    JobSummary jobSummary = JobSummary.newBuilder().setJobState(JobState.COMPLETED).build();
+    JobEvent jobEvent = JobEvent.newBuilder().setFinalJobSummary(jobSummary).build();
     doAnswer((Answer<JobId>) invocationOnMock -> {
-      invocationOnMock.getArgumentAt(1, StreamObserver.class).onCompleted();
+      invocationOnMock.getArgumentAt(1, StreamObserver.class).onNext(jobEvent);
       return new JobId("foo");
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
-    spy.runQueryAsJob("my query", "my_username");
+    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name());
   }
 
   @Test
-  public void runQueryAsJobFailure() {
+  public void runQueryAsJobCanceled() throws Exception {
+    final LocalJobsService spy = spy(localJobsService);
+    JobSummary jobSummary = JobSummary.newBuilder().setJobState(JobState.CANCELED).build();
+    JobEvent jobEvent = JobEvent.newBuilder().setFinalJobSummary(jobSummary).build();
+    doAnswer((Answer<JobId>) invocationOnMock -> {
+      invocationOnMock.getArgumentAt(1, StreamObserver.class).onNext(jobEvent);
+      return new JobId("foo");
+    }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
+
+    thrown.expect(IllegalStateException.class);
+    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name());
+  }
+
+  @Test
+  public void runQueryAsJobFailure() throws Exception {
     final LocalJobsService spy = spy(localJobsService);
     doAnswer((Answer<JobId>) invocationOnMock -> {
       invocationOnMock.getArgumentAt(1, StreamObserver.class).onError(new NumberFormatException());
@@ -120,6 +140,6 @@ public class TestLocalJobsService {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectCause(isA(NumberFormatException.class));
-    spy.runQueryAsJob("my query", "my_username");
+    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name());
   }
 }

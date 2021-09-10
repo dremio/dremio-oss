@@ -157,6 +157,11 @@ message JobInfo {
   optional bytes batchSchema = 33;
   optional int64 commandPoolWaitMillis = 34;
   repeated string sourceNames = 35;
+  repeated DataSet queriedDatasets = 36;
+  repeated Reflection reflectionsMatched = 37;
+  repeated ExecutionNode nodeDetails = 38;
+  repeated DurationDetails durationDetails = 39;
+  repeated ScannedDataset scannedDataset = 40;
 }
 
 message ResourceSchedulingInfo {
@@ -169,6 +174,7 @@ message ResourceSchedulingInfo {
   optional int64 resource_scheduling_end = 7;      // time, in ms, when resource scheduling completed
   optional double query_cost = 8; // query plan cost used by WLM query_cost() rules function
   optional string engine_name = 9; // engine used to run query in DCS
+  optional string subEngine = 10;
 }
 
 message JoinTable {
@@ -242,6 +248,7 @@ enum QueryType {
   ACCELERATOR_EXPLAIN = 13; // dependency graph construction
   UI_INITIAL_PREVIEW = 14;
   FLIGHT = 15; // for queries submitted outside of dac using a FlightClient
+  METADATA_REFRESH = 16; // Queries related to metadata refresh
 }
 
 message JobStats {
@@ -359,4 +366,78 @@ message Acceleration {
 
   required double acceleratedCost = 1;
   repeated Substitution substitutions = 2;
+}
+
+message DataSet {
+  optional string datasetID = 1;
+  required string datasetType = 2;
+  optional string datasetName = 3;
+  optional string datasetPath = 4;
+  optional int32 datasetSizeRows = 5;
+  repeated Reflection reflectionsDefined = 6;
+}
+
+message ScannedDataset {
+  optional string datasetID = 1;
+  optional string datasetType = 2;
+  optional int64 nrScannedRows = 3;
+  optional bool partitionPruningApplied = 4;
+  repeated string partitionColumns = 5;
+  optional bool runtimeFilterApplied = 6;
+  repeated string runtimeFilterColumns = 7;
+  optional string pushdownFilter = 8;
+  optional int32 nrScanThreads = 9;
+  optional int32 totalScanDurationMs = 10;
+  optional int64 ioWaitDurationMs = 11;
+  optional string name = 12;
+  optional string description = 13;
+}
+
+enum ReflectionType {
+  RAW = 1;
+  AGGREGATE = 2;
+  EXTERNAL = 3;
+}
+
+enum ReflectionMatchingType {
+  EXPANSION = 1;
+  ALGEBRAIC = 2;
+}
+
+message Reflection {
+  optional string reflectionID = 1;
+  optional string reflectionName = 2;
+  optional ReflectionType reflectionType = 3;
+  optional string reflectionStatus = 4;
+  optional string reflectionCreated = 5;
+  optional string reflectionLastRefreshed = 6;
+  optional int64 reflectionSizeRows = 7;
+  optional bool isUsed = 8;
+  optional bool isStarFlake = 9;
+  optional ReflectionMatchingType reflectionMatchingType = 10;
+  optional string datasetName = 11;
+  optional string reflectionDatasetPath = 12;
+}
+
+message ExecutionNode {
+  optional string hostName = 1;
+  optional string hostIp = 2;
+  optional int32 fabricPort = 3;
+  optional int32 maxMemoryUsedKb = 4;
+}
+
+message DurationDetails {
+  required int32 phaseID = 1;
+  optional string phaseName = 2;
+  optional string phaseStartTime = 3;
+  optional string phaseDuration = 4;
+}
+
+message DatasetGraph {
+  optional string id = 1;
+  optional string position = 2;
+  repeated string parentNodeId = 3;
+  optional DataSet dataSet = 4;
+  optional string sql = 5;
+  optional string description = 6;
 }

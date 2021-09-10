@@ -33,28 +33,6 @@ SqlNode SqlCreateRole() :
 }
 
 /**
-* GRANT ROLE roleToGrant TO granteeType grantee
-*/
-SqlNode SqlGrantRole() :
-{
-  SqlParserPos pos;
-  SqlIdentifier roleToGrant;
-  SqlLiteral granteeType;
-  SqlIdentifier grantee;
-}
-{
-  <GRANT> { pos = getPos(); }
-  <ROLE>
-  roleToGrant = SimpleIdentifier()
-  <TO>
-  granteeType = ParseGranteeType()
-  grantee = SimpleIdentifier()
-  {
-    return new SqlGrantRole(pos, roleToGrant, granteeType, grantee);
-  }
-}
-
-/**
 * REVOKE ROLE roleToRevoke FROM revokeeType revokee
 */
 SqlNode SqlRevokeRole() :

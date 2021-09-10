@@ -48,6 +48,7 @@ public class TestMockedCatalogServiceImpl {
       () -> mock(SabotContext.class),
       () -> mock(SchedulerService.class),
       () -> () -> mock(ConnectionConf.class),
+      () -> () -> mock(ConnectionConf.class),
       () -> mock(FabricService.class),
       () -> mock(ConnectionReader.class),
       () -> mock(BufferAllocator.class),

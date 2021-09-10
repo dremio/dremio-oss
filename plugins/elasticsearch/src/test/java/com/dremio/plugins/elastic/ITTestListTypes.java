@@ -18,12 +18,16 @@ package com.dremio.plugins.elastic;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import org.junit.Test;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.dremio.plugins.elastic.ElasticsearchCluster.SearchResults;
 
@@ -33,6 +37,9 @@ import com.dremio.plugins.elastic.ElasticsearchCluster.SearchResults;
 public class ITTestListTypes extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestElasticsearchDataVariation.class);
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testStringListCoercion() throws Exception {
@@ -44,8 +51,7 @@ public class ITTestListTypes extends ElasticBaseTestQuery {
             })
     };
 
-    elastic.load(schema, table, data);
-
+    loadWithRetry(schema, table, data);
     SearchResults contents = elastic.search(schema, table);
 
 

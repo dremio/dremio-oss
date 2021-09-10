@@ -100,7 +100,7 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
     return Collections.singletonList(SimpleCommandResult.successful(resultMessage, path));
   }
 
-  private static AttributeValue createAttributeValue(final SqlLiteral literal) {
+  static AttributeValue createAttributeValue(final SqlLiteral literal) {
     final Object object = literal.getValue();
     final SqlTypeName typeName = literal.getTypeName();
     switch (typeName) {
@@ -130,7 +130,7 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
     }
   }
 
-  private static AttributeValue createIdentifierAttributeValue(SqlIdentifier identifier) {
+  static AttributeValue createIdentifierAttributeValue(SqlIdentifier identifier) {
     return AttributeValue.of(identifier.names);
   }
 

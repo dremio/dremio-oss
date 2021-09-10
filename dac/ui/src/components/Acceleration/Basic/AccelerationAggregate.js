@@ -23,7 +23,11 @@ import { Toggle } from 'components/Fields';
 import AggregateForm from 'components/Aggregate/AggregateForm';
 import Spinner from 'components/Spinner';
 import Button from 'components/Buttons/Button';
-import { commonStyles } from '../commonStyles';
+
+import '@app/uiTheme/less/commonModifiers.less';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import { commonThemes } from '../commonThemes';
+
 import LayoutInfo from '../LayoutInfo';
 
 @Radium
@@ -44,7 +48,8 @@ export default class AccelerationAggregate extends PureComponent {
     errorMessage: PropTypes.node,
     loadingRecommendations: PropTypes.bool,
     skipRecommendations: PropTypes.func,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
+    className: PropTypes.any
   };
 
   static defaultProps = {
@@ -66,7 +71,7 @@ export default class AccelerationAggregate extends PureComponent {
     const columns = this.mapSchemaToColumns();
 
     if (loadingRecommendations) {
-      return <div style={overlay} className='view-state-wrapper-overlay'>
+      return <div style={overlay} className='AccelerationAggregate__form view-state-wrapper-overlay'>
         <div>
           <Spinner message={<span style={{display: 'flex', alignItems: 'center'}}>
             {la('Determining Automatic Aggregation Reflections…')}
@@ -78,7 +83,7 @@ export default class AccelerationAggregate extends PureComponent {
       return <AggregateForm
         canAlter={canAlter}
         dataset={Immutable.fromJS({displayFullPath: dataset.get('path')})} // fake just enough of the legacy DS model
-        style={styles.aggregateForm}
+        className={'AccelerationAggregate__AggregateForm'}
         fields={fields}
         columns={columns}
         location={location}
@@ -89,28 +94,29 @@ export default class AccelerationAggregate extends PureComponent {
   }
 
   render() {
-    const { fields, style, reflection, errorMessage } = this.props;
+    const { fields, className, reflection, errorMessage } = this.props;
     const { enabled } = fields.aggregationReflections[0];
 
     const toggleLabel = (
-      <h3 style={commonStyles.toggleLabel}>
-        <FontIcon type='Aggregate' theme={commonStyles.iconTheme}/>
+      <h3 className={'AccelerationAggregate__toggleLabel'}>
+        <FontIcon type='Aggregate' theme={commonThemes.rawIconTheme}/>
         {la('Aggregation Reflections')}
       </h3>
     );
     return (
-      <div style={[style, styles.wrap]} data-qa='aggregation-basic'>
-        <div style={{
-          ...commonStyles.header,
-          ...(this.props.shouldHighlight ? commonStyles.highlight : {}),
-          borderWidth: 0
-        }} data-qa='aggregation-queries-toggle'>
-          <Toggle {...enabled} label={toggleLabel} style={commonStyles.toggle}/>
+      <div className={`AccelerationAggregate ${className}`} data-qa='aggregation-basic'>
+        <div
+          // DX-34369: do we need this.props.shouldHighlight ternary?
+          className={
+            `AccelerationAggregate__header
+            ${this.props.shouldHighlight ? '--bgColor-highlight' : ''}`}
+          data-qa='aggregation-queries-toggle'>
+          <Toggle {...enabled} label={toggleLabel} className={'AccelerationAggregate__toggle'} />
           <LayoutInfo
             layout={reflection}
-            style={{float: 'right'}} />
+            className={'AccelerationAggregate__layout'} />
         </div>
-        <div style={{position: 'relative'}}>
+        <div className={'position-relative'}>
           {errorMessage}
         </div>
         {this.renderForm()}
@@ -118,18 +124,3 @@ export default class AccelerationAggregate extends PureComponent {
     );
   }
 }
-
-const styles = {
-  wrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1,
-    overflow: 'hidden',
-    position: 'relative'
-  },
-  aggregateForm: {
-    flexFlow: 'column nowrap',
-    flexGrow: 1,
-    padding: '10px 10px 0'
-  }
-};

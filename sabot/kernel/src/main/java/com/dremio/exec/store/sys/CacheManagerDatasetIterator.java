@@ -23,7 +23,6 @@ import org.rocksdb.RocksIterator;
 
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.CacheManagerDatasetInfo;
-import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Iterator which returns cache manager dataset information
@@ -35,7 +34,7 @@ public class CacheManagerDatasetIterator implements Iterator<Object> {
   private CacheManagerStatsProvider cacheManagerStatsProvider;
   private RocksIterator dsIterator;
 
-  CacheManagerDatasetIterator(SabotContext sabotContext, OperatorContext operatorContext) {
+  CacheManagerDatasetIterator(SabotContext sabotContext) {
     isCachedFileSystem = (sabotContext.getFileSystemWrapper() instanceof CacheManagerStatsProvider);
 
     if (isCachedFileSystem) {
@@ -56,6 +55,7 @@ public class CacheManagerDatasetIterator implements Iterator<Object> {
     if (curPos == datasetInfoList.size()) {
       datasetInfoList = cacheManagerStatsProvider.getDatasetStats(dsIterator);
       if (datasetInfoList.isEmpty()) {
+        dsIterator.close();
         return false;
       }
       curPos = 0;

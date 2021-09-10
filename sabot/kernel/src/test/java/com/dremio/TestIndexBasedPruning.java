@@ -54,9 +54,11 @@ import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.AbstractSplitsPointer;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -309,7 +311,7 @@ public class TestIndexBasedPruning extends DremioTest {
     MockitoAnnotations.initMocks(this);
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(
         new OptionResolverSpec()
-          .addOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION, true));
+          .addOption(ExecConstants.ENABLE_ICEBERG, true));
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);

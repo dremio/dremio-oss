@@ -15,6 +15,9 @@
  */
 package com.dremio.sabot.op.tablefunction;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
@@ -34,6 +37,7 @@ import com.google.common.base.Preconditions;
  * Table function operator
  */
 public class TableFunctionOperator implements SingleInputOperator {
+  private static final Logger logger = LoggerFactory.getLogger(TableFunctionOperator.class);
 
   public enum Metric implements MetricDef {
     NUM_DATA_FILE,
@@ -56,17 +60,13 @@ public class TableFunctionOperator implements SingleInputOperator {
   private TableFunction tableFunction;
   private int currentrow = -1;
   private int records;
+  static long BATCH_LIMIT_BYTES = 1_048_576;
 
-  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator,
-                               TableFunctionFactory tableFunctionFactory) {
+  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator) {
     this.context = context;
     this.functionOperator = operator;
     this.fec = fec;
-    this.tableFunctionFactory = tableFunctionFactory;
-  }
-
-  public TableFunctionOperator(FragmentExecutionContext fec, OperatorContext context, AbstractTableFunctionPOP operator) {
-    this(fec, context, operator, new InternalTableFunctionFactory());
+    this.tableFunctionFactory = new InternalTableFunctionFactory();
   }
 
   @Override
@@ -79,6 +79,7 @@ public class TableFunctionOperator implements SingleInputOperator {
     state.is(State.CAN_PRODUCE);
     int outputRecords = 0;
     int totalOutputRecords = 0;
+    int allowedTargetBatchSize;
 
     if (records == 0) {
       currentrow = -1;
@@ -92,8 +93,10 @@ public class TableFunctionOperator implements SingleInputOperator {
       tableFunction.startRow(currentrow);
     }
 
-    while (totalOutputRecords < this.context.getTargetBatchSize() && currentrow < records) {
-      int maxOutputRecordCount = this.context.getTargetBatchSize() - totalOutputRecords;
+    allowedTargetBatchSize = this.context.getTargetBatchSize();
+
+    if (totalOutputRecords < allowedTargetBatchSize && currentrow < records) {
+      int maxOutputRecordCount = allowedTargetBatchSize - totalOutputRecords;
       while ((outputRecords = tableFunction.processRow(totalOutputRecords, maxOutputRecordCount)) == 0) {
         tableFunction.closeRow();
         currentrow++;
@@ -105,8 +108,34 @@ public class TableFunctionOperator implements SingleInputOperator {
 
       Preconditions.checkState(outputRecords <= maxOutputRecordCount, "Table function returned unexpected number of records");
       totalOutputRecords += outputRecords;
-      if (!functionOperator.getFunction().getFillBatch()) {
-        break;
+    }
+    if (functionOperator.getFunction().getFillBatch()) {
+      long firstRowSize = -1L;
+      if (outputRecords != 0) {
+        firstRowSize = tableFunction.getFirstRowSize();
+      }
+      if (firstRowSize > 0) {
+        allowedTargetBatchSize = (int) Math.min(allowedTargetBatchSize, BATCH_LIMIT_BYTES / firstRowSize);
+        logger.debug("firstRowSize: {}, allowedTargetBatchSize: {}", firstRowSize, allowedTargetBatchSize);
+      }
+
+      while (totalOutputRecords < allowedTargetBatchSize && currentrow < records) {
+        int maxOutputRecordCount = allowedTargetBatchSize - totalOutputRecords;
+        while ((outputRecords = tableFunction.processRow(totalOutputRecords, maxOutputRecordCount)) == 0) {
+          tableFunction.closeRow();
+          currentrow++;
+          if (currentrow >= records) {
+            break;
+          }
+          tableFunction.startRow(currentrow);
+        }
+
+        Preconditions.checkState(outputRecords <= maxOutputRecordCount, "Table function returned unexpected number of records");
+        totalOutputRecords += outputRecords;
+
+        if (!functionOperator.getFunction().getFillBatch()) {
+          break;
+        }
       }
     }
 

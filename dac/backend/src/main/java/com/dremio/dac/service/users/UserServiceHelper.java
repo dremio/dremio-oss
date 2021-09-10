@@ -32,6 +32,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
+import com.dremio.service.users.proto.UID;
 
 /**
  * UserService Helper
@@ -50,9 +51,18 @@ public class UserServiceHelper {
     this.namespaceService = namespaceService;
   }
 
+  public boolean deleteUser(UID uid) throws UserNotFoundException, IOException {
+    final String userName = userService.getUser(uid).getUserName();
+    userService.deleteUser(uid);
+    return handleHomeSpace(userName);
+  }
+
   public boolean deleteUser(String userName, String version) throws IOException, UserNotFoundException {
     userService.deleteUser(userName, version);
+    return handleHomeSpace(userName);
+  }
 
+  private boolean handleHomeSpace(String userName) {
     try {
       final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName)).toNamespaceKey();
       final HomeConfig homeConfig = namespaceService.getHome(homeKey);

@@ -70,6 +70,28 @@ public final class MetadataProtoUtils {
     return builder.build();
   }
 
+  public static PartitionValue fromProtobuf(PartitionProtobuf.PartitionValue protoVal) {
+    final String colName = protoVal.getColumn();
+
+    if (protoVal.hasStringValue()) {
+      return PartitionValue.of(colName, protoVal.getStringValue());
+    } else if (protoVal.hasBinaryValue()) {
+      return PartitionValue.of(colName, protoVal.getBinaryValue().asReadOnlyByteBuffer());
+    } else if (protoVal.hasBitValue()) {
+      return PartitionValue.of(colName, protoVal.getBitValue());
+    } else if (protoVal.hasDoubleValue()) {
+      return PartitionValue.of(colName, protoVal.getDoubleValue());
+    } else if (protoVal.hasFloatValue()) {
+      return PartitionValue.of(colName, protoVal.getFloatValue());
+    } else if (protoVal.hasIntValue()) {
+      return PartitionValue.of(colName, protoVal.getIntValue());
+    } else if (protoVal.hasLongValue()) {
+      return PartitionValue.of(colName, protoVal.getLongValue());
+    } else {
+      return PartitionValue.of(colName);
+    }
+  }
+
   private static PartitionProtobuf.PartitionValueType toProtobuf(PartitionValue.PartitionValueType type) {
     switch (type) {
     case IMPLICIT:

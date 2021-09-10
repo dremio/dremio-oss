@@ -17,7 +17,6 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import config from 'dyn-load/utils/config';
 import EditUserForm from '@app/pages/AdminPage/components/forms/EditUserForm';
 import { modalFormProps } from '@app/components/Forms';
 import SettingHeader from '@app/components/SettingHeader';
@@ -46,7 +45,6 @@ export class Info extends Component {
           onFormSubmit={onFormSubmit}
           updateFormDirtyState={updateFormDirtyState}
           isModal={false}
-          isReadMode={!config.showUserAndUserProperties}
         />
       </div>
     );

@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -23,8 +24,10 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
+import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
+import com.dremio.exec.store.SplitWorkWithRuntimeAffinity;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.easy.EasyGroupScan;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
@@ -33,7 +36,6 @@ import com.dremio.exec.store.dfs.easy.EasySubScan;
  * Iceberg dataset group scan
  */
 public class IcebergGroupScan extends EasyGroupScan {
-
   public IcebergGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns) {
     super(props, dataset, columns);
   }
@@ -61,8 +63,14 @@ public class IcebergGroupScan extends EasyGroupScan {
       props.getSchema(),
       getDataset().getName().getPathComponents(),
       pluginId,
+      dataset.getStoragePluginId(),
       columns,
       getDataset().getReadDefinition().getPartitionColumnsList(),
       getDataset().getReadDefinition().getExtendedProperty());
+  }
+
+  @Override
+  public Iterator<SplitWork> getSplits(ExecutionNodeMap nodeMap) {
+    return SplitWorkWithRuntimeAffinity.transform(dataset.getSplits(), nodeMap, getDistributionAffinity());
   }
 }

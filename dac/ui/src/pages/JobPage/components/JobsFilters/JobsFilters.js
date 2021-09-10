@@ -18,38 +18,38 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
-import { noop } from 'lodash';
-
-import { PALE_BLUE } from 'uiTheme/radium/colors';
+import { noop, debounce } from 'lodash';
 import FilterSelectMenu, { getDataQaForFilterItem } from 'components/Fields/FilterSelectMenu';
 import Select from '@app/components/Fields/Select';
 import FontIcon from 'components/Icon/FontIcon';
 import JobsFiltersMixin, { getSortItems } from 'dyn-load/pages/JobPage/components/JobsFilters/JobsFiltersMixin';
-
+import ShowHideColumn from '../../../JobPageNew/components/ShowHideColumn/ShowHideColumn';
 import ContainsText from './ContainsText';
 import * as IntervalTypes from './StartTimeSelect/IntervalTypes';
 import StartTimeSelect from './StartTimeSelect/StartTimeSelect';
 import { ddSort, ddSortList } from './JobsFilters.less';
+import './JobsFilters.less';
 
 const itemsForStateFilter = [ // todo: `la` loc not building correctly here
-  {id: 'SETUP', label: ('Setup'), icon: 'PendingDiamond'},
-  {id: 'QUEUED', label: ('Queued'), icon: 'Queued' },
-  {id: 'ENGINE_START', label: ('Engine Start'), icon: 'EngineStart' },
-  {id: 'RUNNING', label: ('Running'), icon: 'Loader'},
-  {id: 'COMPLETED', label: ('Completed'), icon: 'OKSolid'},
-  {id: 'CANCELED', label: ('Canceled'), icon: 'Canceled' },
-  {id: 'FAILED', label: ('Failed'), icon: 'ErrorSolid'}
+  { id: 'SETUP', label: ('Setup'), icon: 'PendingDiamond' },
+  { id: 'QUEUED', label: ('Queued'), icon: 'Queued' },
+  { id: 'ENGINE_START', label: ('Engine Start'), icon: 'EngineStart' },
+  { id: 'RUNNING', label: ('Running'), icon: 'Loader' },
+  { id: 'COMPLETED', label: ('Completed'), icon: 'OKSolid' },
+  { id: 'CANCELED', label: ('Canceled'), icon: 'Canceled' },
+  { id: 'FAILED', label: ('Failed'), icon: 'ErrorSolid' }
 ];
 
 const itemsForQueryTypeFilter = [ // todo: `la` loc not building correctly here
-  {id: 'UI', label: ('UI'), default: true},
-  {id: 'EXTERNAL', label: ('External Tools'), default: true},
-  {id: 'ACCELERATION', label: ('Accelerator'), default: false},
-  {id: 'INTERNAL', label: ('Internal'), default: false},
-  {id: 'DOWNLOAD', label: ('Downloads'), default: false}
+  { id: 'UI', label: ('UI'), default: true },
+  { id: 'EXTERNAL', label: ('External Tools'), default: true },
+  { id: 'ACCELERATION', label: ('Accelerator'), default: false },
+  { id: 'INTERNAL', label: ('Internal'), default: false },
+  { id: 'DOWNLOAD', label: ('Downloads'), default: false }
 ];
 
-const sortItems = getSortItems().map(item => ({...item, dataQa: getDataQaForFilterItem(item.id) }));
+
+const sortItems = getSortItems().map(item => ({ ...item, dataQa: getDataQaForFilterItem(item.id) }));
 
 @injectIntl
 @Radium
@@ -65,11 +65,16 @@ export default class JobsFilters extends Component {
     dataWithItemsForFilters: PropTypes.object,
     loadItemsForFilter: PropTypes.func.isRequired,
     onUpdateQueryState: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    columnFilterSelect: PropTypes.func,
+    columnFilterUnSelect: PropTypes.func,
+    updateColumnsState: PropTypes.func,
+    checkedItems: PropTypes.instanceOf(Immutable.List),
+    isQVJobs: PropTypes.bool
   };
 
   static defaultProps = {
-    queryState: Immutable.fromJS({filters: {}}),
+    queryState: Immutable.fromJS({ filters: {} }),
     dataWithItemsForFilters: Immutable.Map()
   };
 
@@ -95,7 +100,7 @@ export default class JobsFilters extends Component {
   }
 
   getAllFilters() {
-    const { queryState, intl } = this.props;
+    const { queryState, intl, isQVJobs } = this.props;
     const { loggedInUser } = this.context;
     const startTime = queryState.getIn(['filters', 'st', 0]) || 0;
     const endTime = queryState.getIn(['filters', 'st', 1]) || 0;
@@ -103,12 +108,17 @@ export default class JobsFilters extends Component {
     const selectedQt = queryState.getIn(['filters', 'qt']);
     const selectedUsr = queryState.getIn(['filters', 'usr']);
 
+    const ellipsedTextClass = isQVJobs ? 'ellipsedTextClass' : '';
+
     return [
       {
         value: 'st',
         isVisible: true,
         node: (
           <StartTimeSelect
+            iconStyle={styles.arrow}
+            popoverFilters='popoverFilters'
+            className={ellipsedTextClass}
             selectedToTop={false}
             onChange={this.handleStartTimeChange}
             id='startTimeFilter'
@@ -123,6 +133,9 @@ export default class JobsFilters extends Component {
         isVisible: true,
         node: (
           <FilterSelectMenu
+            iconStyle={styles.arrow}
+            popoverFilters='popoverFilters'
+            ellipsedTextClass={ellipsedTextClass}
             selectedToTop={false}
             noSearch
             onItemSelect={this.addInfoToFilter.bind(this, 'jst')}
@@ -131,6 +144,8 @@ export default class JobsFilters extends Component {
             items={itemsForStateFilter}
             label={intl.formatMessage({ id: 'Common.Status' })}
             name='jst'
+            checkBoxClass='jobsFilters__checkBox'
+            className='jobsFilters__label'
           />
         )
       },
@@ -139,6 +154,9 @@ export default class JobsFilters extends Component {
         isVisible: true,
         node: (
           <FilterSelectMenu
+            iconStyle={styles.arrow}
+            popoverFilters='popoverFilters'
+            ellipsedTextClass={ellipsedTextClass}
             selectedToTop={false}
             noSearch
             onItemSelect={this.addInfoToFilter.bind(this, 'qt')}
@@ -147,6 +165,8 @@ export default class JobsFilters extends Component {
             items={itemsForQueryTypeFilter}
             label={intl.formatMessage({ id: 'Common.Type' })}
             name='qt'
+            checkBoxClass='jobsFilters__checkBox margin-right'
+            className='jobsFilters__label'
           />
         )
       },
@@ -156,6 +176,9 @@ export default class JobsFilters extends Component {
           this.props.dataWithItemsForFilters.get('users').length,
         node: (
           <FilterSelectMenu
+            iconStyle={styles.arrow}
+            popoverFilters='popoverFilters'
+            ellipsedTextClass={ellipsedTextClass}
             selectedToTop
             searchPlaceholder='Search users'
             onItemSelect={this.addInfoToFilter.bind(this, 'usr')}
@@ -165,6 +188,8 @@ export default class JobsFilters extends Component {
             loadItemsForFilter={this.props.loadItemsForFilter.bind(this, 'users')}
             label={intl.formatMessage({ id: 'Common.User' })}
             name='usr'
+            checkBoxClass='jobsFilters__checkBox margin-right'
+            className='jobsFilters__label'
           />
         )
       }
@@ -172,7 +197,7 @@ export default class JobsFilters extends Component {
   }
 
   handleStartTimeChange(type, rangeObj) {
-    const {queryState} = this.props;
+    const { queryState } = this.props;
     const range = rangeObj && rangeObj.toJS && rangeObj.toJS();
     const fromDate = range && range[0];
     const toDate = range && range[1];
@@ -187,20 +212,21 @@ export default class JobsFilters extends Component {
     }
   }
 
+  delayedHandleChange = debounce(newState => this.props.onUpdateQueryState(newState), 300);
   handleEnterText(text) {
-    const {queryState} = this.props;
+    const { queryState, isQVJobs } = this.props;
     const newState = text ?
       queryState.setIn(['filters', 'contains'], Immutable.List([text]))
       : queryState.deleteIn(['filters', 'contains']);
-    this.props.onUpdateQueryState(newState);
+    isQVJobs ? this.delayedHandleChange(newState)
+      : this.props.onUpdateQueryState(newState);
   }
 
   addInfoToFilter(type, value) {
     const { queryState } = this.props;
     const values = queryState.getIn(['filters', type]) || Immutable.List();
-
     if (!values.includes(value)) {
-      this.props.onUpdateQueryState(queryState.setIn(['filters', type], values.push(value)) );
+      this.props.onUpdateQueryState(queryState.setIn(['filters', type], values.push(value)));
     }
   }
 
@@ -218,14 +244,14 @@ export default class JobsFilters extends Component {
   }
 
   toggleSortDirection() {
-    const {queryState} = this.props;
+    const { queryState } = this.props;
     const oldDirection = queryState.get('order');
     const newDirection = oldDirection === 'ASCENDING' ? 'DESCENDING' : 'ASCENDING';
     this.props.onUpdateQueryState(queryState.set('order', newDirection));
   }
 
   changeSortItem(id) {
-    const {queryState} = this.props;
+    const { queryState } = this.props;
     const order = queryState.get('order');
     this.props.onUpdateQueryState(queryState.set('sort', id).set('order', order || 'DESCENDING'));
   }
@@ -233,8 +259,8 @@ export default class JobsFilters extends Component {
   renderAllFilters(items, isCustom) {
     return items.filter(item => item.isVisible).map(filter => (
       <div style={styles.filterBlock} key={filter.value}>
-        <div>{React.cloneElement(filter.node, {isCustom})}</div>
-        <div style={styles.divider}/>
+        <div>{React.cloneElement(filter.node, { isCustom })}</div>
+        <div style={styles.divider} />
       </div>
     )
     );
@@ -253,14 +279,14 @@ export default class JobsFilters extends Component {
     return (
       <div
         data-qa='order-filter'
-        style={[styles.filterBlock, {cursor: 'pointer'}]}
+        style={[styles.filterBlock, { cursor: 'pointer' }]}
         onClick={this.toggleSortDirection}
       >
-        <label style={{cursor: 'pointer'}}>
+        <label style={{ cursor: 'pointer' }}>
           {this.props.intl.formatMessage({ id: 'Job.OrderBy' }, { label })}
           {this.renderSortDirectionIcon()}
         </label>
-        <div style={styles.sortDivider}/>
+        <div style={styles.sortDivider} />
       </div>
     );
   }
@@ -271,22 +297,39 @@ export default class JobsFilters extends Component {
       const type = direction === 'DESCENDING'
         ? 'fa-caret-down'
         : 'fa-caret-up';
-      return <FontIcon type={type} theme={styles.IconTheme}/>;
+      return <FontIcon type={type} theme={styles.IconTheme} />;
     }
   }
 
   renderFilters() {
-    const {queryState} = this.props;
-    return (
-      <div style={[styles.base, styles.filtersHeader]}>
+    const { queryState, columnFilterSelect, columnFilterUnSelect,
+      checkedItems, updateColumnsState, isQVJobs } = this.props;
 
+    const className = isQVJobs ? 'containsTextClass' : '';
+    const searchIconClass = isQVJobs ? 'containsTextClass__searchIconClass' : '';
+
+    return (
+      <div style={[styles.base]}>
         {this.renderDefaultFilters()}
-        <ContainsText
-          defaultValue={queryState.getIn(['filters', 'contains', 0])}
-          id='containsText'
-          onEnterText={this.handleEnterText}
-        />
-        <div style={styles.order}>
+        {
+          isQVJobs && <div className='filters-header__showHideWrapper'>
+            <ShowHideColumn
+              columnFilterSelect={columnFilterSelect}
+              columnFilterUnSelect={columnFilterUnSelect}
+              updateColumnsState={updateColumnsState}
+              defaultValue={checkedItems} />
+          </div>
+        }
+        <div className='filters-header__containsTextWrapper'>
+          <ContainsText
+            className={className}
+            searchIconClass={searchIconClass}
+            defaultValue={queryState.getIn(['filters', 'contains', 0])}
+            id='containsText'
+            onEnterText={this.handleEnterText}
+          />
+        </div>
+        {!isQVJobs && <div style={styles.order}>
           {this.renderSortLabel()}
           <Select
             dataQa='sort-filter'
@@ -299,13 +342,18 @@ export default class JobsFilters extends Component {
             onChange={this.changeSortItem}
           />
         </div>
+        }
       </div>
     );
   }
 
   render() {
+    const { isQVJobs } = this.props;
     return (
-      <div className='filters-header' style={styles.base}>
+      <div
+        className={isQVJobs && 'filters-header'}
+        style={[styles.base, styles.filtersHeader]}
+      >
         {this.renderFilters()}
       </div>);
   }
@@ -323,13 +371,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     paddingLeft: 10,
-    backgroundColor: PALE_BLUE,
-    height: 38
+    gap: 20
   },
   orderBy: {
     margin: '0 0 0 auto'
   },
   filtersHeader: {
+    backgroundColor: 'rgb(245, 252, 255)',
     paddingLeft: 0
   },
   divider: {
@@ -347,6 +395,17 @@ const styles = {
   },
   order: {
     display: 'flex',
+    justifyContent: 'center',
     marginLeft: 'auto'
+  },
+  gutterTop: {
+    paddingTop: 6
+  },
+  arrow: {
+    color: '#6E7987',
+    fontSize: '10px',
+    paddingLeft: '11px',
+    height: '10px',
+    width: '10px'
   }
 };

@@ -30,7 +30,9 @@ export default class HoverHelp extends PureComponent {
     tooltipInnerStyle: PropTypes.object,
     content: PropTypes.node,
     className: PropTypes.string,
-    placement: PropTypes.string
+    placement: PropTypes.string,
+    wantedIconType: PropTypes.string,
+    theme: PropTypes.object
   };
 
   constructor(props) {
@@ -48,20 +50,30 @@ export default class HoverHelp extends PureComponent {
     this.setState({hover: false});
   }
 
+  getIconType(hover, wantedIconType) {
+    if (!wantedIconType) {
+      return hover ? 'InfoCircleSolid' : 'InfoCircle';
+    } else {
+      return wantedIconType;
+    }
+  }
+
   render() {
-    const { style, iconStyle, content, tooltipStyle, tooltipInnerStyle, className, placement } = this.props;
+    const { style, iconStyle, theme, wantedIconType, content, tooltipStyle, tooltipInnerStyle, className, placement } = this.props;
     const {hover} = this.state;
     const finalInnerStyle = {...styles.defaultInnerStyle, ...tooltipInnerStyle};
+    const iconType = this.getIconType(hover, wantedIconType);
 
     return <div
       className={classNames(['hover-help', className])}
       style={{position:'relative', ...style}}>
       <FontIcon
-        type={hover ? 'InfoCircleSolid' : 'InfoCircle'}
+        type={iconType}
         ref='target'
         iconStyle={{...styles.iconStyle, ...iconStyle}}
         onMouseEnter={this.onMouseEnter}
         onMouseLeave={this.onMouseLeave}
+        theme={theme}
       />
       <Tooltip
         container={this}

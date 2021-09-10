@@ -240,7 +240,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         null,
         isCreate() ? options.getPartitionColumns() : partitionColumns,
         isCreate() ? IcebergCommandType.CREATE : IcebergCommandType.INSERT,
-        key.getName());
+        key.getName(), null);
 
     }
 
@@ -280,7 +280,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     BatchSchema querySchema = icebergTableProps.getFullSchema();
     IcebergModel icebergModel = icebergCreateTableEntry.getPlugin().getIcebergModel();
     Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
-    BatchSchema icebergSchema = SchemaConverter.fromIceberg(table.schema());
+    SchemaConverter schemaConverter = new SchemaConverter(table.name());
+    BatchSchema icebergSchema = schemaConverter.fromIceberg(table.schema());
 
     // this check can be removed once we support schema evolution in dremio.
     if (!icebergSchema.equalsIgnoreCase(tableSchemaFromKVStore)) {

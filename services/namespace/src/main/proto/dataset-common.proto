@@ -34,6 +34,7 @@ enum DatasetType {
   PHYSICAL_DATASET_SOURCE_FOLDER = 4;
   PHYSICAL_DATASET_HOME_FILE = 5;
   PHYSICAL_DATASET_HOME_FOLDER = 6;
+  OTHERS = 7;
 }
 
 message FieldOrigin {
@@ -101,4 +102,11 @@ message ReadDefinition {
   optional int64 splitVersion = 7; // increasing number assigned to map read definition to its latest splits
 
   optional ScanStats manifestScanStats = 8;
+}
+
+message IcebergMetadata {
+  optional string metadata_file_location = 1; // path to metadata json file
+  optional int64 snapshot_id = 2; // current snapshot id
+  optional string partition_stats_file = 3; // path to partition stats file for the latest snapshot
+  optional string tableUuid = 4; // unique id assigned to the iceberg table
 }

@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import { compose } from 'redux';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import classNames from 'classnames';
+import { injectIntl } from 'react-intl';
 
 import { DragAreaColumnWithMixin } from '@inject/components/DragComponents/DragAreaColumnMixin.js';
 import { SelectView } from '@app/components/Fields/SelectView';
@@ -29,11 +31,10 @@ import { formDefault } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
 import { HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
+import { base, content, column as columnCls, disabledContent, preventDrag as disabledColumnCls, columnItem as columnItemCls } from '@app/uiTheme/less/DragComponents/DragAreaColumn.less';
 import { NOT_SUPPORTED_TYPES } from './DragColumnMenu';
 import DragSource from './DragSource';
 import DragTarget from './DragTarget';
-
-import { base, content, column as columnCls, disabledContent, preventDrag as disabledColumnCls, columnItem as columnItemCls } from './DragAreaColumn.less';
 
 export class DragAreaColumn extends Component {
   static propTypes = {
@@ -55,7 +56,8 @@ export class DragAreaColumn extends Component {
     id: PropTypes.any,
     allColumns: PropTypes.instanceOf(Immutable.List),
     className: PropTypes.string,
-    preventDrag: PropTypes.any
+    preventDrag: PropTypes.any,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -171,7 +173,7 @@ export class DragAreaColumn extends Component {
   }
 
   renderContent() {
-    const { field, disabled, preventDrag } = this.props;
+    const { field, disabled, preventDrag, intl: { formatMessage }} = this.props;
     if (disabled) {
       return <div/>;
     }
@@ -223,7 +225,12 @@ export class DragAreaColumn extends Component {
     return (
       <div className={preventDrag ? disabledContent : content} key='custom-content'>
         <FontIcon type={typeToIconType[selectedColumn.get('type')]} key='custom-type' theme={styles.type}/>
-        <EllipsedText style={styles.name} text={field.value} />
+        <EllipsedText style={styles.name} text={field.value} title={preventDrag ? formatMessage({ id: 'Read.Only'}) : field.value} />
+        {
+          !preventDrag ?
+            <FontIcon type={'DropdownEnabled'} key='draggable' theme={styles.type}/>
+            : null
+        }
       </div>
     );
   }
@@ -319,9 +326,9 @@ export const styles = {
     margin: '5px 0 0'
   },
   dragStyle: {
-    borderBottom: '1px dotted gray',
-    borderTop: '1px dotted gray',
-    borderLeft: '1px dotted gray',
+    borderBottom: '10px dotted gray',
+    borderTop: '10px dotted gray',
+    borderLeft: '10px dotted gray',
     borderRight: '1px dotted gray',
     backgroundColor: 'white',
     height: 30
@@ -352,4 +359,6 @@ export const styles = {
   }
 };
 
-export default DragAreaColumnWithMixin(DragAreaColumn);
+export default compose(
+  injectIntl,
+  DragAreaColumnWithMixin)(DragAreaColumn);

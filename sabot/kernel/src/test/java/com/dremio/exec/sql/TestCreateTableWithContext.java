@@ -29,12 +29,15 @@ public class TestCreateTableWithContext extends PlanTestBase {
   @Before
   public void setUp() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "true");
   }
 
   @After
   public void cleanUp() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG,
       ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG,
+      ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
   }
 
   @Test

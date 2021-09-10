@@ -20,7 +20,7 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EmptyRecordReader;
@@ -39,6 +39,7 @@ import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.exec.store.iceberg.manifestwriter.ManifestFileRecordWriter;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.io.file.FileAttributes;
@@ -71,14 +72,13 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     this.name = name == null ? DEFAULT_NAME : name;
     this.fsPlugin = fsPlugin;
     this.formatMatcher = new IcebergFormatMatcher(this);
-    boolean useIcebergExecution = context.getOptionManager().getOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION);
     if (formatConfig.getDataFormatType() == FileType.PARQUET) {
       dataFormatPlugin = new ParquetFormatPlugin(name, context,
         (ParquetFormatConfig) formatConfig.getDataFormatConfig(), fsPlugin);
     } else {
       throw new UnsupportedOperationException("iceberg does not support data format type " + formatConfig.getDataFormatType());
     }
-    this.isLayered = !useIcebergExecution;
+    this.isLayered = true;
   }
 
   @Override
@@ -99,11 +99,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   public RecordReader getRecordReader(
       OperatorContext context, FileSystem fs, FileAttributes attributes)
       throws ExecutionSetupException {
-    boolean useIcebergExecution = context.getOptions().getOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION);
-    if (useIcebergExecution) {
-      // this is used in preview during dataset promotion.
-      return new EmptyRecordReader();
-    } else if (attributes.getPath().getName().endsWith("parquet")) {
+    if (attributes.getPath().getName().endsWith("parquet")) {
       return dataFormatPlugin.getRecordReader(context, fs, attributes);
     } else {
       return new EmptyRecordReader();
@@ -157,6 +153,12 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     List<SchemaPath> columns,
     FragmentExecutionContext fec,
     EasySubScan config) throws ExecutionSetupException {
+
+    if (!context.getOptions().getOption(ExecConstants.ENABLE_ICEBERG)) {
+      throw new UnsupportedOperationException("Please contact customer support for steps to enable " +
+        "the iceberg tables feature.");
+    }
+
     return new IcebergManifestListRecordReader(context, dfs, splitAttributes, fsPlugin, config);
   }
 
@@ -184,14 +186,8 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
                                               NamespaceKey tableSchemaPath,
                                               FileUpdateKey updateKey,
                                               int maxLeafColumns) {
-    boolean useIcebergExecution = fsPlugin.getContext().getOptionManager().getOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION);
-    if (useIcebergExecution) {
-      return new IcebergExecutionDatasetAccessor(type, fs,
-        this, fileSelection, fsPlugin, tableSchemaPath);
-    } else {
-      return new IcebergFormatDatasetAccessor(type, fs, fileSelection, tableSchemaPath,
-        this, fsPlugin, previousInfo, maxLeafColumns);
-    }
+    return new IcebergExecutionDatasetAccessor(type, fs,
+      this, fileSelection, fsPlugin, tableSchemaPath);
   }
 
   @Override

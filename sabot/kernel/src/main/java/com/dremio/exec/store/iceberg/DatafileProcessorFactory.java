@@ -15,16 +15,8 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.util.concurrent.Callable;
-
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.store.BlockBasedSplitGenerator;
-import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.cache.BlockLocationsCacheManager;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
@@ -42,29 +34,16 @@ public class DatafileProcessorFactory {
     this.context = context;
   }
 
-  DatafileProcessor getDatafileProcessor(TableFunctionConfig functionConfig, BlockBasedSplitGenerator.SplitCreator splitCreator) {
-    if (functionConfig.getType() == TableFunctionConfig.FunctionType.METADATA_REFRESH_MANIFEST_SCAN) {
-      return new PathGeneratingDatafileProcessor();
-    } else {
-      String pluginId = functionConfig.getFunctionContext().getPluginId().getConfig().getId().getId();
-      StoragePlugin plugin = wrap(() -> fec.getStoragePlugin(functionConfig.getFunctionContext().getPluginId()));
-      BlockLocationsCacheManager cacheManager = null;
-      if (plugin instanceof FileSystemPlugin) {
-        FileSystem fs = wrap(() -> ((FileSystemPlugin<?>) plugin).createFS(props.getUserName(), context));
-        cacheManager = BlockLocationsCacheManager.newInstance(fs, pluginId, context);
-      }
-      /*else {
-        TODO: DX-31834 : For plugins other than FileSystemPlugin, find a way to get FileSystem instance and create cacheManager
-      }*/
-      return new SplitGeneratingDatafileProcessor(cacheManager, context, functionConfig.getFunctionContext(), splitCreator);
+  DatafileProcessor getDatafileProcessor(TableFunctionConfig functionConfig) {
+    switch (functionConfig.getType()) {
+      case METADATA_REFRESH_MANIFEST_SCAN:
+        return new PathGeneratingDatafileProcessor();
+      case SPLIT_GEN_MANIFEST_SCAN:
+        SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
+        return new SplitGeneratingDatafileProcessor(context, plugin, props, functionConfig.getFunctionContext());
+      default:
+        throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());
     }
-  }
 
-  private <T> T wrap(Callable<T> task) {
-    try {
-      return task.call();
-    } catch (Exception e) {
-      throw UserException.ioExceptionError(e).buildSilently();
-    }
   }
 }

@@ -24,7 +24,6 @@ import java.util.Optional;
 import javax.ws.rs.NotSupportedException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.RawLocalFileSystem;
 
 import com.dremio.common.utils.ProtobufUtils;
 import com.dremio.common.utils.protos.AttemptId;
@@ -143,9 +142,8 @@ public final class ProfilesExporter {
 
     Path fakeFileName = getProfileFileNameWithPath("fake_id");
     Configuration conf = new Configuration();
-    conf.setClass("fs.file.impl", RawLocalFileSystem.class, org.apache.hadoop.fs.FileSystem.class);
     // Use the raw local filesystem to avoid writing checksum files
-    FileSystem fs = HadoopFileSystem.get(fakeFileName, conf);
+    FileSystem fs = HadoopFileSystem.getRawLocal(conf);
 
     BackupRestoreUtil.checkOrCreateDirectory(fs, fakeFileName.getParent());
 

@@ -40,7 +40,7 @@ function getAccelerationsList(state) {
 }
 
 export const getAccelerations = createSelector(
-  [ getAccelerationsList ],
+  [getAccelerationsList],
   acceleration => acceleration
 );
 

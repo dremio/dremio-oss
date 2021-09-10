@@ -550,7 +550,9 @@ public class ExternalSortOperator implements SingleInputOperator {
       }
       oobSends++;
       updateStats(false);
-      logger.debug("notifyOthersOfSpill allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
+      if (logger.isDebugEnabled()) {
+        logger.debug("notifyOthersOfSpill allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
+      }
     } catch(Exception ex) {
       logger.warn("Failure while attempting to notify others of spilling.", ex);
     }
@@ -575,7 +577,9 @@ public class ExternalSortOperator implements SingleInputOperator {
       return;
     }
 
-    logger.debug("workOnOOB allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
+    if (logger.isDebugEnabled()) {
+      logger.debug("workOnOOB allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
+    }
 
     // check to see if we're at the point where we want to spill.
     final ExtSortSpillNotificationMessage spill = message.getPayload(ExtSortSpillNotificationMessage.PARSER);
@@ -583,8 +587,10 @@ public class ExternalSortOperator implements SingleInputOperator {
     final double triggerFactor = context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_FACTOR);
     final double headroomRemaining = allocator.getHeadroom() * 1.0d / (allocator.getHeadroom() + allocator.getAllocatedMemory());
     if(allocatedMemoryBeforeSpilling < (spill.getMemoryUse() * triggerFactor) && headroomRemaining > context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR)) {
-      logger.debug("Skipping OOB spill trigger, current allocation is {}, which is not within the current factor of the spilling operator ({}) which has memory use of {}. Headroom is at {} which is greater than trigger headroom of {}",
-        allocatedMemoryBeforeSpilling, triggerFactor, spill.getMemoryUse(), headroomRemaining, context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR));
+      if (logger.isDebugEnabled()) {
+        logger.debug("Skipping OOB spill trigger, current allocation is {}, which is not within the current factor of the spilling operator ({}) which has memory use of {}. Headroom is at {} which is greater than trigger headroom of {}",
+          allocatedMemoryBeforeSpilling, triggerFactor, spill.getMemoryUse(), headroomRemaining, context.getOptions().getOption(OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR));
+      }
       oobDropUnderThreshold++;
       return;
     }

@@ -39,6 +39,9 @@ import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature.MetadataValidity;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
+import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -47,6 +50,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
@@ -72,6 +76,7 @@ public class MetadataSynchronizer {
   private final UpdateMode updateMode;
   private final Set<NamespaceKey> ancestorsToKeep;
   private final List<Tuple<String, String>> failedDatasets;
+  private final OptionManager optionManager;
 
   private Set<NamespaceKey> existingDatasets;
 
@@ -81,7 +86,8 @@ public class MetadataSynchronizer {
       ManagedStoragePlugin.MetadataBridge bridge,
       MetadataPolicy metadataPolicy,
       DatasetSaver saver,
-      DatasetRetrievalOptions options
+      DatasetRetrievalOptions options,
+      OptionManager optionManager
   ) {
     this.systemNamespace = Preconditions.checkNotNull(systemNamespace);
     this.sourceKey = Preconditions.checkNotNull(sourceKey);
@@ -93,6 +99,7 @@ public class MetadataSynchronizer {
     this.updateMode = metadataPolicy.getDatasetUpdateMode();
     this.ancestorsToKeep = new HashSet<>();
     this.failedDatasets = new ArrayList<>();
+    this.optionManager = optionManager;
   }
 
   /**
@@ -271,18 +278,29 @@ public class MetadataSynchronizer {
     }
 
     if (isExtended && sourceMetadata instanceof SupportsReadSignature) {
-      final SupportsReadSignature supportsReadSignature = (SupportsReadSignature) sourceMetadata;
-      final DatasetMetadata currentExtended = new DatasetMetadataAdapter(currentConfig);
+      String user = SystemUser.SYSTEM_USERNAME;
+      if (options.datasetRefreshQuery().isPresent()) {
+        user = options.datasetRefreshQuery().get().getUser();
+      }
+      boolean supportsIcebergMetadata = (sourceMetadata instanceof SupportsUnlimitedSplits) &&
+              ((SupportsUnlimitedSplits) sourceMetadata).allowUnlimitedSplits(datasetHandle, currentConfig, user);
+      final boolean isIcebergMetadata = currentConfig.getPhysicalDataset() != null &&
+              Boolean.TRUE.equals(currentConfig.getPhysicalDataset().getIcebergMetadataEnabled());
+      final boolean unlimitedSplitsSupportEnabled = MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager);
+      final boolean forceUpdateNotRequired = !supportsIcebergMetadata || isIcebergMetadata || !unlimitedSplitsSupportEnabled;
 
-      final ByteString readSignature = currentConfig.getReadDefinition().getReadSignature();
-      final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
-          readSignature == null ? BytesOutput.NONE : os -> ByteString.writeTo(os, readSignature),
-          datasetHandle, currentExtended);
-
-      if (metadataValidity == MetadataValidity.VALID) {
-        logger.trace("Dataset '{}' metadata is valid, skipping", datasetKey);
-        syncStatus.incrementExtendedUnchanged();
-        return;
+      if (forceUpdateNotRequired) {
+        final SupportsReadSignature supportsReadSignature = (SupportsReadSignature) sourceMetadata;
+        final DatasetMetadata currentExtended = new DatasetMetadataAdapter(currentConfig);
+        final ByteString readSignature = currentConfig.getReadDefinition().getReadSignature();
+        final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
+                readSignature==null ? BytesOutput.NONE:os -> ByteString.writeTo(os, readSignature),
+                datasetHandle, currentExtended);
+        if (metadataValidity==MetadataValidity.VALID) {
+          logger.trace("Dataset '{}' metadata is valid, skipping", datasetKey);
+          syncStatus.incrementExtendedUnchanged();
+          return;
+        }
       }
     }
 

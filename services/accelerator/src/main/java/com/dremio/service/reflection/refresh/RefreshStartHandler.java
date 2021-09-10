@@ -18,12 +18,12 @@ package com.dremio.service.reflection.refresh;
 import java.util.UUID;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.ReflectionManager.WakeUpCallback;
-import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.WakeUpManagerWhenJobDone;
 import com.dremio.service.reflection.proto.Materialization;
@@ -56,7 +56,7 @@ public class RefreshStartHandler {
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
   }
 
-  public JobId startJob(ReflectionEntry entry, long jobSubmissionTime, OptionManager optionManager) {
+  public JobId startJob(ReflectionEntry entry, long jobSubmissionTime, OptionManager optionManager, Long previousIcebergSnapshot) {
     ReflectionId reflectionId = entry.getId();
 
     final MaterializationId id = new MaterializationId(UUID.randomUUID().toString());
@@ -71,7 +71,8 @@ public class RefreshStartHandler {
         .setReflectionGoalHash(entry.getReflectionGoalHash())
         .setReflectionId(reflectionId)
         .setArrowCachingEnabled(entry.getArrowCachingEnabled())
-        .setIsIcebergDataset(icebergDataset);
+        .setIsIcebergDataset(icebergDataset)
+        .setPreviousIcebergSnapshot(previousIcebergSnapshot);
     setIcebergReflectionAttributes(reflectionId, materialization, icebergDataset);
     // this is getting convoluted, but we need to make sure we save the materialization before we run the CTAS
     // as the MaterializedView will need it to extract the logicalPlan
@@ -92,7 +93,7 @@ public class RefreshStartHandler {
   }
 
   private boolean isIcebergDataset(OptionManager optionManager) {
-    return optionManager.getOption(ReflectionOptions.REFLECTION_USE_ICEBERG_DATASET) &&
+    return optionManager.getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT) &&
       optionManager.getOption(ExecConstants.ENABLE_ICEBERG);
   }
 

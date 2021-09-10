@@ -67,4 +67,13 @@ public interface TableFunction extends AutoCloseable {
   default void workOnOOB(OutOfBandMessage message) {
     // Do nothing
   }
+
+  /**
+   * Calculate the size of first input row
+   *
+   * @return size of first row
+   */
+  default long getFirstRowSize() {
+    return -1L;
+  }
 }

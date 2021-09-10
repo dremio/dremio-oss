@@ -24,16 +24,24 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.service.namespace.file.proto.FileConfig;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import io.protostuff.ByteString;
 
 
 /**
  * Table function context
+ * Extend this class to add props related to specific table function
  */
-@JsonTypeName("table-function-context")
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY)
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = FooterReaderTableFunctionContext.class, name = "footer-reader")}
+  )
 public class TableFunctionContext {
   private final List<SchemaPath> columns;
   private final ScanFilter scanFilter;
@@ -48,6 +56,8 @@ public class TableFunctionContext {
   private final BatchSchema fullSchema;
   private final BatchSchema tableSchema;
   private final Collection<List<String>> referencedTables;
+  private final boolean isConvertedIcebergDataset;
+  private final boolean isIcebergMetadata;
 
   public TableFunctionContext(@JsonProperty("formatSettings") FileConfig formatSettings,
                               @JsonProperty("schema") BatchSchema fullSchema,
@@ -60,7 +70,9 @@ public class TableFunctionContext {
                               @JsonProperty("partitionColumns") List<String> partitionColumns,
                               @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
                               @JsonProperty("extendedProperty") ByteString extendedProperty,
-                              @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled) {
+                              @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
+                              @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
+                              @JsonProperty("icebergMetadata") boolean isIcebergMetadata) {
     this.fullSchema = fullSchema;
     this.tableSchema = tableSchema;
     this.referencedTables = tablePath;
@@ -74,6 +86,8 @@ public class TableFunctionContext {
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
     this.arrowCachingEnabled = arrowCachingEnabled;
+    this.isConvertedIcebergDataset = isConvertedIcebergDataset;
+    this.isIcebergMetadata = isIcebergMetadata;
   }
 
   public FileConfig getFormatSettings(){
@@ -114,6 +128,14 @@ public class TableFunctionContext {
 
   public boolean isArrowCachingEnabled() {
     return arrowCachingEnabled;
+  }
+
+  public boolean isConvertedIcebergDataset() {
+    return isConvertedIcebergDataset;
+  }
+
+  public boolean isIcebergMetadata() {
+    return isIcebergMetadata;
   }
 
   @JsonProperty("fullSchema")

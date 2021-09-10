@@ -68,6 +68,12 @@ public interface ElasticsearchConstants {
   public static final String ES_GENERIC_FORMAT7 = "[yyyy[-][/][MM]]";
   public static final String ES_GENERIC_FORMAT8 =  "[yyyy[-][/]DDD['T']HH[:]mm[:]sszz]";
   public static final String ES_GENERIC_FORMAT9 = "[HH[:]mm[:]ss[.][SSS][Z]]";
+  public static final String ES_TIME_FORMAT = "[['T']HH[:]mm[:]ss[.][SSS][z]]";
+
+  // TimeUnit constants
+  public static final long MILLIS_PER_SECOND = 1000L;
+  public static final long MILLIS_PER_DAY = 24 * 60 * 60 * MILLIS_PER_SECOND;
+  public static final long NANOS_PER_MILLISECOND_LONG = 1000000L;
 
   /* Elasticsearch keywords */
   String SCROLL_ID = "_scroll_id";
@@ -89,6 +95,7 @@ public interface ElasticsearchConstants {
   String USE_DIS_MAX = "\"use_dis_max\" : true,";
   String AUTO_GENERATE_PHRASE_QUERIES = "\"auto_generate_phrase_queries\" : false,";
   String SPLIT_ON_WHITESPACE = "\"split_on_whitespace\" : true,";
+  static final String NESTED_TYPE_DATA = "/json/smoke-test/";
 
   String STRICT = "strict_";
 

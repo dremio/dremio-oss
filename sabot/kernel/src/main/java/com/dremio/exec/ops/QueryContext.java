@@ -40,6 +40,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ImmutableMetadataRequestOptions;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -81,6 +82,7 @@ import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.common.ResourceSchedulingContext;
+import com.dremio.resource.common.RoutingQueueManager;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -256,6 +258,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return sabotContext.getAccelerationManager();
   }
 
+  public RoutingQueueManager getRoutingQueueManager() {
+    return sabotContext.getRoutingQueueManager();
+  }
+
   public RelMetadataQuerySupplier getRelMetadataQuerySupplier() {
     return relMetadataQuerySupplier;
   }
@@ -362,6 +368,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   public SabotConfig getConfig() {
     return sabotContext.getConfig();
+  }
+
+  public DremioConfig getDremioConfig() {
+    return sabotContext.getDremioConfig();
   }
 
   /**

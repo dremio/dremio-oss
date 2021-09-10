@@ -16,6 +16,7 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
+import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 
 import java.util.ArrayList;
@@ -92,7 +93,7 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
       final SchemaPath inputRef = // add.partitionValues.[columnName]
         SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES, field.getName());
 
-      final FieldReference outputRef = FieldReference.getWithQuotedRef(field.getName()); // top level partition column field
+      final FieldReference outputRef = FieldReference.getWithQuotedRef(field.getName() + PARTITION_NAME_SUFFIX); // top level partition column field
 
       TypeProtos.MajorType targetType =  MajorTypeHelper.getMajorTypeForField(field);
 

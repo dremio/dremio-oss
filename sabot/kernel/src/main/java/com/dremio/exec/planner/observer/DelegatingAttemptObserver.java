@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
@@ -145,6 +146,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void substitutionFailures(Iterable<String> errors) {
     observer.substitutionFailures(errors);
+  }
+
+  @Override
+  public void applyAccelDetails(final CachedAccelDetails accelDetails) {
+    observer.applyAccelDetails(accelDetails);
   }
 
   @Override

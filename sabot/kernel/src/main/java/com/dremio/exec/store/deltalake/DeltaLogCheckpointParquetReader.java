@@ -125,10 +125,9 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes, long version) throws IOException {
     maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     estimationFactor = context.getOptionManager().getOption(ExecConstants.DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR);
-    try (BufferAllocator allocator = context.getAllocator().newChildAllocator(
-      BUFFER_ALLOCATOR_NAME, 0, Long.MAX_VALUE); OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), allocator,
-      context.getOptionManager(), BATCH_SIZE); SampleMutator mutator = new SampleMutator(allocator)
-    ) {
+    try (BufferAllocator allocator = context.getAllocator().newChildAllocator(BUFFER_ALLOCATOR_NAME, 0, Long.MAX_VALUE);
+         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), allocator, context.getOptionManager(), BATCH_SIZE);
+         SampleMutator mutator = new SampleMutator(allocator)) {
       this.parquetMetadata = readCheckpointParquetFooter(fs, fileAttributes.getPath(), fileAttributes.size());
       Preconditions.checkState(parquetMetadata.getBlocks().size() > 0, "Illegal Deltalake checkpoint parquet file with no row groups");
       final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(

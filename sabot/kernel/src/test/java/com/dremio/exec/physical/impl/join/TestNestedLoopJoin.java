@@ -250,4 +250,14 @@ public class TestNestedLoopJoin extends PlanTestBase {
     test(ENABLE_HJ);
     test(ENABLE_MJ);
   }
+
+  @Test
+  public void testDx35886() throws Exception {
+    test("SELECT * FROM cp.tpch_json.\"orders.json\" o \n" +
+      "left outer join cp.tpch_json.\"lineitem.json\" l \n" +
+      "on o.o_orderkey = l.l_orderkey\n" +
+      "AND o.o_orderstatus = l.l_linestatus\n" +
+      "AND o.o_custkey > 63190\n" +
+      "AND o.o_totalprice / l.l_quantity > 100.0");
+  }
 }

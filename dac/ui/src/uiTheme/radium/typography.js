@@ -101,6 +101,12 @@ export const pathLink = {
   color: '#46B4D5'
 };
 
+export const SSOLink = {
+  fontFamily: inter,
+  fontWeight: 400,
+  color: '#81D2EB'
+};
+
 export const lightLink = {
   fontFamily: inter,
   fontWeight: 400,

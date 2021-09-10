@@ -111,13 +111,27 @@ public final class DatasetHelper {
   }
 
   /**
+   * Checks if dataset is a converted iceberg dataset
+   *
+   * @param dataset Dataset to check
+   * @return true if dataset is a converted iceberg dataset
+   */
+  public static boolean isConvertedIcebergDataset(DatasetConfig dataset) {
+    if (dataset == null || dataset.getPhysicalDataset() == null) {
+      return false;
+    }
+
+    return Boolean.TRUE.equals(dataset.getPhysicalDataset().getIcebergMetadataEnabled());
+  }
+
+  /**
    * Checks if dataset supports prune filter
    *
    * @param dataset Dataset to check
    * @return true if dataset supports prune filter push down
    */
   public static boolean supportsPruneFilter(DatasetConfig dataset) {
-    return isIcebergDataset(dataset) || isDeltaLakeDataset(dataset);
+    return isIcebergDataset(dataset) || isDeltaLakeDataset(dataset) || isConvertedIcebergDataset(dataset);
   }
 
   /**
@@ -142,6 +156,9 @@ public final class DatasetHelper {
   }
 
   public static boolean hasParquetAsDataFiles(FileConfig fileConfig) {
-    return hasParquetDataFiles(fileConfig) || hasIcebergParquetDataFiles(fileConfig) || hasDeltaLakeParquetDataFiles(fileConfig);
+    return fileConfig != null &&
+      (hasParquetDataFiles(fileConfig)
+        || hasIcebergParquetDataFiles(fileConfig)
+        || hasDeltaLakeParquetDataFiles(fileConfig));
   }
 }

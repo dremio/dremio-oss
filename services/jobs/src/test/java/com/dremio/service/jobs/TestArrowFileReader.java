@@ -555,7 +555,7 @@ public class TestArrowFileReader extends DremioTest {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     Path path = new Path(dateGenFolder.getRoot().getPath());

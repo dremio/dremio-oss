@@ -49,7 +49,7 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
 
   protected JoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
       JoinRelType joinType, ImmutableBitSet projectedFields) {
-    super(cluster, traits, left, right, condition, joinType, projectedFields);
+    super(cluster, traits, left, right, condition, joinType, projectedFields, false);
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits) {

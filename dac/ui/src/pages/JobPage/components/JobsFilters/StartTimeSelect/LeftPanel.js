@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent } from 'react';
-import Immutable  from 'immutable';
+import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import moment from 'moment';
@@ -69,7 +69,8 @@ class LeftPanel extends PureComponent {
     {
       type: IntervalTypes.LAST_HOUR_INTERVAL,
       label: `Last Hour (${LeftPanel.getLastHours(1)})`,
-      time: [moment().subtract(1, 'h'), moment()]
+      time: [moment().subtract(1, 'h'), moment()],
+      dataQa: 'lastHours'
     },
     {
       type: IntervalTypes.LAST_6_HOURS_INTERVAL,
@@ -108,7 +109,7 @@ class LeftPanel extends PureComponent {
     },
     {
       type: IntervalTypes.ALL_TIME_INTERVAL,
-      label: 'All Time',
+      label: 'All',
       time: [moment(0), moment()]
     }
   ]);
@@ -118,6 +119,7 @@ class LeftPanel extends PureComponent {
       style={[LeftPanel.getIntervalsStyles(item.get('type'), this.props.filterType),
         item.get('type') === this.props.activeType && style.activeFilter]}
       key={index}
+      data-qa={item.get('dataQa')}
       onClick={this.props.onChange.bind(this, item.get('type'), item.get('time'))}>
       {item.get('label')}
     </div>

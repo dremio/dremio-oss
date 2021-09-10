@@ -15,11 +15,15 @@
  */
 package com.dremio.exec.store;
 
-import static com.dremio.common.expression.CompleteType.*;
+import static com.dremio.common.expression.CompleteType.BIGINT;
+import static com.dremio.common.expression.CompleteType.BIT;
+import static com.dremio.common.expression.CompleteType.DOUBLE;
+import static com.dremio.common.expression.CompleteType.FLOAT;
+import static com.dremio.common.expression.CompleteType.INT;
+import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.powermock.api.mockito.PowerMockito.mock;
-
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -357,7 +361,7 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
 
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), testAllocator, sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), testAllocator, sabotContext.getOptionManager(), 10);
   }
 
   private void compareVectors(VectorContainer outputContainer, Field field, Class type, List<Object> values) {

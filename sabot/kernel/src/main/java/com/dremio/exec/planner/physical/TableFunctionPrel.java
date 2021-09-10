@@ -30,11 +30,11 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.physical.base.OpProps;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
+import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
@@ -46,7 +46,7 @@ import com.google.common.collect.ImmutableList;
  * Prel for TableFunction operator
  */
 @Options
-public class TableFunctionPrel extends SinglePrel{
+public class TableFunctionPrel extends SinglePrel {
 
   public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.tablefunction.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.tablefunction.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
@@ -55,8 +55,8 @@ public class TableFunctionPrel extends SinglePrel{
   private final ImmutableList<SchemaPath> projectedColumns;
   private final TableFunctionConfig functionConfig;
   private final RelOptTable table;
+  private final Long survivingRecords;
   final Function<RelMetadataQuery, Double> estimateRowCountFn;
-  private final TableFunctionPOPCreator tableFunctionPOPCreator;
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
@@ -64,16 +64,16 @@ public class TableFunctionPrel extends SinglePrel{
                            TableFunctionConfig functionConfig,
                            RelDataType rowType) {
     this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
-      null, TableFunctionPOPCreator.DEFAULT);
+      null, null);
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
                            ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
-                           RelDataType rowType, TableFunctionPOPCreator tableFunctionPOPCreator) {
-    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
-            null, tableFunctionPOPCreator);
+                           RelDataType rowType,
+                           Long survivingRecords) {
+    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType, null, survivingRecords);
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
@@ -82,7 +82,8 @@ public class TableFunctionPrel extends SinglePrel{
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn) {
-    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType, estimateRowCountFn, TableFunctionPOPCreator.DEFAULT);
+    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
+      estimateRowCountFn, null);
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
@@ -91,7 +92,7 @@ public class TableFunctionPrel extends SinglePrel{
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn,
-                           TableFunctionPOPCreator tableFunctionPOPCreator) {
+                           Long survivingRecords) {
     super(cluster, traits, child);
     this.tableMetadata = tableMetadata;
     this.projectedColumns = projectedColumns;
@@ -100,16 +101,16 @@ public class TableFunctionPrel extends SinglePrel{
     this.estimateRowCountFn = estimateRowCountFn == null ?
             mq -> defaultEstimateRowCount(functionConfig, mq) : estimateRowCountFn;
     this.table = table;
-    this.tableFunctionPOPCreator = tableFunctionPOPCreator;
+    this.survivingRecords = survivingRecords;
   }
-
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-    return tableFunctionPOPCreator.create(creator.props(this, tableMetadata != null ? tableMetadata.getUser() : null,
+    return new TableFunctionPOP(
+      creator.props(this, tableMetadata != null ? tableMetadata.getUser() : null,
         functionConfig.getOutputSchema(), RESERVE, LIMIT),
       childPOP, functionConfig);
   }
@@ -122,14 +123,23 @@ public class TableFunctionPrel extends SinglePrel{
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new TableFunctionPrel(getCluster(), traitSet, table, sole(inputs), tableMetadata, projectedColumns,
-            functionConfig, rowType, estimateRowCountFn, tableFunctionPOPCreator);
+            functionConfig, rowType, estimateRowCountFn, survivingRecords);
   }
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
-    if (functionConfig.getFunctionContext().getScanFilter() != null){
-      return pw.item("filters",  functionConfig.getFunctionContext().getScanFilter().toString());
+    if (functionConfig.getFunctionContext().getScanFilter() != null) {
+      pw.item("filters", functionConfig.getFunctionContext().getScanFilter().toString());
+    }
+    return explainTableFunction(pw);
+  }
+
+  public RelWriter explainTableFunction(RelWriter pw) {
+    switch (functionConfig.getType()) {
+      case DATA_FILE_SCAN:
+        pw.item("table", PathUtils.constructFullPath(functionConfig.getFunctionContext().getTablePath().get(0)));
+        break;
     }
     return pw;
   }
@@ -141,6 +151,8 @@ public class TableFunctionPrel extends SinglePrel{
 
   private double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
     switch (functionConfig.getType()) {
+      case FOOTER_READER:
+        return DremioCost.LARGE_ROW_COUNT;
       case SPLIT_GENERATION:
         // TODO: This should estimate the number of splits that generated
         break;
@@ -150,7 +162,7 @@ public class TableFunctionPrel extends SinglePrel{
           final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
           selectivityEstimateFactor = plannerSettings.getFilterMinSelectivityEstimateFactor();
         }
-        return tableMetadata.getReadDefinition().getScanStats().getRecordCount() * selectivityEstimateFactor;
+        return survivingDataFileRecords() * selectivityEstimateFactor;
       case SPLIT_GEN_MANIFEST_SCAN:
       case METADATA_REFRESH_MANIFEST_SCAN:
         final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
@@ -160,9 +172,15 @@ public class TableFunctionPrel extends SinglePrel{
           return Math.max(mq.getRowCount(input) * sliceTarget, 1);
         }
         return Math.max(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount() * sliceTarget, 1);
+      case SPLIT_ASSIGNMENT:
+        return mq.getRowCount(this.input);
     }
 
     return 1;
+  }
+
+  private long survivingDataFileRecords() {
+    return survivingRecords == null ? tableMetadata.getApproximateRecordCount() : survivingRecords;
   }
 
   @Override
@@ -181,11 +199,5 @@ public class TableFunctionPrel extends SinglePrel{
 
   public TableMetadata getTableMetadata() {
     return tableMetadata;
-  }
-
-  public interface TableFunctionPOPCreator {
-    AbstractTableFunctionPOP create(OpProps props, PhysicalOperator child, TableFunctionConfig tableFunctionConfig);
-
-    TableFunctionPOPCreator DEFAULT = TableFunctionPOP::new;
   }
 }

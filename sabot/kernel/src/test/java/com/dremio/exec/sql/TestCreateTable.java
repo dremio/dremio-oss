@@ -43,12 +43,14 @@ public class TestCreateTable extends PlanTestBase {
   @Before
   public void setUp() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "true");
   }
 
   @After
   public void cleanUp() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG,
       ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
   }
 
   @Test
@@ -103,10 +105,10 @@ public class TestCreateTable extends PlanTestBase {
       testBuilder()
         .sqlQuery(describeCreatedTable)
         .unOrdered()
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE")
-        .baselineValues("id", "INTEGER", "YES", 32, 0)
-        .baselineValues("name", "CHARACTER VARYING", "YES", null, null)
-        .baselineValues("distance", "DECIMAL", "YES", 38, 3)
+        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES")
+        .baselineValues("id", "INTEGER", "YES", 32, 0, "[]")
+        .baselineValues("name", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("distance", "DECIMAL", "YES", 38, 3, "[]")
         .build()
         .run();
 
@@ -184,7 +186,7 @@ public class TestCreateTable extends PlanTestBase {
       transaction.commitTransaction();
 
       testBuilder()
-        .sqlQuery("select * from dfs_test.iceberg_map_test")
+        .sqlQuery("select * from dfs_test_hadoop.iceberg_map_test")
         .unOrdered()
         .baselineColumns("col2")
         .baselineValues(1)
@@ -192,18 +194,90 @@ public class TestCreateTable extends PlanTestBase {
         .run();
 
       Thread.sleep(1001);
-      String insertCommandSql = "insert into  dfs_test.iceberg_map_test select * from (values(2))";
+      String insertCommandSql = "insert into  dfs_test_hadoop.iceberg_map_test select * from (values(2))";
       test(insertCommandSql);
       Thread.sleep(1001);
 
       testBuilder()
-        .sqlQuery("select * from dfs_test.iceberg_map_test")
+        .sqlQuery("select * from dfs_test_hadoop.iceberg_map_test")
         .unOrdered()
         .baselineColumns("col2")
         .baselineValues(1)
         .baselineValues(2)
         .build()
         .run();
+    }
+    finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
+    }
+  }
+
+
+  private void addFileToTable(Table table, PartitionSpec spec, String testWorkingPath, String parquetFile) {
+    Transaction transaction = table.newTransaction();
+    AppendFiles appendFiles = transaction.newAppend();
+
+    File dataFile = new File(testWorkingPath, parquetFile);
+    appendFiles.appendFile(
+            DataFiles.builder(spec)
+                    .withInputFile(Files.localInput(dataFile))
+                    .withRecordCount(1)
+                    .withFormat(FileFormat.PARQUET)
+                    .build()
+    );
+    appendFiles.commit();
+    transaction.commitTransaction();
+  }
+
+  @Test
+  public void testReadingFromRootPointer() throws Exception{
+    String table1 = "root_pointer";
+    try {
+      File table1Folder = new File(getDfsTestTmpSchemaLocation(), table1);
+      HadoopTables hadoopTables = new HadoopTables(new Configuration());
+
+      Schema schema = new Schema(
+              Types.NestedField.optional(1, "col1", Types.IntegerType.get()),
+              Types.NestedField.optional(4  , "col2", Types.IntegerType.get())
+      );
+      PartitionSpec spec = PartitionSpec
+              .builderFor(schema)
+              .build();
+      Table table = hadoopTables.create(schema, spec, table1Folder.getPath());
+      final String testWorkingPath = TestTools.getWorkingPath() + "/src/test/resources/iceberg/root_pointer";
+      addFileToTable(table, spec, testWorkingPath, "f1.parquet");
+
+      testBuilder()
+              .sqlQuery("select * from dfs_test_hadoop.root_pointer")
+              .unOrdered()
+              .baselineColumns("col1", "col2")
+              .baselineValues(1, 2)
+              .build()
+              .run();
+
+      Thread.sleep(1001);
+      addFileToTable(table, spec, testWorkingPath, "f2.parquet");
+
+      testBuilder()
+              .sqlQuery("select * from dfs_test_hadoop.root_pointer")
+              .unOrdered()
+              .baselineColumns("col1", "col2")
+              .baselineValues(1, 2)
+              .build()
+              .run();
+
+      String refreshMetadata = "alter table dfs_test_hadoop.root_pointer refresh metadata";
+      test(refreshMetadata);
+
+      testBuilder()
+              .sqlQuery("select * from dfs_test_hadoop.root_pointer")
+              .unOrdered()
+              .baselineColumns("col1", "col2")
+              .baselineValues(1, 2)
+              .baselineValues(1, 2)
+              .build()
+              .run();
+
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));

@@ -48,6 +48,8 @@ import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
+import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -62,12 +64,14 @@ import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 
 import io.protostuff.ByteString;
+
 
 /**
  * Responsible for synchronizing source metadata.
@@ -404,7 +408,7 @@ class SourceMetadataManager implements AutoCloseable {
 
       final Stopwatch stopwatch = Stopwatch.createStarted();
       final MetadataSynchronizer synchronizeRun = new MetadataSynchronizer(systemNamespace, sourceKey,
-          bridge, metadataPolicy, getSaver(), retrievalOptions);
+          bridge, metadataPolicy, getSaver(), retrievalOptions, optionManager);
       synchronizeRun.setup();
       final SyncStatus syncStatus = synchronizeRun.go();
 
@@ -633,15 +637,26 @@ class SourceMetadataManager implements AutoCloseable {
     final DatasetSaver saver = getSaver();
     SourceMetadata sourceMetadata = bridge.getMetadata();
     final boolean isExtended = datasetConfig.getReadDefinition() != null;
+    String user = SystemUser.SYSTEM_USERNAME;
+    if (options.datasetRefreshQuery().isPresent()) {
+      user = options.datasetRefreshQuery().get().getUser();
+    }
+    boolean supportsIcebergMetadata = (sourceMetadata instanceof SupportsUnlimitedSplits) &&
+            ((SupportsUnlimitedSplits) sourceMetadata).allowUnlimitedSplits(datasetHandle, datasetConfig,
+                    user);
+    final boolean isIcebergMetadata = datasetConfig.getPhysicalDataset() != null &&
+            Boolean.TRUE.equals(datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled());
+    final boolean unlimitedSplitsSupportEnabled = MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager);
+    final boolean forceUpdateNotRequired = !supportsIcebergMetadata || isIcebergMetadata || !unlimitedSplitsSupportEnabled;
 
     // Bypass the save if forceUpdate isn't true and read definitions have not been updated.
-    if (!options.forceUpdate() && isExtended && sourceMetadata instanceof SupportsReadSignature) {
+    if (forceUpdateNotRequired && !options.forceUpdate() && isExtended && sourceMetadata instanceof SupportsReadSignature) {
       final SupportsReadSignature supportsReadSignature = (SupportsReadSignature) sourceMetadata;
       final DatasetMetadata currentExtended = new DatasetMetadataAdapter(datasetConfig);
 
       final ByteString readSignature = datasetConfig.getReadDefinition().getReadSignature();
       final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
-        readSignature == null ? BytesOutput.NONE : os -> ByteString.writeTo(os, readSignature),
+        readSignature == null || readSignature.size() == 0 ? BytesOutput.NONE : os -> ByteString.writeTo(os, readSignature),
         datasetHandle, currentExtended);
 
       if (metadataValidity == MetadataValidity.VALID) {
@@ -650,7 +665,36 @@ class SourceMetadataManager implements AutoCloseable {
       }
     }
 
+    String prevMetadataRootPointer = "";
+    long prevModified = -1;
+
+    if (datasetConfig.getPhysicalDataset() != null) {
+      if (datasetConfig.getPhysicalDataset().getIcebergMetadata() != null) {
+        prevMetadataRootPointer = datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+      }
+    }
+    if (datasetConfig.getLastModified() != null) {
+      prevModified = datasetConfig.getLastModified();
+    }
+
     saver.save(datasetConfig, datasetHandle, sourceMetadata, false, options);
+
+    if (datasetConfig.getPhysicalDataset() != null) {
+      if (datasetConfig.getPhysicalDataset().getIcebergMetadata() != null) {
+        String currMetadataRootPointer = datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+        if (currMetadataRootPointer == prevMetadataRootPointer && !"".equals(currMetadataRootPointer)) {
+          return UpdateStatus.UNCHANGED;
+        }
+      } else {
+        if (datasetConfig.getLastModified() != null) {
+          long currModified = datasetConfig.getLastModified();
+          if (prevModified == currModified && currModified != -1) {
+            return UpdateStatus.UNCHANGED;
+          }
+        }
+      }
+    }
+
     logger.trace("Dataset '{}' metadata saved to namespace", datasetConfig.getName());
     return UpdateStatus.CHANGED;
   }

@@ -26,10 +26,12 @@ import org.apache.iceberg.io.FileIO;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.nessie.NessieConfig;
+import com.dremio.service.nessieapi.CommitMultipleOperationsRequest;
 import com.dremio.service.nessieapi.Contents;
 import com.dremio.service.nessieapi.ContentsKey;
 import com.dremio.service.nessieapi.GetContentsRequest;
 import com.dremio.service.nessieapi.GetReferenceByNameRequest;
+import com.dremio.service.nessieapi.Operation;
 import com.dremio.service.nessieapi.Reference;
 import com.dremio.service.nessieapi.SetContentsRequest;
 
@@ -72,11 +74,13 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
             );
             if (contents != null && contents.hasIcebergTable()) {
                 metadataLocation = contents.getIcebergTable().getMetadataLocation();
+                logger.debug(String.format("Metadata location of table: %s, is %s", nessieTableIdentifier, metadataLocation));
             }
         } catch (StatusRuntimeException sre) {
             if (sre.getStatus().getCode() != Status.Code.NOT_FOUND) {
-                throw UserException.dataReadError(sre).buildSilently();
+                throw UserException.dataReadError(sre).build(logger);
             }
+            logger.debug(String.format("Metadata location was not found for table: %s", nessieTableIdentifier));
         }
         refreshFromMetadataLocation(metadataLocation, 2);
     }
@@ -118,16 +122,39 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
             threw = false;
         } catch (StatusRuntimeException sre) {
             if (sre.getStatus().getCode() == Status.Code.ABORTED) {
+                logger.debug(String.format("Commit failed: Reference hash is out of date. " +
+                        "Update the reference %s and try again for table %s",
+                        reference.getBranch().getHash(), nessieTableIdentifier));
                 throw new CommitFailedException(sre, "Commit failed: Reference hash is out of date. " +
                         "Update the reference %s and try again", reference.getBranch().getHash());
             } else {
-                throw UserException.dataReadError(sre).buildSilently();
+                throw UserException.dataReadError(sre).build(logger);
             }
         }
         finally {
             if (threw) {
+                logger.debug(String.format("Deleting metadata file %s of table %s", nessieTableIdentifier, newMetadataLocation));
                 io().deleteFile(newMetadataLocation);
             }
         }
+    }
+
+    public void deleteKey(){
+      Reference ref =getBranchRef();
+      client.getTreeApi().commitMultipleOperations(
+        CommitMultipleOperationsRequest
+          .newBuilder()
+          .setBranchName(ref.getBranch().getName())
+          .setExpectedHash(ref.getBranch().getHash())
+          .setMessage("Deleting the key")
+          .addOperations(Operation
+              .newBuilder()
+              .setType(Operation.Type.DELETE)
+              .setContentsKey(ContentsKey.newBuilder().addAllElements(
+                getNessieKey(nessieTableIdentifier.getTableIdentifier())))
+              .build()
+          )
+          .build()
+      );
     }
 }

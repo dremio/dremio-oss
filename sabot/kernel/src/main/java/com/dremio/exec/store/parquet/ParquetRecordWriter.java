@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA_2_1;
 import static com.dremio.common.map.CaseInsensitiveImmutableBiMap.newImmutableMap;
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
+import static com.dremio.exec.store.iceberg.IcebergUtils.convertSchemaMilliToMicro;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -174,6 +175,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   private RecordConsumer consumer;
   private BatchSchema batchSchema;
+  private BatchSchema icebergBatchSchema;
   private UpdateTrackingConverter trackingConverter;
 
   private final String location;
@@ -269,12 +271,15 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     this.batchSchema = incoming.getSchema();
 
     if (this.isIcebergWriter) {
+      this.icebergBatchSchema = new BatchSchema(convertSchemaMilliToMicro(batchSchema.getFields()));
       if (this.icebergColumnIDMap == null) {
-        this.icebergSchema = SchemaConverter.toIcebergSchema(batchSchema);
+        SchemaConverter schemaConverter = new SchemaConverter();
+        this.icebergSchema = schemaConverter.toIcebergSchema(batchSchema);
         this.icebergColumnIDMap = newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema));
       } else {
+        SchemaConverter schemaConverter = new SchemaConverter();
         SeededFieldIdBroker fieldIdBroker = new SeededFieldIdBroker(icebergColumnIDMap);
-        this.icebergSchema = SchemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
+        this.icebergSchema = schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
       }
     }
     newSchema();
@@ -346,7 +351,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     // Reset it to half of current number and bound it within the limits
     recordCountForNextMemCheck = min(max(MINIMUM_RECORD_COUNT_FOR_CHECK, recordCountForNextMemCheck / 2), MAXIMUM_RECORD_COUNT_FOR_CHECK);
 
-    String json = new Schema(batchSchema).toJson();
+    String json = new Schema(isIcebergWriter ? icebergBatchSchema : batchSchema).toJson();
     extraMetaData.put(DREMIO_ARROW_SCHEMA_2_1, json);
     schema = getParquetMessageType(batchSchema, "root");
 
@@ -367,10 +372,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     store = new ColumnWriteStoreV1(pageStore, parquetProperties);
     MessageColumnIO columnIO = new ColumnIOFactory(false).getColumnIO(this.schema);
     consumer = columnIO.getRecordWriter(store);
-    setUp(schema, consumer);
+    setUp(schema, consumer, isIcebergWriter);
   }
 
-  private PrimitiveType getPrimitiveType(Field field) {
+  private PrimitiveType getPrimitiveType(Field field, boolean convertMillisToMicros) {
     MajorType majorType = getMajorTypeForField(field);
     MinorType minorType = majorType.getMinorType();
     String name = field.getName();
@@ -378,9 +383,17 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     if (primitiveTypeName == null) {
       return null;
     }
-    OriginalType originalType = ParquetTypeHelper.getOriginalTypeForMinorType(minorType);
-    int length = ParquetTypeHelper.getLengthForMinorType(minorType);
-    DecimalMetadata decimalMetadata  = ParquetTypeHelper.getDecimalMetadataForField(majorType);
+    OriginalType originalType;
+    int length = 0;
+    DecimalMetadata decimalMetadata = null;
+    if (convertMillisToMicros && (MinorType.TIME.equals(minorType) || MinorType.TIMESTAMP.equals(minorType))) {
+      originalType = MinorType.TIME.equals(minorType) ? OriginalType.TIME_MICROS : OriginalType.TIMESTAMP_MICROS;
+      primitiveTypeName = PrimitiveTypeName.INT64;
+    } else {
+      originalType = ParquetTypeHelper.getOriginalTypeForMinorType(minorType);
+      length = ParquetTypeHelper.getLengthForMinorType(minorType);
+      decimalMetadata  = ParquetTypeHelper.getDecimalMetadataForField(majorType);
+    }
     return new PrimitiveType(OPTIONAL, primitiveTypeName, length, name, originalType, decimalMetadata, null);
   }
 
@@ -455,7 +468,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         }
         return new GroupType(OPTIONAL, field.getName(), types);
       default:
-        return getPrimitiveType(field);
+        return getPrimitiveType(field, false);
     }
   }
 
@@ -532,7 +545,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         }
         return new GroupType(OPTIONAL, field.getName(), types);
     default:
-        PrimitiveType primitiveType = getPrimitiveType(field);
+        PrimitiveType primitiveType = getPrimitiveType(field, true);
         if (column_id != -1) {
           primitiveType = primitiveType.withId(column_id);
         }
@@ -595,7 +608,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
       final long fileSize = parquetFileWriter.getPos();
       listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
-        partition.getBucketNumber(), getIcebergMetaData(), null);
+        partition.getBucketNumber(), getIcebergMetaData(), null, null);
       parquetFileWriter = null;
 
       updateStats(memSize, recordCount);

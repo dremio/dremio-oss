@@ -35,7 +35,6 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -51,6 +50,7 @@ public class ManifestFileProcessor implements AutoCloseable {
   private final FileSystem fs;
   private final List<String> dataset;
   private final OperatorContext context;
+  private final String datasourcePluginUID;
   private final OperatorStats operatorStats;
   private final DatafileProcessor datafileProcessor;
   private final Configuration conf;
@@ -61,15 +61,15 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   public ManifestFileProcessor(FragmentExecutionContext fec,
                                OperatorContext context, OpProps props,
-                               TableFunctionConfig functionConfig,
-                               BlockBasedSplitGenerator.SplitCreator splitCreator) {
+                               TableFunctionConfig functionConfig) {
     FileSystemPlugin fileSystemPlugin = getStoragePlugin(fec, functionConfig.getFunctionContext());
     this.fs = createFs(context, props, fileSystemPlugin);
     this.conf = getConfiguration(fileSystemPlugin);
     this.context = context;
     this.operatorStats = context.getStats();
     this.dataset = getDataset(functionConfig);
-    this.datafileProcessor = new DatafileProcessorFactory(fec, props, context).getDatafileProcessor(functionConfig, splitCreator);
+    this.datasourcePluginUID = getDatasourcePluginId(functionConfig.getFunctionContext());
+    this.datafileProcessor = new DatafileProcessorFactory(fec, props, context).getDatafileProcessor(functionConfig);
   }
 
   public void setup(VectorAccessible incoming, VectorContainer outgoing) {
@@ -111,7 +111,7 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   @VisibleForTesting
   ManifestReader<DataFile> getManifestReader(ManifestFile manifestFile) {
-    return ManifestFiles.read(manifestFile, new DremioFileIO(fs, context, dataset, manifestFile.length(), conf));
+    return ManifestFiles.read(manifestFile, new DremioFileIO(fs, context, dataset, datasourcePluginUID, manifestFile.length(), conf));
   }
 
   private void nextDataFile() {
@@ -132,6 +132,10 @@ public class ManifestFileProcessor implements AutoCloseable {
     } else {
       return functionContext.getPluginId();
     }
+  }
+
+  private static String getDatasourcePluginId(TableFunctionContext functionContext) {
+    return functionContext.getPluginId().getName();
   }
 
   private static FileSystem createFs(OperatorContext context, OpProps props, FileSystemPlugin fileSystemPlugin) {

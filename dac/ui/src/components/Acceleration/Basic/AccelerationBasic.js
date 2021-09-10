@@ -19,13 +19,13 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
-import { FLEX_COL_START } from 'uiTheme/radium/flexStyle';
-import { pathLink } from 'uiTheme/radium/typography';
 import { modalFormProps } from 'components/Forms';
 import { Toggle } from 'components/Fields';
 import Message from 'components/Message';
 
-import { commonStyles } from '../commonStyles';
+import '@app/uiTheme/less/commonModifiers.less';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import { commonThemes } from '../commonThemes';
 import LayoutInfo from '../LayoutInfo';
 import AccelerationAggregate from './AccelerationAggregate';
 
@@ -68,8 +68,8 @@ export class AccelerationBasic extends Component {
 
     const { enabled } = fields.rawReflections[0];
     const toggleLabel = (
-      <h3 style={commonStyles.toggleLabel}>
-        <FontIcon type='RawMode' theme={commonStyles.iconTheme}/>
+      <h3 className={'AccelerationBasic__toggleLabel'}>
+        <FontIcon type='RawMode' theme={commonThemes.rawIconTheme}/>
         {la('Raw Reflections')}
       </h3>
     );
@@ -83,29 +83,29 @@ export class AccelerationBasic extends Component {
       messageType='error'
       inFlow={false}
       message={rawError.get('message')}
-      messageId={rawError.get('id')}/>;
+      messageId={rawError.get('id')}
+      className={'AccelerationBasic__message'}
+    />;
 
     const aggError = this.context.reflectionSaveErrors.get(fields.aggregationReflections[0].id.value);
     const aggErrorMessage = aggError && <Message
       messageType='error'
       inFlow={false}
       message={aggError.get('message')}
-      messageId={aggError.get('id')}/>;
+      messageId={aggError.get('id')}
+      className={'AccelerationBasic__message'}
+    />;
 
     return (
-      <div style={styles.wrap} data-qa='raw-basic'>
-        <div style={{...styles.formSection, marginBottom: 15}}>
-          <div style={{
-            ...commonStyles.header,
-            ...(highlightedSection === 'RAW' ? commonStyles.highlight : {},
-            {borderWidth: 0})
-          }} data-qa='raw-queries-toggle' >
-            <Toggle {...enabled} label={toggleLabel} style={commonStyles.toggle}/>
-            <LayoutInfo
-              layout={firstRawLayout}
-              style={{float: 'right'}} />
+      <div className={'AccelerationBasic'} data-qa='raw-basic'>
+        <div className={'AccelerationBasic__header'}>
+          <div
+            className={`AccelerationBasic__toggleLayout ${highlightedSection === 'RAW' ? '--bgColor-highlight' : null}`}
+            data-qa='raw-queries-toggle' >
+            <Toggle {...enabled} label={toggleLabel} className={'AccelerationBasic__toggle'} />
+            <LayoutInfo layout={firstRawLayout} />
           </div>
-          <div style={{position: 'relative'}}>
+          <div className={'position-relative'}>
             {rawErrorMessage}
           </div>
         </div>
@@ -115,7 +115,7 @@ export class AccelerationBasic extends Component {
           dataset={dataset}
           reflection={firstAggLayout}
           fields={fields}
-          style={styles.formSection}
+          className={'AccelerationBasic__AccelerationAggregate'}
           location={location}
           shouldHighlight={highlightedSection === 'AGGREGATION'}
           errorMessage={aggErrorMessage}
@@ -135,36 +135,3 @@ const mapStateToProps = state => {
 };
 
 export default connect(mapStateToProps)(AccelerationBasic);
-
-
-const styles = {
-  wrap: {
-    ...FLEX_COL_START,
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-    overflow: 'hidden'
-  },
-  body: {
-    ...FLEX_COL_START,
-    height: '100%',
-    paddingLeft: 10
-  },
-  link: {
-    ...pathLink,
-    margin: '2px 0 0 10px',
-    ':hover': {cursor: 'pointer'}
-  },
-  header: {
-    margin: '10px 0',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  column: {
-    height: 30
-  },
-  formSection: {
-    backgroundColor: '#f3f3f3',
-    border: '1px solid #e1e1e1'
-  }
-};

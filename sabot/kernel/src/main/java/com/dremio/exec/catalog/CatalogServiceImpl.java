@@ -111,9 +111,12 @@ public class CatalogServiceImpl implements CatalogService {
 
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
+  private static final String SYSFLIGHT_SOURCE_NAME = "dremio.sys.runtime";
+
   protected final Provider<SabotContext> context;
   protected final Provider<SchedulerService> scheduler;
   private final Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider;
+  private final Provider<? extends Provider<ConnectionConf<?, ?>>> sysFlightTableConfProvider;
   private final Provider<FabricService> fabric;
   protected final Provider<ConnectionReader> connectionReaderProvider;
 
@@ -139,6 +142,7 @@ public class CatalogServiceImpl implements CatalogService {
     Provider<SabotContext> context,
     Provider<SchedulerService> scheduler,
     Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
+    Provider<? extends Provider<ConnectionConf<?, ?>>> sysFlightTableConfProvider,
     Provider<FabricService> fabric,
     Provider<ConnectionReader> connectionReaderProvider,
     Provider<BufferAllocator> bufferAllocator,
@@ -149,7 +153,7 @@ public class CatalogServiceImpl implements CatalogService {
     DremioConfig config,
     EnumSet<Role> roles
   ) {
-    this(context, scheduler, sysTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
+    this(context, scheduler, sysTableConfProvider, sysFlightTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
       kvStoreProvider, datasetListingService, optionManager, broadcasterProvider, config, roles, CatalogServiceMonitor.DEFAULT);
   }
 
@@ -158,6 +162,7 @@ public class CatalogServiceImpl implements CatalogService {
     Provider<SabotContext> context,
     Provider<SchedulerService> scheduler,
     Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
+    Provider<? extends Provider<ConnectionConf<?, ?>>> sysFlightTableConfProvider,
     Provider<FabricService> fabric,
     Provider<ConnectionReader> connectionReaderProvider,
     Provider<BufferAllocator> bufferAllocator,
@@ -172,6 +177,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.context = context;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
+    this.sysFlightTableConfProvider = sysFlightTableConfProvider;
     this.fabric = fabric;
     this.connectionReaderProvider = connectionReaderProvider;
     this.bufferAllocator = bufferAllocator;
@@ -229,6 +235,22 @@ public class CatalogServiceImpl implements CatalogService {
               refreshSource(new NamespaceKey("sys"), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
             } catch (NamespaceException e) {
               throw new RuntimeException(e);
+            }
+
+            if (optionManager.get().getOption(ExecConstants.ENABLE_SYSFLIGHT_SOURCE)) {
+              if (sysFlightTableConfProvider != null) {
+                createSourceIfMissing(new SourceConfig()
+                  .setConnectionConf(sysFlightTableConfProvider.get().get())
+                  .setName(SYSFLIGHT_SOURCE_NAME)
+                  .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY));
+
+                logger.debug("Refreshing {} source", SYSFLIGHT_SOURCE_NAME);
+                try {
+                  refreshSource(new NamespaceKey(SYSFLIGHT_SOURCE_NAME), CatalogService.DEFAULT_METADATA_POLICY, UpdateType.FULL);
+                } catch (NamespaceException e) {
+                  throw new RuntimeException(e);
+                }
+              }
             }
           } finally {
             wasRun.countDown();

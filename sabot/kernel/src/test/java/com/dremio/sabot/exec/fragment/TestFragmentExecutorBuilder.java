@@ -75,7 +75,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
     BootStrapContext bootStrapContext = new BootStrapContext(DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT);
 
     FragmentExecutorBuilder fragmentExecutorBuilder = new FragmentExecutorBuilder(queriesClerk, mock(FragmentExecutors.class),
-      CoordinationProtos.NodeEndpoint.newBuilder().build(), mock(MaestroProxy.class), mock(SabotConfig.class), mock(ClusterCoordinator.class), mock(ExecutorService.class),
+      CoordinationProtos.NodeEndpoint.newBuilder().build(), mock(MaestroProxy.class), mock(SabotConfig.class), mock(DremioConfig.class), mock(ClusterCoordinator.class), mock(ExecutorService.class),
       mock(OptionManager.class), mock(FragmentWorkManager.ExecConnectionCreator.class), mock(OperatorCreatorRegistry.class), mock(PhysicalPlanReader.class), mock(NamespaceService.class),
       mock(CatalogService.class), mock(ContextInformationFactory.class), mock(FunctionImplementationRegistry.class), mock(DecimalFunctionImplementationRegistry.class),
       bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class));

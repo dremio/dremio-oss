@@ -59,6 +59,7 @@ import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.plugins.sysflight.SysFlightPluginConfigProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
@@ -206,6 +207,7 @@ public class TestSystemStoragePluginInitializer {
       () -> sabotContext,
       () -> new LocalSchedulerService(1),
       () -> new SystemTablePluginConfigProvider(),
+      () -> new SysFlightPluginConfigProvider(() -> sabotContext.getEndpoint()),
       () -> fabricService,
       () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
       () -> allocator,

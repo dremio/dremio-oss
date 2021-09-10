@@ -243,9 +243,11 @@ public class PageReader {
       pageHeader = dataReader.readPageHeader();
       long timeToRead = timer.elapsed(TimeUnit.MICROSECONDS);
       this.updateStats(pageHeader, "Page Header Read", start, timeToRead, 0,0);
-      logger.trace("ParquetTrace,{},{},{},{},{},{},{},{}","Page Header Read","",
+      if (logger.isTraceEnabled()) {
+        logger.trace("ParquetTrace,{},{},{},{},{},{},{},{}", "Page Header Read", "",
           this.parentColumnReader.parentReader.fsPath,
-          this.parentColumnReader.columnDescriptor.toString(), start, 0, 0, timeToRead);
+          this.parentColumnReader.columnDescriptor, start, 0, 0, timeToRead);
+      }
       timer.reset();
       if (pageHeader.getType() == PageType.DICTIONARY_PAGE) {
         readDictionaryPage(pageHeader, parentColumnReader);

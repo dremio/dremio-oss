@@ -48,7 +48,14 @@ class IcebergNessieCommand extends IcebergBaseCommand {
     @Override
     public TableOperations getTableOperations() {
         return new IcebergNessieTableOperations(client,
-                new DremioFileIO(fs, context, dataset, null, configuration),
+                new DremioFileIO(fs, context, dataset, null, null, configuration),
                 nessieTableIdentifier);
+    }
+
+    public void deleteRootPointerStoreKey () {
+      IcebergNessieTableOperations icebergNessieTableOperations = new IcebergNessieTableOperations(client,
+        new DremioFileIO(fs, context, dataset, null, null, configuration),
+        nessieTableIdentifier);
+      icebergNessieTableOperations.deleteKey();
     }
 }

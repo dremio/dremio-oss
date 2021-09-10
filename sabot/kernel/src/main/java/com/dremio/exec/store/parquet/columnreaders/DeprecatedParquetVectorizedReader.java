@@ -585,7 +585,8 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     }
 
     if(parquetReaderStats != null) {
-      logger.trace("ParquetTrace,Summary,{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+      if (logger.isTraceEnabled()) {
+        logger.trace("ParquetTrace,Summary,{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
           fsPath,
           parquetReaderStats.numDictPageHeaders,
           parquetReaderStats.numPageHeaders,
@@ -605,6 +606,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
           parquetReaderStats.timePageLoads,
           parquetReaderStats.timeDictPagesDecompressed,
           parquetReaderStats.timePagesDecompressed);
+      }
       parquetReaderStats=null;
     }
   }

@@ -16,7 +16,15 @@
 package com.dremio.exec.planner.acceleration;
 
 import org.apache.calcite.plan.CopyWithCluster;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.NlsString;
 
+import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.store.CatalogService;
 import com.google.common.base.Preconditions;
@@ -49,9 +57,37 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
   @Override
   public DremioMaterialization getMaterializationFor(SqlConverter converter) {
     final CopyWithCluster copier = new CopyWithCluster(converter.getCluster());
-    final DremioMaterialization copied = materialization.accept(copier);
+    final DremioMaterialization copied = materialization.accept(new FixCharTypeShuttle(converter.getCluster())).accept(copier);
     copier.validate();
     return copied;
+  }
+
+  public static class FixCharTypeRexShuttle extends RexShuttle {
+    private final RelOptCluster cluster;
+
+    FixCharTypeRexShuttle(RelOptCluster cluster) {
+      this.cluster = cluster;
+    }
+
+    @Override
+    public RexNode visitLiteral(RexLiteral literal) {
+      if (literal.getTypeName() == SqlTypeName.VARCHAR) {
+        return cluster.getRexBuilder().makeCharLiteral(literal.getValueAs(NlsString.class));
+      }
+      return literal;
+    }
+  }
+
+  public static class FixCharTypeShuttle extends RoutingShuttle {
+    RelOptCluster cluster;
+    FixCharTypeShuttle(RelOptCluster cluster) {
+      this.cluster = cluster;
+    }
+    @Override
+    public RelNode visit(RelNode relNode) {
+      RelNode rel = super.visit(relNode);
+      return rel.accept(new FixCharTypeRexShuttle(cluster));
+    }
   }
 
   public DremioMaterialization getMaterialization() {

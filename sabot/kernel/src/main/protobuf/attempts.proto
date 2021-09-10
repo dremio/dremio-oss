@@ -28,6 +28,7 @@ enum AttemptReason {
   INVALID_DATASET_METADATA = 4;
   JSON_FIELD_CHANGE = 5;
   RESOURCE_TIMEOUT = 6;
+  PDFS_RETRIABLE_ERROR = 7;
 }
 
 enum RequestType {

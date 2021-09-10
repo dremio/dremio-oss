@@ -22,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.plugins.elastic.DateFormats;
-import com.dremio.plugins.elastic.DateFormats.FormatterAndType;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -261,7 +259,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
       // the type system for elastic somewhat incomplete. In cases of the single "date" type can be mapped to TIME, DATE or TIMESTAMP. We need to check this here.
       if(type == Type.DATE){
-        DateFormats.FormatterAndType[] types = DateFormats.FormatterAndType.getFormatterAndType(formats);
+        DateFormats.FormatterAndTypeJavaTime[] types = DateFormats.FormatterAndTypeJavaTime.getFormatterAndType(formats);
         Preconditions.checkArgument(types.length > 0);
         Type newType = types[0].type();
 

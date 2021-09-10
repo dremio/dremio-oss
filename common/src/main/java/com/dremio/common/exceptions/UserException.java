@@ -386,6 +386,35 @@ public class UserException extends RuntimeException {
   }
 
   /**
+   *
+   * Creates a new user exception builder .
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFLECTION_ERROR
+   * @return user exception builder
+   */
+  @Deprecated
+  public static Builder pdfsRetriableError() {
+    return pdfsRetriableError(null);
+  }
+
+  /**
+   * wraps the passed exception inside a validation error.
+   * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
+   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFLECTION_ERROR
+   *
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
+   *              returned by the builder instead of creating a new user exception
+   * @return user exception builder
+   */
+  public static Builder pdfsRetriableError(Throwable cause) {
+    return builder(DremioPBError.ErrorType.PDFS_RETRIABLE_ERROR, cause);
+  }
+
+
+  /**
    * Creates a new user exception builder .
    *
    * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#RETRY_ATTEMPT_ERROR
@@ -435,6 +464,32 @@ public class UserException extends RuntimeException {
    */
   public static Builder reflectionError(Throwable cause) {
     return builder(DremioPBError.ErrorType.REFLECTION_ERROR, cause);
+  }
+
+  /**
+   * Creates a new user exception builder .
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFRESH_DATASET_ERROR
+   * @return user exception builder
+   */
+  public static Builder refreshDatasetError() {
+    return refreshDatasetError(null);
+  }
+
+  /**
+   * wraps the passed exception inside a validation error.
+   * <p>the cause message will be used unless {@link Builder#message(String, Object...)} is called.
+   * <p>if the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
+   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#REFRESH_DATASET_ERROR
+   *
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
+   *              returned by the builder instead of creating a new user exception
+   * @return user exception builder
+   */
+  public static Builder refreshDatasetError(Throwable cause) {
+    return builder(DremioPBError.ErrorType.REFRESH_DATASET_ERROR, cause);
   }
 
   /**

@@ -53,6 +53,9 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
 
   final CodeGenContext trueExprContext;
   final CodeGenContext falseExprContext;
+
+  private final CaseExpressionAnalyzer caseAnalyzer;
+
   PreferenceBasedSplitter(ExpressionSplitter splitter, SupportedEngines.Engine
     preferredEngine, SupportedEngines.Engine nonPreferredEngine) {
     this.splitter = splitter;
@@ -70,18 +73,19 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
 
     this.preferredEngine = preferredEngine;
     this.nonPreferredEngine = nonPreferredEngine;
+    this.caseAnalyzer = new CaseExpressionAnalyzer(preferredEngine, nonPreferredEngine);
   }
 
   CodeGenContext visitCodeGenContext(CodeGenContext context, SplitDependencyTracker
-    myTracker) throws Exception{
+    myTracker) throws Exception {
 
-    return context.getChild().accept(this,Tuple.<CodeGenContext, SplitDependencyTracker>of(context,
+    return context.getChild().accept(this, Tuple.<CodeGenContext, SplitDependencyTracker>of(context,
       myTracker));
   }
 
   @Override
-  public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression holder ,
-    Tuple<CodeGenContext, SplitDependencyTracker> value) throws Exception {
+  public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression holder,
+                                                      Tuple<CodeGenContext, SplitDependencyTracker> value) throws Exception {
     CodeGenContext context = value.first;
     SplitDependencyTracker myTracker = value.second;
     if (holder.getHolder() == null) {
@@ -100,7 +104,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
   }
 
   private CodeGenContext splitFunctionExpression(FunctionHolderExpression holder,
-    SplitDependencyTracker myTracker, SupportedEngines executionEngine) throws Exception {
+                                                 SplitDependencyTracker myTracker, SupportedEngines executionEngine) throws Exception {
     List<LogicalExpression> newArgs = Lists.newArrayList();
 
     // figure out how to execute the function
@@ -116,7 +120,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
 
     logger.trace("Visiting function {}, fnExecType {}", holder, fnExecType);
     // iterate over the arguments and visit them
-    for(LogicalExpression arg : holder.args) {
+    for (LogicalExpression arg : holder.args) {
       // Traverse down the tree to see if the expression changes.
       // When there is a split, the expression changes as the operator is replaced by the newly created split
       SplitDependencyTracker argTracker = new SplitDependencyTracker(executionEngine, myTracker.getIfExprBranches());
@@ -533,11 +537,13 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
   }
 
   @Override
-  public CodeGenContext visitCaseExpression(CaseExpression caseExpression, Tuple<CodeGenContext, SplitDependencyTracker> value) throws Exception {
-    // TODO: Implement splitting for case expressions
-    CodeGenContext caseExpressionContext = CodeGenContext.buildWithNoDefaultSupport(caseExpression);
-    caseExpressionContext.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.JAVA);
-    caseExpressionContext.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.JAVA);
-    return caseExpressionContext;
+  public CodeGenContext visitCaseExpression(CaseExpression caseExpression,
+                                            Tuple<CodeGenContext, SplitDependencyTracker> value) throws Exception {
+    final CodeGenContext caseExpressionContext = value.first;
+    final SplitDependencyTracker parentTracker = value.second;
+    CaseSplits caseSplits = caseAnalyzer.analyzeCaseExpression(caseExpressionContext);
+    CaseExpressionSplitter caseSplitter = new CaseExpressionSplitter(caseExpressionContext, parentTracker, splitter,
+      caseSplits, this);
+    return caseSplitter.splitAndGetFinalSplit();
   }
 }

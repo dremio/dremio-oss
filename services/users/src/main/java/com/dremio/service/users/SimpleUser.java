@@ -38,11 +38,12 @@ public final class SimpleUser implements User {
     private long modifiedAt;
     private String version;
     private String extra;
+    private boolean active = true;
 
     private Builder() {}
 
     private Builder(UID uid, String userName, String firstName, String lastName, String email,
-        long createdAt, long modifiedAt, String version, String extra) {
+        long createdAt, long modifiedAt, String version, String extra, boolean active) {
       super();
       this.uid = uid;
       this.userName = userName;
@@ -53,6 +54,7 @@ public final class SimpleUser implements User {
       this.modifiedAt = modifiedAt;
       this.version = version;
       this.extra = extra;
+      this.active = active;
     }
 
     public UID getUID() {
@@ -136,8 +138,17 @@ public final class SimpleUser implements User {
       return this;
     }
 
+    public boolean isActive() {
+      return active;
+    }
+
+    public Builder setActive(boolean active) {
+      this.active = active;
+      return this;
+    }
+
     public SimpleUser build() {
-      return new SimpleUser(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra);
+      return new SimpleUser(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra, active);
     }
   }
 
@@ -150,6 +161,7 @@ public final class SimpleUser implements User {
   private final long modifiedAt;
   private final String version;
   private final String extra;
+  private final boolean active;
 
   @JsonCreator
   private SimpleUser(
@@ -161,7 +173,9 @@ public final class SimpleUser implements User {
       @JsonProperty("createdAt") long createdAt,
       @JsonProperty("modifiedAt") long modifiedAt,
       @JsonProperty("version") String version,
-      @JsonProperty("extra") String extra) {
+      @JsonProperty("extra") String extra,
+      @JsonProperty("active") boolean active
+  ) {
     super();
     this.uid = uid;
     this.userName = userName;
@@ -172,6 +186,7 @@ public final class SimpleUser implements User {
     this.modifiedAt = modifiedAt;
     this.version = version;
     this.extra = extra;
+    this.active = active;
   }
 
   @Override
@@ -219,6 +234,11 @@ public final class SimpleUser implements User {
   }
 
   @Override
+  public boolean isActive() {
+    return active;
+  }
+
+  @Override
   public int hashCode() {
     return Objects.hash(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra);
   }
@@ -242,14 +262,15 @@ public final class SimpleUser implements User {
       && Objects.equals(createdAt, other.createdAt)
       && Objects.equals(modifiedAt, other.modifiedAt)
       && Objects.equals(version, other.version)
-      && Objects.equals(extra, other.extra);
+      && Objects.equals(extra, other.extra)
+      && active == other.active;
   }
 
   @Override
   public String toString() {
     return "SimpleUser [uid=" + uid + ", userName=" + userName + ", firstName=" + firstName + ", lastName=" + lastName
         + ", email=" + email + ", createdAt=" + createdAt + ", modifiedAt=" + modifiedAt
-        + ", version=" + version + ", extra=" + extra + "]";
+        + ", version=" + version + ", extra=" + extra + ", active=" + active + "]";
   }
 
   public static Builder newBuilder() {
@@ -258,6 +279,7 @@ public final class SimpleUser implements User {
 
   public static Builder newBuilder(User user) {
     return new Builder(user.getUID(), user.getUserName(), user.getFirstName(), user.getLastName(),
-        user.getEmail(), user.getCreatedAt(), user.getModifiedAt(), user.getVersion(), user.getExtra());
+      user.getEmail(), user.getCreatedAt(), user.getModifiedAt(), user.getVersion(), user.getExtra(),
+      user.isActive());
   }
 }

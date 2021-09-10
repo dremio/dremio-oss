@@ -38,7 +38,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 /**
- * Helper class for {@link ScanWithDremioReader} to create a {@link ProducerOperator} that uses readers provided by
+ * Helper class for {@link ScanWithDremioReader} to create a {@link RecordReaderIterator} that uses readers provided by
  * Dremio.
  */
 class ScanWithDremioReader {
@@ -46,7 +46,6 @@ class ScanWithDremioReader {
   static RecordReaderIterator createReaders(
     final HiveConf hiveConf,
     final BaseHiveStoragePlugin hiveStoragePlugin,
-    final FragmentExecutionContext fragmentExecContext,
     final OperatorContext context,
     final HiveTableXattr tableXattr,
     final CompositeReaderConfig compositeReader,
@@ -54,7 +53,8 @@ class ScanWithDremioReader {
     final ScanFilter scanFilter,
     final BatchSchema fullSchema,
     final Collection<List<String>> referencedTables,
-    final List<SplitAndPartitionInfo> splits) {
+    final List<SplitAndPartitionInfo> splits,
+    final boolean produceFromBufferedSplits) {
 
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
@@ -80,7 +80,8 @@ class ScanWithDremioReader {
               tableXattr,
               scanFilter,
               fullSchema,
-              referencedTables);
+              referencedTables,
+              produceFromBufferedSplits);
     } catch (final Exception e) {
       throw Throwables.propagate(e);
     }

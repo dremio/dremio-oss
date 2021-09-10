@@ -46,7 +46,11 @@ const formFields = [
   getPair('tag'),
   getPair('email'),
   getPair('password'),
-  getPair('extra')
+  getPair('extra'),
+  getPair('active'),
+  getPair('id'),
+  getPair('roles'),
+  getPair('source')
 ];
 
 const formToEntity = formFields.reduce((map, field) => {

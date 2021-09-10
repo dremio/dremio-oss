@@ -19,7 +19,7 @@ import Radium from 'radium';
 
 import timeUtils from 'utils/timeUtils';
 import { TextField, Select } from 'components/Fields';
-
+import { selectDay, selectWeek, input } from '@app/uiTheme/less/Acceleration/Frequency.less';
 import Tabs from '../Tabs';
 
 @Radium
@@ -55,7 +55,7 @@ export default class Frequency extends PureComponent {
     return (
       <span>
         <span>{la('Every')}</span>
-        <TextField default={period.value || period.initialValue} type='number' {...period} style={styles.input}/>
+        <TextField default={period.value || period.initialValue} type='number' {...period} className={input}/>
       </span>
     );
   }
@@ -64,9 +64,9 @@ export default class Frequency extends PureComponent {
     const {hour, minutes, format} = this.props.fields;
     return (
       <span>
-        <Select value={hour.value || hour.initialValue} items={this.hours} {...hour} style={styles.select}/> :
-        <Select value={minutes.value || minutes.initialValue} items={this.mins} {...minutes} style={styles.select}/>
-        <Select value={format.value || format.initialValue} items={this.items.format}{...format} style={styles.select}/>
+        <Select value={hour.value || hour.initialValue} items={this.hours} {...hour} className={selectDay}/> :
+        <Select value={minutes.value || minutes.initialValue} items={this.mins} {...minutes} className={selectDay}/>
+        <Select value={format.value || format.initialValue} items={this.items.format}{...format} className={selectDay}/>
       </span>
     );
   }
@@ -75,9 +75,9 @@ export default class Frequency extends PureComponent {
     const {dayOfWeek} = this.props.fields;
     return (
       <Select
+        className={selectWeek}
         value={dayOfWeek.value || dayOfWeek.initialValue}
         items={this.days}
-        style={{...styles.select, width: 100, marginRight: 5}}
         {...dayOfWeek}/>
     );
   }
@@ -86,9 +86,9 @@ export default class Frequency extends PureComponent {
     const {week} = this.props.fields;
     return (
       <Select
+        className={selectWeek}
         value={week.value || week.initialValue}
         items={this.weeks}
-        style={{...styles.select, width: 100, marginRight: 5}}
         {...week}/>
     );
   }
@@ -123,22 +123,3 @@ export default class Frequency extends PureComponent {
     );
   }
 }
-
-const styles = {
-  select: {
-    width: 50,
-    marginTop: 2,
-    marginRight: 5,
-    top: -15
-  },
-  input: {
-    width: 40,
-    height: 24,
-    fontSize: 13,
-    border: '1px solid #ccc',
-    borderRadius: 3,
-    outline: 'none',
-    padding: 2,
-    margin: '0 10px'
-  }
-};

@@ -20,11 +20,11 @@ import { AutoSizer, List } from 'react-virtualized';
 
 import { SearchField } from 'components/Fields';
 import classNames from 'classnames';
+import { rowMargin } from '@app/uiTheme/less/forms.less';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 
-import { rowMargin } from '@app/uiTheme/less/forms.less';
+import { base, search } from '@app/uiTheme/less/DragComponents/DragColumnMenu.less';
 import ColumnMenuItem from './ColumnMenuItem';
-import { base, search } from './DragColumnMenu.less';
 
 export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST']);
 
@@ -90,9 +90,8 @@ export default class DragColumnMenu extends PureComponent {
 
   renderColumn = ({ index, key, style }) => {
     const column = this.filteredSortedColumns.get(index);
-    const isAdmin = localStorageUtils.isUserAnAdmin();
-    return <div key={key} style={style}
-      className={rowMargin}>
+    const isUserAnAdmin = localStorageUtils.isUserAnAdmin();
+    return <div key={key} style={style}>
       <ColumnMenuItem
         item={column}
         disabled={this.props.disabledColumnNames.has(column.get('name'))}
@@ -102,7 +101,8 @@ export default class DragColumnMenu extends PureComponent {
         onDragEnd={this.props.onDragEnd}
         name={this.props.name}
         dragType={this.props.dragType}
-        preventDrag={!(isAdmin || this.props.canAlter)}
+        preventDrag={!(isUserAnAdmin || this.props.canAlter)}
+        className={rowMargin}
       />
     </div>;
   }

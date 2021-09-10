@@ -624,7 +624,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     public <T> ListenableFuture<T> executeAsync(final ElasticAction2<T> action){
       final ContextListenerImpl listener = new ContextListenerImpl();
       // need to cast to jersey since the core javax.ws.rs Invocation doesn't support a typed submission.
-      final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener);
+      final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener, false);
       final SettableFuture<T> future = SettableFuture.create();
       invocation.submit(new GenericType<>(action.getResponseClass()),
         new CheckedAsyncCallback<>(future,  e -> {
@@ -650,17 +650,6 @@ public class ElasticConnectionPool implements AutoCloseable {
         }
       }
       throw new RuntimeException(String.format("Failed to execute action after %d retries.", actionRetries));
-    }
-
-    public <T> T execute(ElasticAction2<T> action){
-      final ContextListenerImpl listener = new ContextListenerImpl();
-      final Invocation invocation = action.buildRequest(target, listener);
-      try {
-        return executeWithRetries(invocation, action.getResponseClass());
-      } catch (Exception e){
-        throw handleException(e, action, listener);
-      }
-
     }
 
     public <T> T execute(ElasticAction2<T> action, boolean enable7vFeatures){

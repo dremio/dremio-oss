@@ -16,15 +16,23 @@
 package com.dremio.plugins.elastic;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+
+import com.dremio.common.util.TestTools;
 
 /**
  * Tests for validating that pushdown rules are fired correctly.
  */
 
 public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testPredicate_IntegerEquality() throws Exception {

@@ -145,9 +145,7 @@ public class ITTestDateTypeWithMultipleFormatter extends BaseTestDateTypeWithMul
 
   @Test
   public final void runTestWithComplexFormatter() throws Exception {
-    // ES7 bulk creation issue, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-    populateComplexFormatter();
+    populateComplexFormatterStrict();
     final String sql = "select field from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sql, new String[] {
       "[{\n" +
@@ -178,9 +176,7 @@ public class ITTestDateTypeWithMultipleFormatter extends BaseTestDateTypeWithMul
 
   @Test
   public final void runTestWithComplexFormatterExtract() throws Exception {
-    // ES7 bulk creation issue, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-    populateComplexFormatter();
+    populateComplexFormatterStrict();
     final String sql = "select extract(year from \"field\"), extract(month from \"field\")," +
       " extract(day from \"field\"), extract(hour from \"field\"), extract(minute from \"field\")," +
       " extract(second from \"field\") from elasticsearch." + schema + "." + table;

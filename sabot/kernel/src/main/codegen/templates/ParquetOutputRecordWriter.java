@@ -67,10 +67,12 @@ public abstract class ParquetOutputRecordWriter extends AbstractRowBasedRecordWr
 
   private RecordConsumer consumer;
   private MessageType schema;
+  private boolean isIcebergWriter;
 
-  public void setUp(MessageType schema, RecordConsumer consumer) {
+  public void setUp(MessageType schema, RecordConsumer consumer, boolean isIcebergWriter) {
     this.schema = schema;
     this.consumer = consumer;
+    this.isIcebergWriter = isIcebergWriter;
   }
 
   public abstract class ParquetFieldConverter extends FieldConverter {
@@ -111,7 +113,6 @@ public abstract class ParquetOutputRecordWriter extends AbstractRowBasedRecordWr
               minor.class == "UInt2" ||
               minor.class == "SmallInt" ||
               minor.class == "Int" ||
-              minor.class == "TimeMilli" ||
               minor.class == "Decimal9" ||
               minor.class == "UInt4">
       reader.read(holder);
@@ -123,7 +124,6 @@ public abstract class ParquetOutputRecordWriter extends AbstractRowBasedRecordWr
       <#elseif
       minor.class == "BigInt" ||
               minor.class == "Decimal18" ||
-              minor.class == "TimeStampMilli" ||
               minor.class == "UInt8">
       reader.read(holder);
       consumer.addLong(holder.value);
@@ -138,6 +138,18 @@ public abstract class ParquetOutputRecordWriter extends AbstractRowBasedRecordWr
       minor.class == "Bit">
       reader.read(holder);
       consumer.addBoolean(holder.value == 1);
+      <#elseif
+      minor.class == "TimeMilli">
+      reader.read(holder);
+      if (isIcebergWriter) {
+        consumer.addLong(((long) holder.value) * 1_000); // convert to micro for iceberg
+      } else {
+        consumer.addInteger(holder.value);
+      }
+      <#elseif
+      minor.class == "TimeStampMilli">
+      reader.read(holder);
+      consumer.addLong(holder.value * (isIcebergWriter ? 1_000 : 1)); // convert to micro for iceberg
       <#elseif
       minor.class == "Decimal28Sparse" ||
               minor.class == "Decimal38Sparse">

@@ -14,26 +14,35 @@
  * limitations under the License.
  */
  //see also color-schema.less
-@section-margin: 15px;
-@content-padding: 15px;
+ @section-margin: 15px;
+ @content-padding: 15px;
+ 
+ // TODO use radio styles variables here
+ @input-under-radio-offset: 25px; // align input below a radio to radio's label
+ 
+ @input-spacing: 10px; //space between 2 inputs located on one line
+ @half-input-spacing: (@input-spacing / 2);
+ 
+ @row-content-margin: 8px; //margin between 2 rows, 2 inline elements
+ 
+ //multisort variables
+ @row-height: 30px;
+ @row-max-height: @row-height * 2 - 2;
+ @row-min-height: 40px;
+ @row-element-height: @row-height - @row-content-margin;
+ 
+ @pull-out-right-tree-width: 250px;
+ 
+ @form-row-height-default: 28px; // default height for inputs
+ 
+ // export for js
+ :export {
+   input-spacing: @input-spacing;
+ }
+ 
+ @icon-height: 25px;
+ 
+ @acceleration_font: 'Inter var', 'sans-serif';
 
-// TODO use radio styles variables here
-@input-under-radio-offset: 25px; // align input below a radio to radio's label
-
-@input-spacing: 10px; //space between 2 inputs located on one line
-@half-input-spacing: (@input-spacing / 2);
-
-@row-content-margin: 8px; //margin between 2 rows, 2 inline elements
-
-//multisort variables
-@row-height: 30px;
-@row-element-height: @row-height - @row-content-margin;
-
-@pull-out-right-tree-width: 250px;
-
-@form-row-height-default: 28px; // default height for inputs
-
-// export for js
-:export {
-  input-spacing: @input-spacing;
-}
+ @CLEAR_ALL_HEIGHT: 20px;
+ 

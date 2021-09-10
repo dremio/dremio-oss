@@ -82,6 +82,47 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testQueryWithOnlyOffset() throws Exception {
+    final String sql = "SELECT columns[0] AS Key, columns[1] AS Country, columns[2] as Capital FROM cp.\"csv/nationsWithCapitals.csv\" OFFSET 4";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("Key", "Country", "Capital")
+      .baselineValues("5", "France", "Paris")
+      .baselineValues("6", "Italy", "Rome")
+      .go();
+  }
+
+  @Test
+  public void testQueryWithOnlyLimit() throws Exception {
+    final String sql = "SELECT columns[0] AS Key, columns[1] AS Country, columns[2] as Capital FROM cp.\"csv/nationsWithCapitals.csv\" LIMIT 2";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("Key", "Country", "Capital")
+      .baselineValues("1", "USA", "Washington DC")
+      .baselineValues("2", "Singapore", "Singapore")
+      .go();
+  }
+
+
+  @Test
+  public void testQueryWithOnlyLimitAndOffset() throws Exception {
+    final String sql = "SELECT columns[0] AS Key, columns[1] AS Country, columns[2] as Capital FROM cp.\"csv/nationsWithCapitals.csv\" LIMIT 3 OFFSET 2";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("Key", "Country", "Capital")
+      .baselineValues("3", "UK", "London")
+      .baselineValues("4", "Germany", "Berlin")
+      .baselineValues("5", "France", "Paris")
+      .go();
+  }
+
+  @Test
   public void testInvalidUtf() throws Exception {
     final String subQuery = "select columns[0] as col0, columns[1] as col1 from cp.\"csv/invalidUtf.csv\" limit 500";
     final String sql = "SELECT convert_from(col0, 'UTF8', '') as c1 FROM (" + subQuery +
@@ -377,11 +418,18 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void subQueryNotInWhereNotNull() throws Exception {
-    test("SELECT l_returnflag, l_linestatus, sum(l_extendedprice)\n" +
+    String query = "SELECT l_returnflag, l_linestatus, sum(l_extendedprice)\n" +
       "FROM cp.\"tpch/lineitem.parquet\" as lineitem\n" +
       "where l_quantity not in\n" +
       "(select l_linenumber from cp.\"tpch/lineitem.parquet\" as lineitem where (l_linenumber is not null) group by l_linenumber)\n" +
-      "group by l_returnflag, l_linestatus");
+      "group by l_returnflag, l_linestatus";
+
+    test(query);
+
+    // DX-35078
+    try(AutoCloseable option = withOption(PlannerSettings.ENHANCED_FILTER_JOIN_PUSHDOWN, true)) {
+      test(query);
+    }
   }
 
   @Test
@@ -568,14 +616,6 @@ public class TestExampleQueries extends PlanTestBase {
     testPlanMatchingPatterns("SELECT CURRENT_TIME ct, CURRENT_TIME(0) ct0," +
             " CURRENT_TIMESTAMP cts, CURRENT_TIMESTAMP(1) cts1 FROM (VALUES(1))",
         new String[] {"TIME\\(3\\) ct, TIME\\(3\\) ct0, TIMESTAMP\\(3\\) cts, TIMESTAMP\\(3\\) cts1"});
-  }
-
-  @Test
-  public void testMixedTypeGroupBy() throws Exception {
-    test("alter session set \"planner.enable_streamagg\" = false");
-    test("alter session set \"planner.enable_hashagg\" = true");
-    test("select count(*) from cp.\"vector/complex/mixed.json\" group by a, typeof(a)");
-    test("alter session set \"planner.enable_streamagg\" = true");
   }
 
   @Test
@@ -2023,6 +2063,62 @@ public class TestExampleQueries extends PlanTestBase {
       .ordered()
       .baselineColumns("res1")
       .baselineValues(ts("1970-01-01T00:00:00.000"))
+      .build()
+      .run();
+  }
+
+  @Test // DX-34706
+  public void testIsNotTrueInt() throws Exception {
+    String query = "SELECT\n" +
+      "  \"L\".\"PARTID\" AS \"C0\"\n" +
+      "FROM\n" +
+      "  (VALUES\n" +
+      "  (1\n" +
+      "  , 'A'\n" +
+      "  , -1\n" +
+      "  )\n" +
+      ", (2, 'B', 1)\n" +
+      ", (3, 'C', 1)\n" +
+      ", (4, 'D', 1)\n" +
+      ", (5, 'E', 3)\n" +
+      ", (6, 'F', 4)\n" +
+      ", (7, 'G', 6)) \"L\"(\"PARTID\", \"PARTNAME\", \"PARENTPART\")\n" +
+      "WHERE\n" +
+      "  NOT\n" +
+      "  (\n" +
+      "    \"L\".\"PARTID\" IN\n" +
+      "    (\n" +
+      "      SELECT\n" +
+      "        \"PARTID\"\n" +
+      "      FROM\n" +
+      "        (\n" +
+      "          SELECT\n" +
+      "            \"PARTID\"\n" +
+      "          , \"PARTNAME\"\n" +
+      "          , \"PARENTPART\"\n" +
+      "          FROM\n" +
+      "            ( VALUES\n" +
+      "            (1\n" +
+      "            , 'A'\n" +
+      "            , -1\n" +
+      "            )\n" +
+      "          , (3, 'C', 1)\n" +
+      "          , (4, 'D', 1)\n" +
+      "          , (6, 'F', 4)\n" +
+      "          , (7, 'G', 6) ) \"D1\" (\"PARTID\", \"PARTNAME\", \"PARENTPART\")\n" +
+      "        )\n" +
+      "        \"PART\"(\"PARTID\", \"PARTNAME\", \"PARENTPART\")\n" +
+      "    )\n" +
+      "  )\n" +
+      "ORDER BY\n" +
+      "  \"C0\" ASC NULLS LAST";
+
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("C0")
+      .baselineValues(2L)
+      .baselineValues(5L)
       .build()
       .run();
   }

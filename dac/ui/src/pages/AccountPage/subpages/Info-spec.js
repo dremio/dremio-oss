@@ -15,7 +15,6 @@
  */
 import { shallow } from 'enzyme';
 import { minimalFormProps } from 'testUtil';
-import config from 'dyn-load/utils/config';
 import EditUserForm from '@app/pages/AdminPage/components/forms/EditUserForm';
 import { Info } from './Info';
 
@@ -37,10 +36,6 @@ describe('Info', () => {
     };
   });
 
-  afterEach(() => {
-    config.showUserAndUserProperties = true;
-  });
-
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<Info {...minimalProps} />);
     expect(wrapper).to.have.length(1);
@@ -59,13 +54,5 @@ describe('Info', () => {
   it('should render UserForm with common props', () => {
     const wrapper = shallow(<Info {...commonProps} />);
     expect(wrapper.find(EditUserForm)).to.have.length(1);
-    expect(wrapper.find(EditUserForm).props().isReadMode).to.be.false;
-  });
-
-  it('should respect showUserAndUserProperties', () => {
-    config.showUserAndUserProperties = false;
-    const wrapper = shallow(<Info {...commonProps} />);
-    expect(wrapper.find(EditUserForm)).to.have.length(1);
-    expect(wrapper.find(EditUserForm).props().isReadMode).to.be.true;
   });
 });

@@ -41,17 +41,13 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 import com.dremio.dac.daemon.DremioBinder;
-import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.socket.SocketServlet;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.telemetry.api.tracing.http.ServerTracingFilter;
 import com.google.common.annotations.VisibleForTesting;
-
-import io.opentracing.Tracer;
 
 /**
  * Provides Dremio web server
@@ -80,13 +76,10 @@ public class DremioServer {
   public void startDremioServer(
     SingletonRegistry registry,
     DACConfig config,
-    Provider<ServerHealthMonitor> serverHealthMonitor,
-    Provider<NodeEndpoint> endpointProvider,
-    Provider<SabotContext> contextProvider,
     Provider<RestServerV2> restServerProvider,
     Provider<APIServer> apiServerProvider,
+    Provider<ScimServer> scimServerProvider,
     DremioBinder dremioBinder,
-    Tracer tracer,
     String uiType,
     boolean isInternalUS
   ) throws Exception {
@@ -97,7 +90,8 @@ public class DremioServer {
       }
 
       // security header filters
-      servletContextHandler.addFilter(SecurityHeadersFilter.class.getName(), "/*", EnumSet.of(DispatcherType.REQUEST));
+      SecurityHeadersFilter securityHeadersFilter = new SecurityHeadersFilter(registry.provider(OptionManager.class));
+      servletContextHandler.addFilter(new FilterHolder(securityHeadersFilter), "/*", EnumSet.of(DispatcherType.REQUEST));
 
       // Generic Response Headers filter for api responses
       servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/apiv2/*", EnumSet.of(DispatcherType.REQUEST));
@@ -136,6 +130,15 @@ public class DremioServer {
       final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
       apiHolder.setInitOrder(3);
       servletContextHandler.addServlet(apiHolder, "/api/v3/*");
+
+      // SCIM API
+      ResourceConfig scimServer = scimServerProvider.get();
+      scimServer.register(dremioBinder);
+      scimServer.register((DynamicFeature) (resourceInfo, context) -> context.register(TracingFilter.class));
+
+      final ServletHolder scimHolder = new ServletHolder(new ServletContainer(scimServer));
+      scimHolder.setInitOrder(4);
+      servletContextHandler.addServlet(scimHolder, "/scim/v2/*");
 
       if (config.verboseAccessLog) {
         accessLogFilter = new AccessLogFilter();

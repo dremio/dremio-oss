@@ -27,7 +27,6 @@ import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -60,6 +59,15 @@ public class DirListingRecordReaderIterator implements RecordReaderIterator {
   }
 
   @Override
+  public List<RuntimeFilter> getRuntimeFilters() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void produceFromBuffered(boolean toProduce) {
+  }
+
+  @Override
   public void close() throws Exception {
 
   }
@@ -77,14 +85,13 @@ public class DirListingRecordReaderIterator implements RecordReaderIterator {
 
     if (fs == null) {
       try {
-        fs = plugin.createFS(dirListInputSplit.getPath(), config.getProps().getUserName(), context);
+        fs = plugin.createFS(dirListInputSplit.getRootPath(), config.getProps().getUserName(), context);
       }
       catch (IOException e) {
         throw UserException.ioExceptionError(e).buildSilently();
       }
     }
-    boolean discoverPartitions = !plugin.canGetDatasetMetadataInCoordinator();
-    return new DirListingRecordReader(context, fs, dirListInputSplit.getReadSignature(), config.isAllowRecursiveListing(), Path.of(dirListInputSplit.getPath()), config.getTableSchema(), partitionValueList, discoverPartitions);
+    return plugin.createDirListRecordReader(context, fs, dirListInputSplit, config.isAllowRecursiveListing(), config.getTableSchema(), partitionValueList);
   }
 
   private static void populateDirListInputSplit(List<DirListInputSplitProto.DirListInputSplit> dirListInputSplits, List<SplitAndPartitionInfo> splits) throws ExecutionSetupException {

@@ -39,4 +39,8 @@ public interface User {
   String getVersion();
 
   String getExtra();
+
+  default boolean isActive() {
+    return true;
+  }
 }

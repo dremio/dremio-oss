@@ -43,7 +43,8 @@ public interface MutablePlugin extends StoragePlugin {
     final NamespaceKey key,
     final IcebergTableProps icebergTableProps,
     final WriterOptions writerOptions,
-    final Map<String, Object> storageOptions);
+    final Map<String, Object> storageOptions,
+    final boolean isResultsTable);
 
   StoragePluginId getId();
 

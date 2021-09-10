@@ -18,8 +18,10 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { get } from 'lodash/object';
-import { formLabel } from 'uiTheme/radium/typography';
-import { WHITE } from 'uiTheme/radium/colors';
+
+
+import '@app/uiTheme/less/commonModifiers.less';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 
 import AccelerationGridControllerMixin from 'dyn-load/components/Acceleration/Advanced/AccelerationGridControllerMixin';
 
@@ -278,7 +280,6 @@ export default class AccelerationGridController extends Component {
   applyAggregationConstraints = (field, columnIndex, rowIndex) => {
     const currentRow = this.getRowByIndex(rowIndex);
     const dimensionSelected = this.findCurrentColumnInLayouts(fieldTypes.dimension, rowIndex, columnIndex);
-    // const measureSelected = this.findCurrentColumnInLayouts('measureFields', rowIndex, columnIndex);
     const fieldSelected = field && this.findCurrentColumnInLayouts(field, rowIndex, columnIndex);
 
     if (field === fieldTypes.dimension && !dimensionSelected) {
@@ -398,17 +399,17 @@ export default class AccelerationGridController extends Component {
    * @return {*}
    */
   renderBodyCell = (rowIndex, columnIndex) => {
-    const allColumns = this.props.dataset.get('fields');
-    const columns = this.filterFieldList(allColumns).toJS();
-    const borderBottom = rowIndex === columns.length - 1 ? '1px solid #a8e0f1' : '';
-    const backgroundColor = rowIndex % 2 ? '#eff6f9' : '#f5fcff';
-    const opacity = this.props.layoutFields[columnIndex].shouldDelete.value ? 0.5 : 1;
+    const { canAlter } = this.props;
+    const backgroundColor = rowIndex % 2 ? '--bgColor-advEnDark' : '--bgColor-advEnLight';
+    const disabledBackgroundColor = rowIndex % 2 ? '--bgColor-advDisDark' : '--bgColor-advDisLight';
 
     const isRaw = this.props.activeTab === 'raw';
     const showDistributionCell = this.shouldShowDistribution();
     return (
       <div
-        style={{backgroundColor, borderBottom, opacity, ...styles.cell}}
+        className={`AccelerationGridController__cell --bColor-bottom 
+        ${canAlter ? backgroundColor : disabledBackgroundColor }
+        `}
         key={`${rowIndex}-${columnIndex}`}
         data-qa={`acceleration-cell-${rowIndex + 1}-${columnIndex + 1}`}>
         {isRaw && this.renderCell(fieldTypes.display, rowIndex, columnIndex)}
@@ -422,13 +423,13 @@ export default class AccelerationGridController extends Component {
   };
 
   render() {
-    const { layoutFields, dataset, reflections, activeTab } = this.props;
+    const { layoutFields, dataset, reflections, activeTab, canAlter } = this.props;
     const { columnIndex } = this.state.currentCell;
     const allColumns = dataset.get('fields');
     const columns = this.filterFieldList(allColumns);
 
     return (
-      <div style={styles.base}>
+      <div className={'AccelerationGridController'}>
         <AccelerationGrid
           activeTab={activeTab}
           renderBodyCell={this.renderBodyCell}
@@ -438,6 +439,7 @@ export default class AccelerationGridController extends Component {
           onFilterChange={this.onFilterChange}
           layoutFields={layoutFields}
           reflections={reflections}
+          hasPermission={canAlter}
         />
         <CellPopover
           currentCell={this.state.currentCell}
@@ -451,47 +453,3 @@ export default class AccelerationGridController extends Component {
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexGrow: 1
-  },
-  cell: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 30,
-    borderRight: '1px solid #a8e0f1',
-    borderLeft: '1px solid #a8e0f1',
-    marginLeft: 10,
-    ...formLabel
-  },
-  displayButton: {
-    marginLeft: 0,
-    paddingLeft: 7,
-    lineHeight: '22px',
-    height: 20,
-    width: 30,
-    minWidth: 0,
-    fontWeight: 500,
-    fontSize: 13,
-    color: WHITE,
-    backgroundColor: '#558fdb',
-    ':hover': {
-      backgroundColor: '#558fdb'
-    }
-  },
-  measureButton: {
-    backgroundColor: '#9f70bb',
-    ':hover': {
-      backgroundColor: '#9f70bb'
-    }
-  },
-  dimensionButton: {
-    ':hover': {
-      backgroundColor: '#558fdb'
-    }
-  }
-};
-

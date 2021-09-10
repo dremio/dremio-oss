@@ -170,8 +170,12 @@ public class DeltaCheckpointParquetSplitReaderCreator {
             final SplitAndPartitionInfo parquetSplit = toParquetSplit(input.getSplit(), parquetXAttr);
             RecordReader parquetReader = readerConfig.wrapIfNecessary(opCtx.getAllocator(), unifiedParquetReader, parquetSplit);
             if (addWithPartitionCols) {
-                final List<Field> partitionCols = parquetSubScanConfig.getPartitionColumns().stream()
-                        .map(c -> parquetSubScanConfig.getFullSchema().findField(c)).collect(Collectors.toList());
+                // Fetch list of partition columns from add.partitionValues_parsed
+                final List<Field> partitionCols = parquetSubScanConfig.getFullSchema().findField(DELTA_FIELD_ADD).getChildren().stream()
+                  .filter(field -> field.getName().equals(SCHEMA_PARTITION_VALUES_PARSED))
+                  .flatMap(fields -> fields.getChildren().stream())
+                  .collect(Collectors.toList());
+
                 parquetReader = new DeltaLogCheckpointParquetRecordReader(opCtx, parquetReader, partitionCols, parquetSubScanConfig);
             }
             rollbackCloseable.commit();

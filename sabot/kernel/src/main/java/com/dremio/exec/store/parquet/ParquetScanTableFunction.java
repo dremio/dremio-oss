@@ -17,13 +17,10 @@ package com.dremio.exec.store.parquet;
 
 import java.util.List;
 
-import org.apache.arrow.util.VisibleForTesting;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -31,6 +28,7 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 public class ParquetScanTableFunction extends ScanTableFunction {
 
   private ParquetSplitReaderCreatorIterator splitReaderCreatorIterator;
+  private RecordReaderIterator recordReaderIterator;
 
   public ParquetScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
     super(fec, context, props, functionConfig);
@@ -49,7 +47,13 @@ public class ParquetScanTableFunction extends ScanTableFunction {
 
   @Override
   protected RecordReaderIterator createRecordReaderIterator() {
-    return splitReaderCreatorIterator.getRecordReaderIterator();
+    recordReaderIterator = splitReaderCreatorIterator.getRecordReaderIterator();
+    return recordReaderIterator;
+  }
+
+  @Override
+  protected RecordReaderIterator getRecordReaderIterator() {
+    return recordReaderIterator;
   }
 
   @Override
@@ -58,24 +62,7 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   }
 
   @Override
-  public boolean hasBufferedRemaining() {
-    this.setProduceFromBufferedSplits(true);
-    splitReaderCreatorIterator.setProduceFromBufferedSplits(true);
-    return splitReaderCreatorIterator.hasNext();
-  }
-
-  @Override
-  protected void addRuntimeFilterToReaderIterator(RuntimeFilter runtimeFilter) {
-    getSplitReaderCreatorIterator().addRuntimeFilter(runtimeFilter);
-  }
-
-  @VisibleForTesting
-  ParquetSplitReaderCreatorIterator getSplitReaderCreatorIterator() {
-    return this.splitReaderCreatorIterator;
-  }
-
-  @Override
   public void close() throws Exception {
-    AutoCloseables.close(super::close, splitReaderCreatorIterator);
+    AutoCloseables.close(super::close, splitReaderCreatorIterator, recordReaderIterator);
   }
 }

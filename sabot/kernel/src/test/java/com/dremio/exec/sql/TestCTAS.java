@@ -66,6 +66,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergFormatMatcher;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.FileSystem;
@@ -417,11 +418,11 @@ public class TestCTAS extends PlanTestBase {
     }
   }
 
-  private void testCtasSimpleTransactionalTable(final String newTblName) throws Exception {
+  private void testCtasSimpleTransactionalTable(final String newTblName, String schema) throws Exception {
     try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
                       " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
-              TEMP_SCHEMA, newTblName);
+        schema, newTblName);
 
       test(ctasQuery);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
@@ -444,7 +445,7 @@ public class TestCTAS extends PlanTestBase {
       })).length); // manifest list and manifest files
 
       testBuilder()
-              .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+              .sqlQuery(String.format("select count(*) c from %s.%s", schema, newTblName))
               .unOrdered()
               .baselineColumns("c")
               .baselineValues(1L)
@@ -458,13 +459,8 @@ public class TestCTAS extends PlanTestBase {
   public void ctasSimpleTransactionalTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String newTblName = "nation_ctas_tt";
-      testCtasSimpleTransactionalTable(newTblName);
-    }
-
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      final String newTblName = "nation_ctas_tt_v2";
-      testCtasSimpleTransactionalTable(newTblName);
+      testCtasSimpleTransactionalTable("nation_ctas_tt", TEMP_SCHEMA);
+      testCtasSimpleTransactionalTable("nation_ctas_tt_v2", TEMP_SCHEMA_HADOOP);
     }
   }
 
@@ -494,13 +490,13 @@ public class TestCTAS extends PlanTestBase {
     }
   }
 
-  private void testCtasMultiSplitTransactionalTable(String newTblName) throws Exception {
+  private void testCtasMultiSplitTransactionalTable(String newTblName, String dfsSchema, String testSchema) throws Exception {
     try {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/supplier";
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
-                      " AS SELECT * from dfs.\"" + parquetFiles +"\"",
-              TEMP_SCHEMA, newTblName);
+                      " AS SELECT * from " + dfsSchema + ".\"" + parquetFiles +"\"",
+        testSchema, newTblName);
 
       test(ctasQuery);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
@@ -526,7 +522,7 @@ public class TestCTAS extends PlanTestBase {
       //  Currently parallelization cost is same for both writers(Datafile and Manifest writer) which
       //  total number of records to be inserted.
       testBuilder()
-              .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+              .sqlQuery(String.format("select count(*) c from %s.%s", testSchema, newTblName))
               .unOrdered()
               .baselineColumns("c")
               .baselineValues(200000L)
@@ -541,21 +537,16 @@ public class TestCTAS extends PlanTestBase {
   public void ctasMultiSplitTransactionalTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String newTblName = "supplier_ctas_multisplit_tt";
-      testCtasMultiSplitTransactionalTable(newTblName);
-    }
-
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      final String newTblName = "supplier_ctas_multisplit_tt_new";
-      testCtasMultiSplitTransactionalTable(newTblName);
+      testCtasMultiSplitTransactionalTable("supplier_ctas_multisplit_tt", "dfs", TEMP_SCHEMA);
+      testCtasMultiSplitTransactionalTable("supplier_ctas_multisplit_tt_new", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
     }
   }
 
-  private void testInsertSimpleTransactionalTable(String newTblName) throws Exception {
+  private void testInsertSimpleTransactionalTable(String newTblName, String schema) throws Exception {
     try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
                       " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
-              TEMP_SCHEMA, newTblName);
+        schema, newTblName);
 
       test(ctasQuery);
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
@@ -576,14 +567,14 @@ public class TestCTAS extends PlanTestBase {
       })).length); // manifest list and manifest files
 
       testBuilder()
-              .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+              .sqlQuery(String.format("select count(*) c from %s.%s", schema, newTblName))
               .unOrdered()
               .baselineColumns("c")
               .baselineValues(1L)
               .build()
               .run();
 
-      final String insertQuery = String.format("INSERT INTO %s.%s SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1", TEMP_SCHEMA, newTblName);
+      final String insertQuery = String.format("INSERT INTO %s.%s SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1", schema, newTblName);
       test(insertQuery);
 
       assertEquals(2, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
@@ -600,13 +591,8 @@ public class TestCTAS extends PlanTestBase {
   public void insertSimpleTransactionalTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String newTblName = "nation_insert_tt";
-      testInsertSimpleTransactionalTable(newTblName);
-    }
-
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      final String newTblName = "nation_insert_tt_new";
-      testInsertSimpleTransactionalTable(newTblName);
+      testInsertSimpleTransactionalTable("nation_insert_tt", TEMP_SCHEMA);
+      testInsertSimpleTransactionalTable("nation_insert_tt_new", TEMP_SCHEMA_HADOOP);
     }
   }
 
@@ -618,7 +604,7 @@ public class TestCTAS extends PlanTestBase {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String complexJson = testWorkingPath + "/src/test/resources/iceberg/complexJson";
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
-          " AS SELECT name, flatten(likes) from dfs.\"" + complexJson +"\"",
+          " AS SELECT name, flatten(likes) from dfs_hadoop.\"" + complexJson +"\"",
         TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
@@ -647,8 +633,8 @@ public class TestCTAS extends PlanTestBase {
       final String testWorkingPath = TestTools.getWorkingPath();
       final String complexJson = testWorkingPath + "/src/test/resources/iceberg/complexJson";
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
-          " AS SELECT * from dfs.\"" + complexJson +"\"",
-        TEMP_SCHEMA, newTblName);
+          " AS SELECT * from dfs_hadoop.\"" + complexJson +"\"",
+        TEMP_SCHEMA_HADOOP, newTblName);
 
       test(ctasQuery);
       Thread.sleep(1001);
@@ -673,7 +659,7 @@ public class TestCTAS extends PlanTestBase {
       })).length); // manifest list and manifest files
 
       testBuilder()
-        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA_HADOOP, newTblName))
         .unOrdered()
         .baselineColumns("c")
         .baselineValues(1L)
@@ -681,15 +667,15 @@ public class TestCTAS extends PlanTestBase {
         .run();
 
       final String insertQuery = String.format("INSERT INTO %s.%s  " +
-          " SELECT * from dfs.\"" + complexJson +"\"",
-        TEMP_SCHEMA, newTblName);
+          " SELECT * from dfs_hadoop.\"" + complexJson +"\"",
+        TEMP_SCHEMA_HADOOP, newTblName);
       test(insertQuery);
       Thread.sleep(1001);
 
       assertTrue(new File(metadataFolder, "v2.metadata.json").exists());
 
       testBuilder()
-        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, newTblName))
+        .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA_HADOOP, newTblName))
         .unOrdered()
         .baselineColumns("c")
         .baselineValues(2L)
@@ -700,7 +686,8 @@ public class TestCTAS extends PlanTestBase {
       IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
       Table table = icebergHadoopModel.getIcebergTable(icebergHadoopModel.getTableIdentifier(tableFolder.toString()));
-      BatchSchema icebergSchema = SchemaConverter.fromIceberg(table.schema());
+      SchemaConverter schemaConverter = new SchemaConverter(table.name());
+      BatchSchema icebergSchema = schemaConverter.fromIceberg(table.schema());
       SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
       schemaBuilder.addField(CompleteType.VARCHAR.toField("name"));
       schemaBuilder.addField(CompleteType.struct(CompleteType.BIGINT.toField("age"), CompleteType.VARCHAR.toField("gender")).toField("info"));
@@ -948,19 +935,16 @@ public class TestCTAS extends PlanTestBase {
     try (AutoCloseable c = enableIcebergTables()) {
       final String ctasQuery = String.format("CREATE TABLE %s.%s  " +
                       " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
-              TEMP_SCHEMA, newTblName);
+              TEMP_SCHEMA_HADOOP, newTblName);
       test(ctasQuery);
-    }
-
-    // enable v2 so that default catalog becomes nessie
-    try (AutoCloseable c = enableIcebergTables();
-        AutoCloseable c2 = enableV2Execution()) {
+      //Try with wrong (nessie) catalog
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
-      IcebergModel icebergModel = getIcebergModel(tableFolder);
+      IcebergModel icebergModel = getIcebergModel(tableFolder, IcebergCatalogType.NESSIE);
       expectedEx.expect(UserException.class);
       expectedEx.expectMessage(String.format("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry."));
       icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableFolder.getPath()));
     }
+
   }
 
   @Test
@@ -987,6 +971,27 @@ public class TestCTAS extends PlanTestBase {
       })).length);
       //Manifest file example f22926dd-04c9-4d11-ab3f-23adc25e1959.avro
       // Format : UUID.avro  so 32(uuid) + 4(dash) + 5(.avro extension)
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), icebergTable));
+    }
+  }
+
+  @Test
+  public void testCTASDoesNotCreateIcebergTableIfFlagIsDisabled() throws Exception {
+
+    final String icebergTable = "icebergTableCTASFlagOff";
+
+    try (AutoCloseable c = enableIcebergTablesNoCTAS()) {
+      final String query = String.format("CREATE TABLE %s.%s  " +
+          " AS SELECT n_nationkey, n_name from cp.\"tpch/nation.parquet\" limit 1",
+        TEMP_SCHEMA, icebergTable);
+      test(query);
+
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), icebergTable);
+      assertTrue(tableFolder.exists());
+
+      File metadataFolder = new File(tableFolder, "metadata");
+      assertFalse(metadataFolder.exists()); // no iceberg metadata folder
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), icebergTable));
     }

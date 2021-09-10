@@ -28,7 +28,8 @@ export class CopyButton extends Component {
     style: PropTypes.object,
     addNotification: PropTypes.func.isRequired,
     iconVersion: PropTypes.number,
-    showCopiedContent: PropTypes.bool
+    showCopiedContent: PropTypes.bool,
+    iconStyle: PropTypes.object
   };
 
   static defaultProps = {
@@ -47,10 +48,10 @@ export class CopyButton extends Component {
   };
 
   render() {
-    const {text, title, style, iconVersion } = this.props;
+    const {text, title, style, iconVersion, iconStyle } = this.props;
     return (
       <CopyToClipboard text={text} onCopy={this.handleCopy}>
-        <CopyButtonIcon title={title} style={style} version={iconVersion}/>
+        <CopyButtonIcon title={title} style={style} version={iconVersion} iconStyle={iconStyle} />
       </CopyToClipboard>
     );
   }

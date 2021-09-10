@@ -16,9 +16,8 @@
 
 package com.dremio.common.expression;
 
+import java.util.HashSet;
 import java.util.Set;
-
-import com.google.common.collect.Sets;
 
 /**
  * Class to capture the supported execution engines
@@ -60,10 +59,16 @@ public class SupportedEngines {
     GANDIVA;
   }
 
-  public Set<Engine> supportedEngines;
+  public final Set<Engine> supportedEngines;
 
   public SupportedEngines() {
-    this.supportedEngines = Sets.newHashSet();
+    this.supportedEngines = new HashSet<>();
+  }
+
+  public SupportedEngines duplicate() {
+    final SupportedEngines duplicate = new SupportedEngines();
+    duplicate.supportedEngines.addAll(supportedEngines);
+    return duplicate;
   }
 
   /**
@@ -96,5 +101,9 @@ public class SupportedEngines {
    */
   public void clear() {
     supportedEngines.clear();
+  }
+
+  public boolean isEmpty() {
+    return supportedEngines.isEmpty();
   }
 }

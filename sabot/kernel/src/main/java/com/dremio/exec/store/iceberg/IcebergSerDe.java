@@ -22,11 +22,8 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -37,8 +34,6 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.expression.Describer;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.base.Preconditions;
@@ -114,7 +109,8 @@ public class IcebergSerDe {
       return null;
     }
 
-    Schema icebergSchema = SchemaConverter.toIcebergSchema(schema);
+    SchemaConverter schemaConverter = new SchemaConverter();
+    Schema icebergSchema = schemaConverter.toIcebergSchema(schema);
     PartitionSpec.Builder partitionSpec = PartitionSpec
       .builderFor(icebergSchema);
 
@@ -135,7 +131,7 @@ public class IcebergSerDe {
     schemaFields.forEach(field -> {
       PartitionProtobuf.PartitionValue value = nameToPartValue.get(field.getName());
       if (value != null) {
-        setPartitionSpecValue(icebergPartitionData, index.get(), field, value);
+        IcebergUtils.setPartitionSpecValue(icebergPartitionData, index.get(), field, value);
         index.getAndIncrement();
       }
     });
@@ -143,70 +139,4 @@ public class IcebergSerDe {
     return icebergPartitionData;
   }
 
-  private static void setPartitionSpecValue(IcebergPartitionData data, int position, Field field, PartitionProtobuf.PartitionValue partitionValue) {
-    final CompleteType type = CompleteType.fromField(field);
-    //TODO: revisit logic for DECIMAL, TIME, TIMESTAMP and DATE types once end-end flow is ready
-    Object value = null;
-
-    switch(type.toMinorType()){
-      case BIGINT:
-        value = partitionValue.hasLongValue() ? partitionValue.getLongValue() : null;
-        data.setLong(position, (Long)value);
-        break;
-      case BIT:
-        value =  partitionValue.hasBitValue() ? partitionValue.getBitValue() : null;
-        data.setBoolean(position, (Boolean)value);
-        break;
-      case FLOAT4:
-        value =  partitionValue.hasFloatValue() ? partitionValue.getFloatValue() : null;
-        data.setFloat(position, (Float)value);
-        break;
-      case FLOAT8:
-        value =  partitionValue.hasDoubleValue() ? partitionValue.getDoubleValue() : null;
-        data.setDouble(position, (Double)value);
-        break;
-      case INT:
-        value =  partitionValue.hasIntValue()? partitionValue.getIntValue() : null;
-        data.setInteger(position, (Integer)value);
-        break;
-      case DECIMAL:
-        value = partitionValue.hasBinaryValue() ? partitionValue.getBinaryValue().toByteArray() : null;
-        if(value != null) {
-          BigInteger unscaledValue = new BigInteger((byte[])value);
-          data.setBigDecimal(position, new BigDecimal(unscaledValue, type.getScale()));
-        }
-        else {
-          data.setBigDecimal(position, null);
-        }
-        break;
-      case VARBINARY:
-        value =  partitionValue.hasBinaryValue() ? partitionValue.getBinaryValue().toByteArray() : null;
-        data.setBytes(position, (byte[])value);
-        break;
-      case VARCHAR:
-        value =  partitionValue.hasStringValue() ? partitionValue.getStringValue() : null;
-        data.setString(position, (String) value);
-        break;
-      case DATE:
-        value =  partitionValue.hasIntValue() ? partitionValue.getIntValue() : null;
-        if(value != null) {
-          long millis = TimeUnit.MILLISECONDS.toDays((Integer)value);
-          data.setInteger(position, Math.toIntExact(millis));
-        }
-        else {
-          data.setInteger(position, null);
-        }
-        break;
-      case TIME:
-        value =  partitionValue.hasIntValue() ? partitionValue.getIntValue() : null;
-        data.setInteger(position, (Integer) value);
-        break;
-      case TIMESTAMP:
-        value = partitionValue.hasLongValue() ? partitionValue.getLongValue() : null;
-        data.setLong(position, (Long)(value));
-        break;
-      default:
-        throw new UnsupportedOperationException("Unable to return partition field: "  + Describer.describe(field));
-    }
-  }
 }

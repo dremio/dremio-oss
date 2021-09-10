@@ -16,8 +16,8 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.RecordReader.COL_IDS;
-import static com.dremio.exec.store.RecordReader.DATAFILE_PATH;
 import static com.dremio.exec.store.RecordReader.SPLIT_INFORMATION;
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.PathGeneratingDataFileProcessor;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -29,6 +29,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
 
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -54,7 +55,7 @@ public class DataProcessorTestUtil {
     BatchSchema spyBatchSchema = spy(batchSchema);
     when(functionContext.getFullSchema()).thenReturn(spyBatchSchema);
     when(functionContext.getColumns()).thenReturn(Arrays.asList(SchemaPath.getSimplePath(SPLIT_INFORMATION),
-      SchemaPath.getSimplePath(COL_IDS), SchemaPath.getSimplePath(DATAFILE_PATH)));
+      SchemaPath.getSimplePath(COL_IDS), SchemaPath.getSimplePath(PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.DATAFILE_PATH)));
     when(functionContext.getTableSchema()).thenReturn(getBatchSchema(datafileProcessorType));
     FileConfig fc = new FileConfig();
     fc.setLocation("/test");
@@ -69,13 +70,25 @@ public class DataProcessorTestUtil {
       .withFileSizeInBytes(size)
       .withRecordCount(9)
       .build();
+
     return dataFile;
   }
 
-  static VarCharVector getDataFileVec(VectorAccessible vectorWrappers) {
-    TypedFieldId typedFieldId = vectorWrappers.getSchema().getFieldId(SchemaPath.getSimplePath(DATAFILE_PATH));
+  static DataFile getDatafileWithPartitions(String path, long size, PartitionSpec spec, IcebergPartitionData partitionData) {
+    DataFile dataFile = DataFiles.builder(spec)
+      .withPath(path)
+      .withFileSizeInBytes(size)
+      .withPartition(partitionData)
+      .withRecordCount(9)
+      .build();
+
+    return dataFile;
+  }
+
+  static ValueVector getVecByName(VectorAccessible vectorWrappers, String vectorName) {
+    TypedFieldId typedFieldId = vectorWrappers.getSchema().getFieldId(SchemaPath.getSimplePath(vectorName));
     Field field = vectorWrappers.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
-    return (VarCharVector) vectorWrappers.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
+    return vectorWrappers.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
   }
 
   static VarBinaryVector getSplitVec(VectorAccessible vectorWrappers) {
@@ -88,12 +101,16 @@ public class DataProcessorTestUtil {
     return datafileV.getObject(idx).toString();
   }
 
+  static IcebergPartitionData extractPartitionInfo(VarBinaryVector datafileV, int idx) throws IOException, ClassNotFoundException {
+    return IcebergSerDe.deserializeFromByteArray(datafileV.getObject(idx));
+  }
+
   static BatchSchema getOutputSchemaForSplitGen() {
     return RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
   }
 
   static BatchSchema getOutputSchemaForDataPathGen() {
-    return RecordReader.MANIFEST_SCAN_TABLE_FUNCTION_SCHEMA;
+    return PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.BATCH_SCHEMA;
   }
 
   static BatchSchema getBatchSchema(DataProcessorType type) throws Exception {

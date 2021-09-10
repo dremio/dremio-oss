@@ -251,5 +251,10 @@ public class TestPath extends DremioTest {
     p = Path.of(path);
     modified = Path.getContainerSpecificRelativePath(p);
     assertEquals("/Automation/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
+
+    path = "gs://amit-data/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro";
+    p = Path.of(path);
+    modified = Path.getContainerSpecificRelativePath(p);
+    assertEquals("/amit-data/regression/iceberg/init32_decimal_test/metadata/snap-5631102415330351524-1-0d989445-a0f5-47cf-bf19-a3d648ac1b31.avro", modified);
   }
 }

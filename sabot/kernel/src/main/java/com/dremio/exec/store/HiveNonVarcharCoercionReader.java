@@ -182,6 +182,10 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
     gandivaCodeGenWatch.reset();
   }
 
+  public void clearExprs() {
+    exprs.clear();
+  }
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(incoming, mutator, splitter);

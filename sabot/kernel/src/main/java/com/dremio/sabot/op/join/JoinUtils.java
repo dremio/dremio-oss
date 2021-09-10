@@ -65,13 +65,7 @@ public class JoinUtils {
     final int nFields = origJoin.getRight().getRowType().getFieldCount();
 
     List<Integer> projected;
-    ImmutableBitSet projectedSet;
-    if (newJoin.getProjectedFields() == null) {
-      projectedSet = ImmutableBitSet.range(newJoin.getRowType().getFieldCount());
-    }
-    else {
-      projectedSet = newJoin.getProjectedFields();
-    }
+    ImmutableBitSet projectedSet = ImmutableBitSet.range(newJoin.getRowType().getFieldCount());
     projected = projectedSet.asList();
 
     for (int i = 0; i < newJoinFields.size(); i++) {

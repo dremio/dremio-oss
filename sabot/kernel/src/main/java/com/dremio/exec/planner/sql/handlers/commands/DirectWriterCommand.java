@@ -218,6 +218,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     final OperatorStats stats = new OperatorStats(new OpProfileDef(0,0,0), allocator);
     final OperatorContextImpl oc = new OperatorContextImpl(
         context.getConfig(),
+        context.getDremioConfig(),
         FragmentHandle.newBuilder().setQueryId(context.getQueryId()).setMajorFragmentId(0).setMinorFragmentId(0).build(),
         writer,
         allocator,

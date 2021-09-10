@@ -650,7 +650,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
       .go();
   }
 
-  public static void verifyJsonInPlan(String s, String[] s2){
+  public void verifyJsonInPlan(String s, String[] s2){
 
   }
   @Test

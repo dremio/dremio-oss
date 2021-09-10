@@ -263,6 +263,7 @@ public class TestCatalogServiceImpl {
         () -> sabotContext,
         () -> new LocalSchedulerService(1),
         () -> new SystemTablePluginConfigProvider(),
+        null,
         () -> fabricService,
         () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
         () -> allocator,

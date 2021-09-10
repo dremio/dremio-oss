@@ -17,7 +17,9 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
+import { dragContentBase } from '@app/uiTheme/less/commonStyles.less';
 import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
 import ColumnDragItem from 'utils/ColumnDragItem';
 
@@ -91,14 +93,13 @@ export default class MeasureDragArea extends Component {
 
     return (
       <ExploreDragArea
-        className={className}
+        className={classNames(className, !isEmpty ? dragContentBase : null)}
         dragContentCls={dragContentCls}
         dataQa={DRAG_AREA_TYPE}
         dragType={this.props.dragType}
         onDrop={this.handleDrop}
         isDragged={isDragged}
         emptyDragAreaText={MEASURE_DRAG_AREA_TEXT}
-        dragContentStyle={!isEmpty ? style.dragContent.base : {}}
       >
         {this.renderColumnsForDragArea()}
       </ExploreDragArea>
@@ -106,13 +107,3 @@ export default class MeasureDragArea extends Component {
   }
 }
 
-const style = {
-  dragContent: {
-    base: {
-      borderLeftWidth: '1px',
-      borderRightWidth: '0',
-      borderTopWidth: '0',
-      borderBottomWidth: '0'
-    }
-  }
-};

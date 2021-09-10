@@ -239,7 +239,8 @@ public class PrelTransformer {
       // Do Join Planning.
       final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, postLogical, postLogical.getTraitSet(), true);
       final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
-      final RelNode flattendPushed = getFlattenedPushed(config, convertedRelNode);
+      final RelNode postJoinOptimizationRelNode = transform(config, PlannerType.HEP_AC, PlannerPhase.POST_JOIN_OPTIMIZATION, convertedRelNode, convertedRelNode.getTraitSet(), true);
+      final RelNode flattendPushed = getFlattenedPushed(config, postJoinOptimizationRelNode);
       final Rel drel = (Rel) flattendPushed;
 
       if (drel instanceof TableModify) {
@@ -504,7 +505,7 @@ public class PrelTransformer {
           input.getCluster().getPlanner().getClass().getName());
       final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) input.getCluster().getPlanner();
       volcanoPlanner.setPlannerPhase(phase);
-      volcanoPlanner.setNoneConventionHaveInfiniteCost((phase != PlannerPhase.JDBC_PUSHDOWN) && (phase != PlannerPhase.RELATIONAL_PLANNING));
+      volcanoPlanner.setNoneConventionHasInfiniteCost((phase != PlannerPhase.JDBC_PUSHDOWN) && (phase != PlannerPhase.RELATIONAL_PLANNING));
       final Program program = Programs.of(rules);
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
@@ -1026,7 +1027,9 @@ public class PrelTransformer {
     if (catalog instanceof CachingCatalog) {
       config.getObserver().tablesCollected(catalog.getAllRequestedTables());
     }
-    return transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
+    RelNode windowRel =  transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
+    RelNode groupSetRel =  transform(config, PlannerType.HEP, PlannerPhase.GROUP_SET_REWRITE, windowRel, windowRel.getTraitSet(), true);
+    return groupSetRel;
   }
 
   private static RelNode preprocessNode(SqlHandlerConfig config, RelNode rel) throws SqlUnsupportedException {

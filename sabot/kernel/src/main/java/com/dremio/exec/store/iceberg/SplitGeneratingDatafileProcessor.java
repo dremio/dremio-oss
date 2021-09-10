@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.IcebergPartitionData.getPartitionColumnClass;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
+import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
+import static com.dremio.exec.store.iceberg.model.IcebergConstants.FILE_VERSION;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.io.IOException;
@@ -28,12 +31,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
@@ -45,17 +52,18 @@ import org.apache.iceberg.types.Types;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionContext;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.exec.store.cache.BlockLocationsCacheManager;
-import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -68,29 +76,33 @@ import com.google.protobuf.InvalidProtocolBufferException;
  */
 public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
 
+  private final OperatorContext context;
   private final BatchSchema outputSchema;
   private final List<String> partitionCols;
   private final List<Field> partitionFields;
   private final Map<String, Integer> partColToKeyMap;
-  private final BlockLocationsCacheManager cacheManager;
   private final BlockBasedSplitGenerator splitGenerator;
   private final HashMap<Field, ValueVector> valueVectorMap = new HashMap<>();
+  private byte[] extendedProperty;
 
   private Schema fileSchema;
   private long currentDataFileOffset;
   private VarBinaryVector inputColIds;
-  private VarBinaryVector outputSplitsIdentity;
+  private StructVector outputSplitsIdentity;
   private VarBinaryVector outputColIds;
   private VarBinaryVector outputDataFileSplits;
   private Map<String, Integer> colToIDMap;
   private PartitionSpec icebergPartitionSpec;
   private Map<String, Object> dataFilePartitionAndStats;
-  private PartitionProtobuf.BlockLocationsList dataFileBlockLocations;
   private PartitionProtobuf.NormalizedPartitionInfo dataFilePartitionInfo;
+  private ArrowBuf tmpBuf; // used for writing split path to vector
 
-  public SplitGeneratingDatafileProcessor(BlockLocationsCacheManager cacheManager, OperatorContext context, TableFunctionContext functionContext, BlockBasedSplitGenerator.SplitCreator splitCreator) {
-    this.cacheManager = cacheManager;
-    splitGenerator = new BlockBasedSplitGenerator(splitCreator, context);
+  public SplitGeneratingDatafileProcessor(OperatorContext context, SupportsInternalIcebergTable plugin, OpProps props, TableFunctionContext functionContext) {
+    this.context = context;
+    if (functionContext.getExtendedProperty() != null) {
+      this.extendedProperty = functionContext.getExtendedProperty().toByteArray();
+    }
+    splitGenerator = new BlockBasedSplitGenerator(context, plugin, functionContext.getPluginId(), props, this.extendedProperty);
     partitionCols = functionContext.getPartitionColumns();
     outputSchema = functionContext.getFullSchema();
     partColToKeyMap = partitionCols != null ? IntStream.range(0, partitionCols.size())
@@ -102,10 +114,15 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     partitionFields = partitionCols != null ? partitionCols.stream().map(c -> nameToFieldMap.get(c.toLowerCase())).collect(Collectors.toList()) : null;
   }
 
+  @VisibleForTesting
+  BlockBasedSplitGenerator getSplitGenerator() {
+    return splitGenerator;
+  }
+
   @Override
   public void setup(VectorAccessible incoming, VectorAccessible outgoing) {
     inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.COL_IDS);
-    outputSplitsIdentity = (VarBinaryVector) getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_IDENTITY);
+    outputSplitsIdentity = (StructVector) getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_IDENTITY);
     outputColIds = (VarBinaryVector) getVectorFromSchemaPath(outgoing, RecordReader.COL_IDS);
     outputDataFileSplits = (VarBinaryVector) getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
     for (Field field : outputSchema.getFields()) {
@@ -117,6 +134,8 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
         outgoing.getSchema().getFieldId(SchemaPath.getSimplePath(field.getName())).getFieldIds()).getValueVector();
       valueVectorMap.put(field, vector);
     }
+
+    tmpBuf = context.getAllocator().buffer(4096);
   }
 
   @Override
@@ -131,14 +150,16 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     if (isCurrentDatafileProcessed(currentDataFile)) {
       return 0;
     }
+    final String fullPath = currentDataFile.path().toString();
+    long version = PathUtils.getQueryParam(fullPath, FILE_VERSION, 0L, Long::parseLong);
 
-    initialiseDatafileInfo(currentDataFile);
+    initialiseDatafileInfo(currentDataFile, version);
 
     int currentOutputCount = 0;
     final List<SplitIdentity> splitsIdentity = new ArrayList<>();
-    String dataFilePath = Path.getContainerSpecificRelativePath(Path.of(currentDataFile.path().toString()));
-    List<SplitAndPartitionInfo> splits = splitGenerator.getSplitAndPartitionInfo(maxOutputCount, dataFilePartitionInfo, dataFilePath,
-      currentDataFileOffset, currentDataFile.fileSizeInBytes(), 0, currentDataFile.format().toString(), splitsIdentity, dataFileBlockLocations);
+    final String path = PathUtils.withoutQueryParams(fullPath);
+    List<SplitAndPartitionInfo> splits = splitGenerator.getSplitAndPartitionInfo(maxOutputCount, dataFilePartitionInfo, path,
+      currentDataFileOffset, currentDataFile.fileSizeInBytes(), version, currentDataFile.format().toString(), splitsIdentity);
     /* todo: set correct file modification time. Note: Currently Iceberg
             doesn't provide modification time at 'DataFile' level. setting it to 0 avoids
             setting unmodified_type property when making external calls to get objects
@@ -147,9 +168,10 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     Preconditions.checkState(splits.size() == splitsIdentity.size(), "Splits count is not same as splits Identity count");
     Iterator<SplitAndPartitionInfo> splitsIterator = splits.iterator();
     Iterator<SplitIdentity> splitIdentityIterator = splitsIdentity.iterator();
+    NullableStructWriter splitsIdentityWriter = outputSplitsIdentity.getWriter();
 
     while (splitsIterator.hasNext()) {
-      outputSplitsIdentity.setSafe(startOutIndex + currentOutputCount, IcebergSerDe.serializeToByteArray(splitIdentityIterator.next()));
+      writeSplitIdentity(splitsIdentityWriter, startOutIndex + currentOutputCount, splitIdentityIterator.next(), tmpBuf);
       outputDataFileSplits.setSafe(startOutIndex + currentOutputCount, IcebergSerDe.serializeToByteArray(splitsIterator.next()));
       outputColIds.setSafe(startOutIndex + currentOutputCount, inputColIds.get(0));
 
@@ -173,11 +195,11 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(cacheManager);
+    AutoCloseables.close(tmpBuf);
   }
 
   @VisibleForTesting
-  PartitionProtobuf.NormalizedPartitionInfo getDataFilePartitionInfo(DataFile currentDataFile) {
+  PartitionProtobuf.NormalizedPartitionInfo getDataFilePartitionInfo(DataFile currentDataFile, long version) {
     PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1));
 
     // get table partition spec
@@ -185,15 +207,23 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     for (int partColPos = 0; partColPos < partitionStruct.size(); ++partColPos) {
       PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
       partitionValueBuilder.setColumn(partitionCols.get(partColPos));
-      Object value = partitionStruct.get(partColPos, getPartitionColumnClass(partColPos));
+      Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
       writePartitionValue(partitionValueBuilder, value, partitionFields.get(partColPos));
       partitionInfoBuilder.addValues(partitionValueBuilder.build());
     }
+    addImplicitCols(partitionInfoBuilder, version);
     return partitionInfoBuilder.build();
   }
 
+  private void addImplicitCols(PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder, long version) {
+    PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
+    partitionValueBuilder.setColumn(IncrementalUpdateUtils.UPDATE_COLUMN);
+    partitionValueBuilder.setLongValue(version);
+    partitionInfoBuilder.addValues(partitionValueBuilder.build());
+  }
+
   @VisibleForTesting
-  Map<String, Object> getDataFileStats(DataFile currentDataFile) {
+  Map<String, Object> getDataFileStats(DataFile currentDataFile, long version) {
     Map<String, Object> requiredStats = new HashMap<>();
 
     for (Field field : outputSchema.getFields()) {
@@ -204,6 +234,12 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
       Preconditions.checkArgument(fieldName.length() > 4);
       String colName = fieldName.substring(0, fieldName.length() - 4).toLowerCase();
       String suffix = fieldName.substring(fieldName.length() - 3).toLowerCase();
+
+      if (colName.equals(IncrementalUpdateUtils.UPDATE_COLUMN)) {
+        requiredStats.put(fieldName, version);
+        continue;
+      }
+
       Preconditions.checkArgument(colToIDMap.containsKey(colName));
       int key = colToIDMap.get(colName);
       Types.NestedField icebergField = fileSchema.findField(key);
@@ -233,7 +269,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
         case "val":
           Preconditions.checkArgument(partColToKeyMap.containsKey(colName), "partition column not found");
           int partColPos = partColToKeyMap.get(colName);
-          value = currentDataFile.partition().get(partColPos, getPartitionColumnClass(partColPos));
+          value = currentDataFile.partition().get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
           break;
         default:
           throw new RuntimeException("unexpected suffix for column: " + fieldName);
@@ -241,10 +277,6 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
       requiredStats.put(fieldName, value);
     }
     return requiredStats;
-  }
-
-  private Class<?> getPartitionColumnClass(int partColPos) {
-    return icebergPartitionSpec.javaClasses()[partColPos];
   }
 
   @VisibleForTesting
@@ -278,7 +310,11 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
         partitionValueBuilder.setLongValue((Long) value);
       }
     } else if (value instanceof Integer) {
-      partitionValueBuilder.setIntValue((Integer) value);
+      if (field.getType().equals(CompleteType.DATE.getType())) {
+        partitionValueBuilder.setLongValue(TimeUnit.DAYS.toMillis((Integer) value));
+      } else {
+        partitionValueBuilder.setIntValue((Integer) value);
+      }
     } else if (value instanceof String) {
       partitionValueBuilder.setStringValue((String) value);
     } else if (value instanceof Double) {
@@ -296,13 +332,10 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     }
   }
 
-  private void initialiseDatafileInfo(DataFile dataFile) {
+  private void initialiseDatafileInfo(DataFile dataFile, long version) {
     if (currentDataFileOffset == 0) {
-      dataFilePartitionAndStats = getDataFileStats(dataFile);
-      dataFilePartitionInfo = getDataFilePartitionInfo(dataFile);
-      if (cacheManager != null) {
-        dataFileBlockLocations = cacheManager.createIfAbsent(dataFile.path().toString(), dataFile.fileSizeInBytes());
-      }
+      dataFilePartitionAndStats = getDataFileStats(dataFile, version);
+      dataFilePartitionInfo = getDataFilePartitionInfo(dataFile, version);
     }
   }
 

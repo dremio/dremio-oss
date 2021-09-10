@@ -43,6 +43,8 @@ export const inlineMetadataRefreshConfig = {
   }
 };
 
+export const LOOSE_ELEMENT_IGNORE_LIST = [];
+
 const addAlwaysPresent = ({ elements }, { form }) => {
   if (elements) {
     elements.push(...getAlwaysPresentFunctionalConfig());

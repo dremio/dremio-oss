@@ -22,8 +22,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,27 +38,31 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
-import com.dremio.exec.store.DatasetRetrievalFilesListOptions;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.DatasetRetrievalPartitionOptions;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestRefreshTableHandler {
   private RefreshTableHandler refreshTableHandler;
   private RefreshTableHandler refreshTableHandlerDisabled;
   @Mock private Catalog catalog;
+  @Mock private NamespaceService namespaceService;
 
   private static final String TABLE_NAME = "my_table";
+  private static final String USER_NAME = "user";
   private static final NamespaceKey TABLE_KEY = new NamespaceKey(TABLE_NAME);
 
   @Before
-  public void setup() {
-    refreshTableHandler = new RefreshTableHandler(catalog, true);
-    refreshTableHandlerDisabled = new RefreshTableHandler(catalog, false);
+  public void setup() throws NamespaceException {
+    refreshTableHandler = new RefreshTableHandler(catalog, namespaceService, true, USER_NAME);
+    refreshTableHandlerDisabled = new RefreshTableHandler(catalog, namespaceService,false, USER_NAME);
 
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenAnswer((Answer<NamespaceKey>) invocationOnMock -> {
       NamespaceKey key = invocationOnMock.getArgumentAt(0, NamespaceKey.class);
@@ -70,9 +72,11 @@ public class TestRefreshTableHandler {
 
       return null;
     });
+
+    when(namespaceService.getDataset((any(NamespaceKey.class)))).thenReturn(null);
   }
 
-  @Test
+  @Test(expected = UserException.class)
   public void toResult_files_list() throws Exception {
     final SqlRefreshTable refreshTable = new SqlRefreshTable(
       SqlParserPos.ZERO,
@@ -90,18 +94,20 @@ public class TestRefreshTableHandler {
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
     when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
-    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
-    assertFalse(result.isEmpty());
-    assertTrue(result.get(0).ok);
-
-    DatasetRetrievalOptions options = optionsCaptor.getValue();
-    assertTrue(options.deleteUnavailableDatasets());
-    assertTrue(options.forceUpdate());
-    assertTrue(options.autoPromote());
-    assertEquals(Collections.singletonList("file1.txt"), ((DatasetRetrievalFilesListOptions) options).getFilesList());
+    refreshTableHandler.toResult("", refreshTable);
+//    Refresh Metadata for files are not supported.
+//    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
+//    assertFalse(result.isEmpty());
+//    assertTrue(result.get(0).ok);
+//
+//    DatasetRetrievalOptions options = optionsCaptor.getValue();
+//    assertTrue(options.deleteUnavailableDatasets());
+//    assertTrue(options.forceUpdate());
+//    assertTrue(options.autoPromote());
+//    assertEquals(Collections.singletonList("file1.txt"), ((DatasetRetrievalFilesListOptions) options).getFilesList());
   }
 
-  @Test
+  @Test(expected = UserException.class)
   public void toResult_files_mulitple_list() throws Exception {
     final SqlRefreshTable refreshTable = new SqlRefreshTable(
       SqlParserPos.ZERO,
@@ -121,19 +127,21 @@ public class TestRefreshTableHandler {
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
     when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
-    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
-    assertFalse(result.isEmpty());
-    assertTrue(result.get(0).ok);
-
-    DatasetRetrievalOptions options = optionsCaptor.getValue();
-    assertTrue(options.deleteUnavailableDatasets());
-    assertTrue(options.forceUpdate());
-    assertTrue(options.autoPromote());
-
-    List<String> expectedList = new ArrayList<>();
-    expectedList.add("file1.txt");
-    expectedList.add("file2.txt");
-    assertEquals(expectedList, ((DatasetRetrievalFilesListOptions) options).getFilesList());
+    refreshTableHandler.toResult("", refreshTable);
+//    Refresh Metadata for files are not supported.
+//    final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
+//    assertFalse(result.isEmpty());
+//    assertTrue(result.get(0).ok);
+//
+//    DatasetRetrievalOptions options = optionsCaptor.getValue();
+//    assertTrue(options.deleteUnavailableDatasets());
+//    assertTrue(options.forceUpdate());
+//    assertTrue(options.autoPromote());
+//
+//    List<String> expectedList = new ArrayList<>();
+//    expectedList.add("file1.txt");
+//    expectedList.add("file2.txt");
+//    assertEquals(expectedList, ((DatasetRetrievalFilesListOptions) options).getFilesList());
   }
 
   @Test
@@ -322,7 +330,7 @@ public class TestRefreshTableHandler {
     assertEquals(DatasetRetrievalOptions.class, options.getClass());
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test(expected = UserException.class)
   public void toResult_files_list_disabled() throws Exception {
     final SqlRefreshTable refreshTable = new SqlRefreshTable(
       SqlParserPos.ZERO,

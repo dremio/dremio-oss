@@ -38,4 +38,9 @@ class IcebergNessieTableIdentifier implements IcebergTableIdentifier {
     public String getTableFolder() {
         return tableFolder;
     }
+
+    @Override
+    public String toString() {
+        return tableIdentifier.toString();
+    }
 }

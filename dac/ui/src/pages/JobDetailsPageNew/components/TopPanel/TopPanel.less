@@ -1,0 +1,109 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+:global {
+  .topPanel {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    line-height: 16px;
+    background-color: @black-russian;
+    &__jobDetails {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 385px;
+      &__jobsIcon {
+        height: 14px !important;
+      }
+    }
+    &__overview {
+      width: 113px;
+      height: 56px;
+      &__content {
+        cursor: pointer;
+        padding: 18px 0px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      &__overviewIcon {
+        filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
+      }
+      &__header {
+        color: @pale-sky !important;
+      }
+      &__headerLite {
+        color: @font-color1;
+      }
+    }
+    &__sql {
+      width: 78px;
+      height: 56px;
+      &__content {
+        cursor: pointer;
+        padding: 18px 0px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      &__sqlIcon {
+          filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
+      }
+    }
+    &__rawProfile {
+      cursor: pointer;
+      width: 115px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      &__rawProfileIcon {
+        height: 20px !important;
+        margin-bottom: 4px;
+      }
+      &__content {
+        cursor: pointer;
+        padding: 14px 0px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      &__rawProfileSelectedIcon {
+        filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
+        height: 20px !important;
+      }
+      &__header {
+        color: @pale-sky !important;
+      }
+      &__headerLite {
+        color: @font-color1;
+        margin-top: 4px;
+      }
+    }
+    &__title {
+      color: @pale-sky;
+    }
+    &__icons {
+      cursor: pointer;
+      height:15px;
+      padding-right: 5px;
+    }
+    &__border {
+      border-bottom: 4px solid @bluemine;
+    }
+  }
+}

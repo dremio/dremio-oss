@@ -57,6 +57,7 @@ public class EasyGroupScan extends AbstractGroupScan {
         fullSchema,
         getDataset().getName().getPathComponents(),
         dataset.getStoragePluginId(),
+        dataset.getStoragePluginId(),
         columns,
         getDataset().getReadDefinition().getPartitionColumnsList(),
         getDataset().getReadDefinition().getExtendedProperty());

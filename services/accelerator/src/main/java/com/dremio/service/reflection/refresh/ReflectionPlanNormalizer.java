@@ -64,6 +64,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private final MaterializationStore materializationStore;
   private final OptionManager optionManager;
   private final boolean forceFullUpdate;
+  private final int stripVersion;
 
   private RefreshDecision refreshDecision;
 
@@ -76,7 +77,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       SabotConfig config,
       ReflectionSettings reflectionSettings,
       MaterializationStore materializationStore,
-      boolean forceFullUpdate) {
+      boolean forceFullUpdate,
+      int stripVersion) {
     this.sqlHandlerConfig = sqlHandlerConfig;
     this.goal = goal;
     this.entry = entry;
@@ -87,6 +89,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
     this.materializationStore = materializationStore;
     this.optionManager = sqlHandlerConfig.getContext().getOptions();
     this.forceFullUpdate = forceFullUpdate;
+    this.stripVersion = stripVersion;
   }
 
   public RefreshDecision getRefreshDecision() {
@@ -135,7 +138,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
     // if we detect that the plan is in fact incrementally updateable after stripping and normalizing, we want to strip again with isIncremental flag set to true
     // to get the proper stripping
     if (IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings).getMethod() == RefreshMethod.INCREMENTAL) {
-      strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), true, StrippingFactory.LATEST_STRIP_VERSION).getNormalized();
+      strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), true, stripVersion).getNormalized();
     }
 
     Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();

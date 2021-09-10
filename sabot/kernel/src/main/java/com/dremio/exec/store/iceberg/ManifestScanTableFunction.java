@@ -79,6 +79,7 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
 
   @Override
   public void close() throws Exception {
+    manifestFileProcessor.closeManifestFile();
     AutoCloseables.close(manifestFileProcessor, super::close);
   }
 

@@ -38,6 +38,7 @@ import AuthenticationPage from '@inject/pages/AuthenticationPage/AuthenticationP
 import Info from '@inject/pages/AccountPage/subpages/InfoController';
 
 import additionalRoutes from '@inject/additionalRoutes';
+import JobPage from '@inject/pages/QVJobPage/QVJobPage';
 
 import App from './containers/App';
 
@@ -57,7 +58,6 @@ import ServerStatusPage from './pages/ServerStatusPage/ServerStatusPage';
 
 import AccountModals from './pages/AccountPage/AccountModals';
 
-import JobPage from './pages/JobPage/JobPage';
 import JobModals from './pages/JobPage/JobModals';
 
 import Page, { MainMasterPage } from './components/Page';
@@ -104,8 +104,8 @@ const getExploreRoute = (routeProps, dispatch) => {
 export default dispatch => (
   <Route path='/' component={App}>
     {/* TODO conflict with (/:resources), need to change resources for all components */}
-    <Redirect from='/home' to='/'/>
-    <Redirect from='/*/**/' to='/*/**'/>
+    <Redirect from='/home' to='/' />
+    <Redirect from='/*/**/' to='/*/**' />
     <Route path='/reload' component={ReloadPage} />
     <Route path='/sso' component={SSOLandingPage} />
     <Route path={SSO_LANDING_PATH} component={SSOLandingPage} />

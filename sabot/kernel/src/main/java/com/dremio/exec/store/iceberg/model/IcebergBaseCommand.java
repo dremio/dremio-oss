@@ -20,6 +20,7 @@ import static org.apache.iceberg.Transactions.createTableTransaction;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -32,9 +33,11 @@ import org.apache.iceberg.DeleteFiles;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.expressions.Expressions;
@@ -56,8 +59,10 @@ import com.google.common.base.Preconditions;
  * Base Iceberg catalog
  */
 public abstract class IcebergBaseCommand implements IcebergCommand {
-
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergBaseCommand.class);
+    private static final String MANIFEST_FILE_DEFAULT_SIZE = "153600";
     private Transaction transaction;
+    private TableOperations tableOperations;
     private AppendFiles appendFiles;
     private DeleteFiles deleteFiles;
     protected final Configuration configuration;
@@ -65,7 +70,6 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     protected final FileSystem fs;
     protected final OperatorContext context;
     protected final List<String> dataset;
-    private static final String INHERITED_SNAPSHOT_ID_PROP = "compatibility.snapshot-id-inheritance.enabled";
 
     protected IcebergBaseCommand(Configuration configuration, String tableFolder, FileSystem fs, OperatorContext context, List<String> dataset) {
         this.configuration = configuration;
@@ -77,28 +81,33 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     }
 
     protected abstract TableOperations getTableOperations();
+    protected  abstract void deleteRootPointerStoreKey();
 
-    public void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns) {
+    public void beginCreateTableTransaction(String tableName, BatchSchema writerSchema,
+                                            List<String> partitionColumns, Map<String, String> tableParameters) {
         Preconditions.checkState(transaction == null, "Unexpected state");
-        TableOperations tableOperations = getTableOperations();
         Schema schema;
         try {
-            schema = SchemaConverter.toIcebergSchema(writerSchema);
+            SchemaConverter schemaConverter = new SchemaConverter(tableName);
+            schema = schemaConverter.toIcebergSchema(writerSchema);
         } catch (Exception ex) {
             throw UserException.validationError(ex).buildSilently();
         }
         PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpec(writerSchema, partitionColumns, null);
-        HashMap<String, String> tableProp = new HashMap();
-        tableProp.put(INHERITED_SNAPSHOT_ID_PROP, "true");
+        HashMap<String, String> tableProp = new HashMap<>(tableParameters);
+        tableProp.put(TableProperties.SNAPSHOT_ID_INHERITANCE_ENABLED, "true");
+        tableProp.put(TableProperties.MANIFEST_TARGET_SIZE_BYTES,  MANIFEST_FILE_DEFAULT_SIZE);
         TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, getTableLocation(), tableProp);
-        transaction = createTableTransaction(tableName, tableOperations, metadata);
+        transaction = createTableTransaction(tableName, getTableOps(), metadata);
         transaction.table();
     }
 
     @Override
-    public void endCreateTableTransaction() {
+    public Snapshot endCreateTableTransaction() {
       transaction.commitTransaction();
+      Snapshot s = transaction.table().currentSnapshot();
       transaction = null;
+      return s;
     }
 
     @Override
@@ -109,9 +118,11 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     }
 
     @Override
-    public void endInsertTableTransaction() {
+    public Snapshot endInsertTableTransaction() {
       transaction.commitTransaction();
+      Snapshot snapshot = transaction.table().currentSnapshot();
       transaction = null;
+      return snapshot;
     }
 
     @Override
@@ -122,9 +133,11 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     }
 
     @Override
-    public void endMetadataRefreshTransaction() {
+    public Snapshot endMetadataRefreshTransaction() {
       transaction.commitTransaction();
+      Snapshot snapshot = transaction.table().currentSnapshot();
       transaction = null;
+      return snapshot;
     }
 
     @Override
@@ -136,6 +149,29 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     @Override
     public void finishDelete() {
       deleteFiles.commit();
+    }
+
+    @Override
+    public void consumeUpdatedColumns(List<Types.NestedField> columns) {
+      consumeDroppedColumns(columns);
+      consumeAddedColumns(columns);
+    }
+
+    @Override
+    public void consumeDroppedColumns(List<Types.NestedField> columns) {
+      UpdateSchema updateSchema = transaction.updateSchema();
+      for (Types.NestedField col : columns) {
+        updateSchema.deleteColumn(col.name());
+      }
+      updateSchema.commit();
+    }
+
+
+    @Override
+    public void consumeAddedColumns(List<Types.NestedField> columns) {
+      UpdateSchema updateSchema = transaction.updateSchema();
+      columns.forEach(c -> updateSchema.addColumn(c.name(), c.type()));
+      updateSchema.commit();
     }
 
     @Override
@@ -160,7 +196,7 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     public void consumeDeleteDataFiles(List<DataFile> filesList) {
       Preconditions.checkState(transaction != null, "Transaction was not started");
       Preconditions.checkState(deleteFiles != null, "Transaction was not started");
-      filesList.forEach(x -> deleteFiles.deleteFile(x));
+      filesList.forEach(x -> deleteFiles.deleteFile(x.path()));
     }
 
     public void truncateTable() {
@@ -170,6 +206,18 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
         transaction.newDelete().deleteFromRowFilter(Expressions.alwaysTrue()).commit();
         transaction.commitTransaction();
         transaction = null;
+    }
+
+    public void deleteTable() {
+      try {
+        com.dremio.io.file.Path p = com.dremio.io.file.Path.of(fsPath.toString());
+        fs.delete(p, true);
+        deleteRootPointerStoreKey();
+      } catch (IOException e) {
+        String message = String.format("The dataset is now forgotten by dremio, but there was an error while cleaning up respective metadata files residing at %s.", fsPath.toString());
+        logger.error(message);
+        throw new RuntimeException(e);
+      }
     }
 
     public void addColumns(List<Types.NestedField> columnsToAdd) {
@@ -197,7 +245,8 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
                     columnToChangeInIceberg.name()).buildSilently();
         }
 
-        Types.NestedField newDef = SchemaConverter.changeIcebergColumn(batchField, columnToChangeInIceberg);
+        SchemaConverter schemaConverter = new SchemaConverter(table.name());
+        Types.NestedField newDef = schemaConverter.changeIcebergColumn(batchField, columnToChangeInIceberg);
 
         if (!TypeUtil.isPromotionAllowed(columnToChangeInIceberg.type(), newDef.type()
                 .asPrimitiveType())) {
@@ -227,7 +276,8 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
     }
 
     private String sqlTypeNameWithPrecisionAndScale(org.apache.iceberg.types.Type type) {
-        CompleteType completeType = SchemaConverter.fromIcebergType(type);
+        SchemaConverter schemaConverter = new SchemaConverter(getTableName());
+        CompleteType completeType = schemaConverter.fromIcebergType(type);
         SqlTypeName calciteTypeFromMinorType = CalciteArrowHelper.getCalciteTypeFromMinorType(completeType.toMinorType());
         if (calciteTypeFromMinorType == SqlTypeName.DECIMAL) {
             return calciteTypeFromMinorType + "(" + completeType.getPrecision() + ", " + completeType.getScale() + ")";
@@ -245,12 +295,23 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
 
     @Override
     public Table loadTable() {
-        TableOperations tableOperations = getTableOperations();
-        Table table = new BaseTable(tableOperations, getTableName());
+        Table table = new BaseTable(getTableOps(), getTableName());
         table.refresh();
-        if (tableOperations.current() == null) {
+        if (getTableOps().current() == null) {
             throw UserException.ioExceptionError(new IOException("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry.")).buildSilently();
         }
         return table;
+    }
+
+    @Override
+    public String getRootPointer() {
+        return getTableOps().current().metadataFileLocation();
+    }
+
+    private TableOperations getTableOps() {
+        if (tableOperations == null) {
+            tableOperations = getTableOperations();
+        }
+        return tableOperations;
     }
 }

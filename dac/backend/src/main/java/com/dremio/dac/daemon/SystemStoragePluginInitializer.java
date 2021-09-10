@@ -15,10 +15,9 @@
  */
 package com.dremio.dac.daemon;
 
-import static com.dremio.dac.daemon.DACDaemonModule.METADATA_STORAGEPLUGIN_NAME;
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
 import static com.dremio.dac.support.SupportService.*;
-import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_ICEBERG_EXECUTION;
+import static com.dremio.exec.ExecConstants.METADATA_CLOUD_CACHING_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
@@ -38,7 +37,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.Initializer;
@@ -142,13 +143,8 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
 
     final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
 
-    boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
-    final boolean enableS3FileStatusCheck =
-      FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme().equals(accelerationPathConfig.getUri().getScheme()) ?
-      enable(config, DremioConfig.DEBUG_DIST_S3_FILE_STATUS_CHECK) : true;
-    if (FileSystemConf.isCloudFileSystemScheme(accelerationPathConfig.getUri().getScheme())) {
-      enableCachingForAcceleration = sabotContext.getOptionManager().getOption(CLOUD_CACHING_ENABLED) ;
-    }
+    final boolean enableS3FileStatusCheck = isEnableS3FileStatusCheck(config, accelerationPathConfig);
+    boolean enableCachingForAcceleration = isEnableCaching(sabotContext, config, accelerationPathConfig, CLOUD_CACHING_ENABLED);
 
     createSafe(catalogService, ns,
         AccelerationStoragePluginConfig.create(accelerationPathConfig.getUri(), enableAsyncForAcceleration,
@@ -170,12 +166,16 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
       InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE,
         CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload, null), deferred);
 
-    if (sabotContext.getOptionManager().getOption(ENABLE_ICEBERG_EXECUTION)) {
-      final boolean enableAsyncForMetadata = enable(config, DremioConfig.DEBUG_METADATA_ASYNC_ENABLED);
-      createSafe(catalogService, ns,
-        InternalFileConf.create(METADATA_STORAGEPLUGIN_NAME, metadataPathConfig.getUri(), SchemaMutability.SYSTEM_TABLE,
-          CatalogService.NEVER_REFRESH_POLICY, enableAsyncForMetadata, metadataPathConfig.getDataCredentials()), deferred);
-    }
+    final boolean enableAsyncForMetadata = enable(config, DremioConfig.DEBUG_METADATA_ASYNC_ENABLED);
+
+    final boolean enableS3FileStatusCheckForMetadata = isEnableS3FileStatusCheck(config, metadataPathConfig);
+    boolean enableCachingForMetadata = isEnableCaching(sabotContext, config, metadataPathConfig, METADATA_CLOUD_CACHING_ENABLED);
+
+    createSafe(catalogService, ns,
+            MetadataStoragePluginConfig.create(metadataPathConfig.getUri(), enableAsyncForMetadata,
+                    enableCachingForMetadata, maxCacheSpacePercent, enableS3FileStatusCheckForMetadata,
+                    metadataPathConfig.getDataCredentials()), deferred);
+
 
     final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createSafe(catalogService, ns,
@@ -188,6 +188,21 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
         CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport, null), deferred);
 
     deferred.throwAndClear();
+  }
+
+  private boolean isEnableCaching(SabotContext sabotContext, DremioConfig config,
+                                  ProjectConfig.DistPathConfig pathConfig,
+                                  TypeValidators.BooleanValidator optionValidator) {
+    boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
+    if (FileSystemConf.isCloudFileSystemScheme(pathConfig.getUri().getScheme())) {
+      enableCachingForAcceleration = sabotContext.getOptionManager().getOption(optionValidator) ;
+    }
+    return enableCachingForAcceleration;
+  }
+
+  private boolean isEnableS3FileStatusCheck(DremioConfig config, ProjectConfig.DistPathConfig pathConfig) {
+    return !FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme().equals(pathConfig.getUri().getScheme())
+            || enable(config, DremioConfig.DEBUG_DIST_S3_FILE_STATUS_CHECK);
   }
 
   private static boolean enable(DremioConfig config, String path) {

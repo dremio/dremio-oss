@@ -30,6 +30,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import com.dremio.common.dialect.DremioSqlDialect;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 
 /**
@@ -231,5 +232,10 @@ public class SqlRefreshTable extends SqlSystemCall {
   }
   public SqlLiteral getAllPartitionsRefresh() { return allPartitionsRefresh; }
   public SqlLiteral getPartitionRefresh() { return partitionRefresh; }
+
+  public String toRefreshDatasetQuery(List<String> pathComponents) {
+    return new SqlRefreshDataset(pos, new SqlIdentifier(pathComponents, pos), deleteUnavail, forceUp, promotion, allFilesRefresh, allPartitionsRefresh,
+      fileRefresh, partitionRefresh, filesList, partitionList).toSqlString(DremioSqlDialect.CALCITE).getSql();
+  }
 }
 

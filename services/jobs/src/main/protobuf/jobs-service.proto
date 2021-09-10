@@ -58,6 +58,8 @@ service Chronicle {
 
   rpc SearchJobs (SearchJobsRequest) returns (stream JobSummary) {}
 
+  rpc GetActiveJobs(ActiveJobsRequest) returns (stream ActiveJobSummary) {}
+
   // response does not provide information about job result data
   rpc GetJobsForParent (JobsWithParentDatasetRequest) returns (stream JobDetails) {}
 
@@ -130,6 +132,18 @@ message JobSummary {
   bool output_limited = 21;
   int64 record_count = 22;
   repeated exec.shared.AttemptEvent state_list = 23;
+}
+
+message ActiveJobSummary {
+  string job_id = 1;
+  string status = 2;
+  string error_msg = 3;
+  string user_name = 4;
+  int64 start = 5;
+  int64 finish = 6;
+  string query_type = 7;
+  bool accelerated = 8;
+  int64 row_count = 9;
 }
 
 //proto2 enums cannot be used directly in proto3 syntax
@@ -208,6 +222,7 @@ enum QueryType {
   JDBC = 400; //query submitted by jdbc client
   REST = 500; //query submitted by public rest interfaces
   FLIGHT = 600; //query submitted by FlightClient
+  METADATA_REFRESH = 700; // Queries related to metadata refresh
 }
 
 enum RequestType {
@@ -268,6 +283,10 @@ message SearchJobsRequest {
     ASCENDING = 0;
     DESCENDING = 1;
   }
+  enum DetailLevel {
+    ZERO = 0;
+    ONE = 1;
+  }
   VersionedDatasetPath dataset = 1;
   string filter_string = 2;
   string user_name = 3;
@@ -275,6 +294,11 @@ message SearchJobsRequest {
   int32 offset = 5;
   int32 limit = 6;
   SortOrder sort_order = 7;
+  DetailLevel detail_level = 8;
+}
+
+message ActiveJobsRequest {
+  string user_name = 1;
 }
 
 message JobsWithParentDatasetRequest {

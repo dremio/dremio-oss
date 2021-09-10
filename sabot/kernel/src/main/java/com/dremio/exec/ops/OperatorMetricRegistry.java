@@ -45,6 +45,7 @@ import com.dremio.sabot.op.sender.roundrobin.RoundRobinOperator;
 import com.dremio.sabot.op.sender.single.SingleSenderOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
+import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
 
 /**
@@ -80,7 +81,9 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.TABLE_FUNCTION_VALUE, Arrays.asList(ScanOperator.Metric.class, TableFunctionOperator.Metric.class));
     register(builder, CoreOperatorType.DELTALAKE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.ICEBERG_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.DIR_LISTING_SUB_SCAN_VALUE,  ScanOperator.Metric.class);
     register(builder, CoreOperatorType.MANIFEST_WRITER_VALUE, ParquetRecordWriter.Metric.class);
+    register(builder, CoreOperatorType.WRITER_COMMITTER_VALUE, WriterCommitterOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

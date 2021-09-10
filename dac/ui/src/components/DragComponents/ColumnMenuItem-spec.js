@@ -33,20 +33,20 @@ describe('ColumnMenuItem', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render DragSource with preventDrag undefined, .draggable-icon if preventDrag is undefined', () => {
+  it('should render DragSource with preventDrag undefined, .column-draggable-icon if preventDrag is undefined', () => {
     const wrapper = shallow(<ColumnMenuItem {...minimalProps}/>);
     expect(wrapper.find(DragSource).prop('preventDrag')).to.be.undefined;
-    expect(wrapper.find({ class: 'draggable-icon' })).to.have.length(1);
+    expect(wrapper.find({ class: 'column-draggable-icon' })).to.have.length(1);
   });
 
-  it('should render DragSource with preventDrag true and not render .draggable-icon if preventDrag is true', () => {
+  it('should render DragSource with preventDrag true and not render .column-draggable-icon if preventDrag is true', () => {
     const props = {
       ...minimalProps,
       preventDrag: true
     };
     const wrapper = shallow(<ColumnMenuItem {...props}/>);
     expect(wrapper.find(DragSource).prop('preventDrag')).to.be.true;
-    expect(wrapper.find({ class: 'draggable-icon' })).to.have.length(0);
+    expect(wrapper.find({ class: 'column-draggable-icon' })).to.have.length(0);
   });
 
   describe('checkThatDragAvailable', () => {

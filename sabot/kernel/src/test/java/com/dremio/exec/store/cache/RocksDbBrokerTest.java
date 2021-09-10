@@ -55,7 +55,7 @@ public class RocksDbBrokerTest {
     RocksDB db = broker.getDb();
     assertNotNull(db);
 
-    expectedException.expect(RuntimeRocksDBException.class);
+    expectedException.expect(RocksDBException.class);
     expectedException.expectMessage("No locks available");
     new RocksDbBroker(dbPath);
   }
@@ -73,15 +73,15 @@ public class RocksDbBrokerTest {
   }
 
   @Test
-  public void testColumnFamilyValidation_missingExpectedColumnFamilies() {
-    expectedException.expect(RuntimeRocksDBException.class);
+  public void testColumnFamilyValidation_missingExpectedColumnFamilies() throws Exception {
+    expectedException.expect(RocksDBException.class);
     expectedException.expectMessage("Did not load the expected number of column families");
     RocksDbBroker.validateColumnFamilies(Collections.emptyList());
   }
 
   @Test
-  public void testColumnFamilyValidation_wrongColumnFamily() {
-    expectedException.expect(RuntimeRocksDBException.class);
+  public void testColumnFamilyValidation_wrongColumnFamily() throws Exception {
+    expectedException.expect(RocksDBException.class);
     expectedException.expectMessage("Unexpected column family");
     List<byte[]> columnFamilyHandles = Arrays.asList(RocksDB.DEFAULT_COLUMN_FAMILY, "blah-cf".getBytes());
     RocksDbBroker.validateColumnFamilies(columnFamilyHandles);

@@ -15,18 +15,25 @@
  */
 import { PureComponent, createRef, Fragment } from 'react';
 import { Popover, MouseEvents } from '@app/components/Popover';
+import Art from '@app/components/Art';
 import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
 import { select as selectCls, disabled as disabledCls } from './SelectView.less';
-
 /**
  * node or render props function
  * renderProps: ({ openDD: func, closeDD: func, isOpen: func }) => {@see PropTypes.node}
  * {see SelectView#renderNodeOrProps} for details
  */
 const nodeOrRenderProps = PropTypes.oneOfType([PropTypes.node, PropTypes.func]);
+const styles = {
+  arrow: {
+    color: '#77818F',
+    fontSize: '10px',
+    paddingLeft: '7px'
+  }
+};
 
 export class SelectView extends PureComponent {
   static propTypes = {
@@ -49,16 +56,21 @@ export class SelectView extends PureComponent {
     beforeClose: PropTypes.func,
     useLayerForClickAway: PropTypes.bool,
     /** Attributes that would be applied to a content wrapper dom element */
-    rootAttrs: PropTypes.object
+    rootAttrs: PropTypes.object,
+    icon: PropTypes.string,
+    iconStyle: PropTypes.object,
+    popoverFilters: PropTypes.string,
+    isArtIcon: PropTypes.bool,
+    iconClass: PropTypes.string
   };
 
   static defaultProps = {
-    useLayerForClickAway: true
+    useLayerForClickAway: true,
+    icon: 'fa fa-chevron-down',
+    iconStyle: styles.arrow
   };
 
-  state = {
-    anchorEl: null
-  };
+  state = { anchorEl: null };
   contentRef = createRef();
 
   renderNodeOrProps = nodeOrProps => {
@@ -97,6 +109,16 @@ export class SelectView extends PureComponent {
 
   isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl);
 
+  renderIcon = () => {
+    const { icon, iconStyle, isArtIcon, iconClass } = this.props;
+    return isArtIcon ? <Art
+      src={icon}
+      alt='icon'
+      title='icon'
+      className={iconClass}
+    /> : <i className={icon} style={iconStyle} />;
+  }
+
   render() {
     const {
       content,
@@ -111,11 +133,11 @@ export class SelectView extends PureComponent {
       useLayerForClickAway,
       listWidthSameAsAnchorEl,
       listStyle,
-      rootAttrs
+      rootAttrs,
+      popoverFilters
     } = this.props;
     const { anchorEl } = this.state;
     const open = this.isOpen();
-
     return (
       <Fragment>
         <div
@@ -131,7 +153,8 @@ export class SelectView extends PureComponent {
           {...rootAttrs}
         >
           {this.renderNodeOrProps(content)}
-          {!hideExpandIcon && <i className='fa fa-chevron-down' style={styles.arrow}/>}
+          {!hideExpandIcon && this.renderIcon()}
+
         </div>
         <Popover
           anchorEl={open ? anchorEl : null}
@@ -143,6 +166,7 @@ export class SelectView extends PureComponent {
           useLayerForClickAway={useLayerForClickAway}
           clickAwayMouseEvent={MouseEvents.onClick}
           listWidthSameAsAnchorEl={listWidthSameAsAnchorEl}
+          popoverFilters={popoverFilters}
         >
           {this.renderNodeOrProps(children)}
         </Popover>
@@ -151,11 +175,4 @@ export class SelectView extends PureComponent {
   }
 }
 
-const styles = {
-  arrow: {
-    color: '#77818F',
-    fontSize: '10px',
-    paddingLeft: '7px'
-  }
-};
 

@@ -223,6 +223,7 @@ public class ParquetGroupScanUtils {
         case DATE:
           return Types.optional(MinorType.DATE);
         case TIME_MILLIS:
+        case TIME_MICROS:
           return Types.optional(MinorType.TIME);
         case TIMESTAMP_MILLIS:
         case TIMESTAMP_MICROS:

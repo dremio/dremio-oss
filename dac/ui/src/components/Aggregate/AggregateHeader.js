@@ -17,19 +17,18 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
+import { base, left, center, right } from '@app/uiTheme/less/Aggregate/AggregateHeader.less';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import EllipsedText from 'components/EllipsedText';
 import { ExploreInfoHeader } from 'pages/ExplorePage/components/ExploreInfoHeader';
 import { AggregateHeaderWithMixin } from '@inject/components/Aggregate/AggregateHeaderMixin.js';
 
-export const CLEAR_ALL_HEIGHT = 20;
-
 @Radium
 export class AggregateHeader extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
-    style: PropTypes.object,
     onClearAllMeasures: PropTypes.func,
     onClearAllDimensions: PropTypes.func
   };
@@ -46,7 +45,8 @@ export class AggregateHeader extends Component {
       return <SimpleButton
         type='button'
         buttonStyle='secondary'
-        style={renderClearAllButtons ? styles.clearAll : {display: 'none'}}
+        // DX-34369: all SimpleButton usage need to change from style to classname
+        style={renderClearAllButtons ? {minWidth: 'auto', height: 20, lineHeight: 20, marginRight: 5} : {display: 'none'} }
         onClick={clearFunction}>
         {la('Clear All')}
       </SimpleButton>;
@@ -58,15 +58,15 @@ export class AggregateHeader extends Component {
     // todo: loc
     const nameForDisplay = ExploreInfoHeader.getNameForDisplay(this.props.dataset);
     return (
-      <div
-        className='aggregate-header'
-        style={[styles.base, this.props.style]}>
-        <div style={styles.left}><EllipsedText text={`“${nameForDisplay}” dataset fields:`}/></div>
-        <div style={styles.center}>
+      <div className={classNames('aggregate-header', base)}>
+        <div className={left}>
+          <EllipsedText text={`“${nameForDisplay}” dataset fields:`}/>
+        </div>
+        <div className={center}>
           {la('Dimensions')}
           {this.renderClearAll(this.props.onClearAllDimensions)}
         </div>
-        <div style={styles.right}>
+        <div className={right}>
           {la('Measures')}
           {this.renderClearAll(this.props.onClearAllMeasures)}
         </div>
@@ -74,48 +74,5 @@ export class AggregateHeader extends Component {
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    width: '100%',
-    alignItems: 'center',
-    background: '#F3F3F3',
-    minHeight: 30
-  },
-  clearAll: {
-    minWidth: 'auto',
-    height: CLEAR_ALL_HEIGHT,
-    lineHeight: `${CLEAR_ALL_HEIGHT}px`,
-    marginRight: 5
-  },
-  left: {
-    width: 275,
-    minWidth: 240,
-    height: 30,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 10px',
-    borderRight: '1px solid rgba(0,0,0,0.10)'
-  },
-  center: {
-    width: '100%',
-    height: 30,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 11,
-    borderRight: '1px solid rgba(0,0,0,0.10)',
-    justifyContent: 'space-between'
-  },
-  right: {
-    height: 30,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 10,
-    width: '100%',
-    justifyContent: 'space-between'
-  }
-};
 
 export default AggregateHeaderWithMixin(AggregateHeader);

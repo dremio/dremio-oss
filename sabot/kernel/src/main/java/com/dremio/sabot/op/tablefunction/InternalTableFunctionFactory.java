@@ -18,15 +18,13 @@ package com.dremio.sabot.op.tablefunction;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.dfs.SplitAssignmentTableFunction;
 import com.dremio.exec.store.dfs.SplitGenTableFunction;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.ManifestFileProcessor;
 import com.dremio.exec.store.iceberg.ManifestScanTableFunction;
-import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
+import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.metadatarefresh.schemaagg.SchemaAggTableFunction;
-import com.dremio.exec.store.parquet.ParquetScanTableFunction;
-import com.dremio.exec.store.parquet.ParquetSplitCreator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
@@ -41,31 +39,24 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
                                            TableFunctionConfig functionConfig) throws ExecutionSetupException {
     switch (functionConfig.getType()) {
       case DATA_FILE_SCAN:
-        return new ParquetScanTableFunction(fec, context, props, functionConfig);
+        SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
+        return plugin.createScanTableFunction(fec, context, props, functionConfig);
       case METADATA_REFRESH_MANIFEST_SCAN:
       case SPLIT_GEN_MANIFEST_SCAN:
-        BlockBasedSplitGenerator.SplitCreator splitCreator = new ParquetSplitCreator();
-        return getManifestScanTableFunction(fec, context, props, functionConfig, splitCreator);
+        ManifestFileProcessor manifestFileProcessor = new ManifestFileProcessor(fec, context, props, functionConfig);
+        return new ManifestScanTableFunction(context, functionConfig, manifestFileProcessor);
       case SPLIT_GENERATION:
         return new SplitGenTableFunction(fec, context, functionConfig);
       case FOOTER_READER:
-        return new FooterReadTableFunction(fec, context, props, functionConfig);
+        SupportsInternalIcebergTable internalIcebergTablePlugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
+        return internalIcebergTablePlugin.getFooterReaderTableFunction(fec, context, props, functionConfig);
       case SCHEMA_AGG:
         return new SchemaAggTableFunction(context, functionConfig);
       case SPLIT_ASSIGNMENT:
-        return new SplitAssignmentTableFunction(context, functionConfig);
+        return new SplitAssignmentTableFunction(fec, context, props, functionConfig);
       case UNKNOWN:
       default:
         throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());
     }
-  }
-
-  protected TableFunction getManifestScanTableFunction(FragmentExecutionContext fec,
-                                                       OperatorContext context,
-                                                       OpProps props,
-                                                       TableFunctionConfig functionConfig,
-                                                       BlockBasedSplitGenerator.SplitCreator splitCreator) {
-    ManifestFileProcessor manifestFileProcessor = new ManifestFileProcessor(fec, context, props, functionConfig, splitCreator);
-    return new ManifestScanTableFunction(context, functionConfig, manifestFileProcessor);
   }
 }

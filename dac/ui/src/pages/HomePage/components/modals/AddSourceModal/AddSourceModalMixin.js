@@ -23,8 +23,6 @@ export default function(input) {
     mutateFormValues(values) {
       return values;
     },
-    modifyFormJson() {
-    },
     fetchData() {
     }
   });

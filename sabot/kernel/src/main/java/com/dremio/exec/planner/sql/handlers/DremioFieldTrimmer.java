@@ -79,6 +79,7 @@ import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.LimitRel;
+import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.service.Pointer;
@@ -692,7 +693,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     Join rel = (Join) result.left;
     Mapping mapping = result.right;
     ImmutableBitSet projectedFields = ImmutableBitSet.of(fieldsUsed.asList().stream().map(mapping::getTarget).collect(Collectors.toList()));
-    RelNode newJoin = JoinRel.create(rel.getCluster(), rel.getTraitSet(), rel.getLeft(), rel.getRight(), rel.getCondition(), rel.getJoinType(), projectedFields);
+    RelNode newJoin = JoinRel.create(rel.getCluster(), rel.getTraitSet(), rel.getLeft(), rel.getRight(), rel.getCondition(), rel.getJoinType(), projectedFields, true);
     final Mapping map = Mappings.create(MappingType.INVERSE_SURJECTION, join.getRowType().getFieldCount(), newJoin.getRowType().getFieldCount());
     int j = 0;
     for (int i = 0; i < join.getRowType().getFieldCount() ; i++) {
@@ -701,7 +702,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
         j++;
       }
     }
-    return result(newJoin, map);
+    return result(addProjectOnProjectedJoin((JoinRel) newJoin), map);
   }
 
   public TrimResult trimFields(LogicalWindow window, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
@@ -1003,5 +1004,20 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       refCounts[inputRef.getIndex()]++;
       return null;
     }
+  }
+
+  private static RelNode addProjectOnProjectedJoin(JoinRel join) {
+    if (join.getProjectedFields() != null) {
+      RelNode newJoin = join.copy(join.getTraitSet(), join.getCondition(), join.getLeft(), join.getRight(), join.getJoinType(), join.isSemiJoinDone());
+      List<RexNode> exprs = new ArrayList<>();
+      final RelDataType rowType = join.getRowType();
+      final List<Integer> projectedFields = join.getProjectedFields().asList();
+      final List<RelDataTypeField> fields = rowType.getFieldList();
+      for (final Ord<Integer> pair : Ord.zip(projectedFields)) {
+        exprs.add(join.getCluster().getRexBuilder().makeInputRef(fields.get(pair.i).getType(), pair.e));
+      }
+      return ProjectRel.create(join.getCluster(), join.getTraitSet(), newJoin, exprs, rowType);
+    }
+    return join;
   }
 }

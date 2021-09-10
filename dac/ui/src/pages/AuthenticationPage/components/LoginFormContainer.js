@@ -19,16 +19,33 @@ import Radium from 'radium';
 import { withRouter } from 'react-router';
 
 import LoginFormMixin from '@inject/pages/AuthenticationPage/components/LoginFormMixin';
-
-import { lightLink } from 'uiTheme/radium/typography';
-
+import localStorageUtils from 'dyn-load/utils/storageUtils/localStorageUtils';
+import {renderSSOLoginToggleLink} from 'dyn-load/utils/loginUtils.js';
 import LoginForm from './LoginForm';
 import LoginTitle from './LoginTitle';
 
 @Radium
 export class LoginFormContainer extends PureComponent {
+  constructor(props) {
+    super(props);
+    this.state = {
+      loginScreen: localStorageUtils.renderSSOLoginScreen()
+    };
+  }
+
+  componentDidMount() {
+    this.state.loginScreen === null ? this.setLoginScreen() : null;
+  }
+
   renderForm() {
     return <LoginForm {...this.props} />;
+  }
+
+  setLoginScreen() {
+    localStorageUtils.setSSOLoginChoice();
+    this.setState({
+      loginScreen: localStorageUtils.renderSSOLoginScreen()
+    });
   }
 
   render() {
@@ -38,7 +55,8 @@ export class LoginFormContainer extends PureComponent {
           style={{marginBottom: 10}}
           subTitle={la('Welcome to Dremio, please log in.')}
         />
-        {this.renderForm()}
+        {this.renderForm(this.state.loginScreen)}
+        {renderSSOLoginToggleLink(this.setLoginScreen.bind(this))}
       </div>
     );
   }
@@ -61,11 +79,5 @@ const styles = {
     padding: 40,
     display: 'flex',
     flexDirection: 'column'
-  },
-  link: {
-    flexGrow: 1,
-    textAlign: 'right',
-    alignSelf: 'center',
-    ...lightLink
   }
 };

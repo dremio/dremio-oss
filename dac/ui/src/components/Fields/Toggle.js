@@ -24,7 +24,9 @@ export class Toggle extends Component {
     onChange: PropTypes.func,
     value: PropTypes.bool,
     label: PropTypes.node,
-    style: PropTypes.object
+    style: PropTypes.object,
+    size: PropTypes.any,
+    className: PropTypes.any
   }
 
   static defaultProps = {
@@ -32,7 +34,7 @@ export class Toggle extends Component {
   }
 
   render() {
-    const { onChange, value, label, style } = this.props;
+    const { onChange, value, label, style, size, className } = this.props;
     const conditionalRenderingButtonStyling = this.checkToRenderToggle();
     return (
       <FormControlLabel
@@ -42,10 +44,13 @@ export class Toggle extends Component {
             onChange={onChange}
             checked={value}
             className='field'
+            size={size}
           />
         ) : ( <div style={{marginLeft: 15}}></div> )
+        // DX-34369: do we need this marginLeft?
         }
         label={label}
+        className={className ? className : null}
         style={{ marginRight: 0, ...style}}
       />
     );

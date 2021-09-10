@@ -37,8 +37,8 @@ enum FileType {
   ARROW = 11;
   ICEBERG = 12;
   DELTA = 13;
+  ORC = 14;
 }
-
 message FileConfig {
   repeated string fullPath = 1;
   optional FileType type = 2 [default = UNKNOWN];

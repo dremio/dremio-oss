@@ -36,6 +36,7 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
+import org.apache.calcite.rel.rules.AggregateProjectPullUpConstantsRule;
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
@@ -82,6 +83,7 @@ import com.dremio.exec.planner.logical.DremioProjectJoinTransposeRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.DremioSortMergeRule;
 import com.dremio.exec.planner.logical.EmptyRule;
+import com.dremio.exec.planner.logical.EnhancedFilterJoinRule;
 import com.dremio.exec.planner.logical.ExpansionDrule;
 import com.dremio.exec.planner.logical.FilterFlattenTransposeRule;
 import com.dremio.exec.planner.logical.FilterJoinRulesUtil;
@@ -90,6 +92,7 @@ import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.FilterRule;
 import com.dremio.exec.planner.logical.FilterWindowTransposeRule;
 import com.dremio.exec.planner.logical.FlattenRule;
+import com.dremio.exec.planner.logical.InClauseCommonSubexpressionEliminationRule;
 import com.dremio.exec.planner.logical.JoinFilterCanonicalizationRule;
 import com.dremio.exec.planner.logical.JoinNormalizationRule;
 import com.dremio.exec.planner.logical.JoinRel;
@@ -116,7 +119,9 @@ import com.dremio.exec.planner.logical.UnionAllRule;
 import com.dremio.exec.planner.logical.ValuesRule;
 import com.dremio.exec.planner.logical.WindowRule;
 import com.dremio.exec.planner.logical.rule.GroupSetToCrossJoinCaseStatement;
+import com.dremio.exec.planner.logical.rule.LogicalAggregateGroupKeyFixRule;
 import com.dremio.exec.planner.logical.rule.MinusToJoin;
+import com.dremio.exec.planner.physical.AddFilterWindowBelowExchangeRule;
 import com.dremio.exec.planner.physical.EmptyPrule;
 import com.dremio.exec.planner.physical.FilterNLJMergeRule;
 import com.dremio.exec.planner.physical.FilterProjectNLJRule;
@@ -127,6 +132,7 @@ import com.dremio.exec.planner.physical.HashJoinPrule;
 import com.dremio.exec.planner.physical.LimitPrule;
 import com.dremio.exec.planner.physical.LimitUnionExchangeTransposeRule;
 import com.dremio.exec.planner.physical.MergeJoinPrule;
+import com.dremio.exec.planner.physical.MergeProjectsOnNLJRule;
 import com.dremio.exec.planner.physical.NestedLoopJoinPrule;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.ProjectNLJMergeRule;
@@ -135,7 +141,8 @@ import com.dremio.exec.planner.physical.PushLimitToTopN;
 import com.dremio.exec.planner.physical.SamplePrule;
 import com.dremio.exec.planner.physical.SampleToLimitPrule;
 import com.dremio.exec.planner.physical.ScreenPrule;
-import com.dremio.exec.planner.physical.SimplifyNLJConditionRule;
+import com.dremio.exec.planner.physical.SimplifyNLJConditionRuleBase.SimplifyNLJConditionRule;
+import com.dremio.exec.planner.physical.SimplifyNLJConditionRuleBase.SimplifyProjectNLJConditionRule;
 import com.dremio.exec.planner.physical.SortConvertPrule;
 import com.dremio.exec.planner.physical.SortPrule;
 import com.dremio.exec.planner.physical.StreamAggPrule;
@@ -157,6 +164,15 @@ public enum PlannerPhase {
           CALC_REDUCE_EXPRESSIONS_CALCITE_RULE,
           ProjectToWindowRule.PROJECT
           );
+    }
+  },
+
+  GROUP_SET_REWRITE("GroupSet Rewrites") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(
+        GroupSetToCrossJoinCaseStatement.RULE
+      );
     }
   },
 
@@ -228,7 +244,8 @@ public enum PlannerPhase {
       ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
       PlannerSettings ps = context.getPlannerSettings();
       b.add(
-        GroupSetToCrossJoinCaseStatement.RULE,
+        AggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL,
+        LogicalAggregateGroupKeyFixRule.RULE,
         ConvertCountDistinctToHll.INSTANCE,
         RewriteNdvAsHll.INSTANCE,
 
@@ -254,6 +271,11 @@ public enum PlannerPhase {
 
       if (ps.isRelPlanningEnabled()) {
         b.add(LOGICAL_FILTER_CORRELATE_RULE);
+      }
+
+      if (ps.isEnhancedFilterJoinPushdownEnabled()) {
+        b.add(EnhancedFilterJoinRule.WITH_FILTER);
+        b.add(EnhancedFilterJoinRule.NO_FILTER);
       }
 
       if (ps.isTransitiveFilterPushdownEnabled()) {
@@ -411,6 +433,15 @@ public enum PlannerPhase {
     }
   },
 
+  POST_JOIN_OPTIMIZATION("Post Join Optimization") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      final ImmutableList.Builder<RelOptRule> rules = ImmutableList.builder();
+      rules.add(InClauseCommonSubexpressionEliminationRule.INSTANCE);
+      return RuleSets.ofList(rules.build());
+    }
+  },
+
   PHYSICAL("Physical Planning") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
@@ -426,9 +457,14 @@ public enum PlannerPhase {
       builder.add(FilterNLJMergeRule.INSTANCE);
       if (context.getPlannerSettings().options.getOption(PlannerSettings.ENABlE_PROJCT_NLJ_MERGE)) {
         builder.add(ProjectNLJMergeRule.INSTANCE);
+        builder.add(MergeProjectsOnNLJRule.INSTANCE);
       }
       if (context.getPlannerSettings().options.getOption(PlannerSettings.NLJ_PUSHDOWN)) {
         builder.add(SimplifyNLJConditionRule.INSTANCE);
+        builder.add(SimplifyProjectNLJConditionRule.INSTANCE);
+      }
+      if (context.getPlannerSettings().options.getOption(PlannerSettings.ENABLE_FILTER_WINDOW_OPTIMIZER)) {
+        builder.add(AddFilterWindowBelowExchangeRule.INSTANCE);
       }
       return RuleSets.ofList(builder.build());
     }

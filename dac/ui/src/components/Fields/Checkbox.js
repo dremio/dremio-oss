@@ -25,7 +25,7 @@ import {
   base,
   labelContent,
   disabled as disabledCls,
-  dummy
+  customCheckBox
 } from './Checkbox.less';
 
 export const checkboxPropTypes = {
@@ -54,7 +54,9 @@ export const checkboxPropTypes = {
   autofilled: PropTypes.any,
   isOnOffSwitch: PropTypes.bool,
   toolTip: PropTypes.string,
-  toolTipPosition: PropTypes.string
+  toolTipPosition: PropTypes.string,
+  checkBoxClass: PropTypes.string,
+  showCheckIcon: PropTypes.bool
 };
 
 export default class Checkbox extends PureComponent {
@@ -73,12 +75,12 @@ export default class Checkbox extends PureComponent {
       extraStyle.marginRight = 6;
     }
     if (checked) {
-      return <div className={onoffBtn} style={{...styles.switchOnBtn, ...extraStyle}}>
-        On <div className={onoffDot} style={styles.onDot}/>
+      return <div className={onoffBtn} style={{ ...styles.switchOnBtn, ...extraStyle }}>
+        On <div className={onoffDot} style={styles.onDot} />
       </div>;
     } else {
-      return <div className={onoffBtn} style={{...styles.switchOffBtn, ...extraStyle}}>
-        <div className={onoffDot} style={styles.offDot}/>
+      return <div className={onoffBtn} style={{ ...styles.switchOffBtn, ...extraStyle }}>
+        <div className={onoffDot} style={styles.offDot} />
         Off
       </div>;
     }
@@ -89,9 +91,14 @@ export default class Checkbox extends PureComponent {
   }
 
   renderDummyCheckbox(isChecked, style) {
-    return <div className={classNames(dummy, isChecked && 'checked')} style={style}
+    const setCheckBoxClass = classNames(
+      customCheckBox,
+      this.props.checkBoxClass,
+      { 'checked': isChecked }
+    );
+    return <div className={setCheckBoxClass} style={style}
       data-qa={this.props.dataQa || 'dummyCheckbox'}>
-      {isChecked ? <i className='fa fa-check'/> : '\u00A0'}
+      {isChecked || this.props.showCheckIcon ? <i className='fa fa-check' style={{ color: '#fff' }} /> : '\u00A0'}
     </div>;
   }
 
@@ -111,7 +118,7 @@ export default class Checkbox extends PureComponent {
       <TooltipEnabledLabel className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container'
         style={style} labelBefore={labelBefore} label={label} labelContentClass={labelContent}
         tooltip={toolTip} toolTipPosition={toolTipPosition}>
-        <input disabled={this.props.disabled} type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
+        <input disabled={this.props.disabled} type={inputType} style={styles.inputStyle} {...props} />
         {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
         {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
         {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)}
@@ -138,5 +145,9 @@ const styles = {
   offDot: {
     backgroundColor: '#fff',
     left: '6px'
+  },
+  inputStyle: {
+    position: 'absolute',
+    left: -10000
   }
 };

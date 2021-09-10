@@ -22,7 +22,7 @@ import org.apache.hadoop.conf.Configuration;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.exec.store.metadatarefresh.DatasetCatalogGrpcClient;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 

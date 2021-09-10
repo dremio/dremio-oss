@@ -18,6 +18,7 @@ package com.dremio.exec.planner.physical.visitor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
@@ -35,6 +36,7 @@ import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.Lists;
 
@@ -66,7 +68,7 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
       if (prel instanceof HashToRandomExchangePrel) {
         HashToRandomExchangePrel hashToRandomExchangePrel = (HashToRandomExchangePrel) prel;
         return visit(hashToRandomExchangePrel, hashToRandomExchangePrel.getFields(), child,
-          hashToRandomExchangePrel.getHashFunctionName(), hashToRandomExchangePrel.assignFromTableFunction());
+          hashToRandomExchangePrel.getHashFunctionName(), hashToRandomExchangePrel.getTableFunctionCreator());
       }
     }
 
@@ -74,16 +76,16 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
   }
 
   private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child) {
-    return visit(hashPrel, fields, child, HashPrelUtil.HASH32_FUNCTION_NAME, false);
+    return visit(hashPrel, fields, child, HashPrelUtil.HASH32_FUNCTION_NAME, null);
   }
 
   private Prel visit(ExchangePrel hashPrel, List<DistributionTrait.DistributionField> fields, Prel child,
-                     String hashFunctionName, boolean assignFromTableFunction) {
+                     String hashFunctionName, Function<Prel, TableFunctionPrel> tableFunctionCreator) {
     final List<String> childFields = child.getRowType().getFieldNames();
 
 
     // Insert Project/TableFunction SqlOperatorImpl with new column that will be a hash for HashToRandomExchange fields
-    final Prel addHashColumnPrel = assignFromTableFunction ? HashPrelUtil.addSplitAssignTableFunction(child)
+    final Prel addHashColumnPrel = tableFunctionCreator != null ? tableFunctionCreator.apply(child)
       : HashPrelUtil.addHashProject(fields, child, null, hashFunctionName);
     final Prel newPrel = (Prel) hashPrel.copy(hashPrel.getTraitSet(), Collections.<RelNode>singletonList(addHashColumnPrel));
 

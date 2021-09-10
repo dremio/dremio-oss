@@ -57,6 +57,7 @@ import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.work.foreman.AttemptManager;
@@ -220,11 +221,11 @@ public class Foreman {
   }
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
-      AttemptObserver observer, UserSession session, OptionProvider options,
-      Cache<Long, PreparedPlan> preparedPlans, PlanCache planCache,
-      Predicate<DatasetConfig> datasetValidityChecker, CommandPool commandPool) {
+     AttemptObserver observer, UserSession session, OptionProvider options,
+     Cache<Long, PreparedPlan> preparedPlans, PlanCache planCache,
+     Predicate<DatasetConfig> datasetValidityChecker, CommandPool commandPool) {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
-        queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker, planCache);
+       queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker, planCache);
     return new AttemptManager(context, attemptId, queryRequest, observer, options, preparedPlans,
       queryContext, commandPool, maestroService, jobTelemetryClient, ruleBasedEngineSelector,
       queryRequest.runInSameThread());
@@ -232,8 +233,10 @@ public class Foreman {
 
   public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
     final AttemptManager manager = attemptManager;
-    if(manager == null){
+    if (manager == null) {
       logger.warn("Dropping data from screen, no active attempt manager.");
+      sender.sendFailure(new UserRpcException(context.getEndpoint(),
+        "Query Already Terminated", new Throwable("Query Already Terminated")));
       return;
     }
 
@@ -330,6 +333,14 @@ public class Foreman {
     if (attemptManager != null) {
       attemptManager.resume();
     }
+  }
+
+  protected SabotContext getSabotContext() {
+    return context;
+  }
+
+  protected RuleBasedEngineSelector getRuleBasedEngineSelector() {
+    return ruleBasedEngineSelector;
   }
 
   // checks if the plan (after physical transformation) contains hash aggregate

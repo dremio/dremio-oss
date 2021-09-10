@@ -304,7 +304,7 @@ public class SqlHandlerUtil {
     // store table as system user.
     final CreateTableEntry createTableEntry = context.getCatalog()
         .resolveCatalog(SystemUser.SYSTEM_USERNAME)
-        .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions);
+        .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions, true /** results table */);
 
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
     return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry, inputRel.getRowType());

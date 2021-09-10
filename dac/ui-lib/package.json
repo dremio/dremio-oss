@@ -56,6 +56,7 @@
   "dependencies": {
     "clsx": "^1.1.1",
     "lodash.get": "^4.4.2",
+    "lodash.debounce":"^4.0.8",
     "lodash.noop": "^3.0.1",
     "react-copy-to-clipboard": "^5.0.3",
     "uuid": "^8.3.2"

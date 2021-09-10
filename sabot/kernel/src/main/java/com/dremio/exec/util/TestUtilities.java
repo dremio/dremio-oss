@@ -15,21 +15,31 @@
  */
 package com.dremio.exec.util;
 
+import static com.dremio.exec.ExecConstants.ICEBERG_NAMESPACE_KEY;
+import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Set;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -62,8 +72,14 @@ public class TestUtilities {
   }
 
   public static void addDefaultTestPlugins(CatalogService catalog, final String tmpDirPath) {
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
+    addDefaultTestPlugins(catalog, tmpDirPath, false);
+  }
 
+  public static void addDefaultTestPlugins(CatalogService catalog, final String tmpDirPath, boolean addHadoopDataLakes) {
+    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
+    if (addHadoopDataLakes) {
+      addIcebergHadoopTables(catalog, tmpDirPath);
+    }
     // add dfs.
     {
       SourceConfig c = new SourceConfig();
@@ -75,8 +91,6 @@ public class TestUtilities {
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
-
-    addClasspathSource(catalog);
 
     // add dfs_test
     {
@@ -90,7 +104,8 @@ public class TestUtilities {
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
-
+    addClasspathSource(catalog);
+    // add metadataSink.
     // add dfs_root
     {
       SourceConfig c = new SourceConfig();
@@ -115,6 +130,61 @@ public class TestUtilities {
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
+    if (!isMetadataPluginExists(catalogImpl)) {
+      SourceConfig c = new SourceConfig();
+      MetadataStoragePluginConfig conf = new MetadataStoragePluginConfig();
+      conf.connection = "file:///";
+      conf.path = tmpDirPath;
+      conf.propertyList = Collections.singletonList(new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
+      c.setConnectionConf(conf);
+      c.setName(METADATA_STORAGE_PLUGIN_NAME);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
+  }
+
+  private static void addIcebergHadoopTables(CatalogService catalog, final String tmpDirPath) {
+    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
+    // add dfs.
+    {
+      SourceConfig c = new SourceConfig();
+      InternalFileConf conf = new InternalFileConf();
+      conf.connection = "file:///";
+      conf.path = "/";
+      conf.propertyList = Arrays.asList(new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "hadoop"));
+      c.setConnectionConf(conf);
+      c.setName("dfs_hadoop");
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
+
+    // add dfs_test
+    {
+      SourceConfig c = new SourceConfig();
+      InternalFileConf conf = new InternalFileConf();
+      conf.connection = "file:///";
+      conf.path = tmpDirPath;
+      conf.mutability = SchemaMutability.ALL;
+      conf.propertyList = Arrays.asList(new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "hadoop"));
+      c.setConnectionConf(conf);
+      c.setName("dfs_test_hadoop");
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
+  }
+
+  private static boolean isMetadataPluginExists(CatalogServiceImpl catalogImpl) {
+    boolean metadataPluginExists;
+    try {
+      catalogImpl.getSystemUserCatalog().getSource(METADATA_STORAGE_PLUGIN_NAME);
+      metadataPluginExists = true;
+    } catch (UserException ex) {
+      if (!ex.getMessage().contains("Tried to access non-existent source")) {
+        throw ex;
+      }
+      metadataPluginExists = false;
+    }
+    return metadataPluginExists;
   }
 
   public static void addClasspathSource(CatalogService catalog) {

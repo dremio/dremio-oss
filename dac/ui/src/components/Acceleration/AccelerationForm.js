@@ -35,6 +35,8 @@ import ApiUtils from '@app/utils/apiUtils/apiUtils';
 
 import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
 
+import '@app/uiTheme/less/commonModifiers.less';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 import { AccelerationFormWithMixin } from '@inject/components/Acceleration/AccelerationFormMixin.js';
 import Message from '../Message';
 import AccelerationBasic from './Basic/AccelerationBasic';
@@ -525,7 +527,7 @@ export class AccelerationForm extends Component {
           messageType='warning'
           message={Immutable.Map({code: 'REQUESTED_REFLECTION_MISSING'})}
           isDismissable={false}
-          style={styles.extraError}
+          className={'AccelerationForm__extraError'}
         />);
       }
     }
@@ -536,7 +538,7 @@ export class AccelerationForm extends Component {
         messageType='warning'
         message={Immutable.Map({code: 'COMBINED_REFLECTION_CONFIG_INVALID'})}
         isDismissable={false}
-        style={styles.extraError}
+        className={'AccelerationForm__extraError'}
       />);
     }
 
@@ -551,15 +553,15 @@ export class AccelerationForm extends Component {
   render() {
     const { handleSubmit, onCancel, isModal = true } = this.props;
     const { formIsDirty, waitingForRecommendations } = this.state;
-    const modalFormStyle = isModal ? {} : styles.noModalForm;
-    const confirmStyle = isModal ? {} : styles.noModalConfirmCancel;
+    const modalFormStyle = isModal ? {} : modalStyles.noModalForm;
+    const confirmStyle = isModal ? {} : modalStyles.noModalConfirmCancel;
     const cancelText = isModal ? la('Cancel') : la('Revert');
     const onCancelClick = isModal ? onCancel : this.resetForm;
     const canSubmit = isModal ? true : formIsDirty && !waitingForRecommendations;
     const canCancel = isModal ? true : formIsDirty && !waitingForRecommendations;
 
     return (
-      <div style={styles.base}>
+      <div className={'AccelerationForm'}>
         <ModalForm
           isModal={isModal}
           {...modalFormProps(this.props)}
@@ -573,7 +575,7 @@ export class AccelerationForm extends Component {
         >
           {this.renderFormErrorMessage()}
           {this.renderExtraErrorMessages()}
-          <FormBody style={styles.formBody} dataQa='acceleration-form'>
+          <FormBody className={'AccelerationForm__formBody'} dataQa='acceleration-form'>
             {this.renderHeader()}
             {this.renderAccelerationMode()}
           </FormBody>
@@ -583,22 +585,7 @@ export class AccelerationForm extends Component {
   }
 }
 
-const styles = {
-  base: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    maxHeight: 'calc(100vh - 100px)',
-    overflow: 'hidden'
-  },
-  formBody: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  extraError: {
-    marginBottom: 0
-  },
+const modalStyles = {
   noModalForm: {
     width: '100%',
     height: '100%',

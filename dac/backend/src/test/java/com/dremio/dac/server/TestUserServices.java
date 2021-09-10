@@ -259,7 +259,6 @@ public class TestUserServices extends BaseTestServer {
 
     // token should expire between 30 days and 30 days 5 mins
     assertTrue(userLoginToken.getExpires() > (now + 30 * 3600 * 1000) && userLoginToken.getExpires() < (now + (30 * 3600 + 5 * 60) * 1000));
-    assertTrue(userLoginToken.isShowUserAndUserProperties());
 
     doc("login with wrong password");
     UserLogin userLogin1 = new UserLogin(testUserName("test12"), "test1-p2");

@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
@@ -239,7 +240,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     NamespaceKey key,
     IcebergTableProps icebergTableProps,
     WriterOptions writerOptions,
-    Map<String, Object> storageOptions
+    Map<String, Object> storageOptions,
+    boolean isResultsTable
   ) {
     Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
     final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
@@ -251,7 +253,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     }
 
     final CreateTableEntry entry = super.createNewTable(config, key,
-      icebergTableProps, writerOptions, storageOptions);
+      icebergTableProps, writerOptions, storageOptions, isResultsTable);
 
     final S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
 
@@ -267,5 +269,9 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   @Override
   protected boolean isAsyncEnabledForQuery(OperatorContext context) {
     return context != null && context.getOptions().getOption(S3Options.ASYNC);
+  }
+
+  public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
+    return false;
   }
 }

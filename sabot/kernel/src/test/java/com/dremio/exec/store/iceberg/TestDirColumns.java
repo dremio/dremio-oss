@@ -54,46 +54,48 @@ public class TestDirColumns extends BaseTestQuery {
 
   @Test
   public void testDirs() throws Exception {
-    String srcTableName = "testDirs_src";
-    String dstTableName = "testDirs_dst";
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String srcTableName = "testDirs_src";
+      String dstTableName = "testDirs_dst";
 
-    File srcFolder = new File(getDfsTestTmpSchemaLocation(), srcTableName);
-    srcFolder.mkdir();
-    File srcFolderD0 = new File(srcFolder, "d0");
-    srcFolderD0.mkdir();
-    createDataFile(srcFolderD0, "file0");
+      File srcFolder = new File(getDfsTestTmpSchemaLocation(), srcTableName);
+      srcFolder.mkdir();
+      File srcFolderD0 = new File(srcFolder, "d0");
+      srcFolderD0.mkdir();
+      createDataFile(srcFolderD0, "file0");
 
-    try (AutoCloseable ac = enableIcebergTables()) {
-      final String ctasQuery =
-        String.format(
-          "CREATE TABLE %s.%s  "
-            + " AS SELECT * from %s.%s",
-          TEMP_SCHEMA,
-          dstTableName,
-          TEMP_SCHEMA,
-          srcTableName);
+      try (AutoCloseable ac = enableIcebergTables()) {
+        final String ctasQuery =
+          String.format(
+            "CREATE TABLE %s.%s  "
+              + " AS SELECT * from %s.%s",
+            testSchema,
+            dstTableName,
+            testSchema,
+            srcTableName);
 
-      test(ctasQuery);
+        test(ctasQuery);
 
-      testBuilder()
-        .sqlQuery(String.format("select count(dir0) c from %s.%s", TEMP_SCHEMA, dstTableName))
-        .unOrdered()
-        .baselineColumns("c")
-        .baselineValues(25L)
-        .build()
-        .run();
+        testBuilder()
+          .sqlQuery(String.format("select count(dir0) c from %s.%s", testSchema, dstTableName))
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(25L)
+          .build()
+          .run();
 
-      testBuilder()
-        .sqlQuery(String.format("select dir0 from %s.%s order by dir0 limit 1", TEMP_SCHEMA, dstTableName))
-        .unOrdered()
-        .baselineColumns("dir0")
-        .baselineValues("d0")
-        .build()
-        .run();
+        testBuilder()
+          .sqlQuery(String.format("select dir0 from %s.%s order by dir0 limit 1", testSchema, dstTableName))
+          .unOrdered()
+          .baselineColumns("dir0")
+          .baselineValues("d0")
+          .build()
+          .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), srcTableName));
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), dstTableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), srcTableName));
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), dstTableName));
+      }
     }
   }
 

@@ -35,7 +35,7 @@ const UserNavigation = (props) => {
       const className = classNames(
         'userNavigation__link',
         'userNavigation__item',
-        {'--selected': location.pathname === item.url},
+        { '--selected': location.pathname === item.url || location.pathname.startsWith(`${item.url}/`) },
         'text-small'
       );
       return (

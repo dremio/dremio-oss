@@ -36,50 +36,55 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
 
   @Test
   public void dropNonExistingCol() throws Exception {
-    String tableName = "dropcol1";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "dropcol1";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s DROP COLUMN col1", TEMP_SCHEMA, tableName);
-      errorMsgTestHelper(query, "Column [col1] is not present in table [dfs_test.dropcol1]");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        String query = String.format("ALTER TABLE %s.%s DROP COLUMN col1", testSchema, tableName);
+        errorMsgTestHelper(query, "Column [col1] is not present in table [" + testSchema + ".dropcol1]");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void noContextFail() throws Exception {
-    String tableName = "dropcol01";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "dropcol01";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s DROP COLUMN col1", tableName);
-      errorMsgTestHelper(query, "Table [dropcol01] not found");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        String query = String.format("ALTER TABLE %s DROP COLUMN col1", tableName);
+        errorMsgTestHelper(query, "Table [dropcol01] not found");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void dropOnSingleColTable() throws Exception {
-    String tableName = "dropcol2";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "dropcol2";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -89,26 +94,28 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String alterQuery = String.format("ALTER TABLE %s.%s DROP N_REGIONKEY", TEMP_SCHEMA, tableName);
-      errorMsgTestHelper(alterQuery, "Cannot drop all columns of a table");
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        Thread.sleep(1001);
+        String alterQuery = String.format("ALTER TABLE %s.%s DROP N_REGIONKEY", testSchema, tableName);
+        errorMsgTestHelper(alterQuery, "Cannot drop all columns of a table");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void addAndDrop() throws Exception {
-    String tableName = "dropcol3";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "dropcol3";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -118,11 +125,11 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", TEMP_SCHEMA, tableName);
-      test(addColQuery);
+        Thread.sleep(1001);
+        String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", testSchema, tableName);
+        test(addColQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey", "key")
@@ -131,11 +138,11 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String dropColQuery = String.format("ALTER TABLE %s.%s DROP COLUMN n_Regionkey", TEMP_SCHEMA, tableName);
-      test(dropColQuery);
+        Thread.sleep(1001);
+        String dropColQuery = String.format("ALTER TABLE %s.%s DROP COLUMN n_Regionkey", testSchema, tableName);
+        test(dropColQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("key")
@@ -144,23 +151,25 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void dropPartitionColumn() throws Exception {
-    String tableName = "dropcol4";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "dropcol4";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s PARTITION BY (n_regionkey) as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s PARTITION BY (n_regionkey) as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -169,11 +178,11 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", TEMP_SCHEMA, tableName);
-      test(addColQuery);
+        Thread.sleep(1001);
+        String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", testSchema, tableName);
+        test(addColQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey", "key")
@@ -182,12 +191,13 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String dropColQuery = String.format("ALTER TABLE %s.%s DROP COLUMN n_RegiOnkey", TEMP_SCHEMA, tableName);
-      errorMsgTestHelper(dropColQuery, "[n_regionkey] is a partition column. Partition spec change is not supported.");
+        Thread.sleep(1001);
+        String dropColQuery = String.format("ALTER TABLE %s.%s DROP COLUMN n_RegiOnkey", testSchema, tableName);
+        errorMsgTestHelper(dropColQuery, "[n_regionkey] is a partition column. Partition spec change is not supported.");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 

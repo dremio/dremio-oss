@@ -28,6 +28,7 @@ import javax.ws.rs.container.ResourceInfo;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
 
+import com.dremio.common.collections.Tuple;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.model.usergroup.UserName;
@@ -38,6 +39,7 @@ import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
+import com.google.common.base.Preconditions;
 
 /**
  * Read cookie from request and validate it.
@@ -89,7 +91,9 @@ public class DACAuthFilter implements ContainerRequestFilter {
             uriPath,
             queryParams);
         } else {
-          temporaryToken = TokenUtils.getAuthHeaderToken(requestContext);
+          final Tuple<TokenUtils.TokenType, String> tokenTuple = TokenUtils.getAuthHeaderToken(requestContext);
+          Preconditions.checkArgument(tokenTuple != null);
+          temporaryToken = tokenTuple.second;
           try {
             tokenDetails = tokenManager.validateTemporaryToken(
               temporaryToken,
@@ -100,8 +104,9 @@ public class DACAuthFilter implements ContainerRequestFilter {
           }
         }
       } else {
-        String token = TokenUtils.getAuthHeaderToken(requestContext);
-        tokenDetails = tokenManager.validateToken(token);
+        final Tuple<TokenUtils.TokenType, String> tokenTuple = TokenUtils.getAuthHeaderToken(requestContext);
+        Preconditions.checkArgument(tokenTuple != null);
+        tokenDetails = tokenManager.validateToken(tokenTuple.second);
       }
 
       TokenInfo.setContext(requestContext, tokenDetails);

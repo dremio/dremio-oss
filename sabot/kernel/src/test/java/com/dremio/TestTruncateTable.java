@@ -49,136 +49,148 @@ public class TestTruncateTable extends PlanTestBase {
 
   @Test
   public void tableDoesNotExistShouldThrowError() throws Exception {
-    String truncSql = "TRUNCATE TABLE dfs_test.truncTable6";
-    try (AutoCloseable c = enableIcebergTables()) {
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table [dfs_test.truncTable6] not found");
-      test(truncSql);
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable6";
+      try (AutoCloseable c = enableIcebergTables()) {
+        expectedEx.expect(UserException.class);
+        expectedEx.expectMessage("Table [" + testSchema + ".truncTable6] not found");
+        test(truncSql);
+      }
     }
   }
 
   @Test
   public void tableDoesNotExistWithExistenceCheck() throws Exception {
-    String truncSql = "TRUNCATE TABLE IF EXISTS dfs_test.truncTable6";
-    try (AutoCloseable c = enableIcebergTables()) {
-      testBuilder()
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String truncSql = "TRUNCATE TABLE IF EXISTS " + testSchema + ".truncTable6";
+      try (AutoCloseable c = enableIcebergTables()) {
+        testBuilder()
           .sqlQuery(truncSql)
           .unOrdered()
           .baselineColumns("ok", "summary")
-          .baselineValues(true, "Table [dfs_test.truncTable6] does not exist.")
+          .baselineValues(true, "Table [" + testSchema + ".truncTable6] does not exist.")
           .build()
           .run();
+      }
     }
   }
 
   @Test
   public void nonIcebergTableShouldThrowError() throws Exception {
-    String ctas = "create table dfs_test.truncTable5 as SELECT * FROM sys.version";
-    test(ctas);
-    String truncSql = "TRUNCATE TABLE dfs_test.truncTable5";
-    try (AutoCloseable c = enableIcebergTables()) {
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table [dfs_test.truncTable5] is not configured to support DML operations");
-      test(truncSql);
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), "ctasTable1"));
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String ctas = "create table " + testSchema + ".truncTable5 as SELECT * FROM sys.version";
+      test(ctas);
+      String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable5";
+      try (AutoCloseable c = enableIcebergTables()) {
+        expectedEx.expect(UserException.class);
+        expectedEx.expectMessage("Table [" + testSchema + ".truncTable5] is not configured to support DML operations");
+        test(truncSql);
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), "ctasTable1"));
+      }
     }
   }
 
   @Test
   public void truncateEmptyTable() throws Exception {
-    String tableName = "truncTable2";
-    try (AutoCloseable c = enableIcebergTables()) {
-      String ctas = String.format("create table %s.%s(id int, name varchar)", TEMP_SCHEMA, tableName);
-      test(ctas);
-      String truncSql = String.format("TRUNCATE TABLE %s.%s", TEMP_SCHEMA, tableName);
-      test(truncSql);
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "truncTable2";
+      try (AutoCloseable c = enableIcebergTables()) {
+        String ctas = String.format("create table %s.%s(id int, name varchar)", testSchema, tableName);
+        test(ctas);
+        String truncSql = String.format("TRUNCATE TABLE %s.%s", testSchema, tableName);
+        test(truncSql);
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void truncateAndSelect() throws Exception {
-    String tableName = "truncTable3";
-    try (AutoCloseable c = enableIcebergTables()) {
-      String ctas = String.format("create table %s.%s as SELECT * FROM sys.version", TEMP_SCHEMA, tableName);
-      test(ctas);
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "truncTable3";
+      try (AutoCloseable c = enableIcebergTables()) {
+        String ctas = String.format("create table %s.%s as SELECT * FROM sys.version", testSchema, tableName);
+        test(ctas);
 
-      testBuilder()
-          .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, tableName))
+        testBuilder()
+          .sqlQuery(String.format("select count(*) c from %s.%s", testSchema, tableName))
           .unOrdered()
           .baselineColumns("c")
           .baselineValues(1L)
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String truncSql = String.format("TRUNCATE %s.%s", TEMP_SCHEMA, tableName);
-      test(truncSql);
+        Thread.sleep(1001);
+        String truncSql = String.format("TRUNCATE %s.%s", testSchema, tableName);
+        test(truncSql);
 
-      testBuilder()
-          .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, tableName))
+        testBuilder()
+          .sqlQuery(String.format("select count(*) c from %s.%s", testSchema, tableName))
           .unOrdered()
           .baselineColumns("c")
           .baselineValues(0L)
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void truncateInsertSelect() throws Exception {
-    String tableName = "truncTable4";
-    try (AutoCloseable c = enableIcebergTables()) {
-      String ctas = String.format("create table %s.%s as SELECT * FROM sys.version", TEMP_SCHEMA, tableName);
-      test(ctas);
-      Thread.sleep(1001);
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "truncTable4";
+      try (AutoCloseable c = enableIcebergTables()) {
+        String ctas = String.format("create table %s.%s as SELECT * FROM sys.version", testSchema, tableName);
+        test(ctas);
+        Thread.sleep(1001);
 
-      String insertSql = String.format("INSERT INTO %s.%s select * FROM sys.version", TEMP_SCHEMA, tableName);
-      test(insertSql);
-      Thread.sleep(1001);
-      test(insertSql);
-      Thread.sleep(1001);
-      test(insertSql);
-      Thread.sleep(1001);
+        String insertSql = String.format("INSERT INTO %s.%s select * FROM sys.version", testSchema, tableName);
+        test(insertSql);
+        Thread.sleep(1001);
+        test(insertSql);
+        Thread.sleep(1001);
+        test(insertSql);
+        Thread.sleep(1001);
 
-      testBuilder()
-          .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, tableName))
+        testBuilder()
+          .sqlQuery(String.format("select count(*) c from %s.%s", testSchema, tableName))
           .unOrdered()
           .baselineColumns("c")
           .baselineValues(4L)
           .build()
           .run();
 
-      String truncSql = String.format("TRUNCATE TABLE %s.%s", TEMP_SCHEMA, tableName);
-      test(truncSql);
-      Thread.sleep(1001);
+        String truncSql = String.format("TRUNCATE TABLE %s.%s", testSchema, tableName);
+        test(truncSql);
+        Thread.sleep(1001);
 
-      testBuilder()
-          .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, tableName))
+        testBuilder()
+          .sqlQuery(String.format("select count(*) c from %s.%s", testSchema, tableName))
           .unOrdered()
           .baselineColumns("c")
           .baselineValues(0L)
           .build()
           .run();
 
-      test(insertSql);
-      Thread.sleep(1001);
+        test(insertSql);
+        Thread.sleep(1001);
 
-      testBuilder()
-          .sqlQuery(String.format("select count(*) c from %s.%s", TEMP_SCHEMA, tableName))
+        testBuilder()
+          .sqlQuery(String.format("select count(*) c from %s.%s", testSchema, tableName))
           .unOrdered()
           .baselineColumns("c")
           .baselineValues(1L)
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 

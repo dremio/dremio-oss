@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.impersonation.hive;
 
+import static com.dremio.exec.hive.HiveTestUtilities.DriverState;
+import static com.dremio.exec.hive.HiveTestUtilities.pingHive;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 
@@ -30,7 +32,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.security.HadoopThriftAuthBridge;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
-import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.ql.Driver;
 
 import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
@@ -95,9 +97,10 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
         hiveConf.set(METASTOREURIS.varname, "thrift://localhost:" + port);
         MetaStoreUtils.startMetaStore(port, HadoopThriftAuthBridge.getBridge(), hiveConf);
         // Try to connect to hive to check if it's healthy
-        final SessionState ss = new SessionState(hiveConf);
-        SessionState.start(ss);
-        ss.close();
+        try (DriverState driverState = new DriverState(hiveConf)) {
+          Driver hiveDriver = driverState.driver;
+          pingHive(hiveDriver);
+        }
         logger.info("Start hive meta store successfully.");
         return;
       } catch (Exception e) {

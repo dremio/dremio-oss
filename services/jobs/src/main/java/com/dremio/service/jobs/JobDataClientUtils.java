@@ -30,6 +30,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
+import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
@@ -105,7 +107,10 @@ public final class JobDataClientUtils {
    */
   public static JobDataFragment getJobData(JobsService jobsService, BufferAllocator bufferAllocator, JobId jobId, int offset, int limit) {
     final FlightClient flightClient = jobsService.getJobsClient().getFlightClient();
-    final Ticket ticket = new JobsFlightTicket(jobId.getId(), offset, limit).toTicket();
+    final CoordinatorFlightTicket cticket = CoordinatorFlightTicket.newBuilder()
+      .setJobsFlightTicket(JobsFlightTicket.newBuilder().setJobId(jobId.getId()).setOffset(offset).setLimit(limit).build())
+      .build();
+    final Ticket ticket = new Ticket(cticket.toByteArray());
     try (FlightStream flightStream = flightClient.getStream(ticket)) {
       return new JobDataFragmentImpl(new RecordBatches(JobDataClientUtils.getData(
         flightStream, bufferAllocator, limit)), offset, jobId);

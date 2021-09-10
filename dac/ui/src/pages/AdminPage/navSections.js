@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-export default function(config) {
+export default function() {
   return Promise.resolve([
     {
       title: 'Admin.Engines',
       icon: 'Engines.svg',
       items: [
         { name: 'Admin.Engines.NodeActivity', url: '/admin/nodeActivity' },
-        {name: 'Admin.Engines.ElasticEngines', url: '/admin/provisioning'},
+        { name: 'Admin.Engines.ElasticEngines', url: '/admin/provisioning' },
         { name: 'Admin.Engines.Support', url: '/admin/support' },
         { name: 'Admin.Engines.QueueControl', url: '/admin/advanced' }
       ]
     },
-    config.showUserAndUserProperties && {
+    {
       title: 'Admin.UserManagement',
       icon: 'UserManagement.svg',
       items: [

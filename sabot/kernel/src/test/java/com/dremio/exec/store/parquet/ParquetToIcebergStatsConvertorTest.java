@@ -62,6 +62,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.io.Resources;
 
 public class ParquetToIcebergStatsConvertorTest {
+  private final SchemaConverter schemaConverter = new SchemaConverter();
   private static OperatorContext context;
 
   @BeforeClass
@@ -244,7 +245,7 @@ public class ParquetToIcebergStatsConvertorTest {
       .addField(INT.asList().toField("col1"))
       .addField(BIGINT.asList().toField("col2"))
       .build();
-    assertNoMinMax(getParquetMetadata(path), SchemaConverter.toIcebergSchema(batchSchema));
+    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
   }
 
   @Test
@@ -254,7 +255,7 @@ public class ParquetToIcebergStatsConvertorTest {
       .addField(struct(INT.asList().toField("f1")).toField("col1"))
       .addField(struct(BIGINT.asList().toField("f2")).toField("col2"))
       .build();
-    assertNoMinMax(getParquetMetadata(path), SchemaConverter.toIcebergSchema(batchSchema));
+    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
   }
 
   @Test
@@ -264,7 +265,7 @@ public class ParquetToIcebergStatsConvertorTest {
       .addField(struct(INT.toField("f1")).toField("col1"))
       .addField(struct(BIGINT.toField("f2")).toField("col2"))
       .build();
-    assertNoMinMax(getParquetMetadata(path), SchemaConverter.toIcebergSchema(batchSchema));
+    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
   }
 
   @Test
@@ -274,7 +275,7 @@ public class ParquetToIcebergStatsConvertorTest {
       .addField(struct(struct(INT.toField("f1")).toField("f1")).toField("col1"))
       .addField(struct(struct(BIGINT.toField("f2")).toField("f2")).toField("col2"))
       .build();
-    assertNoMinMax(getParquetMetadata(path), SchemaConverter.toIcebergSchema(batchSchema));
+    assertNoMinMax(getParquetMetadata(path),  schemaConverter.toIcebergSchema(batchSchema));
   }
 
   private ParquetMetadata getParquetMetadata(Path path) throws IOException {

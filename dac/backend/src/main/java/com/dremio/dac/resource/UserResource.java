@@ -128,7 +128,8 @@ public class UserResource {
   public UserUI createUser(UserForm userForm, @PathParam("userName") UserName userName)
     throws IOException, IllegalArgumentException, NamespaceException, DACUnauthorizedException {
     checkUser(userName, "create");
-    User newUser = com.dremio.dac.api.UserResource.addUser(userForm.getUserConfig(), userForm.getPassword(),
+    User activeUser = SimpleUser.newBuilder(userForm.getUserConfig()).setActive(true).build();
+    User newUser = com.dremio.dac.api.UserResource.addUser(activeUser, userForm.getPassword(),
       userService, namespaceService);
 
     return new UserUI(new UserResourcePath(userName), userName, newUser);

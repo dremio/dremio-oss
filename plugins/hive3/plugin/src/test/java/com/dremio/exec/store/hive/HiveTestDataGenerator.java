@@ -16,7 +16,10 @@
 package com.dremio.exec.store.hive;
 
 import static com.dremio.BaseTestQuery.getTempDir;
+import static com.dremio.exec.hive.HiveTestUtilities.DriverState;
 import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
+import static com.dremio.exec.hive.HiveTestUtilities.logVersion;
+import static com.dremio.exec.hive.HiveTestUtilities.pingHive;
 
 import java.io.File;
 import java.io.IOException;
@@ -109,9 +112,10 @@ public class HiveTestDataGenerator {
       try {
         port = MetaStoreUtils.startMetaStore(conf);
         // Try to connect to hive to check if it's healthy
-        final SessionState ss = new SessionState(newHiveConf());
-        SessionState.start(ss);
-        ss.close();
+        try (DriverState driverState = new DriverState(newHiveConf())) {
+          Driver hiveDriver = driverState.driver;
+          pingHive(hiveDriver);
+        }
         logger.info("Start hive meta store successfully.");
         break;
       } catch (Exception e) {
@@ -143,7 +147,7 @@ public class HiveTestDataGenerator {
     conf.port = port;
     sc.setType(conf.getType());
     sc.setConfig(conf.toBytesString());
-    sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    sc.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_PREFETCH_QUERIED);
     ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().createSource(sc);
   }
 
@@ -187,6 +191,10 @@ public class HiveTestDataGenerator {
   public void deleteHiveTestPlugin(final String pluginName, final CatalogService pluginRegistry) {
     CatalogServiceImpl impl = (CatalogServiceImpl) pluginRegistry;
     ManagedStoragePlugin msp = impl.getManagedSource(pluginName);
+    if (msp == null) {
+      // test setup couldn't add a hive plugin successfully - we have nothing to delete
+      return;
+    }
     impl.getSystemUserCatalog().deleteSource(msp.getId().getConfig());
   }
 
@@ -226,34 +234,6 @@ public class HiveTestDataGenerator {
 
     return conf;
 
-  }
-
-  private static class DriverState implements AutoCloseable {
-    private final Driver driver;
-    private final SessionState sessionState;
-
-    DriverState(HiveConf conf) {
-      this.driver = new Driver(conf);
-      this.sessionState = new SessionState(conf);
-      SessionState.start(sessionState);
-    }
-
-    @Override
-    public void close() throws IOException {
-      sessionState.close();
-    }
-  }
-
-  private void logVersion(Driver hiveDriver) throws Exception {
-    hiveDriver.run("SELECT VERSION()");
-    hiveDriver.resetFetch();
-    hiveDriver.setMaxRows(1);
-    List<String> result = new ArrayList<>();
-    hiveDriver.getResults(result);
-
-    for (String values : result) {
-      System.out.println("Test Hive instance version: " + values);
-    }
   }
 
   public void generateTestData(java.util.function.Function<Driver, Void> generatorFunction) throws Exception {

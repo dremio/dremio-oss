@@ -28,7 +28,8 @@ const emptyApp = {
       info: {}
     }
   },
-  customData: {}
+  customData: {},
+  SSOLogin: 'SSO'
 };
 
 export class LocalStorageUtils {
@@ -37,6 +38,14 @@ export class LocalStorageUtils {
     if (!app) {
       this._safeSave(APP_KEY, emptyApp);
     }
+  }
+
+  renderSSOLoginScreen() {
+    return localStorage.getItem('SSOLogin');
+  }
+
+  setSSOLoginChoice() {
+    localStorage.getItem('SSOLogin') === 'SSO' ? localStorage.setItem('SSOLogin', 'nameAndPassword') : localStorage.setItem('SSOLogin', 'SSO');
   }
 
   getUserData() { // todo: no fake objects: return null if no user
@@ -111,7 +120,7 @@ export class LocalStorageUtils {
     const SECONDS = 1000;
     const LIFE_TIME = 100000;
     const filteredTasks = app.explore.tasks.filter((task) => {
-      return Math.abs( (now - task.timestamp) / SECONDS ) < LIFE_TIME;
+      return Math.abs((now - task.timestamp) / SECONDS) < LIFE_TIME;
     });
     this.setGridTasks(filteredTasks);
     return filteredTasks;
@@ -190,6 +199,22 @@ export class LocalStorageUtils {
 
   getInstanceId() {
     return sessionStorage.getItem('instanceId');
+  }
+
+  setJobColumns(columns) {
+    this._safeSave('columns', columns);
+  }
+
+  getJobColumns() {
+    return localStorage.getItem('columns') && JSON.parse(localStorage.getItem('columns'));
+  }
+
+  setSqlThemeContrast(theme) {
+    this._safeSave('isContrast', theme);
+  }
+
+  getSqlThemeContrast() {
+    return localStorage.getItem('isContrast') && JSON.parse(localStorage.getItem('isContrast'));
   }
 }
 

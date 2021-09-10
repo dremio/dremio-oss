@@ -22,9 +22,9 @@ import classNames from 'classnames';
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import ColumnDragItem from 'utils/ColumnDragItem';
 
+import { base, inner, leftBorder, fullHeight, contentPadding } from '@app/uiTheme/less/Aggregate/AggregateContent.less';
 import ColumnDragArea from './components/ColumnDragArea';
 import MeasureDragArea, { MEASURE_DRAG_AREA_TEXT } from './components/MeasureDragArea';
-import { base, inner, leftBorder, fullHeight, contentPadding } from './AggregateContent.less';
 
 export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST', 'STRUCT']);
 

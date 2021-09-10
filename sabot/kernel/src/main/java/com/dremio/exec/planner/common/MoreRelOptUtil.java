@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
@@ -46,7 +45,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Sort;
@@ -1247,112 +1245,10 @@ public final class MoreRelOptUtil {
   }
 
   /**
-   * Same as
-   * {@link RelOptUtil#classifyFilters(org.apache.calcite.rel.RelNode, java.util.List, org.apache.calcite.rel.core.JoinRelType, boolean, boolean, boolean, java.util.List, java.util.List, java.util.List)}
-   * In dremio joinRelbase we remove some fields from left, right child if they are not required in join, but calcite expects nJoinFields = nFieldsLeft + nFieldsRight
-   * So we removed the corresponding assertion and modified the code to create a new totalFieldsList to use instead of JoinFieldsList
-   * Note: The joinFilters are expected to be transformed based on left and right
-   * This function is responsible for Separating the Join filters into left and right children into List<RexNode> leftFilters and List<RexNode> rightFilters and if we can't then we add those filters to List<RexNode> joinFilters which is then processed further by the parent RelNode.
+   * Same as {@link RelOptUtil#shiftFilter(int, int, int, RexBuilder, List, int, List, RexNode)}.
+   * Shift filters using inputs ref of joins to filters using input refs of children of joins
    */
-  public static boolean classifyFiltersForJoinRelBase(
-     RelNode joinRel,
-     List<RexNode> filters,
-     JoinRelType joinType,
-     boolean pushInto,
-     boolean pushLeft,
-     boolean pushRight,
-     List<RexNode> joinFilters,
-     List<RexNode> leftFilters,
-     List<RexNode> rightFilters) {
-    RexBuilder rexBuilder = joinRel.getCluster().getRexBuilder();
-    final int nSysFields = 0; // joinRel.getSystemFieldList().size();
-    final List<RelDataTypeField> leftFields =
-            joinRel.getInputs().get(0).getRowType().getFieldList();
-    final int nFieldsLeft = leftFields.size();
-    final List<RelDataTypeField> rightFields =
-            joinRel.getInputs().get(1).getRowType().getFieldList();
-    final int nFieldsRight = rightFields.size();
-    final int nTotalFields = nFieldsLeft+nFieldsRight;
-
-    // set the reference bitmaps for the left and right children
-    ImmutableBitSet leftBitmap =
-            ImmutableBitSet.range(nSysFields, nSysFields + nFieldsLeft);
-    ImmutableBitSet rightBitmap =
-            ImmutableBitSet.range(nSysFields + nFieldsLeft, nTotalFields);
-    List<RelDataTypeField> totalFields =  Stream.concat(leftFields.stream(), rightFields.stream()).collect(ImmutableList.toImmutableList());
-    final List<RexNode> filtersToRemove = Lists.newArrayList();
-    for (RexNode filter : filters) {
-      final RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(filter);
-      final ImmutableBitSet inputBits = inputFinder.inputBitSet.build();
-      // REVIEW - are there any expressions that need special handling
-      // and therefore cannot be pushed?
-      // filters can be pushed to the left child if the left child
-      // does not generate NULLs and the only columns referenced in
-      // the filter originate from the left child
-      if (pushLeft && leftBitmap.contains(inputBits)) {
-        // ignore filters that always evaluate to true
-        if (!filter.isAlwaysTrue()) {
-          // adjust the field references in the filter to reflect
-          // that fields in the left now shift over by the number
-          // of system fields
-          final RexNode shiftedFilter =
-                  shiftFilter(
-                          nSysFields,
-                          nSysFields + nFieldsLeft,
-                          -nSysFields,
-                          rexBuilder,
-                          totalFields,
-                          nTotalFields,
-                          leftFields,
-                          filter);
-          leftFilters.add(shiftedFilter);
-        }
-        filtersToRemove.add(filter);
-        // filters can be pushed to the right child if the right child
-        // does not generate NULLs and the only columns referenced in
-        // the filter originate from the right child
-      } else if (pushRight && rightBitmap.contains(inputBits)) {
-        if (!filter.isAlwaysTrue()) {
-          // adjust the field references in the filter to reflect
-          // that fields in the right now shift over to the left;
-          // since we never push filters to a NULL generating
-          // child, the types of the source should match the dest
-          // so we don't need to explicitly pass the destination
-          // fields to RexInputConverter
-          final RexNode shiftedFilter =
-                  shiftFilter(
-                          nSysFields + nFieldsLeft,
-                          nTotalFields,
-                          -(nSysFields + nFieldsLeft),
-                          rexBuilder,
-                          totalFields,
-                          nTotalFields,
-                          rightFields,
-                          filter);
-          rightFilters.add(shiftedFilter);
-        }
-        filtersToRemove.add(filter);
-      } else {
-        // If the filter can't be pushed to either child and the join
-        // is an inner join, push them to the join if they originated
-        // from above the join
-        if (joinType == JoinRelType.INNER && pushInto) {
-          if (!joinFilters.contains(filter)) {
-            joinFilters.add(filter);
-          }
-          filtersToRemove.add(filter);
-        }
-      }
-    }
-    // Remove filters after the loop, to prevent concurrent modification.
-    if (!filtersToRemove.isEmpty()) {
-      filters.removeAll(filtersToRemove);
-    }
-    // Did anything change?
-    return !filtersToRemove.isEmpty();
-  }
-
-  private static RexNode shiftFilter(
+  public static RexNode shiftFilter(
     int start,
     int end,
     int offset,
@@ -1373,23 +1269,6 @@ public final class MoreRelOptUtil {
         adjustments));
   }
 
-  /**
-   * Rewrite group keys based on projected fields.
-   * e.g. projected=[1,2,3], key=[0,2] => new_key=[1,3]
-   */
-  public static ImmutableBitSet transformGroupKeyForProjectedInJoin(ImmutableBitSet projected, ImmutableBitSet inputGroupKey) {
-    if (projected == null || inputGroupKey == null) {
-      return null;
-    }
-    int[] inputGroupKeyArray = inputGroupKey.toArray();
-    int[] projectedOrdinalArray = projected.toArray();
-    int[] outputArray = new int[inputGroupKeyArray.length];
-    for (int i = 0; i < inputGroupKeyArray.length; i++) {
-      outputArray[i] = projectedOrdinalArray[inputGroupKeyArray[i]];
-    }
-    return ImmutableBitSet.of(outputArray);
-  }
-
   public static PrelUtil.InputRewriter getInputRewriterFromProjectedFields(List<SchemaPath> projection, RelDataType rowType, BatchSchema batchSchema, RelOptCluster cluster) {
     final List<String> newFields = getRowTypeFromProjectedColumns(projection, batchSchema, cluster).getFieldNames();
     final Map<String, Integer> fieldMap = new HashMap<>();
@@ -1406,33 +1285,34 @@ public final class MoreRelOptUtil {
   }
 
   /**
-   * Rewrite predicates on top of join based on projected fields.
-   * e.g. projected=[1,2,3], predicate(=($1,1)) => new_predicate(=($2,1))
+   * Combination of {@link RelOptUtil#conjunctions(RexNode)} and {@link RelOptUtil#disjunctions(RexNode)}.
+   * Check {@code RexNode.getKind()} and for AND/OR return unnested elements.
    */
-  public static RexNode transformPredicateForProjectedInJoin(
-    JoinRelBase joinRel,
-    RexNode predicate) {
-    ImmutableBitSet projected = joinRel.getProjectedFields();
-    if (predicate == null || projected == null) {
-      return null;
+  public static List<RexNode> conDisjunctions(RexNode rexNode) {
+    switch (rexNode.getKind()) {
+      case AND:
+        return RelOptUtil.conjunctions(rexNode);
+      case OR:
+        return RelOptUtil.disjunctions(rexNode);
+      default:
+        throw new UnsupportedOperationException();
     }
-    RexBuilder rexBuilder = joinRel.getCluster().getRexBuilder();
-    List<RelDataTypeField> srcFields = joinRel.getRowType().getFieldList();
-    final List<RelDataTypeField> leftFields = joinRel.getInputs().get(0).getRowType().getFieldList();
-    final List<RelDataTypeField> rightFields = joinRel.getInputs().get(1).getRowType().getFieldList();
-    final List<RelDataTypeField> destFields = Stream.concat(leftFields.stream(), rightFields.stream()).collect(Collectors.toList());
-    int[] projectedOrdinalArray = projected.toArray();
-    int[] adjustments = new int[srcFields.size()];
-    for (int i = 0; i < srcFields.size(); i++) {
-      // adjustments will be distance between original position and new position after projection
-      adjustments[i] = projectedOrdinalArray[i] - i;
-    }
-    return predicate.accept(
-      new RelOptUtil.RexInputConverter(
-        rexBuilder,
-        srcFields,
-        destFields,
-        adjustments));
   }
 
+  /**
+   * Combination of {@link RexUtil#composeConjunction(RexBuilder, Iterable, boolean)} and
+   * {@link RexUtil#composeDisjunction(RexBuilder, Iterable, boolean)}.
+   * Check {@code RexNode.getKind()} and for AND/OR compose expressions using {@code nodes}.
+   */
+  public static RexNode composeConDisjunction(RexBuilder rexBuilder,
+    Iterable<? extends RexNode> nodes, boolean nullOnEmpty, SqlKind sqlKind) {
+    switch (sqlKind) {
+      case AND:
+        return RexUtil.composeConjunction(rexBuilder, nodes, nullOnEmpty);
+      case OR:
+        return RexUtil.composeDisjunction(rexBuilder, nodes, nullOnEmpty);
+      default:
+        throw new UnsupportedOperationException();
+    }
+  }
 }

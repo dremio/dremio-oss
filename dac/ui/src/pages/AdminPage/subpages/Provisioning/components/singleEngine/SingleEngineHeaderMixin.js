@@ -23,11 +23,6 @@ export default function(input) {
       return <EngineStatus engine={engine} style={styles.statusIcon} />;
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    renderDescription(engine) {
-      return null;
-    },
-
     renderButtons(styles, isReadOnly) {
       return (
         <Button

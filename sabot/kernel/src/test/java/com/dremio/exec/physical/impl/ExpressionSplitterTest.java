@@ -21,66 +21,18 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 import static com.dremio.sabot.Fixtures.ts;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.expression.BooleanOperator;
-import com.dremio.common.expression.CaseExpression;
-import com.dremio.common.expression.ErrorCollector;
-import com.dremio.common.expression.ErrorCollectorImpl;
-import com.dremio.common.expression.ExpressionStringBuilder;
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.FunctionHolderExpression;
-import com.dremio.common.expression.IfExpression;
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.expression.SupportedEngines;
-import com.dremio.common.expression.TypedNullConstant;
-import com.dremio.common.expression.ValueExpressions;
-import com.dremio.common.expression.visitors.AbstractExprVisitor;
-import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.CodeGenContext;
-import com.dremio.exec.expr.ExpressionEvaluationOptions;
-import com.dremio.exec.expr.ExpressionSplit;
-import com.dremio.exec.expr.ExpressionSplitHelper;
-import com.dremio.exec.expr.ExpressionSplitter;
-import com.dremio.exec.expr.ExpressionTreeMaterializer;
-import com.dremio.exec.expr.FunctionHolderExpr;
-import com.dremio.exec.expr.ValueVectorReadExpression;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
-import com.dremio.exec.expr.fn.GandivaFunctionHolder;
-import com.dremio.exec.expr.fn.GandivaFunctionHolderExpression;
-import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.physical.config.Project;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.RecordBatchData;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.VectorWrapper;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValue;
-import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures;
-import com.dremio.sabot.Generator;
-import com.dremio.sabot.exec.context.OperatorContextImpl;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Lists;
 
 /**
  * Unit test cases for the expression splitter
  */
-public class ExpressionSplitterTest extends BaseTestFunction {
+public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
   String ifQuery = "case when c0 > c1 then c0 - c1 else c1 + c0 end";
 
   // Evaluates the expression with a batch size of 2 for the inputs below
@@ -99,163 +51,6 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     tr(1),
     tr(10)
   );
-
-  // Private class to verify the output of the split
-  private class Split {
-    boolean useGandiva;
-    String name;
-    String expr;
-    int execIteration;
-    int numReaders;
-    List<String> dependencies;
-
-    Split(boolean useGandiva, String name, String expr, int iteration, int numReaders, String... dependencies) {
-      this.useGandiva = useGandiva;
-      this.name = name;
-      this.expr = expr;
-      this.execIteration = iteration;
-      this.numReaders = numReaders;
-      this.dependencies = Arrays.asList(dependencies);
-    }
-  }
-
-  // Split the query and match the splits against expected splits
-  //
-  // Splits the expression
-  // First, the expression is materialized (using Java only)
-  // Second, the expression is annotated using a custom annotator for Gandiva support
-  // Third, the expression is split and the splits verified
-  // Fourth, the split expression evaluated and the output value verified
-  private void splitAndVerify(LogicalExpression expr, Fixtures.Table input, Fixtures.Table output, Split[] expSplits, GandivaAnnotator annotator)
-    throws Exception
-  {
-    // Get the allocator for allocating vectors
-    BufferAllocator testAllocator = getTestAllocator();
-    Generator generator = input.toGenerator(testAllocator);
-    // find the schema for the expression
-    VectorAccessible vectorContainer = generator.getOutput();
-
-    Project pop = new Project(OpProps.prototype(), null, Arrays.asList(new NamedExpression(expr, new FieldReference("out"))));
-    final BufferAllocator childAllocator = testAllocator.newChildAllocator(
-      pop.getClass().getSimpleName(),
-      pop.getProps().getMemReserve(),
-      pop.getProps().getMemLimit() == 0 ? Long.MAX_VALUE : pop.getProps().getMemLimit());
-
-    int batchSize = 1;
-    final OperatorContextImpl context = testContext.getNewOperatorContext(childAllocator, pop, batchSize);
-    testCloseables.add(context);
-
-    // materialize expression
-    try(ErrorCollector errorCollector = new ErrorCollectorImpl()){
-      expr = ExpressionTreeMaterializer.materialize(expr, vectorContainer.getSchema(), errorCollector, testContext.getFunctionLookupContext(), false);
-    }
-
-    // annotate with Gandiva
-    expr = expr.accept(annotator, null);
-
-    Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
-    Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
-
-    ExpressionSplitter splitter = null;
-    VectorContainer dataOut = null;
-    final List<RecordBatchData> data = new ArrayList<>();
-    try {
-      // split the annotated expression
-      OptionManager optionManager = testContext.getOptions();
-      optionManager.setOption(OptionValue.createBoolean(
-        OptionValue.OptionType.SYSTEM, ExecConstants.SPLIT_ENABLED.getOptionName(), true));
-      ExpressionEvaluationOptions options = new ExpressionEvaluationOptions(optionManager);
-      options.setCodeGenOption(SupportedEngines.CodeGenOption.Gandiva.toString());
-      splitter = new ExpressionSplitter(context, vectorContainer, options, annotator, "_xxx", true);
-      NamedExpression namedExpression = new NamedExpression(expr, new FieldReference("out"));
-      // split the expression and set the splits up for execution
-      dataOut = context.createOutputVectorContainer();
-      splitter.addExpr(dataOut, namedExpression);
-      vectorContainer = splitter.setupProjector(dataOut, javaCodeGenWatch, gandivaCodeGenWatch);
-
-      // ExprToString is used to convert an expression to a string for comparison
-      ExprToString stringBuilder = new ExprToString(vectorContainer);
-
-      // verify number of splits
-      List<ExpressionSplit> splits = splitter.getSplits();
-      assertEquals(expSplits.length, splits.size());
-
-      if (expSplits.length == 1) {
-        // either executed in Java or Gandiva, no split mode
-        if (expSplits[0].useGandiva) {
-          // completely in Gandiva
-          assertEquals(splitter.getNumExprsInJava(), 0);
-          assertEquals(splitter.getNumExprsInGandiva(), 1);
-        } else {
-          // completely in Java
-          assertEquals(splitter.getNumExprsInJava(), 1);
-          assertEquals(splitter.getNumExprsInGandiva(), 0);
-        }
-
-        assertEquals(splitter.getNumExprsInBoth(), 0);
-        assertEquals(splitter.getNumSplitsInBoth(), 0);
-      } else {
-        assertEquals(splitter.getNumExprsInJava(), 0);
-        assertEquals(splitter.getNumExprsInGandiva(), 0);
-        assertEquals(splitter.getNumExprsInBoth(), 1);
-        assertEquals(splitter.getNumSplitsInBoth(), expSplits.length);
-      }
-
-      // verify each split with the expected value
-      for (int i = 0; i < splits.size(); i++) {
-        NamedExpression split = splits.get(i).getNamedExpression();
-
-        String expExpr = expSplits[i].expr.replaceAll("\\s+", "").toLowerCase();
-        String actualExpr = stringBuilder.expr2String(split.getExpr()).replaceAll("\\s+", "").toLowerCase();
-
-        assertEquals(expSplits[i].useGandiva, splits.get(i).getExecutionEngine() == SupportedEngines
-          .Engine.GANDIVA);
-        if (i == splits.size() - 1) {
-          assertEquals("out", split.getRef().getAsUnescapedPath());
-        } else {
-          assertEquals(expSplits[i].name, split.getRef().getAsUnescapedPath());
-        }
-        assertEquals(expExpr, actualExpr);
-
-        // make sure that the dependencies and execution order are correct
-        assertEquals(expSplits[i].execIteration, splits.get(i).getExecIteration());
-        List<String> actualDependencies = splits.get(i).getDependencies();
-        assertTrue(actualDependencies.containsAll(expSplits[i].dependencies));
-        assertTrue(expSplits[i].dependencies.containsAll(actualDependencies));
-      }
-
-      // setup output vectors
-      dataOut.buildSchema(BatchSchema.SelectionVectorMode.NONE);
-
-      // Evaluate the expression
-      int count;
-      while ((count = generator.next(batchSize)) != 0) {
-        // evaluate data in batches
-        splitter.projectRecords(count, javaCodeGenWatch, gandivaCodeGenWatch);
-        dataOut.setRecordCount(count);
-        data.add(new RecordBatchData(dataOut, testAllocator));
-      }
-
-      // validate the output data
-      output.checkValid(data);
-    } finally {
-      // cleanup
-      if (dataOut != null) {
-        dataOut.close();
-      }
-      generator.close();
-      if (splitter != null) {
-        splitter.close();
-      }
-      AutoCloseables.close(data);
-    }
-  }
-
-  private void splitAndVerify(String query, Fixtures.Table input, Fixtures.Table output, Split[] expSplits, GandivaAnnotator annotator)
-    throws Exception
-  {
-    splitAndVerify(toExpr(query), input, output, expSplits, annotator);
-  }
 
   @Test
   public void noSplitIf() throws Exception {
@@ -450,48 +245,16 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     Split[] splits = {
       new Split(false, "_xxx0", "greater_than(castTIMESTAMP(698457600000l), castTIMESTAMP(3l))", 1, 1),
-      new Split(true,"_xxx1",
+      new Split(true, "_xxx1",
         "(if (_xxx0 ) then (castTIMESTAMP(1395822273999l))  else (castTIMESTAMP(1396762453000l)) end)", 2, 0, "_xxx0")
     };
     splitAndVerify(query, input, output, splits, annotator);
   }
 
-  private int evalFunction(int c0, int c1, int c2) {
-    return (c0 + c1) * c2 + (c0 - c1);
-  }
-
-  private List<Fixtures.Table> genRandomDataForFunction(int numRows, int batchSize) {
-    Fixtures.DataRow[] inputData = new Fixtures.DataRow[numRows];
-    Fixtures.DataRow[] outputData = new Fixtures.DataRow[numRows];
-
-    Random rand = new Random(0);
-    for(int i = 0; i < numRows; i++) {
-      int c0 = rand.nextInt(100);
-      int c1 = rand.nextInt(100);
-      int c2 = rand.nextInt(100);
-
-      inputData[i] = tr(c0, c1, c2);
-      outputData[i] = tr(evalFunction(c0, c1, c2));
-    }
-
-    Fixtures.Table input = Fixtures.split(
-      th("c0", "c1", "c2"),
-      batchSize,
-      inputData
-    );
-
-    Fixtures.Table output = Fixtures.t(
-      th("out"),
-      outputData
-    );
-
-    return Lists.newArrayList(input, output);
-  }
-
   @Test
   public void testFunctionArgs() throws Exception {
     String query = "((c0 + c1) * c2) + (c0 - c1)";
-    int batchSize = 4*1000; // 4k rows
+    int batchSize = 4 * 1000; // 4k rows
     int numRows = 1000 * 1000; // 1m rows
 
     List<Fixtures.Table> inout = genRandomDataForFunction(numRows, batchSize);
@@ -537,7 +300,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     GandivaAnnotator annotator = new GandivaAnnotator("greater_than");
     Split[] splits = {
       new Split(true, "_xxx0", "greater_than(c0, 10i)", 1, 1),
-      new Split(false, "_xxx1", "(if (_xxx0) then (less_than(c0, 20i)) else (false) end)", 2, 0,"_xxx0")
+      new Split(false, "_xxx1", "(if (_xxx0) then (less_than(c0, 20i)) else (false) end)", 2, 0, "_xxx0")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -582,7 +345,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     GandivaAnnotator annotator = new GandivaAnnotator("less_than", "booleanAnd", "equal");
     Split[] splits = {
       new Split(false, "_xxx0", "greater_than(c0, 10i)", 1, 1),
-      new Split(true, "_xxx1", "(if (_xxx0) then ((if (less_than(c0, 24i)) then(equal(c1, 0i)) else (false) end)) else (false) end)", 2, 0,"_xxx0")
+      new Split(true, "_xxx1", "(if (_xxx0) then ((if (less_than(c0, 24i)) then(equal(c1, 0i)) else (false) end)) else (false) end)", 2, 0, "_xxx0")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -613,7 +376,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     Split[] splits = {
       new Split(true, "_xxx0", "greater_than(c0, 10i)", 1, 2),
       new Split(false, "_xxx1", "(if (_xxx0) then (less_than(c0, 24i)) else (cast((__$internal_null$__) as bit)) end)", 2, 1, "_xxx0"),
-      new Split(true, "_xxx2", "(if (_xxx0) then ((if (_xxx1) then (equal(c1, 0i)) else (false) end)) else (false) end)", 3, 0,"_xxx0", "_xxx1")
+      new Split(true, "_xxx2", "(if (_xxx0) then ((if (_xxx1) then (equal(c1, 0i)) else (false) end)) else (false) end)", 3, 0, "_xxx0", "_xxx1")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -644,7 +407,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     Split[] splits = {
       new Split(true, "_xxx0", "greater_than(c0, 10i)", 1, 2),
       new Split(true, "_xxx1", "(if (_xxx0) then (less_than(c0, 24i)) else (cast((__$internal_null$__) as bit)) end)", 2, 1, "_xxx0"),
-      new Split(false, "_xxx2", "(if (_xxx0) then ((if (_xxx1) then (equal(c1, 0i)) else (false) end)) else (false) end)", 3, 0,"_xxx0", "_xxx1")
+      new Split(false, "_xxx2", "(if (_xxx0) then ((if (_xxx1) then (equal(c1, 0i)) else (false) end)) else (false) end)", 3, 0, "_xxx0", "_xxx1")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -836,7 +599,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     GandivaAnnotator annotator = new GandivaAnnotator("booleanOr", "less_than", "equal");
     Split[] splits = {
       new Split(false, "_xxx0", "greater_than(c0, 24i)", 1, 1),
-      new Split(true, "_xxx1", "(if (_xxx0) then (true) else ((if (less_than(c0, 10i)) then (true) else(equal(c1, 0i)) end)) end)", 2, 0,"_xxx0")
+      new Split(true, "_xxx1", "(if (_xxx0) then (true) else ((if (less_than(c0, 10i)) then (true) else(equal(c1, 0i)) end)) end)", 2, 0, "_xxx0")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -867,7 +630,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     Split[] splits = {
       new Split(true, "_xxx0", "greater_than(c0, 24i)", 1, 2),
       new Split(false, "_xxx1", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else (less_than(c0, 10i)) end)", 2, 1, "_xxx0"),
-      new Split(true, "_xxx2", "(if (_xxx0) then (true) else ((if (_xxx1) then (true) else (equal(c1, 0i)) end)) end)", 3, 0,"_xxx0", "_xxx1")
+      new Split(true, "_xxx2", "(if (_xxx0) then (true) else ((if (_xxx1) then (true) else (equal(c1, 0i)) end)) end)", 3, 0, "_xxx0", "_xxx1")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -898,7 +661,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     Split[] splits = {
       new Split(true, "_xxx0", "greater_than(c0, 24i)", 1, 2),
       new Split(true, "_xxx1", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else (less_than(c0, 10i)) end)", 2, 1, "_xxx0"),
-      new Split(false, "_xxx2", "(if (_xxx0) then (true) else ((if (_xxx1) then (true) else (equal(c1, 0i)) end)) end)", 3, 0,"_xxx0", "_xxx1")
+      new Split(false, "_xxx2", "(if (_xxx0) then (true) else ((if (_xxx1) then (true) else (equal(c1, 0i)) end)) end)", 3, 0, "_xxx0", "_xxx1")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
@@ -1008,7 +771,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
   }
 
   @Test
-  public void testExceptionHandling() throws Exception {
+  public void testExceptionHandling() {
     String query = "(c0 / c1) + c2";
     Fixtures.Table input = Fixtures.split(
       th("c0", "c1", "c2"),
@@ -1049,20 +812,20 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     String query = "extractYear(cast(c0 as date))";
     Fixtures.Table input = Fixtures.split(
-        th("c0"),
-        1,
-        tr(ts("2014-02-01T17:20:34")),
-        tr(ts("2019-02-01T17:20:36")),
-        tr(ts("2015-02-01T17:20:50"))
+      th("c0"),
+      1,
+      tr(ts("2014-02-01T17:20:34")),
+      tr(ts("2019-02-01T17:20:36")),
+      tr(ts("2015-02-01T17:20:50"))
     );
     Fixtures.Table output = t(
-        th("out"),
-        tr(2014L),
-        tr(2019L),
-        tr(2015L)
+      th("out"),
+      tr(2014L),
+      tr(2019L),
+      tr(2015L)
     );
     Split[] expSplits = new Split[]{
-        new Split(false, "_xxx0", "extractyear(castdate(c0))", 1, 0)
+      new Split(false, "_xxx0", "extractyear(castdate(c0))", 1, 0)
     };
 
     splitAndVerify(query, input, output, expSplits, annotator);
@@ -1091,243 +854,5 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     };
 
     splitAndVerify(query, input, output, expSplits, annotator);
-  }
-
-  // Converts an expression to a tree
-  // Uses the schema to convert reads to column names
-  private class ExprToString extends ExpressionStringBuilder {
-    VectorAccessible incoming;
-
-    ExprToString(VectorAccessible incoming) {
-      super();
-      this.incoming = incoming;
-    }
-
-    public String expr2String(LogicalExpression expr) {
-      StringBuilder sb = new StringBuilder();
-      expr.accept(this, sb);
-      return sb.toString();
-    }
-
-    @Override
-    public Void visitUnknown(LogicalExpression e, StringBuilder sb) {
-      if (e instanceof ValueVectorReadExpression) {
-        ValueVectorReadExpression readExpression = (ValueVectorReadExpression)e;
-
-        VectorWrapper wrapper = this.incoming.getValueAccessorById(FieldVector.class, readExpression.getFieldId().getFieldIds());
-        sb.append(wrapper.getField().getName());
-      }
-
-      return null;
-    }
-  }
-
-  // Custom visitor to annotate an expression with Gandiva support
-  // Takes a list of supported functions
-  private class GandivaAnnotator extends AbstractExprVisitor<CodeGenContext, Void, GandivaException> implements ExpressionSplitHelper {
-    // List of functions supported by Gandiva
-    private final List<String> supportedFunctions;
-    // List of functions that can be tree-roots
-    private final List<String> rootFunctions;
-
-    GandivaAnnotator(String... supportedFunctions) {
-      this.supportedFunctions = Lists.newArrayList();
-      this.rootFunctions = Lists.newArrayList();
-      List<Object> functions = Arrays.asList(supportedFunctions);
-      copyStringsTo(this.supportedFunctions, functions);
-    }
-
-    void copyStringsTo(List<String> stringList, List<Object> inList) {
-      for(int i = 0; i < inList.size(); i++) {
-        String fnName = (String)inList.get(i);
-        stringList.add(new String(fnName.toLowerCase()));
-      }
-    }
-
-    void setRootFunctions(String... rootFunctions) {
-      List<Object> functions = Arrays.asList(rootFunctions);
-      copyStringsTo(this.rootFunctions, functions);
-    }
-
-    @Override
-    public boolean canSplitAt(LogicalExpression e) {
-      String fnName = null;
-      if (e instanceof FunctionHolderExpression) {
-        fnName = ((FunctionHolderExpression)e).getName();
-      }
-
-      if (e instanceof BooleanOperator) {
-        fnName = ((BooleanOperator)e).getName();
-      }
-
-      if (fnName == null) {
-        return true;
-      }
-
-      // Dont allow split if the tree root is one of the functions in rootFunctions
-      return (!rootFunctions.contains(fnName.toLowerCase()));
-    }
-
-    boolean allExpressionsSupported(List<LogicalExpression> elements) {
-      for(LogicalExpression exp : elements) {
-        CodeGenContext context = (CodeGenContext) exp;
-        if (!context.isSubExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA)) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression holder, Void
-      value) throws GandivaException {
-      List<LogicalExpression> argsContext = Lists.newArrayList();
-      for(LogicalExpression e : holder.args) {
-        CodeGenContext context = e.accept(this, null);
-        argsContext.add(context);
-      }
-
-      FunctionHolderExpression newFunction;
-      if (holder.getHolder() instanceof BaseFunctionHolder) {
-        newFunction = new FunctionHolderExpr(holder.getName(), (BaseFunctionHolder) holder.getHolder(), argsContext);
-      } else {
-        newFunction = new GandivaFunctionHolderExpression(holder.getName(), (GandivaFunctionHolder)holder.getHolder(), argsContext);
-      }
-
-      CodeGenContext functionContext = new CodeGenContext(newFunction);
-      if (this.supportedFunctions.contains(holder.getName().toLowerCase())) {
-        functionContext.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
-        if (allExpressionsSupported(argsContext)) {
-          functionContext.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
-        }
-      }
-
-      return functionContext;
-    }
-
-    @Override
-    public CodeGenContext visitIfExpression(IfExpression ifExpr, Void value) throws GandivaException {
-      CodeGenContext ifConditionContext = ifExpr.ifCondition.condition.accept(this, null);
-      CodeGenContext thenExprContext = ifExpr.ifCondition.expression.accept(this, null);
-      CodeGenContext elseExprContext = ifExpr.elseExpression.accept(this, null);
-
-      IfExpression newIfExpr = IfExpression.newBuilder().setIfCondition(new IfExpression
-        .IfCondition(ifConditionContext, thenExprContext)).setElse(elseExprContext).build();
-      CodeGenContext ifExprContext = new CodeGenContext(newIfExpr);
-      ifExprContext.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
-      if (allExpressionsSupported(Lists.newArrayList(ifConditionContext, thenExprContext, elseExprContext))) {
-        ifExprContext.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
-      }
-
-      return ifExprContext;
-    }
-
-    @Override
-    public CodeGenContext visitCaseExpression(CaseExpression caseExpression, Void value) throws GandivaException {
-      List<LogicalExpression> expressions = new ArrayList<>();
-      List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
-      for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
-        LogicalExpression whenExpr = conditionNode.whenExpr.accept(this, value);
-        LogicalExpression thenExpr = conditionNode.thenExpr.accept(this, value);
-        CaseExpression.CaseConditionNode newConditionExpression = new CaseExpression.CaseConditionNode(whenExpr, thenExpr);
-        caseConditions.add(newConditionExpression);
-        expressions.add(whenExpr);
-        expressions.add(thenExpr);
-      }
-      CodeGenContext elseExpr = caseExpression.elseExpr.accept(this, value);
-      expressions.add(elseExpr);
-      CaseExpression result = CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
-      CodeGenContext caseExpr = new CodeGenContext(result);
-      caseExpr.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
-      if (allExpressionsSupported(expressions)) {
-        caseExpr.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
-      }
-      return caseExpr;
-    }
-
-    @Override
-    public CodeGenContext visitBooleanOperator(BooleanOperator op, Void value) throws GandivaException {
-      List<LogicalExpression> argsContext = Lists.newArrayList();
-      for(LogicalExpression e : op.args) {
-        CodeGenContext context = e.accept(this, null);
-        argsContext.add(context);
-      }
-      BooleanOperator newOperator = new BooleanOperator(op.getName(), argsContext);
-      CodeGenContext booleanOpContext = new CodeGenContext(newOperator);
-      if (this.supportedFunctions.contains(op.getName().toLowerCase())) {
-        booleanOpContext.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
-        if (allExpressionsSupported(argsContext)) {
-          booleanOpContext.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
-        }
-      }
-
-      return booleanOpContext;
-    }
-
-    CodeGenContext annotateWithGandivaSupport(LogicalExpression e) {
-      CodeGenContext context = new CodeGenContext(e);
-      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
-      context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
-      return context;
-    }
-
-    @Override
-    public CodeGenContext visitUnknown(LogicalExpression e, Void value) {
-      if (e instanceof ValueVectorReadExpression) {
-        // let Gandiva support all reads
-        return annotateWithGandivaSupport(e);
-      }
-      return null;
-    }
-
-    @Override
-    public CodeGenContext visitFloatConstant(ValueExpressions.FloatExpression fExpr, Void value) {
-      return annotateWithGandivaSupport(fExpr);
-    }
-
-    @Override
-    public CodeGenContext visitIntConstant(ValueExpressions.IntExpression intExpr, Void value) {
-      return annotateWithGandivaSupport(intExpr);
-    }
-
-    @Override
-    public CodeGenContext visitLongConstant(ValueExpressions.LongExpression intExpr, Void value) {
-      return annotateWithGandivaSupport(intExpr);
-    }
-
-    @Override
-    public CodeGenContext visitDateConstant(ValueExpressions.DateExpression intExpr, Void value) {
-      return annotateWithGandivaSupport(intExpr);
-    }
-
-    @Override
-    public CodeGenContext visitTimeConstant(ValueExpressions.TimeExpression intExpr, Void value) {
-      return annotateWithGandivaSupport(intExpr);
-    }
-
-    @Override
-    public CodeGenContext visitTimeStampConstant(ValueExpressions.TimeStampExpression intExpr, Void value) {
-      return annotateWithGandivaSupport(intExpr);
-    }
-
-    @Override
-    public CodeGenContext visitDoubleConstant(ValueExpressions.DoubleExpression dExpr, Void value) {
-      return annotateWithGandivaSupport(dExpr);
-    }
-
-    @Override
-    public CodeGenContext visitBooleanConstant(ValueExpressions.BooleanExpression e, Void value) {
-      return annotateWithGandivaSupport(e);
-    }
-
-    @Override
-    public CodeGenContext visitQuotedStringConstant(ValueExpressions.QuotedString e, Void value) {
-      return annotateWithGandivaSupport(e);
-    }
-
-    @Override
-    public CodeGenContext visitNullConstant(TypedNullConstant e, Void value) throws GandivaException {
-      return annotateWithGandivaSupport(e);
-    }
   }
 }

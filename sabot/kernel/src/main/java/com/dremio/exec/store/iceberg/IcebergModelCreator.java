@@ -22,13 +22,12 @@ import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.nessie.IcebergNessieModel;
-import com.dremio.exec.store.metadatarefresh.DatasetCatalogGrpcClient;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 
@@ -60,15 +59,8 @@ public class IcebergModelCreator {
     }
 
     public static IcebergCatalogType getIcebergCatalogType(Configuration configuration, SabotContext context) {
-        boolean v2ExecutionEnabled = context.getOptionManager().getOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION);
-        String icebergCatalogType;
-        if (!v2ExecutionEnabled) {
-            icebergCatalogType = IcebergCatalogType.HADOOP.name().toUpperCase();
-        } else {
-            icebergCatalogType = configuration.get(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.NESSIE.name()).toUpperCase();
-        }
-
-        IcebergCatalogType catalogType;
+      String icebergCatalogType = configuration.get(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.NESSIE.name()).toUpperCase();
+      IcebergCatalogType catalogType;
         try {
             catalogType = IcebergCatalogType.valueOf(icebergCatalogType);
         } catch (IllegalArgumentException iae) {

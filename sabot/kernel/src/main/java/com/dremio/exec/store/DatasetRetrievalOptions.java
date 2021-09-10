@@ -37,6 +37,7 @@ import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshQuery;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -85,6 +86,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Boolean> refreshDataset;
   private final Optional<Integer> maxMetadataLeafColumns;
   private final Optional<Integer> maxNestedLevel;
+  private final Optional<MetadataRefreshQuery> refreshQuery;
 
   private DatasetRetrievalOptions fallback;
 
@@ -99,6 +101,7 @@ public class DatasetRetrievalOptions {
     this.refreshDataset = Optional.ofNullable(builder.refreshDataset);
     this.maxMetadataLeafColumns = Optional.ofNullable(builder.maxMetadataLeafColumns);
     this.maxNestedLevel = Optional.ofNullable(builder.maxNestedLevel);
+    this.refreshQuery = Optional.ofNullable(builder.refreshQuery);
   }
 
 
@@ -143,7 +146,12 @@ public class DatasetRetrievalOptions {
         .setForceUpdate(forceUpdate.orElse(null))
         .setRefreshDataset(refreshDataset.orElse(null))
         .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
-        .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL));
+        .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
+        .setRefreshQuery(refreshQuery.orElse(null));
+  }
+
+  public Optional<MetadataRefreshQuery> datasetRefreshQuery() {
+    return refreshQuery;
   }
 
   public static class Builder {
@@ -157,6 +165,7 @@ public class DatasetRetrievalOptions {
     private Integer maxNestedLevel;
     private List<String> filesList = new ArrayList<>();
     private Map<String, String> partition = new LinkedHashMap<>();
+    private MetadataRefreshQuery refreshQuery;
 
     private Builder() {
     }
@@ -183,6 +192,11 @@ public class DatasetRetrievalOptions {
 
     public Builder setRefreshDataset(Boolean refreshDataset) {
       this.refreshDataset = refreshDataset;
+      return this;
+    }
+
+    public Builder setRefreshQuery(MetadataRefreshQuery refreshDatasetQuery) {
+      this.refreshQuery = refreshDatasetQuery;
       return this;
     }
 

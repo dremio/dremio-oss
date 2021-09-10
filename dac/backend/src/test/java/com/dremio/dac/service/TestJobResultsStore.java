@@ -377,8 +377,8 @@ public class TestJobResultsStore extends BaseTestServer {
     File datasetFolder = new java.io.File(sourceFolder.getAbsoluteFile(), "test-folder");
     datasetFolder.mkdir();
 
-    createFile(datasetFolder, "file1.json", "{a:1}{a:2}");
-    createFile(datasetFolder, "file2.json", "{a:\"test1\"}{a:\"test2\"}");
+    createFile(datasetFolder, "file1.json", "{a:1,b:\"test1\"}{a:2,b:\"test2\"}");
+    createFile(datasetFolder, "file2.json", "{a:\"test1\",b:1}{a:\"test2\",b:2}");
 
     // Create source with the files created
     SourceUI source = new SourceUI();

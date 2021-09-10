@@ -393,8 +393,8 @@ public class TestAggregateFunctions extends BaseTestQuery {
         " where n_regionkey = 2 ";
 
     // Validate the plan
-    final String[] expectedPlan = {"(?s)(StreamAgg|HashAgg).*Filter"};
-    final String[] excludedPatterns = {"(?s)Filter.*(StreamAgg|HashAgg)"};
+    final String[] expectedPlan = {"(?s)Filter.*(StreamAgg|HashAgg).*group=\\Q[{}]\\E.*Filter"};
+    final String[] excludedPatterns = {};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPatterns);
 
     testBuilder()

@@ -15,47 +15,44 @@
  */
 package com.dremio.exec.planner;
 
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.physical.Prel;
 
 public class CachedPlan {
   private final String queryText;
   private Prel prel;
-  private int esitimatedSize;   //estimated size in byte
+  private String textPlan;
+  private int estimatedSize;   //estimated size in byte
   private int useCount;
   private long creationTime;
-  private SubstitutionInfo substitutionInfo;
+  private CachedAccelDetails accelDetails;
 
-  private CachedPlan(String query, Prel prel, int useCount, int esitimatedSize) {
+  private CachedPlan(String query, Prel prel, String textPlan, int useCount, int estimatedSize) {
     this.queryText = query;
     this.prel = prel;
+    this.textPlan = textPlan;
     this.useCount = useCount;
-    this.esitimatedSize = esitimatedSize;
+    this.estimatedSize = estimatedSize;
     this.creationTime = System.currentTimeMillis();
   }
 
-  public static CachedPlan createCachedPlan(String query, Prel prel, int esitimatedSize) {
-    return new CachedPlan(query, prel, 0, esitimatedSize);
+  public static CachedPlan createCachedPlan(String query, Prel prel, String textPlan, int esitimatedSize) {
+    return new CachedPlan(query, prel, textPlan, 0, esitimatedSize);
   }
 
   public Prel getPrel() {
     return prel;
   }
 
-  public void setPrel(Prel prel) {
-    this.prel = prel;
+  public String getTextPlan() {
+    return textPlan;
   }
 
-  public void setUseCount(int useCount) {
-    this.useCount = useCount;
+  public void setAccelDetails(CachedAccelDetails accelDetails) {
+    this.accelDetails = accelDetails;
   }
 
-  public SubstitutionInfo getSubstitutionInfo() {
-    return substitutionInfo;
-  }
-
-  public void setSubstitutionInfo(SubstitutionInfo info) {
-    substitutionInfo = info;
+  public CachedAccelDetails getAccelDetails() {
+    return accelDetails;
   }
 
   public void updateUseCount() {
@@ -66,12 +63,12 @@ public class CachedPlan {
     return useCount;
   }
 
-  public int getEsitimatedSize() {
-    return esitimatedSize;
+  public int getEstimatedSize() {
+    return estimatedSize;
   }
 
-  public void setEsitimatedSize(int esitimatedSize) {
-    this.esitimatedSize = esitimatedSize;
+  public void setEstimatedSize(int estimatedSize) {
+    this.estimatedSize = estimatedSize;
   }
 
   public long getCreationTime() {

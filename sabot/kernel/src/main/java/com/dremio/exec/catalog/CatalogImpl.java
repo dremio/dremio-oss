@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +44,6 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
-import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.Serializer;
@@ -52,6 +53,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.PartitionNotFoundException;
@@ -213,6 +215,17 @@ public class CatalogImpl implements Catalog {
   @Override
   public DremioTable getTableForQuery(NamespaceKey key) {
     return getTable(key);
+  }
+
+  @Override
+  public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    try {
+      final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(table.getPath().getRoot(), true);
+      return plugin.getPlugin().parseColumnExtendedProperties(table.getDatasetConfig().getReadDefinition().getExtendedProperty());
+    } catch (ConnectorException|UserException e) {
+      logger.warn("Unable to get extended properties for {}", table.getPath(), e);
+      return null;
+    }
   }
 
   @Override
@@ -510,6 +523,10 @@ public class CatalogImpl implements Catalog {
     return pluginRetriever.getPlugin("__home", true).unwrap(FileSystemPlugin.class);
   }
 
+  private FileSystemPlugin getMetadataPlugin() throws ExecutionSetupException {
+    return pluginRetriever.getPlugin(METADATA_STORAGE_PLUGIN_NAME, true).unwrap(FileSystemPlugin.class);
+  }
+
   @Override
   public void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, final WriterOptions writerOptions) {
     asMutable(key, "does not support create table operations.").createEmptyTable(options.getSchemaConfig(), key,
@@ -523,7 +540,13 @@ public class CatalogImpl implements Catalog {
     final WriterOptions writerOptions,
     final Map<String, Object> storageOptions) {
     return asMutable(key, "does not support create table operations.")
-      .createNewTable(options.getSchemaConfig(), key, icebergTableProps, writerOptions, storageOptions);
+      .createNewTable(options.getSchemaConfig(), key, icebergTableProps, writerOptions, storageOptions, false);
+  }
+
+  @Override
+  public CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps, WriterOptions writerOptions, Map<String, Object> storageOptions, boolean isResultsTable) {
+    return asMutable(key, "does not support create table operations.")
+      .createNewTable(options.getSchemaConfig(), key, icebergTableProps, writerOptions, storageOptions, isResultsTable);
   }
 
   @Override
@@ -637,7 +660,7 @@ public class CatalogImpl implements Catalog {
   @Override
   public void dropTable(NamespaceKey key) {
     final boolean existsInNamespace = systemNamespaceService.exists(key);
-    final boolean isLayered;
+    boolean isLayered = false;
 
     // CTAS does not create a namespace entry (DX-13454), but we want to allow dropping it, so handle the cases
     // where it does not exist in the namespace but does exist at the plugin level.
@@ -668,22 +691,6 @@ public class CatalogImpl implements Catalog {
       }
 
       isLayered = DatasetHelper.isIcebergDataset(dataset);
-    } else {
-      try {
-        final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), false);
-        final GetDatasetOption[] getDatasetOptions = plugin.getDefaultRetrievalOptions().asGetDatasetOptions(null);
-
-        if (!asMutable(key, "does not support dropping tables")
-          .getDatasetHandle(new EntityPath(key.getPathComponents()), getDatasetOptions).isPresent()) {
-          throw UserException.validationError()
-            .message("Table [%s] not found.", key)
-            .build(logger);
-        }
-      } catch (ConnectorException e) {
-        throw new RuntimeException(e);
-      }
-
-      isLayered = false;
     }
 
     asMutable(key, "does not support dropping tables")
@@ -777,9 +784,18 @@ public class CatalogImpl implements Catalog {
       if(dataset == null || isSystemTable(dataset)) {
         throw UserException.parseError().message("Unable to find table %s.", key).build(logger);
       }
-
+      String tableUuid = "";
       try {
+        boolean isIcebergMetadata = false;
+        if (dataset.getPhysicalDataset().getIcebergMetadata() != null) {
+          tableUuid = dataset.getPhysicalDataset().getIcebergMetadata().getTableUuid();
+          isIcebergMetadata = true;
+        }
         userNamespaceService.deleteDataset(new NamespaceKey(dataset.getFullPathList()), dataset.getTag());
+        if (isIcebergMetadata) {
+          FileSystemPlugin plugin = getMetadataPlugin();
+          plugin.deleteMetadataIcebergTable(tableUuid);
+        }
         break;
       } catch (NamespaceNotFoundException ex) {
         logger.debug("Table to delete not found", ex);
@@ -791,6 +807,10 @@ public class CatalogImpl implements Catalog {
         }
       } catch(NamespaceException ex) {
         throw new RuntimeException(ex);
+      } catch (ExecutionSetupException e) {
+        String message = String.format("The dataset %s is now forgotten by dremio, but there was an error while cleaning up respective metadata files for %s.", key, tableUuid);
+        logger.error(message);
+        throw new RuntimeException(e);
       }
     } // while loop
   }
@@ -851,6 +871,40 @@ public class CatalogImpl implements Catalog {
                          .buildSilently();
     }
     return plugin.alterDataset(key, datasetConfig, attributes);
+  }
+
+  /**
+   * Sets column properties and refreshes dataset if properties changed
+   *
+   * @param key
+   * @param columnToChange
+   * @param attributeName
+   * @param attributeValue
+   * @return if dataset config is updated
+   */
+  @Override
+  public boolean alterColumnOption(final NamespaceKey key, String columnToChange,
+                            final String attributeName, final AttributeValue attributeValue) {
+    final DatasetConfig datasetConfig;
+    try {
+      datasetConfig = systemNamespaceService.getDataset(key);
+      if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
+        throw UserException.validationError()
+          .message("Cannot alter column options on a virtual dataset")
+          .buildSilently();
+      }
+    } catch (NamespaceException | ConcurrentModificationException ex) {
+      throw UserException.validationError(ex)
+        .message("Failure while accessing dataset")
+        .buildSilently();
+    }
+    final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), true);
+    if (plugin == null) {
+      throw UserException.validationError()
+        .message("Unknown source [%s]", key.getRoot())
+        .buildSilently();
+    }
+    return plugin.alterDatasetSetColumnOption(key, datasetConfig, columnToChange, attributeName, attributeValue);
   }
 
   private boolean updateOptions(VirtualDataset virtualDataset, Map<String, AttributeValue> attributes) {

@@ -392,6 +392,7 @@ public class BaseTestOperator extends ExecTest {
         .build();
       return new OperatorContextImpl(
           config,
+          DEFAULT_DREMIO_CONFIG,
           handle,
           pop,
           child,
@@ -821,4 +822,11 @@ public class BaseTestOperator extends ExecTest {
     return convertCaseToIf(ret.e);
   }
 
+  public static LogicalExpression toExprCase(String expr) throws RecognitionException{
+    ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
+    CommonTokenStream tokens = new CommonTokenStream(lexer);
+    ExprParser parser = new ExprParser(tokens);
+    parse_return ret = parser.parse();
+    return ret.e;
+  }
 }

@@ -54,12 +54,17 @@ public final class VM {
   private static final String DREMIO_LEGACY_CPU_AVAILABLE_PROPERTY = "dremio.executor.cores";
 
   private static final boolean IS_DEBUG = isDebugEnabled0();
+  private static final boolean IS_ASSERT = isAssertEnabled0();
 
   /**
    * Returns true if a debugger agent has been added to the JVM
    */
   public static boolean isDebugEnabled() {
     return IS_DEBUG;
+  }
+
+  public static boolean areAssertsEnabled() {
+    return IS_ASSERT;
   }
 
   /**
@@ -111,6 +116,11 @@ public final class VM {
   private static boolean isDebugEnabled0() {
     final List<String> inputArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
     return isDebugEnabled(inputArguments);
+  }
+
+  private static boolean isAssertEnabled0() {
+    final List<String> inputArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
+    return inputArguments.contains("-ea");
   }
 
   @VisibleForTesting

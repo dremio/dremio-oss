@@ -37,14 +37,15 @@ import AccelerationGridMixin from '@inject/components/Acceleration/Advanced/Acce
 import EllipsedText from '@app/components/EllipsedText';
 import Checkbox from '@app/components/Fields/Checkbox';
 
-import { formDescription, formLabel } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
 
+import '@app/uiTheme/less/commonModifiers.less';
+import { displayNone} from '@app/uiTheme/less/commonStyles.less';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import '@app/uiTheme/less/Acceleration/AccelerationGrid.less';
 import LayoutInfo from '../LayoutInfo';
-import { commonStyles } from '../commonStyles';
 
 import 'fixed-data-table-2/dist/fixed-data-table.css';
-import './AccelerationGrid.less';
 
 const HEADER_HEIGHT = 90;
 const COLUMN_WIDTH = 80;
@@ -65,7 +66,8 @@ export class AccelerationGrid extends Component {
     activeTab: PropTypes.string.isRequired,
     filter: PropTypes.string,
     location: PropTypes.object.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    hasPermission: PropTypes.any
   };
 
   static defaultProps = {
@@ -111,22 +113,26 @@ export class AccelerationGrid extends Component {
     }
   };
 
-  renderLeftHeaderCell = () => (
-    <div style={styles.flexEnd}>
-      <div style={styles.leftHeaderCell}>
-        <SearchField
-          showCloseIcon
-          value={this.props.filter}
-          placeholder={la('Search fields…')}
-          onChange={this.props.onFilterChange}
-          style={{paddingBottom: 0}}
-        />
-        <div style={styles.leftHeaderCellLabel}>
-          <h4>{la('Fields')}</h4>
+  renderLeftHeaderCell = () => {
+    const isAdminOrHasCanAlter = this.checkIfUserHasCanAlter();
+    return (
+      <div className={'AccelerationGrid__leftHeader'}>
+        <div className={`${isAdminOrHasCanAlter ? ' AccelerationGrid__enabledSearchField' : 'AccelerationGrid__disabledSearchField'}`}>
+          <SearchField
+            inputClassName={'AccelerationGrid__input'} // SHAWN: change according to Shashi's comment
+            showCloseIcon
+            value={this.props.filter}
+            placeholder={la('Search fields…')}
+            onChange={this.props.onFilterChange}
+            style={{paddingBottom: 0}}
+          />
+          <div className={'AccelerationGrid__fields'}>
+            <h4>{la('Fields')}</h4>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   renderStatus(fields) {
     const id = fields.id.value;
@@ -139,10 +145,10 @@ export class AccelerationGrid extends Component {
     const lostFields = this.context.lostFieldsByReflection[id];
     if (error) {
       overlayMessage = <Message
+        className={'AccelerationGrid__message'}
         messageType='error'
         inFlow={false}
         useModalShowMore
-        messageTextStyle={{maxHeight: styles.layoutDescriptionLine.height * 2 - 2}} // -2 for border
         message={error.get('message')}
         messageId={error.get('id')}/>;
     } else if (lostFields && !shouldDelete) {
@@ -159,10 +165,10 @@ export class AccelerationGrid extends Component {
       }
 
       overlayMessage = <Message
+        className={'AccelerationGrid__message'}
         messageType='warning'
         inFlow={false}
         useModalShowMore
-        messageTextStyle={{maxHeight: styles.layoutDescriptionLine.height * 2 - 2}} // -2 for border
         message={new Immutable.Map({
           code: 'REFLECTION_LOST_FIELDS',
           moreInfo: <div children={details} />
@@ -180,9 +186,9 @@ export class AccelerationGrid extends Component {
     }
 
     // todo: loc, ax
-    return <div style={{...styles.status, fontWeight: 'normal'}}>
+    return <div className={'AccelerationGrid__status'}>
       {overlayMessage}
-      <LayoutInfo layout={layoutData} style={{...formDescription, width: '100%', flexGrow: 1, padding: '0 5px'}} overrideTextMessage={textMessage}/>
+      <LayoutInfo layout={layoutData} className={'AccelerationGrid__layoutMessage'} overrideTextMessage={textMessage}/>
     </div>;
   }
 
@@ -196,34 +202,29 @@ export class AccelerationGrid extends Component {
     const isAdminOrHasCanAlter = this.checkIfUserHasCanAlter();
 
     return (
-      <div data-qa={`reflection_${columnIndex}`} style={{
-        ...styles.flexEnd,
-        borderRight: '1px solid #a8e0f1',
-        borderLeft: '1px solid #a8e0f1',
-        borderTop: '1px solid #a8e0f1',
-        marginLeft: 10,
-        backgroundColor: '#EFF6F9'
-      }}>
-        <div style={{...styles.layoutDescriptionLine, ...(shouldJumpTo ? commonStyles.highlight : {})}}>
-          <div className='h4' style={{display: 'flex', alignItems: 'center', paddingLeft: 5}}>
-            <Toggle {...fields.enabled} style={{width: 'auto'}} />
+      <div className={`AccelerationGrid__header ${isAdminOrHasCanAlter ? '--bgColor-advEnDrag' : '--bgColor-advDisDrag'}`}
+        data-qa={`reflection_${columnIndex}`}>
+        <div className={`AccelerationGrid__layoutDescriptionLine ${shouldJumpTo ? '--bgColor-highlight' : null}`}>
+          <div className={'AccelerationGrid__togglesContainer h4'}>
+            <Toggle {...fields.enabled} className={'AccelerationGrid__toggle'} size='small'/>
             {/*
               use PrevalidatedTextField as a buffer against expensive rerender as you type
             */}
             <PrevalidatedTextField {...this.props.layoutFields[columnIndex].name}
               placeholder={placeholderName}
-              style={{...styles.prevalidatedField, textDecoration: shouldDelete ? 'line-through' : null}}
+              className={'AccelerationGrid__prevalidatedField'}
+              style={{textDecoration: shouldDelete ? 'line-through' : null}}
               onKeyPress={(e) => {
                 if (e.key === 'Enter') e.preventDefault();
               }}
             />
             { <FontIcon type={shouldDelete ? 'Add' : 'Minus'}
-              style={isAdminOrHasCanAlter ? styles.layoutHeaderIcon : {display: 'none'}}
+              iconClass={isAdminOrHasCanAlter ? 'AccelerationGrid__layoutHeaderDeleteIcon' : displayNone }
               onClick={() => fields.shouldDelete.onChange(!shouldDelete)} />
             }
             <FontIcon
               type='SettingsMediumFilled'
-              style={isAdminOrHasCanAlter ? styles.layoutHeaderIcon : {display: 'none'}}
+              iconClass={isAdminOrHasCanAlter ? 'AccelerationGrid__layoutHeaderSettingsIcon' : displayNone }
               onClick={() => this.setState({visibleLayoutExtraSettingsIndex: columnIndex})} />
           </div>
         </div>
@@ -259,7 +260,7 @@ export class AccelerationGrid extends Component {
               ]}
             />
           </FieldWithError>
-          <div style={styles.checkRow}>
+          <div className={'AccelerationGrid__checkRow'}>
             <Checkbox
               {...fields.arrowCachingEnabled}
               isOnOffSwitch
@@ -275,25 +276,30 @@ export class AccelerationGrid extends Component {
 
   renderSubCellHeaders() {
     const isRaw = this.props.activeTab === 'raw';
-    return <div style={{ display: 'flex', justifyContent: 'space-between', ...formLabel }}>
-      {isRaw && <div style={styles.cell}>{la('Display')}</div>}
-      {!isRaw && <div style={styles.cell}>{la('Dimension')}</div>}
-      {!isRaw && <div style={styles.cell}>{la('Measure')}</div>}
-      <div style={styles.cell}>{la('Sort')}</div>
-      <div style={this.props.shouldShowDistribution ? styles.cell : styles.lastCell}>{la('Partition')}</div>
-      { this.props.shouldShowDistribution && <div style={styles.lastCell}>{la('Distribution')}</div> }
+    return <div className={'AccelerationGrid__subCellHeader'}>
+      {isRaw && <div className={'AccelerationGrid__cell'}>{la('Display')}</div>}
+      {!isRaw && <div className={'AccelerationGrid__cell'}>{la('Dimension')}</div>}
+      {!isRaw && <div className={'AccelerationGrid__cell'}>{la('Measure')}</div>}
+      <div className={'AccelerationGrid__cell'}>{la('Sort')}</div>
+      <div className={this.props.shouldShowDistribution ? 'AccelerationGrid__cell' : 'AccelerationGrid__lastCell'}>{la('Partition')}</div>
+      { this.props.shouldShowDistribution && <div className={'AccelerationGrid__lastCell'}>{la('Distribution')}</div> }
     </div>;
   }
 
   renderLeftSideCell = (rowIndex) => {
-    const { columns } = this.props;
-    const backgroundColor = rowIndex % 2 ? '#e5f3f0' : '#ebf9f6';
-    const borderBottom = rowIndex === this.props.columns.size - 1 ? '1px solid #9de4d4' : '';
+    const { columns, hasPermission, intl: { formatMessage } } = this.props;
+    const backgroundColor = rowIndex % 2 ? '--bgColor-advEnDark' : '--bgColor-advEnLight';
+    const disabledBackgroundColor = rowIndex % 2 ? '--bgColor-advDisDark' : '--bgColor-advDisLight';
     return (
-      <div style={{ ...styles.leftCell, backgroundColor, borderBottom }}>
-        <div style={styles.column}>
-          <FontIcon type={typeToIconType[columns.getIn([rowIndex, 'type', 'name'])]} theme={styles.columnTypeIcon}/>
-          <EllipsedText text={columns.getIn([rowIndex, 'name'])} style={{ marginLeft: 5 }}/>
+      <div className={`AccelerationGrid__leftCell --bColor-bottom 
+      ${hasPermission ? backgroundColor : disabledBackgroundColor}
+      `}>
+        <div className={'AccelerationGrid__column'}>
+          <FontIcon type={typeToIconType[columns.getIn([rowIndex, 'type', 'name'])]} theme={theme.columnTypeIcon}/>
+          <EllipsedText
+            title={hasPermission ? columns.getIn([rowIndex, 'name']) : formatMessage({id: 'Read.Only'})}
+            style={{ marginLeft: 5 }} text={columns.getIn([rowIndex, 'name'])}
+          />
         </div>
         <div>{columns.getIn([rowIndex, 'queries'])}</div>
       </div>
@@ -301,7 +307,7 @@ export class AccelerationGrid extends Component {
   };
 
   render() {
-    const { columns, layoutFields, activeTab } = this.props;
+    const { columns, layoutFields, activeTab, hasPermission } = this.props;
     const width = activeTab === 'raw' ? COLUMN_WIDTH * 4 : COLUMN_WIDTH * 5;
 
     const {layoutId} = (this.props.location.state || {});
@@ -310,7 +316,7 @@ export class AccelerationGrid extends Component {
     const columnNodes = layoutFields.map((layout, index) => {
       const shouldJumpTo = layout.id.value === layoutId;
 
-      const column = <Column
+      const columnOutput = <Column
         key={index}
         header={(props) => this.renderHeaderCell(props.rowIndex, index, shouldJumpTo)}
         headerHeight={HEADER_HEIGHT}
@@ -320,13 +326,13 @@ export class AccelerationGrid extends Component {
       />;
 
       if (shouldJumpTo) jumpToIndex = index;
-      return column;
+      return columnOutput;
     });
 
     return (
       <div
-        className='grid-acceleration'
-        style={{width: '100%', height: '100vh', maxHeight: 'calc(100vh - 330px)', overflow: 'hidden'}}
+        className='AccelerationGrid grid-acceleration'
+        style={{ maxHeight: 'calc(100vh - 330px)'}}
         ref={(wrap) => this.gridWrapper = wrap}
       >
         <AutoSizer>
@@ -345,6 +351,7 @@ export class AccelerationGrid extends Component {
                 fixed
                 allowCellsRecycling
                 cell={(props) => this.renderLeftSideCell(props.rowIndex, props.columnIndex)}
+                allowOverflow={!hasPermission}
               />
               { columnNodes }
             </Table>)
@@ -364,84 +371,9 @@ const mapStateToProps = state => {
 
 export default connect(mapStateToProps)(AccelerationGrid);
 
-
-const styles = {
-  base: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'row'
-  },
-  gridWrapper: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    backgroundColor: '#f3f3f3',
-    flex: '0 0 75px'
-  },
-  flexEnd: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-end'
-  },
-  leftHeaderCell: {
-    borderRight: '1px solid #9de4d4',
-    borderTop: '1px solid #9de4d4',
-    borderLeft: '1px solid #9de4d4',
-    borderBottom: '1px solid #e1e1e1',
-    backgroundColor: '#e5f3f0'
-  },
-  leftHeaderCellLabel: {
-    height: 30,
-    display: 'flex',
-    justifyContent: 'flex-start',
-    paddingLeft: 10,
-    alignItems: 'center'
-    // backgroundColor: '#e5f3f0',
-  },
-  leftCell: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 30,
-    padding: '0 5px',
-    borderRight: '1px solid #9de4d4',
-    borderLeft: '1px solid #9de4d4',
-    ...formLabel
-  },
-  autoSizerWrap: {
-    marginLeft: 150,
-    display: 'flex',
-    flexDirection: 'column',
-    flex: '1 1 auto'
-  },
-  leftSideCell: {
-    flex: '0 0 75px',
-    zIndex: 10
-  },
-  layoutDescriptionLine: {
-    height: 30,
-    borderBottom: '1px solid #e1e1e1'
-  },
-  cell: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 30,
-    width: '100%',
-    borderBottom: '1px solid #e1e1e1',
-    borderRight: '1px solid #e1e1e1'
-  },
-  column: {
-    display: 'flex',
-    alignItems: 'center',
-    marginLeft: 4,
-    width: '100%'
-  },
+// DX-34369: refactor FontIcon to take in these as classnames instead.
+const theme = {
   columnTypeIcon: {
-    Container: {
-      paddingBottom: 5
-    },
     Icon: {
       display: 'flex',
       justifyContent: 'center',
@@ -449,36 +381,5 @@ const styles = {
       height: 21,
       width: 24
     }
-  },
-  prevalidatedField: {
-    flex: 1,
-    border: '1px solid transparent', // keep 1px to prevent wiggle on focus
-    background: 'none',
-    padding: 0,
-    margin: 0,
-    fontSize: 'inherit',
-    fontWeight: 'inherit',
-    width: 0
-  },
-  layoutHeaderIcon: { // todo: ax, hover
-    flexGrow: 0,
-    flexShrink: 0,
-    cursor: 'pointer',
-    height: 24
-  },
-  checkRow: {
-    display: 'flex',
-    marginTop: 10
   }
-};
-styles.status = {
-  ...styles.layoutDescriptionLine,
-  display: 'flex',
-  alignItems: 'center',
-  position: 'relative' // for absolute Message
-};
-
-styles.lastCell = {
-  ...styles.cell,
-  borderRight: 0
 };

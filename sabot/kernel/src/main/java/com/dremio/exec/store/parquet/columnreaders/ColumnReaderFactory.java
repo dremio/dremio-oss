@@ -116,6 +116,8 @@ public class ColumnReaderFactory {
                   return new ParquetFixedWidthDictionaryReaders.DictionaryTimeStampReader(recordReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, (TimeStampMilliVector) v, schemaElement);
                 case TIMESTAMP_MICROS:
                   return new ParquetFixedWidthDictionaryReaders.DictionaryTimeStampMicrosReader(recordReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, (TimeStampMilliVector) v, schemaElement);
+                case TIME_MICROS:
+                  return new ParquetFixedWidthDictionaryReaders.DictionaryTimeMicrosReader(recordReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, (TimeMilliVector) v, schemaElement);
                 default:
                   throw new ExecutionSetupException("Unsupported dictionary converted type " + convertedType + " for primitive type INT64");
               }
@@ -251,6 +253,8 @@ public class ColumnReaderFactory {
               return new NullableFixedByteAlignedReaders.NullableDictionaryTimeStampReader(parentReader, allocateSize, columnDescriptor, columnChunkMetaData, fixedLength, (TimeStampMilliVector)valueVec, schemaElement);
             case TIMESTAMP_MICROS:
               return new NullableFixedByteAlignedReaders.NullableDictionaryTimeStampMicrosReader(parentReader, allocateSize, columnDescriptor, columnChunkMetaData, true, (TimeStampMilliVector) valueVec, schemaElement);
+            case TIME_MICROS:
+              return new NullableFixedByteAlignedReaders.NullableDictionaryTimeMicrosReader(parentReader, allocateSize, columnDescriptor, columnChunkMetaData, true, (TimeMilliVector) valueVec, schemaElement);
             default:
               throw new ExecutionSetupException("Unsupported nullable converted type " + convertedType + " for primitive type INT64");
           }

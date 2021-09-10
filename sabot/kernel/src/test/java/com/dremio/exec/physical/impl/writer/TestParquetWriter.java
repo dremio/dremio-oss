@@ -811,7 +811,7 @@ public class TestParquetWriter extends BaseTestQuery {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
 
     for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?

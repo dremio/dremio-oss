@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.util.JobRequestUtil;
+import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -74,7 +75,7 @@ public class DatasetDownloadManager {
   private final JobsService jobsService;
   private final NamespaceService namespaceService;
   private final FileSystem fs;
-  private final Path storageLocation;
+  protected final Path storageLocation;
   private final boolean isJobResultsPDFSBased;
   private final OptionManager optionManager;
 
@@ -139,7 +140,8 @@ public class DatasetDownloadManager {
     return jobId;
   }
 
-  public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo) throws IOException {
+  public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo,
+                                              List<ArrowFileMetadata> resultMetadataList) throws IOException {
     final Path jobDataDir = storageLocation.resolve(downloadInfo.getDownloadId());
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
     // For NFS, fs.exists() will force a refresh if the file is not found

@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.planner.sql;
 
-import static com.dremio.exec.planner.sql.handlers.refresh.RefreshDatasetPlanBuilder.METADATA_STORAGEPLUGIN_NAME;
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -61,10 +61,9 @@ public class TestRefreshDatasetHandler extends PlanTestBase {
     String sql = "REFRESH DATASET " + getPath(path, "tbl");
     final SabotContext context = getSabotContext();
     final OptionManager optionManager = getSabotContext().getOptionManager();
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "unlimited_splits.metadata.refresh.enabled", true));
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "unlimited_splits.partial.metadata.refresh.enabled", true));
+    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "dremio.execution.support_unlimited_splits", true));
     optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "dremio.iceberg.enabled", true));
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "dremio.execution.v2", true));
+    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "store.disable.mixed_types", true));
     optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, "planner.slice_target", 1));
 
     final UserSession session = UserSession.Builder.newBuilder()
@@ -79,7 +78,7 @@ public class TestRefreshDatasetHandler extends PlanTestBase {
     final FileSystemPlugin<?> metadataPlugin = metadataPlugin(queryContext.getCatalog());
 
     final CatalogService catalogService = mock(CatalogService.class);
-    when(catalogService.getSource(eq(METADATA_STORAGEPLUGIN_NAME))).thenReturn(metadataPlugin);
+    when(catalogService.getSource(eq(METADATA_STORAGE_PLUGIN_NAME))).thenReturn(metadataPlugin);
     when(catalogService.getManagedSource(eq("dfs"))).thenReturn(context.getCatalogService().getManagedSource("dfs"));
     when(queryContext.getCatalogService()).thenReturn(catalogService);
 

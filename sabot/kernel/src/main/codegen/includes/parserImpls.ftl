@@ -499,14 +499,12 @@ SqlNode SqlAnalyzeTableStatistics() :
 {
     <ANALYZE> { pos = getPos(); }
     <TABLE> { table = CompoundIdentifier(); }
-    [
     <FOR>
       (
         <ALL> <COLUMNS> { columns = SqlNodeList.EMPTY; }
         |
         <COLUMNS> { columns = ParseOptionalFieldList("Columns"); }
       )
-    ]
     (
       <COMPUTE> <STATISTICS> { isAnalyze = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
       |

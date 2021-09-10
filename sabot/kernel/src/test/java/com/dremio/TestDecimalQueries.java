@@ -20,6 +20,8 @@ import java.math.BigDecimal;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+
 public class TestDecimalQueries extends DecimalCompleteTest {
 
   @Test
@@ -72,6 +74,15 @@ public class TestDecimalQueries extends DecimalCompleteTest {
       .baselineColumns("EXPR$0")
       .baselineValues(0l)
       .go();
+
+    // DX-35078
+    try(AutoCloseable option = withOption(PlannerSettings.ENHANCED_FILTER_JOIN_PUSHDOWN, true)) {
+      testBuilder().sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(0l)
+        .go();
+    }
   }
 
   @Test

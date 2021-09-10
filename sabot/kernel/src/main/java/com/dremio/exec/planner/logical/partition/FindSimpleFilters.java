@@ -45,9 +45,8 @@ import com.google.common.collect.Lists;
 
 
 /**
- * Adds support for pushing down simple filter conditions.
- * Includes: <, >, <=, >=, =, !=, against a literal.
- * We only handle ANDs (no ORs)
+ * Adds support for pushing down simple filter conditions like <, >, <=, >=, =, != against a literal.
+ * The list of operators is configurable using the {@link #allowedSqlOperators} constructor parameter.
  */
 public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHolder> {
 
@@ -56,6 +55,7 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
   private final RexBuilder builder;
   private final boolean sameTypesOnly;
   private final boolean fieldAccessSupport;
+  private final List<SqlKind> allowedSqlOperators;
 
   public FindSimpleFilters(RexBuilder builder) {
     this(builder, false, true);
@@ -66,12 +66,16 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
   }
 
   public FindSimpleFilters(RexBuilder builder, boolean sameTypesOnly, boolean fieldAccessSupport) {
+    this(builder, sameTypesOnly, fieldAccessSupport, null);
+  }
+
+  public FindSimpleFilters(RexBuilder builder, boolean sameTypesOnly, boolean fieldAccessSupport, List<SqlKind> allowedSqlOperators) {
     super(true);
     this.builder = builder;
     this.sameTypesOnly = sameTypesOnly;
     this.fieldAccessSupport = fieldAccessSupport;
+    this.allowedSqlOperators = allowedSqlOperators;
   }
-
 
   public static class StateHolder {
     private final Type type;
@@ -119,6 +123,9 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
       return node != null;
     }
 
+    public Type getType() {
+      return type;
+    }
   }
 
   @Override
@@ -151,6 +158,10 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
 
   @Override
   public StateHolder visitCall(RexCall call) {
+    if (allowedSqlOperators != null && !allowedSqlOperators.contains(call.getKind())) {
+      return new StateHolder(Type.OTHER, call);
+    }
+
     switch(call.getKind()){
     case LESS_THAN:
     case GREATER_THAN:

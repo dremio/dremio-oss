@@ -17,6 +17,8 @@ package com.dremio.dac.api;
 
 import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -32,6 +34,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.common.exceptions.UserException;
@@ -40,6 +43,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.users.SimpleUser;
@@ -92,7 +96,12 @@ public class UserResource {
   // be deprecated we should convert this method to private instance method.
   public static com.dremio.service.users.User addUser(com.dremio.service.users.User newUser, String password, UserService userService,
     NamespaceService namespaceService) throws IOException {
-    final com.dremio.service.users.User savedUser = userService.createUser(newUser, password);
+    final com.dremio.service.users.User savedUser;
+    if (password != null) {
+      savedUser = userService.createUser(newUser, password);
+    } else {
+      savedUser = userService.createUser(newUser);
+    }
     final String userName = savedUser.getUserName();
 
     try {
@@ -141,8 +150,15 @@ public class UserResource {
   @RolesAllowed({"admin", "user"})
   @GET
   @Path("/by-name/{name}")
-  public User getUserByName(@PathParam("name") String name) throws UserNotFoundException {
-    return User.fromUser(userGroupService.getUser(name));
+  public Response getUserByName(@PathParam("name") String name) {
+    try {
+      return Response.ok(User.fromUser(userGroupService.getUser(name))).build();
+    } catch (UserNotFoundException e) {
+      return Response.status(NOT_FOUND)
+        .entity(new GenericErrorMessage(e.getMessage()))
+        .type(APPLICATION_JSON_TYPE)
+        .build();
+    }
   }
 
   private com.dremio.service.users.User of(User user, Optional<String> userId) {

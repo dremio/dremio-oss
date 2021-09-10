@@ -70,6 +70,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 
 /**
@@ -150,6 +151,10 @@ public class TestResource {
   @Path("clear")
   public void clearTestDataset() throws Exception {
     setSecurityContext();
+
+    if (userService instanceof SimpleUserService) {
+      ((SimpleUserService) userService).clearHasAnyUser();
+    }
 
     TestUtilities.clear(catalogService, provider, null, null);
   }

@@ -15,11 +15,14 @@
  */
 package com.dremio.sabot.op.writer;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.ValueVector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -36,13 +39,16 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+
 
 /**
  * SqlOperatorImpl responsible for moving the write directory from a private location
@@ -50,6 +56,17 @@ import com.google.common.collect.ImmutableList;
  * files and their associated partitions and schema.
  */
 public class WriterCommitterOperator implements SingleInputOperator {
+
+  public enum Metric implements MetricDef {
+    ICEBERG_COMMIT_TIME;
+
+    @Override
+    public int metricId() {
+      return ordinal();
+    }
+  }
+
+  protected static final Logger logger = LoggerFactory.getLogger(WriterCommitterOperator.class);
 
   private final WriterCommitterPOP config;
   private final OperatorContext context;
@@ -62,14 +79,14 @@ public class WriterCommitterOperator implements SingleInputOperator {
 
   private final IcebergCommitOpHelper icebergCommitHelper;
 
-  public WriterCommitterOperator(OperatorContext context, WriterCommitterPOP config){
+  public WriterCommitterOperator(OperatorContext context, WriterCommitterPOP config) {
     this.config = config;
     this.context = context;
     this.icebergCommitHelper = IcebergCommitOpHelper.getInstance(context, config);
   }
 
   @Override
-  public State getState(){
+  public State getState() {
     return project == null ? State.NEEDS_SETUP : project.getState();
   }
 
@@ -79,7 +96,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
       vectors.add(vectorWrapper.getValueVector());
     }
     final BatchSchema schema = accessible.getSchema();
-    if(!schema.equals(RecordWriter.SCHEMA)){
+    if (!schema.equals(RecordWriter.SCHEMA)) {
       throw new IllegalStateException(String.format("Incoming record writer schema doesn't match intended. Expected %s, received %s", RecordWriter.SCHEMA, schema));
     }
 
@@ -98,9 +115,9 @@ public class WriterCommitterOperator implements SingleInputOperator {
       replacement = SchemaPath.getSimplePath(RecordWriter.PATH.getName());
     }
     Project projectConfig = new Project(
-        config.getProps(),
-        null,
-        ImmutableList.of(
+      config.getProps(),
+      null,
+      ImmutableList.of(
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()), new FieldReference(RecordWriter.RECORDS.getName())),
         new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
@@ -108,8 +125,9 @@ public class WriterCommitterOperator implements SingleInputOperator {
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName()))
-        ));
+        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
+        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName()))
+      ));
     this.project = new ProjectOperator(context, projectConfig);
     return project.setup(accessible);
   }
@@ -127,15 +145,9 @@ public class WriterCommitterOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     try {
-      icebergCommitHelper.close();
-      if (!success) {
-        Path path = Path.of(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
-        if (fs != null && fs.exists(path)) {
-          fs.delete(path, true);
-        }
-      }
+      cleanUpFiles();
     } finally {
-        AutoCloseables.close(project, fs);
+      AutoCloseables.close(project, fs, icebergCommitHelper);
     }
   }
 
@@ -159,11 +171,33 @@ public class WriterCommitterOperator implements SingleInputOperator {
     recordCount += records;
   }
 
-  public static class WriterCreator implements SingleInputOperator.Creator<WriterCommitterPOP>{
+  public static class WriterCreator implements SingleInputOperator.Creator<WriterCommitterPOP> {
 
     @Override
     public SingleInputOperator create(OperatorContext context, WriterCommitterPOP operator) throws ExecutionSetupException {
       return new WriterCommitterOperator(context, operator);
+    }
+  }
+
+  private void cleanUpIcebergTables() throws IOException, ClassNotFoundException {
+      logger.info("Updating iceberg table failed. Cleaning up hanging manifest files");
+      //Commit should not have happened so no vn.metadata.json. Only manifest files written by previous operator need to be cleaned up.
+      icebergCommitHelper.cleanUpManifestFiles(fs);
+  }
+
+  private void cleanUpFiles() throws IOException, ClassNotFoundException {
+    if(config.getIcebergTableProps() == null || (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.FULL_METADATA_REFRESH)) {
+      if(!success) {
+        Path path = Path.of(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
+          if (fs != null && fs.exists(path)) {
+            fs.delete(path, true);
+          }
+      }
+      return;
+    }
+
+    if(!success && config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH){
+      cleanUpIcebergTables();
     }
   }
 }

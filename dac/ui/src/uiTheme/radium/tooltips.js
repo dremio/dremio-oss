@@ -21,7 +21,8 @@ export const arrowWidth = '5px';
 const typeToColor = {
   error: '#FEEAEA',
   info: PALE_NAVY,
-  status: NAVY
+  status: NAVY,
+  custom: '#31D3DB'
 };
 
 

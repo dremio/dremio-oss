@@ -97,27 +97,7 @@ public class ParquetToIcebergStatsConvertor {
   }
 
   private static Literal<Object> toLiteral(Type type, PrimitiveType primitiveType, Comparable comparable) {
-    comparable = handleSpecialTypes(type, comparable);
     return ParquetToIcebergLiteralConvertor.fromParquetPrimitive(type, primitiveType, comparable);
-  }
-
-  private static Comparable handleSpecialTypes(Type type, Comparable comparable) {
-    if (type.typeId() == Type.TypeID.TIME) {
-      if (!(comparable instanceof Integer)) {
-        throw new AssertionError("Expected time to be Integer");
-      }
-      // This conversion is required since Dremio uses milliseconds to store time, whereas Iceberg uses microseconds
-      return (long) ((Integer) comparable) * 1000;
-    }
-
-    if (type.typeId() == Type.TypeID.TIMESTAMP) {
-      if (!(comparable instanceof Long)) {
-        throw new AssertionError("Expected timestamp to be Long");
-      }
-      // This conversion is required since Dremio uses milliseconds to store timestamp, whereas Iceberg uses microseconds
-      return ((Long) comparable) * 1000;
-    }
-    return comparable;
   }
 
   @SuppressWarnings("unchecked")

@@ -15,10 +15,8 @@
  */
 package com.dremio.dac.server;
 
-import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.explore.model.InitialPreviewResponse.INITIAL_RESULTSET_SIZE;
 import static com.dremio.dac.proto.model.dataset.ActionForNonMatchingValue.DELETE_RECORDS;
-import static com.dremio.dac.proto.model.dataset.ActionForNonMatchingValue.REPLACE_WITH_DEFAULT;
 import static com.dremio.dac.proto.model.dataset.ActionForNonMatchingValue.REPLACE_WITH_NULL;
 import static com.dremio.dac.proto.model.dataset.ConvertCase.LOWER_CASE;
 import static com.dremio.dac.proto.model.dataset.ConvertCase.UPPER_CASE;
@@ -82,11 +80,7 @@ import org.junit.Test;
 
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.explore.model.CellPOJO;
-import com.dremio.dac.explore.model.CleanDataCard;
-import com.dremio.dac.explore.model.CleanDataCard.ConvertToSingleType;
-import com.dremio.dac.explore.model.CleanDataCard.SplitByDataType;
 import com.dremio.dac.explore.model.Column;
-import com.dremio.dac.explore.model.ColumnForCleaning;
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.DataPOJO;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -171,7 +165,6 @@ import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.SplitRule;
 import com.dremio.dac.proto.model.dataset.TransformAddCalculatedField;
 import com.dremio.dac.proto.model.dataset.TransformConvertCase;
-import com.dremio.dac.proto.model.dataset.TransformConvertToSingleType;
 import com.dremio.dac.proto.model.dataset.TransformDrop;
 import com.dremio.dac.proto.model.dataset.TransformExtract;
 import com.dremio.dac.proto.model.dataset.TransformField;
@@ -180,7 +173,6 @@ import com.dremio.dac.proto.model.dataset.TransformJoin;
 import com.dremio.dac.proto.model.dataset.TransformRename;
 import com.dremio.dac.proto.model.dataset.TransformSort;
 import com.dremio.dac.proto.model.dataset.TransformSorts;
-import com.dremio.dac.proto.model.dataset.TransformSplitByDataType;
 import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
@@ -1156,81 +1148,6 @@ public class TestServerExplore extends BaseTestServer {
 
     JobDataFragment data = getData(response3.getPaginationUrl(), 0, 20);
     assertEquals(6, data.getReturnedRowCount());
-  }
-
-  @Test
-  public void testCleanMixedType() throws Exception {
-    DatasetUI dataset1 = createDatasetFromParentAndSave("datasetbuzz", "cp.\"json/mixed_example.json\"");
-
-    doc("get clean data card");
-    CleanDataCard card = expectSuccess(
-        getBuilder(getAPIv2().path(versionedResourcePath(dataset1)).path("clean")).buildPost(entity(new ColumnForCleaning("t"), JSON)),
-        CleanDataCard.class);
-
-    // Convert to single type
-    List<ConvertToSingleType> convertToSingles = card.getConvertToSingles();
-    assertEquals(6, convertToSingles.size());
-    {
-      String actual = "nonmatching ";
-      for (ConvertToSingleType convertToSingleType : convertToSingles) {
-        actual += (convertToSingleType.isCastWhenPossible() ? "cast_" : "") + convertToSingleType.getDesiredType() + "=" + convertToSingleType.getNonMatchingCount() + " ";
-      }
-       assertEquals("nonmatching cast_TEXT=0 TEXT=55 cast_INTEGER=50 INTEGER=55 cast_FLOAT=50 FLOAT=100 ", actual);
-    }
-
-    // split by data type
-    assertEquals(105, card.getAvailableValuesCount());
-    List<SplitByDataType> split = card.getSplit();
-    {
-      String actual = "";
-      for (SplitByDataType splitByDataType : split) {
-        actual += splitByDataType.getType() + "(" + splitByDataType.getMatchingPercent() + ") ";
-      }
-      assertEquals("TEXT(47.61904761904762) INTEGER(47.61904761904762) FLOAT(4.761904761904762) ", actual);
-    }
-
-    doc("preview clean");
-    TransformConvertToSingleType t = new TransformConvertToSingleType("t", "t2", true, TEXT, true, REPLACE_WITH_NULL);
-    InitialPendingTransformResponse preview = transformPeek(dataset1, t);
-
-    assertEquals(asList("t2"), preview.getHighlightedColumns());
-    assertEquals(asList("t"), preview.getDeletedColumns());
-    {
-      doc("clean type transform replace with null");
-      DatasetUI dataset2 = transform(dataset1,
-          new TransformConvertToSingleType("t", "t2", true, TEXT, true, REPLACE_WITH_NULL)).getDataset();
-      assertContains("clean_data_to_text(t, 1, 1, '0') as t2", dataset2.getSql().toLowerCase());
-    }
-    {
-      doc("clean type transform remove non matching");
-      DatasetUI dataset2 = transform(dataset1,
-          new TransformConvertToSingleType("t", "t2", true, TEXT, true, DELETE_RECORDS)).getDataset();
-      assertContains("clean_data_to_text(t, 1, 0, '0') as t2", dataset2.getSql().toLowerCase());
-      assertContains("where is_clean_data(t, 1, 'text')", dataset2.getSql().toLowerCase());
-    }
-    {
-      doc("clean type transform replace with default (invalid default value)");
-      TransformBase transform = new TransformConvertToSingleType("t", "t2", true, TEXT, true, REPLACE_WITH_DEFAULT)
-          .setDefaultValue("");
-      expectError(CLIENT_ERROR, getBuilder(
-          getAPIv2()
-              .path(getPathJoiner().join(versionedResourcePath(dataset1), "transformAndPreview"))
-              .queryParam("newVersion", newVersion())
-          ).buildPost(entity(transform, JSON)), ValidationErrorMessage.class);
-    }
-    {
-      doc("clean type transform replace with default");
-      DatasetUI dataset2 = transform(dataset1,
-          new TransformConvertToSingleType("t", "t2", true, TEXT, true, REPLACE_WITH_DEFAULT).setDefaultValue("bar")
-      ).getDataset();
-      assertContains("clean_data_to_text(t, 1, 0, 'bar') as t2", dataset2.getSql().toLowerCase());
-    }
-    {
-      TransformSplitByDataType s = new TransformSplitByDataType("t", "t_", false).setSelectedTypesList(asList(TEXT, INTEGER));
-      doc("clean type split transform");
-      DatasetUI dataset2 = transform(dataset1, s).getDataset();
-      assertContains("clean_data_to_text(t, 0, 1, '0') as t_text, clean_data_to_integer(t, 0, 1, 0) as t_integer", dataset2.getSql().toLowerCase());
-    }
   }
 
   @Test

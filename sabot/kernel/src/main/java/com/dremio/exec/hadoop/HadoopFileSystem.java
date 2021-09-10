@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.hadoop;
 
+import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
+import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.WEBHDFS_SCHEME;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -84,11 +89,6 @@ public class HadoopFileSystem
   private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
   private static int FORCE_REFRESH_LEVELS_VALUE = Integer.getInteger(FORCE_REFRESH_LEVELS, 2);
 
-  public static final String HDFS_SCHEME = "hdfs";
-  public static final String MAPRFS_SCHEME = "maprfs";
-  public static final String NAS_SCHEME = "file";
-  public static final String WEBHDFS_SCHEME = "webhdfs";
-
   private final ConcurrentMap<FSInputStream, DebugStackTrace> openedFiles = Maps.newConcurrentMap();
 
   private final org.apache.hadoop.fs.FileSystem underlyingFs;
@@ -137,6 +137,18 @@ public class HadoopFileSystem
     return get(fs);
   }
 
+  /**
+   * Get a raw local filesystem which doesn't produce checksum data
+   *
+   * @param fsConf the hadoop configuration
+   * @return a local filesystem writing data without any checksum metadata
+   * @throws IOException
+   */
+  public static FileSystem getRawLocal(Configuration fsConf) throws IOException {
+    org.apache.hadoop.fs.LocalFileSystem fs = org.apache.hadoop.fs.FileSystem.getLocal(fsConf);
+    return get(fs.getRaw());
+  }
+
   public static HadoopFileSystem get(org.apache.hadoop.fs.FileSystem fs) {
     return get(fs, null, false);
   }
@@ -172,7 +184,7 @@ public class HadoopFileSystem
 
   private static boolean isNAS(org.apache.hadoop.fs.FileSystem fs) {
     try {
-      return fs instanceof LocalSyncableFileSystem || NAS_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
+      return fs instanceof LocalSyncableFileSystem || FILE_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
     } catch (UnsupportedOperationException e) {
     }
     return false;

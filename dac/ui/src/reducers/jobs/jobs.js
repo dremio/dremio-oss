@@ -16,11 +16,13 @@
 import Immutable from 'immutable';
 
 import * as ActionTypes from 'actions/jobs/jobs';
+import * as JobListActionTypes from 'actions/joblist/jobList';
 import jobsMapper from 'utils/mappers/jobsMapper';
 import StateUtils from 'utils/stateUtils';
 
 const initialState = Immutable.fromJS({
   jobs: [],
+  jobList: [],
   datasetsList: [],
   dataForFilter: {},
   jobDetails: {},
@@ -96,6 +98,23 @@ export default function jobs(state = initialState, action) {
 
   case ActionTypes.SET_CLUSTER_TYPE:
     return state.set('clusterType', action.payload.clusterType).set('isSupport', action.payload.isSupport);
+  case JobListActionTypes.FETCH_JOBS_LIST_SUCCESS:
+    return StateUtils.success(state, ['jobList'], action.payload, jobsMapper.mapJobs)
+      .set('next', action.payload.next)
+      .set('filters', new Immutable.Map())
+      .set('orderedColumn', new Immutable.Map({ 'columnName': null, 'order': 'desc' }));
+
+  case JobListActionTypes.ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS:
+    return state.setIn(['dataForFilter', action.meta.tag], action.payload.items);
+
+  case JobListActionTypes.LOAD_NEXT_JOBS_LIST_REQUEST:
+    return state.set('isNextJobsInProgress', true);
+  case JobListActionTypes.LOAD_NEXT_JOBS_LIST_SUCCESS:
+    return state.set('isNextJobsInProgress', false)
+      .set('jobList', state.get('jobList').concat(Immutable.fromJS(jobsMapper.mapJobs(action.payload))))
+      .set('next', action.payload.next);
+  case JobListActionTypes.LOAD_NEXT_JOBS_LIST_FAILURE:
+    return state.set('isNextJobsInProgress', false);
   default:
     return state;
   }

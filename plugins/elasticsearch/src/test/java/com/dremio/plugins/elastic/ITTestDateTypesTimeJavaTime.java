@@ -39,9 +39,9 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class ITTestDateTypesTimeJavaTime extends ElasticBaseTestQuery {
 
-  private String format;
-  private DateFormats.FormatterAndTypeJavaTime formatter;
-  private DateTimeFormatter dateTimeFormatter;
+  private final String format;
+  private final DateFormats.FormatterAndTypeJavaTime formatter;
+  private final DateTimeFormatter dateTimeFormatter;
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);

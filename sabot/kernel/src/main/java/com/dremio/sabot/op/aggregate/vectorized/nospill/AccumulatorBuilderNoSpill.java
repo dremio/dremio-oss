@@ -55,17 +55,19 @@ public class AccumulatorBuilderNoSpill {
    * @param incoming Incoming vectors
    * @param outgoing Outgoing vectors
    * @param decimalV2Enabled
+   * @param bufferManager
+   * @param reduceNdvHeap For ndv only, do not preallocate HllSketch objects to save heap
    * @return A Nested accumulator that holds individual sub-accumulators.
    */
   public static AccumulatorNoSpill getAccumulator(BufferAllocator allocator, ClassProducer producer, List<NamedExpression> aggregateExpressions, VectorAccessible incoming,
-                                                  VectorContainer outgoing, boolean decimalV2Enabled, BufferManager bufferManager){
+                                                  VectorContainer outgoing, boolean decimalV2Enabled, BufferManager bufferManager, boolean reduceNdvHeap) {
     final AccumulatorNoSpill[] accums = new AccumulatorNoSpill[aggregateExpressions.size()];
 
     for (int i = 0; i < aggregateExpressions.size(); i++) {
       final NamedExpression ne = aggregateExpressions.get(i);
       final LogicalExpression expr = producer.materialize(ne.getExpr(), incoming);
 
-      if(expr == null || !(expr instanceof FunctionHolderExpr) ){
+      if (expr == null || !(expr instanceof FunctionHolderExpr) ) {
         throw unsup("Accumulation expression is not a function: " + expr.toString());
       }
 
@@ -88,7 +90,7 @@ public class AccumulatorBuilderNoSpill {
       final FieldVector incomingValues = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
       final FieldVector outputVector = TypeHelper.getNewVector(expr.getCompleteType().toField(ne.getRef()), allocator);
       outgoing.add(outputVector);
-      accums[i] = getAccumulator(func.getName(), incomingValues, outputVector, decimalV2Enabled, bufferManager);
+      accums[i] = getAccumulator(func.getName(), incomingValues, outputVector, decimalV2Enabled, bufferManager, reduceNdvHeap);
     }
 
     return new NestedAccumulatorNoSpill(accums);
@@ -96,7 +98,7 @@ public class AccumulatorBuilderNoSpill {
 
   private static AccumulatorNoSpill getAccumulator(String name, FieldVector incomingValues,
                                                    FieldVector outputVector, boolean decimalV2Enabled,
-                                                   BufferManager bufferManager) {
+                                                   BufferManager bufferManager, boolean reduceNdvHeap) {
     final MinorType type = CompleteType.fromField(incomingValues.getField()).toMinorType();
     //String _complete if present.
     String functionName = name.split("_")[0];
@@ -242,49 +244,49 @@ public class AccumulatorBuilderNoSpill {
     case "hll": {
         switch (name) {
           case "hll_merge" :
-            return new NdvAccumulatorsNoSpill.NdvUnionAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.NdvUnionAccumulatorsNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
         }
 
         switch(type){
           case INT:
-            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case FLOAT4:
-            return new NdvAccumulatorsNoSpill.FloatNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.FloatNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case BIGINT:
-            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case FLOAT8:
-            return new NdvAccumulatorsNoSpill.DoubleNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.DoubleNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case DECIMAL:
             if (decimalV2Enabled) {
               return new NdvAccumulatorsNoSpill.DecimalNdvAccumulatorNoSpillV2(incomingValues,
-                outputVector, bufferManager);
+                outputVector, bufferManager, reduceNdvHeap);
             } else {
               return new NdvAccumulatorsNoSpill.DecimalNdvAccumulatorNoSpill(incomingValues,
-                outputVector, bufferManager);
+                outputVector, bufferManager, reduceNdvHeap);
             }
           case BIT:
-            return new NdvAccumulatorsNoSpill.BitNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.BitNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case DATE:
             // dates represented as NullableDateMilli, which are 8-byte values. For purposes of min(), comparisions
             // of NullableDateMilli are the same as comparisons on the underlying long values
-            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case TIME:
             // time represented as NullableTimeMilli, which are 4-byte values. For purposes of min(), comparisons
             // of NullableTimeMilli are the same as comparisons on the underlying int values
-            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case TIMESTAMP:
             // time represented as NullableTimeStampMilli, which are 8-byte values. For purposes of min(), comparisons
             // of NullableTimeStampMilli are the same as comparisons on the underlying long values
-            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case INTERVALDAY:
-            return new NdvAccumulatorsNoSpill.IntervalDayNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.IntervalDayNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case INTERVALYEAR:
             // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
             // in the interval. Comparisons are the same as comparisons on the underlying int values
-            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
           case VARCHAR:
           case VARBINARY:
-            return new NdvAccumulatorsNoSpill.VarLenNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+            return new NdvAccumulatorsNoSpill.VarLenNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager, reduceNdvHeap);
         }
         break;
      }

@@ -19,11 +19,16 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.text.StrTokenizer;
@@ -33,6 +38,8 @@ import com.dremio.io.file.Path;
 import com.github.slugify.Slugify;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 /**
@@ -317,5 +324,46 @@ public class PathUtils {
     } else {
       return path;
     }
+  }
+
+  public static String removeTrailingSlash(String path) {
+    if (path.length() > 0 && path.charAt(path.length() - 1) == '/') {
+      String newPath = path.substring(0, path.length() - 1);
+      return removeTrailingSlash(newPath);
+    } else {
+      return path;
+    }
+  }
+
+  /**
+   * Removes query params from the path URL; assuming path URL is scheme:/path?qparam=qval
+   * For this example, it'll return scheme:/path
+   *
+   * @param fullPath non null path
+   * @return
+   */
+  public static String withoutQueryParams(String fullPath) {
+    return fullPath.split("\\?")[0];
+  }
+
+  /**
+   * Gets a query param out of inputs. Example input - scheme:/path?qparam=qval
+   *
+   * @param fullPath
+   * @param paramName
+   * @param defaultVal
+   * @param conversionFromString
+   * @param <T>
+   * @return
+   */
+  public static <T> T getQueryParam(String fullPath, String paramName, T defaultVal, Function<String, T> conversionFromString) {
+    final String[] splitOnQuery = fullPath.split("\\?");
+    if (splitOnQuery.length < 2) {
+      return defaultVal;
+    }
+
+    final String queryParams = splitOnQuery[1];
+    final Map<String, String> map = Splitter.on('&').withKeyValueSeparator("=").split(checkNotNull(queryParams));
+    return map.containsKey(paramName) ? conversionFromString.apply(map.get(paramName)):defaultVal;
   }
 }

@@ -83,6 +83,13 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
+  public void getActiveJobs(com.dremio.service.job.ActiveJobsRequest request,
+                            io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary> responseObserver) {
+    getJobsService().getActiveJobs(request).forEach(responseObserver::onNext);
+    responseObserver.onCompleted();
+  }
+
+  @Override
   public void getJobsForParent(JobsWithParentDatasetRequest request, StreamObserver<JobDetails> responseObserver) {
     getJobsService().getJobsForParent(request).forEach(responseObserver::onNext);
     responseObserver.onCompleted();

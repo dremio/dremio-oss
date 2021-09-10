@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -62,6 +63,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.hadoop.HadoopFileSystem;
@@ -78,12 +80,11 @@ import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.iceberg.IcebergModelCreator;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.nessie.IcebergNessieModel;
-import com.dremio.exec.store.metadatarefresh.DatasetCatalogGrpcClient;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
@@ -109,6 +110,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import com.google.inject.AbstractModule;
@@ -118,6 +120,9 @@ public class BaseTestQuery extends ExecTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestQuery.class);
 
   protected static final String TEMP_SCHEMA = "dfs_test";
+  protected static final String TEMP_SCHEMA_HADOOP = "dfs_test_hadoop";
+
+  protected static final Set<String> SCHEMAS_FOR_TEST = Sets.newHashSet(TEMP_SCHEMA, TEMP_SCHEMA_HADOOP);
 
   protected static final int MAX_WIDTH_PER_NODE = 2;
   private static final Random random = new Random();
@@ -295,7 +300,7 @@ public class BaseTestQuery extends ExecTest {
       nodes[i] = SABOT_NODE_RULE.newSabotNode(new SabotProviderConfig(i == 0));
       nodes[i].run();
       if(i == 0) {
-        TestUtilities.addDefaultTestPlugins(nodes[i].getContext().getCatalogService(), dfsTestTmpSchemaLocation);
+        TestUtilities.addDefaultTestPlugins(nodes[i].getContext().getCatalogService(), dfsTestTmpSchemaLocation, true);
       }
     }
 
@@ -725,9 +730,24 @@ public class BaseTestQuery extends ExecTest {
 
   protected static AutoCloseable enableIcebergTables() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
-    return () ->
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "true");
+    return () -> {
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG,
+        ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
+  protected static AutoCloseable enableIcebergTablesNoCTAS() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "false");
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_ICEBERG,
+        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG,
+        ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
+    };
   }
 
   protected static AutoCloseable disablePartitionPruning() {
@@ -737,11 +757,27 @@ public class BaseTestQuery extends ExecTest {
         PlannerSettings.ENABLE_PARTITION_PRUNING.getDefault().getBoolVal().toString());
   }
 
-  protected static AutoCloseable enableV2Execution() {
-    setSystemOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION, "true");
-    return () ->
-            setSystemOption(PlannerSettings.ENABLE_ICEBERG_EXECUTION,
-                    PlannerSettings.ENABLE_ICEBERG_EXECUTION.getDefault().getBoolVal().toString());
+  protected static AutoCloseable disableUnlimitedSplitsSupportFlags() {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "false");
+    return () -> {
+      setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
+              PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+    };
+  }
+
+  protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
+    setSystemOption(ExecConstants.MIXED_TYPES_DISABLED, "true");
+
+    return () -> {
+      setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
+        PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.ENABLE_ICEBERG,
+        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.MIXED_TYPES_DISABLED,
+              ExecConstants.MIXED_TYPES_DISABLED.getDefault().getBoolVal().toString());
+    };
   }
 
   protected static AutoCloseable enableDeltaLake() {
@@ -830,6 +866,14 @@ public class BaseTestQuery extends ExecTest {
         ExecConstants.PARQUET_READER_VECTORIZE.getDefault().getBoolVal().toString());
   }
 
+  protected static AutoCloseable setMaxLeafColumns(long newVal) {
+    setSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, String.valueOf(newVal));
+
+    return () -> {
+      setSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX,
+              CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getValue().toString());
+    };
+  }
 
   public static class SilentListener implements UserResultsListener {
     private final AtomicInteger count = new AtomicInteger();
@@ -1042,12 +1086,10 @@ public class BaseTestQuery extends ExecTest {
     Assert.assertThat(getValueInFirstRecord(query, column), CoreMatchers.containsString(expected));
   }
 
-  protected IcebergModel getIcebergModel(File tableRoot) {
+  protected static IcebergModel getIcebergModel(File tableRoot, IcebergCatalogType catalogType) {
     FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-    IcebergCatalogType catalogType = IcebergModelCreator.getIcebergCatalogType(new Configuration(), getSabotContext());
     IcebergModel icebergModel = null;
     switch (catalogType) {
-
       case UNKNOWN:
         break;
       case NESSIE:
@@ -1065,8 +1107,12 @@ public class BaseTestQuery extends ExecTest {
     return icebergModel;
   }
 
-  protected Table getIcebergTable(File tableRoot) {
-    IcebergModel icebergModel = getIcebergModel(tableRoot);
+  public static Table getIcebergTable(File tableRoot, IcebergCatalogType catalogType) {
+    IcebergModel icebergModel = getIcebergModel(tableRoot, catalogType);
     return icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
+  }
+
+  public static Table getIcebergTable(File tableRoot) {
+    return getIcebergTable(tableRoot, IcebergCatalogType.NESSIE);
   }
 }

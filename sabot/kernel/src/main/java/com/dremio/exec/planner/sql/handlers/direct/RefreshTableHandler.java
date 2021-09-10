@@ -29,37 +29,58 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshQuery;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
- * Handler for <code>REFRESH TABLE tblname</code> command.
+ * Handler for {@link SqlRefreshTable} command.
  */
 public class RefreshTableHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
-  private final boolean allowPartialRefresh;
+  private final String queryUserName;
+  private final boolean allowUnlimitedSplits;
+  private final NamespaceService namespaceService;
 
-  public RefreshTableHandler(Catalog catalog, boolean allowPartialRefresh) {
+  public RefreshTableHandler(Catalog catalog, NamespaceService namespaceService,
+                             boolean allowUnlimitedSplits, String queryUserName) {
     this.catalog = catalog;
-    this.allowPartialRefresh = allowPartialRefresh;
+    this.allowUnlimitedSplits = allowUnlimitedSplits;
+    this.queryUserName = queryUserName;
+    this.namespaceService = namespaceService;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlRefreshTable sqlRefreshTable = SqlNodeUtil.unwrap(sqlNode, SqlRefreshTable.class);
 
-    if (!allowPartialRefresh) {
-      if (isOptionEnabled(sqlRefreshTable.getAllFilesRefresh()) || isOptionEnabled(sqlRefreshTable.getFileRefresh()) ||
+    if (isOptionEnabled(sqlRefreshTable.getFileRefresh())) {
+      throw UserException.validationError().message("Refresh metadata for files are not supported").buildSilently();
+    }
+
+    if (!allowUnlimitedSplits) {
+      if (isOptionEnabled(sqlRefreshTable.getAllFilesRefresh()) ||
           isOptionEnabled(sqlRefreshTable.getAllPartitionsRefresh()) || isOptionEnabled(sqlRefreshTable.getPartitionRefresh())) {
-        throw new UnsupportedOperationException("Refresh Metadata feature not yet implemented.");
+        throw new UnsupportedOperationException(String.format(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName() + " should be enabled for" +
+          " ALL FILES/PARTITION, per-partition refresh"));
       }
     }
 
-    final NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
+    NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
+    DatasetConfig datasetConfig = getConfigFromNamespace(tableNSKey);
+    if (datasetConfig != null) {
+      tableNSKey = new NamespaceKey(datasetConfig.getFullPathList());
+    }
 
     DatasetRetrievalOptions.Builder builder = DatasetRetrievalOptions.newBuilder();
     if (sqlRefreshTable.getDeleteUnavail().getValue() != null) {
@@ -77,6 +98,8 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     } else if (isOptionEnabled(sqlRefreshTable.getPartitionRefresh())) {
       builder.setPartition(createPartitionMap(sqlRefreshTable));
     }
+
+    builder.setRefreshQuery(new MetadataRefreshQuery(sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()), queryUserName));
 
     UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build());
 
@@ -121,5 +144,15 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     });
 
     return partition;
+  }
+
+  private DatasetConfig getConfigFromNamespace(NamespaceKey key) {
+    try {
+      return namespaceService.getDataset(key);
+    } catch(NamespaceNotFoundException ex) {
+      return null;
+    } catch(NamespaceException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

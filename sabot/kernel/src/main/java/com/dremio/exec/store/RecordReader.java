@@ -20,32 +20,34 @@ import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
-import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.collect.Lists;
 
 public interface RecordReader extends AutoCloseable {
   String SPLIT_IDENTITY = "splitsIdentity";
   String SPLIT_INFORMATION = "splits";
   String COL_IDS = "colIds";
   String DATAFILE_PATH = "datafilePath";
+
   BatchSchema SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA = BatchSchema.newBuilder()
-    .addField(MajorTypeHelper.getFieldForNameAndMajorType(SPLIT_IDENTITY, Types.optional(MinorType.VARBINARY)))
-    .addField(MajorTypeHelper.getFieldForNameAndMajorType(SPLIT_INFORMATION, Types.optional(MinorType.VARBINARY)))
-    .addField(MajorTypeHelper.getFieldForNameAndMajorType(COL_IDS, Types.optional(MinorType.VARBINARY)))
+    .addField(new Field(SPLIT_IDENTITY, FieldType.nullable(Types.MinorType.STRUCT.getType()), Lists.newArrayList(
+      Field.nullable(SplitIdentity.PATH, Types.MinorType.VARCHAR.getType()),
+      Field.nullable(SplitIdentity.OFFSET, Types.MinorType.BIGINT.getType()),
+      Field.nullable(SplitIdentity.LENGTH, Types.MinorType.BIGINT.getType()),
+      Field.nullable(SplitIdentity.FILE_LENGTH, Types.MinorType.BIGINT.getType()))))
+    .addField(Field.nullable(SPLIT_INFORMATION, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(COL_IDS, Types.MinorType.VARBINARY.getType()))
     .setSelectionVectorMode(SelectionVectorMode.NONE)
     .build();
 
-  BatchSchema MANIFEST_SCAN_TABLE_FUNCTION_SCHEMA = BatchSchema.newBuilder()
-    .addField(MajorTypeHelper.getFieldForNameAndMajorType(DATAFILE_PATH, Types.optional(MinorType.VARCHAR)))
-    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
-      .build();
 
   /**
    * Configure the RecordReader with the provided schema and the record batch that should be written to.

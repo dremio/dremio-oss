@@ -43,6 +43,9 @@ public class MetadataAccumulator {
 
   private boolean allFSBasedPartitions;
   private boolean allowParquetNative;
+  private boolean allPartitionsUseSameInputFormat;
+  private Class<? extends InputFormat> currentInputFormat;
+  private String tableLocation;
 
   public MetadataAccumulator() {
     this.datasetStats = new HiveDatasetStats();
@@ -50,6 +53,7 @@ public class MetadataAccumulator {
     this.partitionHashes = new ArrayList<>();
     this.allFSBasedPartitions = true;
     this.allowParquetNative = true;
+    this.allPartitionsUseSameInputFormat = true;
 
     inputFormatDictionary = new DictionaryBuilder<>(String.class);
     serializationLibDictionary = new DictionaryBuilder<>(String.class);
@@ -113,6 +117,11 @@ public class MetadataAccumulator {
   }
 
   public void accumulateReaderType(Class<? extends InputFormat> inputFormat) {
+    if (currentInputFormat == null) {
+      currentInputFormat = inputFormat;
+    }
+    allPartitionsUseSameInputFormat = HiveMetadataUtils.isInputFormatEqual(
+            allPartitionsUseSameInputFormat,currentInputFormat, inputFormat);
     allowParquetNative = HiveMetadataUtils.allowParquetNative(allowParquetNative, inputFormat);
     datasetStats.setAllowParquetNative(allowParquetNative);
   }
@@ -133,6 +142,10 @@ public class MetadataAccumulator {
     return allFSBasedPartitions;
   }
 
+  public boolean isAllPartitionsUseSameInputFormat() {
+    return allPartitionsUseSameInputFormat;
+  }
+
   public HiveReaderProto.ReaderType getReaderType() {
     if (allowParquetNative) {
       return HiveReaderProto.ReaderType.NATIVE_PARQUET;
@@ -145,6 +158,14 @@ public class MetadataAccumulator {
     this.allFSBasedPartitions = false;
   }
 
+  public String getTableLocation() {
+    return tableLocation;
+  }
+
+  public void setTableLocation(String tableLocation) {
+    this.tableLocation = tableLocation;
+  }
+
   public int getPartitionHash() {
     if (partitionHashes.isEmpty()) {
       return 0;
@@ -152,6 +173,10 @@ public class MetadataAccumulator {
 
     Collections.sort(partitionHashes);
     return Objects.hashCode(partitionHashes);
+  }
+
+  public Class<? extends InputFormat> getCurrentInputFormat() {
+    return currentInputFormat;
   }
 
   public Iterable<String> buildInputFormatDictionary() {

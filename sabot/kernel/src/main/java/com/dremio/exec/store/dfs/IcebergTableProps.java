@@ -29,11 +29,14 @@ public class IcebergTableProps {
   private String tableLocation;
   private final String uuid;
   private BatchSchema fullSchema;
+  private BatchSchema persistedFullSchema;
   private List<String> partitionColumnNames;
   private IcebergCommandType icebergOpType;
   private String tableName;
+  private String dataTableLocation;
   private boolean detectSchema;
   private boolean isMetadataRefresh;
+  private List<String> partitionPaths;
 
   @JsonCreator
   public IcebergTableProps(
@@ -42,7 +45,8 @@ public class IcebergTableProps {
     @JsonProperty("fullSchema") BatchSchema fullSchema,
     @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
     @JsonProperty("icebergOpType") IcebergCommandType icebergOpType,
-    @JsonProperty("tableName") String tableName
+    @JsonProperty("tableName") String tableName,
+    @JsonProperty("dataTableLocation") String dataTableLocation
     ) {
       this.tableLocation = tableLocation;
       this.uuid = uuid;
@@ -50,6 +54,7 @@ public class IcebergTableProps {
       this.partitionColumnNames = partitionColumnNames;
       this.icebergOpType = icebergOpType;
       this.tableName = tableName;
+    this.dataTableLocation = dataTableLocation;
   }
 
   public IcebergTableProps(final IcebergTableProps other){
@@ -57,10 +62,12 @@ public class IcebergTableProps {
     this.tableLocation = other.tableLocation;
     this.uuid = other.uuid;
     this.fullSchema = other.fullSchema;
+    this.persistedFullSchema = other.persistedFullSchema;
     this.icebergOpType = other.icebergOpType;
     this.tableName = other.tableName;
     this.detectSchema = other.detectSchema;
     this.isMetadataRefresh = other.isMetadataRefresh;
+    this.partitionPaths = other.partitionPaths;
   }
 
   public String getTableLocation() {
@@ -75,12 +82,20 @@ public class IcebergTableProps {
     return fullSchema;
   }
 
+  public BatchSchema getPersistedFullSchema() {
+    return persistedFullSchema;
+  }
+
   public IcebergCommandType getIcebergOpType() {
     return icebergOpType;
   }
 
   public void setFullSchema(BatchSchema schema) {
     this.fullSchema = schema;
+  }
+
+  public void setPersistedFullSchema(BatchSchema schema) {
+    this.persistedFullSchema = schema;
   }
 
   void setTableLocation(String tableFolder) {
@@ -113,6 +128,18 @@ public class IcebergTableProps {
 
   public void setMetadataRefresh(boolean metadataRefresh) {
     isMetadataRefresh = metadataRefresh;
+  }
+
+  public List<String> getPartitionPaths() {
+    return partitionPaths;
+  }
+
+  public void setPartitionPaths(List<String> partitionPaths) {
+    this.partitionPaths = partitionPaths;
+  }
+
+  public String getDataTableLocation() {
+    return dataTableLocation;
   }
 
   @JsonIgnore

@@ -18,6 +18,7 @@ package com.dremio.exec.store.metadatarefresh.footerread;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -35,13 +36,13 @@ import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.logging.log4j.util.TriConsumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -49,10 +50,11 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.config.FooterReaderTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
@@ -67,6 +69,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
@@ -81,7 +84,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
   private static long currentTime;
   private VectorContainer incoming;
   private VectorAccessible outgoing;
-  private TriConsumer<String, Long, Long> incomingRow;
+  private IncomingRowConsumer<String, Long, Long, Integer, Boolean> incomingRow;
   private VarBinaryVector partitionVector;
 
   @BeforeClass
@@ -95,21 +98,18 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     VarCharVector pathVector = new VarCharVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH, allocator);
     BigIntVector sizeVector = new BigIntVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE, allocator);
     BigIntVector mtimeVector = new BigIntVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME, allocator);
-    BitVector isDeletedFile = new BitVector(MetadataRefreshExecConstants.isDeletedFile, allocator);
+    BitVector isDeletedFile = new BitVector(MetadataRefreshExecConstants.IS_DELETED_FILE, allocator);
     partitionVector = new VarBinaryVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.PARTITION_INFO, allocator);
     incoming = new VectorContainer();
     List<ValueVector> incomingVectors = ImmutableList.of(pathVector, sizeVector, mtimeVector, partitionVector, isDeletedFile);
     incoming.addCollection(incomingVectors);
     incomingVectors.forEach(ValueVector::allocateNew);
 
-    AtomicInteger counter = new AtomicInteger(0);
-    Path tableRoot = Path.of(Resources.getResource("parquet/").toURI());
-    incomingRow = (path, size, mtime) -> {
-      int idx = counter.getAndIncrement();
-      pathVector.set(idx, tableRoot.resolve(path).toString().getBytes(StandardCharsets.UTF_8));
-      sizeVector.set(idx, size);
-      mtimeVector.set(idx, mtime);
-      isDeletedFile.set(idx, 0);
+    incomingRow = (path, size, mtime, index, isAdded) -> {
+      pathVector.set(index, path.getBytes(StandardCharsets.UTF_8));
+      sizeVector.set(index, size);
+      mtimeVector.set(index, mtime);
+      isDeletedFile.set(index, isAdded?0:1);
     };
   }
 
@@ -120,17 +120,16 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
   }
 
   @Test
-  public void testFooterReadTableFunctionForFSTables() {
-    FooterReadTableFunction tableFunction = new FooterReadTableFunction(null, getOpCtx(), null, getConfig(null));
+  public void testFooterReadTableFunctionForFSTables() throws URISyntaxException, ExecutionSetupException {
+    FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, getConfig(null, FileType.PARQUET));
     tableFunction.setFs(fs);
-
-    incomingRow.accept("int96.parquet", 431L, currentTime);
-    incomingRow.accept("decimals.parquet", 12219L, currentTime);
-    incomingRow.accept("intTypes/int_8.parquet", 343L, currentTime);
-    incomingRow.accept("empty.parquet", 0L, currentTime);
-    incomingRow.accept("complex.parquet", 817L, currentTime);
-    incomingRow.accept("alltypes.json", 5097L, currentTime);
-    incomingRow.accept("arrl_2.parquet", 1062L, currentTime); // this requires reading records to figure out schema
+    AtomicInteger counter = new AtomicInteger(0);
+    incomingRow.accept(getFullPath("int96.parquet", FileType.PARQUET), 431L, currentTime, counter.getAndIncrement(),true);
+    incomingRow.accept(getFullPath("decimals.parquet", FileType.PARQUET), 12219L, currentTime,counter.getAndIncrement(), true);
+    incomingRow.accept(getFullPath("intTypes/int_8.parquet", FileType.PARQUET), 343L, currentTime, counter.getAndIncrement(), true);
+    incomingRow.accept(getFullPath("empty.parquet", FileType.PARQUET), 0L, currentTime, counter.getAndIncrement(), true);
+    incomingRow.accept(getFullPath("complex.parquet", FileType.PARQUET), 817L, currentTime, counter.getAndIncrement(), true);
+    incomingRow.accept(getFullPath("arrl_2.parquet", FileType.PARQUET), 1062L, currentTime, counter.getAndIncrement(), true); // this requires reading records to figure out schema
 
     try {
       BatchSchema file0Schema = BatchSchema.of(
@@ -169,21 +168,48 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       tableFunction.startRow(0);
       assertEquals(1, tableFunction.processRow(0, 5));
 
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), file0Schema, file0PartitionData);
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), file0Schema, file0PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
 
       assertEquals(0, tableFunction.processRow(1, 5)); // one input row returns at most output 1 row
+      tableFunction.closeRow();
+
+      //Validate output for Deleted File at index 0
+      BatchSchema deletedFile0Schema = BatchSchema.of(
+              Field.nullablePrimitive("dir0", new ArrowType.PrimitiveType.Utf8()),
+              Field.nullablePrimitive("dir1", new ArrowType.PrimitiveType.Utf8()));
+      incomingRow.accept(getFullPath("int96.parquet", FileType.PARQUET), 431L, currentTime, 0, false);
+      tableFunction.startRow(0);
+      assertEquals(1, tableFunction.processRow(0, 5));
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), deletedFile0Schema, file0PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE);
       tableFunction.closeRow();
 
       tableFunction.startRow(1);
       assertEquals(1, tableFunction.processRow(1, 5));
       verifyOutput(outputDatafileVector.get(1), outputSchemaVector.get(1),
         BatchSchema.of(Field.nullable("EXPR$0", new ArrowType.Decimal(32, 20))),
-        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()));
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      tableFunction.closeRow();
+
+      //Validate output for Deleted File at index 1
+      incomingRow.accept(getFullPath("decimals.parquet", FileType.PARQUET), 12219L, currentTime, 1, false);
+      tableFunction.startRow(1);
+      assertEquals(1, tableFunction.processRow(1, 5));
+      verifyOutput(outputDatafileVector.get(1), outputSchemaVector.get(1), BatchSchema.EMPTY, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE);
       tableFunction.closeRow();
 
       tableFunction.startRow(2);
       assertEquals(1, tableFunction.processRow(2, 5));
-      verifyOutput(outputDatafileVector.get(2), outputSchemaVector.get(2), file2Schema, file2PartitionData);
+      verifyOutput(outputDatafileVector.get(2), outputSchemaVector.get(2), file2Schema, file2PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      tableFunction.closeRow();
+
+      //Validate output for Deleted File at index 2
+      BatchSchema deletedFile2Schema = BatchSchema.of(
+              Field.nullablePrimitive("dir0", new ArrowType.PrimitiveType.Int(32, true)),
+              Field.nullablePrimitive("dir1", new ArrowType.PrimitiveType.Int(32, true)));
+      incomingRow.accept(getFullPath("intTypes/int_8.parquet", FileType.PARQUET), 343L, currentTime, 2, false);
+      tableFunction.startRow(2);
+      assertEquals(1, tableFunction.processRow(2, 5));
+      verifyOutput(outputDatafileVector.get(2), outputSchemaVector.get(2), deletedFile2Schema, file2PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE);
       tableFunction.closeRow();
 
       // empty parquet, outputs 0 rows
@@ -195,15 +221,12 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       assertEquals(1, tableFunction.processRow(3, 5));
       tableFunction.closeRow();
 
-      // json, outputs 0 rows
       tableFunction.startRow(5);
-      assertEquals(0, tableFunction.processRow(4, 5));
-      tableFunction.closeRow();
-
-      tableFunction.startRow(6);
       assertEquals(1, tableFunction.processRow(4, 5));
       tableFunction.closeRow();
 
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("Unable to read footer for file"));
     } catch (Exception e) {
       e.printStackTrace();
       fail(e.getMessage());
@@ -211,13 +234,13 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
   }
 
   @Test
-  public void testFooterReadTableFunctionForHiveTables() {
-    incomingRow.accept("int96.parquet", 431L, currentTime);
+  public void testFooterReadTableFunctionForHiveTables() throws URISyntaxException, ExecutionSetupException {
+    incomingRow.accept(getFullPath("int96.parquet", FileType.PARQUET), 431L, currentTime, 0, true);
     // For hive case, we are setting the table schema to later check that outputSchemaVector returns the same schema
     // and doesn't learns the schema from the input file.
     BatchSchema tableSchema = BatchSchema.EMPTY;
-    TableFunctionConfig tableFunctionConfig = getConfig(tableSchema);
-    FooterReadTableFunction tableFunction = new FooterReadTableFunction(null, getOpCtx(), null, tableFunctionConfig);
+    TableFunctionConfig tableFunctionConfig = getConfig(tableSchema, FileType.PARQUET);
+    FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, tableFunctionConfig);
     tableFunction.setFs(fs);
 
     try {
@@ -234,7 +257,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       tableFunction.startRow(0);
 
       assertEquals(1, tableFunction.processRow(0, 5));
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), tableSchema, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()));
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), tableSchema, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
     }
     catch (Exception e) {
       e.printStackTrace();
@@ -242,13 +265,58 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testFooterReadTableFunctionForUnions() throws URISyntaxException, ExecutionSetupException {
+    incomingRow.accept(getFullPath("union_bigint_varchar_col2.parquet", FileType.PARQUET), 1507L, currentTime, 0, true);
+    FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, getConfig(null, FileType.PARQUET));
+    tableFunction.setFs(fs);
+
+    try {
+      incoming.setAllCount(2);
+      incoming.buildSchema();
+      outgoing = tableFunction.setup(incoming);
+
+      VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
+
+      VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+
+      tableFunction.startRow(0);
+      assertEquals(1, tableFunction.processRow(0, 5));
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0),
+        BatchSchema.of(Field.nullable("col1", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), Field.nullable("col2", new ArrowType.Utf8())),
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      tableFunction.closeRow();
+    } catch (Exception e) {
+      fail(e.getMessage());
+    }
+  }
+
+  @Test
+  public void testAvroEstimater() throws Exception {
+    BatchSchema tableSchema = BatchSchema.of(
+      Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
+      Field.nullablePrimitive("col2", new ArrowType.PrimitiveType.Int(32, true)),
+      Field.nullablePrimitive("col3", new ArrowType.PrimitiveType.Bool()));
+    AvroRowCountEstimater reader = new AvroRowCountEstimater(tableSchema, getOpCtx());
+    Path fileRoot = Path.of(Resources.getResource("avro/").toURI());
+    String file1 = fileRoot.resolve("avro1.avro").toString();
+    Footer footer = reader.getFooter(file1, 300l);
+    assertTrue(footer.getRowCount() > 0);
+    long file1RowCount = footer.getRowCount();
+
+    String file2 = fileRoot.resolve("avro5").toString();
+    footer = reader.getFooter(file2, 340l);
+    assertTrue(footer.getRowCount() > file1RowCount);
+  }
 
   private void verifyOutput(byte[] outputDataFileBinary, byte[] outputSchemaBinary, BatchSchema expectedSchema,
-                            IcebergPartitionData expectedPartitionData) throws IOException, ClassNotFoundException {
+                            IcebergPartitionData expectedPartitionData, IcebergMetadataInformation.IcebergMetadataFileType metadataFileType) throws IOException, ClassNotFoundException {
     BatchSchema actualSchema = BatchSchema.deserialize(outputSchemaBinary);
     assertTrue(expectedSchema.equalsTypesWithoutPositions(actualSchema));
     IcebergMetadataInformation icebergMetaInfo = IcebergSerDe.deserializeFromByteArray(outputDataFileBinary);
-    assertEquals(IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE, icebergMetaInfo.getIcebergMetadataFileType());
+    assertEquals(metadataFileType, icebergMetaInfo.getIcebergMetadataFileType());
     DataFile actualDataFile = IcebergSerDe.deserializeDataFile(icebergMetaInfo.getIcebergMetadataFileByte());
     int partitions = actualDataFile.partition().size();
     assertEquals(expectedPartitionData.size(), actualDataFile.partition().size());
@@ -259,29 +327,61 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     }
   }
 
+  private DataFile getDataFile(byte[] outputDataFileBinary) throws IOException, ClassNotFoundException {
+    IcebergMetadataInformation icebergMetaInfo = IcebergSerDe.deserializeFromByteArray(outputDataFileBinary);
+    DataFile actualDataFile = IcebergSerDe.deserializeDataFile(icebergMetaInfo.getIcebergMetadataFileByte());
+    return actualDataFile;
+  }
+
   private static final Function<BatchSchema, List<SchemaPath>> pathsOfSchemaFields = (schema) -> schema.getFields()
     .stream()
     .map(f -> SchemaPath.getSimplePath(f.getName()))
     .collect(Collectors.toList());
 
-  private static TableFunctionConfig getConfig(BatchSchema tableSchema) {
+  private static TableFunctionConfig getConfig(BatchSchema tableSchema, FileType fileType) {
 
     FileConfig fileConfig = new FileConfig();
-    fileConfig.setType(FileType.PARQUET);
+    fileConfig.setType(fileType);
 
-    TableFunctionContext functionContext = mock(TableFunctionContext.class);
+    FooterReaderTableFunctionContext functionContext = mock(FooterReaderTableFunctionContext.class);
+    when(functionContext.getFileType()).thenReturn(fileType);
     when(functionContext.getFullSchema()).thenReturn(MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.BATCH_SCHEMA);
     when(functionContext.getColumns()).thenReturn(pathsOfSchemaFields.apply(MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.BATCH_SCHEMA));
     when(functionContext.getFormatSettings()).thenReturn(fileConfig);
     when(functionContext.getTableSchema()).thenReturn(tableSchema);
+    when(functionContext.getTablePath()).thenReturn(Arrays.asList(Arrays.asList("dir1", "table1")));
 
     return new TableFunctionConfig(TableFunctionConfig.FunctionType.FOOTER_READER, true,
       functionContext);
   }
 
+  private FragmentExecutionContext getFragmentExecutionContext() throws ExecutionSetupException {
+    FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
+    when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(null);
+    return fragmentExecutionContext;
+  }
+
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+  }
+
+  private String getFullPath(String fileName, FileType fileType) throws URISyntaxException {
+    Path tableRoot;
+    switch (fileType) {
+      case PARQUET:
+        tableRoot = Path.of(Resources.getResource("parquet/").toURI());
+        return tableRoot.resolve(fileName).toString();
+      case AVRO:
+        tableRoot = Path.of(Resources.getResource("avro/").toURI());
+        return tableRoot.resolve(fileName).toString();
+      default:
+        throw new UnsupportedOperationException(String.format("Unknown file type - %s", fileType));
+    }
+  }
+
+  private interface IncomingRowConsumer<A, B, C, D, E> {
+    void accept(A path, B size, C mTime, D index, E isAdded);
   }
 }
 

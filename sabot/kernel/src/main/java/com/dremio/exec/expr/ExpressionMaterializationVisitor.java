@@ -698,6 +698,7 @@ class ExpressionMaterializationVisitor
     case INTERVAL:
     case INTERVALDAY:
     case INTERVALYEAR:
+    case NULL:
       // nothing else matters.
       return true;
     case DECIMAL:

@@ -60,6 +60,7 @@ import com.google.common.collect.Sets;
 
 public class HiveSchemaConverter {
 
+  private static Set<Category> ORC_SUPPORTED_TYPES = Sets.newHashSet(LIST, STRUCT, PRIMITIVE);
   private static Set<Category> PARQUET_SUPPORTED_TYPES = Sets.newHashSet(LIST, STRUCT, PRIMITIVE);
   private static boolean isTypeNotSupported(InputFormat<?,?> format, Category category, boolean includeParquetComplexTypes) {
     // No restrictions on primitive types
@@ -73,7 +74,7 @@ public class HiveSchemaConverter {
     }
 
     // All complex types supported in Orc
-    if (format instanceof OrcInputFormat) {
+    if (format instanceof OrcInputFormat && ORC_SUPPORTED_TYPES.contains(category)) {
       return false;
     }
 

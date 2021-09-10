@@ -92,6 +92,12 @@ public class DremioConfig extends NestedConfig {
   public static final String PLAN_CACHE_MAX_ENTRIES = "dremio.plan.cache.max_entries";
 
   /**
+   * Config values related to statistics caching
+   */
+  public static final String STATISTICS_CACHE_TIMEOUT_MINUTES = "dremio.statistics.cache.timeout_minutes";
+  public static final String STATISTICS_CACHE_MAX_ENTRIES = "dremio.statistics.cache.max_entries";
+
+  /**
    * Path where ui config is located
    */
   public static final String WEB_UI_SERVICE_CONFIG = "services.coordinator.web.ui";
@@ -197,6 +203,7 @@ public class DremioConfig extends NestedConfig {
   // liveness
   public static final String LIVENESS_ENABLED = "services.web-admin.enabled";
   public static final String LIVENESS_PORT = "services.web-admin.port";
+  public static final String LIVENESS_HOST = "services.web-admin.host";
 
   // yarn watchdog
   public static final String POLL_TIMEOUT_MS = "provisioning.yarn.watchdog.poll.timeout";

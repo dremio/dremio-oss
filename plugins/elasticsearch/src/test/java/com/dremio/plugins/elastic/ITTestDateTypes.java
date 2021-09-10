@@ -18,14 +18,12 @@ package com.dremio.plugins.elastic;
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,9 +48,9 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestDateTypes.class);
 
-  private String format;
-  private FormatterAndType formatter;
-  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME));
+  private final String format;
+  private final FormatterAndType formatter;
+  private final static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME));
   private static Level originalLogLevel;
 
   @Rule
@@ -107,12 +105,6 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
     data.add(new Object[]{"basic_ordinal_date_time"});
     data.add(new Object[]{"basicOrdinalDateTimeNoMillis"});        // yyyyDDD’T'HHmmssZ
     data.add(new Object[]{"basic_ordinal_date_time_no_millis"});
-    data.add(new Object[]{"basicWeekDate"});                       // xxxx’W'wwe
-    data.add(new Object[]{"basic_week_date"});
-    data.add(new Object[]{"basicWeekDateTime"});                   // xxxx’W'wwe’T'HHmmss.SSSZ
-    data.add(new Object[]{"basic_week_date_time"});
-    data.add(new Object[]{"basicWeekDateTimeNoMillis"});          // xxxx’W'wwe’T'HHmmssZ
-    data.add(new Object[]{"basic_week_date_time_no_millis"});
     data.add(new Object[]{"date"});                                // yyyy-MM-dd
     data.add(new Object[]{"dateHour"});
     data.add(new Object[]{"date_hour"});
@@ -151,12 +143,6 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
     data.add(new Object[]{"week_date_time"});
     data.add(new Object[]{"week_date_time_no_millis"});
     data.add(new Object[]{"weekDateTimeNoMillis"});
-    data.add(new Object[]{"weekyear"});
-    data.add(new Object[]{"week_year"});
-    data.add(new Object[]{"weekyear_week"});
-    data.add(new Object[]{"weekyearWeek"});
-    data.add(new Object[]{"weekyear_week_day"});
-    data.add(new Object[]{"weekyearWeekDay"});
     data.add(new Object[]{"year"});
     data.add(new Object[]{"yearMonth"});
     data.add(new Object[]{"year_month"});
@@ -168,27 +154,20 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
   @Test
   public void runTest() throws Exception {
     LocalDateTime dt = new LocalDateTime(System.currentTimeMillis());
-    String value1 = formatter.print(dt);
+    final String value1 = formatter.dateFormatString(dt);
     logger.info(value1);
     dt = dt.plusYears(1);
-    String value2 = formatter.print(dt);
+    final String value2 = formatter.dateFormatString(dt);
     logger.info(value2);
 
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", format), new Object[][]{
         {value1},
         {value2}
       })
     };
-/*
-Ignore basicweekdatetime formats for ES7 as these are failing due to mismatch in jav time and joda time week day of year.
- */
-    Object[] optional = Arrays.stream(data)
-      .filter(s -> (s.attributes.get("format").contains("basicWeek") || s.attributes.get("format").contains("basic_week") || s.attributes.get("format").contains("weekyear")|| s.attributes.get("format").contains("week_year")))
-      .toArray();
-    Assume.assumeFalse(getConnection().getESVersionInCluster().getMajor()==7 && optional.length > 0);
-    elastic.load(schema, table, data);
-    String sql = "select field from elasticsearch." + schema + "." + table;
+    loadWithRetry(schema, table, data);
+    final String sql = "select field from elasticsearch." + schema + "." + table;
     testBuilder()
       .sqlQuery(sql)
       .ordered()

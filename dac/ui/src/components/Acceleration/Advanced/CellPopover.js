@@ -18,8 +18,10 @@ import PropTypes from 'prop-types';
 import { Popover } from '@app/components/Popover';
 import MenuItem from '@material-ui/core/MenuItem';
 import { get } from 'lodash/object';
-import { formLabel } from 'uiTheme/radium/typography';
+
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 import { ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
+
 import DragTarget from 'components/DragComponents/DragTarget';
 import DragSource from 'components/DragComponents/DragSource';
 import { Checkbox } from 'components/Fields';
@@ -30,8 +32,7 @@ import {
   granularityValue} from '@app/constants/AccelerationConstants';
 
 import { checkboxStandalone } from '@app/components/Fields/Checkbox.less';
-import { menuSelected as menuSelectedCls } from './CellPopover.less';
-
+import { menuSelected as menuSelectedClass } from '@app/uiTheme/less/Acceleration/CellPopover.less';
 
 /**
  * Exported for tests only
@@ -62,7 +63,6 @@ export class ColumnReorder extends Component {
       handleMoveColumn,
       hasPermission
     } = this.props;
-
     return (
       <div>
         {
@@ -70,7 +70,7 @@ export class ColumnReorder extends Component {
             const columnName = column.name;
             const dragSourceStyle = hoverIndex === index ? styles.columnDragHover : { cursor: 'ns-resize' };
             return (
-              <div style={styles.columnWrap} key={columnName}>
+              <div className={'CellPopover__columnWrap'} key={columnName}>
                 <DragTarget
                   dragType='sortColumns'
                   moveColumn={(dragIndex, currentHoverIndex) => handleMoveColumn(fieldName, dragIndex, currentHoverIndex)}
@@ -86,8 +86,8 @@ export class ColumnReorder extends Component {
                       id={columnName}
                       preventDrag={hasPermission ? undefined : true}
                     >
-                      <div style={hasPermission ? styles.column : styles.disabledColumn}>
-                        <div style={hasPermission ? styles.columnIndex : styles.disabledColumnIndex}>{indexes[columnName] + 1}</div>
+                      <div className={hasPermission ? 'CellPopover__column' : 'CellPopover__disabledColumn'}>
+                        <div className={hasPermission ? 'CellPopover__columnIndex' : 'CellPopover__disabledColumnIndex'}>{indexes[columnName] + 1}</div>
                         <span style={{ marginLeft: 10 }}>{columnName}</span>
                       </div>
                     </DragSource>
@@ -238,7 +238,7 @@ export default class CellPopover extends Component {
       <div>
         { sortFields.length > 0 &&
           <div>
-            <span style={styles.menuHeader}>
+            <span className={'CellPopover__menuHeader'}>
               {la(hasPermission ? 'Drag to change sort order:' : 'View only access:')}
             </span>
             {this.renderColumnArea('sortFields')}
@@ -253,7 +253,7 @@ export default class CellPopover extends Component {
     // our material-ui is old, and MenuItem does not support selected property, thus messing with styles here
     return (
       <div>
-        <span style={styles.menuHeader}>
+        <span classsName={'CellPopover__menuHeader'}>
           {la('Date Granularity:')}
         </span>
         <div style={{marginTop: 5}}>
@@ -298,12 +298,12 @@ export default class CellPopover extends Component {
     const { hasPermission } = this.props;
     return (
       <div>
-        <span style={styles.measureMenuHeader}>
+        <span className={'CellPopover__menuHeader'}>
           {la('Selected Measures:')}
         </span>
         <div>
           {typesToDisplay.map((measure, index) => {
-            return <div style={styles.measureMenuItem} key={index}>
+            return <div className={'CellPopover__measureMenuItem'} key={index}>
               <Checkbox className={checkboxStandalone}
                 checked={Boolean(this.state.measureTypeList.find(item => item === measure))}
                 dataQa={`checkbox-${measure}`}
@@ -353,56 +353,18 @@ export default class CellPopover extends Component {
   }
 }
 
-const menuPadding = 10;
 const styles = {
+  // used by Popover component
   base: {
-    padding: menuPadding
+    padding: 10
   },
-  columnWrap: {
-    marginTop: 10
-  },
+  // used for mouse drag
   columnDragHover: {
     width: '100%',
     height: 20,
     backgroundColor: ACTIVE_DRAG_AREA
   },
-  column: {
-    display: 'flex',
-    height: 20,
-    alignItems: 'center',
-    border: '1px solid #a8e7d9',
-    backgroundColor: '#ebf9f6'
-  },
-  disabledColumn: {
-    display: 'flex',
-    height: 20,
-    alignItems: 'center',
-    border: '1px solid #f0f0f0',
-    backgroundColor: '#ffffff'
-  },
-  columnIndex: {
-    ...formLabel,
-    width: 20,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#96e3d1',
-    height: '100%'
-  },
-  disabledColumnIndex: {
-    ...formLabel,
-    width: 20,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#eeeeee',
-    height: '100%',
-    color: '#D2D2D2'
-  },
-  menuHeader: {
-    marginBottom: 10,
-    ...formLabel
-  },
+  // used by MenuItem component
   menuItem: {
     lineHeight: '25px',
     minHeight: '25px',
@@ -410,17 +372,11 @@ const styles = {
     paddingTop: 0,
     paddingBottom: 0,
     // to force menu item take whole the width
-    marginLeft: -menuPadding,
-    marginRight: -menuPadding
-  },
-  measureMenuHeader: {
-    ...formLabel
-  },
-  measureMenuItem: {
-    marginTop: 7
+    marginLeft: -10,
+    marginRight: -10
   }
 };
 
 const menuItemClasses = {
-  selected: menuSelectedCls
+  selected: menuSelectedClass
 };

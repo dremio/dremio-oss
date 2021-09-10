@@ -60,7 +60,7 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
   public static void setup() throws Exception {
     testRootAllocator = RootAllocatorFactory.newRoot(config);
     testAllocator = testRootAllocator.newChildAllocator("test-tpch-distrib", 0, testRootAllocator.getLimit());
-
+    setSystemOption(ExecConstants.MIXED_TYPES_DISABLED, "false");
     testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     final Configuration conf = new Configuration();
     final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(testAllocator), 0);
@@ -109,6 +109,7 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     localFs.delete(orders, true);
     enableGlobalDictionary();
     AutoCloseables.close(testAllocator, testRootAllocator);
+    resetSessionOption(ExecConstants.MIXED_TYPES_DISABLED);
   }
 
   private static void testDistributed(final String fileName, String tag) throws Exception {

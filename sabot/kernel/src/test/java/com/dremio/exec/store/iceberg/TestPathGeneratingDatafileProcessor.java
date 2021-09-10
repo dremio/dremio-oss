@@ -16,23 +16,30 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.extractDataFilePath;
+import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.extractPartitionInfo;
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getBatchSchema;
-import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getDataFileVec;
-import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getDatafile;
+import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getDatafileWithPartitions;
+import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getVecByName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 
@@ -42,16 +49,24 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
   private VectorContainer outgoing;
   private VarCharVector dataFileVec;
+  private VarBinaryVector partitionDataVec;
   private PathGeneratingDatafileProcessor datafileProcessor;
+
+  private PartitionSpec partitionSpec;
+  private Schema icebergSchema;
+  private IcebergPartitionData partitionData;
 
   @Before
   public void initialisePathGenDatafileProcessor() throws Exception {
     outgoing = getOperatorContext().createOutputVectorContainer();
     outgoing.addSchema(getBatchSchema(DataProcessorTestUtil.DataProcessorType.DATAFILE_PATH_GEN));
     outgoing.buildSchema();
-    dataFileVec = getDataFileVec(outgoing);
+    dataFileVec = (VarCharVector) getVecByName(outgoing, MetadataRefreshExecConstants.PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.DATAFILE_PATH);
+    partitionDataVec = (VarBinaryVector) getVecByName(outgoing, MetadataRefreshExecConstants.PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.PARTITION_DATA_PATH);
     datafileProcessor = new PathGeneratingDatafileProcessor();
     datafileProcessor.setup(null, outgoing);
+    setupPartitionData();
+    datafileProcessor.initialise(partitionSpec);
   }
 
   @After
@@ -69,10 +84,11 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
     int totalRecords = 0, outputRecords;
     for (String datafilePath : dataFilePaths) {
-      outputRecords = datafileProcessor.processDatafile(getDatafile(datafilePath, 1024l), startIndex + totalRecords, maxOutputCount - totalRecords);
+
+      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
 
-      outputRecords = datafileProcessor.processDatafile(getDatafile(datafilePath, 1024l), startIndex + totalRecords, maxOutputCount - totalRecords);
+      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
       assertEquals(0, outputRecords); // Zero indicates: We are done with current file. ready for processing next
       datafileProcessor.closeDatafile();
@@ -80,8 +96,11 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
     String datafile0 = extractDataFilePath(dataFileVec, 0);
     String datafile2 = extractDataFilePath(dataFileVec, 2);
+
     assertEquals(datafile0, "/path/to/data-0.parquet");
     assertEquals(datafile2, "/path/to/data-2.parquet");
+    verifyPartitionInfo(extractPartitionInfo(partitionDataVec, 0), partitionData);
+    verifyPartitionInfo(extractPartitionInfo(partitionDataVec, 2), partitionData);
   }
 
   @Test
@@ -94,9 +113,9 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
     int totalRecords = 0, outputRecords;
     for (String datafilePath : datafilePaths) {
-      outputRecords = datafileProcessor.processDatafile(getDatafile(datafilePath, 1024l), startIndex + totalRecords, maxOutputCount - totalRecords);
+      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
-      outputRecords = datafileProcessor.processDatafile(getDatafile(datafilePath, 1024l), startIndex + totalRecords, maxOutputCount - totalRecords);
+      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
       assertEquals(0, outputRecords); // Zero indicates: We are done with current file. ready for processing next
       datafileProcessor.closeDatafile();
@@ -107,8 +126,43 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
     assertEquals(dataFileVec.isSet(3), 0);
   }
 
+  private void verifyPartitionInfo(IcebergPartitionData actual, IcebergPartitionData expected) {
+    assertEquals(actual, expected);
+  }
+
   private OperatorContext getOperatorContext() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+  }
+
+  private void setupPartitionData() {
+    BatchSchema tableSchema =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.FLOAT.toField("floatCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitCol"),
+        CompleteType.VARCHAR.toField("varCharCol"),
+        CompleteType.BIGINT.toField("bigIntCol"),
+        CompleteType.VARBINARY.toField("varBinaryCol")
+      );
+
+    SchemaConverter schemaConverter = new SchemaConverter();
+    icebergSchema = schemaConverter.toIcebergSchema(tableSchema);
+
+    PartitionSpec.Builder specBuilder = PartitionSpec.builderFor(icebergSchema);
+
+    specBuilder.identity("integerCol");
+    specBuilder.identity("floatCol");
+    specBuilder.identity("doubleCol");
+    specBuilder.identity("bitCol");
+
+    partitionSpec = specBuilder.build();
+
+    partitionData = new IcebergPartitionData(partitionSpec.partitionType());
+    partitionData.setInteger(0, 1);
+    partitionData.setFloat(1, 1.23f);
+    partitionData.setDouble(2, Double.valueOf(1.23f));
+    partitionData.setBoolean(3, true);
   }
 }

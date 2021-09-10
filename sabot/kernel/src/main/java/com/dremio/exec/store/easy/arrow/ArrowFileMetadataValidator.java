@@ -31,6 +31,7 @@ public final class ArrowFileMetadataValidator {
    */
   public static boolean hasInvalidUnions(ArrowFileMetadata metadata) {
     return !ArrowFileReader.fromBean(metadata).hasArrowMetadataVersion()
+      && metadata.getFooter().getFieldList() != null
       && metadata.getFooter().getFieldList().stream().anyMatch(ArrowFileMetadataValidator::containsUnion);
   }
 

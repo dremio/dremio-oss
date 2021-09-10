@@ -16,6 +16,31 @@
  @import "~@app/uiTheme/less/color-schema.less";
  @import "~@app/uiTheme/less/mixins.less";
 
+// from radium/typography.js, originally formLabel
+.alt-form-label {
+  font-family: 'Inter var', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  color: #7F8B95;
+  display: flex;
+  align-items: center;
+  height: 32px;
+}
+
+.alt-form-default {
+  font-family: 'Inter var', sans-serif;
+  font-weight: 400;
+  font-size: 13;
+  color: #333333
+};
+
+.alt-form-description {
+  font-family: 'Inter var', sans-serif;
+  font-weight: 400;
+  font-size: 13;
+  color: #999999;
+};
+
 .form-label {
   .formLabel();
 }
@@ -73,6 +98,12 @@
 .path-link {
   font-size: 11px;
   color: #46B4D5;
+}
+
+.alt-path-link {
+  &:extend(.path-link);
+  font-family: 'Inter var', sans-serif;
+  font-weight: 400
 }
 
 .path-end {

@@ -94,8 +94,8 @@ public class HashJoinPrule extends JoinPruleBase {
 
     final RelNode convertedLeft = convert(left, left.getTraitSet().plus(Prel.PHYSICAL));
     final RelNode convertedRight = convert(right, right.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.BROADCAST));
-    call.transformTo(PrelUtil.addPartialProjectOnJoin(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
-        join.getJoinType(), null), join.getProjectedFields()));
+    call.transformTo(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
+        join.getJoinType(), null));
   }
 
   @Override
@@ -109,8 +109,8 @@ public class HashJoinPrule extends JoinPruleBase {
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
 
-    call.transformTo(PrelUtil.addPartialProjectOnJoin(HashJoinPrel.create(join.getCluster(), traitsLeft,
+    call.transformTo(HashJoinPrel.create(join.getCluster(), traitsLeft,
       convertedLeft, convertedRight, join.getCondition(),
-      join.getJoinType(), null), join.getProjectedFields()));
+      join.getJoinType(), null));
   }
 }

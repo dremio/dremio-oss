@@ -16,16 +16,21 @@
 package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 import org.apache.calcite.plan.Context;
+import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.tools.RelBuilderFactory;
 
 public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
+
+  private final RelFactories.Struct struct;
 
   /** Creates a {@link RelBuilderFactory}, a partially-created RelBuilder.
    * Just add a {@link RelOptCluster} and a {@link RelOptSchema} */
@@ -44,6 +49,11 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
 
   protected RelBuilder(Context context, RelOptCluster cluster, RelOptSchema relOptSchema) {
     super(context, cluster, relOptSchema);
+    if (context == null) {
+      context = Contexts.EMPTY_CONTEXT;
+    }
+    this.struct =
+      Objects.requireNonNull(RelFactories.Struct.fromContext(context));
   }
 
   /** Creates a relational expression that reads from an input and throws
@@ -51,19 +61,17 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
    */
   @Override
   public RelBuilder empty() {
-    final Frame frame = stack.pop();
-    final RelNode input;
+    final RelNode frameRel = build();
+    RelNode input = frameRel;
     // If the rel that we are limiting the output of a rel, we should just add a limit 0 on top.
     // If the rel that we are limiting is a Filter replace it as well since Filter does not
     // change the row type.
-    if (!(frame.rel instanceof Filter)) {
-      input = frame.rel;
-    } else {
-      input = frame.rel.getInput(0);
+    if (frameRel instanceof Filter) {
+      input = frameRel.getInput(0);
     }
-    final RelNode sort = sortFactory.createSort(input, RelCollations.EMPTY,
-      frame.rel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)),
-      frame.rel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)));
+    final RelNode sort = struct.sortFactory.createSort(input, RelCollations.EMPTY,
+      frameRel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)),
+      frameRel.getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0)));
     push(sort);
     return this;
   }

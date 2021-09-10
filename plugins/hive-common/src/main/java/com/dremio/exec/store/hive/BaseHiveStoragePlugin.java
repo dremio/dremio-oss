@@ -38,8 +38,17 @@ public abstract class BaseHiveStoragePlugin {
     return name;
   }
 
+  protected SabotContext getSabotContext() {
+    return sabotContext;
+  }
+
   public FileSystem createFS(FileSystem fs, OperatorContext operatorContext, AsyncStreamConf cacheAndAsyncConf) throws IOException {
     return this.sabotContext.getFileSystemWrapper().wrap(fs, this.getName(), cacheAndAsyncConf,
         operatorContext, cacheAndAsyncConf.isAsyncEnabled(), false);
   }
+
+  protected final void runQuery(final String query, final String userName, final String queryType) throws Exception {
+    sabotContext.getJobsRunner().get().runQueryAsJob(query, userName, queryType);
+  }
+
 }

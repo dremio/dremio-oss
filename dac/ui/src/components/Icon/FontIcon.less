@@ -16,7 +16,6 @@
 @import "../Avatar/Avatars.less";
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-  
   .font-icon {
     .icon-type {
       background-repeat: no-repeat;
@@ -170,6 +169,22 @@
     .Draggable {
       background-image: url(icons/Draggable.svg);
     }
+    
+    .DropdownDisabled {
+      background-image: url(icons/DropdownDisabled.svg);
+    }
+
+  .DropdownEnabled {
+      background-image: url(icons/DropdownEnabled.svg);
+    }
+
+    .DropdownDisabled {
+      background-image: url(icons/DropdownDisabled.svg);
+    }
+
+    .DropdownEnabled {
+      background-image: url(icons/DropdownEnabled.svg);
+    }
 
     .Edit {
       background-image: url(icons/Edit.svg);
@@ -216,7 +231,7 @@
     }
 
     .FileEmpty {
-      background-image: url(icons/File-Empty.svg);
+      background-image: url(icons/EmptyFile.svg);
     }
 
     .Flame {
@@ -519,6 +534,10 @@
       background-image: url(icons/VirtualDataset.svg);
     }
 
+    .OtherDataSets {
+      background-image: url(icons/OtherDataSets.svg);
+    }
+
     .VirtualDatasetLarge {
       background-image: url(icons/VirtualDatasetLarge.svg);
     }
@@ -563,4 +582,4 @@
       background-image: url(icons/Trash-small.svg);
     }
   }
-}
+} 

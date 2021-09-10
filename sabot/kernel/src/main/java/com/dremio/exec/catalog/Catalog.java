@@ -17,8 +17,10 @@ package com.dremio.exec.catalog;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
@@ -71,5 +73,12 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
   void dropView(final NamespaceKey key) throws IOException;
 
   Iterable<String> getSubPartitions(NamespaceKey key, List<String> partitionColumns, List<String> partitionValues) throws PartitionNotFoundException;
+
+  /**
+   * Retrieve the column extended properties for a table.
+   * @param table the table to get the column extended properties for
+   * @return the column extended properties grouped by column name
+   */
+  Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
 
 }

@@ -35,7 +35,6 @@ public class UserLoginSession {
   private final String clusterId;
   private final String version;
   private final long clusterCreatedAt;
-  private final boolean showUserAndUserProperties;
   private final SessionPermissions permissions;
 
   @JsonCreator
@@ -50,7 +49,6 @@ public class UserLoginSession {
                           @JsonProperty("userCreateTime") Long userCreatedAt,
                           @JsonProperty("clusterId") String clusterId,
                           @JsonProperty("clusterCreatedAt") long clusterCreatedAt,
-                          @JsonProperty("showUserAndUserProperties") boolean showUserAndUserProperties,
                           @JsonProperty("version") String version,
                           @JsonProperty("permissions") SessionPermissions permissions
     ) {
@@ -66,7 +64,6 @@ public class UserLoginSession {
     this.clusterId = clusterId;
     this.version = version;
     this.clusterCreatedAt = clusterCreatedAt;
-    this.showUserAndUserProperties = showUserAndUserProperties;
     this.permissions = permissions;
   }
 
@@ -121,9 +118,4 @@ public class UserLoginSession {
   public SessionPermissions getPermissions() {
     return permissions;
   }
-
-  public boolean isShowUserAndUserProperties() {
-    return showUserAndUserProperties;
-  }
-
 }

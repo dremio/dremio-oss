@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -58,6 +59,7 @@ import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -80,8 +82,10 @@ import com.dremio.service.namespace.dataset.proto.DatasetCommonProtobuf;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.file.proto.FileProtobuf;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.scheduler.LocalSchedulerService;
+import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -249,6 +253,7 @@ public class TestDatasetCatalogServiceImpl {
         () -> sabotContext,
         () -> new LocalSchedulerService(1),
         () -> new SystemTablePluginConfigProvider(),
+        null,
         () -> fabricService,
         () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
         () -> allocator,
@@ -271,7 +276,7 @@ public class TestDatasetCatalogServiceImpl {
         .setConnectionConf(new TestCatalogServiceImpl.MockUpConfig(mockUpPlugin));
 
       catalogService.getSystemUserCatalog().createSource(mockUpConfig);
-      datasetCatalogService = new DatasetCatalogServiceImpl(() -> catalogService, () -> namespaceService);
+      datasetCatalogService = new DatasetCatalogServiceImpl(() -> catalogService, () -> namespaceServiceFactory);
     }
 
     @After
@@ -281,11 +286,17 @@ public class TestDatasetCatalogServiceImpl {
     }
 
     @Test
-    public void testAddingNewDataset() {
+    public void testAddingNewDataset() throws Exception {
       final CapturingStreamObserver<Empty> observer = addDummyDataset();
       validateSuccessfulCall(observer);
 
       assertTrue(namespaceService.exists(MOCKUP_NEWDATASET));
+      DatasetConfig dataset = namespaceService.getDataset(MOCKUP_NEWDATASET);
+      assertNotNull(dataset.getName());
+
+      Catalog catalog = catalogService.getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()));
+      assertNotNull(catalog.getTable(MOCKUP_NEWDATASET));
     }
 
     @Test
@@ -459,11 +470,13 @@ public class TestDatasetCatalogServiceImpl {
       final CatalogService mockCatalog = mock(CatalogService.class);
       final Catalog mockDatasetCatalog = mock(Catalog.class);
       when(mockCatalog.getCatalog(any())).thenReturn(mockDatasetCatalog);
+      final NamespaceService.Factory mockNamespaceFactory = mock(NamespaceService.Factory.class);
       final NamespaceService mockNamespace = mock(NamespaceService.class);
-      when(mockNamespace.exists(any())).thenReturn(Boolean.TRUE);
+      when(mockNamespaceFactory.get(anyString())).thenReturn(mockNamespace);
+      when(mockNamespace.exists(any(), eq(NameSpaceContainer.Type.DATASET))).thenReturn(Boolean.TRUE);
       when(mockNamespace.getDataset(any())).thenThrow(exception);
 
-      final DatasetCatalogServiceImpl service = new DatasetCatalogServiceImpl(() -> mockCatalog, () -> mockNamespace);
+      final DatasetCatalogServiceImpl service = new DatasetCatalogServiceImpl(() -> mockCatalog, () -> mockNamespaceFactory);
       final CapturingStreamObserver<Empty> streamObserver = new CapturingStreamObserver<>();
       final AddOrUpdateDatasetRequest request = AddOrUpdateDatasetRequest.newBuilder()
         .addDatasetPath("fake")

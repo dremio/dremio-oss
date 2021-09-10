@@ -21,11 +21,15 @@ import static org.junit.Assume.assumeTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 import com.dremio.DremioTestWrapper;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -39,59 +43,65 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   protected String TABLENAME;
   protected String[] ids = new String[5];
   protected String[] uids = new String[5];
+  protected List<QueryDataBatch> queryBatch;
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public final void loadTable() throws Exception {
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     ColumnData[] data = getBusinessData();
     load(schema, table, data);
-
-    TABLENAME = "elasticsearch." + schema + "." + table;
-
     // Figure out the id/uid combos for this table, so that we can write some queries
-    List<QueryDataBatch> queryBatch = testRunAndReturn(QueryType.SQL, "select _id, _uid, business_id from " + TABLENAME);
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
+    final String field = elasticVersion == 7 ? " _type" : "_uid";
+    TABLENAME = "elasticsearch." + schema + "." + table;
+    queryBatch = testRunAndReturn(QueryType.SQL, "select _id, " + field + " , business_id from " + TABLENAME);
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
     List<Map<String, Object>> records = new ArrayList<>();
     DremioTestWrapper.addToMaterializedResults(records, queryBatch, loader);
 
     boolean first12345 = true;
-    for (Map<String, Object> record : records) {
-      String bid = (String) record.get("`business_id`");
-      String id = (String) record.get("`" + ElasticsearchConstants.ID + "`");
-      String uid = (String) record.get("`" + ElasticsearchConstants.UID + "`");
-      switch (bid) {
-        case "12345":
-          if (first12345) {
-            ids[0] = id;
-            uids[0] = uid;
-            first12345 = false;
-          } else {
-            ids[3] = id;
-            uids[3] = uid;
-          }
-          break;
-        case "abcde":
-          ids[1] = id;
-          uids[1] = uid;
-          break;
-        case "7890":
-          ids[2] = id;
-          uids[2] = uid;
-          break;
-        case "xyz":
-          ids[4] = id;
-          uids[4] = uid;
-          break;
-        default:
-          assert false;
+
+      for (Map<String, Object> record : records) {
+        String bid = (String) record.get("`business_id`");
+        String id = (String) record.get("`" + ElasticsearchConstants.ID + "`");
+        String uid = elasticVersion == 7 ? (String) record.get("`" + ElasticsearchConstants.TYPE +"`") + "#" + (String) record.get("`" + ElasticsearchConstants.ID +"`") : (String) record.get("`" + ElasticsearchConstants.UID + "`") ;
+        switch (bid) {
+          case "12345":
+            if (first12345) {
+              ids[0] = id;
+              uids[0] = uid;
+              first12345 = false;
+            } else {
+              ids[3] = id;
+              uids[3] = uid;
+            }
+            break;
+          case "abcde":
+            ids[1] = id;
+            uids[1] = uid;
+            break;
+          case "7890":
+            ids[2] = id;
+            uids[2] = uid;
+            break;
+          case "xyz":
+            ids[4] = id;
+            uids[4] = uid;
+            break;
+          default:
+            assert false;
+        }
       }
-    }
   }
 
   @Test
   public final void testSimpleScan() throws Exception {
-    final String sql = "select _id, _uid, _type, _index from " + TABLENAME;
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
+    final String field = getFieldWithAlias();
+    final String sql =  " select _id," + field + " , _type, _index from " + TABLENAME   ;
+    final String blankOrUid = elasticVersion == 7  ? " \n  "  : " ,\n  \"_uid\"\n     " ;
     verifyJsonInPlan(sql, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -105,8 +115,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    \"includes\" : [\n" +
         "      \"_id\",\n" +
         "      \"_index\",\n" +
-        "      \"_type\",\n" +
-        "      \"_uid\"\n" +
+        "    \"_type\"  " +  blankOrUid   +
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
@@ -182,7 +191,11 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testProjectUID() throws Exception {
-    final String sqlQuery = "select CHAR_LENGTH(_uid) from " + TABLENAME;
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
+    final String field = getField();
+    final String sqlQuery = "select CHAR_LENGTH(" + field + ") from " + TABLENAME;
+    final String idTypeOrUid = elasticVersion == 7  ? "  \"_id\",\n  \"_type\"\n   "  : " \"_uid\"\n  " ;
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -193,8 +206,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    }\n" +
         "  },\n" +
         "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"_uid\"\n" +
+        "   \"includes\" : [\n" +  idTypeOrUid  +
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
@@ -241,6 +253,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String cond2 = "_id = '" + ids[2] + "'";
     final String cond3 = "_id = '" + ids[4] + "'";
     final String sqlQuery = "select _id from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
+    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -291,7 +304,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -317,6 +330,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String cond2 = "_id = '" + ids[2] + "' and _id is not null";
     final String cond3 = "_id = '" + ids[4] + "' and _id is not null";
     final String sqlQuery = "select _id from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
+    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -367,7 +381,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -391,12 +405,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   public final void testFilterUIDOrIsNull() throws Exception {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse((elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0)||elastic.getMinVersionInCluster().getMajor() == 7);
-    final String cond1 = "_uid = '" + uids[1] + "' or _uid is null";
-    final String sqlQuery = "select _uid from " + TABLENAME + " where " + cond1;
-
-    verifyJsonInPlan(sqlQuery, new String[] {
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
+    final String field = getField();
+    final String fieldWithAlias = getFieldWithAlias();
+    final String cond1 = field + " = '" + uids[1] + "' or " + field + " is null";
+    final String sqlQuery = "select "+ fieldWithAlias + " from " + TABLENAME + " where " + cond1;
+    final String[] expectedJson = new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
@@ -444,7 +458,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
-        "}]"});
+        "}]"};
+    verifyJsonInPlan(sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -453,14 +468,14 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterUID() throws Exception {
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-    final String cond1 = "_uid = '" + uids[1] + "'";
-    final String cond2 = "_uid = '" + uids[2] + "'";
-    final String cond3 = "_uid = '" + uids[4] + "'";
-    final String sqlQuery = "select _uid from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
+    final String field = getField();
+    final String cond1 = field +" = '" + uids[1] + "'";
+    final String cond2 = field +" = '" + uids[2] + "'";
+    final String cond3 = field +"= '" + uids[4] + "'";
+    final String fieldAlias = getFieldWithAlias();
+    final String sqlQuery = "select " + fieldAlias + " from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
 
-    verifyJsonInPlan(sqlQuery, new String[] {
+    final String[] expectedJson =  new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
@@ -521,7 +536,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
-        "}]"});
+        "}]"};
+    verifyJsonInPlan(sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -532,12 +548,9 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterIndexAndType() throws Exception {
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-
     final String cond1 = "_index = '" + schema + "' OR _type = '" + table + "'";
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
-
+    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -574,7 +587,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -602,7 +615,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   public final void testFilterTypeOrIsNull() throws Exception {
     final String cond1 = "_type = '" + table + "' or _type is null";
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
-
+    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -634,13 +647,13 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "                }\n" +
         "              }\n" +
         "            ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        disableCoordOrBlank +
         "            \"adjust_pure_negative\" : true,\n" +
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -737,7 +750,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
       .go();
   }
 
-
   @Test
   public final void testFilterIndexAndIsNotNull() throws Exception {
     final String cond1 = "_index = '" + schema + "' and _index is not null";
@@ -781,14 +793,14 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterUIDAndIsNotNull() throws Exception {
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-    final String cond1 = "_uid = '" + uids[1] + "' and _uid is not null";
-    final String cond2 = "_uid = '" + uids[2] + "' and _uid is not null";
-    final String cond3 = "_uid = '" + uids[4] + "' and _uid is not null";
-    final String sqlQuery = "select _uid from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
-
-    verifyJsonInPlan(sqlQuery, new String[] {
+    final String field = getField();
+    final String cond1 = field +" = '" + uids[1] + "' and " + field + " is not null";
+    final String cond2 = field +" = '" + uids[2] + "' and " + field + " is not null";
+    final String cond3 = field +" = '" + uids[4] + "' and " + field + " is not null";
+    final String fieldAlias = getFieldWithAlias();
+    final String sqlQuery = "select " + fieldAlias + " from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
+    final String disableCoordOrBlank = getDisableCoord();
+    final String[] expectedJson = new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
@@ -838,7 +850,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
+        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -849,7 +861,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
-        "}]"});
+        "}]"};
+    verifyJsonInPlan(sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
     testBuilder().sqlQuery(sqlQuery).unOrdered()
       .baselineColumns("_uid")
       .baselineValues(uids[1])
@@ -895,8 +908,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   @Test
   public final void testFilterUIDLike() throws Exception {
     // uid might contain _ or % character since it was generated randomly, so need to replace them for LIKE clause
-    final String cond1 = String.format("_uid LIKE '%%%s%%' escape '\\'", escape(uids[1]));
-    final String sqlQuery = "select _uid from " + TABLENAME + " where " + cond1;
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
+    final String cond1 = elasticVersion == 7 ?  String.format("_type || '#' || _id LIKE '%%%s%%' escape '\\'", escape(uids[1]))    : String.format("_uid LIKE '%%%s%%' escape '\\'", escape(uids[1]));
+    final String field = getFieldWithAlias();
+    final String sqlQuery = "select " + field + " from " + TABLENAME + " where " + cond1;
+    final String idTypeOrUid = elasticVersion == 7 ? "  \"_id\" , \"_type\"],\n  " : "  \"_uid\" ],\n    ";
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "=[{\n" +
         "  \"from\" : 0,\n" +
@@ -907,7 +924,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    }\n" +
         "  },\n" +
         "  \"_source\" : {\n" +
-        "    \"includes\" : [ \"_uid\" ],\n" +
+        "   \"includes\" : [ " +  idTypeOrUid  +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
         "}]"});
@@ -919,9 +936,13 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterIndexTypeLike() throws Exception {
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
     final String cond1 = "_index LIKE '%" + schema + "%'";
     final String cond2 = "_type LIKE '%" + table + "%'";
-    final String sqlQuery = "select _uid, _id, _index, _type from " + TABLENAME + " where " + cond1 + " OR " + cond2;
+    final String field = getFieldWithAlias();
+    final String sqlQuery = "select " + field +" , _id, _index, _type from " + TABLENAME + " where " + cond1 + " OR " + cond2;
+    final String blankOrUid = elasticVersion == 7 ? " " : "  ,\n   \"_uid\"\n  ";
+
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -935,8 +956,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "    \"includes\" : [\n" +
         "      \"_id\",\n" +
         "      \"_index\",\n" +
-        "      \"_type\",\n" +
-        "      \"_uid\"\n" +
+        "    \"_type\"   " +  blankOrUid   +
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
@@ -957,8 +977,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     if (elastic.getMinVersionInCluster().getMajor() == 5) {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
     final String sqlQuery = "select _id from " + TABLENAME + " where contains(_id:\"" + ids[1] + "\")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
@@ -1049,9 +1067,9 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     if (elastic.getMinVersionInCluster().getMajor() == 5) {
       assumeFalse(elastic.getMinVersionInCluster().getMinor() <= 2);
     }
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-    final String sqlQuery = "select _uid, _id, _index, _type from " + TABLENAME + " where contains(_index:" + schema + ", _type:" + table + ")";
+    final String field = getFieldWithAlias();
+    final String blankOrUid = elastic.getMinVersionInCluster().getMajor() == 7  ? ""  : "      ,\"_uid\"\n" ;
+    final String sqlQuery = "select "+ field + ", _id, _index, _type from " + TABLENAME + " where contains(_index:" + schema + ", _type:" + table + ")";
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
           "  \"from\" : 0,\n" +
@@ -1079,8 +1097,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "    \"includes\" : [\n" +
           "      \"_id\",\n" +
           "      \"_index\",\n" +
-          "      \"_type\",\n" +
-          "      \"_uid\"\n" +
+          "      \"_type\"\n" +
+          blankOrUid +
           "    ],\n" +
           "    \"excludes\" : [ ]\n" +
           "  }\n" +
@@ -1098,7 +1116,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterUIDItem() throws Exception {
-    final String sqlQuery = "select t._uid from " + TABLENAME + " t where t._uid.something > 3";
+    final String field = elastic.getMinVersionInCluster().getMajor() == 7 ? " _type || '#' || _id as _uid , t._uid " : "t._uid";
+    final String sqlQuery = "select "+ field + " from " + TABLENAME + " t where t._uid.something > 3";
     errorTypeTestHelper(sqlQuery, ErrorType.VALIDATION);
   }
 
@@ -1122,7 +1141,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
   @Test
   public final void testFilterUIDGreater() throws Exception {
-    final String sqlQuery = "select _uid from " + TABLENAME + " where _uid > ' '";
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
+    final String field = getFieldWithAlias();
+    final String field1 = getField();
+    final String sqlQuery = "select " + field + " from " + TABLENAME + " where " + field1 + " > ' ' ";
+    final String idTypeOrUid = elasticVersion == 7 ? "  \"_id\" , \n \"_type\" " : " \"_uid\"\n  ";
+
     verifyJsonInPlanHelper(sqlQuery, new String[] {
         "[{\n" +
           "  \"from\" : 0,\n" +
@@ -1133,8 +1157,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "    }\n" +
           "  },\n" +
           "  \"_source\" : {\n" +
-          "    \"includes\" : [\n" +
-          "      \"_uid\"\n" +
+          "   \"includes\" : [\n" +  idTypeOrUid  +
           "    ],\n" +
           "    \"excludes\" : [ ]\n" +
           "  }\n" +

@@ -91,7 +91,7 @@ public abstract class JoinRelBase extends Join {
   protected final JoinUtils.JoinCategory joinCategory;
 
   protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                        JoinRelType joinType, ImmutableBitSet projectedFields) {
+                        JoinRelType joinType, ImmutableBitSet projectedFields, boolean allowRowTypeMismatch) {
     super(cluster, traits, left, right, condition, CorrelationId.setOf(Collections.emptySet()), joinType);
     leftKeys = Lists.newArrayList();
     rightKeys = Lists.newArrayList();
@@ -101,7 +101,7 @@ public abstract class JoinRelBase extends Join {
     joinCategory = getJoinCategory(condition, leftKeys, rightKeys, filterNulls, remaining);
 
     this.projectedFields = projectedFields;
-    if (projectedFields != null) {
+    if (projectedFields != null && allowRowTypeMismatch) {
       List<RelDataType> fields = getRowType().getFieldList().stream().map(RelDataTypeField::getType).collect(Collectors.toList());
       List<String> names = ImmutableList.copyOf(getRowType().getFieldNames());
       inputRowType = cluster.getTypeFactory().createStructType(fields, names);

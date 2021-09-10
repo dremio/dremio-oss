@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -26,8 +29,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.After;
 import org.junit.Assert;
@@ -37,17 +42,21 @@ import org.junit.Test;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 
 /**
@@ -57,26 +66,29 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
 
   VectorContainer incoming;
   VectorContainer outgoing;
+  ArrowBuf tmpBuf;
 
   @Before
   public void setup() {
     incoming = new VectorContainer(allocator);
     outgoing = new VectorContainer(allocator); // closed by the table function
-    incoming.addOrGet(Field.nullable(RecordReader.SPLIT_IDENTITY, CompleteType.VARBINARY.getType()));
+    incoming.addOrGet(Field.nullable(RecordReader.SPLIT_IDENTITY, CompleteType.STRUCT.getType()));
     incoming.buildSchema();
+    tmpBuf = allocator.buffer(4096);
   }
 
   @After
   public void tearDown() {
     incoming.close();
-    incoming = null;
+    tmpBuf.close();
   }
 
-  private List<SplitIdentity> getSplitIdentitiesWithBlockLocations(String path) {
+  @Test
+  public void testSplitsAssignmentWithBlockLocations() throws Exception {
+    SplitAssignmentTableFunction splitAssignmentTableFunction = spy(getSplitAssignmentTableFunction());
+    // create splitidentities
     // 100 len blocks of the file located on two hosts 10.10.10.10/20 alternatively
     // splits also 100 sized
-
-    List<SplitIdentity> splitIdentities = new ArrayList<>();
 
     PartitionProtobuf.BlockLocationsList blockLocationsList = PartitionProtobuf.BlockLocationsList.newBuilder()
       .addBlockLocations(PartitionProtobuf.BlockLocations.newBuilder().addHosts("10.10.10.10").setOffset(0).setSize(100).build())
@@ -89,21 +101,14 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
       .addBlockLocations(PartitionProtobuf.BlockLocations.newBuilder().addHosts("10.10.10.20").setOffset(700).setSize(100).build())
       .build();
 
-    for (int i = 0; i < 8; ++i) {
-      splitIdentities.add(new SplitIdentity(path, blockLocationsList, i * 100, 100));
-    }
-    return splitIdentities;
-  }
+    doReturn(blockLocationsList).when(splitAssignmentTableFunction).getFileBlockLocations(anyString(), anyLong());
 
-  @Test
-  public void testSplitsAssignmentWithBlockLocations() throws Exception {
-    SplitAssignmentTableFunction splitAssignmentTableFunction = getSplitAssignmentTableFunction();
-    // create splitidentities
-    List<SplitIdentity> splitIdentities = getSplitIdentitiesWithBlockLocations("/path/to/file");
+    List<SplitIdentity> splitIdentities = IntStream.range(0, 8).mapToObj(i -> new SplitIdentity("/path/to/file", i * 100, 100, 1000)).collect(Collectors.toList());
     int numRecords = splitIdentities.size();
-    VarBinaryVector splitVector = incoming.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
+    StructVector splitVector = incoming.getValueAccessorById(StructVector.class, 0).getValueVector();
+    NullableStructWriter writer = splitVector.getWriter();
     for (int i = 0; i < numRecords; ++i) {
-      splitVector.setSafe(i, IcebergSerDe.serializeToByteArray(splitIdentities.get(i)));
+      IcebergUtils.writeSplitIdentity(writer, i, splitIdentities.get(i), tmpBuf);
     }
     incoming.setAllCount(numRecords);
 
@@ -127,22 +132,21 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
     splitAssignmentTableFunction.close();
   }
 
-  private List<SplitIdentity> getSplitIdentitiesWithNoBlockLocations(String path) {
-    return IntStream.range(0, 1024)
-      .mapToObj(i -> new SplitIdentity(path, null, i * 100, 100))
-      .collect(Collectors.toList());
-  }
-
   @Test
   public void testSplitsAssignmentWithNoBlockLocations() throws Exception {
-    SplitAssignmentTableFunction splitAssignmentTableFunction = getSplitAssignmentTableFunction();
+    SplitAssignmentTableFunction splitAssignmentTableFunction = spy(getSplitAssignmentTableFunction());
+
+    doReturn(null).when(splitAssignmentTableFunction).getFileBlockLocations(anyString(), anyLong());
 
     // create splitidentities
-    List<SplitIdentity> splitIdentities = getSplitIdentitiesWithNoBlockLocations("/path/to/file");
+    List<SplitIdentity> splitIdentities = IntStream.range(0, 1024)
+      .mapToObj(i -> new SplitIdentity("path", i * 100, 100, 102400))
+      .collect(Collectors.toList());
     int numRecords = splitIdentities.size();
-    VarBinaryVector splitVector = incoming.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
+    StructVector splitVector = incoming.getValueAccessorById(StructVector.class, 0).getValueVector();
+    NullableStructWriter writer = splitVector.getWriter();
     for (int i = 0; i < numRecords; ++i) {
-      splitVector.setSafe(i, IcebergSerDe.serializeToByteArray(splitIdentities.get(i)));
+      IcebergUtils.writeSplitIdentity(writer, i, splitIdentities.get(i), tmpBuf);
     }
     incoming.setAllCount(numRecords);
 
@@ -167,8 +171,9 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
     splitAssignmentTableFunction.close();
   }
 
-  private List<SplitIdentity> getSplitIdentitesWithPartLocalAndPartRemoteBlocks(String path) {
-    List<SplitIdentity> splitIdentities = new ArrayList<>();
+  @Test
+  public void testSplitsAssignmentWithPartLocalAndPartRemoteAssignment() throws Exception {
+    SplitAssignmentTableFunction splitAssignmentTableFunction = spy(getSplitAssignmentTableFunction());
 
     // blocks distributed in 4 hosts (2 of them in target endpoints)
     // block size = 50 (split size is 100)
@@ -179,21 +184,18 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
       .collect(Collectors.toList());
 
     PartitionProtobuf.BlockLocationsList blockLocationsList = PartitionProtobuf.BlockLocationsList.newBuilder().addAllBlockLocations(blockLocations).build();
-    return IntStream.range(0, 500)
-      .mapToObj(i -> new SplitIdentity(path, blockLocationsList, i * 100, 100))
-      .collect(Collectors.toList());
-  }
 
-  @Test
-  public void testSplitsAssignmentWithPartLocalAndPartRemoteAssignment() throws Exception {
-    SplitAssignmentTableFunction splitAssignmentTableFunction = getSplitAssignmentTableFunction();
+    doReturn(blockLocationsList).when(splitAssignmentTableFunction).getFileBlockLocations(anyString(), anyLong());
 
     // create splitidentities
-    List<SplitIdentity> splitIdentities = getSplitIdentitesWithPartLocalAndPartRemoteBlocks("/path/to/file");
+    List<SplitIdentity> splitIdentities = IntStream.range(0, 500)
+      .mapToObj(i -> new SplitIdentity("/path/to/file", i * 100, 100, 50000))
+      .collect(Collectors.toList());
     int numRecords = splitIdentities.size();
-    VarBinaryVector splitVector = incoming.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
+    StructVector splitVector = incoming.getValueAccessorById(StructVector.class, 0).getValueVector();
+    NullableStructWriter writer = splitVector.getWriter();
     for (int i = 0; i < numRecords; ++i) {
-      splitVector.setSafe(i, IcebergSerDe.serializeToByteArray(splitIdentities.get(i)));
+      IcebergUtils.writeSplitIdentity(writer, i, splitIdentities.get(i), tmpBuf);
     }
     incoming.setAllCount(numRecords);
 
@@ -219,8 +221,24 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
   }
 
   private SplitAssignmentTableFunction getSplitAssignmentTableFunction() throws Exception {
-    OperatorContext operatorContext = createOperatorContext();
-    TableFunctionConfig tableFunctionConfig = createTableFunctionConfig();
+    OperatorContext operatorContext = mock(OperatorContext.class);
+    OptionManager optionManager = mock(OptionManager.class);
+    when(operatorContext.getOptions()).thenReturn(optionManager);
+    when(optionManager.getOption(ExecConstants.ASSIGNMENT_CREATOR_BALANCE_FACTOR)).thenReturn(1.5);
+    when(operatorContext.createOutputVectorContainer()).thenReturn(outgoing);
+    TableFunctionConfig tableFunctionConfig = mock(TableFunctionConfig.class);
+    BatchSchema outputSchema = BatchSchema.newBuilder()
+      .addField(Field.nullable(RecordReader.SPLIT_IDENTITY, CompleteType.STRUCT.getType()))
+      .addField(Field.nullable(HashPrelUtil.HASH_EXPR_NAME, CompleteType.INT.getType()))
+      .build();
+    when(tableFunctionConfig.getOutputSchema()).thenReturn(outputSchema);
+    TableFunctionContext tableFunctionContext = mock(TableFunctionContext.class);
+    when(tableFunctionConfig.getFunctionContext()).thenReturn(tableFunctionContext);
+    StoragePluginId storagePluginId = mock(StoragePluginId.class);
+    when(tableFunctionContext.getPluginId()).thenReturn(storagePluginId);
+    FragmentExecutionContext fec = mock(FragmentExecutionContext.class);
+    OpProps opProps = mock(OpProps.class);
+    when(fec.getStoragePlugin(storagePluginId)).thenReturn(mock(FileSystemPlugin.class));
 
     // Two nodes with two minor fragment in each - total 4 minor fragments
     CoordinationProtos.NodeEndpoint endpoint1 = CoordinationProtos.NodeEndpoint.newBuilder().setAddress("10.10.10.10").setFabricPort(9000).build();
@@ -236,27 +254,8 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
     when(operatorContext.getMinorFragmentEndpoints()).thenReturn(minorFragmentEndpoints);
 
     // create SplitAssignmentTableFunction
-    SplitAssignmentTableFunction splitAssignmentTableFunction = new SplitAssignmentTableFunction(operatorContext, tableFunctionConfig);
+    SplitAssignmentTableFunction splitAssignmentTableFunction = new SplitAssignmentTableFunction(fec, operatorContext, opProps, tableFunctionConfig);
     splitAssignmentTableFunction.setup(incoming);
     return splitAssignmentTableFunction;
-  }
-
-  private OperatorContext createOperatorContext() {
-    OperatorContext operatorContext = mock(OperatorContext.class);
-    OptionManager optionManager = mock(OptionManager.class);
-    when(operatorContext.getOptions()).thenReturn(optionManager);
-    when(optionManager.getOption(ExecConstants.ASSIGNMENT_CREATOR_BALANCE_FACTOR)).thenReturn(1.5);
-    when(operatorContext.createOutputVectorContainer()).thenReturn(outgoing);
-    return operatorContext;
-  }
-
-  private TableFunctionConfig createTableFunctionConfig() {
-    TableFunctionConfig tableFunctionConfig = mock(TableFunctionConfig.class);
-    BatchSchema outputSchema = BatchSchema.newBuilder()
-      .addField(Field.nullable(RecordReader.SPLIT_IDENTITY, CompleteType.VARBINARY.getType()))
-      .addField(Field.nullable(HashPrelUtil.HASH_EXPR_NAME, CompleteType.INT.getType()))
-      .build();
-    when(tableFunctionConfig.getOutputSchema()).thenReturn(outputSchema);
-    return tableFunctionConfig;
   }
 }

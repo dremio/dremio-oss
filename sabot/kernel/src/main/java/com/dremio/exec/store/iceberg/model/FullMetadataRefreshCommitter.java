@@ -15,47 +15,100 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.TableProperties;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.metadatarefresh.DatasetCatalogGrpcClient;
-import com.dremio.exec.store.metadatarefresh.DatasetCatalogRequestBuilder;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
+import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogRequestBuilder;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
+
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 
 /**
  * Similar to {@link IcebergTableCreationCommitter}, additionally updates Dataset Catalog with
  * new Iceberg table metadata
  */
 public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter {
-
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FullMetadataRefreshCommitter.class);
   private final DatasetCatalogGrpcClient client;
   private final DatasetCatalogRequestBuilder datasetCatalogRequestBuilder;
+  private final Configuration conf;
+  private final boolean isPartitioned;
+  private final String tableUuid;
+  private final String tableLocation;
+  private final List<String> datasetPath;
+  private static final Map<String, String> internalIcebergTableParameter = Stream.of(new String[][] {
+          { TableProperties.COMMIT_NUM_RETRIES, "0" }}).collect(Collectors.toMap(d->d[0], d->d[1]));
 
-  public FullMetadataRefreshCommitter(String tableName, String tableLocation, BatchSchema batchSchema, List<String> partitionColumnNames,
-                                      IcebergCommand icebergCommand, DatasetCatalogGrpcClient client) {
-    super(tableName, batchSchema, partitionColumnNames, icebergCommand);
+  public FullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
+                                      String tableUuid, BatchSchema batchSchema,
+                                      Configuration configuration, List<String> partitionColumnNames,
+                                      IcebergCommand icebergCommand, DatasetCatalogGrpcClient client,
+                                      DatasetConfig datasetConfig, OperatorStats operatorStats) {
+    super(tableName, batchSchema, partitionColumnNames, icebergCommand, internalIcebergTableParameter, operatorStats); // Full MetadataRefresh is a only way to create internal iceberg table
 
     Preconditions.checkNotNull(client, "Metadata requires DatasetCatalog service client");
     this.client = client;
-
-    datasetCatalogRequestBuilder = DatasetCatalogRequestBuilder.forFullMetadataRefresh(tableName,
+    this.conf = configuration;
+    this.tableUuid = tableUuid;
+    this.tableLocation = tableLocation;
+    this.isPartitioned = partitionColumnNames != null && !partitionColumnNames.isEmpty();
+    this.datasetPath = datasetPath;
+    datasetCatalogRequestBuilder = DatasetCatalogRequestBuilder.forFullMetadataRefresh(datasetPath,
       tableLocation,
       batchSchema,
-      partitionColumnNames);
+      partitionColumnNames,
+      datasetConfig
+    );
   }
 
   @Override
-  public void commit() {
-    super.commit();
-    client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
+  public Snapshot commit() {
+    Snapshot snapshot = super.commit();
+
+    long numRecords = Long.parseLong(snapshot.summary().getOrDefault("total-records", "0"));
+    datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
+    long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
+    datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned);
+
+    try {
+      client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
+    } catch (StatusRuntimeException sre) {
+      if (sre.getStatus().getCode() == Status.Code.ABORTED) {
+        String message = "Metadata refresh failed. Dataset: "
+                + Arrays.toString(datasetPath.toArray())
+                + " TableLocation: " + tableLocation;
+        logger.error(message);
+        throw UserException.concurrentModificationError(sre).message(message).build(logger);
+      }
+      throw sre;
+    }
+    return snapshot;
   }
 
   @Override
   public void consumeManifestFile(ManifestFile icebergManifestFile) {
     super.consumeManifestFile(icebergManifestFile);
-    datasetCatalogRequestBuilder.addManifest(icebergManifestFile);
   }
 
+  @Override
+  public void updateReadSignature(ByteString newReadSignature) {
+    logger.debug("Updating read signature.");
+    datasetCatalogRequestBuilder.setReadSignature(newReadSignature);
+  }
 }

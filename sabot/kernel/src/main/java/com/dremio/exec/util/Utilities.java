@@ -154,6 +154,8 @@ public class Utilities {
         return "UI Download";
       case FLIGHT:
         return "Flight";
+      case METADATA_REFRESH:
+        return "Metadata Refresh";
       case UNKNOWN:
       default:
         return "Other";

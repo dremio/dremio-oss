@@ -33,6 +33,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
@@ -65,6 +66,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorContextImpl.class);
 
   private final SabotConfig config;
+  private final DremioConfig dremioConfig;
   private final FragmentHandle handle;
   private final BufferAllocator allocator;
   private final BufferAllocator fragmentOutputAllocator;
@@ -89,7 +91,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
 
   public OperatorContextImpl(
-    SabotConfig config,
+    SabotConfig sabotConfig,
+    DremioConfig dremioConfig,
     FragmentHandle handle,
     PhysicalOperator popConfig,
     BufferAllocator allocator,
@@ -111,7 +114,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
     EndpointsIndex endpointsIndex,
     List<MinorFragmentEndpoint> minorFragmentEndpoints) throws OutOfMemoryException {
-    this.config = config;
+    this.config = sabotConfig;
+    this.dremioConfig = dremioConfig;
     this.handle = handle;
     this.allocator = allocator;
     this.fragmentOutputAllocator = fragmentOutputAllocator;
@@ -142,19 +146,24 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   }
 
   public OperatorContextImpl(
-      SabotConfig config,
-      BufferAllocator allocator,
-      OptionManager optionManager,
-      int targetBatchSize
-      ) {
+    SabotConfig config,
+    DremioConfig dremioConfig,
+    BufferAllocator allocator,
+    OptionManager optionManager,
+    int targetBatchSize) {
 
-    this(config, null, null, allocator, allocator, null, null, null, null, null, null, null,
+    this(config, dremioConfig, null, null, allocator, allocator, null, null, null, null, null, null, null,
       optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null);
   }
 
   @Override
   public SabotConfig getConfig(){
     return config;
+  }
+
+  @Override
+  public DremioConfig getDremioConfig(){
+    return dremioConfig;
   }
 
   @Override

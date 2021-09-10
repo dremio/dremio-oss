@@ -87,7 +87,6 @@ public class ExpressionSplit implements Closeable {
   private boolean optimize;
 
   final private TypedFieldId typedFieldId;
-  private String toStr = null;
 
   public SupportedEngines.Engine getExecutionEngine() {
     return executionEngine;
@@ -115,28 +114,24 @@ public class ExpressionSplit implements Closeable {
   }
 
   public String toString() {
-    if (toStr == null) {
-      String dependsOn = "";
-      for (String str : dependsOnSplits) {
-        dependsOn += str + " ";
-      }
-
-      String fieldIdStr = "null";
-      if (typedFieldId != null) {
-        fieldIdStr = typedFieldId.toString();
-      }
-
-      StringBuilder stringBuilder = new StringBuilder();
-      stringBuilder.append("name: " + namedExpression.getRef().toString());
-      stringBuilder.append(", fieldId: " + fieldIdStr);
-      stringBuilder.append(", readers: " + totalReadersOfOutput);
-      stringBuilder.append(", dependencies: " + dependsOn);
-      stringBuilder.append(", expr: " + namedExpression.getExpr().toString());
-
-      toStr = stringBuilder.toString();
+    StringBuilder dependsOn = new StringBuilder();
+    for (String str : dependsOnSplits) {
+      dependsOn.append(str).append(" ");
     }
 
-    return toStr;
+    String fieldIdStr = "null";
+    if (typedFieldId != null) {
+      fieldIdStr = typedFieldId.toString();
+    }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("name: ").append(namedExpression.getRef())
+      .append(", fieldId: ").append(fieldIdStr)
+      .append(", readers: ").append(totalReadersOfOutput)
+      .append(", dependencies: ").append(dependsOn)
+      .append(", expr: ").append(namedExpression.getExpr());
+
+    return sb.toString();
   }
 
   // All used by test code to verify correctness
@@ -200,7 +195,10 @@ public class ExpressionSplit implements Closeable {
   private void markAsRead() {
     this.numReadersOfOutput++;
     if (this.totalReadersOfOutput == this.numReadersOfOutput) {
-      logger.trace("Releasing output buffer for {}, fieldid {}", getOutputName(), typedFieldId != null ? typedFieldId.toString() : "null");
+      if (logger.isTraceEnabled()) {
+        logger.trace("Releasing output buffer for {}, fieldid {}", getOutputName(),
+          typedFieldId != null ? typedFieldId.toString() : "null");
+      }
       releaseOutputBuffer();
     }
   }

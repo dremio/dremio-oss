@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>17.0.0-202107060524010627-31b5222b</version>
+    <version>18.0.0-202109101536100970-a32fc9f4</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -292,7 +292,7 @@
                     Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                   </message>
-                  <maxsize>700000000</maxsize>
+                  <maxsize>703000000</maxsize>
                   <minsize>500000000</minsize>
                   <files>
                     <file>${project.build.directory}/${dremio.distribution.name}-${project.version}.tar.gz</file>
@@ -535,7 +535,7 @@ exit 0
                         Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                       </message>
-                      <maxsize>700000000</maxsize>
+                      <maxsize>703000000</maxsize>
                       <minsize>500000000</minsize>
                       <files>
                         <file>${project.build.directory}/rpm/${dremio.distribution.name}/RPMS/noarch/${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm</file>

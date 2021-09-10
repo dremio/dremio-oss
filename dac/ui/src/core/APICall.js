@@ -153,3 +153,14 @@ export class APIV2Call extends APICall {
     return this;
   }
 }
+
+export class APIV3Call extends APICall {
+  constructor() {
+    super();
+    super.apiVersion(3);
+  }
+
+  apiVersion() {
+    return this;
+  }
+}

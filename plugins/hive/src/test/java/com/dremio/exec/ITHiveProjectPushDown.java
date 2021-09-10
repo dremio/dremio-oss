@@ -17,22 +17,15 @@ package com.dremio.exec;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.concurrent.TimeUnit;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class ITHiveProjectPushDown extends HiveTestBase {
-
-  @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
+  protected static String queryPlanKeyword = "mode=[NATIVE_PARQUET]";
 
   // enable decimal data type
   @BeforeClass
@@ -93,6 +86,6 @@ public class ITHiveProjectPushDown extends HiveTestBase {
   @Test
   public void projectPushDownOnHiveParquetTable() throws Exception {
     String query = "SELECT boolean_field, boolean_part, int_field, int_part FROM hive.readtest_parquet";
-    testHelper(query, 2, expectedColumnsString("boolean_field", "int_field", "boolean_part", "int_part"), "NATIVE_PARQUET");
+    testHelper(query, 2, expectedColumnsString("boolean_field", "int_field", "boolean_part", "int_part"), queryPlanKeyword);
   }
 }

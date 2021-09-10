@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -126,16 +127,22 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
             final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
             output.addField(field, clazz);
           } else {
-            Preconditions.checkState(arrowSchema != null, "Invalid parquet schema");
-            Field groupField = arrowSchema.findField(parquetField.getName());
-            List<Field> arrowField = new ArrayList<>();
-            arrowField.add(groupField);
-            List<Field> dremioField = CompleteType.convertToDremioFields(arrowField);
-            Field dremioGroupField = dremioField.get(0);
-            Field field = new Field(columnResolver.getBatchSchemaColumnName(parquetField.getName()), true,
-              dremioGroupField.getType(), dremioGroupField.getChildren());
-            final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
-            output.addField(field, clazz);
+            if (arrowSchema != null) {
+              Field groupField = arrowSchema.findField(parquetField.getName());
+              List<Field> arrowField = new ArrayList<>();
+              arrowField.add(groupField);
+              List<Field> dremioField = CompleteType.convertToDremioFields(arrowField);
+              Field dremioGroupField = dremioField.get(0);
+              Field field = new Field(columnResolver.getBatchSchemaColumnName(parquetField.getName()), true,
+                dremioGroupField.getType(), dremioGroupField.getChildren());
+              final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
+              output.addField(field, clazz);
+            } else {
+              Optional<Field> field = ParquetTypeHelper.toField(parquetField, schemaHelper);
+              if (field.isPresent()) {
+                output.addField(field.get(), TypeHelper.getValueVectorClass(field.get()));
+              }
+            }
           }
           break;
         }

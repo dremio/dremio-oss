@@ -19,8 +19,7 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 
-import { formLabel } from 'uiTheme/radium/typography';
-import { WHITE, CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 import AccelerationAggregation from './AccelerationAggregation';
 import AccelerationRaw from './AccelerationRaw';
 
@@ -139,19 +138,19 @@ export class AccelerationAdvanced extends Component {
   render() {
     const activeTab = this.getActiveTab();
     return (
-      <div data-qa='acceleration-advanced' style={styles.base}>
-        <div style={styles.tabs}>
+      <div className={'AccelerationAdvanced'} data-qa='acceleration-advanced'>
+        <div className={'AccelerationAdvanced__tabs'}>
           <div
+            className={`AccelerationAdvanced__tab ${activeTab === 'RAW' ? '--bgColor-header' : '--bgColor-white'}`}
             data-qa='raw-queries-tab'
-            style={[styles.tab, {backgroundColor: activeTab === 'RAW' ? CELL_EXPANSION_HEADER : WHITE }]}
             key='raw'
             onClick={() => this.setState({ activeTab: 'RAW' })}
           >
             {la('Raw Reflections')}
           </div>
           <div
+            className={`AccelerationAdvanced__tab ${activeTab === 'AGGREGATION' ? '--bgColor-header' : '--bgColor-white'}`}
             data-qa='aggregation-queries-tab'
-            style={[styles.tab, {backgroundColor: activeTab === 'AGGREGATION' ? CELL_EXPANSION_HEADER : WHITE }]}
             key='aggregation'
             onClick={() => this.setState({ activeTab: 'AGGREGATION' })}
           >
@@ -172,29 +171,3 @@ const mapStateToProps = state => {
 };
 
 export default connect(mapStateToProps)(AccelerationAdvanced);
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1
-  },
-  tabs: {
-    display: 'flex',
-    alignItems: 'center',
-    height: 40,
-    marginBottom: 5,
-    width: '100%'
-  },
-  tab: {
-    ...formLabel,
-    height: 25,
-    padding: 5,
-    marginRight: 10,
-    alignContent: 'center',
-    ':hover': {
-      backgroundColor: CELL_EXPANSION_HEADER,
-      cursor: 'pointer'
-    }
-  }
-};

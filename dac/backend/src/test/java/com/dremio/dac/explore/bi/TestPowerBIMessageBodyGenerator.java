@@ -163,14 +163,16 @@ public class TestPowerBIMessageBodyGenerator {
     assertEquals("DirectQuery", connection.getMode());
 
     final PowerBIMessageBodyGenerator.DataSourceReference details = connection.getDSR();
-    assertEquals("dremio", details.getProtocol());
-
     final PowerBIMessageBodyGenerator.DSRConnectionInfo address = details.getAddress();
-    assertEquals(serverPort(server, port), address.getServer());
+
     assertEquals(expectedSchema, address.getSchema());
     assertEquals(expectedTable, address.getTable());
-    verifyExtraDSRFileAttributes(address);
+
+    verifyExtraDSRFileAttributes(address, details);
   }
 
-  protected void verifyExtraDSRFileAttributes(PowerBIMessageBodyGenerator.DSRConnectionInfo address) {}
+  protected void verifyExtraDSRFileAttributes(PowerBIMessageBodyGenerator.DSRConnectionInfo address, PowerBIMessageBodyGenerator.DataSourceReference details) {
+    assertEquals("dremio", details.getProtocol());
+    assertEquals(serverPort(server, port), address.getServer());
+  }
 }

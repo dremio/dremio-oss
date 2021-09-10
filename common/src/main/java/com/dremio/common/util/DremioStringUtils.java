@@ -40,6 +40,14 @@ public class DremioStringUtils {
     return String.format("%s%.1f %ciB", (bytes == absBytes ? "" : "-"), absBytes / Math.pow(unit, exp), pre);
   }
 
+  /**
+   * @param input
+   * @return first line of the input
+   */
+  public static String firstLine(String input) {
+    return input.split("\n|\r|\r\n", 2)[0];
+  }
+
 
   /**
    * Unescapes any Java literals found in the {@code String}.

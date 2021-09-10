@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -38,73 +39,80 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
 
   @Test
   public void renameToExistingColumn() throws Exception {
-    String tableName = "changecol1";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol1";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message varchar", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message varchar", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Column [commit_message] already present in table [dfs_test.changecol1]");
+        errorMsgTestHelper(query, "Column [commit_message] already present in table [" + testSchema + ".changecol1]");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void invalidType() throws Exception {
-    String tableName = "changecol2";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol2";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 varchare", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 varchare", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Invalid column type [`varchare`] specified");
+        errorMsgTestHelper(query, "Invalid column type [`varchare`] specified");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void invalidPromoteStringToInt() throws Exception {
-    String tableName = "changecol3";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol3";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      Thread.sleep(1001);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
 
-      String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 int", TEMP_SCHEMA,
+        String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 int", testSchema,
           tableName);
-      errorMsgTestHelper(query, "Cannot change data type of column [version] from VARCHAR to INTEGER");
+        errorMsgTestHelper(query, "Cannot change data type of column [version] from VARCHAR to INTEGER");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void rename() throws Exception {
-    String tableName = "changecol4";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol4";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -114,11 +122,11 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String renameQuery = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey int", TEMP_SCHEMA, tableName);
-      test(renameQuery);
+        Thread.sleep(1001);
+        String renameQuery = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey int", testSchema, tableName);
+        test(renameQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("regionkey")
@@ -127,23 +135,25 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void uppromote() throws Exception {
-    String tableName = "changecol5";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol5";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -152,11 +162,11 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String uppromote = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey bigint", TEMP_SCHEMA, tableName);
-      test(uppromote);
+        Thread.sleep(1001);
+        String uppromote = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey bigint", testSchema, tableName);
+        test(uppromote);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("regionkey")
@@ -165,23 +175,25 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void renameFollowedByUppromote() throws Exception {
-    String tableName = "changecol6";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol6";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -191,11 +203,11 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String renameQuery = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey int", TEMP_SCHEMA, tableName);
-      test(renameQuery);
+        Thread.sleep(1001);
+        String renameQuery = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey int", testSchema, tableName);
+        test(renameQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("regionkey")
@@ -204,11 +216,11 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String uppromote = String.format("ALTER TABLE %s.%s CHANGE regionkey regionkey bigint", TEMP_SCHEMA, tableName);
-      test(uppromote);
+        Thread.sleep(1001);
+        String uppromote = String.format("ALTER TABLE %s.%s CHANGE regionkey regionkey bigint", testSchema, tableName);
+        test(uppromote);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("regionkey")
@@ -217,23 +229,25 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void renameAndUppromote() throws Exception {
-    String tableName = "changecol7";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol7";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -243,11 +257,11 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String renameQuery = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey bigint", TEMP_SCHEMA, tableName);
-      test(renameQuery);
+        Thread.sleep(1001);
+        String renameQuery = String.format("ALTER TABLE %s.%s CHANGE n_regionkey regionkey bigint", testSchema, tableName);
+        test(renameQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("regionkey")
@@ -256,23 +270,25 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void renamePartitionColumn() throws Exception {
-    String tableName = "changecol8";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol8";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s PARTITION BY (n_regionkey) as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s PARTITION BY (n_regionkey) as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -282,11 +298,11 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .run();
 
 
-      Thread.sleep(1001);
-      String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", TEMP_SCHEMA, tableName);
-      test(addColQuery);
+        Thread.sleep(1001);
+        String addColQuery = String.format("ALTER TABLE %s.%s ADD COLUMNS(key int)", testSchema, tableName);
+        test(addColQuery);
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey", "key")
@@ -295,27 +311,29 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String dropColQuery = String.format("ALTER TABLE %s.%s CHANGE n_RegiOnkey regionkey int", TEMP_SCHEMA, tableName);
-      errorMsgTestHelper(dropColQuery, "[n_regionkey] is a partition column. Partition spec change is not supported.");
+        Thread.sleep(1001);
+        String dropColQuery = String.format("ALTER TABLE %s.%s CHANGE n_RegiOnkey regionkey int", testSchema, tableName);
+        errorMsgTestHelper(dropColQuery, "[n_regionkey] is a partition column. Partition spec change is not supported.");
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void noContextFail() throws Exception {
-    String tableName = "changecol9";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol9";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
-              "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as " +
+            "SELECT n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey < 2 GROUP BY n_regionkey ",
+          testSchema, tableName);
+        test(createTableQuery);
 
-      final String selectFromCreatedTable = String.format("select * from %s.%s", TEMP_SCHEMA, tableName);
-      testBuilder()
+        final String selectFromCreatedTable = String.format("select * from %s.%s", testSchema, tableName);
+        testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
           .baselineColumns("n_regionkey")
@@ -324,22 +342,29 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
           .build()
           .run();
 
-      Thread.sleep(1001);
-      String changeColQuery = String.format("ALTER TABLE %s CHANGE n_RegiOnkey regionkey int", tableName);
-      errorMsgTestHelper(changeColQuery, "Table [changecol9] not found");
+        Thread.sleep(1001);
+        String changeColQuery = String.format("ALTER TABLE %s CHANGE n_RegiOnkey regionkey int", tableName);
+        errorMsgTestHelper(changeColQuery, "Table [changecol9] not found");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 
   @Test
   public void messageHasPrecAndScale() throws Exception {
-    String tableName = "changecol10";
-    try (AutoCloseable c = enableIcebergTables()) {
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      String tableName = "changecol10";
+      try (AutoCloseable c = enableIcebergTables()) {
 
-      final String createTableQuery = String.format("CREATE TABLE %s.%s (dec1 DECIMAL(10,2))",
-          TEMP_SCHEMA, tableName);
-      test(createTableQuery);
-      String changeColQuery = String.format("ALTER TABLE %s.%s CHANGE dec1 dec1 decimal(11, 3)", TEMP_SCHEMA, tableName);
-      errorMsgTestHelper(changeColQuery, "Cannot change data type of column [dec1] from DECIMAL(10, 2) to DECIMAL(11, 3)");
+        final String createTableQuery = String.format("CREATE TABLE %s.%s (dec1 DECIMAL(10,2))",
+          testSchema, tableName);
+        test(createTableQuery);
+        String changeColQuery = String.format("ALTER TABLE %s.%s CHANGE dec1 dec1 decimal(11, 3)", testSchema, tableName);
+        errorMsgTestHelper(changeColQuery, "Cannot change data type of column [dec1] from DECIMAL(10, 2) to DECIMAL(11, 3)");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
     }
   }
 

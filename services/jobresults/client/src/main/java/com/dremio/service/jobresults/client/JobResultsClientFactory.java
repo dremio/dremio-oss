@@ -25,5 +25,5 @@ import com.dremio.service.Service;
  */
 public interface JobResultsClientFactory extends Service {
   JobResultsClient getJobResultsClient(CoordinationProtos.NodeEndpoint endpoint, BufferAllocator allocator,
-                                       String fragmentId);
+                                       String fragmentId, String queryId);
 }

@@ -290,8 +290,12 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
                                                  boolean addWithPartitionCols, EasyProtobuf.EasyDatasetSplitXAttr easyXAttr,
                                                  List<SchemaPath> innerFields) {
     if (addWithPartitionCols) {
-      final List<Field> partitionCols = easyScanConfig.getPartitionColumns().stream()
-              .map(c -> easyScanConfig.getFullSchema().findField(c)).collect(Collectors.toList());
+      // Fetch list of partition columns from add.partitionValues_parsed
+      final List<Field> partitionCols = easyScanConfig.getFullSchema().findField(DELTA_FIELD_ADD).getChildren().stream()
+        .filter(field -> field.getName().equals(SCHEMA_PARTITION_VALUES_PARSED))
+        .flatMap(field -> field.getChildren().stream())
+        .collect(Collectors.toList());
+
       // Replace actual partition col fields instead of projecting all columns. When a table is repartitioned on different
       // column, we don't want old commit log json to promote incorrect partition cols.
       final SchemaPath partitionValuesPath = SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES);

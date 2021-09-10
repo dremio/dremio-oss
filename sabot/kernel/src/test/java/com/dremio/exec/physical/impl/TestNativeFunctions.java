@@ -56,6 +56,7 @@ import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieveHelper;
 import com.dremio.sabot.op.project.ProjectOperator;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
 /*
@@ -1228,6 +1229,14 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"convert_replaceUTF8(binary_string(c0), 'a')", "ABC", "ABC"},
       {"convert_replaceUTF8(binary_string(c0), 'z')", "ABC-\\xf8-\\x41\\x42\\x43", "ABC-z-ABC"},
       {"convert_replaceUTF8(binary_string(c0), 'z')", "\\xf8-ABC-\\xf8-\\x41\\x42\\x43-\\xf8", "z-ABC-z-ABC-z"},
+    });
+  }
+
+  // DX-34447
+  @Test
+  public void testIfElseVarbinary() throws Exception {
+    testFunctions(new Object[][]{
+      {"case when (isnotnull(c0)) then c0 else c1 end", "abc".getBytes(Charsets.UTF_8), "def".getBytes(Charsets.UTF_8), "abc".getBytes(Charsets.UTF_8)}
     });
   }
 }

@@ -111,6 +111,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator STREAM_AGG_WITH_GROUPS = new BooleanValidator("planner.streamagg.allow_grouping", false);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final LongValidator HEP_PLANNER_MATCH_LIMIT = new PositiveLongValidator("planner.hep_match_limit", Integer.MAX_VALUE, Integer.MAX_VALUE);
+  public static final BooleanValidator ENHANCED_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.enhanced_filter_join_pushdown", false);
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
   public static final BooleanValidator TRANSITIVE_FILTER_NOT_NULL_EXPR_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown_not_null_expr", false); // Until DX-26452 is fixes
   public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", true);
@@ -140,9 +141,13 @@ public class PlannerSettings implements Context{
   // if num of records for the fragment is greater than this.
   public static final Long MIN_RECORDS_PER_FRAGMENT  = 500L;
 
+  public static final int MAX_CNF_NODE_COUNT  = 18;
+
   public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
 
   public static final BooleanValidator NLJ_PUSHDOWN = new BooleanValidator("planner.nlj.expression_pushdown", true);
+
+  public static final BooleanValidator ENABLE_FILTER_WINDOW_OPTIMIZER = new BooleanValidator("planner.enable_filter_window_optimizer", true);
 
   public static final BooleanValidator REDUCE_ALGEBRAIC_EXPRESSIONS = new BooleanValidator("planner.reduce_algebraic_expressions", false);
   public static final BooleanValidator FILTER_EXTRACT_CONJUNCTIONS = new BooleanValidator("planner.filter.extract_conjunctions", false);
@@ -165,10 +170,16 @@ public class PlannerSettings implements Context{
 
   public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
 
-  public static final BooleanValidator ENABLE_ICEBERG_EXECUTION = new BooleanValidator("dremio.execution.v2", false);
   public static final BooleanValidator ENABLE_DELTALAKE = new BooleanValidator("dremio.deltalake.enabled", true);
   public static final LongValidator ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD = new LongValidator("planner.iceberg.manifestscan.records_per_thread", 1000);
   public static final BooleanValidator UNLIMITED_SPLITS_SUPPORT = new BooleanValidator("dremio.execution.support_unlimited_splits", false);
+
+  public static final DoubleValidator METADATA_REFRESH_INCREASE_FACTOR = new DoubleValidator("dremio.metadata.increase_factor", 0.1);
+
+  public static final DoubleValidator FOOTER_READING_DIRLIST_RATIO= new DoubleValidator("dremio.metadata.footer_read_dirlist_ratio", 50);
+
+  public static final DoubleValidator MIN_FILES_CHANGED_DURING_REFRESH = new DoubleValidator("dremio.metadata.minimum_files_changed", 100);
+
 
   public static final BooleanValidator ENABLE_AGGRESSIVE_MEMORY_CALCULATION =
     new BooleanValidator("planner.memory.aggressive", false);
@@ -251,12 +262,14 @@ public class PlannerSettings implements Context{
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR_WITH_STATISTICS =
     new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor_with_statistics", 0.0, 1.0, DEFAULT_FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR_WITH_STATISTICS);
 
+  public static final PositiveLongValidator STATISTICS_MAX_COLUMN_LIMIT = new PositiveLongValidator("planner.statistics_max_column_limit", Integer.MAX_VALUE, 50);
+
   public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
           new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, DEFAULT_FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR);
 
   public static final BooleanValidator REMOVE_ROW_ADJUSTMENT = new BooleanValidator("planner.remove_rowcount_adjustment", true);
 
-  public static final PositiveLongValidator CASE_EXPRESSIONS_THRESHOLD = new PositiveLongValidator("planner.case_expressions_threshold", 400, 150);
+  public static final PositiveLongValidator CASE_EXPRESSIONS_THRESHOLD = new PositiveLongValidator("planner.case_expressions_threshold", 400, 20);
 
   public static final BooleanValidator ENABLE_SCAN_MIN_COST = new BooleanValidator("planner.cost.minimum.enable", true);
   public static final DoubleValidator DEFAULT_SCAN_MIN_COST = new DoubleValidator("planner.default.min_cost_per_split", 0);
@@ -379,6 +392,10 @@ public class PlannerSettings implements Context{
     return options.getOption(FLATTEN_FILTER);
   }
 
+  public long getStatisticsMaxColumnLimit() {
+    return options.getOption(STATISTICS_MAX_COLUMN_LIMIT);
+  }
+
   public boolean isSingleMode() {
     return forceSingleMode || options.getOption(EXCHANGE);
   }
@@ -401,6 +418,10 @@ public class PlannerSettings implements Context{
 
   public double getBroadcastFactor(){
     return options.getOption(BROADCAST_FACTOR);
+  }
+
+  public boolean isEnhancedFilterJoinPushdownEnabled() {
+    return options.getOption(ENHANCED_FILTER_JOIN_PUSHDOWN);
   }
 
   public double getColumnUniquenessEstimationFactor(){

@@ -19,10 +19,8 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.Duration;
 import java.util.UUID;
 
 import org.apache.hadoop.conf.Configuration;
@@ -34,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
-import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -42,9 +39,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
-import software.amazon.awssdk.http.SdkHttpClient;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -87,7 +81,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
     final StsClientBuilder builder = StsClient.builder()
       .credentialsProvider(awsCredentialsProvider)
       .region(S3FileSystem.getAWSRegionFromConfigurationOrDefault(conf))
-      .httpClientBuilder(initConnectionSettings(conf));
+      .httpClientBuilder(ApacheHttpConnectionUtil.initConnectionSettings(conf));
     S3FileSystem.getStsEndpoint(conf).ifPresent(e -> {
       try {
         builder.endpointOverride(new URI(e));
@@ -114,56 +108,6 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
     return this.stsAssumeRoleCredentialsProvider.resolveCredentials();
   }
 
-  public static SdkHttpClient.Builder<?> initConnectionSettings(Configuration conf) {
-    final ApacheHttpClient.Builder httpBuilder = ApacheHttpClient.builder();
-    httpBuilder.maxConnections(intOption(conf, Constants.MAXIMUM_CONNECTIONS, Constants.DEFAULT_MAXIMUM_CONNECTIONS, 1));
-    httpBuilder.connectionTimeout(
-      Duration.ofSeconds(intOption(conf, Constants.ESTABLISH_TIMEOUT, Constants.DEFAULT_ESTABLISH_TIMEOUT, 0)));
-    httpBuilder.socketTimeout(
-      Duration.ofSeconds(intOption(conf, Constants.SOCKET_TIMEOUT, Constants.DEFAULT_SOCKET_TIMEOUT, 0)));
-    httpBuilder.proxyConfiguration(initProxySupport(conf));
-
-    return httpBuilder;
-  }
-
-  public static ProxyConfiguration initProxySupport(Configuration conf) throws IllegalArgumentException {
-    final ProxyConfiguration.Builder builder = ProxyConfiguration.builder();
-
-    final String proxyHost = conf.getTrimmed(Constants.PROXY_HOST, "");
-    int proxyPort = conf.getInt(Constants.PROXY_PORT, -1);
-    if (!proxyHost.isEmpty()) {
-      if (proxyPort < 0) {
-        if (conf.getBoolean(Constants.SECURE_CONNECTIONS, Constants.DEFAULT_SECURE_CONNECTIONS)) {
-          proxyPort = 443;
-        } else {
-          proxyPort = 80;
-        }
-      }
-
-      builder.endpoint(URI.create(proxyHost + ":" + proxyPort));
-
-      try {
-        final String proxyUsername = lookupPassword(conf, Constants.PROXY_USERNAME);
-        final String proxyPassword = lookupPassword(conf, Constants.PROXY_PASSWORD);
-        if ((proxyUsername == null) != (proxyPassword == null)) {
-          throw new IllegalArgumentException(String.format("Proxy error: %s or %s set without the other.",
-            Constants.PROXY_USERNAME, Constants.PROXY_PASSWORD));
-        }
-
-        builder.username(proxyUsername);
-        builder.password(proxyPassword);
-        builder.ntlmDomain(conf.getTrimmed(Constants.PROXY_DOMAIN));
-        builder.ntlmWorkstation(conf.getTrimmed(Constants.PROXY_WORKSTATION));
-      } catch (IOException e) {
-        throw UserException.sourceInBadState(e).buildSilently();
-      }
-    } else if (proxyPort >= 0) {
-      throw new IllegalArgumentException(String.format("Proxy error: %s set without %s",
-        Constants.PROXY_HOST, Constants.PROXY_PORT));
-    }
-
-    return builder.build();
-  }
 
   private static void initUserAgent(StsClientBuilder builder, Configuration conf) {
     String userAgent = "Hadoop " + VersionInfo.getVersion();
@@ -175,21 +119,6 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
     builder.overrideConfiguration(ClientOverrideConfiguration.builder()
       .putAdvancedOption(SdkAdvancedClientOption.USER_AGENT_PREFIX, userAgent)
       .build());
-  }
-
-  static int intOption(Configuration conf, String key, int defVal, int min) {
-    final int v = conf.getInt(key, defVal);
-    Preconditions.checkArgument(v >= min, "Value of %s: %s is below the minimum value %s", key, v, min);
-    return v;
-  }
-
-  static String lookupPassword(Configuration conf, String key) throws IOException {
-    try {
-      final char[] pass = conf.getPassword(key);
-      return pass != null ? (new String(pass)).trim() : null;
-    } catch (IOException ioe) {
-      throw new IOException("Cannot find password option " + key, ioe);
-    }
   }
 
   @Override

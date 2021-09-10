@@ -15,11 +15,20 @@
  */
 package com.dremio.plugins.elastic;
 
-import org.junit.Test;
-
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
+import java.util.concurrent.TimeUnit;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
+
+import com.dremio.common.util.TestTools;
+
 public class ITTestParallelization extends ElasticBaseTestQuery {
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void test() throws Exception {
@@ -42,7 +51,7 @@ public class ITTestParallelization extends ElasticBaseTestQuery {
             })
     };
 
-    elastic.load(schema, table, data);
+    loadWithRetry(schema, table, data);
     testNoResult("set planner.width.max_per_node = 10");
     testNoResult("set planner.width.max_per_query = 10");
     testNoResult("set planner.slice_target = 1");

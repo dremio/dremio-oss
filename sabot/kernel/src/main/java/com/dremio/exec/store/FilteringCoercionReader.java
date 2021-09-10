@@ -187,15 +187,6 @@ public class FilteringCoercionReader extends CoercionReader {
   }
 
   @Override
-  protected void setupProjector(VectorContainer projectorOutput) {
-    super.setupProjector(projectorOutput);
-    // when individual fields of a struct column are projected, currently it results
-    // in setting schema changed flag. Resetting the flag in iceberg flow, since
-    // schema learning should not happen in iceberg flow
-    outputMutator.getAndResetSchemaChanged();
-  }
-
-  @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
     // do not allocate if called by FilteringReader
     if (nextMethodState == NextMethodState.NOT_CALLED_BY_FILTERING_READER) {

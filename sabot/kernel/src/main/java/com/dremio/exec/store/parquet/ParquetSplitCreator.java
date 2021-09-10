@@ -17,9 +17,12 @@ package com.dremio.exec.store.parquet;
 
 import static org.apache.iceberg.FileFormat.PARQUET;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
+import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.base.Preconditions;
@@ -28,14 +31,20 @@ import com.google.common.base.Preconditions;
  * Creates Parquet Split and partition info
  */
 public class ParquetSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
+  private final OperatorContext context;
+
+  public ParquetSplitCreator(OperatorContext context) {
+    this.context = context;
+  }
 
   @Override
   public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity,
                                            String fileFormat, long fileSize, long currentModTime) {
 
+  String splitPath = Path.getContainerSpecificRelativePath(Path.of(splitIdentity.getPath()));
   Preconditions.checkArgument(fileFormat.equalsIgnoreCase(PARQUET.toString()));
     ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
-      .setPath(splitIdentity.getPath())
+      .setPath(splitPath)
       .setStart(splitIdentity.getOffset())
       .setLength(splitIdentity.getLength())
       .setFileLength(fileSize)
@@ -47,5 +56,10 @@ public class ParquetSplitCreator implements BlockBasedSplitGenerator.SplitCreato
       .setExtendedProperty(splitExtended.toByteString());
 
     return new SplitAndPartitionInfo(filePartitionInfo, splitInfo.build());
+  }
+
+  @Override
+  public long getTargetSplitSize(String fileFormat) {
+    return context.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
   }
 }

@@ -16,6 +16,7 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_JOINER;
+import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_ADD_PATH;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_ADD_VERSION;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_REMOVE_PATH;
@@ -79,6 +80,7 @@ import com.dremio.exec.planner.sql.handlers.PrelFinalizable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ExpressionInputRewriter;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
@@ -257,11 +259,11 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
     RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
     HashToRandomExchangePrel parquetSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
-            expandDeltaLakeScan(), distributionTrait.getFields(), true);
+            expandDeltaLakeScan(), distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadata, false));
 
     // Parquet scan phase
     TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
-      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled);
+      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, false);
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), table, parquetSplitsExchange, tableMetadata,
       ImmutableList.copyOf(getProjectedColumns()), parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
@@ -269,7 +271,18 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
   public static RelDataType getSplitRowType(RelOptCluster cluster) {
     final RelDataTypeFactory.Builder builder = cluster.getTypeFactory().builder();
-    builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_IDENTITY, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
+    builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_IDENTITY, 0, cluster.getTypeFactory().createStructType(
+      ImmutableList.of(
+        cluster.getTypeFactory().createSqlType(SqlTypeName.VARCHAR),
+        cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT),
+        cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT),
+        cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT)),
+      ImmutableList.of(
+        SplitIdentity.PATH,
+        SplitIdentity.OFFSET,
+        SplitIdentity.LENGTH,
+        SplitIdentity.FILE_LENGTH
+      ))));
     builder.add(new RelDataTypeFieldImpl(RecordReader.SPLIT_INFORMATION, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
     builder.add(new RelDataTypeFieldImpl(RecordReader.COL_IDS, 0, cluster.getTypeFactory().createSqlType(SqlTypeName.VARBINARY)));
     return builder.build();
@@ -520,7 +533,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     if (partitionExpression == null) {
       return null;
     }
-    return partitionExpression.accept(new ExpressionInputRewriter(builder, getRowType(), input, ""));
+    return partitionExpression.accept(new ExpressionInputRewriter(builder, getRowType(), input, PARTITION_NAME_SUFFIX));
   }
 
   private RelNode flattenRowType(RelNode relNode, RexBuilder rexBuilder, boolean scanForAddedPath) {

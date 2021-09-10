@@ -20,6 +20,7 @@ import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -56,7 +57,9 @@ public class TestRefreshForMultiCoordinators extends BaseTestServer {
 
   @BeforeClass
   public static void init() throws Exception {
-    BaseTestServer.init(true);
+    // ignore the tests if not multinode.
+    assumeTrue(isMultinode());
+    BaseTestServer.init();
 
     masterCatalogService = ((CatalogServiceImpl) getMasterDremioDaemon().getBindingProvider().lookup(CatalogService.class));
     slaveCatalogService = ((CatalogServiceImpl) getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class));

@@ -95,7 +95,7 @@ public class LimitOperator implements SingleInputOperator {
       // stay in consume since we have no records to output.
       return;
     } else {
-      int recordsToCopy = Math.min(records - recordsToSkip, recordsLeft);
+      int recordsToCopy = (noEndLimit) ? (records - recordsToSkip) : Math.min(records - recordsToSkip, recordsLeft);
       copyPartial(recordsToSkip, recordsToCopy);
     }
 
@@ -110,7 +110,7 @@ public class LimitOperator implements SingleInputOperator {
   @Override
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
-    if(recordsLeft > 0){
+    if(recordsLeft > 0 || noEndLimit){
       state = State.CAN_CONSUME;
     } else {
       state = State.DONE;

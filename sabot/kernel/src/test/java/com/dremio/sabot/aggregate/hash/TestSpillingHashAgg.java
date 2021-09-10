@@ -662,7 +662,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       OptionManager optionManager = mock(OptionManager.class);
       when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
       try (BufferAllocator alloc = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-          OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), alloc, optionManager, 1000);
+          OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), alloc, optionManager, 1000);
           final VectorizedHashAggOperator op = new VectorizedHashAggOperator(agg, operatorContext)) {
       }
     }

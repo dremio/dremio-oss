@@ -44,7 +44,6 @@ export default class Message extends PureComponent {
   };
 
   static defaultProps = {
-    className: '',
     messageType: 'info',
     isDismissable: true,
     message: Immutable.Map(),
@@ -53,7 +52,7 @@ export default class Message extends PureComponent {
   };
 
   static propTypes = {
-    className: PropTypes.string,
+    className: PropTypes.any,
     message: PropTypes.oneOfType([
       PropTypes.node,
       PropTypes.instanceOf(Immutable.Map) // errors with extra details
@@ -291,7 +290,7 @@ export default class Message extends PureComponent {
     };
 
     return (
-      <div className={`message ${messageType} ${className}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
+      <div className={`message ${messageType} ${className || ''}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
         <div style={[styles.base, styles[messageType]]} ref='messagePanel'>
           {this.renderIcon(messageType)}
           <span className='message-content' style={{...styles.messageText, ...messageTextStyle}} onMouseUp={this.prevent}>

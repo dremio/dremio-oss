@@ -13,55 +13,187 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@GREY: #6A7781;
-@NAVY: #2A394A;
-@BLUE: #43B8C9;
-@TEAL: #5ED7B9;
-@ORANGE: #FFBB57;
-@LIGHT_GREY: #ECECEC;
-@PALE_NAVY: #E4F2F7;
-@DARK_NAVY: #344253;
-@PALE_BLUE: #F5FCFF;
-@PALE_ORANGE: #FFF5DC;
-@PALE_GREY: #F6F6F6;
-@MID_GREY: #555555;
-@RED: #DA3030;
-@GREEN: #81D94A;
-@CHARCOAL: #505050;
-@TRANSPARENT_COLOR: rgba(0, 0, 0, 0);
-@TABLE_BORDER: rgba(0, 0, 0, 0.1);
-@SECONDARY_BORDER: rgba(0, 0, 0, 0.05);
-@CONTAINER_BORDER: #C2C2C2;
-@OVERLAY_BORDER: #E9E9E9;
-@COLLABORATION_BORDER: #E4E4E4;
-@font-color1: #333333;
-@font-color2: #999999;
-@font-color-disabled: #bbb;
-@button-hover-bg: rgba(0, 0, 0, 0.02);
-@icon-button-hover-bg: rgba(0, 0, 0, 0.05);
-@overlay-color: rgba(255, 255, 255, 0.5);
-@btn-hover-border: #C0E9F5;
 
-@aqua-spring: #F4FAFC;
-@black-haze: #F3F4F4;
-@mercury: #E5E5E5;
-@pale-sky: #6E7987;
-@polar: #E9F5F9;
+ // This is the library for colors used in OSS
+ // DX-34369: Need to replace colors with branding primary/secondary/dark colors.
 
-@ACTIVE_DRAG_AREA: #EBF9F6;
-@BORDER_ACTIVE_DRAG_AREA: #92E2D0;
-@DISABLED_DRAG_AREA: #ffffff;
-@BORDER_DISABLED_DRAG_AREA: #f0f0f0;
+ // PRIMARY COLORS
+ @PRIMARY_900: #196C79;
+ @PRIMARY_800: #2B8F9D;
+ @PRIMARY_700: #3DA5B4;
+ @PRIMARY_600: #43B8C9;
+ @PRIMARY_500: #6ECBD9;
+ @PRIMARY_400: #AADEE6;
+ @PRIMARY_300: #D2EDF2;
+ @PRIMARY_200: #E9F5F9;
+ @PRIMARY_100: #F4FAFC;
 
-@CODE_BLUE: #358da3;
+ // SECONDARY COLORS
+ @SECONDARY_900: #2A394A;
+ @SECONDARY_800: #3F4C5C;
+ @SECONDARY_700: #4C5B6C;
+ @SECONDARY_600: #6E7987;
+ @SECONDARY_500: #848D9A;
+ @SECONDARY_400: #9FA6B0;
+ @SECONDARY_300: #C5CAD0;
+ @SECONDARY_200: #E9EDF0;
+ @SECONDARY_100: #F4F6F7;
 
-//monaco variables
-@monaco-error: rgba(255, 18, 18, 0.7);
+ // DARK AND FOR TEXT COLORS
+ @DARK_900: #333333;
+ @DARK_800: #505050;
+ @DARK_700: #888888;
+ @DARK_600: #9C9C9C;
+ @DARK_500: #B4B4B4;
+ @DARK_400: #D9D9D9;
+ @DARK_300: #DEDEDE;
+ @DARK_200: #E5E5E5;
+ @DARK_100: #F2F2F2;
+ @DARK_050: #F9FAFA;
 
-@table-bg: transparent;
-@table-bg-accent: #f9f9f9;
-@table-bg-hover: #f5f5f5;
-@table-bg-active: @table-bg-hover;
-@box-shadow: #c2c2c2;
-@action-btn-bg: #eeeeee;
-@action-btn-hover: #ffffff;
+ @WHITE: #FFFFFF;
+ @BLACK: #000000;
+
+ @GREY: #6A7781;
+ @NAVY: #2A394A;
+ @BLUE: #43B8C9;
+ @TEAL: #5ED7B9;
+ @ORANGE: #FFBB57;
+ @LIGHT_GREY: #ECECEC;
+ @PALE_NAVY: #E4F2F7;
+ @DARK_NAVY: #344253;
+ @PALE_BLUE: #F5FCFF;
+ @PALE_ORANGE: #FFF5DC;
+ @PALE_GREY: #F6F6F6;
+ @MID_GREY: #555555;
+ @RED: #DA3030;
+ @GREEN: #81D94A;
+ @CHARCOAL: #505050;
+ @TRANSPARENT_COLOR: transparent;
+ @TABLE_BORDER: rgba(0, 0, 0, 0.1);
+ @SECONDARY_BORDER: rgba(0, 0, 0, 0.05);
+ @CONTAINER_BORDER: #C2C2C2;
+ @OVERLAY_BORDER: #E9E9E9;
+ @COLLABORATION_BORDER: #E4E4E4;
+ @font-color1: @DARK_900;
+ @font-color2: #999999;
+ @font-color-disabled: #bbb;
+ @button-hover-bg: rgba(0, 0, 0, 0.02);
+ @icon-button-hover-bg: rgba(0, 0, 0, 0.05);
+ @overlay-color: rgba(255, 255, 255, 0.5);
+ @btn-hover-border: #C0E9F5;
+ 
+ @CODE_BLUE: #358da3;
+ 
+ //monaco variables
+ @monaco-error: rgba(255, 18, 18, 0.7);
+ @monaco-purple: #a100ff;
+ @monaco-green: #0D5E33;
+ @monaco-persian-green: #AA8900;
+ @monaco-light-green: #79B5F6;
+ @monaco-orange: #E28171;
+ 
+ @table-bg: @TRANSPARENT_COLOR;
+ @table-bg-accent: #f9f9f9;
+ @table-bg-hover: #f5f5f5;
+ @table-bg-active: @table-bg-hover;
+ @box-shadow: #c2c2c2;
+ @action-btn-bg: #eeeeee;
+ @action-btn-hover: @WHITE;
+ @aqua-spring: #F4FAFC;
+ @black-haze: #F3F4F4;
+ @mercury: #E5E5E5;
+ @pale-sky: #6E7987;
+ @polar: #E9F5F9;
+ @fordGray: #979797;
+ @gainsboro: #D8D8D8;
+ @secondary-blue: #E3F2F7;
+ @lite-grey :#D3D3D3;
+ @greyish-blue: #393D41;
+ @liteSlate-grey: #848D9A;
+ @bluemine: #196c79;
+ @black-russian: rgba(0,0,0,0.0001);
+ @solitude: #E9EDF0;
+ @alto: #DDDDDD;
+ @white: #FEFEFE;
+ @chinese-silver: #CCCCCC;
+ @liteGreyish-blue: #7F8B95;
+ @white-smoke: #F1F1F1;
+ @grey: #888888;
+ @pale_liteGrey: #e5e5e5;
+ @swiss-white: #DBDEDF;
+ @ton-grey: #9C9C9C;
+ @alice-blue: #F4F6F7;
+ @outline-btn-bg:#fff;
+ @outline-btn-border:#2B8F9D;
+ @title-text:#7F8B95;
+ @sql-link:#3F4C5C;
+ @tab-bottom-border:#f3f3f3;
+ 
+ // REFLECTIONS/ACCELERATION PAGES:
+ @BORDER_TABLE: @SECONDARY_300;
+ @BORDER_TABLE_DARK: @DARK_900;
+ @TEXT_COLOR: @DARK_800;
+ @CELL_EXPANSION_HEADER: #F3F3F3;
+
+ // REFLECTIONS/ACCELERATION PAGES - BASIC VIEW
+ @ACTIVE_DRAG_AREA: @PRIMARY_200;
+ @ACTIVE_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
+ @ACTIVE_HOVER_DRAG_AREA: @PRIMARY_200;
+ @ACTIVE_DRAG_AREA_BACKGROUND_COLOR: @PRIMARY_100;
+
+ @DISABLED_DRAG_AREA_BACKGROUND_COLOR: @WHITE;
+ @DISABLED_DRAG_AREA: @SECONDARY_200;
+
+ @DISABLED_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
+ 
+ // REFLECTIONS/ACCELERATION PAGES - ADVANCED VIEW
+ @ACTIVE_ADVANCED_LIGHT_ROW: @ACTIVE_DRAG_AREA_BACKGROUND_COLOR;
+ @ACTIVE_ADVANCED_DARK_ROW: @ACTIVE_HOVER_DRAG_AREA;
+ @DISABLED_ADVANCED_LIGHT_ROW: @DISABLED_DRAG_AREA_BACKGROUND_COLOR;
+ @DISABLED_ADVANCED_DARK_ROW: @SECONDARY_100;
+ 
+ @ADVANCED_INNER_BORDER_GREY: @BORDER_TABLE;
+ 
+ // REFLECTIONS/ACCELERATION PAGES - CELLPOPOVER
+ @ACTIVE_COLUMN_BORDER: #a8e7d9;
+ @ACTIVE_COLUMN_BACKGROUND_COLOR: #ebf9f6;
+ @ACTIVE_COLUMN_INDEX_BACKGROUND_COLOR: #96e3d1;
+ @DISABLED_COLUMN_BORDER: #F0F0F0;
+ @DISABLED_COLUMN_BACKGROUND_COLOR: @WHITE;
+ @DISABLED_COLUMN_INDEX_BACKGROUND_COLOR: @action-btn-bg;
+ @DISABLED_COLUMN_INDEX_TEXT_COLOR: #D2D2D2;
+ 
+ @CLEAR_ALL_BORDER_COLOR: #CCCCCC; // DX-34369: use once SimpleButton component is refactored
+ @CLEAR_ALL_BACKGROUND_COLOR: #F2F2F2; // DX-34369: use once SimpleButton component is refactored
+ @NEW_REFLECTION_BUTTON_BORDER_COLOR: #D9D9D9; // DX-34369
+ 
+ // AGGREGATE STYLES:
+ @BORDER_GREEN: #92E2D0;
+ @BORDER_GRAY: rgba(0,0,0,0.10);
+
+
+
+@MENU-HOVER: #E9F5F9;
+
+@datasets-search-bar-background: #f4f6f7;
+@datasets-search-field-background: #fff;
+@datasets-search-field-border: #DBDEDF;
+
+// colors for side nav
+@sideBar-background-color: #2a394a;
+@sideBar-font-color-default: #fcfcfc;
+@sideBar-font-label-color: #f4fafc;
+@sideBar-icon-image-color: #E5E5E5;
+@sideBar-icon-image-color-active: #aadee5;
+@sideBar-icon-active-background: #196c79;
+@sideBar-account-background: #43b8c9;
+@sideBar-account-icon-text-color: #2A394A;
+@sideBar-project-background: #64c5bf;
+@sideBar-project-icon-text-color: #2A394A;
+@sideBar-hover-background: #3F4C5C;
+@sideBar-separator-bar: #f4fafc;
+
+@input-element-border: @TABLE_BORDER;
+
+@linen: #FEEAEA;

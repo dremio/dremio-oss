@@ -21,6 +21,28 @@
 SqlNode SqlGrant() :
 {
   SqlParserPos pos;
+}
+{
+  <GRANT> { pos = getPos(); }
+  (
+    <OWNERSHIP>
+    (
+      {return SqlGrantOwnership(pos);}
+    )
+    |
+    <ROLE>
+    (
+      {return SqlGrantRole(pos);}
+    )
+    |
+    {
+      return SqlGrantPrivilege(pos);
+    }
+  )
+}
+
+SqlNode SqlGrantPrivilege(SqlParserPos pos) :
+{
   SqlNodeList privilegeList = new SqlNodeList(getPos());
   SqlGrant.Grant grant = null;
   SqlGrantOnProjectEntities.Grant grantOnProjectEntities = null;
@@ -32,8 +54,8 @@ SqlNode SqlGrant() :
   boolean isDCSEntity = false;
 }
 {
-  <GRANT> { pos = getPos(); }
-    PrivilegeCommaList(privilegeList.getList())
+  PrivilegeCommaList(privilegeList.getList())
+
   <ON>
     (
       (<SYSTEM> | <PROJECT>) {
@@ -323,4 +345,73 @@ SqlNode SqlRevoke() :
 
       return new SqlRevoke(pos, privilegeList, grant.getType(), grantee, granteeType);
     }
+}
+
+SqlNode SqlGrantOwnership(SqlParserPos pos) :
+{
+  SqlNodeList privilegeList = new SqlNodeList(getPos());
+  SqlGrantOwnership.Grant grant = null;
+  SqlIdentifier entity;
+  SqlIdentifier grantee;
+  SqlLiteral granteeType;
+}
+{
+  <ON>
+  (
+    <USER> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.USER, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <CATALOG> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.CATALOG, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <PROJECT> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.PROJECT, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <ORG> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ORG, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <CLOUD> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.CLOUD, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <ENGINE> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ENGINE, getPos()));
+      entity = SimpleIdentifier();
+    }
+
+  )
+  <TO>
+    granteeType = ParseGranteeType()
+    grantee = SimpleIdentifier()
+    {
+      return new SqlGrantOwnership(pos, entity, grant.getType(), grantee, granteeType);
+    }
+}
+
+/**
+  * GRANT ROLE roleToGrant TO granteeType grantee
+  */
+SqlNode SqlGrantRole(SqlParserPos pos) :
+{
+  SqlIdentifier roleToGrant;
+  SqlLiteral granteeType;
+  SqlIdentifier grantee;
+}
+{
+  roleToGrant = SimpleIdentifier()
+  <TO>
+  granteeType = ParseGranteeType()
+  grantee = SimpleIdentifier()
+  {
+    return new SqlGrantRole(pos, roleToGrant, granteeType, grantee);
+  }
 }

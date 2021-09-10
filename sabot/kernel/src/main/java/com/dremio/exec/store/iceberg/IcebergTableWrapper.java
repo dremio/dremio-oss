@@ -105,7 +105,8 @@ public class IcebergTableWrapper {
         table = icebergModel.getIcebergTable(
                   icebergModel.getTableIdentifier(rootDir));
         schema = table.schema();
-        batchSchema = SchemaConverter.fromIceberg(table.schema());
+        SchemaConverter schemaConverter = new SchemaConverter(table.name());
+        batchSchema = schemaConverter.fromIceberg(table.schema());
         buildPartitionColumns();
         buildPartitionsAndSplits();
         buildDatasetXattr();

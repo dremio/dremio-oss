@@ -71,6 +71,7 @@ import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.maestro.ResourceTracker;
 import com.dremio.exec.planner.DremioHepPlanner;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.proto.UserBitShared;
@@ -86,6 +87,7 @@ import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.sabot.exec.CancelQueryContext;
 import com.dremio.sabot.exec.CoordinatorHeapClawBackStrategy;
 import com.dremio.service.job.JobCountsRequest;
@@ -216,6 +218,35 @@ public class TestJobService extends BaseTestServer {
    * Test cancelling of query/job in planning
    */
   @Test
+  public void testResourceAllocationError() throws Exception {
+    final String testKey = TestingFunctionHelper.newKey(() -> {});
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Job has been cancelled");
+
+    try {
+      String controls = Controls.newBuilder()
+        .addException(ResourceTracker.class, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
+          ResourceUnavailableException.class)
+        .build();
+      injectPauses(controls);
+
+      SqlQuery sqlQuery = new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey),
+        null, DEFAULT_USERNAME);
+      submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+          .setSqlQuery(sqlQuery)
+          .build()
+      );
+    } finally {
+      // reset, irrespective any exception, so that other test cases are not affected.
+      ExecutionControls.setControlsOptionMapper(new ObjectMapper());
+    }
+  }
+
+  /**
+   * Test cancelling of query/job in planning
+   */
+  @Test
   public void testCancelPlanning() throws Exception {
     try {
       String controls = Controls.newBuilder()
@@ -266,6 +297,73 @@ public class TestJobService extends BaseTestServer {
     }
   }
 
+  @Test
+  public void testQueryForemanManagerCompletionBeforeDataArrival() throws Exception {
+    try {
+      AttemptEvent.State[] observedAttemptStates = executeQueryAndInduceForemenWMCompletion(true);
+      assertEquals("Query should be completed successfully if heap monitor tried to cancel " +
+          "query after planning phase.",
+        AttemptEvent.State.FAILED,
+        observedAttemptStates[observedAttemptStates.length-1]);
+    } catch(Exception e) {
+      throw e;
+    } finally {
+      // reset, irrespective any exception, so that other test cases are not affected.
+      ExecutionControls.setControlsOptionMapper(new ObjectMapper());
+    }
+  }
+
+  private AttemptEvent.State[] executeQueryAndInduceForemenWMCompletion(boolean verifyFailed) throws Exception {
+    final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
+    final CompletionListener completionListener = new CompletionListener();
+    final String testKey = TestingFunctionHelper.newKey(() -> {});
+
+    SqlQuery sqlQuery = new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey),
+      null, DEFAULT_USERNAME);
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(sqlQuery)
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request),
+      new MultiJobStatusListener(completionListener, jobSubmittedListener));
+    UserBitShared.ExternalId externalId = ExternalIdHelper.toExternal(QueryIdHelper.getQueryIdFromString(jobId.getId()));
+
+    GetJobRequest getJobRequest = GetJobRequest.newBuilder()
+      .setJobId(jobId)
+      .setUserName(SYSTEM_USERNAME)
+      .build();
+    jobSubmittedListener.await();
+
+    foremenWorkManager.testMarkQueryFailed(externalId);
+    // wait for the query.
+    Thread.sleep(1000);
+
+    // Observed exception
+    Exception observedEx = null;
+
+    // wait for cancel to take effect.
+    try {
+      completionListener.await();
+    } catch (Exception e) {
+      observedEx = e;
+    }
+
+    Job job = localJobsService.getJob(getJobRequest);
+    if (verifyFailed) {
+      assertTrue(UserRemoteException.class.equals(observedEx.getClass()));
+
+      assertEquals("Job is expected to be in FAILED state",
+        JobState.FAILED,
+        job.getJobAttempt().getState());
+    }
+
+    AttemptEvent.State[] observedAttemptStates = job.getJobAttempt()
+      .getStateListList()
+      .stream()
+      .map(e->e.getState())
+      .collect(Collectors.toList())
+      .toArray(new AttemptEvent.State[0]);
+    return observedAttemptStates;
+  }
 
   private AttemptEvent.State[] executeQueryAndCancel(boolean verifyFailed) throws Exception {
     final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
@@ -273,18 +371,18 @@ public class TestJobService extends BaseTestServer {
     final String testKey = TestingFunctionHelper.newKey(() -> {});
 
     SqlQuery sqlQuery = new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey),
-                                     null, DEFAULT_USERNAME);
+      null, DEFAULT_USERNAME);
     final JobRequest request = JobRequest.newBuilder()
-                                         .setSqlQuery(sqlQuery)
-                                         .build();
+      .setSqlQuery(sqlQuery)
+      .build();
     final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request),
-                                              new MultiJobStatusListener(completionListener, jobSubmittedListener));
+      new MultiJobStatusListener(completionListener, jobSubmittedListener));
     UserBitShared.ExternalId externalId = ExternalIdHelper.toExternal(QueryIdHelper.getQueryIdFromString(jobId.getId()));
 
     GetJobRequest getJobRequest = GetJobRequest.newBuilder()
-                                               .setJobId(jobId)
-                                               .setUserName(SYSTEM_USERNAME)
-                                               .build();
+      .setJobId(jobId)
+      .setUserName(SYSTEM_USERNAME)
+      .build();
     jobSubmittedListener.await();
 
     // wait for the injected pause to be hit
@@ -318,16 +416,16 @@ public class TestJobService extends BaseTestServer {
       assertTrue("Cancel context should be in returned error context", error.getContextList().contains(cancelContext));
 
       assertEquals("Job is expected to be in FAILED state",
-                   JobState.FAILED,
-                   job.getJobAttempt().getState());
+        JobState.FAILED,
+        job.getJobAttempt().getState());
     }
 
     AttemptEvent.State[] observedAttemptStates = job.getJobAttempt()
-                                                    .getStateListList()
-                                                    .stream()
-                                                    .map(e->e.getState())
-                                                    .collect(Collectors.toList())
-                                                    .toArray(new AttemptEvent.State[0]);
+      .getStateListList()
+      .stream()
+      .map(e->e.getState())
+      .collect(Collectors.toList())
+      .toArray(new AttemptEvent.State[0]);
     return observedAttemptStates;
   }
 

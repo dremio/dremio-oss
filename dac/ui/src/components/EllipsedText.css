@@ -21,3 +21,10 @@
   flex-grow: 1;
   flex-shrink: 1;
 }
+.EllipsedTextQVJobs {
+  font-weight: normal;
+  font-style: normal;
+  font-size: 14px;
+  line-height: 20px;
+  color: #6E7987;
+}

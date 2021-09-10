@@ -40,7 +40,7 @@ public class ParquetMessageTypeIDExtractor extends MessageTypeToType {
       // no assignment was needed
       return true;
 
-    } catch (IllegalStateException e) {
+    } catch (Exception e) {
       // at least one field was missing an id.
       return false;
     }

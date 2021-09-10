@@ -110,6 +110,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private final List<SchemaPath> columns;
   private final BatchSchema fullSchema;
   private final boolean arrowCachingEnabled;
+  private final boolean isConvertedIcebergDataset;
   private final FileConfig formatSettings;
   private List<SplitAndPartitionInfo> inputSplits;
   private boolean ignoreSchemaLearning = false;
@@ -128,6 +129,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private SplitsPathRowGroupsMap splitsPathRowGroupsMap;
   private Map<String, Set<Integer>> pathToRowGroupsMap = new HashMap<>();
   private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators = new ArrayList<>();
+  private final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
   /* this is used for prefetching across record batches in scan table function
    * This is initially set to false, in which case the iterator wont return the final prefetched splitreadercreators
@@ -151,6 +153,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.columns = config.getColumns();
     this.fullSchema = config.getFullSchema();
     this.arrowCachingEnabled = config.isArrowCachingEnabled();
+    this.isConvertedIcebergDataset = false; // Iceberg metadata queries always initialise using TableFunction
     this.formatSettings = config.getFormatSettings();
     this.context = context;
     this.factory = context.getConfig().getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
@@ -214,6 +217,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.columns = config.getFunctionContext().getColumns();
     this.fullSchema = config.getFunctionContext().getFullSchema();
     this.arrowCachingEnabled = config.getFunctionContext().isArrowCachingEnabled();
+    this.isConvertedIcebergDataset = config.getFunctionContext().isConvertedIcebergDataset();
     this.formatSettings = config.getFunctionContext().getFormatSettings();
     this.context = context;
     this.factory = context.getConfig().getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
@@ -420,12 +424,19 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       final RuntimeFilterEvaluator filterEvaluator =
               new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
       this.runtimeFilterEvaluators.add(filterEvaluator);
+      this.runtimeFilters.add(runtimeFilter);
       logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
     }
   }
 
-  public void setProduceFromBufferedSplits(boolean produceFromBufferedSplits) {
-    this.produceFromBufferedSplits = produceFromBufferedSplits;
+  @Override
+  public List<RuntimeFilter> getRuntimeFilters() {
+    return runtimeFilters;
+  }
+
+  @Override
+  public void produceFromBufferedSplits(boolean toProduce) {
+    this.produceFromBufferedSplits = toProduce;
   }
 
   @Override
@@ -484,7 +495,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             fs, globalDictionaries, globalDictionaryEncodedColumns, numSplitsToPrefetch, prefetchReader, readInt96AsTimeStamp,
             readerConfig, readerFactory, realFields, supportsColocatedReads, trimRowGroups, vectorize,
             currentSplitInfo, tablePath, conditions, columns, fullSchema, arrowCachingEnabled, formatSettings, icebergSchemaFields,
-            pathToRowGroupsMap, this, rowGroupSplitIterator.next(), this.isIgnoreSchemaLearning());
+            pathToRowGroupsMap, this, rowGroupSplitIterator.next(), this.isIgnoreSchemaLearning(),
+      isConvertedIcebergDataset);
 
     if (!fromRowGroupBasedSplit && isFirstRowGroup) {
       creator.setInputStreamProvider(inputStreamProviderOfFirstRowGroup);

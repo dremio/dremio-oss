@@ -156,11 +156,12 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
     NamespaceKey key,
     IcebergTableProps icebergTableProps,
     WriterOptions writerOptions,
-    Map<String, Object> storageOptions
+    Map<String, Object> storageOptions,
+    boolean isResultsTable
   ) {
     final String containerName = getAndCheckContainerName(key);
     final CreateTableEntry entry = super.createNewTable(config, key,
-      icebergTableProps, writerOptions, storageOptions);
+      icebergTableProps, writerOptions, storageOptions, isResultsTable);
 
     final AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);
 
@@ -199,5 +200,9 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
   @Override
   protected boolean isAsyncEnabledForQuery(OperatorContext context) {
     return context != null && context.getOptions().getOption(AzureStorageOptions.ASYNC_READS);
+  }
+
+  public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
+    return false;
   }
 }

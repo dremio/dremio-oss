@@ -24,7 +24,6 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.util.DecimalUtility;
-import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
@@ -45,9 +44,6 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
   private final FieldVector input;
   private final FieldVector output;
   private FieldVector[] accumulators;
-  private TransferPair[] pairs;
-  long[] bitAddresses;
-  long[] valueAddresses;
   int batches;
 
   public BaseSingleAccumulatorNoSpill(FieldVector input, FieldVector output){
@@ -61,45 +57,41 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     return input;
   }
 
+  long getBitAddress(int index) {
+    return accumulators[index].getValidityBufferAddress();
+  }
+
+  long getValueAddress(int index) {
+    return accumulators[index].getDataBufferAddress();
+  }
+
   private void initArrs(int size){
     this.accumulators = new FieldVector[size];
-    this.pairs = new TransferPair[size];
-    this.bitAddresses = new long[size];
-    this.valueAddresses = new long[size];
   }
 
   @Override
   public void resized(int newCapacity) {
     final int oldBatches = accumulators.length;
     final int currentCapacity = oldBatches * LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH;
-    if(currentCapacity >= newCapacity){
+
+    if (currentCapacity >= newCapacity) {
       return;
     }
 
     // save old references.
     final FieldVector[] oldAccumulators = this.accumulators;
-    final TransferPair[] oldPairs = this.pairs;
-    final long[] oldBitAddresses = this.bitAddresses;
-    final long[] oldValueAddresses = this.valueAddresses;
 
     final int newBatches = (int) Math.ceil( newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d) );
     initArrs(newBatches);
 
     System.arraycopy(oldAccumulators, 0, this.accumulators, 0, oldBatches);
-    System.arraycopy(oldPairs, 0, this.pairs, 0, oldBatches);
-    System.arraycopy(oldBitAddresses, 0, this.bitAddresses, 0, oldBatches);
-    System.arraycopy(oldValueAddresses, 0, this.valueAddresses, 0, oldBatches);
 
-    for(int i = oldAccumulators.length; i < newBatches; i++){
+    for (int i = oldAccumulators.length; i < newBatches; i++) {
       FieldVector vector = (FieldVector) output.getTransferPair(output.getAllocator()).getTo();
-      TransferPair tp = vector.makeTransferPair(output);
       ((FixedWidthVector) vector).allocateNew(LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
       // need to clear the data since allocate new doesn't do so and we want to start with.
       initialize(vector);
-      pairs[i] = tp;
       accumulators[i] = vector;
-      bitAddresses[i] = vector.getValidityBufferAddress();
-      valueAddresses[i] = vector.getDataBufferAddress();
       /* bump counter every time after successfully allocating and adding a batch,
        * if we fail in the middle, we know the point till which the non-null accumulator vectors
        * have been added.
@@ -115,7 +107,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
 
   @Override
   public void output(int batchIndex) {
-    pairs[batchIndex].transfer();
+    accumulators[batchIndex].makeTransferPair(output).transfer();
   }
 
   @SuppressWarnings("unchecked")

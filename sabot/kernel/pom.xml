@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>17.0.0-202107060524010627-31b5222b</version>
+    <version>18.0.0-202109101536100970-a32fc9f4</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -101,9 +101,9 @@
       <artifactId>avro</artifactId>
     </dependency>
     <dependency>
-        <groupId>com.yahoo.datasketches</groupId>
-        <artifactId>sketches-core</artifactId>
-        <version>0.11.1-dremio-01</version>
+      <groupId>com.yahoo.datasketches</groupId>
+      <artifactId>sketches-core</artifactId>
+      <version>0.11.1-dremio-01</version>
     </dependency>
 
     <dependency>
@@ -854,7 +854,7 @@
                   <type>jar</type>
                   <overWrite>true</overWrite>
                   <outputDirectory>${project.build.directory}/</outputDirectory>
-                  <includes>codegen/templates/Parser.jj</includes>
+                  <includes>codegen/templates/Parser.jj,codegen/default_config.fmpp</includes>
                 </artifactItem>
               </artifactItems>
             </configuration>
@@ -941,6 +941,7 @@
               <config>${project.build.directory}/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
               <templates>${project.build.directory}/codegen/templates</templates>
+              <data>tdd(${project.basedir}/src/main/codegen/config.fmpp), default:tdd(${project.build.directory}/codegen/default_config.fmpp)</data>
             </configuration>
           </execution>
         </executions>

@@ -363,9 +363,8 @@ class WriteHolders {
         logger.debug("Failed to parse date time value {} with format {}", value, format, e);
       }
     }
-/*
-Call to generic formatter parsing to handle specific scenarios
- */
+
+  // Call to generic formatter parsing to handle specific scenarios.
     try {
       return DateFormats.AbstractFormatterAndType.getMillisGenericFormatter(value);
     }

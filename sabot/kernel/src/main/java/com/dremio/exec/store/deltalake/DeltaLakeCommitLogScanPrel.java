@@ -17,6 +17,7 @@ package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_REMOVE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_DATA_CHANGE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_DELETION_TIMESTAMP;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY;
@@ -209,7 +210,11 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
       List<String> partitionCols = tableMetadata.getReadDefinition().getPartitionColumnsList();
       AtomicInteger i = new AtomicInteger(1);
       if (partitionCols != null) {
-        Set<String> partitionColsSet = new HashSet<>(partitionCols);
+        List<String> partitionColsTemp = new ArrayList<>();
+        for(String s : partitionCols) {
+          partitionColsTemp.add(s + PARTITION_NAME_SUFFIX);
+        }
+        Set<String> partitionColsSet = new HashSet<>(partitionColsTemp);
         deltaCommitLogSchema.getFields().stream()
           .filter(f -> partitionColsSet.contains(f.getName()))
           .forEach(field -> builder.add(new RelDataTypeFieldImpl(field.getName(), i.getAndIncrement(),
@@ -273,6 +278,7 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
     for (Field field : dataSchema.getFields()) {
       if (partitionColumnsList.contains(field.getName())) {
         partitionColFields.add(field);
+        outputSchema.addField((Field.nullable(field.getName() + PARTITION_NAME_SUFFIX, field.getType())));
       } else {
         minValueFields.add(field);
         maxValueFields.add(field);
@@ -307,8 +313,6 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
     outputSchema.addField(remove);
     final Field version = Field.nullablePrimitive(VERSION, new ArrowType.Int(64, true));
     outputSchema.addField(version);
-    // Partition cols to be populated explicitly
-    outputSchema.addFields(partitionValuesParsed.getChildren());
     return outputSchema.build();
   }
 
@@ -322,11 +326,15 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
       cols.add(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES));
 
       if (partitionCols != null) {
-        Set<String> partitionColsSet = new HashSet<>(partitionCols);
+        List<String> partitionColsTemp = new ArrayList<>();
+        for(String s : partitionCols) {
+          partitionColsTemp.add(s + PARTITION_NAME_SUFFIX);
+        }
+        Set<String> partitionColsSet = new HashSet<>(partitionColsTemp);
         // Add all partition col fields
         deltaCommitLogSchema.getFields().stream()
           .filter(f -> partitionColsSet.contains(f.getName()))
-          .forEach(f -> cols.add(SchemaPath.getSimplePath(f.getName())));
+          .forEach(f -> cols.add(SchemaPath.getSimplePath((f.getName()))));
       }
       cols.add(SchemaPath.getSimplePath(VERSION));
       return cols;

@@ -254,7 +254,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
     try (
         BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, context.getOptionManager(), 1000);
+        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000);
         SampleMutator mutator = new SampleMutator(sampleAllocator)
     ) {
       final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(new Configuration(),

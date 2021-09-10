@@ -18,9 +18,12 @@ package com.dremio.exec.store;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Generates block based splits using SplitCreator
@@ -28,12 +31,11 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 public class BlockBasedSplitGenerator {
 
   private final SplitCreator splitCreator;
-  private final long targetSplitSize;
   private long currentOffset;
 
-  public BlockBasedSplitGenerator(SplitCreator splitCreator, OperatorContext context) {
-    this.splitCreator = splitCreator;
-    targetSplitSize = context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE).getNumVal();
+  public BlockBasedSplitGenerator(OperatorContext context, SupportsInternalIcebergTable plugin,
+                                  StoragePluginId pluginId, OpProps props, byte[] extendedBytes) {
+    this.splitCreator = plugin.createSplitCreator(context, extendedBytes);
   }
 
   public long getCurrentOffset() {
@@ -47,15 +49,15 @@ public class BlockBasedSplitGenerator {
                                                               long fileSize,
                                                               long currentModTime,
                                                               String fileFormat,
-                                                              List<SplitIdentity> splitsIdentity,
-                                                              PartitionProtobuf.BlockLocationsList fileBlockLocations) {
+                                                              List<SplitIdentity> splitsIdentity) throws InvalidProtocolBufferException {
     int splitCount = 0;
     currentOffset = offset;
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
+    long targetSplitSize = splitCreator.getTargetSplitSize(fileFormat);
 
     while (splitCount < maxOutputCount && currentOffset < fileSize) {
       long curBlockSize = Math.min(targetSplitSize, fileSize - currentOffset);
-      SplitIdentity splitIdentity = new SplitIdentity(filePath, fileBlockLocations, currentOffset, curBlockSize);
+      SplitIdentity splitIdentity = new SplitIdentity(filePath, currentOffset, curBlockSize, fileSize);
       splits.add(splitCreator.createSplit(filePartitionInfo, splitIdentity, fileFormat, fileSize, currentModTime));
       if (splitsIdentity != null) {
         splitsIdentity.add(splitIdentity);
@@ -68,6 +70,7 @@ public class BlockBasedSplitGenerator {
 
   public interface SplitCreator {
     SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity,
-                                      String fileFormat, long fileSize, long currentModTime);
+                                      String fileFormat, long fileSize, long currentModTime) throws InvalidProtocolBufferException;
+    long getTargetSplitSize(String fileFormat);
   }
 }

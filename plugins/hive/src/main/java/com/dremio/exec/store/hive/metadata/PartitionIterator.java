@@ -15,15 +15,24 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.hive.thrift.TException;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 
@@ -46,15 +55,15 @@ public class PartitionIterator extends AbstractIterator<Partition> {
   private final Iterator<List<String>> partitionNameBatchItr;
   private Iterator<Partition> partitionBatch;
 
-  private PartitionIterator(final HiveClient client, final String dbName, final String tableName, final int partitionBatchSize) throws TException {
+  private PartitionIterator(final HiveClient client, final String dbName, final String tableName, final List<String> filteredPartitionNames, final int partitionBatchSize) throws TException {
     this.client = client;
     this.dbName = dbName;
     this.tableName = tableName;
 
     logger.trace("Database '{}', table '{}', Begin Retrieval of partition names.", dbName, tableName);
 
-    final List<String> allPartitionNames = client.getPartitionNames(dbName, tableName);
-    final List<List<String>> partitionNameBatches = Lists.partition(allPartitionNames, partitionBatchSize);
+    List<String> allPartitionNames = client.getPartitionNames(dbName, tableName);
+    final List<List<String>> partitionNameBatches = Lists.partition(filterPartitions(filteredPartitionNames, allPartitionNames, dbName, tableName), partitionBatchSize);
 
     partitionNameBatchItr = partitionNameBatches.iterator();
 
@@ -97,6 +106,7 @@ public class PartitionIterator extends AbstractIterator<Partition> {
     private HiveClient client;
     private String dbName;
     private String tableName;
+    private List<String> filteredPartitionNames;
     private Integer partitionBatchSize;
 
     public Builder client(HiveClient client) {
@@ -114,6 +124,11 @@ public class PartitionIterator extends AbstractIterator<Partition> {
       return this;
     }
 
+    public Builder filteredPartitionNames(List<String> filteredPartitionNames) {
+      this.filteredPartitionNames = filteredPartitionNames;
+      return this;
+    }
+
     public Builder partitionBatchSize(Integer partitionBatchSize) {
       this.partitionBatchSize = partitionBatchSize;
       return this;
@@ -126,7 +141,49 @@ public class PartitionIterator extends AbstractIterator<Partition> {
       Objects.requireNonNull(tableName, "tableName is required");
       Objects.requireNonNull(partitionBatchSize, "partitionBatchSize is required");
 
-      return new PartitionIterator(client, dbName, tableName, partitionBatchSize);
+      return new PartitionIterator(client, dbName, tableName, filteredPartitionNames, partitionBatchSize);
     }
+  }
+
+  private List<String> filterPartitions(final List<String> filteredPartitionNames, final List<String> allPartitionNames, String dbName, String tableName) {
+    if(filteredPartitionNames == null || filteredPartitionNames.isEmpty()) {
+      return allPartitionNames;
+    }
+
+    Preconditions.checkArgument(filteredPartitionNames.size() == 1);
+
+    Map<String, String> originalToDecoded = allPartitionNames.stream().collect(Collectors.toMap(x -> x, x -> {
+      try {
+        return URLDecoder.decode(x, StandardCharsets.UTF_8.toString());
+      } catch (UnsupportedEncodingException e) {
+        logger.debug("Failed to decode partition string {} retrieved from metastore", x);
+        return x;
+      }
+    }));
+
+    List<String> matchedPartitions = new ArrayList<>();
+    List<String> matchedPartitionsDecoded = new ArrayList<>();
+
+    for (Entry<String, String> entry : originalToDecoded.entrySet()) {
+      if (filteredPartitionNames.contains(entry.getValue())) {
+        matchedPartitions.add(entry.getKey());
+        matchedPartitionsDecoded.add(entry.getValue());
+      }
+    }
+
+    if (matchedPartitions.size() != filteredPartitionNames.size()) {
+      //We haven't found match for few filteredPartitionNames
+      filteredPartitionNames.removeAll(matchedPartitionsDecoded);
+      String nonMatchPar = filteredPartitionNames.stream().collect(Collectors.joining(","));
+      String fullTableName = dbName + "." + tableName;
+      throw UserException
+              .validationError()
+              .message("Partition '%s' does not exist in %s", nonMatchPar, fullTableName)
+              .buildSilently();
+    }
+
+    // This condition is for safe check. will occur only in case originalToDecoded is empty
+    Preconditions.checkArgument(!matchedPartitions.isEmpty(), "Supplied partitions doesn't exist in Hive");
+    return matchedPartitions;
   }
 }

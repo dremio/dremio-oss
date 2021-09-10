@@ -31,7 +31,7 @@ class ActionUtils {
     this.autoPreviewTimer = setTimeout(submitForm, AUTO_PREVIEW_DELAY);
   }
 
-  humanizeNotificationMessage = (errorMessage) => (payload) => {
+  humanizeNotificationMessage = (errorMessage) => (payload, showDefaultMoreInfo = true) => {
     const defaultMessage = payload && payload.status === 409
       ? la('The data has been changed since you last accessed it. Please reload the page.')
       : DEFAULT_ERR_MSG;
@@ -39,7 +39,7 @@ class ActionUtils {
       payload && payload.errorMessage ||
       payload && payload.response && payload.response.errorMessage ||
       defaultMessage;
-    const moreInfo = payload && payload.response && payload.response.moreInfo || defaultMessage;
+    const moreInfo = payload && payload.response && payload.response.moreInfo || (showDefaultMoreInfo ? defaultMessage : null);
     const message = _errorMessage === moreInfo
       ? Immutable.Map({ message: _errorMessage })
       : Immutable.Map({ message: _errorMessage, moreInfo });

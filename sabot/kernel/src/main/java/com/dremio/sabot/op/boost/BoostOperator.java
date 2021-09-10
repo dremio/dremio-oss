@@ -245,7 +245,7 @@ public class BoostOperator extends ScanOperator {
       outputVectorContainer.buildSchema();
 
       RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-      RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g) -> {};
+      RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition) -> {};
       recordWriter.setup(outputVectorContainer, fileWriteListener, byteCountListener);
     }
 

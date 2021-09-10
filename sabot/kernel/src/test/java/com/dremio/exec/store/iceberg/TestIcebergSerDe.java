@@ -196,7 +196,7 @@ public class TestIcebergSerDe extends BaseTestQuery {
     String s = UTF_8.decode(b).toString();
     Assert.assertEquals(s, "randomString");
 
-    Assert.assertEquals((Long)partitionData.get(8, Long.class),Long.valueOf(23412341l));
+    Assert.assertEquals((Long)partitionData.get(8, Long.class),Long.valueOf(23412341000l));
     Assert.assertEquals("struct<1000: integerCol: optional int, 1001: floatCol: optional float, 1002: doubleCol: optional double, 1003: bitCol: optional boolean, 1004: varCharCol: optional string, 1005: bigIntCol: optional long, 1006: decimalCol: optional decimal(0, 4), 1007: varBinaryCol: optional binary, 1008: timeStampCol: optional timestamptz>",partitionData.getPartitionType().toString());
   }
 

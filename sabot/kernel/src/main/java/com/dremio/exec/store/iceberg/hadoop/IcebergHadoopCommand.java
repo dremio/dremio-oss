@@ -41,4 +41,9 @@ class IcebergHadoopCommand extends IcebergBaseCommand {
   public TableOperations getTableOperations() {
     return new IcebergHadoopTableOperations(fsPath, configuration, fs, context, dataset);
   }
+
+  @Override
+  public void deleteRootPointerStoreKey() {
+  // TODO if required
+  }
 }

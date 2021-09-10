@@ -47,8 +47,6 @@ import org.apache.calcite.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.planner.common.JoinRelBase;
-import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.store.TableMetadata;
@@ -107,51 +105,28 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
 
   public Double  getSelectivity(Join rel, RelMetadataQuery mq, RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
-      // ToDO: Fix this -> DX-32790( If The predicate is based on fields below the join, we should not transform it nor call getSelectivityForJoin)
-      if (rel instanceof JoinRelBase && ((JoinRelBase) rel).getProjectedFields() != null) {
-        // If predicate is based on top of join
-        predicate = MoreRelOptUtil.transformPredicateForProjectedInJoin((JoinRelBase) rel, predicate);
+      double sel = 1.0;
+      if ((predicate == null) || predicate.isAlwaysTrue()) {
+        return sel;
       }
-      return getSelectivityForJoin(rel, mq, predicate);
-    }
-    return super.getSelectivity(rel, mq, predicate);
-  }
-
-  // This function assumes that the predicate is based on top of Join
-  public  Double getSelectivityForJoin(Join rel, RelMetadataQuery mq, RexNode predicate) {
-
-    double sel = 1.0;
-    if ((predicate == null) || predicate.isAlwaysTrue()) {
-      return sel;
-    }
-    JoinRelType joinType = rel.getJoinType();
-    final RexBuilder rexBuilder = rel.getCluster().getRexBuilder();
-    RexNode leftPred, rightPred;
-    if (predicate != null) {
+      JoinRelType joinType = rel.getJoinType();
+      final RexBuilder rexBuilder = rel.getCluster().getRexBuilder();
+      RexNode leftPred, rightPred;
       List<RexNode> leftFilters = new ArrayList<>();
       List<RexNode> rightFilters = new ArrayList<>();
       List<RexNode> joinFilters = new ArrayList<>();
       List<RexNode> predList = RelOptUtil.conjunctions(predicate);
-      if (rel instanceof JoinRelBase) {
-        JoinRelBase joinRelBase = (JoinRelBase) rel;
-        MoreRelOptUtil.classifyFiltersForJoinRelBase(joinRelBase, predList, joinType, joinType == JoinRelType.INNER,
-                !joinType.generatesNullsOnLeft(), !joinType.generatesNullsOnRight(), joinFilters,
-                leftFilters, rightFilters);
-      } else {
-        RelOptUtil.classifyFilters(rel, predList, joinType, joinType == JoinRelType.INNER,
-                !joinType.generatesNullsOnLeft(), !joinType.generatesNullsOnRight(), joinFilters,
-                leftFilters, rightFilters);
-      }
+      RelOptUtil.classifyFilters(rel, predList, joinType, joinType == JoinRelType.INNER, !joinType.generatesNullsOnLeft(), !joinType.generatesNullsOnRight(), joinFilters, leftFilters, rightFilters);
       leftPred = RexUtil.composeConjunction(rexBuilder, leftFilters, true);
       rightPred = RexUtil.composeConjunction(rexBuilder, rightFilters, true);
       for (RelNode child : rel.getInputs()) {
         if (child == rel.getLeft()) {
-          if(leftPred==null) {
+          if (leftPred == null) {
             continue;
           }
           sel *= mq.getSelectivity(child, leftPred);
         } else {
-          if(rightPred==null) {
+          if (rightPred == null) {
             continue;
           }
           sel *= mq.getSelectivity(child, rightPred);
@@ -161,10 +136,10 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
       sel *= guessSelectivity(RexUtil.composeConjunction(rexBuilder, joinFilters, false));
       // The remaining filters that could not be passed to the left, right or Join
       sel *= guessSelectivity(RexUtil.composeConjunction(rexBuilder, predList, false));
+      return sel;
     }
-    return sel;
+    return super.getSelectivity(rel, mq, predicate);
   }
-
 
   private Double getSelectivity(RelSubset rel, RelMetadataQuery mq,
                                 RexNode predicate) {
@@ -415,7 +390,6 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
                 child.accept(this);
               }
               break;
-            case LIKE:
             case NOT_EQUALS:
             case EQUALS:
             case GREATER_THAN:
@@ -431,6 +405,7 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
                 throw new Util.FoundOne(call.getOperands().get(1));
               }
               break;
+            case LIKE:
             case IN:
             case BETWEEN:
             case NOT_IN:

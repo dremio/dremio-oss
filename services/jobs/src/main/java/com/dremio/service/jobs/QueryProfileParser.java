@@ -315,7 +315,7 @@ class QueryProfileParser {
       checkIsAssignable(entry.getKey(), entry.getValue().getClass(), Map.class);
       final Map<String, Object> operatorInfo = (Map)entry.getValue();
       final String operator = (String) operatorInfo.get("\"op\"");
-      if (operator != null && operator.contains("Scan") && operatorInfo.containsKey("\"values\"")) {
+      if (operator != null && (operator.contains("Scan") || operator.contains("TableFunction")) && operatorInfo.containsKey("\"values\"")) {
         // Get table name
         checkIsAssignable(entry.getKey() + ": values", operatorInfo.get("\"values\"").getClass(), Map.class);
         final Map<String, Object> values = (Map)operatorInfo.get("\"values\"");
@@ -400,6 +400,7 @@ class QueryProfileParser {
             case ELASTICSEARCH_SUB_SCAN:
             case MONGO_SUB_SCAN:
             case JDBC_SUB_SCAN:
+            case FLIGHT_SUB_SCAN:
               setScanStats(operatorType, operatorProfile, majorFragment);
               // wait time in scan is shown per table.
               setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
@@ -503,7 +504,6 @@ class QueryProfileParser {
               }
               break;
             case DELTALAKE_SUB_SCAN:
-              setScanStats(operatorType, operatorProfile, majorFragment);
               setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
             default:

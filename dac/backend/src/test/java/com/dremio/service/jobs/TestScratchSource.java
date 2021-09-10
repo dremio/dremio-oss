@@ -24,6 +24,7 @@ import java.io.File;
 import java.util.Objects;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -88,6 +89,7 @@ public class TestScratchSource extends BaseTestServer {
   }
 
   @Test
+  @Ignore("DX-34314")
   public void testIcebergCTAS() throws Exception {
     assumeFalse(isMultinode()); // when multinode, scratch plugin uses file://
     final String ctasIceberg = "CREATE TABLE \"$scratch\".\"ctasonpdfs\" as select * from (VALUES (1))";
@@ -117,6 +119,7 @@ public class TestScratchSource extends BaseTestServer {
   }
 
   @Test
+  @Ignore("DX-34314")
   public void testIcebergCreate() throws Exception {
     assumeFalse(isMultinode()); // when multinode, scratch plugin uses file://
     final String createIceberg = "CREATE TABLE \"$scratch\".\"createonpdfs\"(id int, code decimal(18, 3))";

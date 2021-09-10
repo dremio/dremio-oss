@@ -1,0 +1,55 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+:global {
+  .durationProgress {
+    margin-top: 12px;
+
+    &-progress {
+      height: 4px;
+      display: flex;
+      align-items: center;
+      background-color: rgb(242, 242, 242);
+      width: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.03);
+      border-radius: 4px;
+      overflow: hidden;
+
+      &__value {
+        background-color: rgb(119, 129, 143);
+        height: 4px;
+        border-radius: 4px;
+        position: absolute;
+      }
+    }
+    &-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 22px;
+
+      &__title {
+        color: rgb(51, 51, 51);
+        font-size: 12px;
+        line-height: 32px;
+      }
+      &__value {
+        color: rgb(119, 129, 143);
+        font-size: 12px;
+        line-height: 32px;
+      }
+    }
+  }
+}

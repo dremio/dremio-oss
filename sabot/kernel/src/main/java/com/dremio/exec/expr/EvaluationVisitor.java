@@ -166,7 +166,9 @@ public class EvaluationVisitor {
   private HoldingContainer getPrevious(LogicalExpression expression, MappingSet mappingSet) {
     HoldingContainer previous = previousExpressions.get(new ExpressionHolder(expression, mappingSet));
     if (previous != null) {
-      logger.debug("Found previously evaluated expression: {}", ExpressionStringBuilder.toString(expression));
+      if (logger.isDebugEnabled()) {
+        logger.debug("Found previously evaluated expression: {}", ExpressionStringBuilder.toString(expression));
+      }
     }
     return previous;
   }
@@ -1191,7 +1193,7 @@ public class EvaluationVisitor {
         exprCount.pop();
         return out;
       }
-      caseConditionCount.push(CaseConditionCounter.getCaseConditionCount(caseExpr));
+      caseConditionCount.push(CaseExpressionCounter.getCaseConditionCount(caseExpr));
       try {
         return super.visitCaseExpression(caseExpr, generator);
       } finally {
@@ -1431,17 +1433,35 @@ public class EvaluationVisitor {
   }
 
   /**
-   * Count total case conditions including nesting to get an approximate idea of expression size
+   * Count total function and/or boolean expressions inside case conditions
    */
-  private static class CaseConditionCounter extends AbstractExprVisitor<Integer, Void, RuntimeException> {
+  private static class CaseExpressionCounter extends AbstractExprVisitor<Integer, Void, RuntimeException> {
     @Override
     public Integer visitCaseExpression(CaseExpression caseExpression, Void value) {
-      final int topLevelExprCount = 1 + caseExpression.caseConditions.size() * 2;
-      final int nextLevelConditionsCount = caseExpression.caseConditions.stream()
-          .mapToInt(x -> x.thenExpr.accept(this, null) + x.whenExpr.accept(this, null))
-          .sum();
-      final int nextLevelElseCount = caseExpression.elseExpr.accept(this, null);
-      return topLevelExprCount + nextLevelConditionsCount + nextLevelElseCount;
+      return countChildren(caseExpression);
+    }
+
+    @Override
+    public Integer visitBooleanOperator(BooleanOperator op, Void value) {
+      return countChildren(op) + 1;
+    }
+
+    @Override
+    public Integer visitFunctionHolderExpression(FunctionHolderExpression holderExpr, Void value) {
+      return countChildren(holderExpr) + 1;
+    }
+
+    @Override
+    public Integer visitIfExpression(IfExpression ifExpr, Void value) {
+      return countChildren(ifExpr) + 1;
+    }
+
+    private int countChildren(LogicalExpression e) {
+      int sum = 0;
+      for (LogicalExpression child : e) {
+        sum += child.accept(this, null);
+      }
+      return sum;
     }
 
     @Override
@@ -1450,7 +1470,7 @@ public class EvaluationVisitor {
     }
 
     private static int getCaseConditionCount(CaseExpression caseExpression) {
-      return caseExpression.accept(new CaseConditionCounter(), null);
+      return caseExpression.accept(new CaseExpressionCounter(), null);
     }
   }
 }

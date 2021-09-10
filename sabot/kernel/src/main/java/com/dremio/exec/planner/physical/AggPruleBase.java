@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 
+import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.google.common.collect.ImmutableSet;
@@ -78,7 +79,8 @@ public abstract class AggPruleBase extends Prule {
     "$SUM0",
     "HLL_MERGE",
     "HLL",
-    "TDIGEST"
+    "TDIGEST",
+    ItemsSketchFunctions.FUNCTION_NAME
   );
 
   // Create 2 phase aggr plan for aggregates such as SUM, MIN, MAX

@@ -277,4 +277,9 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
     List<String> tablePathComponents = PathUtils.toPathComponents(PathUtils.toFSPathSkipRoot(tableSchemaPath, null));
     return tablePathComponents.subList(rootPathComponents.size(), tablePathComponents.size());
   }
+
+  @Override
+  protected boolean ctasToUseIceberg() {
+    return false;
+  }
 }

@@ -31,6 +31,7 @@ import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.service.namespace.NamespaceKey;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -50,6 +51,7 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
   private final String location;
   private final WriterOptions options;
   private final IcebergTableProps icebergTableProps;
+  private final NamespaceKey datasetPath;
 
   @JsonCreator
   public FileSystemCreateTableEntry(@JsonProperty("userName") String userName,
@@ -58,6 +60,7 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
                                     @JsonProperty("location") String location,
                                     @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
                                     @JsonProperty("options") WriterOptions options,
+                                    @JsonProperty("datasetPath") NamespaceKey datasetPath,
                                     @JacksonInject CatalogService catalogService)
       throws ExecutionSetupException {
     this.userName = userName;
@@ -66,6 +69,7 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
     this.location = location;
     this.options = options;
     this.icebergTableProps = icebergTableProps;
+    this.datasetPath = datasetPath;
   }
 
   /**
@@ -82,13 +86,15 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
       FormatPlugin formatPlugin,
       String location,
       IcebergTableProps icebergTableProps,
-      WriterOptions options) {
+      WriterOptions options,
+      NamespaceKey datasetPath) {
     this.userName = userName;
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
     this.location = location;
     this.options = options;
     this.icebergTableProps = icebergTableProps;
+    this.datasetPath = datasetPath;
   }
 
   @JsonProperty("pluginId")
@@ -112,11 +118,11 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
   }
 
   public FileSystemCreateTableEntry cloneWithNewLocation(String newLocation){
-    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, icebergTableProps, options);
+    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, icebergTableProps, options, datasetPath);
   }
 
   public FileSystemCreateTableEntry cloneWithFields(FormatPlugin formatPlugin, WriterOptions writerOptions){
-    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, location, icebergTableProps, writerOptions);
+    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, location, icebergTableProps, writerOptions, datasetPath);
   }
 
   public String getUserName() {
@@ -158,4 +164,7 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
     return icebergTableProps;
   }
 
+  public NamespaceKey getDatasetPath() {
+    return datasetPath;
+  }
 }

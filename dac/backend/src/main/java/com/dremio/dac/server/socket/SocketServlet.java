@@ -261,5 +261,11 @@ public class SocketServlet extends WebSocketServlet {
       final JobRecordsUpdate update = new JobRecordsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
       socket.send(update);
     }
+
+    @Override
+    public void queryCompleted(JobSummary jobSummary) {
+      final JobRecordsUpdate update = new JobRecordsUpdate(JobsProtoUtil.toStuff(jobSummary.getJobId()), jobSummary.getRecordCount());
+      socket.send(update);
+    }
   }
 }

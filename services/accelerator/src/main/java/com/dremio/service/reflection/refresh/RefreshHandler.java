@@ -27,9 +27,12 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
@@ -159,10 +162,6 @@ public class RefreshHandler implements SqlToPlanHandler {
       final UserBitShared.QueryId queryId = config.getContext().getQueryId();
       final AttemptId attemptId = AttemptId.of(queryId);
 
-      IcebergTableProps icebergTableProps = materialization.getIsIcebergDataset() ?
-                                            getIcebergTableProps(materialization, refreshDecisions, attemptId)
-                                            : null;
-
       final boolean isIcebergIncrementalRefresh = isIcebergInsertRefresh(materialization, refreshDecisions[0]);
       final String materializationPath =  isIcebergIncrementalRefresh ?
         materialization.getBasePath() : materialization.getId().getId() + "_" + attemptId.getAttemptNum();
@@ -187,6 +186,13 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       final List<String> fields = drel.getRowType().getFieldNames();
 
+      WriterOptions writerOptions = writerOptionManager.buildWriterOptionForReflectionGoal(
+        0, goal, fields, materialization.getIsIcebergDataset(), isCreate, extendedByteString);
+
+      IcebergTableProps icebergTableProps = materialization.getIsIcebergDataset() ?
+        getIcebergTableProps(materialization, refreshDecisions, attemptId, writerOptions.getPartitionColumns())
+        : null;
+
       final Rel writerDrel = new WriterRel(
         drel.getCluster(),
         drel.getCluster().traitSet().plus(Rel.LOGICAL),
@@ -194,7 +200,7 @@ public class RefreshHandler implements SqlToPlanHandler {
         config.getContext().getCatalog().createNewTable(
           new NamespaceKey(tablePath),
           icebergTableProps,
-          writerOptionManager.buildWriterOptionForReflectionGoal(0, goal, fields, materialization.getIsIcebergDataset(), isCreate, extendedByteString),
+          writerOptions,
           ImmutableMap.of()),
         initial.getRowType());
 
@@ -210,6 +216,19 @@ public class RefreshHandler implements SqlToPlanHandler {
       if (logger.isTraceEnabled()) {
         PrelTransformer.log(config, "Dremio Plan", plan, logger);
       }
+
+      //before return, check and set routing queue information
+      try {
+        final String datasetId = goal.getDatasetId();
+        final Catalog catalog = config.getContext().getCatalog();
+        final String queueName = config.getContext().getRoutingQueueManager().getQueueNameById(catalog.getTable(datasetId).getDatasetConfig().getQueueId());
+        if (queueName != null) {
+          config.getContext().getSession().setRoutingQueue(queueName);
+        }
+      } catch (Exception e) {
+        logger.warn("Error occurred with reflection routing");
+      }
+
       return plan;
 
     }catch(Exception ex){
@@ -217,17 +236,18 @@ public class RefreshHandler implements SqlToPlanHandler {
     }
   }
 
-  private IcebergTableProps getIcebergTableProps(Materialization materialization, RefreshDecision[] refreshDecisions, AttemptId attemptId) {
+  private IcebergTableProps getIcebergTableProps(Materialization materialization, RefreshDecision[] refreshDecisions,
+                                                 AttemptId attemptId, List<String> partitionColumns) {
     IcebergTableProps icebergTableProps;
     if (isIcebergInsertRefresh(materialization, refreshDecisions[0])) {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
-        null, null,
-        IcebergCommandType.INSERT, materialization.getBasePath());
+        null, partitionColumns,
+        IcebergCommandType.INSERT, materialization.getBasePath(), null);
 
     } else {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
-        null, null,
-        IcebergCommandType.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum());
+        null, partitionColumns,
+        IcebergCommandType.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum(), null);
     }
     return icebergTableProps;
   }
@@ -254,7 +274,7 @@ public class RefreshHandler implements SqlToPlanHandler {
 
     final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig, namespace,
       config, goal, entry, materialization,
-      reflectionSettings, materializationStore, getForceFullRefresh(materialization));
+      reflectionSettings, materializationStore, getForceFullRefresh(materialization), StrippingFactory.LATEST_STRIP_VERSION);
 
     final RelNode normalizedPlan = planGenerator.generateNormalizedPlan();
 

@@ -51,6 +51,10 @@ message DatasetConfig {
   optional int64 lastModified = 15;
   optional string tag = 16;
   optional int32 total_num_splits = 17; // recomputed every time metadata is fetched from connector
+
+  // job queue for this dataset
+  optional string queue_id = 18;
+  optional string engine_id = 19;
 }
 
 message VirtualDataset {
@@ -87,6 +91,8 @@ message PhysicalDataset {
   optional bool isAppendOnly = 3 [default = false];
   optional AccelerationSettings accelerationSettings = 4;
   optional bool allow_approx_stats = 5 [default = false];
+  optional bool icebergMetadataEnabled = 6; // For this selection, iceberg metadata is present. False by default.
+  optional com.dremio.service.namespace.dataset.proto.IcebergMetadata iceberg_metadata = 7;
 }
 
 message DatasetField {

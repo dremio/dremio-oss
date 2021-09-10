@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.impersonation.hive;
 
+import static com.dremio.exec.hive.HiveTestUtilities.DriverState;
+import static com.dremio.exec.hive.HiveTestUtilities.pingHive;
 import static org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 
@@ -29,8 +31,9 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
-import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.shims.ShimLoader;
+import org.junit.BeforeClass;
 
 import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
@@ -39,9 +42,12 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.impersonation.BaseTestImpersonation;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
+import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.inject.AbstractModule;
 
 public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
@@ -63,6 +69,25 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   protected static final String partitionStudentDef = "CREATE TABLE %s.%s" +
       "(rownum INT, name STRING, gpa FLOAT, studentnum BIGINT) " +
       "partitioned by (age INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE";
+
+  @BeforeClass
+  public static void setJobRunner() throws Exception {
+    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
+      try {
+        runSQL(query); // queries we get here are inner 'refresh dataset' queries
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    };
+
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(SimpleJobRunner.class).toInstance(jobRunner);
+      }
+    });
+    setupDefaultTestCluster();
+  }
 
   protected static void prepHiveConfAndData() throws Exception {
     hiveConf = new HiveConf();
@@ -95,9 +120,10 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
         hiveConf.set(METASTOREURIS.varname, "thrift://localhost:" + port);
         MetaStoreUtils.startMetaStore(port, ShimLoader.getHadoopThriftAuthBridge(), hiveConf);
         // Try to connect to hive to check if it's healthy
-        final SessionState ss = new SessionState(hiveConf);
-        SessionState.start(ss);
-        ss.close();
+        try (DriverState driverState = new DriverState(hiveConf)) {
+          Driver hiveDriver = driverState.driver;
+          pingHive(hiveDriver);
+        }
         logger.info("Start hive meta store successfully.");
         return;
       } catch (Exception e) {

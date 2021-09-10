@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.gcs;
 
+import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
+
 import java.util.List;
 
 import javax.inject.Provider;
@@ -128,7 +130,7 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
 
   @Override
   public String getConnection() {
-    return GoogleBucketFileSystem.SCHEME_NAME + ":///";
+    return DREMIO_GCS_SCHEME + ":///";
   }
 
   @Override

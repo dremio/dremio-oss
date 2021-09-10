@@ -22,9 +22,10 @@ import { LOGOUT_USER_START, NO_USERS_ERROR } from 'actions/account';
 import developmentOptions from 'dyn-load/reducers/developmentOptions';
 import account from '@inject/reducers/account';
 import admin from '@inject/reducers/admin';
+import roles from '@inject/reducers/roles';
 import init from '@app/reducers/init';
 import privileges from '@inject/reducers/privileges';
-
+import user from '@inject/reducers/user';
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 
@@ -54,6 +55,7 @@ const appReducers = combineReducers({
   jobs,
   modals,
   admin,
+  roles,
   search,
   developmentOptions,
   notification,
@@ -64,7 +66,8 @@ const appReducers = combineReducers({
   appError: prodError,
   modulesState,
   passDataBetweenModalTabs,
-  privileges
+  privileges,
+  user
 });
 
 const actionCancelGroups = {};

@@ -32,7 +32,7 @@ import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.FilteringCoercionReader;
+import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -82,6 +82,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   private final Map<String, Set<Integer>> pathToRowGroupsMap;
   private final ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator;
   private final boolean ignoreSchemaLearning;
+  private final boolean isConvertedIcebergDataset;
 
   private final BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener = (inputStreamProvider, footer) -> {
     if (!prefetchReader || !fs.supportsAsync()) {
@@ -127,7 +128,8 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                                    Map<String, Set<Integer>> pathToRowGroupsMap,
                                    ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
                                    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr,
-                                   boolean ignoreSchemaLearning) {
+                                   boolean ignoreSchemaLearning,
+                                   boolean isConvertedIcebergDataset) {
     this.pathToRowGroupsMap = pathToRowGroupsMap;
     this.parquetSplitReaderCreatorIterator = parquetSplitReaderCreatorIterator;
     this.datasetSplit = splitInfo;
@@ -165,6 +167,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.formatSettings = formatSettings;
     this.icebergSchemaFields = icebergSchemaFields;
     this.ignoreSchemaLearning = ignoreSchemaLearning;
+    this.isConvertedIcebergDataset = isConvertedIcebergDataset;
   }
 
   @Override
@@ -230,7 +233,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
         Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
         ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields);
         RecordReader inner;
-        if (DatasetHelper.isIcebergFile(formatSettings)) {
+        if (!isConvertedIcebergDataset && DatasetHelper.isIcebergFile(formatSettings)) {
           IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(
                   context,
                   readerFactory,
@@ -248,7 +251,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                   supportsColocatedReads,
                   inputStreamProvider
           );
-          RecordReader wrappedRecordReader = new FilteringCoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema, conditions);
+          RecordReader wrappedRecordReader = new CoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema);
           inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
         } else if (DatasetHelper.isDeltaLake(formatSettings)) {
           DeltaLakeParquetReader innerDeltaParquetReader = new DeltaLakeParquetReader(
@@ -268,7 +271,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                   supportsColocatedReads,
                   inputStreamProvider
           );
-          RecordReader wrappedRecordReader = new FilteringCoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerDeltaParquetReader, fullSchema, conditions);
+          RecordReader wrappedRecordReader = new CoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerDeltaParquetReader, fullSchema);
           inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
         } else {
           boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);

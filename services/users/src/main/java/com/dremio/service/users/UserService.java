@@ -18,6 +18,7 @@ package com.dremio.service.users;
 
 import java.io.IOException;
 
+import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.service.users.proto.UID;
 
@@ -34,13 +35,40 @@ public interface UserService {
   // Admin only.
   User createUser(User userConfig, String authKey) throws IOException, IllegalArgumentException;
 
+  default User createUser(User userConfig) throws IOException, IllegalArgumentException{
+    return createUser(userConfig, null);
+  }
+
+  /**
+   * Fetch original user by userName and replace its info.
+   */
   // Edit user. User only.
   User updateUser(User userConfig, String authKey) throws IOException, IllegalArgumentException, UserNotFoundException;
+
+  /**
+   * Fetch original user by userId and replace its info.
+   */
+  default User updateUserById(
+    User userConfig,
+    String authKey
+  ) throws IllegalArgumentException, UserNotFoundException {
+    throw new UnsupportedOperationException("Not yet supported");
+  }
 
   User updateUserName(String oldUserName, String newUserName, User userConfig, String authKey) throws IOException, IllegalArgumentException, UserNotFoundException;
 
   void deleteUser(String userName, String version) throws UserNotFoundException, IOException;
 
+  /**
+   * Delete a user with corresponding UID
+   * @param uid UID of user to delete
+   * @throws UserNotFoundException if no user with UID is found
+   */
+  default void deleteUser(UID uid) throws UserNotFoundException, IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  // TODO(DX-33891): use @CheckReturnValue
   AuthResult authenticate(String userName, String password) throws UserLoginException;
 
   Iterable<? extends User> getAllUsers(Integer pageSize) throws IOException;
@@ -60,4 +88,37 @@ public interface UserService {
    * @throws IOException
    */
   Iterable<? extends User> searchUsers(final String searchTerm, String sortColumn, SortOrder order, Integer limit) throws IOException;
+
+  /**
+   * Performs case SENSITIVE search for the users.
+   *
+   * Search looking through full name, first name, last name and email fields and returns any record that has
+   * @param searchQuery query to search by
+   * @param sortColumn - sort column
+   * @param order - sort order
+   * @param startIndex - starting offset to return for pagination
+   * @param pageSize - size of page to return for pagination
+   * @return a collection of users that not exceeds {@code limit} number
+   * @throws IOException
+   */
+  default Iterable<? extends User> searchUsers(
+    SearchTypes.SearchQuery searchQuery,
+    String sortColumn,
+    SortOrder order,
+    Integer startIndex,
+    Integer pageSize
+  ) throws IOException {
+    throw new UnsupportedOperationException("Not yet supported");
+  }
+
+  /**
+   * Provide a count of the number of users entries that match the
+   * requested condition.
+   *
+   * @param searchQuery - query to search by, defaults to match all
+   * @return number of users matching the searchTerm
+   */
+   default Integer getNumUsers(SearchTypes.SearchQuery searchQuery) {
+    throw new UnsupportedOperationException("Not yet supported");
+  }
 }

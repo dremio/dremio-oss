@@ -50,6 +50,16 @@ $gutter-quadruple: map-get($map: $gutter-sizes, $key: quadruple);
       resize: vertical;
       width: 100%;
 
+      &:focus {
+        border: 1px solid $regentBlue;
+        background-color: $aliceBlue;
+        outline: none;
+      }
+      &:hover {
+        border: 1px solid $regentBlue;
+        outline: none;
+      }
+
       &[disabled] {
         background-color: $disabled-color;
         color: $oslo-gray;

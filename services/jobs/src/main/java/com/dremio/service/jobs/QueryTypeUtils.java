@@ -47,6 +47,7 @@ final class QueryTypeUtils {
     case ACCELERATOR_DROP:
     case PREPARE_INTERNAL:
     case ACCELERATOR_EXPLAIN:
+    case METADATA_REFRESH:
       return true;
 
     case UI_RUN:
@@ -102,6 +103,7 @@ final class QueryTypeUtils {
     case UI_INTERNAL_RUN:
     case UI_RUN:
     case FLIGHT:
+    case METADATA_REFRESH:
     default:
       return WorkloadClass.GENERAL;
     }
@@ -182,6 +184,8 @@ final class QueryTypeUtils {
         return WorkloadType.ACCELERATOR;
       case FLIGHT:
         return WorkloadType.FLIGHT;
+      case METADATA_REFRESH:
+        return WorkloadType.METADATA_REFRESH;
       case UNKNOWN:
       default:
         return WorkloadType.UNKNOWN;

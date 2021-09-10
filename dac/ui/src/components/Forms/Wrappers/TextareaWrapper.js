@@ -43,7 +43,7 @@ export default class TextareaWrapper extends Component {
           className={fieldWithError}>
           <div className={textFieldWrapper}>
             <TextArea
-              value={field.value}
+              {...field}
               helpText={tooltip}
               label={label}
               name={label}

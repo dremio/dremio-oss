@@ -17,6 +17,7 @@ package com.dremio.dac.service.source;
 
 import static com.dremio.dac.util.DatasetsUtil.toDatasetConfig;
 import static com.dremio.dac.util.DatasetsUtil.toPhysicalDatasetConfig;
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Collections.singletonList;
@@ -611,11 +612,33 @@ public class SourceService {
     }
   }
 
+
+  private FileSystemPlugin getMetadataPlugin() throws ExecutionSetupException {
+    return catalogService.getManagedSource(METADATA_STORAGE_PLUGIN_NAME).unwrap(FileSystemPlugin.class);
+  }
+
   public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, String version) throws PhysicalDatasetNotFoundException {
+    String tableUuid = "";
+    NamespaceKey key = datasetPath.toNamespaceKey();
     try {
+      DatasetConfig dataset = namespaceService.getDataset(key);
+      boolean isIcebergMetadata = false;
+      if (dataset.getPhysicalDataset().getIcebergMetadata() != null) {
+        tableUuid = dataset.getPhysicalDataset().getIcebergMetadata().getTableUuid();
+        isIcebergMetadata = true;
+      }
       namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
-    } catch (NamespaceException nse) {
+      if (isIcebergMetadata) {
+        FileSystemPlugin plugin = getMetadataPlugin();
+        plugin.deleteMetadataIcebergTable(tableUuid);
+      }
+    }
+      catch (NamespaceException nse) {
       throw new PhysicalDatasetNotFoundException(sourceName, datasetPath, nse);
+    } catch (ExecutionSetupException e) {
+      String message = String.format("The dataset %s is now forgotten by dremio, but there was an error while cleaning up respective metadata files for %s.", key, tableUuid);
+      logger.error(message);
+      throw new RuntimeException(e);
     }
   }
 

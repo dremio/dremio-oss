@@ -33,7 +33,11 @@ export default class StatefulTableViewer extends Component {
       PropTypes.array
     ]),
     noDataText: PropTypes.string,
-    rowHeight: PropTypes.number
+    rowHeight: PropTypes.number,
+    onClick: PropTypes.func,
+    resizableColumn: PropTypes.bool,
+    loadNextRecords: PropTypes.func,
+    disableSort: PropTypes.bool
     // extra props passed along to underlying Table impl
     // columns: PropTypes.array.isRequired,
     // className: PropTypes.string,
@@ -46,14 +50,22 @@ export default class StatefulTableViewer extends Component {
   };
 
   renderTableContent() {
-    const { viewState, tableData, virtualized, noDataText, ...passAlongProps } = this.props;
+    const {
+      viewState, tableData, virtualized, noDataText,
+      onClick, resizableColumn, loadNextRecords, disableSort, ...passAlongProps
+    } = this.props;
     const data = viewState && viewState.get('isInProgress') ? Immutable.List() : tableData;
     const tableProps = {
       tableData: data,
+      resizableColumn,
+      loadNextRecords,
+      onClick,
       ...passAlongProps
     };
     const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
-    const tableViewer = virtualized ? <VirtualizedTableViewer {...tableProps}/> : <TableViewer {...tableProps}/>;
+    const tableViewer = virtualized
+      ? <VirtualizedTableViewer {...tableProps} disableSort={disableSort}/>
+      : <TableViewer {...tableProps} />;
     if (!(viewState && viewState.get('isInProgress')) && tableSize === 0) {
       // here we skip showing empty virtualized table header because of IE11 issues with flex box
       // in this particular case grid for react-virtualized computed with wrong offsetWidth
@@ -70,12 +82,12 @@ export default class StatefulTableViewer extends Component {
     return (
       <div style={styles.base}>
         {viewState && !viewState.get('isInProgress')
-          && <ViewStateWrapper style={{height: 'auto'}} viewState={viewState}/>
+          && <ViewStateWrapper style={{ height: 'auto' }} viewState={viewState} />
         }
         {this.renderTableContent()}
         { //position: relative needed to fit spinner and overlay under the table header.
           viewState && viewState.get('isInProgress')
-          && <ViewStateWrapper style={{position: 'relative'}} viewState={viewState}/>
+          && <ViewStateWrapper style={{ position: 'relative' }} viewState={viewState} />
         }
       </div>
     );

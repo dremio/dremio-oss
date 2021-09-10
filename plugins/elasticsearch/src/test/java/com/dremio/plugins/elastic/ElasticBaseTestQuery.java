@@ -36,6 +36,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.joda.time.DateTimeZone;
@@ -66,14 +67,34 @@ import com.google.common.collect.ImmutableMap;
 
 public class ElasticBaseTestQuery extends PlanTestBase {
   private static final Logger logger = LoggerFactory.getLogger(ElasticBaseTestQuery.class);
-
+  private static final ObjectMapper objectMapper = new ObjectMapper();
   protected static final Version ELASTIC_V6 = new Version(6, 0, 0);
 
   protected ElasticsearchCluster elastic;
   protected String schema;
   protected String table;
   protected String alias;
-  protected static boolean enable7vFeatures;
+  protected boolean enable7vFeatures;
+  protected boolean enable68vFeatures;
+
+  protected final String [] uidJsonES7 = new String[] {
+    "[{\n" +
+      "  \"from\" : 0,\n" +
+      "  \"size\" : 4000,\n" +
+      "  \"query\" : {\n" +
+      "          \"match_all\" : {\n" +
+      "            \"boost\" : 1.0\n" +
+      "          }\n" +
+      "  },\n" +
+      "  \"_source\" : {\n" +
+      "    \"includes\" : [\n" +
+      "      \"_id\",\n" +
+      "      \"_type\"\n" +
+      "    ],\n" +
+      "    \"excludes\" : [ ]\n" +
+      "  }\n" +
+      "}]"
+  };
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
@@ -146,7 +167,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   @Before
-  public void setupElastic() throws IOException {
+  public void setupElastic() throws IOException, InterruptedException {
     ScriptsEnabled scriptEnabledAnnotation = this.getClass().getAnnotation(ScriptsEnabled.class);
     boolean scriptsEnabled = true;
     if (scriptEnabledAnnotation != null) {
@@ -189,8 +210,10 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     sc.setName("elasticsearch");
     sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields));
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
-    getSabotContext().getCatalogService().createSourceIfMissingWithThrow(sc);
-    enable7vFeatures = elastic.getMinVersionInCluster().compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
+    createSourceWithRetry(sc);
+    ElasticVersionBehaviorProvider elasticVersionBehaviorProvider = new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());
+    enable7vFeatures = elasticVersionBehaviorProvider.isEnable7vFeatures();
+    enable68vFeatures = elasticVersionBehaviorProvider.isEs68Version();
   }
 
   @After
@@ -204,6 +227,50 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
   public void load(String schema, String table, ColumnData[] data) throws IOException {
     elastic.load(schema, table, data);
+  }
+
+  // Retrying loaddata 3 times in case of scenarios like NotFoundException.
+  public void loadWithRetry(String schema, String table, ColumnData[] data) throws InterruptedException {
+    int retries = 3;
+    while (retries >= 0) {
+      try {
+        elastic.load(schema, table, data);
+        break;
+      } catch (Exception e) {
+        retries--;
+        if (retries >= 0) {
+          TimeUnit.SECONDS.sleep(5);
+        }
+      }
+    }
+  }
+
+  public ElasticsearchCluster.SearchResults searchResultsWithExpectedCount(int expectedCount) throws Exception {
+    ElasticsearchCluster.SearchResults contents = elastic.search(schema, table);
+      // If record count is not as expected due to data from earlier test is not cleared then remove and load schema data again.
+      if (contents.count != expectedCount && contents.count % expectedCount == 0) {
+        removeSource();
+        setupElastic();
+        elastic.dataFromFile(schema, table, ElasticsearchConstants.NESTED_TYPE_DATA);
+        contents = elastic.search(schema, table);
+      }
+      return contents;
+  }
+
+  // Retrying setupElastic 3 times (with delay of 5 seconds) in case of issue with cluster health.
+  public void createSourceWithRetry(SourceConfig sc) throws InterruptedException {
+    int retries = 3;
+    while (retries >= 0) {
+      try {
+        getSabotContext().getCatalogService().createSourceIfMissingWithThrow(sc);
+        break;
+      } catch (Exception e) {
+        retries--;
+        if (retries >= 0) {
+          TimeUnit.SECONDS.sleep(5);
+        }
+      }
+    }
   }
 
   public static ColumnData[] getNullBusinessData() {
@@ -424,7 +491,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
    * specific variant was introduced. Probably not the best reason, but it was included to
    * reduce the clutter from the patch that switched the tests to use this method.
    */
-  public static void verifyJsonInPlan(String query, String[] jsonExpectedInPlan) throws Exception {
+  public void verifyJsonInPlan(String query, String[] jsonExpectedInPlan) throws Exception {
     if(!ElasticsearchCluster.USE_EXTERNAL_ES5) {
       query = QueryTestUtil.normalizeQuery(query);
       verifyJsonInPlanHelper(query, jsonExpectedInPlan, true);
@@ -449,7 +516,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
    *                           groovy scripts in legacy tests
    * @throws Exception
    */
-  public static void verifyJsonInPlanHelper(String query, String[] jsonExpectedInPlan, boolean edgeProjectEnabled) throws Exception {
+  public void verifyJsonInPlanHelper(String query, String[] jsonExpectedInPlan, boolean edgeProjectEnabled) throws Exception {
     try {
       if (edgeProjectEnabled) {
         test("ALTER SYSTEM SET " + ExecConstants.ELASTIC_RULES_EDGE_PROJECT.getOptionName() + " = true");
@@ -511,29 +578,6 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     }
   }
 
-  private static int findJsonEndBoundary(String plan, int indexInPlan) throws IOException {
-    // read the json pushdown query with jackson to find it's total length, wasn't sure how to do this with just regex
-    // as it will span across a variable number of lines
-    ObjectMapper map = new ObjectMapper(); //for later inner object data binding
-    JsonParser p = map.getFactory().createParser(plan.substring(indexInPlan));
-    JsonToken token = p.nextToken();
-    if (token != JsonToken.START_ARRAY) {
-      throw new RuntimeException("Error finding elastic pushdown query JSON in plan text, " +
-        "did not find start array as expected, instead found " + token);
-    }
-    int startEndCounter = 1;
-    while (startEndCounter != 0) {
-      token = p.nextToken();
-      if (token == JsonToken.START_ARRAY) {
-        startEndCounter++;
-      } else if (token == JsonToken.END_ARRAY) {
-        startEndCounter--;
-      }
-    }
-    long pushdownEndIndexInPlan = p.getTokenLocation().getCharOffset() + 1;
-
-    return indexInPlan + (int) pushdownEndIndexInPlan;
-  }
 
   public static void compareJson(String expected, String actual) throws IOException {
     if(ElasticsearchCluster.USE_EXTERNAL_ES5){
@@ -550,6 +594,60 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       // assertEquals gives a better diff
       assertEquals(message, writer.writeValueAsString(expectedRootNode), writer.writeValueAsString(actualRootNode));
       throw new RuntimeException(message);
+    }
+  }
+
+  // To get field to select in query based upon ES version. If version is 7 , " _type || '#' || _id " will be used in place of _uid.
+  public String getField() {
+    if (elastic.getMinVersionInCluster().getMajor() == 7) {
+      return "_type  || '#'  || _id";
+    }
+    return "_uid";
+  }
+
+  // To get field with alias (_uid) to select in query based upon ES version. If version is 7 , " _type || '#' || _id " will be used in place of _uid.
+  public String getFieldWithAlias() {
+    if (elastic.getMinVersionInCluster().getMajor() == 7) {
+      return " _type || '#' || _id as _uid ";
+    }
+    return " _uid ";
+  }
+
+  // To get disable coord based upon ES version. If version is 7, "" will be used in place of " "disable_coord" : false,\n ".
+  public String getDisableCoord(){
+    if (elastic.getMinVersionInCluster().getMajor() == 7) {
+      return "";
+    }
+    return "      \"disable_coord\" : false,\n";
+  }
+
+  protected String getActualFormat(String format) {
+    if(format.startsWith("8")) {
+      return format.substring(1);
+    }
+    return format;
+  }
+
+  private static int findJsonEndBoundary(String plan, int indexInPlan) throws IOException {
+    // read the json pushdown query with jackson to find it's total length, wasn't sure how to do this with just regex
+    // as it will span across a variable number of lines
+    try(JsonParser jsonParser = objectMapper.getFactory().createParser(plan.substring(indexInPlan))) {
+      JsonToken token = jsonParser.nextToken();
+      if (token != JsonToken.START_ARRAY) {
+        throw new RuntimeException("Error finding elastic pushdown query JSON in plan text, " +
+          "did not find start array as expected, instead found " + token);
+      }
+      int startEndCounter = 1;
+      while (startEndCounter != 0) {
+        token = jsonParser.nextToken();
+        if (token == JsonToken.START_ARRAY) {
+          startEndCounter++;
+        } else if (token == JsonToken.END_ARRAY) {
+          startEndCounter--;
+        }
+      }
+      long pushdownEndIndexInPlan = jsonParser.getTokenLocation().getCharOffset() + 1;
+      return indexInPlan + (int) pushdownEndIndexInPlan;
     }
   }
 
@@ -572,3 +670,4 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     }
   }
 }
+

@@ -22,6 +22,9 @@ import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
@@ -91,6 +94,57 @@ public class DateTimes {
    */
   public static long toMillisFromJdbcTimestamp(String jdbcEscapeString){
     return toMillis(new LocalDateTime(Timestamp.valueOf(jdbcEscapeString).getTime()));
+  }
+
+  /**
+   * Convert from JDBC date escape string format to UTC millis, ignoring local
+   * timezone.
+   *
+   * @param jdbcEscapeString Date in string format 'YYYY-MM-DD'
+   * @return Milliseconds since epoch.
+   */
+  public static long toJavaTimeMillisFromJdbcDate(String jdbcEscapeString){
+    // Parse date given in format 'YYYY-MM-DD' to millis in UTC timezone
+    java.time.LocalDate localDate = java.time.LocalDate.parse(jdbcEscapeString, DateTimes.CALCITE_LOCAL_DATE_FORMATTER);
+    return localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli();
+  }
+
+  /**
+   * Convert from JDBC timestamp escape string format to UTC millis, ignoring local
+   * timezone.
+   *
+   * @param jdbcEscapeString Time stamp string in format 'YYYY-MM-DD hh:mm:ss'
+   * @return Milliseconds since epoch.
+   */
+  public static long toJavaTimeMillisFromJdbcTimestamp(String jdbcEscapeString){
+    // Parse date given in format 'YYYY-MM-DD hh:mm:ss' to millis in UTC timezone
+    java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(jdbcEscapeString, DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
+    return localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+  }
+
+  /**
+   * Convert to JDBC date escape string format from millis, ignoring local
+   * timezone.
+   *
+   * @param millis   Milliseconds since epoch.
+   * @return JDBC date string
+   */
+  public static String toJdbcDateFromMillisInUtc(long millis) {
+    java.time.LocalDateTime localDateTime = java.time.LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+    // LocalDate toString returns ISO format
+    return localDateTime.toLocalDate().format(DateTimes.CALCITE_LOCAL_DATE_FORMATTER);
+  }
+
+  /**
+   * Convert to JDBC timestamp escape string format from millis, ignoring local
+   * timezone.
+   *
+   * @param millis   Milliseconds since epoch.
+   * @return JDBC timestamp string
+   */
+  public static String toJdbcTimestampFromMillisInUtc(long millis) {
+    java.time.LocalDateTime localDateTime = java.time.LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+    return localDateTime.format(DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
   }
 
   public static DateTime toDateTime(LocalDateTime localDateTime) {

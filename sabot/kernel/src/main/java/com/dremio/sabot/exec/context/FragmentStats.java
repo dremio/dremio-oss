@@ -76,8 +76,7 @@ public class FragmentStats {
     prfB.setEndTime(System.currentTimeMillis());
     prfB.setEndpoint(endpoint);
     for (OperatorStats o : operators) {
-      // send details in the operator profile only for the 0th minor fragment of every phase.
-      prfB.addOperatorProfile(o.getProfile(handle.getMinorFragmentId() == 0));
+      prfB.addOperatorProfile(o.getProfile(true));
     }
     prfB.setSleepingDuration(sleepingDuration);
     prfB.setBlockedDuration(blockedOnUpstreamDuration + blockedOnDownstreamDuration + blockedOnSharedResourceDuration);

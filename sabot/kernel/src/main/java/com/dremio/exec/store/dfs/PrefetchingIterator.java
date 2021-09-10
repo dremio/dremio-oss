@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.util.List;
+
 import org.apache.arrow.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +83,16 @@ public class PrefetchingIterator implements RecordReaderIterator {
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
     creators.addRuntimeFilter(runtimeFilter);
+  }
+
+  @Override
+  public List<RuntimeFilter> getRuntimeFilters() {
+    return creators.getRuntimeFilters();
+  }
+
+  @Override
+  public void produceFromBuffered(boolean toProduce) {
+    creators.produceFromBufferedSplits(toProduce);
   }
 
   @Override

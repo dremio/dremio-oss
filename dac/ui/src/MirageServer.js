@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Server, Response} from 'miragejs';
+import { Server, Response } from 'miragejs';
 
 //======
 // use this file for api mocking while debugging the UI by adding a line to index.js:
@@ -38,7 +38,6 @@ export const MirageServer = new Server({
         'admin': true,
         'clusterId': '7532a686-4b8f-471f-829f-b1104fceee30',
         'clusterCreatedAt': 1589823242678,
-        'showUserAndUserProperties': true,
         'version': '4.5.0-SNAPSHOT',
         'permissions': {
           'canUploadProfiles': true,

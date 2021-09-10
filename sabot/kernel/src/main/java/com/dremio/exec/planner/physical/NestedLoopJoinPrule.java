@@ -104,7 +104,7 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
       RexNode swappedCondition = JoinUtils.getSwappedCondition(join);
       JoinRel swappedJoin = JoinRel.create(join.getCluster(), join.getTraitSet(), join.getRight(), join.getLeft(), swappedCondition, JoinRelType.LEFT,
         JoinUtils.projectSwap(join.getProjectedFields(), join.getLeft().getRowType().getFieldCount(),
-          join.getRight().getRowType().getFieldCount()+join.getLeft().getRowType().getFieldCount()));
+          join.getRight().getRowType().getFieldCount()+join.getLeft().getRowType().getFieldCount()), false);
       RelNode projectMaybe = DremioRelFactories.LOGICAL_BUILDER.create(join.getCluster(), null).push(swappedJoin)
         .project(JoinUtils.createSwappedJoinExprsProjected(swappedJoin, join), ImmutableList.<String>of(), true).build();
 

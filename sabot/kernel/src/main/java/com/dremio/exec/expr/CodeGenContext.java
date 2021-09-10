@@ -37,12 +37,14 @@ public class CodeGenContext implements LogicalExpression {
     return child;
   }
 
-  LogicalExpression child;
-  SupportedEngines executionEngineForChildNode = new SupportedEngines();
-  SupportedEngines executionEngineForChildNodeSubExpressions = new SupportedEngines();
+  private final LogicalExpression child;
+  private final SupportedEngines executionEngineForChildNode;
+  private final SupportedEngines executionEngineForChildNodeSubExpressions;
 
   public CodeGenContext(LogicalExpression child) {
     this.child = child;
+    executionEngineForChildNode = new SupportedEngines();
+    executionEngineForChildNodeSubExpressions = new SupportedEngines();
     // Gandiva only function - can only be executed in Gandiva
     if (child instanceof GandivaFunctionHolderExpression) {
       addSupportedEngine(SupportedEngines.Engine.GANDIVA);
@@ -51,9 +53,15 @@ public class CodeGenContext implements LogicalExpression {
     }
   }
 
+  private CodeGenContext(CodeGenContext context, LogicalExpression child) {
+    this.child = child;
+    executionEngineForChildNode = context.getExecutionEngineForExpression().duplicate();
+    executionEngineForChildNodeSubExpressions = context.getExecutionEngineForSubExpression().duplicate();
+  }
+
   /**
    * Used to create context free nodes, where support is hand managed.
-   * @param child
+   * @param child expression to wrap the context with
    */
   public static CodeGenContext buildWithNoDefaultSupport(LogicalExpression child) {
     CodeGenContext context =  new CodeGenContext(child);
@@ -61,6 +69,53 @@ public class CodeGenContext implements LogicalExpression {
     context.markSubExprIsMixed();
     context.getExecutionEngineForExpression().clear();
     return context;
+  }
+
+  public static CodeGenContext buildWithCurrentCodegen(CodeGenContext context, LogicalExpression child) {
+    return new CodeGenContext(context, child);
+  }
+
+  public static CodeGenContext buildOnSubExpression(LogicalExpression expr) {
+    CodeGenContext context = new CodeGenContext(expr);
+    boolean exprInJava = false;
+    boolean exprInGandiva = false;
+    boolean subExprInJava = true;
+    boolean subExprInGandiva = true;
+    for (LogicalExpression c : expr) {
+      if (c instanceof CodeGenContext) {
+        if (!exprInJava) {
+          exprInJava = (((CodeGenContext) c).isExpressionExecutableInEngine(SupportedEngines.Engine.JAVA));
+        }
+        if (subExprInJava) {
+          subExprInJava = (((CodeGenContext) c).isSubExpressionExecutableInEngine(SupportedEngines.Engine.JAVA));
+        }
+        if (!exprInGandiva) {
+          exprInGandiva = (((CodeGenContext) c).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA));
+        }
+        if (subExprInGandiva) {
+          subExprInGandiva = (((CodeGenContext) c).isSubExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA));
+        }
+      }
+    }
+    if (!exprInJava) {
+      context.removeSupporteExecutionEngineForExpression(SupportedEngines.Engine.JAVA);
+    }
+    if (!subExprInJava) {
+      context.removeSupporteExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+    }
+    if (exprInGandiva) {
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+    }
+    if (subExprInGandiva) {
+      context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+    }
+    return context;
+  }
+
+  public static CodeGenContext buildWithAllEngines(LogicalExpression child) {
+    final CodeGenContext newContext = new CodeGenContext(child);
+    newContext.addSupportedEngine(SupportedEngines.Engine.GANDIVA);
+    return newContext;
   }
 
   private void addSupportedEngine(SupportedEngines.Engine engine) {
@@ -105,7 +160,7 @@ public class CodeGenContext implements LogicalExpression {
   }
 
   public boolean isMixedModeExecution() {
-    return executionEngineForChildNodeSubExpressions.supportedEngines.isEmpty();
+    return executionEngineForChildNodeSubExpressions.isEmpty();
   }
 
   @Override

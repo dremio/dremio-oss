@@ -36,11 +36,11 @@ export const JobState = {
 const RECORD_STEP = 1000;
 const RECORDS_IN_THOUSTHAND = RECORD_STEP;
 
-class JobsUtils {
+export class JobsUtils {
 
   getNumberOfRunningJobs(jobs) {
     if (jobs) {
-      return jobs.filter((item) => item.get('state').toLowerCase &&
+      return jobs.filter((item) => item.get('state') &&
         item.get('state').toLowerCase() === JobState.RUNNING).size;
     }
     return 0;
@@ -105,13 +105,13 @@ class JobsUtils {
     return timeUtils.durationWithZero(moment.duration(ms));
   }
 
-  getJobDuration(startTime, endTime) {
+  getJobDuration(startTime, endTime, isNumberFormat) {
     const diff = moment(endTime).diff(moment(startTime));
-    return this.formatJobDuration(diff);
+    return this.formatJobDuration(diff, isNumberFormat);
   }
 
-  formatJobDuration(duration) {
-    return timeUtils.durationWithZero(moment.duration(duration, 'ms'));
+  formatJobDuration(duration, isNumberFormat) {
+    return timeUtils.durationWithZero(moment.duration(duration, 'ms'), isNumberFormat);
   }
 
   getRunning(jobState) {
@@ -140,6 +140,21 @@ class JobsUtils {
     return records.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
+  getFormattedNumber(number) {
+    const units = [
+      { value: 1, symbol: '' },
+      { value: 1e3, symbol: 'K' },
+      { value: 1e6, symbol: 'M' },
+      { value: 1e9, symbol: 'B' },
+      { value: 1e12, symbol: 'T' },
+      { value: 1e15, symbol: 'P' },
+      { value: 1e18, symbol: 'E' }
+    ];
+    const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+    const filteredUnit = units.slice().reverse().find((unit) => number >= unit.value);
+    return filteredUnit ? (number / filteredUnit.value).toFixed(3).replace(rx, '$1') + filteredUnit.symbol : '0';
+  }
+
   isMetadataJob(requestType) {
     switch (requestType) {
     case 'GET_CATALOGS':
@@ -163,7 +178,7 @@ class JobsUtils {
     if (!localStorageUtils.getUserData().admin) {
       url = `/jobs/reflection/${id}`;
     } else {
-      url = `/jobs?filters=${encodeURIComponent(JSON.stringify({'contains': [id]}))}`;
+      url = `/jobs?filters=${encodeURIComponent(JSON.stringify({ 'contains': [id] }))}`;
     }
     return createFullUrl ? (window.location.origin + url) : url;
   }
@@ -180,6 +195,13 @@ class JobsUtils {
       byRelationship[reflectionRelationship.relationship].push(reflectionRelationship);
     }
     return byRelationship;
+  }
+
+  moveArrayElement(array, fromIndex, toIndex) {
+    const element = array[fromIndex];
+    array[fromIndex] = array[toIndex];
+    array[toIndex] = element;
+    return array;
   }
 }
 

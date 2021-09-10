@@ -167,6 +167,12 @@ public interface ExecConstants {
 
   String PARQUET_BLOCK_SIZE = "store.parquet.block-size";
   LongValidator PARQUET_BLOCK_SIZE_VALIDATOR = new LongValidator(PARQUET_BLOCK_SIZE, 256*1024*1024);
+  String PARQUET_SPLIT_SIZE = "exec.parquet.split-size";
+  LongValidator PARQUET_SPLIT_SIZE_VALIDATOR = new LongValidator(PARQUET_SPLIT_SIZE, 300*1024*1024);
+  String ORC_SPLIT_SIZE = "exec.orc.split-size";
+  LongValidator ORC_SPLIT_SIZE_VALIDATOR = new LongValidator(ORC_SPLIT_SIZE, 256*1024*1024);
+  String AVRO_SPLIT_SIZE = "exec.avro.split-size";
+  LongValidator AVRO_SPLIT_SIZE_VALIDATOR = new LongValidator(AVRO_SPLIT_SIZE, 256*1024*1024);
   String PARQUET_PAGE_SIZE = "store.parquet.page-size";
   LongValidator PARQUET_PAGE_SIZE_VALIDATOR = new LongValidator(PARQUET_PAGE_SIZE, 100000);
   String PARQUET_DICT_PAGE_SIZE = "store.parquet.dictionary.page-size";
@@ -465,6 +471,7 @@ public interface ExecConstants {
       .toMillis(12));
 
   BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
+  BooleanValidator ENABLE_NDV_REDUCE_HEAP = new BooleanValidator("exec.operator.ndv_reduce_heap", true);
 
   BooleanValidator TRIM_ROWGROUPS_FROM_FOOTER = new BooleanValidator("exec.parquet.memory.trim_rowgroups", true);
   BooleanValidator TRIM_COLUMNS_FROM_ROW_GROUP = new BooleanValidator("exec.parquet.memory.trim_columns", true);
@@ -480,6 +487,7 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
   BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
+  BooleanValidator CTAS_CAN_USE_ICEBERG = new BooleanValidator("dremio.iceberg.ctas.enabled", false);
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
@@ -508,6 +516,8 @@ public interface ExecConstants {
   LongValidator HIVE_SIGNATURE_VALIDATION_PARALLELISM = new TypeValidators.RangeLongValidator("store.hive.signature_validation.parallelism", 1, 32, 16);
   LongValidator HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS = new TypeValidators.LongValidator("store.hive.signature_validation.timeout.ms", 2_000);
 
+  BooleanValidator HIVE_SIGNATURE_CHANGE_RECURSIVE_LISTING = new BooleanValidator("store.hive.signature_change_recursive_listing", false);
+
   // prewarm the code cache
   String CODE_CACHE_PREWARM_PROP = "CODE_CACHE_PREWARM";
   String CODE_CACHE_LOCATION_PROP = "CODE_CACHE_LOCATION";
@@ -521,7 +531,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
 
   // Option to toggle support for mixed data types
-  BooleanValidator MIXED_TYPES_DISABLED = new BooleanValidator("store.disable.mixed_types", false);
+  BooleanValidator MIXED_TYPES_DISABLED = new BooleanValidator("store.disable.mixed_types", true);
 
   BooleanValidator PREFETCH_READER = new BooleanValidator("store.parquet.prefetch_reader", true);
   BooleanValidator READ_COLUMN_INDEXES = new BooleanValidator("store.parquet.read_column_indexes", true);
@@ -542,4 +552,21 @@ public interface ExecConstants {
    * Controls the 'compression' factor for the TDigest algorithm.
    */
   LongValidator TDIGEST_COMPRESSION = new PositiveLongValidator("exec.statistics.tdigest_compression", 10000L, 100);
+
+  LongValidator ITEMS_SKETCH_MAX_SIZE = new PositiveLongValidator("exec.statistics.items_sketch_max_size", Integer.MAX_VALUE, 32_768);
+
+  BooleanValidator DELTA_LAKE_ENABLE_STATS_READ = new BooleanValidator("store.deltalake.enable_stats_read", true);
+
+  // Option to log the generated Java code on code generation exceptions
+  BooleanValidator JAVA_CODE_DUMP = new BooleanValidator("exec.codegen.dump_java_code", false);
+
+  // Option to enable SysFlight Storage Plugin
+  BooleanValidator ENABLE_SYSFLIGHT_SOURCE = new BooleanValidator("sys.flight.enabled", false);
+  BooleanValidator METADATA_CLOUD_CACHING_ENABLED = new BooleanValidator("metadata.cloud.cache.enabled", true);
+
+  // default Nessie namespace used for internal iceberg tables created during refresh dataset
+  StringValidator NESSIE_METADATA_NAMESPACE = new StringValidator("metadata.nessie_iceberg_namespace", "dremio.internal");
+
+  // option used to determine whether footer reader needs to read footer for accurate row counts or not
+  BooleanValidator STORE_ACCURATE_PARTITION_STATS = new BooleanValidator("store.accurate.partition_stats", false);
 }

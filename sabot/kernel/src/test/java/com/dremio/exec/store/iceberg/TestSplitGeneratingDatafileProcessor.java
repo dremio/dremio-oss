@@ -22,7 +22,9 @@ import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getDatafile;
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getSplitVec;
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getTableFunctionContext;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -37,12 +39,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.parquet.ParquetSplitCreator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
@@ -62,9 +66,11 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
   @Before
   public void initialiseSplitGenDatafileProcessor() throws Exception {
     OperatorContext operatorContext = getOperatorContext();
-    blockSize = operatorContext.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE).getNumVal();
+    blockSize = operatorContext.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
     TableFunctionContext tableFunctionContext = getTableFunctionContext(DataProcessorType.SPLIT_GEN);
-    dataFileProcessor = new SplitGeneratingDatafileProcessor(null, operatorContext, tableFunctionContext, new ParquetSplitCreator());
+    FileSystemPlugin plugin = mock(FileSystemPlugin.class);
+    when(plugin.createSplitCreator(operatorContext,null)).thenReturn(new ParquetSplitCreator(operatorContext));
+    dataFileProcessor = new SplitGeneratingDatafileProcessor(operatorContext, plugin, null, tableFunctionContext);
     dataFileProcessor = spy(dataFileProcessor);
     incoming = buildIncomingVector();
     outgoing = getOperatorContext().createOutputVectorContainer();
@@ -75,9 +81,8 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
   }
 
   @After
-  public void close() {
-    incoming.close();
-    outgoing.close();
+  public void close() throws Exception {
+    AutoCloseables.close(incoming, outgoing, dataFileProcessor);
   }
 
   @Test
@@ -137,7 +142,7 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
 
   private OperatorContext getOperatorContext() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
   }
 
   private VectorContainer buildIncomingVector() {

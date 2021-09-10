@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -43,10 +44,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystem.FetchOnDemandDirectoryStream;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
@@ -57,7 +60,9 @@ import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.test.AllocatorRule;
+import com.google.common.collect.ImmutableList;
 
 public class TestDirListingRecordReader extends BaseTestQuery {
 
@@ -84,6 +89,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     OperatorContext operatorContext = mock(OperatorContext.class);
     when(operatorContext.getAllocator()).thenReturn(testAllocator);
     when(operatorContext.getTargetBatchSize()).thenReturn(4000);
+    when(operatorContext.getMinorFragmentEndpoints()).thenReturn(ImmutableList.of(new MinorFragmentEndpoint(0,null)));
     return operatorContext;
   }
 
@@ -130,6 +136,14 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
   private static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
     return new org.apache.hadoop.fs.Path(path.toURI());
+  }
+
+  private static DirListInputSplitProto.DirListInputSplit getDirListInputSplit(String operatingPath, String rootPath) {
+    return DirListInputSplitProto.DirListInputSplit.newBuilder()
+      .setOperatingPath(operatingPath)
+      .setRootPath(rootPath)
+      .setReadSignature(System.currentTimeMillis())
+      .build();
   }
 
   private void setupMutator() {
@@ -179,6 +193,14 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/subBar2/file5.parquet").toString())),   //Dir1/Dir2/Dir3/File
     };
 
+    org.apache.hadoop.fs.Path[] relativePathToSubBar = {
+      toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/file2.parquet").toString())),   //Dir1/Dir2/File
+      toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/subBar2").toString())),         //Dir1/Dir2/Dir3
+      toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/file3.parquet").toString())),   //Dir1/Dir2/File
+      toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/file4.parquet").toString())),   //Dir1/Dir2/File
+      toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/subBar2/file5.parquet").toString())),   //Dir1/Dir2/Dir3/File
+    };
+
     FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
@@ -189,6 +211,41 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       new FileStatus(1200, false, 0, 0, 312, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[6]),
       new FileStatus(1400, false, 0, 0, 331, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[7]),
       new FileStatus(1320, false, 0, 0, System.currentTimeMillis() + 1000000, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[8])
+    );
+
+    FetchOnDemandDirectoryStream statusesIterator2 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", relativePathToSubBar[0]),
+      new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", relativePathToSubBar[1]),
+      new FileStatus(70, false, 0, 0, 31, 4, FsPermission.getDirDefault(), "testowner", "testgroup", relativePathToSubBar[2]),
+      new FileStatus(1010, false, 0, 0, 33, 4, FsPermission.getDirDefault(), "testowner", "testgroup", relativePathToSubBar[3]),
+      new FileStatus(1200, false, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", relativePathToSubBar[4])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
+
+    Path relativeToBar = inputPath.resolve(Path.of("bar"));
+    when(fs.listFiles(relativeToBar, false)).thenReturn(statusesIterator2);
+  }
+
+  private void setupFsListIteratorMockWithHiddenFiles(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/file2.parquet").toString())),   //Dir1/Dir2/File
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/.subBar2").toString())),         //Dir1/Dir2/Dir3
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/file3.parquet").toString())),   //Dir1/Dir2/File
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/_file4.parquet").toString())),   //Dir1/Dir2/File
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/.subBar2/file5.parquet").toString())),   //Dir1/Dir2/Dir3/File
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/_subBar3").toString())),   //Dir1/Dir2/Dir3
+            toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/_subBar3/file5.parquet").toString())),   //Dir1/Dir2/Dir3/File
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+            new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+            new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
+            new FileStatus(70, false, 0, 0, 31, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
+            new FileStatus(1010, false, 0, 0, 33, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[3]),
+            new FileStatus(1200, false, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[4]),
+            new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[5]),
+            new FileStatus(70, false, 0, 0, 31, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[6])
     );
 
     when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
@@ -233,16 +290,17 @@ public class TestDirListingRecordReader extends BaseTestQuery {
   }
 
   @Test
-  public void TestDirListReaderForFileSystemPartitionIsRecursive() throws Exception {
+  public void testDirListReaderForFileSystemPartitionIsRecursive() throws Exception {
     Path inputPath = Path.of("/randompath/");
     HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
 
     setupMutator();
-    reader = new DirListingRecordReader(getCtx(), fs, System.currentTimeMillis(), true, inputPath, null, null, true);
+    setupFsListIteratorMock(fs, inputPath);
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null,true);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
-    setupFsListIteratorMock(fs, inputPath);
 
     int generatedRecords = reader.next();
     assertEquals(generatedRecords, 5);
@@ -253,34 +311,34 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     BigIntVector mtime = (BigIntVector) fieldVectorMap.get("modificationtime");
     BigIntVector size = (BigIntVector) fieldVectorMap.get("filesize");
 
-    assertEquals(outputpaths.getObject(0).toString(), "/randompath/foo.parquet");
+    assertEquals(outputpaths.getObject(0).toString(), "/randompath/foo.parquet?version=1");
     assertEquals(extractPartitionData(outputPartInfo.getObject(0)), "PartitionData{}");
     assertEquals(mtime.get(0), 1);
     assertEquals(size.get(0), 20);
 
-    assertEquals(outputpaths.getObject(1).toString(), "/randompath/bar/file1.parquet");
+    assertEquals(outputpaths.getObject(1).toString(), "/randompath/bar/file1.parquet?version=31");
     assertEquals(extractPartitionData(outputPartInfo.getObject(1)), "PartitionData{dir0=bar}");
     assertEquals(mtime.get(1), 31);
     assertEquals(size.get(1), 70);
 
-    assertEquals(outputpaths.getObject(2).toString(), "/randompath/bar/subBar1/file2.parquet");
+    assertEquals(outputpaths.getObject(2).toString(), "/randompath/bar/subBar1/file2.parquet?version=32");
     assertEquals(extractPartitionData(outputPartInfo.getObject(2)), "PartitionData{dir0=bar, dir1=subBar1}");
     assertEquals(mtime.get(2), 32);
     assertEquals(size.get(2), 1200);
 
-    assertEquals(outputpaths.getObject(3).toString(), "/randompath/bar/subBar1/file3.parquet");
+    assertEquals(outputpaths.getObject(3).toString(), "/randompath/bar/subBar1/file3.parquet?version=312");
     assertEquals(extractPartitionData(outputPartInfo.getObject(3)), "PartitionData{dir0=bar, dir1=subBar1}");
     assertEquals(mtime.get(3), 312);
     assertEquals(size.get(3), 1200);
 
-    assertEquals(outputpaths.getObject(4).toString(), "/randompath/bar/subBar1/file4.parquet");
+    assertEquals(outputpaths.getObject(4).toString(), "/randompath/bar/subBar1/file4.parquet?version=331");
     assertEquals(extractPartitionData(outputPartInfo.getObject(4)), "PartitionData{dir0=bar, dir1=subBar1}");
     assertEquals(mtime.get(4), 331);
     assertEquals(size.get(4), 1400);
   }
 
   @Test
-  public void TestDirListReaderForHivePartitionIsRecursive() throws IOException, ExecutionSetupException, ClassNotFoundException {
+  public void testDirListReaderForHivePartitionIsRecursive() throws IOException, ExecutionSetupException, ClassNotFoundException {
     Path inputPath = Path.of("/hivePath/");
     HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
     setupFsListIteratorMock(fs, inputPath);
@@ -301,7 +359,8 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("bitField").setBitValue(true).build());
     partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("varCharField").setStringValue("tempVarCharValue").build());
 
-    reader = new DirListingRecordReader(getCtx(), fs, System.currentTimeMillis(), true, inputPath, tableSchema, partitionValues, false);
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, tableSchema, partitionValues, false);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -317,34 +376,34 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
     String partInfo = "PartitionData{integerCol=20, doubleCol=20.0, bitField=true, varCharField=tempVarCharValue}";
 
-    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/foo.parquet");
+    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/foo.parquet?version=1");
     assertEquals(extractPartitionData(outputPartInfo.get(0)), partInfo);
     assertEquals(mtime.get(0), 1);
     assertEquals(size.get(0), 20);
 
-    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/file1.parquet");
+    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/file1.parquet?version=31");
     assertEquals(extractPartitionData(outputPartInfo.get(1)), partInfo);
     assertEquals(mtime.get(1), 31);
     assertEquals(size.get(1), 70);
 
-    assertEquals(outputpaths.getObject(2).toString(), "/hivePath/bar/subBar1/file2.parquet");
+    assertEquals(outputpaths.getObject(2).toString(), "/hivePath/bar/subBar1/file2.parquet?version=32");
     assertEquals(extractPartitionData(outputPartInfo.get(2)), partInfo);
     assertEquals(mtime.get(2), 32);
     assertEquals(size.get(2), 1200);
 
-    assertEquals(outputpaths.getObject(3).toString(), "/hivePath/bar/subBar1/file3.parquet");
+    assertEquals(outputpaths.getObject(3).toString(), "/hivePath/bar/subBar1/file3.parquet?version=312");
     assertEquals(extractPartitionData(outputPartInfo.get(3)), partInfo);
     assertEquals(mtime.get(3), 312);
     assertEquals(size.get(3), 1200);
 
-    assertEquals(outputpaths.getObject(4).toString(), "/hivePath/bar/subBar1/file4.parquet");
+    assertEquals(outputpaths.getObject(4).toString(), "/hivePath/bar/subBar1/file4.parquet?version=331");
     assertEquals(extractPartitionData(outputPartInfo.get(4)), partInfo);
     assertEquals(mtime.get(4), 331);
     assertEquals(size.get(4), 1400);
   }
 
   @Test
-  public void TestDirListReaderWithLargeFilesInDirectory() throws IOException, ExecutionSetupException {
+  public void testDirListReaderWithLargeFilesInDirectory() throws IOException, ExecutionSetupException {
     Path inputPath = Path.of("/hivePath/");
     HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
     setupFsListIteratorMockWithLargeFiles(fs, inputPath);
@@ -353,21 +412,25 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     when(context.getTargetBatchSize()).thenReturn(100);
 
     setupMutator();
-    reader = new DirListingRecordReader(context, fs, System.currentTimeMillis(), true, inputPath, null, null, true);
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
     int noRecordsRead = reader.next();
+
 
     assertEquals(noRecordsRead, 100);
     Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
     VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
 
     assertEquals(outputpaths.getValueCount(), 100);
-    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/file1.parquet");
-    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/file2.parquet");
-    assertEquals(outputpaths.getObject(9).toString(), "/hivePath/bar/file10.parquet");
-    assertEquals(outputpaths.getObject(99).toString(), "/hivePath/bar/file100.parquet");
+    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/file1.parquet?version=1");
+    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/file2.parquet?version=1");
+    assertEquals(outputpaths.getObject(9).toString(), "/hivePath/bar/file10.parquet?version=1");
+    assertEquals(outputpaths.getObject(99).toString(), "/hivePath/bar/file100.parquet?version=1");
 
     //Reset the vectors for the second batch
     mutator.close();
@@ -383,9 +446,9 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
 
     assertEquals(outputpaths.getValueCount(), 100);
-    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/file101.parquet");
-    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/file102.parquet");
-    assertEquals(outputpaths.getObject(99).toString(), "/hivePath/bar/file200.parquet");
+    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/file101.parquet?version=1");
+    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/file102.parquet?version=1");
+    assertEquals(outputpaths.getObject(99).toString(), "/hivePath/bar/file200.parquet?version=1");
 
     //Reset the vectors for the third batch
     mutator.close();
@@ -401,13 +464,93 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
 
     assertEquals(outputpaths.getValueCount(), 100);
-    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/subBar/file201.parquet");
-    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/subBar/file202.parquet");
-    assertEquals(outputpaths.getObject(99).toString(), "/hivePath/bar/subBar/file300.parquet");
+    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/subBar/file201.parquet?version=1");
+    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/subBar/file202.parquet?version=1");
+    assertEquals(outputpaths.getObject(99).toString(), "/hivePath/bar/subBar/file300.parquet?version=1");
+  }
+
+  @Test
+  public void testDirListReaderWithDifferentOperatingAndRootPath() throws Exception {
+    Path rootPath = Path.of("/randompath/");
+    Path operatingPath = Path.of("/randompath/bar");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+
+    try(AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
+      setupMutator();
+      setupFsListIteratorMock(fs, rootPath);
+
+      DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(operatingPath.toString(), rootPath.toString());
+      reader = new DirListingRecordReader(getCtx(), fs, split, false, null, null, true);
+      reader.allocate(mutator.getFieldVectorMap());
+      reader.setup(mutator);
+
+      closer.addAll(reader);
+      closer.addAll(mutator);
+
+
+      int generatedRecords = reader.next();
+      assertEquals(generatedRecords, 4);
+
+      Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+      VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+      VarBinaryVector outputPartInfo = (VarBinaryVector) fieldVectorMap.get("partitioninfo");
+      BigIntVector mtime = (BigIntVector) fieldVectorMap.get("modificationtime");
+      BigIntVector size = (BigIntVector) fieldVectorMap.get("filesize");
+
+      assertEquals(outputpaths.getObject(0).toString(), "/randompath/bar/subBar1/file2.parquet?version=1");
+      assertEquals(extractPartitionData(outputPartInfo.getObject(0)), "PartitionData{dir0=bar, dir1=subBar1}");
+      assertEquals(mtime.get(0), 1);
+      assertEquals(size.get(0), 20);
+
+      assertEquals(outputpaths.getObject(1).toString(), "/randompath/bar/subBar1/file3.parquet?version=31");
+      assertEquals(extractPartitionData(outputPartInfo.getObject(1)), "PartitionData{dir0=bar, dir1=subBar1}");
+      assertEquals(mtime.get(1), 31);
+      assertEquals(size.get(1), 70);
+
+      assertEquals(outputpaths.getObject(2).toString(), "/randompath/bar/subBar1/file4.parquet?version=33");
+      assertEquals(extractPartitionData(outputPartInfo.getObject(2)), "PartitionData{dir0=bar, dir1=subBar1}");
+      assertEquals(mtime.get(2), 33);
+      assertEquals(size.get(2), 1010);
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail(e.getMessage());
+    }
+  }
+
+  @Test
+  public void testHiddenFiles() throws Exception {
+    Path inputPath = Path.of("/hivePath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockWithHiddenFiles(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    when(context.getTargetBatchSize()).thenReturn(100);
+
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    int noRecordsRead = reader.next();
+
+
+    assertEquals(2, noRecordsRead);
+    Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+    VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+
+    assertEquals(2, outputpaths.getValueCount());
+    assertEquals(outputpaths.getObject(0).toString(), "/hivePath/bar/subBar1/file2.parquet?version=1");
+    assertEquals(outputpaths.getObject(1).toString(), "/hivePath/bar/subBar1/file3.parquet?version=31");
+
+    //Reset the vectors for the second batch
+    mutator.close();
   }
 
 
-  private String extractPartitionData(byte[] partitionInfoBytes) throws IOException, ClassNotFoundException {
+    private String extractPartitionData(byte[] partitionInfoBytes) throws IOException, ClassNotFoundException {
     java.io.ByteArrayInputStream fis = new java.io.ByteArrayInputStream(partitionInfoBytes);
     java.io.ObjectInputStream ois = new java.io.ObjectInputStream(fis);
     IcebergPartitionData partitionData = (IcebergPartitionData)ois.readObject();

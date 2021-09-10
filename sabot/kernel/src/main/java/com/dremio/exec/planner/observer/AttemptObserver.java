@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
@@ -87,7 +88,9 @@ public interface AttemptObserver {
   /**
    * Retrieving the latest acceleration profile
    */
-  default void setCachedSubstitutionInfo(CachedPlan cachedPlan) {};
+  default void setCachedAccelDetails(CachedPlan cachedPlan) {};
+
+  default void applyAccelDetails(CachedAccelDetails accelDetails) {};
 
   /**
    * Sets the cached acceleration profile that the profile should show

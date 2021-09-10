@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.sql.hive;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
@@ -29,13 +30,14 @@ import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
-import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.sql.TestBaseViewSupport;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
+import com.google.inject.AbstractModule;
 
 public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
 
@@ -59,8 +61,31 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
 
   @BeforeClass
   public static void generateHive() throws Exception{
+    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
+      try {
+        runSQL(query); // queries we get here are inner 'refresh dataset' queries
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    };
+
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(SimpleJobRunner.class).toInstance(jobRunner);
+      }
+    });
+    setupDefaultTestCluster();
     hiveTest = HiveTestDataGenerator.getInstance();
+    Objects.requireNonNull(hiveTest);
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+  }
+
+  @AfterClass
+  public static void cleanupHiveTestData() {
+    if (hiveTest != null) {
+      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+    }
   }
 
   @Test
@@ -148,13 +173,6 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
     } finally {
       hiveTest.executeDDL("DROP VIEW existing_view");
       hiveTest.executeDDL("DROP TABLE existing_table");
-    }
-  }
-
-  @AfterClass
-  public static void cleanupHiveTestData() throws Exception{
-    if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
     }
   }
 }

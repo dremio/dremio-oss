@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.nio.file.NotLinkException;
 import java.nio.file.attribute.PosixFileAttributes;
 
+import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
+
 /**
  * File attributes associated with file
  */
@@ -43,4 +45,8 @@ public interface FileAttributes extends PosixFileAttributes {
 
   @Override
   boolean equals(Object obj);
+
+  default boolean isRegularAndNoHiddenFile() {
+    return isRegularFile() && NO_HIDDEN_FILES.test(getPath());
+  }
 }

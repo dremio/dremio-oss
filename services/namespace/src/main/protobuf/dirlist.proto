@@ -25,6 +25,8 @@ option java_outer_classname = "DirListInputSplitProto";
 import "partition.proto";
 
 message DirListInputSplit {
-  required string path = 1;
-  required int64 readSignature = 2;
+  required string rootPath = 1;
+  required string operatingPath = 2;
+  required int64 readSignature = 3;
+  optional bool isFile = 4;
 }

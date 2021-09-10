@@ -320,12 +320,24 @@ public class UserSession {
     return routingQueue;
   }
 
+  public void setRoutingQueue(String queueName) {
+    this.routingQueue = queueName;
+  }
+
   public String getRoutingEngine() {
     return routingEngine;
   }
 
+  public void setRoutingEngine(String routingEngine) {
+    this.routingEngine = routingEngine;
+  }
+
   public String getEngine() {
     return routingEngine;
+  }
+
+  public void setEngine(String routingEngine) {
+    this.routingEngine = routingEngine;
   }
 
   public UserCredentials getCredentials() {

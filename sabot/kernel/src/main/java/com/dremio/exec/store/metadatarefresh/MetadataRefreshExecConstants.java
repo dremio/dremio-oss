@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.metadatarefresh;
 
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
@@ -22,6 +24,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordWriter;
 
 public class MetadataRefreshExecConstants {
+
+  public static final String METADATA_STORAGE_PLUGIN_NAME = "__metadata";
 
   public static class DirList {
     public static class OUTPUT_SCHEMA {
@@ -41,7 +45,6 @@ public class MetadataRefreshExecConstants {
   }
 
   public static class FooterRead {
-
     public static class OUTPUT_SCHEMA {
       public static final String DATA_FILE = RecordWriter.ICEBERG_METADATA_COLUMN;
       public static final String MODIFICATION_TIME = "modificationtime";
@@ -53,7 +56,6 @@ public class MetadataRefreshExecConstants {
         .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA, Types.optional(TypeProtos.MinorType.VARBINARY)))
         .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
         .build();
-
     }
   }
 
@@ -63,6 +65,20 @@ public class MetadataRefreshExecConstants {
     }
   }
 
-  public static final String isDeletedFile = "isDeleted";
+  public static class PathGeneratingDataFileProcessor {
+    public static class OUTPUT_SCHEMA {
+      public static String DATAFILE_PATH = "datafilePath";
+      public static String PARTITION_DATA_PATH = "existingpartitioninfo";
+
+      public static BatchSchema BATCH_SCHEMA = BatchSchema.newBuilder()
+        .addField(Field.nullable(DATAFILE_PATH, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()))
+        .addField(Field.nullable(PARTITION_DATA_PATH, org.apache.arrow.vector.types.Types.MinorType.VARBINARY.getType()))
+        .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+        .build();
+    }
+  }
+
+  public static final String IS_DELETED_FILE = "isDeleted";
+  public static final String PARTITION_INFO = DirList.OUTPUT_SCHEMA.PARTITION_INFO;
 
 }

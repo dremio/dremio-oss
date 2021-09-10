@@ -15,11 +15,15 @@
  */
 package com.dremio.service.jobresults.server;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -38,6 +42,7 @@ import io.netty.buffer.NettyArrowBuf;
  * Job Results gRPC service.
  */
 public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResultsServiceImplBase implements CloseableBindableService {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsGrpcServerFacade.class);
 
   private Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider;
   private final BufferAllocator allocator;
@@ -53,19 +58,24 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
     return new StreamObserver<JobResultsRequest>() {
       @Override
       public void onNext(JobResultsRequest request) {
-        try {
-          ByteBuf dBody = NettyArrowBuf.unwrapBuffer(allocator.buffer(request.getData().size()));
-          dBody.writeBytes(request.getData().toByteArray());
+        try (ArrowBuf buf = allocator.buffer(request.getData().size())) {
+          String queryId = QueryIdHelper.getQueryId(request.getHeader().getQueryId());
+          try {
+            ByteBuf dBody = NettyArrowBuf.unwrapBuffer(buf);
+            dBody.writeBytes(request.getData().toByteArray());
 
-          execToCoordResultsHandlerProvider.get().dataArrived(request.getHeader(), dBody, request,
-                  new JobResultsGrpcLocalResponseSender(responseObserver, request.getSequenceId()));
-        } catch (Exception ex) {
-          responseObserver.onError(ex);
+            execToCoordResultsHandlerProvider.get().dataArrived(request.getHeader(), dBody, request,
+              new JobResultsGrpcLocalResponseSender(responseObserver, request.getSequenceId(), queryId));
+          } catch (Exception ex) {
+            logger.error("Failed to handle result for queryId {}", queryId, ex);
+            responseObserver.onError(ex);
+          }
         }
       }
 
       @Override
       public void onError(Throwable t) {
+        logger.error("JobResultsService stream failed with error ", t);
         responseObserver.onError(t);
       }
 
@@ -84,10 +94,14 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
   private static class JobResultsGrpcLocalResponseSender implements ResponseSender {
     private StreamObserver<JobResultsResponse> responseStreamObserver;
     private long sequenceId;
+    private String queryId;
+    private AtomicBoolean sentFailure = new AtomicBoolean(false);
 
-    JobResultsGrpcLocalResponseSender(StreamObserver<JobResultsResponse> responseStreamObserver, long sequenceId) {
+    JobResultsGrpcLocalResponseSender(StreamObserver<JobResultsResponse> responseStreamObserver, long sequenceId,
+                                      String queryId) {
       this.responseStreamObserver = responseStreamObserver;
       this.sequenceId = sequenceId;
+      this.queryId = queryId;
     }
 
     @Override
@@ -99,6 +113,10 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
 
     @Override
     public void sendFailure(UserRpcException e) {
+      if (sentFailure.compareAndSet(false, true)) {
+        logger.error("JobResultsService stream failed with error from result forwarder for queryId {}", queryId, e);
+        responseStreamObserver.onError(e);
+      }
     }
   }
 }

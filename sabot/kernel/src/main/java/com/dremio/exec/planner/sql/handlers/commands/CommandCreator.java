@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlSetOption;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
@@ -42,6 +41,8 @@ import com.dremio.exec.planner.sql.handlers.direct.AccelDropReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelToggleHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AddColumnsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterClearPlanCacheHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AlterReflectionRoutingHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AlterTableChangeColumnSetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableSetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AnalyzeTableStatisticsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ChangeColumnHandler;
@@ -71,8 +72,10 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
 import com.dremio.exec.planner.sql.parser.SqlAlterClearPlanCache;
+import com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
 import com.dremio.exec.planner.sql.parser.SqlAnalyzeTableStatistics;
@@ -307,6 +310,8 @@ public class CommandCreator {
       case SET_OPTION:
         if (sqlNode instanceof SqlAlterTableSetOption) {
           return direct.create(new AlterTableSetOptionHandler(catalog));
+        } else if (sqlNode instanceof SqlAlterTableChangeColumnSetOption) {
+          return direct.create(new AlterTableChangeColumnSetOptionHandler(catalog));
         } else if (sqlNode instanceof SqlSetOption) {
           return direct.create(new SetOptionHandler(context));
         }
@@ -359,7 +364,10 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlForgetTable) {
           return direct.create(new ForgetTableHandler(catalog));
         } else if (sqlNode instanceof SqlRefreshTable) {
-          return direct.create(new RefreshTableHandler(catalog, context.getOptions().getOption(CatalogOptions.DMP_METADATA_REFRESH_PARTIAL)));
+          return direct.create(new RefreshTableHandler(catalog,
+                  context.getNamespaceService(context.getQueryUserName()),
+                  context.getOptions().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT),
+                  context.getQueryUserName()));
         } else if (sqlNode instanceof SqlRefreshSourceStatus) {
           return direct.create(new RefreshSourceStatusHandler(catalog));
         } else if (sqlNode instanceof SqlSetApprox) {
@@ -372,6 +380,8 @@ public class CommandCreator {
           return direct.create(new AlterClearPlanCacheHandler(context));
         } else if (sqlNode instanceof SqlAnalyzeTableStatistics) {
           return direct.create(new AnalyzeTableStatisticsHandler(catalog, config, context.getStatisticsAdministrationFactory()));
+        } else if (sqlNode instanceof SqlAlterDatasetReflectionRouting) {
+          return direct.create (new AlterReflectionRoutingHandler(catalog, config));
         }
 
         // fallthrough

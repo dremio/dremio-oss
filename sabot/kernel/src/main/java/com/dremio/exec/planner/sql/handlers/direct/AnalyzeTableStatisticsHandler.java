@@ -19,6 +19,7 @@ import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -56,7 +57,8 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
     final SqlAnalyzeTableStatistics sqlAnalyzeTableStatistics = SqlNodeUtil.unwrap(sqlNode, SqlAnalyzeTableStatistics.class);
     final NamespaceKey path = catalog.resolveSingle(new NamespaceKey(sqlAnalyzeTableStatistics.getTable().names));
 
-    final StatisticsAdministrationService statisticsAdministrationService = statisticsAdministrationFactory.get(config.getContext().getQueryUserName());
+    final StatisticsAdministrationService statisticsAdministrationService =
+      statisticsAdministrationFactory.get(config.getContext().getQueryUserName());
     statisticsAdministrationService.validate(path);
 
     boolean isAnalysis = sqlAnalyzeTableStatistics.isAnalyze().booleanValue();
@@ -70,22 +72,22 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
 
     final List<Field> fields = table.getSchema().getFields();
     final Set<String> fieldNames = fields.stream().map(f -> f.getName().toLowerCase()).collect(Collectors.toSet());
+    final Set<String> columns = new LinkedHashSet<>();
     boolean isAllColumns = false;
-    List<String> columns = new ArrayList<>();
     if (sqlAnalyzeTableStatistics.getColumns().getList().isEmpty()) { // all columns
       isAllColumns = true;
       for(Field field : fields) {
         if (!field.getName().equals(UPDATE_COLUMN) && isSupportedType(field.getFieldType())) {
-          columns.add(field.getName());
+          columns.add(field.getName().toLowerCase());
         }
       }
     } else {
-      List<String> invalidColumns = new ArrayList<>();
+      Set<String> invalidColumns = new LinkedHashSet<>();
       for(SqlNode node : sqlAnalyzeTableStatistics.getColumns().getList()) {
         if (!fieldNames.contains(node.toString().toLowerCase())) {
           invalidColumns.add(node.toString());
         }
-        columns.add(node.toString());
+        columns.add(node.toString().toLowerCase());
       }
       if (!invalidColumns.isEmpty()) {
         throw UserException.validationError()
@@ -95,12 +97,19 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
           ).build(logger);
       }
     }
+
+    final List<String> requestedFields = new ArrayList<>(columns);
     if (isAnalysis) { // compute statistics
-      String id = statisticsAdministrationService.requestStatistics(columns, path);
+      long maxColumnLimit = config.getContext().getPlannerSettings().getStatisticsMaxColumnLimit();
+      if (requestedFields.size() > maxColumnLimit) {
+        return Collections.singletonList(SimpleCommandResult.successful("The number of columns requested exceeds the the limit set by the administrator, " + maxColumnLimit + "."));
+      }
+      String id = statisticsAdministrationService.requestStatistics(requestedFields, path);
       return Collections.singletonList(SimpleCommandResult.successful(String.format("Requested with a job ID: %s", id)));
-    } else { // delete statistics
-      final List<String> failed = statisticsAdministrationFactory.get(config.getContext().getQueryUserName()).deleteStatistics(columns, path);
-      final StringBuilder sb = new StringBuilder("Statistics Removed. Requested columns: ").append(columns);
+    } else {
+      // delete statistics
+      final List<String> failed = statisticsAdministrationFactory.get(config.getContext().getQueryUserName()).deleteStatistics(requestedFields, path);
+      final StringBuilder sb = new StringBuilder("Statistics Removed. Requested columns: ").append(requestedFields);
       if (failed != null && failed.size() != 0) {
         sb.append(", Non-existent columns: ").append(failed);
       }

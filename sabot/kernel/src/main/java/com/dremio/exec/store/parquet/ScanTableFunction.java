@@ -70,7 +70,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   private VarBinaryVector inputColIds;
   private int batchSize;
   private int currentRow;
-  private RecordReaderIterator recordReaderIterator;
   private BatchSchema schema;
   private List<SchemaPath> selectedColumns;
   private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
@@ -105,7 +104,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       isColIdMapSet = false;
     }
 
-    recordReaderIterator = createRecordReaderIterator();
+    createRecordReaderIterator();
     return outgoing;
   }
 
@@ -158,12 +157,12 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
 
   void setupNextReader() throws Exception {
     OperatorStats stats = context.getStats();
-    if (!recordReaderIterator.hasNext()) {
+    if (!getRecordReaderIterator().hasNext()) {
       return;
     }
     try {
       stats.startSetup();
-      currentRecordReader = recordReaderIterator.next();
+      currentRecordReader = getRecordReaderIterator().next();
       this.runtimeFilters.forEach(currentRecordReader::addRuntimeFilter);
       checkNotNull(currentRecordReader).setup(mutator);
     } catch (Exception e) {
@@ -187,7 +186,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     while ((records = currentRecordReader.next()) == 0) {
       currentRecordReader.close();
       currentRecordReader = null;
-      if (!recordReaderIterator.hasNext()) {
+      if (!getRecordReaderIterator().hasNext()) {
         return 0;
       }
 
@@ -195,6 +194,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       currentRecordReader.allocate(fieldVectorMap);
     }
     outgoing.setRecordCount(records);
+    outgoing.setAllCount(records);
     return records;
   }
 
@@ -211,18 +211,20 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
    */
   protected abstract RecordReaderIterator createRecordReaderIterator();
 
+  protected abstract RecordReaderIterator getRecordReaderIterator();
+
   /*
    * add splits to the underlying recordreaderiterator
    */
   protected abstract void addSplits(List<SplitAndPartitionInfo> splits);
 
-  protected void setProduceFromBufferedSplits(boolean produceFromBufferedSplits) {
-    this.produceFromBufferedSplits = produceFromBufferedSplits;
+  public boolean hasBufferedRemaining() {
+    produceFromBufferedSplits = true;
+    getRecordReaderIterator().produceFromBuffered(true);
+    return getRecordReaderIterator().hasNext();
   }
 
   protected void setIcebergColumnIds(byte[] extendedProperty) { }
-
-  protected void addRuntimeFilterToReaderIterator(RuntimeFilter runtimeFilter) { }
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
@@ -248,7 +250,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
         logger.debug("Skipping enforcement because filter is already present {}", filter);
       } else {
         logger.debug("Adding filter to the record readers {}", filter);
-        addRuntimeFilterToReaderIterator(filter);
+        getRecordReaderIterator().addRuntimeFilter(filter);
         this.runtimeFilters.add(filter);
         Optional.ofNullable(currentRecordReader).ifPresent(c -> c.addRuntimeFilter(filter));
         context.getStats().addLongStat(ScanOperator.Metric.NUM_RUNTIME_FILTERS, 1);
@@ -270,11 +272,9 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     final List<AutoCloseable> closeables = new ArrayList<>(runtimeFilters.size() + 3);
     closeables.add(super::close);
     closeables.add(currentRecordReader);
-    closeables.add(recordReaderIterator);
     closeables.addAll(runtimeFilters);
     AutoCloseables.close(closeables);
     currentRecordReader = null;
-    recordReaderIterator = null;
     this.context.getStats().setReadIOStats();
   }
 }

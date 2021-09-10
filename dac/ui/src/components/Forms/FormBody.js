@@ -13,21 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 
 import { formBody } from 'uiTheme/less/forms.less';
 
-export default class FormBody extends Component {
-  static propTypes = {
-    style: PropTypes.object,
-    children: PropTypes.node,
-    dataQa: PropTypes.string
-  };
-  render() {
-    return (<div className={formBody} style={this.props.style} data-qa={this.props.dataQa}>
-      {this.props.children}
-    </div>);
-  }
-}
+const FormBody = (props) => {
+  const {
+    className,
+    children,
+    dataQa,
+    style
+  } = props;
+
+  const rootClass = classNames(
+    formBody,
+    { [className]: className }
+  );
+  return (<div className={rootClass} style={style} data-qa={dataQa}>
+    {children}
+  </div>);
+};
+
+FormBody.propTypes = {
+  style: PropTypes.object,
+  className: PropTypes.string,
+  children: PropTypes.node,
+  dataQa: PropTypes.string
+};
+
+export default FormBody;

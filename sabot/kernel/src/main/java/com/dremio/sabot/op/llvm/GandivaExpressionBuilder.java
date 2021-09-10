@@ -236,7 +236,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
           }
         }
         return TreeBuilder.makeInExpressionString(TreeBuilder.makeField(xformed), stringValues);
-      }else {
+      } else {
         // Should not reach here since the or-in conversion happens only for valid types
         throw new UnsupportedOperationException("In not supported in Gandiva. Was trying to create an in expression of " +
           ((InExpression) e).getConstants().stream().map(expr -> ExpressionStringBuilder.toString(expr)).collect(Collectors.joining(", ")));
@@ -248,8 +248,14 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
 
   @Override
   public TreeNode visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
-    // TODO: Implement Gandiva code generation for case expressions
-    return null;
+    TreeNode elseE = caseExpression.elseExpr.accept(this, null);
+    for (int i = caseExpression.caseConditions.size() - 1; i >= 0; i--) {
+      final CaseExpression.CaseConditionNode node = caseExpression.caseConditions.get(i);
+      TreeNode ifCondition = node.whenExpr.accept(this, null);
+      TreeNode thenE = node.thenExpr.accept(this, null);
+      elseE = TreeBuilder.makeIf(ifCondition, thenE, elseE, caseExpression.getCompleteType().getType());
+    }
+    return elseE;
   }
 
   private TreeNode visitValueVectorReadExpression(ValueVectorReadExpression readExpr, Void value) {

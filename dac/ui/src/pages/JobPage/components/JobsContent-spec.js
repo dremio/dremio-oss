@@ -32,7 +32,10 @@ describe('JobsContent', () => {
       loadNextJobs: sinon.spy(),
       askGnarly: sinon.spy(),
       location: {},
-      queryState: Immutable.Map()
+      queryState: Immutable.Map(),
+      columnFilterSelect: sinon.spy(),
+      columnFilterUnSelect: sinon.spy(),
+      checkedItems: []
     };
     commonProps = {
       ...minimalProps,

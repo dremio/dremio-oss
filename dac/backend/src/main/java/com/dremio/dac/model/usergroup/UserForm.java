@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.model.usergroup;
 
+import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,6 +31,7 @@ public class UserForm {
 
   @JsonCreator
   public UserForm(@JsonProperty("password") String password) {
+    this.userConfig = SimpleUser.newBuilder().build();
     this.password = password;
   }
 

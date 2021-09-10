@@ -288,7 +288,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
       return null;
     }
 
-    if (fieldIds.length == 1 && clazz != null && !clazz.isAssignableFrom(va.getVectorClass())) {
+    if (fieldIds.length == 1 && clazz != null && !clazz.isAssignableFrom(va.getVectorClass()) && isNotNullVector(clazz.getSimpleName(), va.getVectorClass().getSimpleName())) {
       throw new IllegalStateException(String.format(
           "Failure while reading vector.  Expected vector class of %s but was holding vector class %s, field= %s ",
           clazz.getCanonicalName(), va.getVectorClass().getCanonicalName(), va.getField()));
@@ -296,6 +296,14 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
 
     return (VectorWrapper<T>) va.getChildWrapper(fieldIds);
 
+  }
+
+  private boolean isNotNullVector(String clazz, String vectorClass) {
+    /*An empty array list is considered as NullVector instead of ZeroVector.
+    This is a new change in Arrow. Earlier it was considered as ZeroVector. Also created a task to remove usage of
+    ZeroVector for such scenarios*/
+    //TODO DX-34589 Use NullVector instead of ZeroVector for empty lists.
+    return !(clazz.equals("ZeroVector") && vectorClass.equals("NullVector"));
   }
 
   private VectorWrapper<?> getValueAccessorById(int... fieldIds) {

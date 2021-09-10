@@ -15,10 +15,12 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static com.dremio.exec.store.parquet.RecordReaderIterator.EMPTY_RECORD_ITERATOR;
 import static com.dremio.hive.proto.HiveReaderProto.ReaderType.NATIVE_PARQUET;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,18 +30,20 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.pf4j.Extension;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.EmptyRecordReader;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
-import com.dremio.exec.store.hive.HiveImpersonationUtil;
 import com.dremio.exec.store.hive.Hive3StoragePlugin;
+import com.dremio.exec.store.hive.HiveImpersonationUtil;
 import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.hive.proto.HiveReaderProto;
@@ -71,10 +75,12 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
   private HiveProxyingSubScan subScanConfig;
   private RecordReaderIterator recordReaderIterator;
+  private boolean produceFromBufferedSplits;
 
   private HiveScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context, StoragePluginId storagePluginId,
                                byte[] extendedProperty, List<SchemaPath> columns, List<String> partitionColumns, OpProps opProps,
-                               BatchSchema fullSchema, Collection<List<String>> referencedTables, ScanFilter scanFilter) throws ExecutionSetupException {
+                               BatchSchema fullSchema, Collection<List<String>> referencedTables, ScanFilter scanFilter,
+                               boolean produceBuffered) throws ExecutionSetupException {
     this.fragmentExecContext = fragmentExecContext;
     this.context = context;
 
@@ -101,13 +107,14 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     this.referencedTables = referencedTables;
     this.scanFilter = scanFilter;
     this.compositeConfig = CompositeReaderConfig.getCompound(context, fullSchema, columns, partitionColumns);
+    this.produceFromBufferedSplits = produceBuffered;
   }
 
   public HiveScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context,
                               HiveProxyingSubScan config) throws ExecutionSetupException {
     this(fragmentExecContext, context, config.getPluginId(), config.getExtendedProperty(), config.getColumns(),
       config.getPartitionColumns(), config.getProps(), config.getFullSchema(), config.getReferencedTables(),
-      config.getFilter());
+      config.getFilter(), true);
     this.subScanConfig = config;
   }
 
@@ -120,7 +127,8 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
       tableFunctionConfig.getFunctionContext().getPartitionColumns(), opProps,
       tableFunctionConfig.getFunctionContext().getFullSchema(),
       tableFunctionConfig.getFunctionContext().getReferencedTables(),
-      tableFunctionConfig.getFunctionContext().getScanFilter());
+      tableFunctionConfig.getFunctionContext().getScanFilter(),
+      false);
   }
 
   private boolean isParquetSplit(final HiveTableXattr tableXattr, SplitAndPartitionInfo split, boolean isPartitioned) {
@@ -165,6 +173,7 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
   @Override
   public ProducerOperator create() throws ExecutionSetupException {
+    createRecordReaderIterator();
     addSplits(subScanConfig.getSplits());
     return new ScanOperator(subScanConfig, context, recordReaderIterator);
   }
@@ -172,7 +181,18 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
   @Override
   public RecordReaderIterator createRecordReaderIterator() {
-    return RecordReaderIterator.from(new EmptyRecordReader());
+    recordReaderIterator = EMPTY_RECORD_ITERATOR;
+    return recordReaderIterator;
+  }
+
+  @Override
+  public RecordReaderIterator getRecordReaderIterator() {
+    return recordReaderIterator;
+  }
+
+  @Override
+  public void produceFromBufferedSplits(boolean toProduce) {
+    this.produceFromBufferedSplits = toProduce;
   }
 
   @Override
@@ -186,19 +206,94 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
         context.getStats().getLongStat(ScanOperator.Metric.HIVE_FILE_FORMATS) | (1 << ScanOperator.HiveFileFormat.PARQUET.ordinal()));
     }
 
-    // there is a bug here: the runtimefilters are not present in the new readeriterators
-    // This will also get fixed after we refactor the code to reuse the logic in parquetsplitreadercreatoriterator
-    // The prefetch across batch functionality will also get picked up then
-    recordReaderIterator = RecordReaderIterator.join(
-        Objects.requireNonNull(ScanWithDremioReader.createReaders(conf, storagePlugin, fragmentExecContext, context,
-            tableXattr, compositeConfig, proxyUgi, scanFilter, fullSchema, referencedTables, parquetSplits)),
-        Objects.requireNonNull(ScanWithHiveReader.createReaders(conf, fragmentExecContext, context,
-            tableXattr, compositeConfig, proxyUgi, scanFilter, isPartitioned, referencedTables, nonParquetSplits)));
+    // produce the buffered splits in previous batch.
+    recordReaderIterator.produceFromBuffered(true);
+
+    RecordReaderIterator iteratorFromSplits = RecordReaderIterator.join(
+      Objects.requireNonNull(ScanWithDremioReader.createReaders(conf, storagePlugin, context,
+        tableXattr, compositeConfig, proxyUgi, scanFilter, fullSchema, referencedTables, parquetSplits, produceFromBufferedSplits)),
+      Objects.requireNonNull(ScanWithHiveReader.createReaders(conf, fragmentExecContext, context,
+        tableXattr, compositeConfig, proxyUgi, scanFilter, isPartitioned, referencedTables, nonParquetSplits)));
+
+    List<RuntimeFilter> existingRuntimeFilters = recordReaderIterator.getRuntimeFilters();
+
+    // the previous iterator might have buffered splits so need to keep that too
+    // closingjoiniterator ensures that the previous iterator is closed and up for garbage collection after its done
+    recordReaderIterator = closingJoinIterator(recordReaderIterator, iteratorFromSplits);
+
+    // add the existing runtimefilters to the new iterator
+    logger.debug("Adding existing {} runtime filters to the new iterator", existingRuntimeFilters.size());
+    existingRuntimeFilters.forEach(recordReaderIterator::addRuntimeFilter);
   }
 
   @VisibleForTesting
   public UserGroupInformation getUGI(Hive3StoragePlugin storagePlugin, OpProps props) {
     final String userName = storagePlugin.getUsername(props.getUserName());
     return HiveImpersonationUtil.createProxyUgi(userName);
+  }
+
+  static RecordReaderIterator closingJoinIterator(RecordReaderIterator iter1, RecordReaderIterator iter2) {
+    RecordReaderIterator finalIter1 = closeIfFinished(iter1);
+    return new RecordReaderIterator() {
+      RecordReaderIterator it1 = finalIter1;
+      RecordReaderIterator it2 = iter2;
+
+      List<RuntimeFilter> runtimeFilters;
+
+      @Override
+      public boolean hasNext() {
+        return it1.hasNext() || it2.hasNext();
+      }
+
+      @Override
+      public RecordReader next() {
+        if (it1.hasNext()) {
+          RecordReader next = it1.next();
+          it1 = closeIfFinished(it1);
+          return next;
+        }
+        return it2.next();
+      }
+
+      @Override
+      public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+        // it1 is either closed or contains prefetched splits so no need to add to it.
+        it2.addRuntimeFilter(runtimeFilter);
+        if (runtimeFilters == null) {
+          runtimeFilters = new ArrayList<>();
+        }
+        runtimeFilters.add(runtimeFilter);
+      }
+
+      @Override
+      public List<RuntimeFilter> getRuntimeFilters() {
+        return runtimeFilters != null ? runtimeFilters : Collections.emptyList();
+      }
+
+      @Override
+      public void produceFromBuffered(boolean toProduce) {
+        it1.produceFromBuffered(toProduce);
+        it2.produceFromBuffered(toProduce);
+      }
+
+      @Override
+      public void close() throws Exception {
+        AutoCloseables.close(it1, it2);
+        runtimeFilters = null;
+      }
+    };
+  }
+
+  static RecordReaderIterator closeIfFinished(RecordReaderIterator iter) {
+    if (!iter.hasNext() && !iter.equals(EMPTY_RECORD_ITERATOR)) {
+      logger.debug("Closing the finished record reader iterator");
+      try {
+        iter.close();
+      } catch (Exception e) {
+        throw new RuntimeException("Failed closing recordreaderiterator", e);
+      }
+      return EMPTY_RECORD_ITERATOR;
+    }
+    return iter;
   }
 }

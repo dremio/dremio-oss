@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -59,6 +60,7 @@ import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.Util;
 
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Predicate;
@@ -94,6 +96,14 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   @Override
   public DremioPrepareTable getTable(List<String> paramList) {
     final DremioTable table = catalog.getTableForQuery(new NamespaceKey(paramList));
+    if(table == null) {
+      return null;
+    }
+    return new DremioPrepareTable(this, typeFactory, table);
+  }
+
+  public DremioPrepareTable getTableUnchecked(List<String> paramList) {
+    final DremioTable table = catalog.getTable(new NamespaceKey(paramList));
     if(table == null) {
       return null;
     }
@@ -200,6 +210,15 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
       return null;
     }
     return new DremioPrepareTable(this, typeFactory, table);
+  }
+
+  /**
+   * Retrieve the column extended properties for a table.
+   * @param table the table to get the column extended properties for
+   * @return the column extended properties grouped by column name
+   */
+  public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    return catalog.getColumnExtendedProperties(table);
   }
 
   @Override

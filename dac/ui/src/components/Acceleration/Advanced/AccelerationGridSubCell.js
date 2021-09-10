@@ -16,8 +16,11 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import FontIcon from 'components/Icon/FontIcon';
+import EllipsedText from '@app/components/EllipsedText';
+import { injectIntl } from 'react-intl';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 
-export default class AccelerationGridSubCell extends Component {
+class AccelerationGridSubCell extends Component {
   static propTypes = {
     isChecked: PropTypes.bool,
     onClick: PropTypes.func,
@@ -25,26 +28,33 @@ export default class AccelerationGridSubCell extends Component {
     subValue: PropTypes.string,
     subValueAltText: PropTypes.string,
     onValueClick: PropTypes.func,
-    hasPermission: PropTypes.bool
+    hasPermission: PropTypes.bool,
+    intl: PropTypes.any
   };
 
   render() {
-    const {isChecked, isLastCell, onClick, subValue, subValueAltText, onValueClick, hasPermission} = this.props;
+    const {isChecked, isLastCell, onClick, subValue, subValueAltText, onValueClick, hasPermission, intl: { formatMessage }} = this.props;
     const iconType = isChecked ? 'OKSolid' : 'MinusSimple';
-    const cellStyle = isLastCell ? styles.lastSubCell : styles.subCell;
-    const altText = subValueAltText ? `${subValueAltText}` : null;
+    const disabledIconType = isChecked ? 'OKSolidGrey' : 'MinusSimple';
+    const cellStyle = isLastCell ? 'AccelerationGridSubCell__lastSubCell' : 'AccelerationGridSubCell__subCell';
+    const altText = subValueAltText ? `${subValueAltText}` : '';
     // if the cell is not checked, only show minus icon
     // otherwise show check round icon
     //   and if subValue is given, show it
     //   and if onValueClick is defined, show caret and handle click on subvalue with caret
     return (
-      <div style={cellStyle} className={hasPermission ? 'subCell' : 'subCellDisabled'} onClick={hasPermission ? onClick : null}>
-        <FontIcon type={iconType} theme={hasPermission ? styles.iconTheme : styles.disabledTheme} style={{flex: '1 1 auto'}}/>
+      <div className={`${cellStyle} ${hasPermission ? '' : '--disabled hover-help'}`} onClick={hasPermission ? onClick : null}>
+        <EllipsedText
+          className={'AccelerationGridSubCell__subVal'}
+          children={<FontIcon type={hasPermission ? iconType : disabledIconType}
+            theme={hasPermission ? theme.iconTheme : theme.disabledTheme}/>}
+          title={hasPermission ? null : formatMessage({ id: 'Read.Only'})}
+        />
         {isChecked && subValue &&
-          <div title={altText} onClick={onValueClick} style={onValueClick ? styles.subValueClickable : styles.subValue}>
+          <div title={altText} onClick={onValueClick} className={`${onValueClick ? 'AccelerationGridSubCell__subValClickable' : 'AccelerationGridSubCell__subVal'}`}>
             {subValue}
             {onValueClick &&
-            <FontIcon type='fa-caret-down' theme={styles.caretTheme}/>
+            <FontIcon type='fa-caret-down' theme={theme.caretTheme}/>
             }
           </div>
         }
@@ -53,21 +63,9 @@ export default class AccelerationGridSubCell extends Component {
   }
 }
 
-const styles = {
-  subCell: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
-    padding: '0 auto',
-    borderRight: '1px solid #e1e1e1'
-  },
-  subValue: {
-    flex: '1 1 auto',
-    height: 24,
-    paddingTop: 6
-  },
+export default injectIntl(AccelerationGridSubCell);
+
+const theme = {
   iconTheme: {
     Container: {
       cursor: 'pointer',
@@ -84,14 +82,4 @@ const styles = {
       cursor: 'default'
     }
   }
-};
-
-styles.lastSubCell = {
-  ...styles.subCell,
-  borderRight: 0
-};
-
-styles.subValueClickable = {
-  ...styles.subValue,
-  borderLeft: '1px solid #e1e1e1'
 };

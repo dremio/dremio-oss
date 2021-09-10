@@ -17,12 +17,45 @@ package com.dremio.exec.store.iceberg.model;
 
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.Snapshot;
+
+import com.dremio.exec.record.BatchSchema;
+import com.google.protobuf.ByteString;
 
 /**
  * Implementations of this interface commit an iceberg transaction
  */
 public interface IcebergOpCommitter {
-  void commit();
+  /**
+   * Commits the Iceberg operation
+   * @return new Snapshot that gets created as part of commit operation
+   */
+  Snapshot commit();
+
+  /**
+   * Stores the DataFile instance to delete during commit operation
+   * @param icebergDeleteDatafile DataFile instance to delete from table
+   * @throws UnsupportedOperationException
+   */
   void consumeDeleteDataFile(DataFile icebergDeleteDatafile) throws UnsupportedOperationException;
+
+  /**
+   * Stores the manifest file instance to include during commit operation
+   * @param manifestFile ManifestFile instance to include in table
+   */
   void consumeManifestFile(ManifestFile manifestFile);
+
+  /**
+   * Stores the new schema to use during commit operation
+   * @param newSchema new schema of the table
+   */
+  void updateSchema(BatchSchema newSchema);
+
+  /**
+   * Gets the current root pointer of the table
+   * @return current metadata location of the table
+   */
+  String getRootPointer();
+
+  default void updateReadSignature(ByteString newReadSignature) {}
 }

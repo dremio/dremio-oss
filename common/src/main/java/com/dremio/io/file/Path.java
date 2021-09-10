@@ -15,6 +15,11 @@
  */
 package com.dremio.io.file;
 
+import static com.dremio.io.file.UriSchemes.ADL_SCHEME;
+import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
+import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
+import static com.dremio.io.file.UriSchemes.S3_SCHEME;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
@@ -35,20 +40,13 @@ import com.google.common.collect.ImmutableSet;
  *
  */
 public final class Path implements Comparable<Path> {
-
-  public static final String FILE_SCHEME = "file";
-  public static final String S3_SCHEME = "s3";
-  public static final String AZURE_SCHEME = "wasbs";
-  public static final String GCS_SCHEME = "gs";
-  public static final String ADL_SCHEME = "adl";
-  public static final String SCHEME_SEPARATOR = "://";
   public static final String AZURE_AUTHORITY_SUFFIX = ".blob.core.windows.net";
   public static final String CONTAINER_SEPARATOR = "@";
 
-  public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a", "s3", "s3n");
-  public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of("gs");
+  public static final Set<String> S3_FILE_SYSTEM = ImmutableSet.of("s3a", S3_SCHEME, "s3n");
+  public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of(GCS_SCHEME);
   public static final Set<String> AZURE_FILE_SYSTEM = ImmutableSet.of("wasbs", "wasb", "abfs", "abfss");
-  public static final Set<String> ADLS_FILE_SYSTEM = ImmutableSet.of("adl");
+  public static final Set<String> ADLS_FILE_SYSTEM = ImmutableSet.of(ADL_SCHEME);
 
   public static final String SEPARATOR = "/";
   public static final char SEPARATOR_CHAR = '/';
@@ -214,7 +212,7 @@ public final class Path implements Comparable<Path> {
    *
    * Note that {@code that} scheme and authority components are ignored
    *
-   * @param that the path to resolve against
+   * @param path the path to resolve against
    * @return the resolved path
    */
   public Path resolve(Path path) {
@@ -249,7 +247,7 @@ public final class Path implements Comparable<Path> {
    * Resolves the given path against this path
    *
    * Behavior is same as <code>Path.resolve(Path.of(that))</code>}
-   * @param that the path to resolve against
+   * @param path the path to resolve against
    * @return
    */
   public Path resolve(String path) {
@@ -422,11 +420,13 @@ public final class Path implements Comparable<Path> {
     }
     String scheme = pathUri.getScheme().toLowerCase(Locale.ROOT);
     if (S3_FILE_SYSTEM.contains(scheme)) {
-      return SEPARATOR + pathUri.getAuthority() + pathUri.getPath();
+      String authority = (pathUri.getAuthority() != null) ? pathUri.getAuthority() : "";
+      return SEPARATOR + authority + pathUri.getPath();
     } else if (AZURE_FILE_SYSTEM.contains(scheme)) {
       return SEPARATOR + pathUri.getUserInfo() + pathUri.getPath();
     } else if (GCS_FILE_SYSTEM.contains(scheme)) {
-      return SEPARATOR + pathUri.getAuthority() + pathUri.getPath();
+      String authority = (pathUri.getAuthority() != null) ? pathUri.getAuthority() : "";
+      return SEPARATOR + authority + pathUri.getPath();
     } else if (ADLS_FILE_SYSTEM.contains(scheme)) {
       return Path.withoutSchemeAndAuthority(path).toString();
     } else if (FILE_SCHEME.equals(scheme)) {

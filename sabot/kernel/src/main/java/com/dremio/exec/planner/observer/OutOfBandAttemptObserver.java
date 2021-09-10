@@ -28,6 +28,7 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
@@ -135,6 +136,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   @Override
   public void planAccelerated(final SubstitutionInfo info) {
     execute(() -> innerObserver.planAccelerated(info));
+  }
+
+  @Override
+  public void applyAccelDetails(final CachedAccelDetails accelDetails) {
+    execute(() -> innerObserver.applyAccelDetails(accelDetails));
   }
 
   @Override

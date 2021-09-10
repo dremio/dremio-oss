@@ -18,27 +18,36 @@ package com.dremio.exec.store.iceberg;
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.getContainerName;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.pathWithoutContainer;
-import static com.dremio.exec.hadoop.HadoopFileSystem.HDFS_SCHEME;
-import static com.dremio.exec.hadoop.HadoopFileSystem.NAS_SCHEME;
-import static com.dremio.io.file.Path.ADL_SCHEME;
 import static com.dremio.io.file.Path.AZURE_AUTHORITY_SUFFIX;
-import static com.dremio.io.file.Path.AZURE_SCHEME;
 import static com.dremio.io.file.Path.CONTAINER_SEPARATOR;
-import static com.dremio.io.file.Path.GCS_SCHEME;
-import static com.dremio.io.file.Path.S3_SCHEME;
-import static com.dremio.io.file.Path.SCHEME_SEPARATOR;
+import static com.dremio.io.file.Path.SEPARATOR;
+import static com.dremio.io.file.UriSchemes.ADL_SCHEME;
+import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
+import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
+import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
+import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
+import static com.dremio.io.file.UriSchemes.S3_SCHEME;
+import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
 
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UnknownFormatConversionException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.BigIntVector;
@@ -53,36 +62,51 @@ import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DremioIndexByName;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionStatsMetadataReader;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.eclipse.jetty.util.URIUtil;
 import org.joda.time.DateTimeConstants;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.Describer;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SplitIdentity;
+import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemConf;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Class contains miscellaneous utility functions for Iceberg table operations
  */
 public class IcebergUtils {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergUtils.class);
 
   /**
    *
@@ -172,6 +196,20 @@ public class IcebergUtils {
     }
   }
 
+  public static void writeSplitIdentity(NullableStructWriter structWriter, int index, SplitIdentity splitIdentity, ArrowBuf tmpBuf) {
+    byte[] path = splitIdentity.getPath().getBytes(StandardCharsets.UTF_8);
+    tmpBuf.reallocIfNeeded(path.length);
+    tmpBuf.setBytes(0, path);
+
+    structWriter.setPosition(index);
+    structWriter.start();
+    structWriter.varChar(SplitIdentity.PATH).writeVarChar(0, path.length, tmpBuf);
+    structWriter.bigInt(SplitIdentity.OFFSET).writeBigInt(splitIdentity.getOffset());
+    structWriter.bigInt(SplitIdentity.LENGTH).writeBigInt(splitIdentity.getLength());
+    structWriter.bigInt(SplitIdentity.FILE_LENGTH).writeBigInt(splitIdentity.getFileLength());
+    structWriter.end();
+  }
+
   public static boolean isNonAddOnField(String fieldName) {
     return fieldName.equalsIgnoreCase(RecordReader.SPLIT_IDENTITY)
       || fieldName.equalsIgnoreCase(RecordReader.SPLIT_INFORMATION)
@@ -244,17 +282,57 @@ public class IcebergUtils {
       return Optional.empty();
     }
 
-    public static PartitionSpec getIcebergPartitionSpec(BatchSchema batchSchema,
+  public static String getPartitionStatsFile(String rootPointer, long snapshotId, Configuration conf) {
+    String partitionStatsMetadata = PartitionStatsMetadataReader.toFilename(snapshotId);
+    Map<Integer, String> partitionStatsFileBySpecId;
+    try {
+      String fullPath = resolvePath(rootPointer, partitionStatsMetadata);
+      partitionStatsFileBySpecId = PartitionStatsMetadataReader.read(new DremioFileIO(conf), fullPath);
+    } catch (NotFoundException | UncheckedIOException exception) {
+      logger.debug("Partition stats metadata file: {} not found", partitionStatsMetadata);
+      return null;
+    }
+    // In the absence of partition spec evolution, we'll have just one partition spec file
+    return partitionStatsFileBySpecId.values().iterator().next();
+  }
+
+  @VisibleForTesting
+  static String resolvePath(String rootPointer, String partitionStatsMetadata) {
+    String encodedRootPointer = URIUtil.encodePath(rootPointer);
+    URI rootPointerUri = URI.create(encodedRootPointer);
+    String scheme = rootPointerUri.getScheme();
+    String fullPath;
+    if (scheme == null) {
+      fullPath = resolve(encodedRootPointer, partitionStatsMetadata);
+    } else {
+      String path = "";
+      if (rootPointerUri.getAuthority() != null) {
+        path = rootPointerUri.getAuthority();
+      }
+      String pathToPartitionStatsMetadata = resolve(path + rootPointerUri.getPath(), partitionStatsMetadata);
+      fullPath = scheme + SCHEME_SEPARATOR + pathToPartitionStatsMetadata;
+    }
+    return URIUtil.decodePath(fullPath);
+  }
+
+  private static String resolve(String rootPointer, String partitionStatsMetadata) {
+    return Paths.get(rootPointer).getParent().resolve(partitionStatsMetadata).toString();
+  }
+
+  public static PartitionSpec getIcebergPartitionSpec(BatchSchema batchSchema,
                                                         List<String> partitionColumns, Schema existingIcebergSchema) {
       // match partition column name with name in schema
       List<String> partitionColumnsInSchemaCase = new ArrayList<>();
       if (partitionColumns != null) {
         List<String> invalidPartitionColumns = new ArrayList<>();
         for (String partitionColumn : partitionColumns) {
+          if (partitionColumn.equals(IncrementalUpdateUtils.UPDATE_COLUMN)) {
+            continue; // skip implicit columns
+          }
           Optional<Field> fieldFromSchema = batchSchema.findFieldIgnoreCase(partitionColumn);
           if (fieldFromSchema.isPresent()) {
             if (fieldFromSchema.get().getType().getTypeID() == ArrowType.ArrowTypeID.Time) {
-              throw UserException.validationError().message("Partition column %s of type time is not supported", fieldFromSchema.get().getName()).buildSilently();
+              throw UserException.validationError().message("Partition type TIME for column '%s' is not supported", fieldFromSchema.get().getName()).buildSilently();
             }
             partitionColumnsInSchemaCase.add(fieldFromSchema.get().getName());
           } else {
@@ -271,7 +349,8 @@ public class IcebergUtils {
         if(existingIcebergSchema != null) {
           schema = existingIcebergSchema;
         } else {
-          schema = SchemaConverter.toIcebergSchema(batchSchema);
+          SchemaConverter schemaConverter = new SchemaConverter();
+          schema = schemaConverter.toIcebergSchema(batchSchema);
         }
         PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
           for (String column : partitionColumnsInSchemaCase) {
@@ -309,15 +388,130 @@ public class IcebergUtils {
           } else {
             return hdfsEndPoint + modifiedPath;
           }
-        } else if (fsScheme.equalsIgnoreCase(NAS_SCHEME)) {
-          return NAS_SCHEME + SCHEME_SEPARATOR + Path.SEPARATOR + modifiedPath;
-        } else if (fsScheme.equals(FileSystemConf.CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME)) {
-          return ADL_SCHEME + SCHEME_SEPARATOR + modifiedPath; //TODO: Decide proper conf property name to get source name
+        } else if (fsScheme.equalsIgnoreCase(FILE_SCHEME)) {
+          return FILE_SCHEME + SCHEME_SEPARATOR + Path.SEPARATOR + modifiedPath;
+        } else if (fsScheme.equalsIgnoreCase(FileSystemConf.CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme())) {
+          String adlsEndPoint = conf.get("fs.defaultFS", SEPARATOR);
+          String[] endPointParts = adlsEndPoint.split(SCHEME_SEPARATOR);
+          adlsEndPoint = (endPointParts.length > 1) ? endPointParts[1] : SEPARATOR;
+          StringBuilder urlBuilder = new StringBuilder();
+          return urlBuilder.append(ADL_SCHEME).append(SCHEME_SEPARATOR)
+            .append(adlsEndPoint).append(modifiedPath).toString();
+        } else if (fsScheme.equalsIgnoreCase(MAPRFS_SCHEME)) {
+          return MAPRFS_SCHEME + SCHEME_SEPARATOR + SEPARATOR + modifiedPath;
         } else {
           throw new Exception("No File System scheme matches");
         }
       } catch (Exception ex) {
-        throw new UnknownFormatConversionException("Unknown format conversion for path" + path + " Error Message : " + ex.getMessage());
+        throw new UnknownFormatConversionException("Unknown format (" + fsScheme + ") conversion for path " + path + " Error Message : " + ex.getMessage());
       }
+  }
+
+  public static SupportsInternalIcebergTable getSupportsInternalIcebergTablePlugin(FragmentExecutionContext fec, StoragePluginId pluginId) {
+      StoragePlugin plugin = wrap(() -> fec.getStoragePlugin(pluginId));
+      if (plugin instanceof SupportsInternalIcebergTable) {
+        return (SupportsInternalIcebergTable) plugin;
+      } else {
+        throw UserException.validationError().message("Source identified was invalid type.").buildSilently();
+      }
+    }
+
+  private static <T> T wrap(Callable<T> task) {
+    try {
+      return task.call();
+    } catch (Exception e) {
+      throw UserException.ioExceptionError(e).buildSilently();
+    }
+  }
+
+  public static List<Field> convertSchemaMilliToMicro(List<Field> fields) {
+    return fields.stream()
+      .map(IcebergUtils::convertFieldMilliToMicro)
+      .collect(Collectors.toList());
+  }
+
+  public static Field convertFieldMilliToMicro(Field field) {
+    if (field.getChildren() == null || field.getChildren().isEmpty()) {
+      if (field.getType().equals(org.apache.arrow.vector.types.Types.MinorType.TIMEMILLI.getType())) {
+        FieldType fieldType = field.getFieldType();
+        return new Field(field.getName(), new FieldType(fieldType.isNullable(), org.apache.arrow.vector.types.Types.MinorType.TIMEMICRO.getType(), fieldType.getDictionary(), field.getMetadata()), null);
+      } else if (field.getType().equals(org.apache.arrow.vector.types.Types.MinorType.TIMESTAMPMILLI.getType())) {
+        FieldType fieldType = field.getFieldType();
+        return new Field(field.getName(), new FieldType(fieldType.isNullable(), org.apache.arrow.vector.types.Types.MinorType.TIMESTAMPMICRO.getType(), fieldType.getDictionary(), field.getMetadata()), null);
+      }
+      return field;
+    }
+    return new Field(field.getName(), field.getFieldType(), convertSchemaMilliToMicro(field.getChildren()));
+  }
+
+  public static void setPartitionSpecValue(IcebergPartitionData data, int position, Field field, PartitionProtobuf.PartitionValue partitionValue) {
+    final CompleteType type = CompleteType.fromField(field);
+    Object value = null;
+    switch(type.toMinorType()){
+      case BIGINT:
+        value = partitionValue.hasLongValue() ? partitionValue.getLongValue() : null;
+        data.setLong(position, (Long)value);
+        break;
+      case BIT:
+        value =  partitionValue.hasBitValue() ? partitionValue.getBitValue() : null;
+        data.setBoolean(position, (Boolean)value);
+        break;
+      case FLOAT4:
+        value =  partitionValue.hasFloatValue() ? partitionValue.getFloatValue() : null;
+        data.setFloat(position, (Float)value);
+        break;
+      case FLOAT8:
+        value =  partitionValue.hasDoubleValue() ? partitionValue.getDoubleValue() : null;
+        data.setDouble(position, (Double)value);
+        break;
+      case INT:
+        value =  partitionValue.hasIntValue()? partitionValue.getIntValue() : null;
+        data.setInteger(position, (Integer)value);
+        break;
+      case DECIMAL:
+        value = partitionValue.hasBinaryValue() ? partitionValue.getBinaryValue().toByteArray() : null;
+        if(value != null) {
+          BigInteger unscaledValue = new BigInteger((byte[])value);
+          data.setBigDecimal(position, new BigDecimal(unscaledValue, type.getScale()));
+        }
+        else {
+          data.setBigDecimal(position, null);
+        }
+        break;
+      case VARBINARY:
+        value =  partitionValue.hasBinaryValue() ? partitionValue.getBinaryValue().toByteArray() : null;
+        data.setBytes(position, (byte[])value);
+        break;
+      case VARCHAR:
+        value =  partitionValue.hasStringValue() ? partitionValue.getStringValue() : null;
+        data.setString(position, (String) value);
+        break;
+      case DATE:
+        value =  partitionValue.hasLongValue() ? partitionValue.getLongValue() : null;
+        if(value != null) {
+          long days = TimeUnit.MILLISECONDS.toDays((Long)value);
+          data.setInteger(position, Math.toIntExact(days));
+        }
+        else {
+          data.setInteger(position, null);
+        }
+        break;
+      case TIME:
+        value = partitionValue.hasIntValue() ? partitionValue.getIntValue() : null;
+        if (value != null) {
+          long longValue = ((Integer)(value)).longValue() * 1000L;
+          data.setLong(position, longValue);
+        }
+        else {
+          data.setLong(position, null);
+        }
+        break;
+      case TIMESTAMP:
+        value = partitionValue.hasLongValue() ? partitionValue.getLongValue() : null;
+        data.setLong(position, value != null? (Long)(value)*1000L: null);
+        break;
+      default:
+        throw new UnsupportedOperationException("Unable to return partition field: "  + Describer.describe(field));
+    }
   }
 }

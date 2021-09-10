@@ -226,6 +226,26 @@ public class TestCTASWithOptions extends PlanTestBase {
   }
 
   @Test
+  public void parquetWithIcebergEnabled() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      test("CREATE TABLE dfs_test.testParquetWithIcebergEnabled " +
+        "STORE AS (type => 'parquet') " +
+        "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
+
+      testBuilder()
+        .sqlQuery("SELECT * FROM " +
+          "TABLE(\"dfs_test\".\"testParquetWithIcebergEnabled\"(type => 'parquet'))")
+        .unOrdered()
+        .baselineColumns("region_id", "sales_city")
+        .baselineValues(0L, "None")
+        .baselineValues(1L, "San Francisco")
+        .go();
+    } finally {
+      test("DROP TABLE IF EXISTS dfs_test.testParquetWithIcebergEnabled");
+    }
+  }
+
+  @Test
   public void negativeCaseUnsupportedType() throws Exception {
     final String query = "CREATE TABLE dfs_test.negativeCaseUnsupportedType " +
         "STORE AS (type => 'unknownFormat') " +

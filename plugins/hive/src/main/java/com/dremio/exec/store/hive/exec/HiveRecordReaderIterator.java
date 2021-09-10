@@ -17,6 +17,7 @@
 package com.dremio.exec.store.hive.exec;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -47,6 +48,7 @@ public class HiveRecordReaderIterator implements RecordReaderIterator {
     private final CompositeReaderConfig readerConfig;
     private final List<Pair<SplitAndPartitionInfo, Supplier<RecordReader>>> readers;
     private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators = new ArrayList<>();
+    private final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
     private int nextLocation = 0;
 
@@ -63,9 +65,20 @@ public class HiveRecordReaderIterator implements RecordReaderIterator {
             final RuntimeFilterEvaluator filterEvaluator =
                     new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
             this.runtimeFilterEvaluators.add(filterEvaluator);
+            this.runtimeFilters.add(runtimeFilter);
             logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
         }
         setNextLocation(this.nextLocation);
+    }
+
+    @Override
+    public List<RuntimeFilter> getRuntimeFilters() {
+        return runtimeFilters;
+    }
+
+    @Override
+    public void produceFromBuffered(boolean toProduce) {
+
     }
 
     @Override

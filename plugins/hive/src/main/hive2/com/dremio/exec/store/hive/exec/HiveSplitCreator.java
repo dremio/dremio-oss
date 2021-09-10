@@ -20,6 +20,8 @@ import static org.apache.hadoop.hive.ql.io.IOConstants.AVRO;
 import static org.apache.hadoop.hive.ql.io.IOConstants.ORC;
 import static org.apache.hadoop.hive.ql.io.IOConstants.PARQUET;
 
+import com.dremio.exec.ExecConstants;
+import com.dremio.sabot.exec.context.OperatorContext;
 import java.util.Collections;
 
 import org.apache.hadoop.fs.Path;
@@ -30,16 +32,33 @@ import org.apache.hadoop.mapred.InputSplit;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
+import com.dremio.exec.store.hive.metadata.HiveMetadataUtils;
 import com.dremio.exec.store.hive.metadata.ParquetInputFormat;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import com.google.protobuf.ByteString;
 
 /**
  * Creates hive input split and Partition Info for different file formats
  */
 public class HiveSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
+  private final ByteString partitionXattrBytes;
+  private final OperatorContext context;
+  public HiveSplitCreator(OperatorContext context, byte[] extendedProperty) {
+    this.context = context;
+    HiveReaderProto.HiveTableXattr hiveTableXattr = null;
+    try {
+      hiveTableXattr = HiveReaderProto.HiveTableXattr.parseFrom(extendedProperty);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Cannot read Hive table XAttr", e);
+    }
+    HiveReaderProto.PartitionXattr partitionXattr = HiveMetadataUtils.getTablePartitionProperty(hiveTableXattr.toBuilder());
+    partitionXattrBytes = partitionXattr.toByteString();
+  }
 
-  public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity, String fileFormat, long fileSize, long currentModTime) {
+  public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity, String fileFormat, long fileSize, long currentModTime) throws InvalidProtocolBufferException {
     InputSplit inputSplit;
     switch (fileFormat.toUpperCase()) {
       case PARQUET:
@@ -62,7 +81,21 @@ public class HiveSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
     PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
       .setPartitionId(filePartitionInfo.getId())
       .setExtendedProperty(splitExtended.toByteString());
+    PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = filePartitionInfo.toBuilder().setExtendedProperty(partitionXattrBytes);
+    return new SplitAndPartitionInfo(partitionInfoBuilder.build(), splitInfo.build());
+  }
 
-    return new SplitAndPartitionInfo(filePartitionInfo, splitInfo.build());
+
+  @Override
+  public long getTargetSplitSize(String fileFormat) {
+    switch (fileFormat) {
+      case ORC:
+        return context.getOptions().getOption(ExecConstants.ORC_SPLIT_SIZE).getNumVal();
+      case AVRO:
+        return context.getOptions().getOption(ExecConstants.AVRO_SPLIT_SIZE).getNumVal();
+      case PARQUET:
+      default:
+        return context.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
+    }
   }
 }

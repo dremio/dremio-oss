@@ -18,6 +18,7 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -35,6 +36,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 @Options
 public class WriterCommitterPrel extends SingleRel implements Prel {
@@ -47,6 +49,9 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
   private final FileSystemPlugin<?> plugin;
   private final String userName;
   private FileSystemCreateTableEntry fileSystemCreateTableEntry;
+  private final Optional<DatasetConfig> datasetConfig;
+  private final boolean isPartialRefresh;
+  private final boolean readSignatureEnabled;
 
   public WriterCommitterPrel(RelOptCluster cluster,
                              RelTraitSet traits,
@@ -55,18 +60,25 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
                              String tempLocation,
                              String finalLocation,
                              String userName,
-                             FileSystemCreateTableEntry fileSystemCreateTableEntry) {
+                             FileSystemCreateTableEntry fileSystemCreateTableEntry,
+                             Optional<DatasetConfig> datasetConfig,
+                             boolean partialRefresh,
+                             boolean readSignatureEnabled) {
     super(cluster, traits, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
     this.plugin = plugin;
     this.userName = userName;
     this.fileSystemCreateTableEntry = fileSystemCreateTableEntry;
+    this.datasetConfig = datasetConfig;
+    this.isPartialRefresh = partialRefresh;
+    this.readSignatureEnabled = readSignatureEnabled;
   }
 
   @Override
   public WriterCommitterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName, fileSystemCreateTableEntry);
+    return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName,
+      fileSystemCreateTableEntry, datasetConfig, isPartialRefresh, readSignatureEnabled);
   }
 
   @Override
@@ -85,9 +97,13 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
       tempLocation,
       finalLocation,
       fileSystemCreateTableEntry.getIcebergTableProps(),
+      fileSystemCreateTableEntry.getDatasetPath(),
+      datasetConfig,
       childPop,
-      (FileSystemPlugin<?>) plugin
-    );
+      (FileSystemPlugin<?>) plugin,
+      null,
+      isPartialRefresh,
+      readSignatureEnabled);
   }
 
   @Override
@@ -117,5 +133,13 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
 
   public String getUserName() {
     return userName;
+  }
+
+  public boolean isPartialRefresh() {
+    return isPartialRefresh;
+  }
+
+  public boolean isReadSignatureEnabled() {
+    return readSignatureEnabled;
   }
 }

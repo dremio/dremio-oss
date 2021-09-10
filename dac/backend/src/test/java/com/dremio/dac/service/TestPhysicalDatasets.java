@@ -329,20 +329,30 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testParquetFile() throws Exception {
-    String fileUrlPath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
-    String fileParentUrlPath = getUrlPath("/singlefile_parquet_dir/");
+    /*
+     * Change the batch_size to 100 from 20 to make sure that all the records in the parquet file are read consistently to avoid flaky issue
+     * that only 20 records are read while reading parquet file is slow in preview because there is a time limit for reading in preview.
+     * The time limit is 500ms in getData for preview in FormatTools.
+     */
+    setSystemOption("dac.format.preview.batch_size", "100");
+    try {
+      String fileUrlPath = getUrlPath("/singlefile_parquet_dir/0_0_0.parquet");
+      String fileParentUrlPath = getUrlPath("/singlefile_parquet_dir/");
 
-    ParquetFileConfig fileConfig = new ParquetFileConfig();
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
-    assertEquals(25, data.getReturnedRowCount());
-    assertEquals(4, data.getColumns().size());
+      ParquetFileConfig fileConfig = new ParquetFileConfig();
+      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+      assertEquals(25, data.getReturnedRowCount());
+      assertEquals(4, data.getColumns().size());
 
-    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/singlefile_parquet_dir/0_0_0.parquet"),
-      0, 500, allocator)) {
-      assertEquals(25, jobData.getReturnedRowCount());
-      assertEquals(4, jobData.getColumns().size());
+      try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/singlefile_parquet_dir/0_0_0.parquet"),
+        0, 500, allocator)) {
+        assertEquals(25, jobData.getReturnedRowCount());
+        assertEquals(4, jobData.getColumns().size());
+      }
+      checkCounts(fileParentUrlPath, "0_0_0.parquet", true, 1, 0, 0);
+    } finally {
+      resetSystemOption("dac.format.preview.batch_size");
     }
-    checkCounts(fileParentUrlPath, "0_0_0.parquet", true, 1, 0, 0);
   }
 
   @Test
@@ -380,22 +390,32 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testQueryOnFolder() throws Exception {
-    ParquetFileConfig fileConfig = new ParquetFileConfig();
-    fileConfig.setName("parquet");
+    /*
+     * Change the batch_size to 100 from 20 to make sure that all the records in the parquet file are read consistently to avoid flaky issue
+     * that only 20 records are read while reading parquet file is slow in preview because there is a time limit for reading in preview.
+     * The time limit is 500ms in getData for preview in FormatTools.
+     */
+    setSystemOption("dac.format.preview.batch_size", "100");
+    try {
+      ParquetFileConfig fileConfig = new ParquetFileConfig();
+      fileConfig.setName("parquet");
 
-    String filePath = getUrlPath("/datasets/folderdataset");
-    String fileParentPath = getUrlPath("/datasets/");
+      String filePath = getUrlPath("/datasets/folderdataset");
+      String fileParentPath = getUrlPath("/datasets/");
 
-    doc("preview data for source folder");
-    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
-    assertEquals(25, data.getReturnedRowCount());
+      doc("preview data for source folder");
+      JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
+      assertEquals(25, data.getReturnedRowCount());
 
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+      expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
 
-    doc("creating dataset from source folder");
-    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/new_untitled_from_folder/" + filePath)).buildPost(Entity.json("")), InitialPreviewResponse.class);
+      doc("creating dataset from source folder");
+      expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/new_untitled_from_folder/" + filePath)).buildPost(Entity.json("")), InitialPreviewResponse.class);
 
-    checkCounts(fileParentPath, "folderdataset", true, 1, 0, 0);
+      checkCounts(fileParentPath, "folderdataset", true, 1, 0, 0);
+    } finally {
+      resetSystemOption("dac.format.preview.batch_size");
+    }
   }
 
   private void noop() {

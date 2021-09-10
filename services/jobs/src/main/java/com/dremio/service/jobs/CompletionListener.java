@@ -29,6 +29,16 @@ public class CompletionListener implements JobStatusListener {
 
   private volatile Exception ex;
   private volatile boolean success = false;
+  private final boolean throwEx;
+
+  public CompletionListener(boolean throwEx) {
+    this.throwEx = throwEx;
+  }
+
+  public CompletionListener() {
+    this(true);
+  }
+
 
   /**
    * @return true if the job completed successfully, false if failed or was cancelled
@@ -44,7 +54,7 @@ public class CompletionListener implements JobStatusListener {
   public void await() throws Exception {
     latch.await();
 
-    if (ex != null) {
+    if (ex != null && throwEx) {
       throw ex;
     }
   }
@@ -57,15 +67,19 @@ public class CompletionListener implements JobStatusListener {
     try {
       await();
     } catch (Exception e) {
-      Throwables.throwIfUnchecked(e);
-      throw new RuntimeException(e);
+      if (throwEx) {
+        Throwables.throwIfUnchecked(e);
+        throw new RuntimeException(e);
+      } else {
+        ex = e;
+      }
     }
   }
 
   public void await(long timeout, TimeUnit unit) throws Exception {
     latch.await(timeout, unit);
 
-    if (ex != null) {
+    if (ex != null && throwEx) {
       throw ex;
     }
   }
@@ -91,5 +105,9 @@ public class CompletionListener implements JobStatusListener {
   @Override
   public void jobCancelled(String reason) {
     latch.countDown();
+  }
+
+  public Exception getException() {
+    return ex;
   }
 }

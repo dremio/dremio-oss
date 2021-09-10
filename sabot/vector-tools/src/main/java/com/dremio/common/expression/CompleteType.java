@@ -1156,6 +1156,8 @@ public class CompleteType {
       case Date:
         // We don't support DateDay, so we should convert it to DataMilli.
         return CompleteType.DATE.getType();
+      case Time:
+        return CompleteType.TIME.getType();
       case Timestamp:
         // We always treat timezone as null.
         return CompleteType.TIMESTAMP.getType();

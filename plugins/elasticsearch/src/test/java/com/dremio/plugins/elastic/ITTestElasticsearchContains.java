@@ -21,9 +21,14 @@ import static com.dremio.plugins.elastic.ElasticsearchType.OBJECT;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assume.assumeFalse;
 
-import org.junit.Before;
-import org.junit.Test;
+import java.util.concurrent.TimeUnit;
 
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
+
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -33,6 +38,9 @@ import com.google.common.collect.ImmutableMap;
  */
 public class ITTestElasticsearchContains extends ElasticBaseTestQuery {
 
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  
   @Before
   public void checkForContainsSupport() {
     // DX-12162: upstream typo when processing contains

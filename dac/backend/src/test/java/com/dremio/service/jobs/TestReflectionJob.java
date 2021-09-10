@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import static com.google.common.collect.Iterables.isEmpty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -182,6 +183,9 @@ public class TestReflectionJob extends BaseTestReflection {
 
   @Before
   public void prepare() throws Exception {
+    // ignore the tests if multinode.
+    assumeFalse(isMultinode());
+
     setDeletionGracePeriod(60);
     setManagerRefreshDelay(REFRESH_DELAY_IN_SECONDS);
 

@@ -28,6 +28,7 @@ import org.apache.arrow.vector.DateMilliVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.avro.util.Utf8;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
@@ -39,6 +40,19 @@ import com.google.common.hash.Hashing;
 
 public class IcebergPartitionData
   implements StructLike, Serializable {
+
+  public static Class<?> getPartitionColumnClass(PartitionSpec icebergPartitionSpec, int partColPos) {
+    return icebergPartitionSpec.javaClasses()[partColPos];
+  }
+  public static IcebergPartitionData fromStructLike(PartitionSpec icebergPartitionSpec, StructLike partitionStruct) {
+    IcebergPartitionData partitionData = new IcebergPartitionData(icebergPartitionSpec.partitionType());
+    for (int partColPos = 0; partColPos < partitionStruct.size(); ++partColPos) {
+      Class<?>  partitionValueClass = getPartitionColumnClass(icebergPartitionSpec, partColPos);
+      Object partitionValue = partitionStruct.get(partColPos, partitionValueClass);
+      partitionData.set(partColPos, partitionValue);
+    }
+    return partitionData;
+  }
 
   private final Types.StructType partitionType;
   private final int size;

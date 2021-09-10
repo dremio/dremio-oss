@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
 import com.dremio.connector.ConnectorException;
@@ -36,6 +37,7 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
@@ -48,6 +50,7 @@ import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -71,6 +74,7 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
   private final FileSelection fileSelection;
   private final FormatPlugin formatPlugin;
   private final FileSystem fs;
+  private IcebergTableLoader icebergTableLoader;
   public IcebergExecutionDatasetAccessor(DatasetType type,
                                          FileSystem fs,
                                          FormatPlugin formatPlugin,
@@ -83,6 +87,14 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
     this.fsPlugin = fsPlugin;
     this.fileSelection = fileSelection;
     this.formatPlugin = formatPlugin;
+  }
+
+  private IcebergTableLoader getIcebergTableLoader() {
+    if (icebergTableLoader == null) {
+      IcebergModel icebergModel = this.fsPlugin.getIcebergModel();
+      icebergTableLoader =  icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
+    }
+    return icebergTableLoader;
   }
 
   @Override
@@ -101,11 +113,19 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
 
   @Override
   public DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException {
-    IcebergModel icebergModel = this.fsPlugin.getIcebergModel();
-    Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
-    BatchSchema batchSchema = SchemaConverter.fromIceberg(table.schema());
-    long numRecords = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-records", "0"));
-    long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
+
+    if (!formatPlugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_ICEBERG)) {
+      throw new UnsupportedOperationException("Please contact customer support for steps to enable " +
+        "the iceberg tables feature.");
+    }
+
+    IcebergTableLoader icebergTableLoader = getIcebergTableLoader();
+    Table table = icebergTableLoader.getIcebergTable();
+    SchemaConverter schemaConverter = new SchemaConverter(table.name());
+    BatchSchema batchSchema = schemaConverter.fromIceberg(table.schema());
+    final Snapshot snapshot = table.currentSnapshot();
+    long numRecords = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-records", "0")) : 0L;
+    long numDataFiles = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
 
     return new FileConfigMetadata() {
 
@@ -150,6 +170,14 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
         schemaNameIDMap.forEach((k, v) -> icebergDatasetBuilder.addColumnIds(
           IcebergProtobuf.IcebergSchemaField.newBuilder().setSchemaPath(k).setId(v).build()
         ));
+
+        if (snapshot != null && !table.spec().isUnpartitioned()) {
+          String partitionStatsFile = IcebergUtils.getPartitionStatsFile(icebergTableLoader.getRootPointer(),
+            snapshot.snapshotId(), fsPlugin.getFsConfCopy());
+          if (partitionStatsFile != null) {
+            icebergDatasetBuilder.setPartitionStatsFile(partitionStatsFile);
+          }
+        }
         return icebergDatasetBuilder.build()::writeTo;
       }
     };
@@ -157,13 +185,15 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
 
   @Override
   public PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options) {
+    String splitPath = getIcebergTableLoader().getRootPointer();
+    splitPath = Path.getContainerSpecificRelativePath(Path.of(splitPath));
     List<PartitionValue> partition = Collections.emptyList();
     EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
-      .setPath(fileSelection.getSelectionRoot())
+      .setPath(splitPath)
       .setStart(0)
       .setLength(0)
       .setUpdateKey(FileProtobuf.FileSystemCachedEntity.newBuilder()
-        .setPath(fileSelection.getSelectionRoot())
+        .setPath(splitPath)
         .setLastModificationTime(0))
       .build();
     List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();

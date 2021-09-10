@@ -17,7 +17,9 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
+import { dragContentBase } from '@app/uiTheme/less/commonStyles.less';
 import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
 import { isAlreadySelected } from 'utils/explore/aggregateUtils';
 import ColumnDragItem from 'utils/ColumnDragItem';
@@ -111,21 +113,16 @@ class ColumnDragArea extends Component {
   render() {
     const isEmpty = !this.props.columnsField.length;
     const isDragged = this.canDropColumn();
-    const {
-      className,
-      dragContentCls
-    } = this.props;
-
+    const { className, dragContentCls, canAlter } = this.props;
     return (
       <ExploreDragArea
-        className={className}
+        className={classNames(className, !isEmpty ? dragContentBase : null)}
         dragContentCls={dragContentCls}
         dataQa={this.props.dragOrigin}
         dragType={this.props.dragType}
         onDrop={this.handleDrop}
         isDragged={isDragged}
-        emptyDragAreaText={this.props.dragAreaText}
-        dragContentStyle={!isEmpty ? style.dragContent.base : {}}
+        emptyDragAreaText={canAlter ? this.props.dragAreaText : null}
       >
         {this.renderColumnsForDragArea()}
       </ExploreDragArea>
@@ -133,15 +130,5 @@ class ColumnDragArea extends Component {
   }
 }
 
-const style = {
-  dragContent: {
-    base: {
-      borderLeftWidth: '1px',
-      borderRightWidth: '0',
-      borderTopWidth: '0',
-      borderBottomWidth: '0'
-    }
-  }
-};
 
 export default ColumnDragArea;

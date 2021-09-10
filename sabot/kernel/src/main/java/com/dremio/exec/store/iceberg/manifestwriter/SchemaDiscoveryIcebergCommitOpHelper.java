@@ -15,22 +15,35 @@
  */
 package com.dremio.exec.store.iceberg.manifestwriter;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.util.VectorUtil;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 
@@ -40,13 +53,18 @@ import com.dremio.sabot.exec.context.OperatorStats;
  */
 public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper {
     private VarBinaryVector schemaVector;
-    private BatchSchema currentSchema = BatchSchema.EMPTY;
+    private BatchSchema currentSchema;
     private List<ManifestFile> icebergManifestFiles = new ArrayList<>();
     private List<DataFile> deletedDataFiles = new ArrayList<>();
-    private List<String> partitionColumns = new ArrayList<>();
+    private List<String> partitionColumns;
+    private FileSystem fsToCheckIfPartitionExists;
+    private final int implicitColSize;
 
-    protected SchemaDiscoveryIcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
+  protected SchemaDiscoveryIcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
         super(context, config);
+        this.partitionColumns = Optional.ofNullable(config.getIcebergTableProps().getPartitionColumnNames()).orElse(Collections.EMPTY_LIST);
+        this.implicitColSize = (int) partitionColumns.stream().filter(IncrementalUpdateUtils.UPDATE_COLUMN::equals).count();
+        this.currentSchema = config.getIcebergTableProps().getFullSchema();
     }
 
     @Override
@@ -56,6 +74,8 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
         TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
         icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, id.getFieldIds()).getValueVector();
+        partitionDataVector = (ListVector) VectorUtil.getVectorFromSchemaPath(incoming, RecordWriter.PARTITION_DATA_COLUMN);
+        createPartitionExistsPredicate(config);
     }
 
     @Override
@@ -68,7 +88,10 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         byte[] schemaBytes = schemaVector.get(recordIdx);
         BatchSchema schemaAtThisRow = BatchSchema.deserialize(schemaBytes);
         if (!currentSchema.equals(schemaAtThisRow)) {
-            currentSchema = currentSchema.merge(schemaAtThisRow);
+            currentSchema = currentSchema.mergeWithUpPromotion(schemaAtThisRow);
+            if (currentSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
+              throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+            }
         }
     }
 
@@ -76,8 +99,14 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
     protected void consumeManifestFile(ManifestFile manifestFile) {
         icebergManifestFiles.add(manifestFile);
 
+      int existingPartitionDepth = partitionColumns.size() - implicitColSize;
+      if(config.getIcebergTableProps().isDetectSchema() && manifestFile.partitions().size() > existingPartitionDepth
+        && config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH) {
+        throw new UnsupportedOperationException ("Addition of a new level dir is not allowed in incremental refresh. Please forget and " +
+            "promote the table again.");
+      }
+
         // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
-        int existingPartitionDepth = partitionColumns.size();
         if (manifestFile.partitions().size() > existingPartitionDepth) {
             IntStream.range(existingPartitionDepth, manifestFile.partitions().size()).forEach(p -> partitionColumns.add("dir" + p));
         }
@@ -100,40 +129,76 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
         IcebergModel icebergModel = config.getPlugin().getIcebergModel();
         IcebergTableProps icebergTableProps = config.getIcebergTableProps();
+
         switch (icebergTableProps.getIcebergOpType()) {
             case CREATE:
                 icebergOpCommitter = icebergModel.getCreateTableCommitter(
                         icebergTableProps.getTableName(),
                         icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                         currentSchema,
-                        partitionColumns);
+                        partitionColumns, context.getStats());
                 break;
             case INSERT:
-                icebergOpCommitter = icebergModel.getInsertTableCommitter(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
+                icebergOpCommitter = icebergModel.getInsertTableCommitter(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()), context.getStats());
                 break;
             case FULL_METADATA_REFRESH:
+              createReadSignProvider(icebergTableProps, true);
               icebergOpCommitter = icebergModel.getFullMetadataRefreshCommitter(
                 icebergTableProps.getTableName(),
+                config.getDatasetPath().getPathComponents(),
                 icebergTableProps.getTableLocation(),
+                icebergTableProps.getUuid(),
                 icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                 currentSchema,
-                partitionColumns
+                partitionColumns,
+                config.getDatasetConfig().orElseThrow(() -> new IllegalStateException("DatasetConfig not found")),
+                context.getStats()
               );
               break;
             case INCREMENTAL_METADATA_REFRESH:
+              createReadSignProvider(icebergTableProps, false);
                 icebergOpCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(
-                    icebergTableProps.getTableName(),
-                    icebergTableProps.getTableLocation(),
-                    icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
-                    currentSchema,
-                    partitionColumns
-                  );
-                break;
+                  context,
+                  icebergTableProps.getTableName(),
+                  config.getDatasetPath().getPathComponents(),
+                  icebergTableProps.getTableLocation(),
+                  icebergTableProps.getUuid(),
+                  icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+                  icebergTableProps.getFullSchema(),
+                  partitionColumns,
+                  true,
+                  config.getDatasetConfig().orElseThrow(() -> new IllegalStateException("DatasetConfig not found"))
+                );
+              icebergOpCommitter.updateSchema(currentSchema);
+              break;
         }
 
         try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-            icebergManifestFiles.forEach(icebergOpCommitter::consumeManifestFile);
-            deletedDataFiles.forEach(icebergOpCommitter::consumeDeleteDataFile);
+          icebergManifestFiles.forEach(icebergOpCommitter::consumeManifestFile);
+          deletedDataFiles.forEach(icebergOpCommitter::consumeDeleteDataFile);
         }
     }
+
+  private void createPartitionExistsPredicate(WriterCommitterPOP config) {
+    partitionExistsPredicate = (path) ->
+    {
+      try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
+        return getFS(config).exists(Path.of(path));
+      } catch (Exception e) {
+        throw UserException.ioExceptionError(e).buildSilently();
+      }
+    };
+  }
+
+  private FileSystem getFS(WriterCommitterPOP config) throws IOException {
+    if (fsToCheckIfPartitionExists == null) {
+      fsToCheckIfPartitionExists = config.getSourceTablePlugin().createFS(null, config.getProps().getUserName(), context);
+    }
+    return fsToCheckIfPartitionExists;
+  }
+
+  @Override
+  public void close() throws Exception {
+    AutoCloseables.close(fsToCheckIfPartitionExists);
+  }
 }

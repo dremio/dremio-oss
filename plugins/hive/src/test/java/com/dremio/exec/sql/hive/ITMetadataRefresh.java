@@ -21,6 +21,11 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.NamespaceKey;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 public class ITMetadataRefresh extends HiveTestBase {
 

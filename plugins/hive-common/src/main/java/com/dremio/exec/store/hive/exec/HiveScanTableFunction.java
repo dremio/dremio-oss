@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.exec;
 
 import java.util.List;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -54,7 +55,18 @@ public class HiveScanTableFunction extends ScanTableFunction {
   }
 
   @Override
+  protected RecordReaderIterator getRecordReaderIterator() {
+    return hiveProxiedScanBatchCreator.getRecordReaderIterator();
+  }
+
+  @Override
   protected void addSplits(List<SplitAndPartitionInfo> splits) {
     hiveProxiedScanBatchCreator.addSplits(splits);
+  }
+
+  @Override
+  public void close() throws Exception {
+    RecordReaderIterator recordReaderIterator = hiveProxiedScanBatchCreator.getRecordReaderIterator();
+    AutoCloseables.close(super::close, recordReaderIterator);
   }
 }

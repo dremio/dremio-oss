@@ -20,6 +20,7 @@ import static com.dremio.common.expression.CompleteType.BIT;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
+import static com.dremio.common.expression.CompleteType.NULL;
 
 import java.util.Optional;
 
@@ -41,6 +42,9 @@ public class TypeCoercionRules {
    * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
    */
   public static Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
+    if (fileType.equals(NULL)) {
+      return Optional.of(tableType);
+    }
     if (fileType.equals(INT)) {
       return getResultantTypeForIntFileType(tableType);
     }

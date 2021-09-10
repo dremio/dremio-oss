@@ -36,6 +36,7 @@ import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Joiner;
 
@@ -126,6 +127,9 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
         updated.add(view.getPath().toString());
       } catch (Exception e) {
         if (e instanceof UnableToFixVDSException) {
+          throw UserException.validationError(e).build(logger);
+        }
+        if (e instanceof UserException && ((UserException) e).getErrorType() == ErrorType.UNSUPPORTED_OPERATION) {
           throw UserException.validationError(e).build(logger);
         }
         suppressed.add(new VDSOutOfDate(view.getPath(), e));

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -24,32 +25,108 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.stream.Stream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.Table;
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.google.common.io.Resources;
 
 public class TestIcebergScan extends BaseTestQuery {
-
-  static FileSystem fs;
-  static String testRootPath = "/tmp/iceberg";
-  static Configuration conf;
+  private static FileSystem fs;
+  private String testRootPath;
 
   @BeforeClass
   public static void initFs() throws Exception {
-    conf = new Configuration();
+    Configuration conf = new Configuration();
     conf.set("fs.default.name", "local");
-
     fs = FileSystem.get(conf);
+    setSystemOption(ENABLE_ICEBERG, "true");
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    setSystemOption(ENABLE_ICEBERG, "false");
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    if (testRootPath != null) {
+      fs.delete(new Path(testRootPath), true);
+    }
+  }
+
+  @Test
+  public void testScanEmptyTable() throws Exception {
+    testRootPath = "/tmp/empty_iceberg";
+    copyFromJar("iceberg/empty_table", testRootPath);
+    runQueryExpectingRecordCount("select count(*) c from dfs_hadoop.tmp.empty_iceberg", 0L);
+  }
+
+  @Test
+  public void testSuccessFile() throws Exception {
+    testRootPath = "/tmp/iceberg";
+    copyFromJar("iceberg/nation", testRootPath);
+    runQueryExpectingRecordCount("select count(*) c from dfs_hadoop.tmp.iceberg where 1 = 1", 25L);
+  }
+
+  @Test
+  public void testPartitionMismatchSpecSchema() throws Exception {
+    testRootPath = "/tmp/iceberg";
+    copyFromJar("iceberg/partitionednation", testRootPath);
+
+    File tableRoot = new File(testRootPath);
+    IcebergModel icebergModel = getIcebergModel(tableRoot, IcebergCatalogType.HADOOP);
+    Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
+
+    // n_regionkey was renamed to regionkey
+    assertNull(table.schema().findField("n_regionkey"));
+    assertNotNull(table.schema().findField("regionkey"));
+
+    assertEquals(1, table.spec().fields().size());
+    // no change in partition spec
+    assertEquals("n_regionkey", table.spec().fields().get(0).name());
+
+    IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(), HadoopFileSystem.get(fs), icebergModel, testRootPath).getTableInfo();
+    assertEquals(1, tableInfo.getPartitionColumns().size());
+    // partition column matches new column name
+    assertEquals("regionkey", tableInfo.getPartitionColumns().get(0));
+  }
+
+  private void runQueryExpectingRecordCount(String query, long recordCount) throws Exception {
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("c")
+      .baselineValues(recordCount)
+      .build()
+      .run();
+  }
+
+  private void copyFromJar(String src, String testRoot) throws IOException, URISyntaxException {
+    Path path = new Path(testRoot);
+    if (fs.exists(path)) {
+      fs.delete(path, true);
+    }
+    fs.mkdirs(path);
+
+    URI resource = Resources.getResource(src).toURI();
+    java.nio.file.Path srcDir = Paths.get(resource);
+    try (Stream<java.nio.file.Path> stream = Files.walk(srcDir)) {
+      stream.forEach(source -> copy(source, Paths.get(testRoot).resolve(srcDir.relativize(source))));
+    }
   }
 
   private void copy(java.nio.file.Path source, java.nio.file.Path dest) {
@@ -57,65 +134,6 @@ public class TestIcebergScan extends BaseTestQuery {
       Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage(), e);
-    }
-  }
-
-  private void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
-    URI resource = Resources.getResource(sourceElement).toURI();
-    java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
-    Files.walk(srcDir)
-        .forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
-  }
-
-  @Test
-  public void testSuccessFile() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      Path p = new Path(testRootPath);
-      if (fs.exists(p)) {
-        fs.delete(p, true);
-      }
-
-      fs.mkdirs(p);
-      copyFromJar("iceberg/nation", java.nio.file.Paths.get(testRootPath));
-
-      testBuilder()
-          .sqlQuery("select count(*) c from dfs.tmp.iceberg where 1 = 1")
-          .unOrdered()
-          .baselineColumns("c")
-          .baselineValues(25L)
-          .build()
-          .run();
-    }
-  }
-
-  @Test
-  public void testPartitionMismatchSpecSchema() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      Path p = new Path(testRootPath);
-      if (fs.exists(p)) {
-        fs.delete(p, true);
-      }
-
-      fs.mkdirs(p);
-      copyFromJar("iceberg/partitionednation", java.nio.file.Paths.get(testRootPath));
-
-      File tableRoot = new File(testRootPath);
-      IcebergModel icebergModel = getIcebergModel(tableRoot);
-      Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
-
-      // n_regionkey was renamed to regionkey
-      assertNull(table.schema().findField("n_regionkey"));
-      assertNotNull(table.schema().findField("regionkey"));
-
-      assertEquals(1, table.spec().fields().size());
-      // no change in partition spec
-      assertEquals("n_regionkey", table.spec().fields().get(0).name());
-
-      IcebergTableInfo tableInfo = new IcebergTableWrapper(getSabotContext(),
-          HadoopFileSystem.get(fs), icebergModel, new File(testRootPath).getAbsolutePath()).getTableInfo();
-      assertEquals(1, tableInfo.getPartitionColumns().size());
-      // partition column matches new column name
-      assertEquals("regionkey", tableInfo.getPartitionColumns().get(0));
     }
   }
 }

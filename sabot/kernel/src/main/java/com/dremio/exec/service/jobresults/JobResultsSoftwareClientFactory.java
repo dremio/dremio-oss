@@ -34,7 +34,7 @@ public class JobResultsSoftwareClientFactory implements JobResultsClientFactory 
 
   @Override
   public JobResultsClient getJobResultsClient(CoordinationProtos.NodeEndpoint endpoint, BufferAllocator allocator,
-                                              String fragmentId) {
+                                              String fragmentId, String queryId) {
     return new JobResultsSoftwareClient(tunnelCreator.getTunnel(endpoint));
   }
 

@@ -30,6 +30,7 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
@@ -91,6 +92,11 @@ public class DelegatingCatalog implements Catalog {
   @Override
   public DremioTable getTable(String datasetId) {
     return delegate.getTable(datasetId);
+  }
+
+  @Override
+  public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    return delegate.getColumnExtendedProperties(table);
   }
 
   @Override
@@ -168,6 +174,13 @@ public class DelegatingCatalog implements Catalog {
                                          WriterOptions writerOptions, Map<String, Object> storageOptions) {
     return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions);
   }
+
+  @Override
+  public CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps, WriterOptions writerOptions, Map<String, Object> storageOptions, boolean isResultsTable) {
+    return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions, isResultsTable);
+
+  }
+
 
   @Override
   public void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions) {
@@ -277,6 +290,12 @@ public class DelegatingCatalog implements Catalog {
   @Override
   public boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes) {
     return delegate.alterDataset(key, attributes);
+  }
+
+  @Override
+  public boolean alterColumnOption(final NamespaceKey key, String columnToChange,
+                            final String attributeName, final AttributeValue attributeValue) {
+    return delegate.alterColumnOption(key, columnToChange, attributeName, attributeValue);
   }
 
   @Override

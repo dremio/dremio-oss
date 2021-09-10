@@ -265,7 +265,7 @@ describe('SourceFormJsonPolicy', () => {
       let uiOptions, functionalOptions;
       beforeEach(() => {
         uiOptions = [
-          {value: 'ANONYMOUS', container: {'elements': []}},
+          {value: 'ANONYMOUS', container: {'elements': []}, label: 'Override'},
           {value: 'MASTER', container: {
             layout: 'row',
             elements: [
@@ -294,7 +294,7 @@ describe('SourceFormJsonPolicy', () => {
       it('should merge based on option value', () => {
         const options = SourceFormJsonPolicy.joinOptions(uiOptions, functionalOptions);
         expect(options[0].value).to.equal('ANONYMOUS');
-        expect(options[0].label).to.equal('Public buckets only');
+        expect(options[0].label).to.equal('Override');
         expect(options[0].container.elements.length).to.equal(0);
         expect(options[1].value).to.equal('MASTER');
         expect(options[1].label).to.equal('AWS access key & secret');

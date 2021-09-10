@@ -16,6 +16,8 @@
 package com.dremio.exec.planner.physical;
 
 
+import java.util.Optional;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
@@ -27,10 +29,12 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.Path;
+import com.google.common.collect.ImmutableList;
 
 public class WriterPrule extends Prule {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlannerSettings.class);
@@ -113,11 +117,11 @@ public class WriterPrule extends Prule {
       );
       final RelNode newChild = getManifestWriterPrelIfNeeded(childWithTempPath, traits, writer, fileEntry, plugin, childDist);
       return new WriterCommitterPrel(writer.getCluster(),
-        traits, newChild, plugin, tempPath, finalPath, userName, fileEntry);
+        traits, newChild, plugin, tempPath, finalPath, userName, fileEntry, Optional.empty(), false, false);
     } else {
       final RelNode newChild = getManifestWriterPrelIfNeeded(child, traits, writer, fileEntry, plugin, childDist);
       return new WriterCommitterPrel(writer.getCluster(),
-        traits, newChild, plugin, null, finalPath, userName, fileEntry);
+        traits, newChild, plugin, null, finalPath, userName, fileEntry, Optional.empty(), false, false);
     }
   }
 
@@ -130,11 +134,19 @@ public class WriterPrule extends Prule {
     if(fileEntry.getIcebergTableProps() == null) {
       return convert(child, oldTraits);
     } else {
+      DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(RecordWriter.SCHEMA.getFields().indexOf(RecordWriter.ICEBERG_METADATA));
+      DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
       final RelTraitSet newTraits = writer.getTraitSet()
-        .plus(DistributionTrait.ROUND_ROBIN)
+        .plus(distributionTrait)
         .plus(Prel.PHYSICAL);
 
-      final RelNode newChild = convert(child, newTraits);
+      final RelNode newChild = new HashToRandomExchangePrel(
+        child.getCluster(),
+        newTraits,
+        child,
+        distributionTrait.getFields(),
+        HashPrelUtil.DATA_FILE_DISTRIBUTE_HASH_FUNCTION_NAME,
+        null);
 
       CreateTableEntry icebergCreateTableEntry = getCreateTableEntryForManifestWriter(fileEntry, plugin, fileEntry.getIcebergTableProps().getFullSchema(), fileEntry.getIcebergTableProps());
       final WriterPrel manifestWriterPrel = new WriterPrel(writer.getCluster(),
@@ -150,7 +162,7 @@ public class WriterPrule extends Prule {
   public static CreateTableEntry getCreateTableEntryForManifestWriter(FileSystemCreateTableEntry fileEntry, FileSystemPlugin<?> plugin, BatchSchema writeTableSchema, IcebergTableProps icebergTableProps) {
     WriterOptions oldOptions = fileEntry.getOptions();
     WriterOptions manifestWriterOption = new WriterOptions(null, null, null, null,
-      null, false, oldOptions.getRecordLimit(), null, oldOptions.getExtendedProperty(), icebergTableProps);
+      null, false, oldOptions.getRecordLimit(), null, oldOptions.getExtendedProperty(), icebergTableProps, false);
     // IcebergTableProps is the only obj we need in manifestWriter
     FileSystemCreateTableEntry icebergCreateTableEntry = fileEntry.cloneWithFields(plugin.getFormatPlugin("iceberg"), manifestWriterOption);
     return icebergCreateTableEntry;

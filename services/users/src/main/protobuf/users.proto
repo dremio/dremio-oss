@@ -28,6 +28,11 @@ message GID {
   required string id = 1;
 }
 
+enum UserType {
+  LOCAL = 1;
+  REMOTE = 2;
+}
+
 // NOTE: If you are adding new field here make sure to modify UserGroupServiceImpl#merge
 message UserConfig {
   required UID uid = 1;
@@ -40,6 +45,9 @@ message UserConfig {
   repeated GID groupMemberships = 8;
   optional int64 version = 9 [deprecated = true];
   optional string tag = 10;
+  optional UserType type = 11 [default = LOCAL];
+  optional string externalId = 12;
+  optional bool active = 13 [default = true];
 }
 
 message UserAuth {

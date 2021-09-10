@@ -15,28 +15,26 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.connector.metadata.DatasetSplit;
-import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.MetadataProtoUtils;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 
 /**
  * Internal IcebergScan table metadata, which extends TableMetadataImpl.
@@ -44,69 +42,59 @@ import com.google.common.base.Throwables;
  */
 public class InternalIcebergScanTableMetadata extends TableMetadataImpl {
 
-  private final FileSystemPlugin icebergTableStoragePlugin;
-  private final IcebergExecutionDatasetAccessor datasetAccessor;
+  private final FileSystemPlugin<?> icebergTableStoragePlugin;
+  private final BatchSchema schema;
+  private final FormatPlugin formatPlugin;
+  private final String tableName;
 
-  public InternalIcebergScanTableMetadata(TableMetadata tableMetadata, FileSystemPlugin icebergTableStoragePlugin) {
-    // TODO: DX-31785: Use correct Iceberg table mapping name instead of the table name
-    this(tableMetadata, icebergTableStoragePlugin, tableMetadata.getDatasetConfig().getName());
-  }
-
-  public InternalIcebergScanTableMetadata(TableMetadata tableMetadata, FileSystemPlugin icebergTableStoragePlugin, String tableID) {
+  public InternalIcebergScanTableMetadata(TableMetadata tableMetadata, FileSystemPlugin<?> icebergTableStoragePlugin, String tableName) {
     super(tableMetadata.getStoragePluginId(), tableMetadata.getDatasetConfig(), tableMetadata.getUser(), (SplitsPointer) tableMetadata.getSplitsKey());
     Preconditions.checkNotNull(icebergTableStoragePlugin);
-    Preconditions.checkNotNull(tableID, "tableID is required");
+    Preconditions.checkNotNull(tableName, "tableName is required");
     this.icebergTableStoragePlugin = icebergTableStoragePlugin;
-    this.datasetAccessor = deriveInternalIcebergTableDatasetAccessor(icebergTableStoragePlugin, tableMetadata.getDatasetConfig(), tableID, tableMetadata.getUser());
+    this.schema = tableMetadata.getSchema();
+    this.tableName = tableName;
+    formatPlugin = icebergTableStoragePlugin.getFormatPlugin(new IcebergFormatConfig());
+    Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
   }
 
   @Override
   public FileConfig getFormatSettings() {
-    return datasetAccessor.getFileConfig();
+    Path icebergTablePath = Path.of(icebergTableStoragePlugin.getConfig().getPath().toString()).resolve(tableName);
+    return PhysicalDatasetUtils.toFileFormat(formatPlugin).asFileConfig().setLocation(Path.withoutSchemeAndAuthority(icebergTablePath).toString());
+  }
+
+  @Override
+  public BatchSchema getSchema() {
+    return schema;
   }
 
   public StoragePluginId getIcebergTableStoragePlugin() {
     return icebergTableStoragePlugin.getId();
   }
 
-  private static IcebergExecutionDatasetAccessor deriveInternalIcebergTableDatasetAccessor(FileSystemPlugin plugin, DatasetConfig datasetConfig, String tableID, String user) {
-    final IcebergFormatPlugin formatPlugin = (IcebergFormatPlugin) plugin.getFormatPlugin(new IcebergFormatConfig());
-    Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
-    try {
-      FileSelection fileSelection = generateFileSelection(plugin, tableID);
-      NamespaceKey tableSchemaPath = new NamespaceKey(datasetConfig.getFullPathList());
-      return new IcebergExecutionDatasetAccessor(datasetConfig.getType(), plugin.createFS(user), formatPlugin, fileSelection, plugin, tableSchemaPath);
-    }
-    catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  private static FileSelection generateFileSelection(FileSystemPlugin plugin, String tableID) throws IOException {
-    Path icebergTablePath = Path.of(plugin.getConfig().getPath().toString()).resolve(tableID);
-    FileSelection fileSelection = FileSelection.create(plugin.getSystemUserFS(), icebergTablePath);
-    if (fileSelection == null) {
-      throw new IllegalStateException("Unable to retrieve selection for path." + icebergTablePath);
-    }
-    return fileSelection;
-  }
-
   public List<SplitAndPartitionInfo> getSplitAndPartitionInfo() {
     final List<SplitAndPartitionInfo> splits = new ArrayList<>();
-    Iterator<? extends PartitionChunk> chunks = datasetAccessor.listPartitionChunks().iterator();
-    while (chunks.hasNext()) {
-      final com.dremio.connector.metadata.PartitionChunk chunk = chunks.next();
-      final Iterator<? extends DatasetSplit> chunkSplits = chunk.getSplits().iterator();
-      while (chunkSplits.hasNext()) {
-        final DatasetSplit datasetSplit = chunkSplits.next();
-        PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1)).build();
-        PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo
-          .newBuilder()
-          .setPartitionId(partitionInfo.getId())
-          .setExtendedProperty(MetadataProtoUtils.toProtobuf(datasetSplit.getExtraInfo()));
-        splits.add(new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
-      }
-    }
+    String splitPath = getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    splitPath = Path.getContainerSpecificRelativePath(Path.of(splitPath));
+    EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
+            .setPath(splitPath)
+            .setStart(0)
+            .setLength(0)
+            .setUpdateKey(com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity.newBuilder()
+                    .setPath(splitPath)
+                    .setLastModificationTime(0))
+            .build();
+    List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();
+    DatasetSplit datasetSplit = DatasetSplit.of(
+            splitAffinities, 0, 0, splitExtended::writeTo);
+
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1)).build();
+    PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo
+      .newBuilder()
+      .setPartitionId(partitionInfo.getId())
+      .setExtendedProperty(MetadataProtoUtils.toProtobuf(datasetSplit.getExtraInfo()));
+    splits.add(new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
     return splits;
   }
 }

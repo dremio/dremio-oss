@@ -76,30 +76,42 @@ import com.google.common.collect.Lists;
  * Converter for iceberg schema to BatchSchema, and vice-versa.
  */
 public class SchemaConverter {
-  private SchemaConverter() {
+
+  private final String tableName;
+
+  public SchemaConverter(String tableName) {
+    this.tableName = tableName;
   }
 
-  public static BatchSchema fromIceberg(Schema icebergSchema) {
+  public SchemaConverter() {
+    this(null);
+  }
+
+  public BatchSchema fromIceberg(Schema icebergSchema) {
     return new BatchSchema(icebergSchema
       .columns()
       .stream()
-      .map(SchemaConverter::fromIcebergColumn)
+      .map(x -> this.fromIcebergColumn(x))
       .filter(Objects::nonNull)
       .collect(Collectors.toList()));
   }
 
-  public static Field fromIcebergColumn(NestedField field) {
+  public Field fromIcebergColumn(NestedField field) {
     try {
       CompleteType fieldType = fromIcebergType(field.type());
       return fieldType == null ? null : fieldType.toField(field.name());
     } catch (Exception e) {
+      String msg = "Type conversion error for column " + field.name();
+      if (tableName != null) {
+        msg = msg + " in table " + tableName;
+      }
       throw UserException.unsupportedError(e)
-        .message("conversion from iceberg type to arrow type failed for field " + field.name())
+        .message(msg)
         .buildSilently();
     }
   }
 
-  public static CompleteType fromIcebergType(Type type) {
+  public CompleteType fromIcebergType(Type type) {
     if (type.isPrimitiveType()) {
       return fromIcebergPrimitiveType(type.asPrimitiveType());
     } else {
@@ -128,7 +140,7 @@ public class SchemaConverter {
     }
   }
 
-  public static CompleteType fromIcebergPrimitiveType(PrimitiveType type) {
+  public CompleteType fromIcebergPrimitiveType(PrimitiveType type) {
     switch (type.typeId()) {
       case BOOLEAN:
         return CompleteType.BIT;
@@ -170,18 +182,18 @@ public class SchemaConverter {
     }
   }
 
-  public static List<NestedField> toIcebergFields(List<Field> fields) {
+  public List<NestedField> toIcebergFields(List<Field> fields) {
     UnboundedFieldIdBroker fieldIdBroker = new UnboundedFieldIdBroker();
     return fields.stream()
       .map(field -> toIcebergColumn(field, fieldIdBroker))
       .collect(Collectors.toList());
   }
 
-  public static Schema toIcebergSchema(BatchSchema schema) {
+  public Schema toIcebergSchema(BatchSchema schema) {
     return TypeUtil.assignIncreasingFreshIds(toIcebergSchema(schema, new UnboundedFieldIdBroker()));
   }
 
-  public static Schema toIcebergSchema(BatchSchema batchSchema, FieldIdBroker fieldIdBroker) {
+  public Schema toIcebergSchema(BatchSchema batchSchema, FieldIdBroker fieldIdBroker) {
     Schema icebergSchema = new Schema(batchSchema
       .getFields()
       .stream()
@@ -192,22 +204,26 @@ public class SchemaConverter {
     return icebergSchema;
   }
 
-  public static NestedField changeIcebergColumn(Field field, NestedField icebergField) {
+  public NestedField changeIcebergColumn(Field field, NestedField icebergField) {
     try {
       Type type = icebergField.type().isPrimitiveType() ? toIcebergType(CompleteType.fromField(field), null, new UnboundedFieldIdBroker()) : icebergField.type();
       return NestedField.optional(icebergField.fieldId(), field.getName(), type);
     } catch (Exception e) {
+      String msg = "Type conversion error for column " + field.getName();
+      if (tableName != null) {
+        msg = msg + " in table " + tableName;
+      }
       throw UserException.unsupportedError(e)
-        .message("conversion from arrow type to iceberg type failed for field " + field.getName())
+        .message(msg)
         .buildSilently();
     }
   }
 
-  static NestedField toIcebergColumn(Field field, FieldIdBroker fieldIdBroker) {
+  NestedField toIcebergColumn(Field field, FieldIdBroker fieldIdBroker) {
     return toIcebergColumn(field, fieldIdBroker, null);
   }
 
-  private static NestedField toIcebergColumn(Field field, FieldIdBroker fieldIdBroker, String fullName) {
+  private NestedField toIcebergColumn(Field field, FieldIdBroker fieldIdBroker, String fullName) {
     try {
       if (fullName == null) {
         fullName = field.getName();
@@ -215,13 +231,17 @@ public class SchemaConverter {
       int columnId = fieldIdBroker.get(fullName);
       return NestedField.optional(columnId, field.getName(), toIcebergType(CompleteType.fromField(field), fullName, fieldIdBroker));
     } catch (Exception e) {
+      String msg = "Type conversion error for column " + field.getName();
+      if (tableName != null) {
+        msg = msg + " in table " + tableName;
+      }
       throw UserException.unsupportedError(e)
-        .message("conversion from arrow type to iceberg type failed for field " + field.getName())
+        .message(msg)
         .buildSilently();
     }
   }
 
-  private static Type toIcebergType(CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
+  private Type toIcebergType(CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
     ArrowType arrowType = completeType.getType();
     return arrowType.accept(new ArrowTypeVisitor<Type>() {
       @Override

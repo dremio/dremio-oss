@@ -47,7 +47,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Encapsulates all the logic needed to generate a reflection's plan
  */
-class ReflectionPlanGenerator {
+public class ReflectionPlanGenerator {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionPlanGenerator.class);
 
@@ -60,6 +60,7 @@ class ReflectionPlanGenerator {
   private final ReflectionSettings reflectionSettings;
   private final MaterializationStore materializationStore;
   private final boolean forceFullUpdate;
+  private final int stripVersion;
 
   private RefreshDecision refreshDecision;
 
@@ -72,7 +73,8 @@ class ReflectionPlanGenerator {
       Materialization materialization,
       ReflectionSettings reflectionSettings,
       MaterializationStore materializationStore,
-      boolean forceFullUpdate
+      boolean forceFullUpdate,
+      int stripVersion
       ) {
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.config = Preconditions.checkNotNull(config, "sabot config required");
@@ -83,6 +85,7 @@ class ReflectionPlanGenerator {
     this.reflectionSettings = reflectionSettings;
     this.materializationStore = materializationStore;
     this.forceFullUpdate = forceFullUpdate;
+    this.stripVersion = stripVersion;
   }
 
   public RefreshDecision getRefreshDecision() {
@@ -100,7 +103,8 @@ class ReflectionPlanGenerator {
       config,
       reflectionSettings,
       materializationStore,
-      forceFullUpdate
+      forceFullUpdate,
+      stripVersion
     );
 
     // retrieve reflection's dataset

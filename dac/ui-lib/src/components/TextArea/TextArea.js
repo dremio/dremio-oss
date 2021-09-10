@@ -32,6 +32,8 @@ const TextArea = (props) => {
   const [tooltipTitle, setTooltipTitle] = useState('');
   const {
     classes,
+    copyMessage,
+    dataQa,
     defaultValue,
     disabled,
     disableTextCopy,
@@ -68,7 +70,7 @@ const TextArea = (props) => {
       onCopy();
     }
     setTooltipOpen(true);
-    setTooltipTitle('Copied');
+    setTooltipTitle(copyMessage);
     setTimeout(() => {
       setTooltipOpen(false);
     }, 1000);
@@ -131,6 +133,7 @@ const TextArea = (props) => {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onCopy={handleTextAreaCopy}
+          data-qa={dataQa}
           {...otherProps}
         />
         { !label && enableCopy && (
@@ -160,6 +163,8 @@ TextArea.propTypes = {
     label: PropTypes.string,
     container: PropTypes.string
   }),
+  copyMessage: PropTypes.string,
+  dataQa: PropTypes.string,
   value: PropTypes.string,
   disabled: PropTypes.bool,
   form: PropTypes.object,
@@ -178,6 +183,7 @@ TextArea.propTypes = {
 
 TextArea.defaultProps = {
   classes: {},
+  copyMessage: 'Copied',
   form: {},
   disabled: false,
   disableTextCopy: false,

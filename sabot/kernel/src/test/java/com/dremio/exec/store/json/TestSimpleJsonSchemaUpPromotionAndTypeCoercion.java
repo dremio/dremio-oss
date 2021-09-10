@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.json;
 
-import static com.dremio.exec.ExecConstants.MIXED_TYPES_DISABLED;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
@@ -26,8 +25,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -38,16 +35,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase {
-
-  @BeforeClass
-  public static void disableMixedTypesSupport() {
-    setSystemOption(MIXED_TYPES_DISABLED.getOptionName(), "true");
-  }
-
-  @AfterClass
-  public static void resetMixedTypesSupport() {
-    resetSystemOption(MIXED_TYPES_DISABLED.getOptionName());
-  }
 
   @Test
   public void testUpPromotionAndTypeCoercionFromDoubleToVarchar() throws Exception {
@@ -99,6 +86,20 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     verifyRecords(jsonDir, "heading1", "12", "red", "12.3", "12", "12", "12.3");
     verifyRecords(jsonDir, "heading2", "12.3", "12", "12.3", "12.3", "red", "12.3");
     verifyCountStar(jsonDir, 6);
+  }
+
+  @Test
+  public void testUpPromotionAndTypeCoercionInLargeUnions() throws Exception {
+    Path jsonDir = copyFiles("large_mixed_file");
+    // Run a query touching all the files and ensure that it returns the correct records
+    String query = String.format("SELECT * FROM dfs.\"%s\" where heading1 != 'hello'", jsonDir);
+    TestBuilder testBuilder = testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("heading1");
+    testBuilder.baselineValues("1");
+    testBuilder.go();
+    verifyCountStar(jsonDir, 10201);
   }
 
   @Test

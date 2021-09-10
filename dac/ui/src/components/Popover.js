@@ -49,7 +49,8 @@ class DremioPopoverAdapter extends PureComponent {
     listWidthSameAsAnchorEl: PropTypes.bool,
     dataQa: PropTypes.string,
     /** Applies to {@see Popper} instance if {@see useLayerForClickAway} = {@see true}*/
-    clickAwayMouseEvent: PropTypes.oneOf(supportedMouseEvents)
+    clickAwayMouseEvent: PropTypes.oneOf(supportedMouseEvents),
+    popoverFilters: PropTypes.string
   };
 
   static defaultProps = {
@@ -64,7 +65,7 @@ class DremioPopoverAdapter extends PureComponent {
     } = this.props;
 
     if (listWidthSameAsAnchorEl) {
-      return {...listStyle, width: get(anchorEl, 'offsetWidth') };
+      return { ...listStyle, width: get(anchorEl, 'offsetWidth') };
     }
     return listStyle;
   }
@@ -80,7 +81,9 @@ class DremioPopoverAdapter extends PureComponent {
       onClose,
       style,
       // popper specific props
-      clickAwayMouseEvent
+      clickAwayMouseEvent,
+      popoverFilters
+
     } = this.props;
 
     const commonProps = {
@@ -97,9 +100,9 @@ class DremioPopoverAdapter extends PureComponent {
 
     return useLayerForClickAway ?
       <Popover
-        className='dremio-popover'
-        anchorOrigin={{horizontal: listRightAligned ? 'right' : 'left', vertical: 'bottom'}}
-        transformOrigin={{horizontal: listRightAligned ? 'right' : 'left', vertical: 'top'}}
+        className={popoverFilters}
+        anchorOrigin={{ horizontal: listRightAligned ? 'right' : 'left', vertical: 'bottom' }}
+        transformOrigin={{ horizontal: listRightAligned ? 'right' : 'left', vertical: 'top' }}
         onClose={onClose}
         transitionDuration={0}
         PaperProps={{ style: this.getListStyle(), classes: { root: listClass } }}
@@ -115,7 +118,7 @@ class DremioPopoverAdapter extends PureComponent {
         <ClickAwayListener mouseEvent={clickAwayMouseEvent} onClickAway={onClose}>
           <Paper
             className={classNames(listClass, popperPaperCls)}
-            style={{ position: 'relative', ...this.getListStyle()}}
+            style={{ position: 'relative', ...this.getListStyle() }}
           >
             {/* TODO <EventListener target='window' onResize={this.handleResize} /> */}
             {children}

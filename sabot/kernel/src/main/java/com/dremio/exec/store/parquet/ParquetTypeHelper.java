@@ -177,6 +177,8 @@ public class ParquetTypeHelper {
       case INT64:
         if (originalType == OriginalType.TIMESTAMP_MILLIS || originalType == OriginalType.TIMESTAMP_MICROS) {
           return CompleteType.TIMESTAMP.toField(colName);
+        } else if (originalType == OriginalType.TIME_MICROS) {
+          return CompleteType.TIME.toField(colName);
         } else if (originalType == OriginalType.DECIMAL) {
           return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
             .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
@@ -202,23 +204,35 @@ public class ParquetTypeHelper {
   private static Optional<Field> toField(final Type parquetField, final SchemaDerivationHelper schemaHelper, boolean convertToStruct) {
     if (parquetField.isPrimitive()) {
       SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
-      return Optional.of(createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper));
+      Field field = createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper);
+      if (parquetField.isRepetition(REPEATED)) {
+        Field listChild = new Field("$data$", true, field.getType(), field.getChildren());
+        return Optional.of(new Field(field.getName(), true, new ArrowType.List(), Arrays.asList(listChild)));
+      }
+      return Optional.of(field);
     }
 
     // Handle non-primitive cases
     final GroupType complexField = (GroupType) parquetField;
-    if (OriginalType.LIST == complexField.getOriginalType()) {
+    if (OriginalType.LIST == complexField.getOriginalType() && LogicalListL1Converter.isSupportedSchema(complexField)) {
       GroupType repeatedField = (GroupType) complexField.getFields().get(0);
-
-      // should have only one child field type
-      if (repeatedField.isPrimitive() || !repeatedField.isRepetition(REPEATED) || repeatedField.asGroupType().getFields().size() != 1) {
-        throw UserException.unsupportedError()
-          .message("Parquet List Type is expected to contain only one sub type. Column '%s' contains %d", parquetField.getName(), complexField.getFieldCount())
-          .build();
-      }
-
       Optional<Field> subField = toField(repeatedField.getFields().get(0), schemaHelper);
+      subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
       return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+    } else if (OriginalType.LIST == complexField.getOriginalType()) {
+      if (complexField.getFieldCount() == 1) {
+        Type type = complexField.getType(0);
+        Optional<Field> subField = toField(type, schemaHelper);
+        if (complexField.isRepetition(REPEATED)) {
+          subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
+          return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+        } else {
+          return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+        }
+      }
+      throw UserException.unsupportedError()
+              .message("Parquet List Type is expected to contain only one sub type. Column '%s' contains %d", parquetField.getName(), complexField.getFieldCount())
+              .build();
     }
 
     if (OriginalType.MAP == complexField.getOriginalType() && !convertToStruct) {
@@ -239,14 +253,14 @@ public class ParquetTypeHelper {
 
     final boolean isStructType = complexField.getOriginalType() == null || convertToStruct;
     if (isStructType) { // it is struct
-      return toComplexField(complexField, new ArrowType.Struct(), schemaHelper);
+      return toComplexField(complexField, new ArrowType.Struct(), schemaHelper, convertToStruct);
     }
 
     // Unsupported complex type
     return Optional.empty();
   }
 
-  private static Optional<Field> toComplexField(GroupType complexField, ArrowType arrowType, SchemaDerivationHelper schemaHelper) {
+  private static Optional<Field> toComplexField(GroupType complexField, ArrowType arrowType, SchemaDerivationHelper schemaHelper, boolean convertToStruct) {
     List<Field> subFields = new ArrayList<>(complexField.getFieldCount());
     for (int fieldIdx = 0; fieldIdx < complexField.getFieldCount(); fieldIdx++) {
       Optional<Field> subField = toField(complexField.getType(fieldIdx), schemaHelper);
@@ -256,8 +270,15 @@ public class ParquetTypeHelper {
         subFields.add(subField.get());
       }
     }
-
-    return Optional.of(new Field(complexField.getName(), true, arrowType, subFields));
+    Field field = new Field(complexField.getName(), true, arrowType, subFields);
+    if (complexField.isRepetition(REPEATED)
+      && !convertToStruct
+      && OriginalType.MAP_KEY_VALUE != complexField.getOriginalType()
+      && OriginalType.MAP != complexField.getOriginalType()
+      && OriginalType.LIST != complexField.getOriginalType()) {
+      return Optional.of(new Field(field.getName(), false, new ArrowType.List(), Arrays.asList(field)));
+    }
+    return Optional.of(field);
   }
 
   private static boolean includeChunk(String name, SortedSet<String> allProjectedPaths, boolean allowPartialMatch) {

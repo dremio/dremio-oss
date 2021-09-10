@@ -38,4 +38,18 @@ public final class UIOptions {
   public static final BooleanValidator ALLOW_SPACE_MANAGEMENT = new BooleanValidator("ui.space.allow-manage", false);
 
   public static final BooleanValidator ALLOW_HIVE_SOURCE = new BooleanValidator("ui.hive.allow", true);
+
+  /*
+   * Specifies whether new jobs UI should be shown
+   */
+  public static final BooleanValidator JOBS_UI_CHECK = new BooleanValidator("dremio.jobs.new.ui", false);
+
+  /**
+   * Specifies the Content Security Policy (CSP) header used by the Dremio UI.
+   */
+  public static final StringValidator CSP_HEADER_VALUE = new StringValidator("ui.csp.value",
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    + " blob: ws: wss: *.mktoutil.com *.dremio.com *.bm4u.net *.mktoresp.com *.cloudfront.net *.marketo.com *.sentry.io *.intercom.io"
+    + " *.walkme.com *.intercomcdn.com *.io *.marketo.net *.bootstrapcdn.com *.googletagmanager.com; img-src 'self'"
+    + " blob: data: *.cloudfront.net *.amazonaws.com; font-src 'self' data: *.bootstrapcdn.com;");
 }

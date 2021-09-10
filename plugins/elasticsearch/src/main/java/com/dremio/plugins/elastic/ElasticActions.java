@@ -204,10 +204,10 @@ public class ElasticActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context) {
+    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
       WebTarget t = initial
-          .path(resource)
-          .path("_search");
+        .path(resource)
+        .path("_search");
       for (Entry<String,String> entry : parameters.entrySet()) {
         t = t.queryParam(entry.getKey(), entry.getValue());
       }
@@ -215,11 +215,6 @@ public class ElasticActions {
       context.addContext(t);
       context.addContext("Query", query);
       return t.request().header(CONTENT_TYPE, APPLICATION_JSON).build("POST", Entity.json(query));
-    }
-
-    @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
-      return this.buildRequest(initial, context);
     }
 
   }
@@ -246,15 +241,10 @@ public class ElasticActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context) {
+    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
       WebTarget target = initial.path("_search/scroll");
       context.addContext(target);
       return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildPost(Entity.json(this));
-    }
-
-    @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
-      return this.buildRequest(initial, context);
     }
   }
 
@@ -393,8 +383,6 @@ public class ElasticActions {
       return action;
     }
 
-    abstract Invocation buildRequest(WebTarget initial, ContextListener context);
-
     abstract Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures);
   }
 
@@ -411,7 +399,7 @@ public class ElasticActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget target, ContextListener context) {
+    Invocation buildRequest(WebTarget target, ContextListener context, boolean enable7vFeatures) {
       target = target.path("_cluster/state/metadata");
       if(indexName != null){
         target = target.path(indexName);
@@ -419,11 +407,6 @@ public class ElasticActions {
 
       context.addContext(target);
       return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet();
-    }
-
-    @Override
-    Invocation buildRequest(WebTarget target, ContextListener context, boolean enable7vFeatures) {
-      return this.buildRequest(target, context);
     }
 
   }

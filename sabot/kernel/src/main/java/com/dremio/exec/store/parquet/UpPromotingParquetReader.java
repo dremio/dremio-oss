@@ -153,7 +153,16 @@ public class UpPromotingParquetReader implements RecordReader {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(currentReader);
-    currentReader = null;
+    if (currentReader != null) {
+      AutoCloseables.close(currentReader);
+      currentReader = null;
+    } else {
+      AutoCloseables.close(inputStreamProvider);
+    }
+  }
+
+  @Override
+  public List<SchemaPath> getColumnsToBoost() {
+    return currentReader.getColumnsToBoost();
   }
 }

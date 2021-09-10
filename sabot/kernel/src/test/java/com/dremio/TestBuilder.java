@@ -86,6 +86,7 @@ public class TestBuilder {
 
   private int expectedNumBatches = DremioTestWrapper.EXPECTED_BATCH_COUNT_NOT_SET;
   private Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap;
+  private Map<String, DremioTestWrapper.BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap;
 
   public TestBuilder(BufferAllocator allocator) {
     this.allocator = allocator;
@@ -95,7 +96,8 @@ public class TestBuilder {
   public TestBuilder(BufferAllocator allocator, Object query, UserBitShared.QueryType queryType, Boolean ordered,
                      boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                      String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                     int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap) {
+                     int expectedNumBatches,Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineValuesForTDigestMap,
+                     Map<String, DremioTestWrapper.BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap) {
     this(allocator);
     if (ordered == null) {
       throw new RuntimeException("Ordering not set, when using a baseline file or query you must explicitly call the ordered() or unOrdered() method on the " + this.getClass().getSimpleName());
@@ -110,6 +112,7 @@ public class TestBuilder {
     this.highPerformanceComparison = highPerformanceComparison;
     this.expectedNumBatches = expectedNumBatches;
     this.baselineValuesForTDigestMap = baselineValuesForTDigestMap;
+    this.baselineValuesForItemsSketchMap = baselineValuesForItemsSketchMap;
   }
 
   protected TestBuilder reset() {
@@ -121,6 +124,7 @@ public class TestBuilder {
     baselineOptionSettingQueries = "";
     baselineRecords = null;
     baselineValuesForTDigestMap = null;
+    baselineValuesForItemsSketchMap = null;
     return this;
   }
 
@@ -129,7 +133,7 @@ public class TestBuilder {
       throw new Exception("High performance comparison only available for ordered checks, to enforce this restriction, ordered() must be called first.");
     }
     return new DremioTestWrapper(this, allocator, query, queryType, baselineOptionSettingQueries, testOptionSettingQueries,
-      getValidationQueryType(), ordered, highPerformanceComparison, baselineRecords, expectedNumBatches, baselineValuesForTDigestMap);
+      getValidationQueryType(), ordered, highPerformanceComparison, baselineRecords, expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
   public List<Pair<SchemaPath, MajorType>> getExpectedSchema() {
@@ -250,13 +254,13 @@ public class TestBuilder {
   public JSONTestBuilder jsonBaselineFile(String filePath) {
     return new JSONTestBuilder(filePath, allocator, query, queryType, ordered, approximateEquality,
       baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
-      expectedNumBatches, baselineValuesForTDigestMap);
+      expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
   public CSVTestBuilder csvBaselineFile(String filePath) {
     return new CSVTestBuilder(filePath, allocator, query, queryType, ordered, approximateEquality,
       baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
-      expectedNumBatches, baselineValuesForTDigestMap);
+      expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
   public SchemaTestBuilder schemaBaseLine(List<Pair<SchemaPath, MajorType>> expectedSchema) {
@@ -341,6 +345,11 @@ public class TestBuilder {
     return this;
   }
 
+  public TestBuilder baselineTolerancesForItemsSketch(Map<String, DremioTestWrapper.BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap) {
+    this.baselineValuesForItemsSketchMap = baselineValuesForItemsSketchMap;
+    return this;
+  }
+
 
   /**
    * This can be used in cases where we want to avoid issues with the assumptions made by the test framework.
@@ -392,7 +401,7 @@ public class TestBuilder {
   // provide a SQL query to validate against
   public BaselineQueryTestBuilder sqlBaselineQuery(Object baselineQuery) {
     return new BaselineQueryTestBuilder(baselineQuery, UserBitShared.QueryType.SQL, allocator, query, queryType, ordered, approximateEquality,
-      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
   public BaselineQueryTestBuilder sqlBaselineQuery(String query, String ...replacements) {
@@ -403,7 +412,7 @@ public class TestBuilder {
   public BaselineQueryTestBuilder sqlBaselineQueryFromFile(String baselineQueryFilename) throws IOException {
     String baselineQuery = BaseTestQuery.getFile(baselineQueryFilename);
     return new BaselineQueryTestBuilder(baselineQuery, UserBitShared.QueryType.SQL, allocator, query, queryType, ordered, approximateEquality,
-      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
   // as physical plans are verbose, this is the only option provided for specifying them, we should enforce
@@ -411,7 +420,7 @@ public class TestBuilder {
   public BaselineQueryTestBuilder physicalPlanBaselineQueryFromFile(String baselinePhysicalPlanPath) throws IOException {
     String baselineQuery = BaseTestQuery.getFile(baselinePhysicalPlanPath);
     return new BaselineQueryTestBuilder(baselineQuery, UserBitShared.QueryType.PHYSICAL, allocator, query, queryType, ordered, approximateEquality,
-      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap);
+      baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison, expectedNumBatches, baselineValuesForTDigestMap, baselineValuesForItemsSketchMap);
   }
 
   private String getDecimalPrecisionScaleInfo(MajorType type) {
@@ -442,9 +451,10 @@ public class TestBuilder {
     CSVTestBuilder(String baselineFile, BufferAllocator allocator, Object query, UserBitShared.QueryType queryType, Boolean ordered,
                    boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                    String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                   int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances) {
+                   int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances,
+                   Map<String, DremioTestWrapper.BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap) {
       super(allocator, query, queryType, ordered, approximateEquality, baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries,
-        highPerformanceComparison, expectedNumBatches, baselineTolerances);
+        highPerformanceComparison, expectedNumBatches, baselineTolerances, baselineValuesForItemsSketchMap);
       this.baselineFilePath = baselineFile;
     }
 
@@ -533,7 +543,7 @@ public class TestBuilder {
 
     SchemaTestBuilder(BufferAllocator allocator, Object query, UserBitShared.QueryType queryType,
                       String baselineOptionSettingQueries, String testOptionSettingQueries, List<Pair<SchemaPath, MajorType>> expectedSchema) {
-      super(allocator, query, queryType, false, false, null, baselineOptionSettingQueries, testOptionSettingQueries, false, -1, null);
+      super(allocator, query, queryType, false, false, null, baselineOptionSettingQueries, testOptionSettingQueries, false, -1, null, null);
       expectsEmptyResultSet();
       this.expectedSchema = expectedSchema;
     }
@@ -575,9 +585,10 @@ public class TestBuilder {
     JSONTestBuilder(String baselineFile, BufferAllocator allocator, Object query, UserBitShared.QueryType queryType, Boolean ordered,
                     boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                     String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                    int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances) {
+                    int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances,
+                    Map<String, DremioTestWrapper.BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap) {
       super(allocator, query, queryType, ordered, approximateEquality, baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries,
-        highPerformanceComparison, expectedNumBatches, baselineTolerances);
+        highPerformanceComparison, expectedNumBatches, baselineTolerances, baselineValuesForItemsSketchMap);
       this.baselineFilePath = baselineFile;
       this.baselineColumns = new String[]{"*"};
     }
@@ -608,9 +619,10 @@ public class TestBuilder {
                              Object query, UserBitShared.QueryType queryType, Boolean ordered,
                              boolean approximateEquality, Map<SchemaPath, MajorType> baselineTypeMap,
                              String baselineOptionSettingQueries, String testOptionSettingQueries, boolean highPerformanceComparison,
-                             int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances) {
+                             int expectedNumBatches, Map<String, DremioTestWrapper.BaselineValuesForTDigest> baselineTolerances,
+                             Map<String, DremioTestWrapper.BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap) {
       super(allocator, query, queryType, ordered, approximateEquality, baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries,
-        highPerformanceComparison, expectedNumBatches, baselineTolerances);
+        highPerformanceComparison, expectedNumBatches, baselineTolerances, baselineValuesForItemsSketchMap);
       this.baselineQuery = baselineQuery;
       this.baselineQueryType = baselineQueryType;
     }

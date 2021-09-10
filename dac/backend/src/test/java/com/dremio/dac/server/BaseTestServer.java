@@ -106,6 +106,7 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
@@ -154,6 +155,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   private static final String API_LOCATION = "apiv2";
   private static final String PUBLIC_API_LOCATION = "api";
+  private static final String SCIM_V2_API_LOCATION = "scim/v2";
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   protected static final String DEFAULT_PASSWORD = SampleDataPopulator.PASSWORD;
 
@@ -269,6 +271,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static WebTarget masterApiV2;
   private static WebTarget publicAPI;
   private static WebTarget masterPublicAPI;
+  private static WebTarget scimV2API;
   private static DACDaemon executorDaemon;
   private static DACDaemon currentDremioDaemon;
   private static DACDaemon masterDremioDaemon;
@@ -294,6 +297,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static WebTarget getAPIv2() {
     return apiV2;
+  }
+
+  protected static WebTarget getScimAPIv2() {
+    return scimV2API;
   }
 
   protected static WebTarget getMetricsEndpoint() {
@@ -404,6 +411,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
     metricsEndpoint = livenessServiceTarget.path("metrics");
     apiV2 = rootTarget.path(API_LOCATION);
     publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
+    scimV2API = rootTarget.path(SCIM_V2_API_LOCATION);
     if (isMultinode()) {
       masterApiV2 = client.target("http://localhost:" + masterDremioDaemon.getWebServer().getPort()).path(API_LOCATION);
       masterPublicAPI = client.target("http://localhost:" + masterDremioDaemon.getWebServer().getPort()).path(PUBLIC_API_LOCATION);
@@ -652,6 +660,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   @AfterClass
   public static void close() throws Exception {
+    if (dremioBinder == null) {
+      return;
+    }
     try (TimedBlock b = Timer.time("BaseTestServer.@AfterClass")) {
 
       await().atMost(Duration.ofSeconds(50))
@@ -694,10 +705,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
     this.setUls(expectSuccess(getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)), UserLoginSession.class));
   }
 
-  protected Invocation.Builder getBuilder(WebTarget webTarget) {
-    return webTarget.request(JSON).header(getAuthHeaderName(), getAuthHeaderValue());
-  }
-
   protected static SampleDataPopulator getPopulator(){
     return populator;
   }
@@ -710,14 +717,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return "_dremio" + getUls().getToken();
   }
 
-
-  protected Invocation.Builder getBuilder(String apiUrl){
-    return client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort() + "/" + API_LOCATION + apiUrl)
-        .request(JSON).header(getAuthHeaderName(), getAuthHeaderValue());
+  protected Invocation.Builder getBuilder(WebTarget webTarget) {
+    return webTarget.request(JSON).header(getAuthHeaderName(), getAuthHeaderValue());
   }
 
-  protected Invocation.Builder getBuilder(WebTarget webTarget, String authorizationToken) {
-    return webTarget.request(JSON).header(getAuthHeaderName(), "_dremio" + authorizationToken);
+  protected Invocation.Builder getBuilder(String apiUrl){
+    return getBuilder(client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort()
+      + "/" + API_LOCATION + apiUrl));
   }
 
   public static void assertContains(String expectedContains, String string) {
@@ -1101,4 +1107,17 @@ public abstract class BaseTestServer extends BaseClientUtils {
     setSystemOption(optionName, optionValue);
     return () -> resetSystemOption(optionName);
   }
+
+  protected static AutoCloseable enableIcebergTables() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG.getOptionName(), "true");
+    setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(), "true");
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_ICEBERG.getOptionName(),
+        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(),
+        ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
+
 }

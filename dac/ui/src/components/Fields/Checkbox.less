@@ -21,7 +21,7 @@
   position: relative;
   align-items: center; // This looks off in FF<=50 (DX-8124) - but resolving messes up the latest versions of browsers
   margin-top: 6px;
-  
+
   :global(.checked) {
     border: 1px solid @BLUE;
     background-color: @BLUE;
@@ -50,7 +50,7 @@
   min-width: 0; // flex gives children min width auto. Override so parent label can control size.
 }
 
-.dummy {
+.customCheckBox {
   @size: 18px;
   flex-shrink: 0;
   text-align: center;
@@ -59,18 +59,16 @@
   height: @size;
   line-height: 16px;
   margin: 0 4px 0 0;
-  border: 1px solid #d0d0d0;
-  border-radius: 1px;
-  background: #fff;
+  border: 1px solid @fordGray;
   vertical-align: text-bottom
 }
 
-input:focus ~ .dummy {
+input:focus ~ .customCheckBox {
   outline: 1px dotted @GREY
 }
 
 .checkbox-standalone {
-  .dummy {
+  .customCheckBox {
     margin-top: -1px;
     align-self: baseline;
   }

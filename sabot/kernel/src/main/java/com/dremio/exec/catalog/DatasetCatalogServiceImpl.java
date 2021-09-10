@@ -15,19 +15,31 @@
  */
 package com.dremio.exec.catalog;
 
+import java.io.IOException;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.DatasetSplitAffinity;
+import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.catalog.AddOrUpdateDatasetRequest;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc;
 import com.dremio.service.catalog.GetDatasetRequest;
 import com.dremio.service.catalog.OperationType;
 import com.dremio.service.catalog.UpdatableDatasetConfigFields;
+import com.dremio.service.namespace.DatasetMetadataSaver;
+import com.dremio.service.namespace.MetadataProtoUtils;
+import com.dremio.service.namespace.NamespaceAttribute;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceInvalidStateException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -35,6 +47,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetCommonProtobuf;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
@@ -42,6 +55,8 @@ import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileProtobuf;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.namespace.proto.EntityId;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Empty;
@@ -59,11 +74,12 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DatasetCatalogServiceImpl.class);
 
   private final Provider<CatalogService> catalogServiceProvider;
-  private final Provider<NamespaceService> namespaceServiceProvider;
+  private final Provider<NamespaceService.Factory> namespaceServiceFactoryProvider;
 
-  public DatasetCatalogServiceImpl(Provider<CatalogService> catalogServiceProvider, Provider<NamespaceService> namespaceServiceProvider) {
+  public DatasetCatalogServiceImpl(Provider<CatalogService> catalogServiceProvider,
+                                   Provider<NamespaceService.Factory> namespaceServiceFactoryProvider) {
     this.catalogServiceProvider = catalogServiceProvider;
-    this.namespaceServiceProvider = namespaceServiceProvider;
+    this.namespaceServiceFactoryProvider = namespaceServiceFactoryProvider;
   }
 
   /**
@@ -90,7 +106,8 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
 
       final NamespaceKey name = new NamespaceKey(request.getDatasetPathList());
 
-      final boolean datasetExists = namespaceServiceProvider.get().exists(name);
+      final NamespaceService namespaceService = namespaceServiceFactoryProvider.get().get(SystemUser.SYSTEM_USERNAME);
+      final boolean datasetExists = namespaceService.exists(name, NameSpaceContainer.Type.DATASET);
 
       if (request.getOperationType() == OperationType.UPDATE && !datasetExists) {
         // Note that if the caller used an UPDATE operation, and the dataset does not exist, and if they previously called
@@ -104,7 +121,7 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
         // We throw a CME here to indicate that the caller needs to retry to read-update-write sequence again.
         throw new ConcurrentModificationException("Tried to create a dataset that already exists.");
       }
-      DatasetConfig config = datasetExists ? namespaceServiceProvider.get().getDataset(name) : null;
+      DatasetConfig config = datasetExists ? namespaceService.getDataset(name) : null;
 
       if (datasetExists && !request.getDatasetConfig().getTag().equals(config.getTag())) {
         throw new ConcurrentModificationException("Tag mismatch when updating dataset.");
@@ -114,22 +131,36 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
       // 1. The dataset already exists and the request is updating the read definition and/or the schema.
       // 2. The dataset is new.
       // Short-circuit if the request is just updating the schema on an existing dataset.
-      final ReadDefinition resultReadDefinition;
       if (!datasetExists) {
-        Preconditions.checkArgument(request.getDatasetConfig().hasFileFormat(), "FileFormat must be supplied for new datasets.");
         Preconditions.checkArgument(request.getDatasetConfig().hasBatchSchema(), "BatchSchema must be supplied for new datasets.");
         Preconditions.checkArgument(request.getDatasetConfig().hasDatasetType(), "DatasetType must be supplied for new datasets.");
 
-        resultReadDefinition = new ReadDefinition();
         config = new DatasetConfig();
+        config.setId(new EntityId(UUID.randomUUID().toString()));
+        config.setName(request.getDatasetPathList().get(request.getDatasetPathList().size() - 1));
+      }
 
+      ReadDefinition resultReadDefinition = config.getReadDefinition();
+      if (resultReadDefinition == null) {
+        resultReadDefinition = new ReadDefinition();
+      }
+
+      // Its possible to not have file Format when we are storing hive dataset in v2 metadata flow
+      FileConfig fileConfig = null;
+      if(request.getDatasetConfig().hasFileFormat()) {
+        fileConfig = toProtoStuff(request.getDatasetPathList(), request.getDatasetConfig().getFileFormat());
+      }
+
+      if (!datasetExists || config.getPhysicalDataset() == null || config.getPhysicalDataset().getFormatSettings() == null ||
+        !Boolean.valueOf(request.getDatasetConfig().getIcebergMetadataEnabled()).equals(config.getPhysicalDataset().getIcebergMetadataEnabled())) {
         final PhysicalDataset physicalDataset = new PhysicalDataset();
-        final FileConfig fileConfig = toProtoStuff(request.getDatasetPathList(), request.getDatasetConfig().getFileFormat());
-        physicalDataset.setFormatSettings(fileConfig);
+        if (fileConfig != null) {
+          physicalDataset.setFormatSettings(fileConfig);
+        }
+        physicalDataset.setIcebergMetadataEnabled(Boolean.TRUE.equals(request.getDatasetConfig().getIcebergMetadataEnabled()));
         config.setPhysicalDataset(physicalDataset);
         config.setType(DatasetType.valueOf(request.getDatasetConfig().getDatasetType().getNumber()));
-      } else {
-        resultReadDefinition = config.getReadDefinition();
+        config.setFullPathList(request.getDatasetPathList());
       }
 
       if (request.getDatasetConfig().hasReadDefinition()) {
@@ -139,36 +170,85 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
       if (request.getDatasetConfig().hasBatchSchema()) {
         config.setRecordSchema(ByteStringUtil.wrap(request.getDatasetConfig().getBatchSchema().toByteArray()));
       }
-      catalog.addOrUpdateDataset(name, config);
 
+      // Update icebergMetadata that contains root pointer and snapshot version
+      if (request.getDatasetConfig().getIcebergMetadataEnabled()) {
+        Preconditions.checkState(request.getDatasetConfig().hasIcebergMetadata(), "Unexpected state");
+        com.dremio.service.namespace.dataset.proto.IcebergMetadata icebergMetadata =
+                new com.dremio.service.namespace.dataset.proto.IcebergMetadata();
+        DatasetCommonProtobuf.IcebergMetadata metadata = request.getDatasetConfig().getIcebergMetadata();
+        icebergMetadata.setMetadataFileLocation(metadata.getMetadataFileLocation());
+        icebergMetadata.setSnapshotId(metadata.getSnapshotId());
+        icebergMetadata.setTableUuid(metadata.getTableUuid());
+
+        String partitionStatsFile = metadata.getPartitionStatsFile();
+        if (partitionStatsFile != null) {
+          icebergMetadata.setPartitionStatsFile(partitionStatsFile);
+        }
+        config.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      }
+
+      saveDataset(namespaceService, catalog, request.getDatasetConfig(), name, config);
       responseObserver.onNext(Empty.newBuilder().build());
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
       logger.error("IllegalArgumentException", e);
-      responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asException());
+      responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).withDescription(e.getMessage()).asException());
     } catch (NamespaceNotFoundException e) {
       logger.error("NamespaceNotFoundException", e);
-      responseObserver.onError(Status.NOT_FOUND.withCause(e).asException());
+      responseObserver.onError(Status.NOT_FOUND.withCause(e).withDescription(e.getMessage()).asException());
     } catch (NamespaceInvalidStateException e) {
       logger.error("NamespaceInvalidStateException", e);
-      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+      responseObserver.onError(Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asException());
     } catch (ConcurrentModificationException e) {
       logger.error("ConcurrentModificationException", e);
-      responseObserver.onError(Status.ABORTED.withCause(e).asException());
+      responseObserver.onError(Status.ABORTED.withCause(e).withDescription(e.getMessage()).asException());
     } catch (UserException e) {
       logger.error("UserException", e);
       switch (e.getErrorType()) {
         case CONCURRENT_MODIFICATION:
         case INVALID_DATASET_METADATA:
-          responseObserver.onError(Status.ABORTED.withCause(e).asException());
+          responseObserver.onError(Status.ABORTED.withCause(e).withDescription(e.getMessage()).asException());
           break;
         default:
-          responseObserver.onError(Status.UNKNOWN.withCause(e).asException());
+          responseObserver.onError(Status.UNKNOWN.withCause(e).withDescription(e.getMessage()).asException());
       }
     } catch (Exception e) {
       logger.error("Exception", e);
-      responseObserver.onError(Status.UNKNOWN.withCause(e).asException());
+      responseObserver.onError(Status.UNKNOWN.withCause(e).withDescription(e.getMessage()).asException());
     }
+  }
+
+  private void saveDataset(NamespaceService namespaceService, DatasetCatalog catalog, UpdatableDatasetConfigFields datasetConfigFields,
+                           NamespaceKey namespaceKey, DatasetConfig config) throws NamespaceException, IOException {
+    if (!datasetConfigFields.hasPartitionChunk()) {
+      catalog.addOrUpdateDataset(namespaceKey, config);
+      return;
+    }
+
+    final PartitionProtobuf.PartitionChunk partitionChunkProto = datasetConfigFields.getPartitionChunk();
+    final PartitionProtobuf.DatasetSplit splitProto = partitionChunkProto.getDatasetSplit();
+
+    final List<PartitionValue> partition = partitionChunkProto.getPartitionValuesList().stream()
+            .map(MetadataProtoUtils::fromProtobuf).collect(Collectors.toList());
+    final List<DatasetSplitAffinity> affinities = splitProto.getAffinitiesList().stream()
+            .map(a -> DatasetSplitAffinity.of(a.getHost(), a.getFactor())).collect(Collectors.toList());
+    final DatasetSplit datasetSplit = DatasetSplit.of(affinities, splitProto.getSize(), splitProto.getRecordCount(),
+            splitProto.getSplitExtendedProperty()::writeTo);
+    final PartitionChunkListingImpl partitionChunkListing = new PartitionChunkListingImpl();
+    partitionChunkListing.put(partition, datasetSplit);
+    partitionChunkListing.computePartitionChunks();
+    final PartitionChunk partitionChunk = partitionChunkListing.iterator().next();
+
+    // TODO: Get split compression and partition chunks from support options.
+    final DatasetMetadataSaver saver = namespaceService.newDatasetMetadataSaver(
+            namespaceKey, config.getId(), NamespaceService.SplitCompression.SNAPPY, 500L,
+            false);
+    saver.saveDatasetSplit(datasetSplit);
+    saver.savePartitionChunk(partitionChunk);
+
+    saver.saveDataset(config, false, new NamespaceAttribute[0]);
+    logger.info("Saving partition chunk {}", partitionChunk);
   }
 
   /**
@@ -191,7 +271,7 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
     logger.debug("Request received: {}", request);
     try {
       Preconditions.checkArgument(!request.getDatasetPathList().isEmpty());
-      final DatasetConfig config = namespaceServiceProvider.get().getDataset(new NamespaceKey(request.getDatasetPathList()));
+      final DatasetConfig config = namespaceServiceFactoryProvider.get().get(SystemUser.SYSTEM_USERNAME).getDataset(new NamespaceKey(request.getDatasetPathList()));
 
       final UpdatableDatasetConfigFields.Builder resultBuilder = UpdatableDatasetConfigFields.newBuilder()
         .setDatasetType(DatasetCommonProtobuf.DatasetType.forNumber(config.getType().getNumber()))

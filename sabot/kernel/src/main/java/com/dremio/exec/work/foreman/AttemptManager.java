@@ -231,6 +231,10 @@ public class AttemptManager implements Runnable {
     return state;
   }
 
+  protected QueryContext getQueryContext() {
+    return queryContext;
+  }
+
   public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) {
     if(data != null){
       // we're going to send this some place, we need increment to ensure this is around long enough to send.
@@ -326,6 +330,15 @@ public class AttemptManager implements Runnable {
     queryContext.getExecutionControls().unpauseAll();
   }
 
+  /**
+   * Checks for required privileges on the Engine before running query.
+   * @param groupResourceInformation
+   * @throws UserException
+   */
+  protected void checkRunQueryAccessPrivilege(GroupResourceInformation groupResourceInformation) throws UserException {
+    return;
+  }
+
   @Override
   public void run() {
     // rename the thread we're using for debugging purposes
@@ -349,6 +362,9 @@ public class AttemptManager implements Runnable {
       final GroupResourceInformation groupResourceInformation =
         maestroService.getGroupResourceInformation(queryContext.getOptions(), resourceSchedulingProperties);
       queryContext.setGroupResourceInformation(groupResourceInformation);
+
+      // Checks for Run Query privileges for the selected Engine
+      checkRunQueryAccessPrivilege(groupResourceInformation);
 
       // planning is done in the command pool
       commandPool.submit(CommandPool.Priority.LOW, attemptId.toString() + ":foreman-planning",
@@ -384,6 +400,11 @@ public class AttemptManager implements Runnable {
         ForemanException.class);
     } catch (ResourceUnavailableException e) {
       // resource allocation failure is treated as a cancellation and not a failure
+      try {
+        // the caller (JobEventCollatingObserver) expects metadata event before a cancel/complete event.
+        observer.planCompleted(null);
+      } catch (Exception ignore) {
+      }
       profileTracker.setCancelReason(e.getMessage());
       moveToState(QueryState.CANCELED, null); // ENQUEUED/STARTING -> CANCELED transition
     } catch (final UserException | ForemanException e) {
@@ -694,7 +715,9 @@ public class AttemptManager implements Runnable {
         }
 
         try {
-          command.close();
+          if (command != null) {
+            command.close();
+          }
         } catch (final Exception e) {
           logger.error("Exception while invoking 'close' on command {}", command, e);
         } finally {

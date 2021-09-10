@@ -35,11 +35,13 @@ public class DirListingGroupScan extends AbstractGroupScan {
 
   private final StoragePluginId storagePluginId;
   private final BatchSchema schema;
+  private final boolean allowRecursiveListing;
 
-  public DirListingGroupScan(OpProps props, TableMetadata dataset, BatchSchema schema, List<SchemaPath> columns, StoragePluginId pluginId) {
+  public DirListingGroupScan(OpProps props, TableMetadata dataset, BatchSchema schema, List<SchemaPath> columns, StoragePluginId pluginId, boolean allowRecursiveListing) {
       super(props, dataset, columns);
       this.storagePluginId = pluginId;
       this.schema = schema;
+      this.allowRecursiveListing = allowRecursiveListing;
   }
 
   @Override
@@ -51,7 +53,7 @@ public class DirListingGroupScan extends AbstractGroupScan {
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
       final List<SplitAndPartitionInfo> splits = work.stream().map(SplitWork::getSplitAndPartitionInfo)
               .collect(Collectors.toList());
-      return new DirListingSubScan(props, splits, getReferencedTables(), columns, schema, getTableSchema(), storagePluginId, /* TODO: For Hive plugin make this configurable */true);
+      return new DirListingSubScan(props, splits, getReferencedTables(), columns, schema, getTableSchema(), storagePluginId, /* TODO: For Hive plugin make this configurable */allowRecursiveListing);
   }
 
   @Override

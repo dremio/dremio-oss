@@ -36,6 +36,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -43,10 +44,13 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -69,6 +73,9 @@ public class ITTestAllDataTypes extends ElasticBaseTestQuery {
       SPECIAL_COLUMNS_FOR_SQL[i] = "\"" + SPECIAL_COLUMNS[i].replace("\"", "\"\"") + "\"";
     }
   }
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void loadTable() throws IOException, ParseException {

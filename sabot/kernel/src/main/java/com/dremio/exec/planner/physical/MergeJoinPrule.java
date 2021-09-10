@@ -98,8 +98,8 @@ public class MergeJoinPrule extends JoinPruleBase {
     RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(collationRight).plus(DistributionTrait.BROADCAST);
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
-    call.transformTo(PrelUtil.addPartialProjectOnJoin(MergeJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
-        join.getJoinType()), join.getProjectedFields()));
+    call.transformTo(MergeJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
+        join.getJoinType()));
   }
 
   private RelCollation getCollation(List<Integer> keys){
@@ -123,8 +123,8 @@ public class MergeJoinPrule extends JoinPruleBase {
     final RelNode convertedRight = convert(right, traitsRight);
 
     call.transformTo(
-      PrelUtil.addPartialProjectOnJoin(MergeJoinPrel.create(join.getCluster(), traitsLeft /* traits need to be consistent with row type */,
+      MergeJoinPrel.create(join.getCluster(), traitsLeft /* traits need to be consistent with row type */,
       convertedLeft, convertedRight, join.getCondition(),
-      join.getJoinType()), join.getProjectedFields()));
+      join.getJoinType()));
   }
 }

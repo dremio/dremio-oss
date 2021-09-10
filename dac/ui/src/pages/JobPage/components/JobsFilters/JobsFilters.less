@@ -13,9 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ @import "~@app/uiTheme/less/color-schema.less";
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .filters-header {
+    height: 56px !important;
+    background-color: @alice-blue !important;
+    font-size: 14px;
+    font-style: normal;
+    line-height: 20px;
+    font-weight: 600;
+    color: @greyish-blue;
     & > div {
       position: relative;
       &:not(:last-child)::after{
@@ -27,12 +35,49 @@
         margin: auto;
         height: 17px;
         width: 1px;
-        background: rgba(0,0,0,.1);
+        background: @black-russian;
       }
     }
+    &__showHideWrapper {
+      padding-right: 13px;
+      margin-left: auto;
+      width: 100px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    &__containsTextWrapper {
+      padding-right: 20px;
+    }
+  }
+  .jobsFilters {
+    &__checkBox {
+      border-radius: 50px;
+      background: @gainsboro;
+    }
+    &__label {
+      border-bottom: 0.75px solid @alto;
+    }
+  }
+  .popoverFilters {
+    margin-top: 20px;
+  }
+  .containsTextClass {
+    height: 32px;
+    width: 256px;
+    &__searchIconClass {
+      height: 30px;
+    }
+  }
+  .ellipsedTextClass {
+    font-weight: normal;
+    font-style: normal;
+    font-size: 14px;
+    line-height: 20px;
+    color: @pale-sky;
   }
 }
-
 .dd-sort {
   width: auto;
   background: transparent;
@@ -40,7 +85,6 @@
   padding: 0;
   margin-right: 10px;
 }
-
 .dd-sort-list {
   margin-left: -16px;
   width: 120px !important

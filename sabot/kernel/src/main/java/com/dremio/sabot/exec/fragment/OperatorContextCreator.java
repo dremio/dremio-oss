@@ -28,6 +28,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -61,6 +62,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private BufferAllocator fragmentOutputAllocator;
   private final CodeCompiler compiler;
   private final SabotConfig config;
+  private final DremioConfig dremioConfig;
   private final FragmentHandle handle;
   private final ExecutionControls executionControls;
   private final FunctionLookupContext funcRegistry;
@@ -80,7 +82,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private List<MinorFragmentEndpoint> minorFragmentEndpoints;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
-                                SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
+                                SabotConfig config, DremioConfig dremioConfig, FragmentHandle handle, ExecutionControls executionControls,
                                 FunctionLookupContext funcRegistry, FunctionLookupContext decimalFuncRegistry,
                                 NamespaceService namespaceService, OptionManager options, FragmentExecutorBuilder fragmentExecutorBuilder,
                                 ExecutorService executor, SpillService spillService, ContextInformation contextInformation,
@@ -91,6 +93,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     super();
     this.stats = stats;
     this.allocator = allocator;
+    this.dremioConfig = dremioConfig;
     this.nodeEndpointProvider = nodeEndpointProvider;
     this.fragmentOutputAllocator = null;
     this.compiler = compiler;
@@ -142,6 +145,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
       }
       OperatorContextImpl context = new OperatorContextImpl(
         config,
+        dremioConfig,
         handle,
         popConfig,
         operatorAllocator,

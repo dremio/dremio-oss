@@ -32,6 +32,7 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
@@ -168,6 +169,17 @@ class SourceAccessChecker implements Catalog {
     Map<String, Object> storageOptions) {
     throwIfInvisible(key);
     return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions);
+  }
+
+  @Override
+  public CreateTableEntry createNewTable(
+    NamespaceKey key,
+    IcebergTableProps icebergTableProps,
+    WriterOptions writerOptions,
+    Map<String, Object> storageOptions,
+    boolean isResultsTable) {
+    throwIfInvisible(key);
+    return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions, isResultsTable);
   }
 
   @Override
@@ -384,6 +396,13 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public boolean alterColumnOption(final NamespaceKey key, String columnToChange,
+                            final String attributeName, final AttributeValue attributeValue) {
+    throwIfInvisible(key);
+    return delegate.alterColumnOption(key, columnToChange, attributeName, attributeValue);
+  }
+
+  @Override
   public Iterator<com.dremio.service.catalog.Catalog> listCatalogs(SearchQuery searchQuery) {
     return delegate.listCatalogs(searchQuery);
   }
@@ -406,5 +425,10 @@ class SourceAccessChecker implements Catalog {
   @Override
   public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
     return delegate.listTableSchemata(searchQuery);
+  }
+
+  @Override
+  public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    return delegate.getColumnExtendedProperties(table);
   }
 }

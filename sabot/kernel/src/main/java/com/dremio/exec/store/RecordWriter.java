@@ -16,15 +16,20 @@
 package com.dremio.exec.store;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
 
 /**
  * Record writer interface for writing a record batch to persistent storage.
@@ -39,6 +44,7 @@ public interface RecordWriter extends AutoCloseable {
   String RECORDS_COLUMN = "Records";
   String ICEBERG_METADATA_COLUMN = "IcebergMetadata";
   String FILE_SCHEMA_COLUMN = "fileschema";
+  String PARTITION_DATA_COLUMN = "PartitionData";
 
   BatchSchema SCHEMA = BatchSchema.newBuilder()
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
@@ -49,6 +55,8 @@ public interface RecordWriter extends AutoCloseable {
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILESIZE_COLUMN, Types.optional(MinorType.BIGINT)))
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(ICEBERG_METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA_COLUMN, Types.optional(MinorType.VARBINARY)))
+      .addField(new Field(PARTITION_DATA_COLUMN, FieldType.nullable(CompleteType.LIST.getType()), Collections.singletonList(
+        Field.nullable("$data$", CompleteType.VARBINARY.getType()))))
       .setSelectionVectorMode(SelectionVectorMode.NONE)
       .build();
 
@@ -60,6 +68,7 @@ public interface RecordWriter extends AutoCloseable {
   Field FILESIZE = SCHEMA.getColumn(5);
   Field ICEBERG_METADATA = SCHEMA.getColumn(6);
   Field FILE_SCHEMA = SCHEMA.getColumn(7);
+  Field PARTITION_DATA = SCHEMA.getColumn(8);
 
   /**
    *
@@ -101,7 +110,7 @@ public interface RecordWriter extends AutoCloseable {
    */
   interface OutputEntryListener {
     void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber,
-                        byte[] icebergMetadata, byte[] schema);
+                        byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partition);
   }
 
   /**

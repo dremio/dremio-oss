@@ -15,69 +15,21 @@
  */
 import React from 'react';
 import PropTypes from 'prop-types';
-import clsx from 'clsx';
-import get from 'lodash.get';
 
-import FormValidationMessage from '../FormValidationMessage';
-import Label from '../Label';
-
-import './formikInput.scss';
+import Input from '../Input';
 
 const FormikInput = (props) => {
 
   const {
-    label,
-    labelStyle,
-    classes = {},
-    disabled,
     field,
-    field: {
-      name
-    },
-    form: {
-      errors,
-      touched
-    },
-    hideError,
-    prefix,
     ...otherProps
   } = props;
 
-  const hasError = get(touched, name) && get(errors, name);
-  const showError = !hideError && hasError;
-
-  const rootClass = clsx('input-root', { [classes.root]: classes.root });
-  const containerClass = clsx(
-    'input__container',
-    { '--disabled': disabled },
-    { '--error': hasError }
-  );
-  const inputClass = clsx({ [classes.input]: classes.input });
-
   return (
-    <div className={rootClass}>
-      {label && <Label
-        value={label}
-        className={classes.label}
-        style={labelStyle}
-        id={`input-label-${name}`}
-      />}
-      <div className={containerClass}>
-        {prefix && <span className='input__prefix'>{prefix}</span>}
-        <input
-          className={inputClass}
-          aria-labelledby={`input-label-${name}`}
-          disabled={disabled}
-          {...field}
-          {...otherProps}
-        />
-      </div>
-      {showError && (
-        <FormValidationMessage className='input__validationError' id={`input-error-${name}`}>
-          {get(errors, name)}
-        </FormValidationMessage>
-      )}
-    </div>
+    <Input
+      {...field}
+      {...otherProps}
+    />
   );
 };
 

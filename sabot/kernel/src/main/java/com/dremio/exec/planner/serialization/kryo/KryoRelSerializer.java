@@ -122,6 +122,10 @@ public class KryoRelSerializer {
     }
   }
 
+  public Kryo getKryo() {
+    return kryo;
+  }
+
   SerializerContext getContext() {
     return context;
   }

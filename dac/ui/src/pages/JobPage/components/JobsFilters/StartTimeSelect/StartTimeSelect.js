@@ -16,22 +16,27 @@
 import { Component } from 'react';
 import Immutable from 'immutable';
 import moment from 'moment';
+import { injectIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 import { SelectView } from '@app/components/Fields/SelectView';
 import * as IntervalTypes from './IntervalTypes';
 import LeftPanel from './LeftPanel';
 import RightPanel from './RightPanel';
-
-export default class StartTimeSelect extends Component {
+class StartTimeSelect extends Component {
   static propTypes = {
     id: PropTypes.string.isRequired,
     startTime: PropTypes.number,
     endTime: PropTypes.number,
     defaultType: PropTypes.string,
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired,
+    popoverFilters: PropTypes.string,
+
+    className: PropTypes.string
   };
 
   getLabel = () => {
+    const { intl: { formatMessage }, className } = this.props;
     const selectedInterval = this.getSelectedInterval();
     const selectedType = this.getActiveTimeType(selectedInterval);
     const options = this.getOptions(selectedInterval);
@@ -47,8 +52,12 @@ export default class StartTimeSelect extends Component {
       return `Custom (${rangeText})`;
     }
     return (!selectedInterval || selectedType === IntervalTypes.ALL_TIME_INTERVAL)
-      ? `Start Time : ${selectedInterval.get('label')}`
-      : selectedInterval.get('label');
+      && <div>
+        <span>{formatMessage({ id: 'Common.StartTime' })} </span>
+        <span className={className}>
+          {selectedInterval.get('label')}
+        </span>
+      </div>;
   }
 
   getOptions(selectedInterval) {
@@ -104,7 +113,7 @@ export default class StartTimeSelect extends Component {
         />
         <RightPanel
           handleChange={this.handleChange}
-          options={options}/>
+          options={options} />
       </div>
     );
   }
@@ -112,26 +121,29 @@ export default class StartTimeSelect extends Component {
   render() {
     return (
       <SelectView
+        popoverFilters={this.props.popoverFilters}
         ref='selectView'
         className={this.props.id}
         content={this.getLabel}
+        dataQa='st-filter'
       >
         {this.renderDropdown}
       </SelectView>
     );
   }
 }
-
+export default injectIntl(StartTimeSelect);
 const style = {
   dropDown: {
     boxShadow: '0 0 5px #999',
     borderRadius: '2px',
     backgroundColor: '#fff',
-    overflow: 'hidden',
     zIndex: '99',
     padding: '0 0 8px',
     display: 'flex',
-    flexWrap: 'nowrap'
+    flexWrap: 'nowrap',
+    minHeight: '290px',
+    fontFamily: 'Inter var'
   }
 };
 

@@ -48,3 +48,47 @@ export const CLIENT_TOOL_ID = {
   qlik: 'client.tools.qlik',
   qlikEnabled: 'support.dac.qlik'
 };
+
+export const TableColumns = [
+  { key: 'jobStatus', id: 'jobStatus', label: '', disableSort: true, isSelected: true, width: 20, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: true },
+  { key: 'job', id: 'job', label: 'Job ID', disableSort: false, isSelected: true, width: 122, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'usr', id: 'usr', label: 'User', disableSort: false, isSelected: true, width: 167, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'ds', id: 'ds', label: 'Dataset', disableSort: false, isSelected: true, width: 205, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'qt', id: 'qt', label: 'Query Type', disableSort: true, width: 113, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  //{ key: 'engine', id: 'engine', label: 'Engine', disableSort: true, isSelected: true, width: 95, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'qn', id: 'qn', label: 'Queue', disableSort: false, isSelected: true, width: 95, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'st', id: 'st', label: 'Start Time', disableSort: false, width: 152, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'dur', id: 'dur', label: 'Duration', disableSort: false, width: 95, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'sql', id: 'sql', label: 'SQL', disableSort: true, isSelected: true, width: 432, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'cost', id: 'cost', label: 'Cost', disableSort: true, isSelected: false, width: 120, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'planningTime', id: 'planningTime', disableSort: true, isSelected: false, label: 'Planning Time', width: 130, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'rowsScanned', id: 'rowsScanned', disableSort: true, isSelected: false, label: 'Rows Scanned', width: 134, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false },
+  { key: 'rowsReturned', id: 'rowsReturned', disableSort: true, isSelected: false, label: 'Rows Returned', width: 137, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false }
+];
+
+export const ScansForFilter = [
+  { key: 'datasetType', label: 'Scans.SourceType', content: 'Managed Reflection(Parque)' },
+  { key: 'nrScanThreads', label: 'Scans.ScanThread', content: '115' },
+  { key: 'ioWaitDurationMs', label: 'Scans.IoWaitTime', content: '00:00:00.75' },
+  { key: 'nrScannedRows', label: 'Scans.RowScanned', content: '143K' }
+];
+
+export const ReflectionsUsed = [
+  {
+    icon: 'ReflectionsUsed.svg',
+    label: 'Reflection.CustomersRaw',
+    subScript: 'transaction_analysis.base_views.Customers'
+  },
+  {
+    icon: 'ReflectionsUsed.svg',
+    label: 'Reflection.TransactionsRaw',
+    subScript: 'lake_source.incoming_data.transactions'
+  }
+];
+export const ReflectionsNotUsed = [
+  {
+    icon: 'ReflectionsNotUsed.svg',
+    label: 'Reflection.TransactionAgg',
+    subScript: 'lake_source.incoming_data.transactions'
+  }
+];

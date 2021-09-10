@@ -20,6 +20,8 @@ import static java.lang.String.format;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
@@ -29,8 +31,8 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.project.MavenProject;
 
 import com.dremio.fmpp.mojo.MavenDataLoader.MavenData;
+import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
-
 import fmpp.Engine;
 import fmpp.ProgressListener;
 import fmpp.progresslisteners.TerseConsoleProgressListener;
@@ -84,6 +86,11 @@ public class FMPPMojo extends AbstractMojo {
    * @required
    */
   private String scope;
+
+  /**
+   * @parameter
+   */
+  private String data;
 
   /**
    * if maven properties are added as data
@@ -152,10 +159,20 @@ public class FMPPMojo extends AbstractMojo {
           }
         }
       } );
+      List<String> dataValues = new ArrayList<>();
       if (addMavenDataLoader) {
         getLog().info("Adding maven data loader");
         settings.setEngineAttribute(MavenDataLoader.MAVEN_DATA_ATTRIBUTE, new MavenData(project));
-        settings.add(Settings.NAME_DATA, format("maven: %s()", MavenDataLoader.class.getName()));
+        dataValues.add(format("maven: %s()", MavenDataLoader.class.getName()));
+      }
+      if (data != null) {
+        dataValues.add(data);
+      }
+      if(!dataValues.isEmpty()) {
+        String dataString = Joiner.on(",").join(dataValues);
+        getLog().info("Setting data loader "+ dataString);
+
+        settings.add(Settings.NAME_DATA, dataString);
       }
       settings.execute();
     } catch (Exception e) {

@@ -56,7 +56,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
   public static void setup() throws Exception {
     testRootAllocator = RootAllocatorFactory.newRoot(config);
     testAllocator = testRootAllocator.newChildAllocator("test-glb-dict", 0, testRootAllocator.getLimit());
-
+    setSessionOption(ExecConstants.MIXED_TYPES_DISABLED, "false");
     testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     testNoResult("CREATE TABLE dfs_test.globaldictionary AS SELECT * FROM cp.\"globaldictionary.json\"");
     testNoResult("CREATE TABLE dfs_test.places AS SELECT * FROM cp.\"places.json\"");
@@ -80,6 +80,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     fs.delete(tableDirPath1, true);
     fs.delete(tableDirPath2, true);
     AutoCloseables.close(testAllocator, testRootAllocator);
+    resetSessionOption(ExecConstants.MIXED_TYPES_DISABLED);
   }
 
   @Test

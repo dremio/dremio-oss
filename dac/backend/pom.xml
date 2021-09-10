@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>17.0.0-202107060524010627-31b5222b</version>
+    <version>18.0.0-202109101536100970-a32fc9f4</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -81,6 +81,27 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-nessie</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-sysflight</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-sysflight</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-sysflight-plugin</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>

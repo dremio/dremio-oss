@@ -46,12 +46,19 @@ import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.service.users.UserNotFoundException;
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
+
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 
 /**
  * Exception display mapper for rest server.
  */
 class GenericExceptionMapper implements ExceptionMapper<Throwable> {
   private static final Logger logger = LoggerFactory.getLogger(GenericExceptionMapper.class);
+
+  private static final Counter GenericErrorMessageCounter = Metrics.newCounter(Metrics.join("resetapi", "error", "generic"), Metrics.ResetType.NEVER);
 
   private boolean sendStackTraceToClient;
 
@@ -155,6 +162,12 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
       return newGenericErrorMessage(UNAUTHORIZED, throwable, stackTrace);
     }
 
+    if (throwable instanceof StatusRuntimeException) {
+      if (Status.Code.NOT_FOUND.equals(((StatusRuntimeException) throwable).getStatus().getCode())) {
+        return newGenericErrorMessage(NOT_FOUND, throwable, stackTrace);
+      }
+    }
+
     Throwable rootException = ErrorHelper.findWrappedCause(throwable, UserException.class);
     if (rootException != null && rootException.getMessage() == UserException.QUERY_REJECTED_MSG) {
       logger.error("Rejected for {} {} because it exceeded the maximum allowed number of live queries in a single coordinator", request.getMethod(), uriInfo.getRequestUri());
@@ -166,6 +179,7 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
   }
 
   private static Response newGenericErrorMessage(Response.Status status, Throwable cause, String[] stackTrace) {
+    GenericErrorMessageCounter.increment(1);
     return newResponse(status, new GenericErrorMessage(cause.getMessage(), stackTrace));
   }
 

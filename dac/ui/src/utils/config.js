@@ -40,7 +40,6 @@ export default { // defaults, and defaults for unit tests
   intercomAppId: null,
   shouldEnableBugFiling: !isProductionBuild,
   shouldEnableRSOD: !isProductionBuild,
-  showUserAndUserProperties: true,
   supportEmailTo: 'noreply@dremio.com',
   supportEmailSubjectForJobs: '',
   outsideCommunicationDisabled: false,

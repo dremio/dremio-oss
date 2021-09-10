@@ -20,6 +20,7 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
@@ -29,7 +30,9 @@ import com.dremio.exec.store.TableMetadata;
  */
 public interface FilterableScan extends RelNode {
   ScanFilter getFilter();
+  PruneFilterCondition getPartitionFilter();
   FilterableScan applyFilter(ScanFilter scanFilter);
+  FilterableScan applyPartitionFilter(PruneFilterCondition partitionFilter);
   FilterableScan cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns);
   TableMetadata getTableMetadata();
   BatchSchema getBatchSchema();

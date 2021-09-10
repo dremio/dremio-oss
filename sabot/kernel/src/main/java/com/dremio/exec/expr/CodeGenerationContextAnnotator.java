@@ -35,9 +35,12 @@ import com.google.common.collect.Lists;
  */
 public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenContext, Void,
   RuntimeException> {
+  // TODO(ramesh): This is a temporary kludge until the Gandiva patch supporting very large case statements
+  // As this is temporary and will be removed soon (DX-34386 or DX-29559), no support key for this
+  private static final int VERY_LARGE_CASE_THRESHOLD = 400;
 
   private boolean expHasComplexField = false;
-  private boolean expHasCase = false;
+  private boolean expHasVeryLargeCase = false;
 
   @Override
   public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression expr, Void
@@ -121,7 +124,9 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
     if (isMixedMode || elseExpr.isMixedModeExecution()) {
       caseExpr.markSubExprIsMixed();
     }
-    expHasCase = true;
+    if (caseExpression.caseConditions.size() > VERY_LARGE_CASE_THRESHOLD) {
+      expHasVeryLargeCase = true;
+    }
     return caseExpr;
   }
 
@@ -149,7 +154,7 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
     return expHasComplexField;
   }
 
-  public boolean isExpHasCase() {
-    return expHasCase;
+  public boolean isExpHasVeryLargeCase() {
+    return expHasVeryLargeCase;
   }
 }

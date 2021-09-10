@@ -93,6 +93,15 @@ public interface CatalogService extends AutoCloseable, Service {
       .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
       .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
 
+  MetadataPolicy NEVER_REFRESH_POLICY_WITH_PREFETCH_QUERIED = new MetadataPolicy()
+    .setAuthTtlMs(CENTURY_MILLIS)
+    .setDeleteUnavailableDatasets(true)
+    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
+    .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+    .setNamesRefreshMs(CENTURY_MILLIS)
+    .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
+    .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
+
   /**
    * Create the provided source if a source by the provided name doesn't already exist.
    *

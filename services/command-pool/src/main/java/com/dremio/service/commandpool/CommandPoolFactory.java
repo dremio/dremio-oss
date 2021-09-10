@@ -28,13 +28,20 @@ public class CommandPoolFactory {
 
   public static final CommandPoolFactory INSTANCE = new CommandPoolFactory();
 
-  private static final String ENABLED = "services.coordinator.command-pool.enabled";
+  private static final String COMMAND_POOL_ENABLED = "services.coordinator.command-pool.enabled";
+  private static final String RELEASABLE_COMMAND_POOL_ENABLED = "services.coordinator.command-pool.releasable";
   private static final String POOL_SIZE = "services.coordinator.command-pool.size";
   /**
    * @return new {@link CommandPool} instance
    */
   public CommandPool newPool(final DremioConfig config, final Tracer tracer) {
-    if (config.getBoolean(ENABLED)) {
+    if (config.getBoolean(RELEASABLE_COMMAND_POOL_ENABLED)) {
+      final int poolSize = getPoolSize(config);
+      logger.info("Starting releasable bound command pool of size {}", poolSize);
+      return new ReleasableBoundCommandPool(poolSize, tracer);
+    }
+
+    if (config.getBoolean(COMMAND_POOL_ENABLED)) {
       final int poolSize = getPoolSize(config);
       logger.info("Starting bound command pool of size {}", poolSize);
       return new BoundCommandPool(poolSize, tracer);

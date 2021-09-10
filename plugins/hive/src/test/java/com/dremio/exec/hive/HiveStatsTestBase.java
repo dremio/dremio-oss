@@ -15,6 +15,15 @@
  */
 package com.dremio.exec.hive;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.rules.TestRule;
+import org.junit.runner.RunWith;
+
 import com.dremio.common.util.TestTools;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
@@ -24,19 +33,10 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.base.Preconditions;
-
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.rules.TestRule;
-import org.junit.runner.RunWith;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Base class for Hive query profile stats test.
@@ -50,10 +50,10 @@ public abstract class HiveStatsTestBase extends BaseTestServer {
 
   @BeforeClass
   public static void setup() throws Exception {
-    hiveTest = HiveTestDataGenerator.getInstance();
-    Preconditions.checkNotNull(hiveTest, "HiveTestDataGenerator not initialized");
     SabotContext sabotContext = getSabotContext();
     Preconditions.checkNotNull(sabotContext, "SabotContext not initialized");
+    hiveTest = HiveTestDataGenerator.getInstance();
+    Preconditions.checkNotNull(hiveTest, "HiveTestDataGenerator not initialized");
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
   }

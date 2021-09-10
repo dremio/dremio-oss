@@ -47,10 +47,8 @@ export const EDIT_USER_START = 'EDIT_USER_START';
 export const EDIT_USER_SUCCESS = 'EDIT_USER_SUCCESS';
 export const EDIT_USER_FAILURE = 'EDIT_USER_FAILURE';
 
-export function editUser({
-  id: userId, // empty for a new user
-  ...values
-}) {
+export function editUser(values) {
+  const { id: userId } = values;
   const isNewUser = !userId;
   const meta = {
     invalidateViewIds: [USERS_VIEW_ID],

@@ -47,7 +47,6 @@ import com.google.common.base.Preconditions;
 public class LivenessService implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LivenessService.class);
 
-  private static final String LOOPBACK_INTERFACE = "127.0.0.1";
   private static final int ACCEPT_QUEUE_BACKLOG = 1;
   private static final int NUM_ACCEPTORS = 1;
   private static final int NUM_SELECTORS = 1;
@@ -86,7 +85,7 @@ public class LivenessService implements Service {
     }
     final ServerConnector serverConnector = new ServerConnector(embeddedLivenessJetty, NUM_ACCEPTORS, NUM_SELECTORS);
     serverConnector.setPort(config.getInt(DremioConfig.LIVENESS_PORT));
-    serverConnector.setHost(LOOPBACK_INTERFACE);
+    serverConnector.setHost(config.getString(DremioConfig.LIVENESS_HOST));
     serverConnector.setAcceptQueueSize(ACCEPT_QUEUE_BACKLOG);
     embeddedLivenessJetty.addConnector(serverConnector);
 

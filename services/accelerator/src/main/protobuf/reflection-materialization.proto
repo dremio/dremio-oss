@@ -60,6 +60,7 @@ message Materialization {
   optional bool is_iceberg_dataset = 30;
   optional bool force_full_refresh = 31;
   optional int32 strip_version = 32;
+  optional int64 previous_iceberg_snapshot = 33;
 }
 
 message RefreshId {

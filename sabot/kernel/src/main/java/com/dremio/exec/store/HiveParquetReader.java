@@ -55,4 +55,8 @@ public class HiveParquetReader implements AutoCloseable {
     this.hiveParquetPrimitiveTypeReader.runProjector(recordCount, incoming);
     this.hiveParquetComplexTypeReader.runProjector(recordCount);
   }
+
+  public void resetProjector() {
+    hiveParquetPrimitiveTypeReader.resetProjector();
+  }
 }

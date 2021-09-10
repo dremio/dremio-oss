@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.server;
 
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -434,7 +432,7 @@ public class SabotNode implements AutoCloseable {
       this.allRoles = allRoles;
       this.defaultRequestContext = RequestContext.empty()
           .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
-          .with(UserContext.CTX_KEY, new UserContext(SYSTEM_USERNAME));
+          .with(UserContext.CTX_KEY, UserContext.SYSTEM_USER_CONTEXT);
       this.bootstrap = bootstrap;
     }
 
@@ -491,6 +489,7 @@ public class SabotNode implements AutoCloseable {
                 getProvider(SabotContext.class),
                 getProvider(SchedulerService.class),
                 getProvider(SystemTablePluginConfigProvider.class),
+                null,
                 getProvider(FabricService.class),
                 getProvider(ConnectionReader.class),
                 getProvider(BufferAllocator.class),
@@ -514,7 +513,7 @@ public class SabotNode implements AutoCloseable {
         registry.bindSelf(nessieService);
 
         conduitServiceRegistry.registerService(
-          new DatasetCatalogServiceImpl(getProvider(CatalogService.class), getProvider(NamespaceService.class)));
+          new DatasetCatalogServiceImpl(getProvider(CatalogService.class), getProvider(NamespaceService.Factory.class)));
 
         // cluster coordinator
         bind(ClusterCoordinator.class).toInstance(clusterCoordinator);

@@ -15,13 +15,21 @@
  */
 package com.dremio.plugins.elastic;
 
-import org.junit.Test;
+import java.util.concurrent.TimeUnit;
 
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestRule;
+
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.google.common.collect.Lists;
 
 public class ITTestQueryReattemptOnInvalidMetadata extends ElasticBaseTestQuery {
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public static ColumnData[] getGodFather(String title, int year) {
     return new ColumnData[]{

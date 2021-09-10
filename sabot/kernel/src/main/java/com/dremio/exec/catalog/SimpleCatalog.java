@@ -16,9 +16,12 @@
 package com.dremio.exec.catalog;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.schema.Function;
 
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -77,4 +80,11 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * Validate if there is a violation of cross source selection
    */
   void validateSelection();
+
+  /**
+   * Retrieve the column extended properties for a table.
+   * @param table the table to get the column extended properties for
+   * @return the column extended properties grouped by column name
+   */
+  Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
 }

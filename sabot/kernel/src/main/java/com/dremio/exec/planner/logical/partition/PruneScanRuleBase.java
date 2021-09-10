@@ -196,7 +196,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       final ScanRelBase scan = call.rel(2);
       if (isInvalidDataset(scan.getTableMetadata().getDatasetConfig())) {
          return false;
-       }
+      }
       if (scan.getPluginId().getType().equals(pluginType)) {
         try {
           if(scan.getTableMetadata().getSplitRatio() == 1.0d){

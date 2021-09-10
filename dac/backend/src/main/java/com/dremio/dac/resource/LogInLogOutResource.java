@@ -138,7 +138,6 @@ public class LogInLogOutResource {
               userConfig.getCreatedAt(),
               support.getClusterId().getIdentity(),
               support.getClusterId().getCreated(),
-              "internal".equals(dremioConfig.getString(DremioConfig.WEB_AUTH_TYPE)),
               DremioVersionInfo.getVersion(),
               perms
               )

@@ -75,7 +75,6 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
   private final Serializer<CommitMeta> metadataSerializer;
 
   private final Retryer retryer;
-  private final int maxCommitRetries;
 
   /**
    * Builder class for a KVStoreVersionStore
@@ -138,12 +137,11 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
     this.namedReferences = builder.namedReferences;
     this.valueSerializer = builder.valueSerializer;
     this.metadataSerializer = builder.metadataSerializer;
-    this.maxCommitRetries = builder.maxCommitRetries;
 
     this.retryer = new Retryer.Builder()
       .setMaxRetries(builder.maxCommitRetries)
       .retryIfExceptionOfType(ConcurrentModificationException.class)
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1000, 1000)
+      .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
       .build();
 
     final BranchName defaultBranch = BranchName.of(builder.defaultBranchName);
@@ -234,7 +232,7 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
           final Hash previousHash = Optional.ofNullable(hash).orElse(Commit.NO_ANCESTOR);
           if (!previousHash.equals(currentHash)) {
             // A new change was committed concurrently
-            throw ReferenceConflictException.forReference(branch, referenceHash, Optional.of(previousHash));
+            throw new ConcurrentModificationException("A new change was committed concurrently on branch/tag " + branch);
           }
           // Duplicates are very unlikely and also okay to ignore
           final Hash commitHash = commit.getHash();
@@ -249,10 +247,13 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
         return null;
       });
     } catch (Retryer.OperationFailedAfterRetriesException e) {
+      logger.error("commit operation failed after reaching max retries.");
       if (e.getCause() instanceof ReferenceNotFoundException) {
-        throw new ReferenceNotFoundException(e.getMessage());
+        throw (ReferenceNotFoundException) e.getCause();
       } else if (e.getCause() instanceof ReferenceConflictException) {
-        throw new ReferenceConflictException(e.getMessage());
+        throw (ReferenceConflictException) e.getCause();
+      } else if (e.getCause() instanceof ConcurrentModificationException) {
+        throw new ReferenceConflictException(e.getCause().getMessage(), e.getCause());
       } else if (e.getCause() instanceof RuntimeException) {
         throw (RuntimeException)e.getCause();
       }

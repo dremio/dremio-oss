@@ -26,6 +26,8 @@ import org.apache.arrow.vector.util.TransferPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -104,6 +106,9 @@ public class SchemaAggTableFunction extends AbstractTableFunction {
     //Will just try and reconcile the schema
     this.reconciledSchema = reconciledSchema.mergeWithUpPromotion(currentSchema);
     logger.debug("Merged schema after processing row {} is {}", startOutIndex, reconciledSchema.toJSONString());
+    if (reconciledSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
+      throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+    }
 
     this.processedRow = true;
     //Output table function

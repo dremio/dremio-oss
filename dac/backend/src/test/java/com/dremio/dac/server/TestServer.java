@@ -245,17 +245,17 @@ public class TestServer extends BaseTestServer {
     UserLoginSession uls = expectSuccess(getAPIv2().path("/login").request(JSON).buildPost(Entity.json(new UserLogin("user", "user1234"))), UserLoginSession.class);
 
     final Space config4 = new Space(null, "space4", "different user space", null, null, 0, null);
-    final Space space4 = expectSuccess(getBuilder(getAPIv2().path("space/space4"), uls.getToken()).buildPut(Entity.json(config4)), Space.class);
+    final Space space4 = expectSuccess(getBuilder(getAPIv2().path("space/space4")).buildPut(Entity.json(config4)), Space.class);
     assertEquals("space4", space4.getName());
     assertEquals(config4.getDescription(), space4.getDescription());
 
     final Space config5 = new Space(null, "test1", "different space name", null, null, 0, null);
     @SuppressWarnings("unused")
-    final Space space5 = expectSuccess(getBuilder(getAPIv2().path("space/test1"), uls.getToken()).buildPut(Entity.json(config5)), Space.class);
+    final Space space5 = expectSuccess(getBuilder(getAPIv2().path("space/test1")).buildPut(Entity.json(config5)), Space.class);
 
     final Space config6 = new Space(null, "test2", "different space name", null, null, 0, null);
     @SuppressWarnings("unused")
-    final Space space6 = expectSuccess(getBuilder(getAPIv2().path("space/test2"), uls.getToken()).buildPut(Entity.json(config6)), Space.class);
+    final Space space6 = expectSuccess(getBuilder(getAPIv2().path("space/test2")).buildPut(Entity.json(config6)), Space.class);
 
     final Spaces spaces1 = expectSuccess(getBuilder(getAPIv2().path("spaces")).buildGet(), Spaces.class);
     assertEquals(spaces1.toString(), 6, spaces1.getSpaces().size());

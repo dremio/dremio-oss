@@ -149,12 +149,12 @@ class SplitStageExecutor implements AutoCloseable {
     allocationVectors.add(vector);
 
     if (gandivaCodeGen) {
-      logger.trace("Setting up split for {} in Gandiva", split.toString());
+      logger.trace("Setting up split for {} in Gandiva", split);
       nativeProjectorBuilder.add(expr, vector, split.getOptimize());
       return outputField;
     }
 
-    logger.trace("Setting up split for {} in Java", split.toString());
+    logger.trace("Setting up split for {} in Java", split);
     // setup in Java
     TypedFieldId fid = intermediateOutputs.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
     boolean useSetSafe = !(vector instanceof FixedWidthVector);
@@ -240,7 +240,7 @@ class SplitStageExecutor implements AutoCloseable {
     }
 
     if (finalSplit.getExecutionEngine() == SupportedEngines.Engine.GANDIVA) {
-      logger.trace("Setting up filter for split in Gandiva {}", finalSplit.toString());
+      logger.trace("Setting up filter for split in Gandiva {}", finalSplit);
       gandivaCodeGenWatch.start();
       nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(),
         context.getFunctionContext(), finalSplit.getOptimize(), context.getOptions().getOption(ExecConstants.GANDIVA_TARGET_HOST_CPU));
@@ -249,7 +249,7 @@ class SplitStageExecutor implements AutoCloseable {
       return;
     }
 
-    logger.trace("Setting up filter for split in Java {}", finalSplit.toString());
+    logger.trace("Setting up filter for split in Java {}", finalSplit);
     javaCodeGenWatch.start();
     final ClassGenerator<Filterer> filterClassGen = context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
     filterClassGen.addExpr(new ReturnValueExpression(finalSplit.getNamedExpression().getExpr()), ClassGenerator.BlockCreateMode.MERGE, true);

@@ -1,0 +1,308 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.exec.sql.hive;
+
+import static com.dremio.exec.store.hive.exec.HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH;
+import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
+import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
+import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
+import static org.hamcrest.core.StringContains.containsString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.types.Types;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.exec.hive.LazyDataGeneratingHiveTestBase;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.hive.HiveTestDataGenerator;
+import com.google.common.collect.Sets;
+
+public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveTestBase {
+
+  private static final String HIVE = "hive.";
+  private static final String REFRESH_DATASET = "ALTER PDS %s REFRESH METADATA";
+  private static final String FORGET = "ALTER PDS %s FORGET METADATA";
+  static final String EXPLAIN_PLAN = "EXPLAIN PLAN FOR ";
+  public static String formatType = "PARQUET";
+  private static FileSystem fs;
+  private static String finalIcebergMetadataLocation;
+  private static AutoCloseable enableUnlimitedSplitsSupportFlags;
+  protected static String warehouseDir;
+
+  @BeforeClass
+  public static void generateHiveWithoutData() throws Exception {
+    BaseTestQuery.setupDefaultTestCluster();
+    LazyDataGeneratingHiveTestBase.generateHiveWithoutData();
+
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_" + formatType + "(col1 INT, col2 STRING) STORED AS " + formatType);
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_partition_" + formatType + "(id INT) PARTITIONED BY (year INT, month STRING) STORED AS " + formatType);
+    // By default will create TextFileFormat table which is not supported in refresh dataset flow
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_invalid_" + formatType + "(col1 INT, col2 STRING)");
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_special_chars_partitions_" + formatType + " (int_field INT) PARTITIONED BY (timestamp_part TIMESTAMP, char_part CHAR(10)) STORED AS " + formatType);
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_table_permission_" + formatType + "(col1 INT, col2 STRING) STORED AS " + formatType);
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_partition_permission_" + formatType + "(id INT) PARTITIONED BY (year INT, month STRING) STORED AS " + formatType);
+
+    // Dremio supports 800 columns by default, let's create a table with more columns.
+    final String createWideTable = IntStream.range(0, 810).mapToObj(i -> "COL" + i + " int").collect(Collectors.joining(", ", "CREATE TABLE refresh_v2_test_maxwidth_" + formatType + "(", ") STORED AS " + formatType));
+    dataGenerator.executeDDL(createWideTable);
+
+    warehouseDir = dataGenerator.getWhDir();
+    finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
+    fs = setupLocalFS();
+    enableUnlimitedSplitsSupportFlags = enableUnlimitedSplitsSupportFlags();
+  }
+
+  @AfterClass
+  public static void dropTables() throws Exception {
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_" + formatType );
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_partition_" + formatType);
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_invalid_" + formatType);
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_special_chars_partitions_" + formatType);
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_maxwidth_" + formatType);
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_table_permission_" + formatType);
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_partition_permission_" + formatType);
+    enableUnlimitedSplitsSupportFlags.close();
+  }
+
+  @After
+  public void cleanUp() throws IOException {
+    fsDelete(fs, new Path(finalIcebergMetadataLocation));
+    //TODO: also cleanup the KV store so that if 2 tests are working on the same dataset we don't get issues.
+  }
+
+  @Test
+  public void testFullRefreshWithoutPartition() throws Exception {
+    final String tableName = "refresh_v2_test_" + formatType;
+    final String insertCmd = "INSERT INTO " + tableName + " VALUES(1, 'a')";
+    dataGenerator.executeDDL(insertCmd);
+
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    runSQL(sql);
+
+    Schema expectedSchema = new Schema(Arrays.asList(
+      Types.NestedField.optional(1, "col1", new Types.IntegerType()),
+      Types.NestedField.optional(2, "col2", new Types.StringType())));
+
+    verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, new HashSet<>(), 1);
+
+    String selectQuery = "SELECT * from " + HIVE + tableName;
+    testBuilder()
+      .sqlQuery(selectQuery)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(1, "a")
+      .go();
+
+    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+  }
+
+  @Test
+  public void testFullRefreshWithPartition() throws Exception {
+    final String tableName = "refresh_v2_test_partition_" + formatType;
+    final String insertCmd1 = "INSERT INTO " + tableName + " PARTITION(year=2020, month='Feb') VALUES(1)";
+    final String insertCmd2 = "INSERT INTO " + tableName + " PARTITION(year=2021, month='Jan') VALUES(2)";
+    dataGenerator.executeDDL(insertCmd1);
+    dataGenerator.executeDDL(insertCmd2);
+
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    runSQL(sql);
+
+    Schema expectedSchema = new Schema(Arrays.asList(
+      Types.NestedField.optional(1, "id", new Types.IntegerType()),
+      Types.NestedField.optional(2, "month", new Types.StringType()),
+      Types.NestedField.optional(3, "year", new Types.IntegerType())));
+
+    verifyIcebergMetadata(finalIcebergMetadataLocation, 2, 0, expectedSchema, Sets.newHashSet("year", "month"), 2);
+
+    String selectQuery = "SELECT * from " + HIVE + tableName;
+    testBuilder()
+      .sqlQuery(selectQuery)
+      .unOrdered()
+      .baselineColumns("id", "month", "year")
+      .baselineValues(1, "Feb", 2020)
+      .baselineValues(2, "Jan", 2021)
+      .go();
+
+    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+  }
+
+  @Test
+  public void testInvalidTableFullRefresh() throws Exception {
+    final String tableName = "refresh_v2_test_invalid_" + formatType;
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    runSQL(sql);
+
+    // Check that no iceberg table created
+    assertTrue(isDirEmpty(Paths.get(finalIcebergMetadataLocation)));
+  }
+
+  @Test
+  public void testFullRefreshSpecialCharPaths() throws Exception {
+    final String tableName = "refresh_v2_test_special_chars_partitions_" + formatType;
+    dataGenerator.executeDDL("INSERT INTO " + tableName + " PARTITION(timestamp_part = '2013-07-05 17:01:00', char_part = 'spa c es') values (1)");
+
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    runSQL(sql);
+
+    Schema expectedSchema = new Schema(Arrays.asList(
+            Types.NestedField.optional(1, "int_field", new Types.IntegerType()),
+            Types.NestedField.optional(2, "timestamp_part", Types.TimestampType.withZone()),
+            Types.NestedField.optional(3, "char_part", new Types.StringType())));
+
+    verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, Sets.newHashSet("timestamp_part", "char_part"), 1);
+    String selectQuery = "SELECT int_field from " + HIVE + tableName;
+    testBuilder()
+            .sqlQuery(selectQuery)
+            .unOrdered()
+            .baselineColumns("int_field")
+            .baselineValues(1)
+            .go();
+
+    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+  }
+
+  @Test
+  public void testFailTableOptionQuery() throws Exception {
+    final String tableName = "refresh_v2_test_table_option_" + formatType;
+    try {
+      dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS " + tableName + "(col1 INT, col2 STRING) STORED AS PARQUET");
+      runSQL(String.format(REFRESH_DATASET, HIVE + tableName));
+
+      try {
+        runSQL(setTableOptionQuery("hive.\"default\"." + tableName,
+          HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+      } catch (UserRemoteException e) {
+        assertTrue(e.getMessage().contains("ALTER unsupported on table 'hive.\"default\".refresh_v2_test_table_option_" + formatType + "'"));
+      }
+    }
+    finally {
+      dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
+    }
+  }
+
+  @Test
+  public void testFullRefreshWideCols() throws Exception {
+    final String tableName = "refresh_v2_test_maxwidth_" + formatType;
+    final String insertCmd = IntStream.range(0, 810).mapToObj(i -> String.valueOf(i)).collect(Collectors.joining(",", "INSERT INTO " + tableName + " VALUES(", ")"));
+    dataGenerator.executeDDL(insertCmd);
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+
+    try (AutoCloseable c1 = setMaxLeafColumns(1000)) {
+      runSQL(sql);
+      // no exception expected
+    } finally {
+      runSQL(String.format(FORGET, HIVE + tableName));
+    }
+
+    try {
+      runSQL(sql);
+      fail("Query should fail because maxLeafColumns are exceeded");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Number of fields in dataset exceeded the maximum number of fields of 800"));
+    }
+  }
+
+  @Test
+  public void testCheckTableHasPermission() throws Exception {
+    final String tableName = "refresh_v2_test_table_permission_" + formatType;
+    final String insertCmd1 = "INSERT INTO " + tableName + " VALUES(2020, 'Jan')";
+    dataGenerator.executeDDL(insertCmd1);
+
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    // this will do a full refresh first
+    runSQL(sql);
+
+    final Path tableDir = new Path(dataGenerator.getWhDir() + "/" + tableName.toLowerCase(Locale.ROOT));
+    try {
+      // no exec on dir
+      fs.setPermission(tableDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
+      test("SELECT * from " + HIVE + tableName);
+      fail("query is expected to fail");
+    } catch(UserRemoteException e) {
+      assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
+      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset"));
+    }
+    finally {
+      fs.setPermission(tableDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    }
+  }
+
+  @Test
+  public void testCheckPartitionHasPermission() throws Exception {
+    final String tableName = "refresh_v2_test_partition_permission_" + formatType;
+    final String insertCmd1 = "INSERT INTO " + tableName + " PARTITION(year=2020, month='Jan') VALUES(1)";
+    dataGenerator.executeDDL(insertCmd1);
+
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    // this will do a full refresh first
+    runSQL(sql);
+
+    final Path partitionDir = new Path(dataGenerator.getWhDir() + "/" + tableName.toLowerCase(Locale.ROOT) + "/year=2020/month=Jan");
+    try {
+      // no exec on dir
+      fs.setPermission(partitionDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
+      test("SELECT * from " + HIVE + tableName);
+      fail("query is expected to fail");
+    } catch(UserRemoteException e) {
+      assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
+      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset"));
+    }
+    finally {
+      fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    }
+  }
+
+  private static boolean isDirEmpty(final java.nio.file.Path directory) throws IOException {
+    try(DirectoryStream<java.nio.file.Path> dirStream = Files.newDirectoryStream(directory)) {
+      return !dirStream.iterator().hasNext();
+    }
+  }
+
+  static void verifyIcebergExecution(String query) throws Exception {
+    final String plan = getPlanInString(query, OPTIQ_FORMAT);
+
+    // Check and make sure that IcebergManifestList is present in the plan
+    assertTrue("Unexpected plan\n" + plan, plan.contains("IcebergManifestList"));
+  }
+
+  static HiveTestDataGenerator getDataGenerator() {
+    return dataGenerator;
+  }
+}
+

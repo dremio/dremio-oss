@@ -21,8 +21,11 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -45,12 +48,20 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.service.Service;
+import com.dremio.service.users.StatusUserLoginException.Status;
 import com.dremio.service.users.proto.UID;
 import com.dremio.service.users.proto.UserAuth;
 import com.dremio.service.users.proto.UserConfig;
 import com.dremio.service.users.proto.UserInfo;
+import com.dremio.service.users.proto.UserType;
+import com.dremio.services.configuration.ConfigurationStore;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -59,7 +70,8 @@ import io.protostuff.ByteString;
 /**
  * User group service with local kv store.
  */
-public class SimpleUserService implements UserService {
+public class SimpleUserService implements UserService, Service {
+  public static final String LOWER_CASE_INDICES = "lowerCaseIndices";
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SimpleUserService.class);
 
@@ -73,22 +85,45 @@ public class SimpleUserService implements UserService {
   public static final String USER_STORE = "userGroup";
 
   private static final SecretKeyFactory secretKey = UserServiceUtils.buildSecretKey();
-  private LegacyIndexedStore<UID, UserInfo> userStore;
+  private final Supplier<LegacyIndexedStore<UID, UserInfo>> userStore;
+  private final Provider<LegacyKVStoreProvider> kvStoreProvider;
+  private final boolean isMaster;
 
   // when we call hasAnyUser() we cache the result in here so we never hit the kvStore once the value is true
   private final AtomicBoolean anyUserFound = new AtomicBoolean();
 
   @Inject
-  public SimpleUserService(Provider<LegacyKVStoreProvider> kvStoreProvider) {
-    this.userStore = kvStoreProvider.get().getStore(UserGroupStoreBuilder.class);
+  public SimpleUserService(Provider<LegacyKVStoreProvider> kvStoreProvider, boolean isMaster) {
+    this.userStore = Suppliers.memoize(() -> kvStoreProvider.get().getStore(UserGroupStoreBuilder.class));
+    this.kvStoreProvider = kvStoreProvider;
+    this.isMaster = isMaster;
   }
 
-  private UserInfo findUserByUserName(String userName) {
+  public SimpleUserService(Provider<LegacyKVStoreProvider> kvStoreProvider) {
+    this(kvStoreProvider, true);
+  }
+
+  @Override
+  public void start() throws Exception {
+    if (isMaster) {
+      final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider.get());
+      final Optional<ConfigurationEntry> entry = Optional.ofNullable(configurationStore.get(LOWER_CASE_INDICES));
+      if (!entry.isPresent()) {
+        this.addIndexKeyId();
+        final ConfigurationEntry newEntry = new ConfigurationEntry();
+        // store the timestamp we finished
+        newEntry.setValue(ByteString.copyFromUtf8(String.valueOf(System.currentTimeMillis())));
+        configurationStore.put(LOWER_CASE_INDICES, newEntry);
+      }
+    }
+  }
+
+  protected UserInfo findUserByUserName(String userName) {
     final LegacyFindByCondition condition = new LegacyFindByCondition()
-      .setCondition(SearchQueryUtils.newTermQuery(UserIndexKeys.NAME, userName))
+      .setCondition(SearchQueryUtils.newTermQuery(UserIndexKeys.NAME_LOWERCASE, userName.toLowerCase(Locale.ROOT)))
       .setLimit(1);
 
-    final List<UserInfo> userInfos = Lists.newArrayList(KVUtil.values(userStore.find(condition)));
+    final List<UserInfo> userInfos = Lists.newArrayList(KVUtil.values(userStore.get().find(condition)));
     return userInfos.size() == 0 ? null : userInfos.get(0);
   }
 
@@ -107,7 +142,7 @@ public class SimpleUserService implements UserService {
 
   @Override
   public User getUser(UID uid) throws UserNotFoundException {
-    final UserInfo userInfo = userStore.get(uid);
+    final UserInfo userInfo = userStore.get().get(uid);
     if (userInfo == null) {
       throw new UserNotFoundException(uid);
     }
@@ -119,9 +154,7 @@ public class SimpleUserService implements UserService {
     throws IOException, IllegalArgumentException {
     final String userName = userConfig.getUserName();
     if (findUserByUserName(userName) != null) {
-      throw UserException.validationError()
-        .message("User '%s' already exists.", userName)
-        .build(logger);
+      throw new UserAlreadyExistException(userName);
     }
     validateUsername(userName);
     validatePassword(authKey);
@@ -133,63 +166,115 @@ public class SimpleUserService implements UserService {
     UserInfo userInfo = new UserInfo();
     userInfo.setConfig(newUser);
     userInfo.setAuth(buildUserAuth(newUser.getUid(), authKey));
-    userStore.put(newUser.getUid(), userInfo);
+    userStore.get().put(newUser.getUid(), userInfo);
 
     // Return the new state
     return fromUserConfig(newUser);
   }
 
-  // Merge existing info about user with new one, except ModifiedAt
-  private void merge(UserConfig newConfig, UserConfig oldConfig) {
-    newConfig.setUid(oldConfig.getUid());
-    if (newConfig.getCreatedAt() == null) {
-      newConfig.setCreatedAt(oldConfig.getCreatedAt());
+  /**
+   * Merge existing info about user with new one, except ModifiedAt
+   *
+   * @param newUser a new User in the request
+   * @param originalUserConfig original UserConfig saved in the kvstore
+   * @return a new UserConfig that merge the newUser and originalUserConfig
+   */
+  private UserConfig merge(User newUser, UserConfig originalUserConfig) {
+    UserConfig updatedUserConfig = toUserConfig(newUser);
+    // fields that cannot be updated
+    updatedUserConfig.setUid(originalUserConfig.getUid())
+      .setCreatedAt(originalUserConfig.getCreatedAt());
+
+    if (newUser instanceof SimpleUser) {
+      // field that is not provided
+      updatedUserConfig.setType(originalUserConfig.getType());
     }
-    if (newConfig.getEmail() == null) {
-      newConfig.setEmail(oldConfig.getEmail());
+
+    // if fields are blank in the request, use the original info
+    if (updatedUserConfig.getEmail() == null) {
+      updatedUserConfig.setEmail(originalUserConfig.getEmail());
     }
-    if (newConfig.getFirstName() == null) {
-      newConfig.setFirstName(oldConfig.getFirstName());
+    if (updatedUserConfig.getFirstName() == null) {
+      updatedUserConfig.setFirstName(originalUserConfig.getFirstName());
     }
-    if (newConfig.getLastName() == null) {
-      newConfig.setLastName(oldConfig.getLastName());
+    if (updatedUserConfig.getLastName() == null) {
+      updatedUserConfig.setLastName(originalUserConfig.getLastName());
     }
-    if (newConfig.getUserName() == null) {
-      newConfig.setUserName(oldConfig.getUserName());
+    if (updatedUserConfig.getUserName() == null) {
+      updatedUserConfig.setUserName(originalUserConfig.getUserName());
     }
-    if (newConfig.getGroupMembershipsList() == null) {
-      newConfig.setGroupMembershipsList(oldConfig.getGroupMembershipsList());
+    if (updatedUserConfig.getGroupMembershipsList() == null) {
+      updatedUserConfig.setGroupMembershipsList(originalUserConfig.getGroupMembershipsList());
     }
-    if (newConfig.getTag() == null) {
-      newConfig.setTag(oldConfig.getTag());
+    if (updatedUserConfig.getTag() == null) {
+      updatedUserConfig.setTag(originalUserConfig.getTag());
     }
+    if (updatedUserConfig.getExternalId() == null) {
+      updatedUserConfig.setExternalId(originalUserConfig.getExternalId());
+    }
+
+    // cannot change new user
+    return updatedUserConfig;
   }
 
   @Override
   public User updateUser(final User userGroup, final String authKey)
     throws IOException, IllegalArgumentException, UserNotFoundException {
-    UserConfig userConfig = toUserConfig(userGroup);
-    final String userName = userConfig.getUserName();
+    final String userName = userGroup.getUserName();
     final UserInfo oldUserInfo = findUserByUserName(userName);
     if (oldUserInfo == null) {
       throw new UserNotFoundException(userName);
     }
-    merge(userConfig, oldUserInfo.getConfig());
-    userConfig.setModifiedAt(System.currentTimeMillis());
+    if (!Strings.isNullOrEmpty(userName) && !oldUserInfo.getConfig().getUserName().equals(userName)) {
+      throw new IllegalArgumentException("Updating username is not supported.");
+    }
+    return updateUserHelper(merge(userGroup, oldUserInfo.getConfig()), oldUserInfo, authKey);
+  }
+
+  @Override
+  public User updateUserById(final User userGroup, final String authKey)
+    throws IllegalArgumentException, UserNotFoundException {
+
+    final String userName = userGroup.getUserName();
+    final UID userId = userGroup.getUID();
+
+    UserInfo oldUserInfo = null;
+    if (userId != null && !Strings.isNullOrEmpty(userId.getId())) {
+      oldUserInfo = userStore.get().get(userId);
+    }
+    if (oldUserInfo == null) {
+      throw new UserNotFoundException(userName);
+    }
+
+    if (!Strings.isNullOrEmpty(userName) && !oldUserInfo.getConfig().getUserName().equals(userName)) {
+      throw new IllegalArgumentException("Updating username is not supported.");
+    }
+
+    return updateUserHelper(merge(userGroup, oldUserInfo.getConfig()), oldUserInfo, authKey);
+  }
+
+  private User updateUserHelper(UserConfig updatedUserConfig, UserInfo oldUserInfo, final String authKey) {
+    updatedUserConfig.setModifiedAt(System.currentTimeMillis());
 
     UserInfo newUserInfo = new UserInfo();
-    newUserInfo.setConfig(userConfig);
+    newUserInfo.setConfig(updatedUserConfig);
 
-    if(authKey != null){
+    if(authKey != null) {
+      if (newUserInfo.getConfig().getType() == UserType.REMOTE) {
+        throw new IllegalArgumentException("Cannot set password for an external user.");
+      }
       validatePassword(authKey);
       newUserInfo.setAuth(buildUserAuth(oldUserInfo.getConfig().getUid(), authKey));
     } else {
+      if (newUserInfo.getConfig().getType() == UserType.LOCAL && oldUserInfo.getAuth() == null) {
+        throw new IllegalArgumentException("Must set password for local users");
+      }
       newUserInfo.setAuth(oldUserInfo.getAuth());
     }
-    userStore.put(userConfig.getUid(), newUserInfo);
+    userStore.get().put(updatedUserConfig.getUid(), newUserInfo);
 
     // Return the new state
-    return fromUserConfig(userConfig);
+    return fromUserConfig(updatedUserConfig);
   }
 
   @Override
@@ -199,18 +284,19 @@ public class SimpleUserService implements UserService {
     if (oldUserInfo == null) {
       throw new UserNotFoundException(oldUserName);
     }
-    if (findUserByUserName(newUserName) != null) {
+    final UserInfo newUserInfo = findUserByUserName(newUserName);
+    // rename can change the case of the username
+    if (newUserInfo != null && !newUserInfo.getConfig().getUid().equals(oldUserInfo.getConfig().getUid())) {
       throw UserException.validationError()
         .message("User '%s' already exists.", newUserName)
         .build(logger);
     }
     validateUsername(newUserName);
 
-    UserConfig userConfig = toUserConfig(userGroup);
+    UserConfig userConfig = merge(userGroup, oldUserInfo.getConfig());
     if (!userConfig.getUserName().equals(newUserName)) {
       throw new IllegalArgumentException("Usernames do not match " + newUserName + " , " + userConfig.getUserName());
     }
-    merge(userConfig, oldUserInfo.getConfig());
     userConfig.setModifiedAt(System.currentTimeMillis());
 
     UserInfo info = new UserInfo();
@@ -224,7 +310,7 @@ public class SimpleUserService implements UserService {
       info.setAuth(oldUserInfo.getAuth());
     }
 
-    userStore.put(info.getConfig().getUid(), info);
+    userStore.get().put(info.getConfig().getUid(), info);
 
     // Return the new state
     return fromUserConfig(userConfig);
@@ -235,6 +321,12 @@ public class SimpleUserService implements UserService {
     final UserInfo userInfo = findUserByUserName(userName);
     if (userInfo == null) {
       throw new UserLoginException(userName, "Invalid user credentials");
+    }
+    if (!userInfo.getConfig().getActive()) {
+      throw new StatusUserLoginException(Status.INACTIVE, userName, "Inactive user");
+    }
+    if (userInfo.getConfig().getType() != UserType.LOCAL) {
+      throw new UserLoginException(userName, "User is not local.");
     }
     try {
       UserAuth userAuth = userInfo.getAuth();
@@ -251,7 +343,7 @@ public class SimpleUserService implements UserService {
 
   @Override
   public Iterable<? extends User> getAllUsers(Integer limit) throws IOException{
-    Iterable<? extends User> configs = Iterables.transform(KVUtil.values(userStore.find()), infoConfigTransformer);
+    Iterable<? extends User> configs = Iterables.transform(KVUtil.values(userStore.get().find()), infoConfigTransformer);
     if(limit == null){
       return configs;
     } else {
@@ -272,24 +364,56 @@ public class SimpleUserService implements UserService {
   @Override
   public Iterable<? extends User> searchUsers(String searchTerm, String sortColumn, SortOrder order,
                                               Integer limit) throws IOException {
-    limit = limit == null ? 10000 : limit;
+    final SearchQuery query;
+    if (Strings.isNullOrEmpty(searchTerm)) {
+      query = SearchQueryUtils.newMatchAllQuery();
+    } else {
+      query = SearchQueryUtils.or(
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.FIRST_NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.LAST_NAME_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)),
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.EMAIL_LOWERCASE, searchTerm.toLowerCase(Locale.ROOT)));
+    }
+    return searchUsers(query, sortColumn, order, 0, limit);
+  }
 
-    if (searchTerm == null || searchTerm.isEmpty()) {
-      return getAllUsers(limit);
+  public Iterable<? extends User> searchUsers(
+    SearchQuery searchQuery,
+    String sortColumn,
+    SortOrder sortOrder,
+    Integer startIndex,
+    Integer pageSize
+  ) {
+    LegacyFindByCondition condition = new LegacyFindByCondition();
+    if (searchQuery == null) {
+      condition.setCondition(SearchQueryUtils.newMatchAllQuery());
+    } else {
+      condition.setCondition(searchQuery);
+    }
+    condition.addSorting(buildSorter(sortColumn, sortOrder));
+    if (startIndex != null) {
+      condition.setOffset(startIndex);
+    }
+    if (pageSize != null) {
+      condition.setPageSize(pageSize);
+      condition.setLimit(pageSize);
     }
 
-    final SearchQuery query = SearchQueryUtils.or(
-      SearchQueryUtils.newContainsTerm(UserIndexKeys.NAME, searchTerm),
-      SearchQueryUtils.newContainsTerm(UserIndexKeys.FIRST_NAME, searchTerm),
-      SearchQueryUtils.newContainsTerm(UserIndexKeys.LAST_NAME, searchTerm),
-      SearchQueryUtils.newContainsTerm(UserIndexKeys.EMAIL, searchTerm));
+    return Lists.newArrayList(KVUtil.values(userStore.get().find(condition))).stream()
+      .map(infoConfigTransformer)
+      .collect(Collectors.toList());
+  }
 
-    final LegacyFindByCondition conditon = new LegacyFindByCondition()
-      .setCondition(query)
-      .setLimit(limit)
-      .addSorting(buildSorter(sortColumn, order));
+  public Integer getNumUsers(SearchQuery searchQuery) {
+    if (searchQuery == null) {
+      searchQuery = SearchQueryUtils.newMatchAllQuery();
+    }
+    return userStore.get().getCounts(searchQuery).get(0);
+  }
 
-    return Lists.transform(Lists.newArrayList(KVUtil.values(userStore.find(conditon))), infoConfigTransformer);
+  @Override
+  public void close() throws Exception {
+
   }
 
   private static final class UserConverter implements DocumentConverter<UID, UserInfo> {
@@ -302,12 +426,29 @@ public class SimpleUserService implements UserService {
       writer.write(UserIndexKeys.FIRST_NAME, userConfig.getFirstName());
       writer.write(UserIndexKeys.LAST_NAME, userConfig.getLastName());
       writer.write(UserIndexKeys.EMAIL, userConfig.getEmail());
+
+      if (!Strings.isNullOrEmpty(userConfig.getExternalId())) {
+        writer.write(UserIndexKeys.EXTERNAL_ID, userConfig.getExternalId());
+      }
+
+      if (userConfig.getUserName() != null) {
+        writer.write(UserIndexKeys.NAME_LOWERCASE, userConfig.getUserName().toLowerCase(Locale.ROOT));
+      }
+      if (userConfig.getFirstName() != null) {
+        writer.write(UserIndexKeys.FIRST_NAME_LOWERCASE, userConfig.getFirstName().toLowerCase(Locale.ROOT));
+      }
+      if (userConfig.getLastName() != null) {
+        writer.write(UserIndexKeys.LAST_NAME_LOWERCASE, userConfig.getLastName().toLowerCase(Locale.ROOT));
+      }
+      if (userConfig.getEmail() != null) {
+        writer.write(UserIndexKeys.EMAIL_LOWERCASE, userConfig.getEmail().toLowerCase(Locale.ROOT));
+      }
     }
   }
 
   private static SearchFieldSorting buildSorter(final String sortColumn, final SortOrder order) {
 
-    if(sortColumn == null){
+    if(Strings.isNullOrEmpty(sortColumn)){
       return UserServiceUtils.DEFAULT_SORTER;
     }
 
@@ -320,14 +461,18 @@ public class SimpleUserService implements UserService {
         .build(logger);
     }
 
-    return key.toSortField(order);
+    if (order == null) {
+      return key.toSortField(SortOrder.ASCENDING);
+    } else {
+      return key.toSortField(order);
+    }
   }
 
   @Override
   public void deleteUser(final String userName, String version) throws UserNotFoundException, IOException {
     final UserInfo info = findUserByUserName(userName);
     if (info != null) {
-      userStore.delete(info.getConfig().getUid(), version);
+      userStore.get().delete(info.getConfig().getUid(), version);
       if (!getAllUsers(1).iterator().hasNext()) {
         anyUserFound.set(false);
       }
@@ -336,7 +481,19 @@ public class SimpleUserService implements UserService {
     }
   }
 
-  private UserAuth buildUserAuth(final UID uid, final String authKey) throws IllegalArgumentException {
+  @Override
+  public void deleteUser(final UID uid) throws UserNotFoundException, IOException {
+    final UserInfo userInfo = userStore.get().get(uid);
+    if (userInfo == null) {
+      throw new UserNotFoundException(uid);
+    }
+    userStore.get().delete(userInfo.getConfig().getUid(), userInfo.getConfig().getTag());
+    if (!getAllUsers(1).iterator().hasNext()) {
+      anyUserFound.set(false);
+    }
+  }
+
+  protected UserAuth buildUserAuth(final UID uid, final String authKey) throws IllegalArgumentException {
     final UserAuth userAuth = new UserAuth();
     final SecureRandom random = new SecureRandom();
     final byte[] prefix = new byte[16];
@@ -373,7 +530,7 @@ public class SimpleUserService implements UserService {
     }
 
     info.setAuth(buildUserAuth(info.getConfig().getUid(), password));
-    userStore.put(info.getConfig().getUid(), info);
+    userStore.get().put(info.getConfig().getUid(), info);
   }
 
   @VisibleForTesting
@@ -402,7 +559,8 @@ public class SimpleUserService implements UserService {
       .setEmail(user.getEmail())
       .setCreatedAt(user.getCreatedAt())
       .setModifiedAt(user.getModifiedAt())
-      .setTag(user.getVersion());
+      .setTag(user.getVersion())
+      .setActive(user.isActive());
   }
 
   protected User fromUserConfig(UserConfig userConfig) {
@@ -415,7 +573,25 @@ public class SimpleUserService implements UserService {
       .setCreatedAt(userConfig.getCreatedAt())
       .setModifiedAt(userConfig.getModifiedAt())
       .setVersion(userConfig.getTag())
+      .setActive(userConfig.getActive())
       .build();
+  }
+
+  protected LegacyIndexedStore<UID, UserInfo> getUserStore() {
+    return userStore.get();
+  }
+
+  @VisibleForTesting
+  public void clearHasAnyUser() {
+    anyUserFound.set(false);
+  }
+
+  /**
+   * Add lower-case indices for users
+   */
+  private void addIndexKeyId() {
+    userStore.get().find()
+      .forEach(record -> userStore.get().put(record.getKey(), record.getValue()));
   }
 
   private static final class UserVersionExtractor implements VersionExtractor<UserInfo> {
@@ -438,7 +614,6 @@ public class SimpleUserService implements UserService {
     public void setVersion(UserInfo value, Long version) {
       value.getConfig().setVersion(version);
     }
-
   }
 
   /**
@@ -455,7 +630,5 @@ public class SimpleUserService implements UserService {
         .versionExtractor(UserVersionExtractor.class)
         .buildIndexed(new UserConverter());
     }
-
   }
-
 }

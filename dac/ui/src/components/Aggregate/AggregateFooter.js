@@ -17,12 +17,13 @@ import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
+import classNames from 'classnames';
 import FontIcon from '@app/components/Icon/FontIcon';
 
 import AggregateFooterMixin from 'dyn-load/components/Aggregate/AggregateFooterMixin.js';
 import { mapStateToProps } from 'dyn-load/components/Aggregate/AggregateFooterMixin.js';
-import { fieldAreaWidth } from './aggregateStyles';
-
+import { displayNone } from '@app/uiTheme/less/commonStyles.less';
+import { add, base, center, left, right } from '@app/uiTheme/less/Aggregate/AggregateFooter.less';
 @Radium
 @AggregateFooterMixin
 class AggregateFooter extends PureComponent {
@@ -35,20 +36,18 @@ class AggregateFooter extends PureComponent {
     const conditionalRenderingOfButton = this.checkToRenderFooter();
     return (
       <div>
-        <div
-          className='aggregate-Footer'
-          style={[styles.base, this.props.style]}>
-          <div style={styles.left}></div>
-          <div style={styles.center}>
-            <div style={conditionalRenderingOfButton ? [styles.add] : {display: 'none'}}
+        <div className={classNames('aggregate-Footer', base)}>
+          <div className={left}></div>
+          <div className={center}>
+            <div className={conditionalRenderingOfButton ? add : displayNone}
               data-qa='add-dimension'
               onClick={this.props.addAnother.bind(this, 'dimensions')}> {/* todo: ax, consistency: button */}
               <FontIcon type='Add' hoverType='AddHover'/>
               <span>{la('Add a Dimension')}</span>
             </div>
           </div>
-          <div style={styles.right}>
-            <div style={conditionalRenderingOfButton ? [styles.add] : {display: 'none'}}
+          <div className={right}>
+            <div className={conditionalRenderingOfButton ? add : displayNone}
               data-qa='add-measure'
               onClick={this.props.addAnother.bind(this, 'measures')}> {/* todo: ax, consistency: button */}
               <FontIcon type='Add' hoverType='AddHover'/>
@@ -60,43 +59,5 @@ class AggregateFooter extends PureComponent {
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    width: '100%',
-    alignItems: 'center',
-    background: 'transparent',
-    minHeight: 30
-  },
-  left: {
-    width: fieldAreaWidth,
-    minWidth: fieldAreaWidth,
-    height: 30,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 10
-  },
-  center: {
-    width: '100%',
-    height: 30,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 10
-  },
-  right: {
-    height: 30,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 10,
-    width: '100%'
-  },
-  add: {
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer'
-  }
-};
 
 export default connect(mapStateToProps)(AggregateFooter);

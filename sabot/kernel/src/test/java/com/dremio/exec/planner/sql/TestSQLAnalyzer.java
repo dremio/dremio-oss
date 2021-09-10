@@ -205,7 +205,7 @@ public class TestSQLAnalyzer {
       // Cursor after 'TEST_SCHEMA.'
       new Object[] {
         "select a.colOne, b.colTwo from dummy a join TEST_SCHEMA.^ on a.colTwo=",
-        108,
+        109,
         false},
       // Cursor after 'TEST_CATALOG.TEST_SCHEMA'
       new Object[] {

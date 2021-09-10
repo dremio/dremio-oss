@@ -59,6 +59,7 @@ import com.dremio.exec.store.iceberg.IcebergExecutionDatasetAccessor;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
@@ -216,7 +217,9 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     final FileSelection selection = getFileSelection(refreshes, selectionRoot, icebergDataset);
 
     final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
-    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
+    if (!icebergDataset) {
+      FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
+    }
     return getDatasetHandle(datasetPath, fieldCount, icebergDataset, selection, pdi);
   }
 
@@ -271,8 +274,12 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   private FileSelection getIcebergFileSelection(FluentIterable<Refresh> refreshes) {
     Preconditions.checkState(refreshes.size() > 0, "Unexpected state");
+    return getIcebergFileSelection(refreshes.get(refreshes.size() - 1).getPath());
+  }
+
+  public FileSelection getIcebergFileSelection(String path) {
     try {
-      return FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(refreshes.get(refreshes.size() - 1).getPath()));
+      return FileSelection.createNotExpanded(getSystemUserFS(), resolveTablePathToValidPath(path));
     } catch (IOException e) {
       throw Throwables.propagate(e);
     }
@@ -350,12 +357,18 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
           .addAll(PathUtils.toPathComponents(r.getPath()))
           .build();
         logger.debug("deleting refresh {}", tableSchemaPath);
-        super.dropTable(tableSchemaPath, false, schemaConfig);
+        boolean isLayered = r.getIsIcebergRefresh() != null && r.getIsIcebergRefresh();
+        super.dropTable(tableSchemaPath, isLayered, schemaConfig);
       } catch (Exception e) {
         logger.warn("Couldn't delete refresh {}", r.getId().getId(), e);
       } finally {
         materializationStore.delete(r.getId());
       }
     }
+  }
+
+  @Override
+  protected boolean ctasToUseIceberg() {
+    return MetadataRefreshUtils.unlimitedSplitsSupportEnabled(getContext().getOptionManager());
   }
 }

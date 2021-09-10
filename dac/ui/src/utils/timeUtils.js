@@ -33,12 +33,14 @@ class TimeUtils {
     return sValue;
   }
 
-  durationWithZero(duration) { // todo: loc
+  durationWithZero(duration, isNumberFormat = false) { // todo: loc
     const seconds = this.zeroesPadding(duration.seconds(), 2);
     const minutes = this.zeroesPadding(duration.minutes(), 2);
     const hours = this.zeroesPadding(Math.floor(duration.asHours()), 2);
     if (Math.floor(duration.asHours()) <= 0 && duration.minutes() <= 0 && duration.seconds() < 1) {
       return '<1s';
+    } else if (isNumberFormat) {
+      return `${hours}:${minutes}:${seconds}`;
     }
     // todo: loc
     return `${hours}h:${minutes}m:${seconds}s`.replace(/^(00[a-z]:)+/, '').replace(/^0+/, '');
@@ -100,6 +102,12 @@ class TimeUtils {
     return t.isValid() && t.get('year') === 1970 && t.get('month') === 0 && t.get('date') === 1;
   }
 
+  toNow(timestamp) {
+    if (!timestamp) {
+      return 'unknown';
+    }
+    return moment(timestamp).toNow(true);
+  }
 }
 
 TimeUtils.prototype.INVALID_DATE_MSG = INVALID_DATE_MSG;

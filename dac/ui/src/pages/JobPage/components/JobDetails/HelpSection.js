@@ -18,8 +18,8 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
+import Art from '@app/components/Art';
 
-import FontIcon from 'components/Icon/FontIcon';
 import './HelpSection.less';
 
 import { askGnarly } from 'actions/jobs/jobs';
@@ -29,7 +29,7 @@ import { addNotification } from 'actions/notification';
 import { getViewState } from 'selectors/resources';
 import tokenUtils from '@inject/utils/tokenUtils';
 import APICall from '@app/core/APICall';
-
+import classNames from 'classnames';
 import jobsUtils from 'utils/jobsUtils';
 import config from 'dyn-load/utils/config';
 
@@ -39,7 +39,7 @@ import HelpSectionMixin from 'dyn-load/pages/JobPage/components/JobDetails/HelpS
 // todo: loc
 const MESSAGES = {
   chat: `Need help troubleshooting query performance or understanding the results?
-Click “Ask Dremio” to share the query profile with a Dremio engineer who will help you out.`,
+     Click “Ask Dremio” to share the query profile with a Dremio engineer who will help you out.`,
   email: `Need help troubleshooting query performance or understanding the results?
 Click “Email Help” to share job information with your system administrator.`,
   chatAndEmail: `Need help troubleshooting query performance or understanding the results?
@@ -76,7 +76,7 @@ export class HelpSection extends PureComponent {
   showNotification() {
     const { intl } = this.props;
     const type = 'Query Bundle';
-    const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, {type});
+    const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, { type });
     const message = <span>{notificationMessage}</span>;
     this.props.addNotification(message, 'success', 3);
   }
@@ -131,8 +131,9 @@ export class HelpSection extends PureComponent {
     }, 5000);
   }
 
-  render()  {
+  render() {
     const buttons = this.getButtons();
+    const { intl } = this.props;
     if (!buttons.size) return null;
     let message = MESSAGES.download;
     if (buttons.has('chat') && buttons.has('email')) {
@@ -142,16 +143,19 @@ export class HelpSection extends PureComponent {
     } else if (buttons.has('email')) {
       message = MESSAGES.email;
     }
-
-    return <div className='help-section'>
-      <h4>{la('Help')}</h4>
-      <div className='quote-wrapper'>
-        <div className={'dremioLogo'}>
-          <FontIcon type='NarwhalLogo' theme={styles.NarwhalLogo} />
+    const helpSectionClassNames = classNames(
+      'helpSection',
+      { 'margin-left--none': buttons.size === 1 }
+    );
+    return <div className={helpSectionClassNames} >
+      <h2>{intl.formatMessage({ id: 'Help_Section' })}</h2>
+      <div className='helpSection__quoteWrapper'>
+        <div className='helpSection__quoteBlock'>
+          <div className='helpSection__quoteMessage'>{message}</div>
+          <div children={buttons.toArray()} className='helpSection__buttons' />
         </div>
-        <div className='quote-block'>
-          <div>{message}</div>
-          <div children={buttons.toArray()}/>
+        <div className={classNames('helpSection__dremioLogo')}>
+          <Art src='GnarlySeaCloud.svg' alt='icon' title='icon' />
         </div>
       </div>
     </div>;
@@ -171,19 +175,3 @@ export default connect(mapStateToProps, {
   callIfChatAllowedOrWarn,
   addNotification
 })(HelpSection);
-
-
-const styles = {
-  NarwhalLogo: {
-    Container: {
-      width: 100,
-      height: 100,
-      float: 'left',
-      margin: '0 10px 0 0'
-    },
-    Icon: {
-      width: 100,
-      height: 100
-    }
-  }
-};

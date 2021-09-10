@@ -1,0 +1,116 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.less";
+ 
+@directions: left, right, top, bottom;
+
+@gutter-sizes: {
+  none: 0;
+  quarter: 2px;
+  half: 4px;
+  full: 8px;
+  double: 16px;
+  triple: 24px;
+  quadruple: 32px;
+  octuple: 64px;
+}
+ 
+@positions: static, relative, fixed, absolute, sticky;
+ 
+:global {
+  .height {
+    &-icon {
+      height: @icon-height;
+    }
+
+    &-full {
+      height: 100%;
+    }
+
+    &-max {
+      max-height: @row-max-height;
+    }
+
+    &-min {
+      min-height: @row-min-height;
+    }
+
+    &-none {
+      height: 0
+    }
+
+    &-row {
+      height: @row-height;
+    }
+
+  }
+
+  .margin {
+    each(@gutter-sizes, .(@margin-val, @margin-key) {
+      &-@{margin-key} {
+      margin: @margin-val !important
+      }
+
+      each(@directions, .(@direction-val) {
+      &-@{direction-val}-@{margin-key} {
+        margin-@{direction-val}: @margin-val !important
+        }
+      })
+    })
+  }
+
+  .padding {
+    each(@gutter-sizes, .(@padding-val, @padding-key) {
+      &-@{padding-key} {
+      padding: @padding-val !important
+      }
+  
+      each(@directions, .(@direction-val) {
+      &-@{direction-val}-@{padding-key} {
+        padding-@{direction-val}: @padding-val !important
+        }
+      })
+    })
+  }
+
+  .position {
+    each(@positions, .(@position-val) {
+      &-@{position-val} {
+      position: @position-val
+      }
+    })
+  }
+
+  .width {
+    &-auto {
+      width: auto
+    }
+
+    &-full {
+      width: 100% !important
+    }
+
+    &-icon {
+      width: @icon-height;
+    }
+
+    &-none {
+      width: 0
+    }
+  }
+}

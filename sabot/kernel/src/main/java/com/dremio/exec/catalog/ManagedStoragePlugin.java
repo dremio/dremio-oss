@@ -50,6 +50,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
+import com.dremio.connector.metadata.options.AlterMetadataOption;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
@@ -627,10 +628,32 @@ public class ManagedStoragePlugin implements AutoCloseable {
    */
   public boolean alterDataset(final NamespaceKey key, final DatasetConfig datasetConfig,
                               final Map<String, AttributeValue> attributes) {
+    return alterDatasetInternal(key, datasetConfig, (plugin, handle, oldDatasetMetadata, options) -> plugin.alterMetadata(handle,
+      oldDatasetMetadata, attributes, options));
+  }
+
+  /**
+   * Alters dataset column options.
+   *
+   * @param key
+   * @param datasetConfig
+   * @param columnToChange
+   * @param attributeName
+   * @param attributeValue
+   * @return if table options are modified
+   */
+  public boolean alterDatasetSetColumnOption(final NamespaceKey key, final DatasetConfig datasetConfig, final String columnToChange,
+                                             final String attributeName, final AttributeValue attributeValue) {
+    return alterDatasetInternal(key, datasetConfig, (plugin, handle, oldDatasetMetadata, options) ->
+      plugin.alterDatasetSetColumnOption(handle, oldDatasetMetadata, columnToChange, attributeName, attributeValue, options));
+  }
+
+  private boolean alterDatasetInternal(final NamespaceKey key, final DatasetConfig datasetConfig,
+                                       AlterMetadataCallback pluginCallback) {
     if (!(plugin instanceof SupportsAlteringDatasetMetadata)) {
       throw UserException.unsupportedError()
-                         .message("Source [%s] doesn't support modifying options", this.name)
-                         .buildSilently();
+        .message("Source [%s] doesn't support modifying options", this.name)
+        .buildSilently();
     }
 
     final DatasetRetrievalOptions retrievalOptions = getDefaultRetrievalOptions();
@@ -639,22 +662,27 @@ public class ManagedStoragePlugin implements AutoCloseable {
       handle = getDatasetHandle(key, datasetConfig, retrievalOptions);
     } catch (ConnectorException e) {
       throw UserException.validationError(e)
-                         .message("Failure while retrieving dataset")
-                         .buildSilently();
+        .message("Failure while retrieving dataset")
+        .buildSilently();
     }
 
     if (!handle.isPresent()) {
       throw UserException.validationError()
-                         .message("Unable to find requested dataset.")
-                         .buildSilently();
+        .message("Unable to find requested dataset.")
+        .buildSilently();
+    }
+
+    if (Boolean.TRUE.equals(datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled())) {
+      throw UserException.unsupportedError()
+        .message("ALTER unsupported on table '%s'", key.toString())
+        .buildSilently();
     }
 
     boolean changed = false;
     final DatasetMetadata oldDatasetMetadata = new DatasetMetadataAdapter(datasetConfig);
     DatasetMetadata newDatasetMetadata;
     try (AutoCloseableLock l = readLock()) {
-      newDatasetMetadata = ((SupportsAlteringDatasetMetadata) plugin).alterMetadata(handle.get(),
-        oldDatasetMetadata, attributes);
+      newDatasetMetadata = pluginCallback.apply((SupportsAlteringDatasetMetadata) plugin, handle.get(), oldDatasetMetadata);
     } catch (ConnectorException e) {
       throw UserException.validationError(e)
         .buildSilently();
@@ -672,6 +700,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
       changed = true;
     }
     return changed;
+  }
+
+  @FunctionalInterface
+  private interface AlterMetadataCallback {
+    DatasetMetadata apply(SupportsAlteringDatasetMetadata plugin, final DatasetHandle datasetHandle,
+                          final DatasetMetadata metadata, AlterMetadataOption... options) throws ConnectorException;
   }
 
   private class FixFailedToStart extends Thread {

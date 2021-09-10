@@ -155,16 +155,17 @@ abstract class NullableColumnReader<V extends ValueVector> extends ColumnReader<
 
       totalValuesRead += runLength + nullRunLength;
 
-      logger.trace("" + "recordsToReadInThisPass: {} \t "
-              + "Run Length: {} \t Null Run Length: {} \t readCount: {} \t writeCount: {} \t "
-              + "recordsReadInThisIteration: {} \t valuesReadInCurrentPass: {} \t "
-              + "totalValuesRead: {} \t readStartInBytes: {} \t readLength: {} \t pageReader.byteLength: {} \t "
-              + "definitionLevelsRead: {} \t pageReader.currentPageCount: {}",
+      if (logger.isTraceEnabled()) {
+        logger.trace("" + "recordsToReadInThisPass: {} \t "
+            + "Run Length: {} \t Null Run Length: {} \t readCount: {} \t writeCount: {} \t "
+            + "recordsReadInThisIteration: {} \t valuesReadInCurrentPass: {} \t "
+            + "totalValuesRead: {} \t readStartInBytes: {} \t readLength: {} \t pageReader.byteLength: {} \t "
+            + "definitionLevelsRead: {} \t pageReader.currentPageCount: {}",
           recordsToReadInThisPass, runLength, nullRunLength, readCount,
           writeCount, recordsReadInThisIteration, valuesReadInCurrentPass,
           totalValuesRead, readStartInBytes, readLength, pageReader.byteLength,
           definitionLevelsRead, pageReader.currentPageCount);
-
+      }
     }
 
     valueVec.setValueCount(valuesReadInCurrentPass);

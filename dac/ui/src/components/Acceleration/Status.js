@@ -16,7 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 import Art from 'components/Art';
 import { getReflectionUiStatus } from 'utils/accelerationUtils';
 

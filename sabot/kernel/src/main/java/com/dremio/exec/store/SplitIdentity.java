@@ -17,32 +17,31 @@ package com.dremio.exec.store;
 
 import java.io.Serializable;
 
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
-
 /**
  * Split Identity.
  */
 public class SplitIdentity implements Serializable {
 
+  public static String PATH = "path";
+  public static String OFFSET = "offset";
+  public static String LENGTH = "length";
+  public static String FILE_LENGTH = "fileLength";
+
   private final String path;
-  private final PartitionProtobuf.BlockLocationsList blockLocations;
   private final long offset;
   private final long length;
+  private final long fileLength;
 
-  public SplitIdentity(String path, PartitionProtobuf.BlockLocationsList blockLocations, long offset, long length)
+  public SplitIdentity(String path, long offset, long length, long fileLength)
   {
     this.path = path;
-    this.blockLocations = blockLocations;
     this.offset = offset;
     this.length = length;
+    this.fileLength = fileLength;
   }
 
   public String getPath() {
     return path;
-  }
-
-  public PartitionProtobuf.BlockLocationsList getBlockLocations() {
-    return blockLocations;
   }
 
   public long getOffset() {
@@ -51,5 +50,9 @@ public class SplitIdentity implements Serializable {
 
   public long getLength() {
     return length;
+  }
+
+  public long getFileLength() {
+    return fileLength;
   }
 }

@@ -38,6 +38,16 @@ public interface HiveProxiedScanBatchCreator extends ExtensionPoint {
   RecordReaderIterator createRecordReaderIterator();
 
   /*
+   * Get the created record reader iterator
+   */
+  RecordReaderIterator getRecordReaderIterator();
+
+  /*
+   * Produce records from buffered splits if present
+   */
+  void produceFromBufferedSplits(boolean toProduce);
+
+  /*
    * Add splits to the underlying recordreaderiterator
    */
   void addSplits(List<SplitAndPartitionInfo> splits);

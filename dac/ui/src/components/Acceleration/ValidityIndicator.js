@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 import PropTypes from 'prop-types';
-
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
 import FontIcon from 'components/Icon/FontIcon';
 
 // todo: ax
 export default function ValidityIndicator({isValid}) {
-  return <span style={{height: 20, flex: '0 0 24px', textAlign: 'center'}} title={
+  return <span className={'ValidityIndicator'} title={
     isValid ?
       la('This Reflection is ready to accelerate queries.') :
       la('This Reflection is not ready to accelerate queries.')
   }>
     <FontIcon
-      theme={styles.flameIcon}
+      theme={themes.flameIcon}
       type={isValid ? 'Flame' : 'Flame-Disabled'}/>
   </span>;
 }
@@ -34,7 +34,7 @@ ValidityIndicator.propTypes = {
   isValid: PropTypes.bool
 };
 
-const styles = {
+const themes = {
   flameIcon: {
     'Icon': {
       width: 13,

@@ -125,6 +125,10 @@ public class HiveParquetPrimitiveTypeReader implements AutoCloseable {
     gandivaCodeGenWatch.reset();
   }
 
+  public void resetProjector() {
+    hiveNonVarcharCoercionReader.clearExprs();
+  }
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(fixedLenVarCharMap.values());

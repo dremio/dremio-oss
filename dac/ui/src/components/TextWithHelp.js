@@ -27,6 +27,8 @@ export const LIGHT = 'light';
 const TextWithHelp = (props) => {
   const {
     text,
+    helpText,
+    showToolTip,
     className,
     color
   } = props;
@@ -39,7 +41,7 @@ const TextWithHelp = (props) => {
       clientWidth,
       scrollWidth
     } = textRef.current || {};
-    setIsHover(clientWidth < scrollWidth);
+    setIsHover(clientWidth < scrollWidth || showToolTip);
   };
 
   const onMouseLeave = () => {
@@ -63,7 +65,7 @@ const TextWithHelp = (props) => {
 
   return (
     <div className='textWithHelp' onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-      <div className={contentClass} ref={textRef}>{text}</div>
+      <div className={contentClass} ref={textRef}>{ helpText || text }</div>
       <Tooltip key='tooltip'
         target={() => isHover ? textRef.current : null}
         placement='bottom-start'
@@ -78,6 +80,8 @@ const TextWithHelp = (props) => {
 
 TextWithHelp.propTypes = {
   text: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  helpText: PropTypes.any,
+  showToolTip: PropTypes.bool,
   className: PropTypes.string,
   color: PropTypes.oneOf([DARK, LIGHT])
 };

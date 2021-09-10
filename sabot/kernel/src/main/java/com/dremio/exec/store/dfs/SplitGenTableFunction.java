@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutput;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -41,9 +44,12 @@ import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.VectorAccessible;
@@ -51,6 +57,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.deltalake.DeltaConstants;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -74,7 +81,7 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   private VarCharVector pathVector;
   private BigIntVector sizeVector;
   private BigIntVector modTimeVector;
-  private VarBinaryVector outputSplitsIdentity;
+  private StructVector outputSplitsIdentity;
   private VarBinaryVector outputSplits;
 
   private String currentPath;
@@ -83,12 +90,13 @@ public class SplitGenTableFunction extends AbstractTableFunction {
   private long fileSize;
   private long remainingSize;
   private int row;
+  private ArrowBuf tmpBuf;
 
   public SplitGenTableFunction(FragmentExecutionContext fec, OperatorContext context, TableFunctionConfig functionConfig) {
     super(context, functionConfig);
     partitionCols = Optional.ofNullable(functionConfig.getFunctionContext().getPartitionColumns()).orElse(Collections.emptyList());
     partitionColValues = new HashMap<>(partitionCols.size());
-    blockSize = context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE).getNumVal();
+    blockSize = context.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
   }
 
   @Override
@@ -98,8 +106,9 @@ public class SplitGenTableFunction extends AbstractTableFunction {
     sizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_SIZE);
     modTimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, DeltaConstants.SCHEMA_ADD_MODIFICATION_TIME);
     outputSplits = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_INFORMATION);
-    outputSplitsIdentity = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_IDENTITY);
-    partitionCols.forEach(col -> partitionColValues.put(col, VectorUtil.getVectorFromSchemaPath(incoming, col)));
+    outputSplitsIdentity = (StructVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordReader.SPLIT_IDENTITY);
+    partitionCols.forEach(col -> partitionColValues.put(col, VectorUtil.getVectorFromSchemaPath(incoming, col + PARTITION_NAME_SUFFIX)));
+    tmpBuf = context.getAllocator().buffer(4096);
     return outgoing;
   }
 
@@ -130,8 +139,10 @@ public class SplitGenTableFunction extends AbstractTableFunction {
     Iterator<SplitAndPartitionInfo> splitsIterator = splits.iterator();
     Iterator<SplitIdentity> splitsIdentityIterator = splitsIdentity.iterator();
 
+    NullableStructWriter splitIdentityWriter = outputSplitsIdentity.getWriter();
+
     while (splitsIterator.hasNext()) {
-      outputSplitsIdentity.setSafe(startOutIndex + splitOffset, serializeToByteArray(splitsIdentityIterator.next()));
+      IcebergUtils.writeSplitIdentity(splitIdentityWriter, startOutIndex + splitOffset, splitsIdentityIterator.next(), tmpBuf);
       outputSplits.setSafe(startOutIndex + splitOffset, serializeToByteArray(splitsIterator.next()));
       splitOffset++;
     }
@@ -166,7 +177,7 @@ public class SplitGenTableFunction extends AbstractTableFunction {
                       .setLastModificationTime(mtime)
                       .build();
 
-      splitsIdentity.add(new SplitIdentity(splitExtended.getPath(), null, splitExtended.getStart(), splitExtended.getLength()));
+      splitsIdentity.add(new SplitIdentity(splitExtended.getPath(), splitExtended.getStart(), splitExtended.getLength(), fileSize));
 
       final PartitionProtobuf.NormalizedDatasetSplitInfo.Builder splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo
               .newBuilder()
@@ -223,5 +234,10 @@ public class SplitGenTableFunction extends AbstractTableFunction {
 
   @Override
   public void closeRow() throws Exception {
+  }
+
+  @Override
+  public void close() throws Exception {
+    AutoCloseables.close(super::close, tmpBuf);
   }
 }

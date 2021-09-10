@@ -31,7 +31,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 class IcebergHadoopTableOperations extends HadoopTableOperations {
 
   public IcebergHadoopTableOperations(Path location, Configuration conf, FileSystem fs, OperatorContext context, List<String> dataset) {
-    super(location, new DremioFileIO(fs, context, dataset, null, conf), conf);
+    super(location, new DremioFileIO(fs, context, dataset, null, null, conf), conf);
   }
 
 }

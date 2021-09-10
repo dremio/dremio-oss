@@ -380,11 +380,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
       Iterator<SplitReaderCreator> creatorIterator = innerReaderCreators.iterator();
       innerReadersIter = new PrefetchingIterator(new SplitReaderCreatorIterator() {
         @Override
-        public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
-
-        }
-
-        @Override
         public void close() throws Exception {
           AutoCloseables.close(innerReaderCreators);
         }

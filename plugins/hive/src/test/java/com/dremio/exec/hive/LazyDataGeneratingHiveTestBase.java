@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 
@@ -34,7 +35,9 @@ import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
+import com.google.inject.AbstractModule;
 
 /**
  * Base class for Hive test. Takes care of adding Hive test plugin before tests and deleting the
@@ -45,17 +48,35 @@ public class LazyDataGeneratingHiveTestBase extends PlanTestBase {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
 
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+
   protected static HiveTestDataGenerator dataGenerator;
   protected static SabotContext sabotContext;
 
   @BeforeClass
   public static void generateHiveWithoutData() throws Exception{
-    dataGenerator = HiveTestDataGenerator.newInstanceWithoutTestData(null);
-    Objects.requireNonNull(dataGenerator);
+    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
+      try {
+        runSQL(query); // queries we get here are inner 'refresh dataset' queries
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    };
+
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(SimpleJobRunner.class).toInstance(jobRunner);
+      }
+    });
+    setupDefaultTestCluster();
 
     sabotContext = getSabotContext();
     Objects.requireNonNull(sabotContext);
 
+    dataGenerator = HiveTestDataGenerator.newInstanceWithoutTestData(null);
+    Objects.requireNonNull(dataGenerator);
     dataGenerator.addHiveTestPlugin(HIVE_TEST_PLUGIN_NAME, sabotContext.getCatalogService());
     dataGenerator.addHiveTestPlugin(HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, sabotContext.getCatalogService());
   }

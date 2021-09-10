@@ -54,11 +54,15 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   }
 
   public ZKClusterCoordinator(SabotConfig config, String connect) throws IOException {
-    this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(new ZKSabotConfig(config), connect);
+    this(new ZKSabotConfig(config), connect);
   }
 
   public ZKClusterCoordinator(SabotConfig config, Provider<Integer> localPort) throws IOException {
     this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(new ZKSabotConfig(config), localPort);
+  }
+
+  public ZKClusterCoordinator(ZKClusterConfig zkClusterConfig, String connect) throws IOException {
+    this.zkClusterServiceSetManager = new ZKClusterServiceSetManager(zkClusterConfig, connect);
   }
 
   @VisibleForTesting

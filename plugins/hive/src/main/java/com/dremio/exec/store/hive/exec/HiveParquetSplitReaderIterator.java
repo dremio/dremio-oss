@@ -78,8 +78,10 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
     private final HiveReaderProto.HiveTableXattr tableXattr;
     private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
     private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators;
+    private final List<RuntimeFilter> runtimeFilters;
     private final BatchSchema fullSchema;
     private final Collection<List<String>> referencedTables;
+    private boolean produceFromBufferedSplits;
 
     HiveParquetSplitReaderIterator(
             final JobConf jobConf,
@@ -91,7 +93,8 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
             final HiveReaderProto.HiveTableXattr tableXattr,
             final ScanFilter scanFilter,
             final BatchSchema fullSchema,
-            final Collection<List<String>> referencedTables) {
+            final Collection<List<String>> referencedTables,
+            final boolean produceBuffered) {
         this.location = -1;
         this.nextLocation = 0;
         this.next = null;
@@ -119,11 +122,18 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
 
         pathRowGroupsMap = new HiveSplitsPathRowGroupsMap(sortedSplits);
         this.runtimeFilterEvaluators = new ArrayList<>();
+        this.runtimeFilters = new ArrayList<>();
+        this.produceFromBufferedSplits = produceBuffered;
     }
 
     @Override
     public boolean hasNext() {
-        return nextLocation < hiveParquetSplits.size();
+        return nextLocation + (produceFromBufferedSplits ? 0 : 1) < hiveParquetSplits.size();
+    }
+
+    @Override
+    public void produceFromBuffered(boolean toProduce) {
+        this.produceFromBufferedSplits = toProduce;
     }
 
     @Override
@@ -139,7 +149,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
         setNextLocation(location + 1);
 
         next = null;
-        if (hasNext()) {
+        if (nextLocation < hiveParquetSplits.size()) {
             next = currentUGI.doAs((PrivilegedAction<FileSplitParquetRecordReader>) () ->
                     createFileSplitReaderFromSplit(hiveParquetSplits.get(this.nextLocation)));
         }
@@ -158,7 +168,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
 
     private void setNextLocation(int baseNext) {
         this.nextLocation = baseNext;
-        if (runtimeFilterEvaluators.isEmpty() || !hasNext()) {
+        if (runtimeFilterEvaluators.isEmpty() || nextLocation >= hiveParquetSplits.size()) {
             return;
         }
         boolean skipPartition;
@@ -177,7 +187,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
             } finally {
                 AutoCloseables.close(RuntimeException.class, nameValuePairs);
             }
-        } while (skipPartition && hasNext());
+        } while (skipPartition && nextLocation < hiveParquetSplits.size());
     }
 
     private FileSplitParquetRecordReader createFileSplitReaderFromSplit(final HiveParquetSplit hiveParquetSplit) {
@@ -232,8 +242,14 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
             final RuntimeFilterEvaluator filterEvaluator =
                     new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
             this.runtimeFilterEvaluators.add(filterEvaluator);
+            this.runtimeFilters.add(runtimeFilter);
             logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
         }
+    }
+
+    @Override
+    public List<RuntimeFilter> getRuntimeFilters() {
+        return runtimeFilters;
     }
 
     @Override

@@ -25,7 +25,6 @@ import org.apache.arrow.vector.util.Text;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 
 /**
@@ -63,19 +62,6 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
   }
 
   @Test
-  public void testIncompatibleStructs() {
-    final String path = fullTestPath + "/incompatible_struct";
-    final String sqlQuery = String.format("select * from dfs.\"%s\"", path);
-
-    try {
-      test(sqlQuery);
-    } catch (Exception e) {
-      assertTrue(e instanceof UserException);
-      assertTrue(e.getMessage().contains("Mixed types"));
-    }
-  }
-
-  @Test
   public void testCompatibleLists() throws Exception {
     final String path = fullTestPath + "/compatible_list";
     final String sqlQuery = String.format("select * from dfs.\"%s\"", path);
@@ -104,19 +90,6 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
       .baselineValues(4567, "Harry", list3)
       .baselineValues(41267, "Rose", list4)
       .go();
-  }
-
-  @Test
-  public void testIncompatibleLists() {
-    final String path = fullTestPath + "/incompatible_list";
-    final String sqlQuery = String.format("select * from dfs.\"%s\"", path);
-
-    try {
-      test(sqlQuery);
-    } catch (Exception e) {
-      assertTrue(e instanceof UserException);
-      assertTrue(e.getMessage().contains("Mixed types"));
-    }
   }
 
   @Test
@@ -149,19 +122,6 @@ public class TestComplexMixedDecimals extends BaseTestQuery {
       .baselineValues(500, struct1)
       .baselineValues(4530, struct2)
       .go();
-  }
-
-  @Test
-  public void testIncompatibleNestedTypes() {
-    final String path = fullTestPath + "/incompatible_nested";
-    final String sqlQuery = String.format("select * from dfs.\"%s\"", path);
-
-    try {
-      test(sqlQuery);
-    } catch (Exception e) {
-      assertTrue(e instanceof UserException);
-      assertTrue(e.getMessage().contains("Mixed types"));
-    }
   }
 
   @Test

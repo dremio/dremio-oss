@@ -1,0 +1,248 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ @import '~@app/uiTheme/less/variables.less';
+ @import '~@app/uiTheme/less/color-schema.less';
+
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .grid-acceleration {
+    padding: 10px;
+    border-left: 1px solid @BORDER_TABLE;
+    border-right: 1px solid @BORDER_TABLE;
+    border-bottom: 1px solid @BORDER_TABLE;
+
+    .subCell {
+      text-align: center;
+      cursor: pointer;
+      &:hover {
+        background-color: hsl(199; 80%; 92%);
+      }
+    }
+
+    .--disabled {
+      text-align: center;
+      cursor: default;
+    }
+
+    .fixedDataTableRowLayout_main.public_fixedDataTableRow_main.fixedDataTableLayout_header.public_fixedDataTable_header
+      .fixedDataTableCellGroupLayout_cellGroupWrapper:nth-child(2) .fixedDataTableCellGroupLayout_cellGroup {
+      border-bottom: 1px solid @BORDER_TABLE;
+    }
+
+    .fixedDataTableLayout_rowsContainer, .public_fixedDataTable_header, .public_fixedDataTable_header, .public_fixedDataTableCell_main, .fixedDataTableCellGroupLayout_cellGroupWrapper {
+      background: transparent; // hide the content sliding underneath
+    }
+
+    .fixedDataTableLayout_main.public_fixedDataTable_main {
+      margin-left: 0;
+      margin-right: 0;
+      border: 0;
+      // use !important because fixed-data-table classes already have z-index. we need this for custom style
+      z-index: 0 !important;
+
+      input::placeholder {
+        color:#bbc0c6 !important;
+      }
+    }
+
+    .fixedDataTableCellLayout_main {
+      // background-color: @WHITE;
+      border-width: 0;
+      border-right-style: none;
+    }
+
+    .fixedDataTableLayout_hasBottomBorder {
+      border-bottom-style: none;
+      border-bottom-width: 0;
+    }
+
+    .fixedDataTableRowLayout_fixedColumnsDivider {
+      border-width: 0;
+    }
+  }
+
+  .AccelerationGrid {
+    width: 100%;
+    height: 100vh;
+    max-height: calc(100vh - 330px);
+    overflow: hidden;
+
+    &__cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: @row-height;
+      width: 100%;
+      border-bottom: 1px solid @BORDER_TABLE;
+      border-right: 1px solid @BORDER_TABLE;
+    }
+
+    &__checkRow {
+      display: flex;
+      margin-top: 10px;
+    }
+
+    &__column {
+      display: flex;
+      align-items: center;
+      margin-left: 4px;
+      width: 100%;
+    }
+
+    &__disabledSearchField {
+      background-color: @DISABLED_ADVANCED_LIGHT_ROW;
+    }
+
+    &__enabledSearchField {
+      background-color: @ACTIVE_ADVANCED_LIGHT_ROW;
+    }
+
+    &__fields {
+      height: @row-height;
+      display: flex;
+      justify-content: flex-start;
+      padding-left: 10px;
+      align-items: center;
+      border-right: 1px solid @BORDER_TABLE;
+      border-left: 1px solid @BORDER_TABLE;
+    }
+
+    &__header {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      margin-left: 10px;
+      border-right: 1px solid @BORDER_TABLE;
+      border-left: 1px solid @BORDER_TABLE;
+      border-top: 1px solid @BORDER_TABLE;
+    }
+
+    &__input {
+      border-radius: 0;
+      border: 1px solid @BORDER_TABLE
+    }
+
+    &__lastCell {
+      // &:extend(.AccelerationGrid__cell) DX-34369: why won't extend work?
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: @row-height;
+      width: 100%;
+      border-bottom: 1px solid @BORDER_TABLE;
+    }
+
+    &__layoutDescriptionLine {
+      height: @row-height;
+      border-bottom: 1px solid @BORDER_TABLE;
+    }
+
+    &__layoutHeaderDeleteIcon { // todo: ax; hover
+      flex-grow: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+      height: 26px;
+    }
+
+    &__layoutHeaderSettingsIcon { // todo: ax; hover
+      flex-grow: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+      height: 26px;
+      margin-right: 4px;
+    }
+
+    &__layoutMessage {
+      font-family: @acceleration_font;
+      font-weight: 400;
+      font-size: 13;
+      color: @font-color2;
+      width: 100%;
+      flex-grow: 1;
+      padding: 0 5px
+    }
+
+    &__leftCell {
+      font-family: @acceleration_font;
+      font-weight: 400;
+      font-size: 13px;
+      color: @TEXT_COLOR;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: @row-height;
+      padding: 0 5px;
+      border-right: 1px solid @BORDER_TABLE;
+      border-left: 1px solid @BORDER_TABLE;
+    }
+
+    &__leftHeader {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end
+    }
+
+    &__message {
+      max-height: @row-max-height;
+    }
+
+    &__prevalidatedField {
+      flex: 1;
+      border: 1px solid transparent !important; // keep 1px to prevent wiggle on focus;
+      background-color: transparent !important;
+      padding: 0;
+      margin: 0;
+      font-size: inherit;
+      font-weight: inherit;
+      width: 0;
+      box-shadow: none;
+    }
+
+    &__status {
+      height: @row-height;
+      border-bottom: 1px solid @BORDER_TABLE;
+      display: flex;
+      align-items: center;
+      position: relative; // for absolute Message
+      font-weight: normal;
+    }
+
+    &__subCellHeader {
+      font-family: @acceleration_font;
+      font-weight: 400;
+      font-size: 13px;
+      color: @TEXT_COLOR;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 32px;
+    }
+
+    &__toggle {
+      width: auto;
+      margin: 0 2px 2px;
+    }
+
+    &__togglesContainer {
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+    }
+  }
+}
+

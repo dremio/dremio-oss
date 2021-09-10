@@ -16,6 +16,7 @@
 package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
+import static org.junit.Assume.assumeFalse;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,7 +50,7 @@ public class ITTestDateTypesJavaTimeDateTime extends ElasticBaseTestQuery {
   public ITTestDateTypesJavaTimeDateTime(String format) {
     this.format = format;
     this.formatter = DateFormats.FormatterAndTypeJavaTime.getFormatterAndType(format);
-    this.dateTimeFormatter = DateTimeFormatter.ofPattern(format);
+    this.dateTimeFormatter = DateTimeFormatter.ofPattern(getActualFormat(format));
   }
 
   @Parameterized.Parameters
@@ -58,14 +59,21 @@ public class ITTestDateTypesJavaTimeDateTime extends ElasticBaseTestQuery {
     data.add(new Object[]{"yyyyMMdd'T'HHmmss"});
     data.add(new Object[]{"yyyy-MM-dd'T'HH:mm:ss"});
     data.add(new Object[]{"yyyy/MM/dd'T'HH:mm:ss"});
+    data.add(new Object[]{"8yyyy-MM-dd'T'HH:mm:ss"});
+    data.add(new Object[]{"uuuu-MM-dd'T'HH:mm:ss"});
+    data.add(new Object[]{"8uuuu-MM-dd'T'HH:mm:ss"});
     return data;
   }
 
   @Test
   public void runTestZonedDateTime() throws Exception {
-    final LocalDateTime dt1 = LocalDateTime.of(LocalDate.now(), LocalTime.now(ZoneOffset.UTC));
+    // Format with prefix 8 is applicable for ES 6.8 and ES 7 only.
+    assumeFalse(( format.startsWith("8")) && !(enable7vFeatures || enable68vFeatures));
+    // Format with "u" as year is applicable for ES 7 only.
+    assumeFalse(( format.contains("u")) && !(enable7vFeatures));
+    final LocalDateTime dt1 = LocalDateTime.of(LocalDate.of(2021, 07, 21), LocalTime.of(13, 00, 05));
     final LocalDateTime dt2 = dt1.plusYears(1);
-    final String value1 = dt2.atZone(ZoneOffset.UTC).format(dateTimeFormatter);
+    final String value1 = dt1.atZone(ZoneOffset.UTC).format(dateTimeFormatter);
     final String value2 = dt2.atZone(ZoneOffset.UTC).format(dateTimeFormatter);
     final ElasticsearchCluster.ColumnData[] dataZonedDateTime = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", format), new Object[][]{

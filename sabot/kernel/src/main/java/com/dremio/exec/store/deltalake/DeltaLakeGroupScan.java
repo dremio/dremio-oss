@@ -64,6 +64,7 @@ public class DeltaLakeGroupScan extends EasyGroupScan {
       deltaCommitLogSchema,
       getDataset().getName().getPathComponents(),
       dataset.getStoragePluginId(),
+      dataset.getStoragePluginId(),
       columns,
       partitionCols,
       getDataset().getReadDefinition().getExtendedProperty());

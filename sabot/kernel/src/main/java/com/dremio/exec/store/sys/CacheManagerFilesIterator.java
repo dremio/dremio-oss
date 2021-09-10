@@ -23,12 +23,9 @@ import org.rocksdb.RocksIterator;
 
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.CacheManagerFilesInfo;
-import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Iterator which returns cached files information.
- *
- * Number of cached files can be at
  */
 public class CacheManagerFilesIterator implements Iterator<Object> {
   private final boolean isCachedFileSystem;
@@ -37,7 +34,7 @@ public class CacheManagerFilesIterator implements Iterator<Object> {
   private CacheManagerStatsProvider cacheManagerStatsProvider;
   private RocksIterator fileIterator;
 
-  CacheManagerFilesIterator(SabotContext sabotContext, OperatorContext operatorContext) {
+  CacheManagerFilesIterator(SabotContext sabotContext) {
     isCachedFileSystem = (sabotContext.getFileSystemWrapper() instanceof CacheManagerStatsProvider);
 
     if (isCachedFileSystem) {
@@ -56,6 +53,7 @@ public class CacheManagerFilesIterator implements Iterator<Object> {
     if (curPos == filesInfoList.size()) {
       filesInfoList = cacheManagerStatsProvider.getCachedFilesStats(fileIterator);
       if (filesInfoList.isEmpty()) {
+        fileIterator.close();
         return false;
       }
       curPos = 0;

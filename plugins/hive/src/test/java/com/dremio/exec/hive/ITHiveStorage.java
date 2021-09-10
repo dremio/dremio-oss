@@ -34,7 +34,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
@@ -47,16 +46,14 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TestRule;
 
 import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.common.util.TestTools;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -85,9 +82,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 public class ITHiveStorage extends HiveTestBase {
-
-  @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  protected static Boolean runWithUnlimitedSplitSupport = false;
 
   @BeforeClass
   public static void setupOptions() throws Exception {
@@ -105,7 +100,7 @@ public class ITHiveStorage extends HiveTestBase {
   @Test // DRILL-4083
   public void testNativeScanWhenNoColumnIsRead() throws Exception {
     String query = "SELECT count(*) as col FROM hive.kv_parquet";
-    testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+    testVersionPlan(true, query);
 
     testBuilder()
         .sqlQuery(query)
@@ -164,6 +159,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void orcTestMoreColumnsInExtTable() throws Exception {
+    Assume.assumeFalse(runWithUnlimitedSplitSupport);
     String query = "SELECT col2, col3 FROM hive.orc_more_columns_ext";
     testBuilder().sqlQuery(query)
       .ordered()
@@ -323,6 +319,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testParquetHiveFixedLenVarchar() throws Exception {
+    Assume.assumeFalse(runWithUnlimitedSplitSupport);
     String setOptionQuery = setTableOptionQuery("hive.\"default\".parq_varchar", HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true");
     testBuilder()
         .sqlQuery(setOptionQuery)
@@ -536,8 +533,8 @@ public class ITHiveStorage extends HiveTestBase {
   }
 
   @Test
-  public void readUnionHiveDataTypesORC() throws Exception {
-    readUnionHiveDataTypes("orcunionorc");
+  public void testDropOfUnionHiveDataTypesORC() throws Exception {
+    readTableWithUnionHiveDataTypes("orcunionorc");
   }
 
   @Test
@@ -547,6 +544,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void readMixedTypePartitionedTable() throws Exception {
+    Assume.assumeFalse(runWithUnlimitedSplitSupport);
     String query = "SELECT * FROM hive.parquet_mixed_partition_type";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -572,7 +570,7 @@ public class ITHiveStorage extends HiveTestBase {
     final String query = "SELECT * FROM hive.parquet_region";
 
     // Make sure the plan has Hive scan with native parquet reader
-    testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+    testVersionPlan(true, query);
 
     testBuilder().sqlQuery(query)
       .ordered()
@@ -614,7 +612,7 @@ public class ITHiveStorage extends HiveTestBase {
       final String query = "SELECT count(r_regionkey) c FROM hive.parquet_with_two_files";
 
       // Make sure the plan has Hive scan with native parquet reader
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+      testVersionPlan(true, query);
 
       // With two files, the expected count is 10 (i.e 2 * 5).
       testBuilder().sqlQuery(query).ordered().baselineColumns("c").baselineValues(10L).go();
@@ -679,7 +677,7 @@ public class ITHiveStorage extends HiveTestBase {
   @Test
   public void countStar() throws Exception {
     testPhysicalPlan("SELECT count(*) FROM hive.kv", "columns=[]");
-    testPhysicalPlan("SELECT count(*) FROM hive.kv_parquet", "columns=[]");
+    testVersionPlan(true, "SELECT count(*) FROM hive.kv_parquet");
 
     testBuilder()
         .sqlQuery("SELECT count(*) as cnt FROM hive.kv")
@@ -901,6 +899,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testReadSignatures() throws Exception {
+    Assume.assumeFalse(runWithUnlimitedSplitSupport);
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(parseFullPath("hive.db1.kv_db1")))).size());
@@ -1053,17 +1052,10 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testNonDefaultHiveTableRefresh() throws Exception {
+    String tableName = "test_non_default_refresh";
     List<NamespaceKey> tables0 = Lists.newArrayList(getSabotContext()
       .getNamespaceService(SystemUser.SYSTEM_USERNAME)
       .getAllDatasets(new NamespaceKey("hive")));
-
-    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
-      new NamespaceKey("hive"),
-      new MetadataPolicy()
-        .setAuthTtlMs(0l)
-        .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setDatasetDefinitionTtlMs(0l)
-        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
 
     List<NamespaceKey> tables1 = Lists.newArrayList(getSabotContext()
       .getNamespaceService(SystemUser.SYSTEM_USERNAME)
@@ -1071,14 +1063,14 @@ public class ITHiveStorage extends HiveTestBase {
     assertEquals(tables0.size(), tables1.size());
 
     // create an empty table
-    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS foo_bar(a INT, b STRING)");
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS " + tableName + "(a INT, b STRING)");
 
     //run alter table refresh with short name to make the table visible
     testBuilder()
-      .sqlQuery("ALTER TABLE hive.foo_bar REFRESH METADATA")
+      .sqlQuery("ALTER TABLE hive." + tableName + " REFRESH METADATA")
       .unOrdered()
       .baselineColumns("ok", "summary")
-      .baselineValues(true, "Metadata for table 'hive.foo_bar' refreshed.")
+      .baselineValues(true, "Metadata for table 'hive." + tableName + "' refreshed.")
       .build().run();
 
     // make sure new table is visible
@@ -1088,18 +1080,18 @@ public class ITHiveStorage extends HiveTestBase {
     assertEquals(tables1.size() + 1, tables2.size());
 
     assertTrue(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive.\"default\"." + tableName)), Type.DATASET));
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive." + tableName)), Type.DATASET));
 
     // run query on table with short name
     testBuilder()
-      .sqlQuery("SELECT * FROM hive.foo_bar")
+      .sqlQuery("SELECT * FROM hive." + tableName)
       .expectsEmptyResultSet()
       .go();
 
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive." + tableName)), Type.DATASET));
 
     // no new table is added
     List<NamespaceKey> tables3 = Lists.newArrayList(getSabotContext()
@@ -1109,14 +1101,14 @@ public class ITHiveStorage extends HiveTestBase {
 
     //run alter again - should succeed. The short name should get resolved and recoginzed as already existing and no refresh should be done
     testBuilder()
-      .sqlQuery("ALTER TABLE hive.foo_bar REFRESH METADATA")
+      .sqlQuery("ALTER TABLE hive." + tableName + " REFRESH METADATA")
       .unOrdered()
       .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table 'hive.foo_bar' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+      .baselineValues(true, "Table 'hive." + tableName + "' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
       .build().run();
 
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive." + tableName)), Type.DATASET));
     // no new table is added
     tables3 = Lists.newArrayList(getSabotContext()
       .getNamespaceService(SystemUser.SYSTEM_USERNAME)
@@ -1124,7 +1116,7 @@ public class ITHiveStorage extends HiveTestBase {
     assertEquals(tables2.size(), tables3.size());
 
     // drop table
-    dataGenerator.executeDDL("DROP TABLE foo_bar");
+    dataGenerator.executeDDL("DROP TABLE " + tableName);
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
@@ -1394,27 +1386,18 @@ public class ITHiveStorage extends HiveTestBase {
   /**
    * Test to ensure Dremio fails to read union data from hive
    */
-  private void readUnionHiveDataTypes(String table) {
+  private void readTableWithUnionHiveDataTypes(String table) {
     int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
     for (int row : testrows) {
-      Object expected;
-      String rowStr = Integer.toString(row);
-
-      if (row % 3 == 0) {
-        expected = row;
-      } else if (row % 3 == 1) {
-        expected = Double.parseDouble(rowStr + "." + rowStr);
-      } else {
-        expected = rowStr + "." + rowStr;
-      }
       final String exceptionMessage = BatchSchema.MIXED_TYPES_ERROR;
       try {
         testBuilder().sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + row)
           .ordered()
-          .baselineColumns("rownum", "union_field")
-          .baselineValues(row, expected)
+          .baselineColumns("rownum")
+          .baselineValues(row)
           .go();
       } catch (Exception e) {
+        e.printStackTrace();
         assertThat(e.getMessage(), containsString(exceptionMessage));
       }
     }
@@ -1653,5 +1636,13 @@ public class ITHiveStorage extends HiveTestBase {
             new LocalDateTime(Date.valueOf("2013-07-05").getTime()),
             "char")
         .go();
+  }
+
+  private void testVersionPlan(boolean icebergExpected, String query) throws Exception {
+    if (icebergExpected && runWithUnlimitedSplitSupport) {
+      testPhysicalPlan(query, "IcebergManifestList(table=[");
+    } else {
+      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+    }
   }
 }

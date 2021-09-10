@@ -16,6 +16,7 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
+import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY_VALUE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED;
@@ -131,7 +132,8 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
 
       final SchemaPath parsedPartitionValue = // add.partitionValues_parsed.[columnName]
         SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES_PARSED, field.getName());
-      final FieldReference outputRef = FieldReference.getWithQuotedRef(field.getName()); // top level partition column field
+
+      final FieldReference outputRef = FieldReference.getWithQuotedRef(field.getName() + PARTITION_NAME_SUFFIX); // top level partition column field
 
       TypeProtos.MajorType targetType = MajorTypeHelper.getMajorTypeForField(field);
 

@@ -18,16 +18,32 @@ import Immutable from 'immutable';
 
 const getJobsList = (state) => state.jobs.jobs.get('jobs') || Immutable.List();
 const getDataWithItemsForFiltersMap = (state) => state.jobs.jobs.get('dataForFilter') || Immutable.Map();
+const getImmutableJobList = (state) => state.jobs.jobs.get('jobList') || Immutable.List();
+const getDataWithItemsForJobListFiltersMap = (state) => state.jobList.jobList.get('dataForFilter') || Immutable.Map();
 
 export const getJobs = createSelector(
-  [ getJobsList ],
+  [getJobsList],
   jobs => {
     return jobs;
   }
 );
 
 export const getDataWithItemsForFilters = createSelector(
-  [ getDataWithItemsForFiltersMap ],
+  [getDataWithItemsForFiltersMap],
+  filtersData => {
+    return filtersData;
+  }
+);
+
+export const getJobList = createSelector(
+  [getImmutableJobList],
+  jobList => {
+    return jobList;
+  }
+);
+
+export const getDataWithItemsForJobListFilters = createSelector(
+  [getDataWithItemsForJobListFiltersMap],
   filtersData => {
     return filtersData;
   }

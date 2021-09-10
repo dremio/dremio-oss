@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.gcs;
 
+import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_STATUS_PARALLEL_ENABLE;
 
 import java.io.ByteArrayInputStream;
@@ -90,8 +91,6 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
       DREMIO_PRIVATE_KEY
       );
 
-  public static final String SCHEME_NAME = "dremiogcs";
-
   private static final ConnectionSchema<GCSConf> SCHEMA = ConnectionSchema.getSchema(GCSConf.class);
 
   private final DremioFileSystemCache fsCache = new DremioFileSystemCache();
@@ -109,7 +108,7 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
           });
 
   public GoogleBucketFileSystem() {
-    super(SCHEME_NAME, "bucket", ELIMINATE_PARENT_DIRECTORY);
+    super(DREMIO_GCS_SCHEME, "bucket", ELIMINATE_PARENT_DIRECTORY);
   }
 
   @Override

@@ -93,6 +93,7 @@ enum WorkloadType {
   DDL = 10;
   UI_DOWNLOAD = 11;
   FLIGHT = 12;
+  METADATA_REFRESH = 13;
 }
 
 message DremioPBError{
@@ -211,6 +212,16 @@ message DremioPBError{
      */
     RETRY_ATTEMPT_ERROR = 1020;
 
+    /* Internal refresh dataset error
+    */
+    REFRESH_DATASET_ERROR = 1021;
+
+    /*
+     * PDFS Retriable Error.
+     * The query should be reattempted, if this error is received.
+     * This is Deprecated and shouldn't be used.
+     */
+    PDFS_RETRIABLE_ERROR = 1022;
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -643,6 +654,7 @@ enum CoreOperatorType {
   ICEBERG_WRITER_COMMITTER = 56;
   GRPC_WRITER = 57;
   MANIFEST_WRITER = 58;
+  FLIGHT_SUB_SCAN = 59;
 }
 
 message MetricDef {

@@ -63,6 +63,7 @@ public class WriterOptions {
   private final ByteString extendedProperty;
   private final boolean outputLimitEnabled;
   private IcebergTableProps icebergTableProps;
+  private boolean readSignatureSupport;
 
   public WriterOptions(
     Integer ringCount,
@@ -86,11 +87,12 @@ public class WriterOptions {
     long recordLimit,
     IcebergWriterOperation icebergWriterOperation,
     ByteString extendedProperty,
-    IcebergTableProps icebergTableProps
+    IcebergTableProps icebergTableProps,
+    boolean readSignatureSupport
   ) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
       singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE,
-      icebergTableProps);
+      icebergTableProps, readSignatureSupport);
   }
 
   public WriterOptions(
@@ -105,7 +107,7 @@ public class WriterOptions {
     ByteString extendedProperty
   ) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
-      singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE, null);
+      singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE, null, true);
   }
 
 
@@ -122,7 +124,8 @@ public class WriterOptions {
     @JsonProperty("extendedProperty") ByteString extendedProperty,
     @JsonProperty("outputLimitEnabled") boolean outputLimitEnabled,
     @JsonProperty("outputLimitSize") long outputLimitSize,
-    @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps
+    @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
+    @JsonProperty("readSignatureSupport") Boolean readSignatureSupport
     ) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
@@ -136,6 +139,7 @@ public class WriterOptions {
     this.outputLimitEnabled = outputLimitEnabled;
     this.outputLimitSize = outputLimitSize;
     this.icebergTableProps = icebergTableProps;
+    this.readSignatureSupport = readSignatureSupport;
   }
 
   public Integer getRingCount() {
@@ -192,13 +196,13 @@ public class WriterOptions {
   public WriterOptions withOutputLimitEnabled(boolean outputLimitEnabled) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
                              this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
-                             this.icebergWriterOperation, this.extendedProperty, outputLimitEnabled, this.outputLimitSize, null);
+                             this.icebergWriterOperation, this.extendedProperty, outputLimitEnabled, this.outputLimitSize, null,this.readSignatureSupport);
   }
 
   public WriterOptions withOutputLimitSize(long outputLimitSize) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
                              this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
-                             this.icebergWriterOperation, this.extendedProperty, this.outputLimitEnabled, outputLimitSize, null);
+                             this.icebergWriterOperation, this.extendedProperty, this.outputLimitEnabled, outputLimitSize, null,this.readSignatureSupport);
   }
 
   public WriterOptions withPartitionColumns(List<String> partitionColumns) {
@@ -241,6 +245,10 @@ public class WriterOptions {
 
   public IcebergTableProps getIcebergTableProps() {
     return icebergTableProps;
+  }
+
+  public boolean isReadSignatureSupport() {
+    return readSignatureSupport;
   }
 
   public void setIcebergTableProps(IcebergTableProps icebergTableProps) {

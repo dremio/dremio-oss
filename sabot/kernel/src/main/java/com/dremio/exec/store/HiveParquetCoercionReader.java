@@ -55,6 +55,7 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
   protected final RecordReader inner;
   protected final OperatorContext context;
   protected final ExpressionEvaluationOptions projectorOptions;
+  protected final BatchSchema originalSchema; // actual schema including varchar and non-varchar fields
 
   protected int recordCount;
   protected VectorContainer incoming;
@@ -72,7 +73,6 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
 
   SampleMutator mutator;
 
-  private final BatchSchema originalSchema; // actual schema including varchar and non-varchar fields
   private final HiveParquetReader hiveParquetReader;
   private final List<ParquetFilterCondition> filterConditions;
 
@@ -237,6 +237,11 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
   }
 
   @Override
+  public List<SchemaPath> getColumnsToBoost() {
+    return inner.getColumnsToBoost();
+  }
+
+  @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
     // do not allocate if called by FilteringReader
     if (nextMethodState == NextMethodState.NOT_CALLED_BY_FILTERING_READER) {
@@ -262,5 +267,9 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
     projectorOutput = outgoing;
     recordCount = 0;
     nextMethodState = NextMethodState.NOT_CALLED_BY_FILTERING_READER;
+  }
+
+  protected void resetProjector() {
+    hiveParquetReader.resetProjector();
   }
 }

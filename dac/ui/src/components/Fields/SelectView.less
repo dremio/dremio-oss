@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 
+@import '~@app/uiTheme/less/color-schema.less';
 .select {
   composes: inline-flex-container flex-align-center from '~@app/uiTheme/less/layout.less';
   cursor: pointer;
 }
 
 .disabled {
-  composes: unavailable disabled from '~@app/uiTheme/less/typography.less';
   cursor: default;
+  background: @mercury;
+  opacity: 0.8;
+}
+.showHideBackgroundColor {
+  background-color: @DISABLED_DRAG_AREA;
+  height: 54px;
+  width: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

@@ -76,7 +76,10 @@ public class BootstrapResource {
       }
 
       final UserName userName = new UserName(userForm.getUserConfig().getUserName());
-      User newUser = SimpleUser.newBuilder(userForm.getUserConfig()).setCreatedAt(System.currentTimeMillis()).build();
+      User newUser = SimpleUser.newBuilder(userForm.getUserConfig())
+        .setCreatedAt(System.currentTimeMillis())
+        .setActive(true)
+        .build();
       newUser = userService.createUser(newUser, userForm.getPassword());
       dContext.getNamespaceService(SystemUser.SYSTEM_USERNAME)
           .addOrUpdateHome(

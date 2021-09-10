@@ -36,26 +36,28 @@ public class TestCommitFailure extends BaseTestQuery {
 
   @Test
   public void commit() throws Exception {
-    final String tableName = "commit_failure";
+    for (String testSchema: SCHEMAS_FOR_TEST) {
+      final String tableName = "commit_failure";
 
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, "commit-failure", UnsupportedOperationException.class)
-      .build();
+      final String controls = Controls.newBuilder()
+        .addException(AttemptManager.class, "commit-failure", UnsupportedOperationException.class)
+        .build();
 
-    expectedEx.expectMessage("commit-failure");
-    try (AutoCloseable c = enableIcebergTables()) {
-      try {
-        final String testWorkingPath = TestTools.getWorkingPath();
-        final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/orders";
-        final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY (o_orderdate) " +
-            " AS SELECT * from dfs.\"" + parquetFiles + "\" limit 2",
-          TEMP_SCHEMA, tableName);
+      expectedEx.expectMessage("commit-failure");
+      try (AutoCloseable c = enableIcebergTables()) {
+        try {
+          final String testWorkingPath = TestTools.getWorkingPath();
+          final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/orders";
+          final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY (o_orderdate) " +
+              " AS SELECT * from dfs.\"" + parquetFiles + "\" limit 2",
+            testSchema, tableName);
 
-        ControlsInjectionUtil.setControls(client, controls);
-        test(ctasQuery);
+          ControlsInjectionUtil.setControls(client, controls);
+          test(ctasQuery);
 
-      } finally {
-        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        } finally {
+          FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+        }
       }
     }
   }

@@ -50,16 +50,18 @@ public class DremioFileIO implements FileIO {
    */
   private final Long fileLength;
   private final Configuration conf;
+  private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
 
   public DremioFileIO(Configuration conf) {
-    this(null, null, null, null, conf);
+    this(null, null, null, null, null, conf);
   }
 
-  public DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, Long fileLength, Configuration conf) {
+  public DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID, Long fileLength, Configuration conf) {
     Preconditions.checkNotNull(conf, "Configuration can not be null");
     this.fs = fs;
     this.context = context;
     this.dataset = dataset;
+    this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
     this.fileLength = fileLength;
     this.conf = conf;
   }
@@ -76,7 +78,7 @@ public class DremioFileIO implements FileIO {
       } else {
         fileSize = fileLength;
       }
-      return new DremioInputFile(fs, modifiedPath, fileSize, context, dataset, conf);
+      return new DremioInputFile(fs, modifiedPath, fileSize, context, dataset, datasourcePluginUID, conf);
     } catch (IOException e) {
       throw UserException.ioExceptionError(e).buildSilently();
     }
@@ -84,11 +86,13 @@ public class DremioFileIO implements FileIO {
 
   @Override
   public OutputFile newOutputFile(String path) {
+    path = Path.getContainerSpecificRelativePath(Path.of(path));
     return new DremioOutputFile(path, conf);
   }
 
   @Override
   public void deleteFile(String path) {
+    path = Path.getContainerSpecificRelativePath(Path.of(path));
     org.apache.hadoop.fs.Path toDelete = DremioHadoopUtils.toHadoopPath(path);
     org.apache.hadoop.fs.FileSystem fs = Util.getFs(toDelete, conf);
     try {

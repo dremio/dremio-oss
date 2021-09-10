@@ -23,19 +23,27 @@ import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
+
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.util.TestTools;
 import com.google.common.collect.ImmutableMap;
 
 public class ITTestAliases extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestAliases.class);
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testAlias() throws Exception {

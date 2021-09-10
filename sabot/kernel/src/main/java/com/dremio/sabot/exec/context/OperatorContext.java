@@ -28,6 +28,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
@@ -50,6 +51,8 @@ import com.dremio.service.spill.SpillService;
 public abstract class OperatorContext {
 
   public abstract SabotConfig getConfig();
+
+  public abstract DremioConfig getDremioConfig();
 
   public abstract ArrowBuf replace(ArrowBuf old, int newSize);
 

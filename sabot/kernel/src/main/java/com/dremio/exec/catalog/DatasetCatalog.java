@@ -49,6 +49,9 @@ public interface DatasetCatalog {
   CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
                                   WriterOptions writerOptions, Map<String, Object> storageOptions);
 
+  CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
+                                  WriterOptions writerOptions, Map<String, Object> storageOptions, boolean isResultsTable);
+
   void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions);
 
   void dropTable(NamespaceKey key);
@@ -101,6 +104,9 @@ public interface DatasetCatalog {
   void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration);
 
   boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes);
+
+  boolean alterColumnOption(final NamespaceKey key, String columnToChange,
+                            final String attributeName, final AttributeValue attributeValue);
 
   /**
    * Retrieve a table

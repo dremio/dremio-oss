@@ -1,0 +1,65 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/color-schema.less";
+@font-size:16px;
+@line-height:20px;
+@font-weight:600;
+:global {
+  .title() {
+    color:@font-color1;
+    font-size: @font-size;
+    font-weight: @font-weight;
+    line-height: @line-height;
+  }
+  .overview {
+    display: flex;
+    min-height: 100vh;
+
+    &__leftSidePanel {
+      flex-basis: 33%;
+      flex-direction: column;
+      box-shadow: inset -1px 0px 0px @pale_liteGrey ;
+      padding-left: 3px;
+      padding-right: 10px;
+    }
+    &__righSidePanel {
+      flex-basis:67%;
+      flex-direction: column;
+      padding-left: 15px;
+      width: 100%;
+      margin-right: 10px;
+    }
+    &__sqlBody {
+      font-style: normal !important;
+      font-weight: normal !important;
+      border-radius: 5px !important;
+      height: 190px !important ;
+      font-size:11px !important;
+      line-height: 20px!important ;
+    }
+  }
+  .failureInfo {
+    background-color: @linen;
+    margin: 10px 0px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.0470588);
+    border-radius: 4px;
+    padding: 4px;
+
+    &__messageContent {
+      position: relative;
+    }
+  }
+}

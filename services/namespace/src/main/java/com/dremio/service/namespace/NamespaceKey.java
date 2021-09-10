@@ -19,11 +19,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.utils.PathUtils;
-import com.google.common.base.Function;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -46,6 +50,13 @@ public class NamespaceKey {
     this.schemaPath = PathUtils.constructFullPath(pathComponents);
   }
 
+  @JsonCreator
+  public NamespaceKey(@JsonProperty("pathComponents") List<String> pathComponents, @JsonProperty("schemaPath") String schemaPath) {
+    checkNotNull(pathComponents);
+    this.pathComponents = ImmutableList.copyOf(pathComponents);
+    this.schemaPath = StringUtils.isEmpty(schemaPath) ? PathUtils.constructFullPath(pathComponents) : schemaPath;
+  }
+
   public int size(){
     return pathComponents.size();
   }
@@ -54,6 +65,7 @@ public class NamespaceKey {
     return pathComponents;
   }
 
+  @JsonIgnore
   public NamespaceKey getChild(String name) {
     return new NamespaceKey(ImmutableList.copyOf(Iterables.concat(pathComponents, ImmutableList.of(name))));
   }
@@ -62,6 +74,7 @@ public class NamespaceKey {
     return schemaPath;
   }
 
+  @JsonIgnore
   public String getLeaf() {
     return pathComponents.get(pathComponents.size() - 1);
   }
@@ -71,12 +84,9 @@ public class NamespaceKey {
     return schemaPath.hashCode();
   }
 
+  @JsonIgnore
   public NamespaceKey asLowerCase() {
-    return new NamespaceKey(FluentIterable.from(pathComponents).transform(new Function<String, String>(){
-      @Override
-      public String apply(String input) {
-        return input.toLowerCase();
-      }}).toList());
+    return new NamespaceKey(pathComponents.stream().map(String::toLowerCase).collect(Collectors.toList()));
   }
 
   @Override
@@ -97,22 +107,27 @@ public class NamespaceKey {
     return false;
   }
 
+  @JsonIgnore
   public String getName() {
     return pathComponents.get(pathComponents.size() - 1);
   }
 
+  @JsonIgnore
   public String getRoot() {
     return pathComponents.get(0);
   }
 
+  @JsonIgnore
   public NamespaceKey getParent() {
     return new NamespaceKey(pathComponents.subList(0, pathComponents.size() - 1));
   }
 
+  @JsonIgnore
   public String toUnescapedString() {
     return DOT_JOINER.join(pathComponents);
   }
 
+  @JsonIgnore
   public boolean hasParent() {
     return pathComponents.size() > 1;
   }

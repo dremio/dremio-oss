@@ -32,7 +32,8 @@ export default class SimpleButton extends Component {
     submitting: PropTypes.bool,
     buttonStyle: PropTypes.string,
     style: PropTypes.object,
-    children: PropTypes.node
+    children: PropTypes.node,
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -51,7 +52,7 @@ export default class SimpleButton extends Component {
   }
 
   render() {
-    const {buttonStyle, disabled, submitting, style, children, ...props} = this.props;
+    const {className, buttonStyle, disabled, submitting, style, children, ...props} = this.props;
     invariant(buttonStyles[buttonStyle] !== undefined, `Unknown button style: "${buttonStyle}"`);
 
     const combinedStyle = [
@@ -63,8 +64,10 @@ export default class SimpleButton extends Component {
     ];
     return (
       <button
+        className={className}
         disabled={submitting || disabled}
         {...props}
+        // DX-34369: need to fix how we use classname and style
         style={combinedStyle}>
         {this.renderSpinner() || children}
       </button>

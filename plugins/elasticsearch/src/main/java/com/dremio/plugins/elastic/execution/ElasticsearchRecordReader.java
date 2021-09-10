@@ -253,7 +253,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       SearchScroll searchScroll = new SearchScroll()
         .setScrollId(scrollId)
         .setScrollTimeout(config.getScrollTimeoutFormatted());
-      return connection.execute(searchScroll);
+      return connection.execute(searchScroll, false);
     } finally {
       if (stats != null) {
         stats.stopWait();

@@ -13,27 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '~@app/uiTheme/less/color-schema.less';
-@import "~@app/uiTheme/less/mixins.less";
+ @import '~@app/uiTheme/less/color-schema.less';
+ @import "~@app/uiTheme/less/mixins.less";
 
 :global {
-  
+
+  .react-monaco-editor-container {
+    min-height: 190px !important;
+  }
+
   .react-monaco-editor-container .monaco-editor .view-overlays .current-line {
     border: none;
   }
 
-  .react-monaco-editor-container .monaco-editor .line-numbers {
-    opacity: 0.4;
-  }
-
   .monaco-editor {
-    .mtk4 {
-      color: #a100ff;
+    line-height: 0px !important;
+    border-radius: 4px !important;
+
+    .overflow-guard {
+      border-radius: 4px;
     }
-    
+
+    .mtk3 {
+      color: @monaco-light-green;
+    }
+    .mtk7 {
+      color: @monaco-persian-green;
+    }
+    .mtk20 {
+      color: @monaco-orange;
+    }
     .margin {
-      margin: 0 !important;
-    }
+     margin: 0px !important;
+      }
 
     .dremio-error-line {
       display: flex;
@@ -50,9 +62,8 @@
       }
     }
   }
+   //autocomplete styles ------------------------------
 
-  //autocomplete styles ------------------------------
-  
   .monaco-editor .suggest-widget {
     .font-basic();
 
@@ -68,12 +79,11 @@
 
     .monaco-list .monaco-list-row {
       padding: 0 13px; // should be > 10px (vertical scrollbar size)
-      
-      //hide suggestion type icon
+       //hide suggestion type icon
       .icon {
         display: none;
       }
-      
+
       &.focused {
         background: @PALE_ORANGE;
         //hide 'i' icon
@@ -86,13 +96,10 @@
       > .contents > .main > .type-label {
         display: inline;
       }
-
       .highlight {
         .font-basic() !important;
         font-weight: 500 !important;
       }
     }
-  }
-
-  //------------------------------------------------------
+  } //------------------------------------------------------
 }

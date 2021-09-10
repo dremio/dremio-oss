@@ -293,7 +293,7 @@ public class TestParquetSplitReaderCreatorIterator {
     assertFalse(creatorIterator.hasNext());
 
     // setProduceRemanining
-    creatorIterator.setProduceFromBufferedSplits(true);
+    creatorIterator.produceFromBufferedSplits(true);
 
     // return the last prefetched creator
     assertTrue(creatorIterator.hasNext());

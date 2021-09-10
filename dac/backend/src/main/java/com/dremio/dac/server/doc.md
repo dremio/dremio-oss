@@ -327,6 +327,15 @@
    > `<=` [com.dremio.dac.model.job.JobsUI](#class-comdremiodacmodeljobjobsui)   
 
 
+## Resource defined by class com.dremio.dac.resource.JobsListingResource
+
+ - GET /jobs-listing/v1.0?filter={String}&sort={String}&order={com.dremio.dac.model.job.ResultOrder}&offset={int}0&limit={int}100&level={int}0   
+   > `<=` [com.dremio.dac.model.job.JobsListingUI](#class-comdremiodacmodeljobjobslistingui)   
+
+ - GET /jobs-listing/v1.0/{jobId}/jobDetails?detailLevel={int}0&attempt={int}1 (path params: jobId={String})   
+   > `<=` [com.dremio.dac.model.job.JobInfoDetailsUI](#class-comdremiodacmodeljobjobinfodetailsui)   
+
+
 ## Resource defined by class com.dremio.dac.resource.JobsFiltersResource
 
  - GET /jobs/filters/spaces?filter={String}&limit={java.lang.Integer}   
@@ -794,7 +803,7 @@
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
       },
       ...
     ],
@@ -811,7 +820,7 @@
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
       },
       ...
     ],
@@ -959,7 +968,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     displayFullPath: [
       "abc",
       ...
@@ -985,7 +994,7 @@
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
       },
       ...
     ],
@@ -1005,7 +1014,7 @@
   apiLinks: {
     abc: "abc", ...
   },
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
   datasetVersion: "abc",
   descendants: 1,
   fields: [
@@ -1040,7 +1049,7 @@
     "abc",
     ...
   ],
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
   datasetVersion: "abc",
   descendants: 1,
   displayFullPath: [
@@ -1075,7 +1084,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1242,7 +1251,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1314,7 +1323,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1375,7 +1384,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1450,7 +1459,7 @@
 - Example:
 ```
 {
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
   fullPath: [
     "abc",
     ...
@@ -1674,7 +1683,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -1691,7 +1700,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -1866,7 +1875,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
             version: 1,
           },
           fullPathList: [
@@ -1876,7 +1885,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
           version: 1,
         },
         datasetName: "abc",
@@ -1945,7 +1954,7 @@
             "abc",
             ...
           ],
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
         },
         hintScore: 1.0,
         materialization: {
@@ -2055,7 +2064,7 @@
     "abc",
     ...
   ],
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
   datasetVersion: "abc",
   description: "abc",
   downloadUrl: "abc",
@@ -2124,13 +2133,13 @@
         "abc",
         ...
       ],
-      type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+      type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     },
     ...
   ],
   peakMemory: 1,
   plansConsidered: 1,
-  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT",
+  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
   requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
   resourceScheduling: {
     engineName: "abc",
@@ -2207,6 +2216,236 @@
 }
 ```
 
+## `class com.dremio.dac.model.job.JobInfoDetailsUI`
+- Example:
+```
+{
+  accelerated: true | false,
+  algebraicReflectionsDataset: [
+    { /** DataSet **/
+      datasetID: "abc",
+      datasetName: "abc",
+      datasetPath: "abc",
+      datasetSizeRows: 1,
+      datasetType: "abc",
+      reflectionsDefinedList: [
+        { /** Reflection **/
+          datasetName: "abc",
+          isStarFlake: true | false,
+          isUsed: true | false,
+          reflectionCreated: "abc",
+          reflectionDatasetPath: "abc",
+          reflectionID: "abc",
+          reflectionLastRefreshed: "abc",
+          reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+          reflectionName: "abc",
+          reflectionSizeRows: 1,
+          reflectionStatus: "abc",
+          reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+        },
+        ...
+      ],
+    },
+    ...
+  ],
+  attemptDetails: [
+    {
+      commandPoolWaitTime: 1,
+      engineStartTime: 1,
+      executionPlanningTime: 1,
+      executionTime: 1,
+      metadataRetrievalTime: 1,
+      pendingTime: 1,
+      planningTime: 1,
+      profileUrl: "abc",
+      queuedTime: 1,
+      reason: "abc",
+      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
+      runningTime: 1,
+      startingTime: 1,
+      totalTime: 1,
+    },
+    ...
+  ],
+  attemptsSummary: "abc",
+  cancellationInfo: {
+    message: "abc",
+  },
+  datasetGraph: [
+    {
+      dataSet: { /** DataSet **/
+        datasetID: "abc",
+        datasetName: "abc",
+        datasetPath: "abc",
+        datasetSizeRows: 1,
+        datasetType: "abc",
+        reflectionsDefinedList: [
+          { /** Reflection **/
+            datasetName: "abc",
+            isStarFlake: true | false,
+            isUsed: true | false,
+            reflectionCreated: "abc",
+            reflectionDatasetPath: "abc",
+            reflectionID: "abc",
+            reflectionLastRefreshed: "abc",
+            reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+            reflectionName: "abc",
+            reflectionSizeRows: 1,
+            reflectionStatus: "abc",
+            reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+          },
+          ...
+        ],
+      },
+      description: "abc",
+      id: "abc",
+      parentNodeIdList: [
+        "abc",
+        ...
+      ],
+      position: "abc",
+      sql: "abc",
+    },
+    ...
+  ],
+  description: "abc",
+  duration: 1,
+  durationDetails: [
+    {
+      phaseDuration: "abc",
+      phaseID: 1,
+      phaseName: "abc",
+      phaseStartTime: "abc",
+    },
+    ...
+  ],
+  endTime: 1,
+  exceptionsMap: {
+    abc: "abc", ...
+  },
+  failureInfo: {
+    errors: [
+      {
+        message: "abc",
+        range: {
+          endColumn: 1,
+          endLine: 1,
+          startColumn: 1,
+          startLine: 1,
+        },
+      },
+      ...
+    ],
+    message: "abc",
+    type: "UNKNOWN" | "PARSE" | "VALIDATION" | "EXECUTION",
+  },
+  id: "abc",
+  input: "abc",
+  jobStatus: "abc",
+  nrReflectionsConsidered: 1,
+  nrReflectionsMatched: 1,
+  nrReflectionsUsed: 1,
+  output: "abc",
+  queriedDatasets: [
+    { /** DataSet **/
+      datasetID: "abc",
+      datasetName: "abc",
+      datasetPath: "abc",
+      datasetSizeRows: 1,
+      datasetType: "abc",
+      reflectionsDefinedList: [
+        { /** Reflection **/
+          datasetName: "abc",
+          isStarFlake: true | false,
+          isUsed: true | false,
+          reflectionCreated: "abc",
+          reflectionDatasetPath: "abc",
+          reflectionID: "abc",
+          reflectionLastRefreshed: "abc",
+          reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+          reflectionName: "abc",
+          reflectionSizeRows: 1,
+          reflectionStatus: "abc",
+          reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+        },
+        ...
+      ],
+    },
+    ...
+  ],
+  queryText: "abc",
+  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
+  queryUser: "abc",
+  reflectionsMatched: [
+    { /** Reflection **/
+      datasetName: "abc",
+      isStarFlake: true | false,
+      isUsed: true | false,
+      reflectionCreated: "abc",
+      reflectionDatasetPath: "abc",
+      reflectionID: "abc",
+      reflectionLastRefreshed: "abc",
+      reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+      reflectionName: "abc",
+      reflectionSizeRows: 1,
+      reflectionStatus: "abc",
+      reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+    },
+    ...
+  ],
+  reflectionsUsed: [
+    { /** Reflection **/
+      datasetName: "abc",
+      isStarFlake: true | false,
+      isUsed: true | false,
+      reflectionCreated: "abc",
+      reflectionDatasetPath: "abc",
+      reflectionID: "abc",
+      reflectionLastRefreshed: "abc",
+      reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+      reflectionName: "abc",
+      reflectionSizeRows: 1,
+      reflectionStatus: "abc",
+      reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+    },
+    ...
+  ],
+  requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+  scannedDatasets: [
+    {
+      datasetID: "abc",
+      datasetType: "abc",
+      description: "abc",
+      ioWaitDurationMs: 1,
+      name: "abc",
+      nrScanThreads: 1,
+      nrScannedRows: 1,
+      partitionColumnsList: [
+        "abc",
+        ...
+      ],
+      partitionPruningApplied: true | false,
+      pushdownFilter: "abc",
+      runtimeFilterApplied: true | false,
+      runtimeFilterColumnsList: [
+        "abc",
+        ...
+      ],
+      totalScanDurationMs: 1,
+    },
+    ...
+  ],
+  spilled: true | false,
+  spilledJobDetails: {
+    abc: any, ...
+  },
+  starFlakeAccelerated: true | false,
+  startTime: 1,
+  waitInClient: 1,
+  wlmQueue: "abc",
+}
+```
+
 ## `class com.dremio.dac.model.job.JobSummaryUI`
 - Example:
 ```
@@ -2219,7 +2458,7 @@
     "abc",
     ...
   ],
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
   datasetVersion: "abc",
   description: "abc",
   endTime: 1,
@@ -2428,7 +2667,7 @@
             ...
           ],
           level: 1,
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
         },
         ...
       ],
@@ -2518,7 +2757,7 @@
             "abc",
             ...
           ],
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
         },
         ...
       ],
@@ -2526,7 +2765,7 @@
         "abc",
         ...
       ],
-      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT",
+      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
       resourceSchedulingInfo: {
         engineName: "abc",
@@ -2538,6 +2777,7 @@
         ruleContent: "abc",
         ruleId: "abc",
         ruleName: "abc",
+        subEngine: "abc",
       },
       resultMetadataList: [
         {
@@ -2629,7 +2869,7 @@
       startTime: 1,
       user: "abc",
     },
-    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE" | "RESOURCE_TIMEOUT",
+    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE" | "RESOURCE_TIMEOUT" | "PDFS_RETRIABLE_ERROR",
     state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
     stats: {
       inputBytes: 1,
@@ -2643,6 +2883,80 @@
     id: "abc",
     name: "abc",
   },
+}
+```
+
+## `class com.dremio.dac.model.job.JobsListingUI`
+- Example:
+```
+{
+  jobs: [
+    {
+      accelerated: true | false,
+      description: "abc",
+      duration: 1,
+      durationDetails: [
+        {
+          phaseDuration: "abc",
+          phaseID: 1,
+          phaseName: "abc",
+          phaseStartTime: "abc",
+        },
+        ...
+      ],
+      endTime: 1,
+      engine: "abc",
+      enqueuedTime: "abc",
+      id: "abc",
+      input: "abc",
+      isFinalState: true | false,
+      output: "abc",
+      plannerEstimatedCost: 1.0,
+      queriedDatasets: [
+        {
+          datasetID: "abc",
+          datasetName: "abc",
+          datasetPath: "abc",
+          datasetSizeRows: 1,
+          datasetType: "abc",
+          reflectionsDefinedList: [
+            {
+              datasetName: "abc",
+              isStarFlake: true | false,
+              isUsed: true | false,
+              reflectionCreated: "abc",
+              reflectionDatasetPath: "abc",
+              reflectionID: "abc",
+              reflectionLastRefreshed: "abc",
+              reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+              reflectionName: "abc",
+              reflectionSizeRows: 1,
+              reflectionStatus: "abc",
+              reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+            },
+            ...
+          ],
+        },
+        ...
+      ],
+      queryText: "abc",
+      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
+      queryUser: "abc",
+      requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+      rowsReturned: 1,
+      rowsScanned: 1,
+      spilled: true | false,
+      starFlakeAccelerated: true | false,
+      startTime: 1,
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
+      subEngine: "abc",
+      totalAttempts: 1,
+      waitInClient: 1,
+      wlmQueue: "abc",
+    },
+    ...
+  ],
+  next: "abc",
 }
 ```
 
@@ -2660,7 +2974,7 @@
         "abc",
         ...
       ],
-      datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+      datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
       datasetVersion: "abc",
       description: "abc",
       endTime: 1,
@@ -2738,7 +3052,7 @@
       name: "abc",
       owner: "abc",
       tag: "abc",
-      type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+      type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
       version: 1,
     },
     fullPathList: [
@@ -2748,7 +3062,7 @@
     id: "abc",
     name: "abc",
     tag: "abc",
-    type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
     version: 1,
   },
   datasetName: "abc",
@@ -2832,7 +3146,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -2849,7 +3163,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -3049,7 +3363,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
             version: 1,
           },
           fullPathList: [
@@ -3059,7 +3373,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
           version: 1,
         },
         datasetName: "abc",
@@ -3190,7 +3504,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
                 },
                 ...
               ],
@@ -3207,7 +3521,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
                 },
                 ...
               ],
@@ -3407,7 +3721,7 @@
                 name: "abc",
                 owner: "abc",
                 tag: "abc",
-                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
                 version: 1,
               },
               fullPathList: [
@@ -3417,7 +3731,7 @@
               id: "abc",
               name: "abc",
               tag: "abc",
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
               version: 1,
             },
             datasetName: "abc",
@@ -3542,7 +3856,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -3559,7 +3873,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -3759,7 +4073,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
             version: 1,
           },
           fullPathList: [
@@ -3769,7 +4083,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
           version: 1,
         },
         datasetName: "abc",
@@ -3876,7 +4190,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -3893,7 +4207,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
             },
             ...
           ],
@@ -4093,7 +4407,7 @@
             name: "abc",
             owner: "abc",
             tag: "abc",
-            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+            type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
             version: 1,
           },
           fullPathList: [
@@ -4103,7 +4417,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
           version: 1,
         },
         datasetName: "abc",
@@ -4199,7 +4513,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
                 },
                 ...
               ],
@@ -4216,7 +4530,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
                 },
                 ...
               ],
@@ -4416,7 +4730,7 @@
                 name: "abc",
                 owner: "abc",
                 tag: "abc",
-                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA",
+                type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG" | "DELTA" | "ORC",
                 version: 1,
               },
               fullPathList: [
@@ -4426,7 +4740,7 @@
               id: "abc",
               name: "abc",
               tag: "abc",
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER" | "OTHERS",
               version: 1,
             },
             datasetName: "abc",
@@ -4488,6 +4802,7 @@
 - Example:
 ```
 {
+  active: true | false,
   createdAt: 1,
   email: "abc",
   extra: "abc",
@@ -4523,6 +4838,7 @@
   name: "abc",
   resourcePath: "abc",
   userConfig: {
+    active: true | false,
     createdAt: 1,
     email: "abc",
     extra: "abc",
@@ -4552,6 +4868,7 @@
       name: "abc",
       resourcePath: "abc",
       userConfig: {
+        active: true | false,
         createdAt: 1,
         email: "abc",
         extra: "abc",

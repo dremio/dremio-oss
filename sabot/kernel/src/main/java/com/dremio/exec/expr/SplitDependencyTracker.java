@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.SupportedEngines;
@@ -28,14 +32,25 @@ class SplitDependencyTracker {
 
   // Track the transfers into this split
   // This split depends on the output of each of these splits
-  private final List<ExpressionSplit> transfersIn = Lists.newArrayList();
+  private final List<ExpressionSplit> transfersIn = new ArrayList<>();
 
   // The branch in nested if-expressions this expression belongs to
-  private final List<IfExprBranch> ifExprBranches = Lists.newArrayList();
+  private final List<IfExprBranch> ifExprBranches = new ArrayList<>();
+
+  // case information, helps in understanding whether split is happening
+  // from within a case statement and if so from which vertical (when or then)` and the
+  // case condition number. The list handles multiple level of nesting of case
+  private final Deque<CaseBlock> caseBlocks = new ArrayDeque<>();
 
   SplitDependencyTracker(SupportedEngines executionEngine, List<IfExprBranch> branchList) {
     this.executionEngine = executionEngine;
     this.ifExprBranches.addAll(branchList);
+  }
+
+  SplitDependencyTracker(SplitDependencyTracker parent) {
+    this.executionEngine = parent.getExecutionEngine();
+    this.ifExprBranches.addAll(parent.getIfExprBranches());
+    this.caseBlocks.addAll(parent.caseBlocks);
   }
 
   void addIfBranch(ExpressionSplit condSplit, boolean partOfThenExpr) {
@@ -49,6 +64,10 @@ class SplitDependencyTracker {
 
   void addAllDependencies(SplitDependencyTracker helper) {
     this.transfersIn.addAll(helper.transfersIn);
+  }
+
+  void addAllDependencies(List<ExpressionSplit> dependencies) {
+    this.transfersIn.addAll(dependencies);
   }
 
   SupportedEngines getExecutionEngine() {
@@ -66,5 +85,45 @@ class SplitDependencyTracker {
     }
 
     return result;
+  }
+
+  void addCaseBlock(ExpressionSplit prevSplit, CaseSplit currentSplit, boolean when) {
+    caseBlocks.addLast(new CaseBlock(when, prevSplit, currentSplit));
+  }
+
+  public CodeGenContext wrapExprForCase(CodeGenContext expr, SplitDependencyTracker childTracker) {
+    if (caseBlocks.isEmpty()) {
+      // not from within a case block, no xformation required
+      return expr;
+    }
+    CodeGenContext exprToReturn = expr;
+    for (Iterator<CaseBlock> cbItr = caseBlocks.descendingIterator(); cbItr.hasNext();) {
+      final CaseBlock nextBlock = cbItr.next();
+      if (nextBlock.getPrevSplit() != null) {
+        childTracker.addDependency(nextBlock.getPrevSplit());
+      }
+      exprToReturn = nextBlock.wrappedExpression(exprToReturn);
+    }
+    return exprToReturn;
+  }
+
+  /**
+   * Case overhead is the number of nested case blocks + one for the extra case condition every split for a when split.
+   *
+   * @return overhead as an integer
+   */
+  public int caseSplitOverhead() {
+    if (caseBlocks.isEmpty()) {
+      return 0;
+    }
+    int overhead = caseBlocks.size() - 1;
+    if (caseBlocks.getLast().isWhenSplit()) {
+      overhead += 1;
+    }
+    return overhead;
+  }
+
+  public void removeLastCaseBlock() {
+    caseBlocks.removeLast();
   }
 }

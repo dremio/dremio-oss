@@ -16,30 +16,30 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
-import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_ICEBERG_EXECUTION;
-
-import java.io.IOException;
+import static com.dremio.exec.ExecConstants.MIXED_TYPES_DISABLED;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
-import com.dremio.exec.planner.sql.handlers.refresh.MetadataProvider;
-import com.dremio.exec.planner.sql.handlers.refresh.RefreshDatasetIncrementalPlanBuilder;
-import com.dremio.exec.planner.sql.handlers.refresh.RefreshDatasetPlanBuilder;
+import com.dremio.exec.planner.sql.handlers.refresh.MetadataRefreshPlanBuilder;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
-import com.dremio.service.namespace.NamespaceException;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.store.pojo.PojoDataType;
+import com.google.common.base.Preconditions;
 
 /**
- * Handler for internal <code>REFRESH DATASET tblname</code> command.
+ * Handler for internal {@link SqlRefreshDataset} command.
  */
 public class RefreshDatasetHandler implements SqlToPlanHandler {
   private static final Logger logger = LoggerFactory.getLogger(RefreshDatasetHandler.class);
@@ -54,18 +54,22 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     assertRefreshEnabled(config);
 
+    // adds rowType of query result to QueryMetadata
+    config.getObserver()
+      .planValidated(new PojoDataType(SimpleCommandResult.class).getRowType(JavaTypeFactoryImpl.INSTANCE), sqlNode, 0);
+
     final SqlRefreshDataset sqlRefreshDataset = SqlNodeUtil.unwrap(sqlNode, SqlRefreshDataset.class);
 
     try {
-      final RefreshDatasetPlanBuilder refreshDatasetPlanBuilder = getPlanBuilder(config, sqlRefreshDataset);
+      final MetadataRefreshPlanBuilder refreshDatasetPlanBuilder = MetadataRefreshPlanBuilderFactory.getPlanBuilder(config, sqlRefreshDataset);
 
       final Prel rootPrel = refreshDatasetPlanBuilder.buildPlan();
+
       final Prel finalizedPlan = (Prel) rootPrel.accept(new PrelFinalizer());
       final Pair<Prel, String> transformedPrel = PrelTransformer.applyPhysicalPrelTransformations(config, finalizedPlan);
 
       final PhysicalOperator pop = PrelTransformer.convertToPop(config, transformedPrel.left);
       final PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop);
-
       if (logger.isTraceEnabled()) {
         PrelTransformer.log(config, "Dremio Plan", plan, logger);
       }
@@ -77,25 +81,10 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
     }
   }
 
-  private RefreshDatasetPlanBuilder getPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset)
-          throws IOException, NamespaceException {
-    final MetadataProvider metadataProvider = new MetadataProvider(config, sqlRefreshDataset);
-    if (metadataProvider.doesMetadataExist()) {
-      return new RefreshDatasetIncrementalPlanBuilder(config, sqlRefreshDataset);
-    } else {
-      return new RefreshDatasetPlanBuilder(config, sqlRefreshDataset);
-    }
-  }
-
   private void assertRefreshEnabled(SqlHandlerConfig config) {
-    if (!config.getContext().getOptions().getOption(CatalogOptions.DMP_METADATA_REFRESH)) {
-      throw new UnsupportedOperationException("REFRESH METADATA command is not enabled.");
-    }
-    if (!config.getContext().getOptions().getOption(ENABLE_ICEBERG_EXECUTION) ||
-            !config.getContext().getOptions().getOption(ENABLE_ICEBERG)) {
-      throw new UnsupportedOperationException("REFRESH METADATA requires " + ENABLE_ICEBERG_EXECUTION.getOptionName()
-              + " and " + ENABLE_ICEBERG.getOptionName() + " to be enabled.");
-    }
+    Preconditions.checkArgument(config.getContext().getOptions().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT), PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName() + " Should be enabled");
+    Preconditions.checkArgument(config.getContext().getOptions().getOption(ENABLE_ICEBERG), ENABLE_ICEBERG.getOptionName() + " Should be enabled");
+    Preconditions.checkArgument(config.getContext().getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED), MIXED_TYPES_DISABLED.getOptionName() + " Should be enabled");
   }
 
   private void setTextPlan(String textPlan) {
@@ -106,4 +95,5 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
   public String getTextPlan() {
     return textPlan;
   }
+
 }

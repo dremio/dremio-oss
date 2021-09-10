@@ -19,22 +19,33 @@ import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 import static com.dremio.plugins.elastic.ElasticsearchType.KEYWORD;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.concurrent.TimeUnit;
 
 import org.joda.time.LocalDateTime;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 
 public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
+
+  private static final Logger logger = LoggerFactory.getLogger(ITTestProjectionsAndFilter.class);
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void loadTable() throws Exception {
@@ -226,12 +237,11 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestFilterWithUID() throws Exception {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse((elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0)||elastic.getMinVersionInCluster().getMajor() == 7);
-    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
-
-    String sqlQuery = "select _uid from elasticsearch." + schema + "." + table + " where _uid is null";
-    verifyJsonInPlan(sqlQuery, new String[] {
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
+    final String disableCoordOrBlank = getDisableCoord();
+    final String field = getField();
+    final String sqlQuery = "select " + field + " from elasticsearch." + schema + "." + table + " where " + field + " is null";
+    final String [] expectedJson = new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
@@ -256,7 +266,8 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
         "}]"
-    });
+    };
+    verifyJsonInPlan(sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
     assertEquals(0, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
   }
 
@@ -264,12 +275,11 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestFilterWithUIDExists() throws Exception {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse((elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0)||elastic.getMinVersionInCluster().getMajor() == 7);
-    String sqlQuery = "select _uid from elasticsearch." + schema + "." + table + " where _uid is not null and _uid <> 'ABC'";
-    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
-
-    verifyJsonInPlan(sqlQuery, new String[] {
+    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
+    final String field = getField();
+    final String sqlQuery = "select " + field + " from elasticsearch." + schema + "." + table + " where " + field + " is not null and " + field + " <> 'ABC'";
+    final String disableCoordOrBlank = getDisableCoord();
+    final String[] expectedJson = new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
         "  \"size\" : 4000,\n" +
@@ -310,7 +320,8 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
         "}]"
-    });
+    };
+    verifyJsonInPlan(sqlQuery, elastic.getMinVersionInCluster().getMajor() == 7 ? uidJsonES7 : expectedJson);
     assertEquals(5, BaseTestQuery.getRecordCount(testRunAndReturn(QueryType.SQL, sqlQuery)));
   }
 
@@ -351,8 +362,8 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestNotLike() throws Exception {
-    String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where city NOT LIKE 'San%'";
-    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
+    final String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where city NOT LIKE 'San%'";
+    final String disableCoordOrBlank = getDisableCoord();
 
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
@@ -443,9 +454,9 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestFilterInClause() throws Exception {
-    String sqlQuery = "select review_count from elasticsearch." + schema + "." + table +
+    final String sqlQuery = "select review_count from elasticsearch." + schema + "." + table +
       " where review_count in (1,11,22)";
-    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
+    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -628,6 +639,8 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void avoidComplexPushdownOnGeoField() throws Exception {
+    ElasticsearchCluster.SearchResults contents = searchResultsWithExpectedCount(5);
+    logger.info("--> index contents: {}", contents);
     // We cannot push down complex fields
     String sqlQuery = "select t.location_field[1] as location_1 from elasticsearch." + schema + "." + table + " t";
     verifyJsonInPlan(sqlQuery, new String[] {
@@ -757,7 +770,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   @Test
   public final void tesFilterRequiringScripts() throws Exception {
     String sqlQuery = "select state, stars from elasticsearch." + schema + "." + table +
-      " where sqrt(stars) < 2";
+      " where sqrt(stars) < 2 group by state, stars";
 
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
@@ -1294,7 +1307,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestMetaFields() throws Exception {
-    String sqlQuery = "select _index from elasticsearch." + schema + "." + table;
+    final String sqlQuery = "select _index from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -1317,9 +1330,11 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestMetaFieldsUID() throws Exception {
-    // _uid deprecated in ES7, so testcases will be bypassed for ES7 and modified TCs will be added through JIRA ticket DX-33871
-    assumeFalse(elastic.getMinVersionInCluster().getMajor() == 7);
-    String sqlQuery = "select _uid from elasticsearch." + schema + "." + table;
+    //In ES7, as _uid is deprecated, we are using alias of '_type#_id' instead
+    final int elasticVersion = elastic.getMinVersionInCluster().getMajor();
+    final String field = getFieldWithAlias();
+    final String sqlQuery =  "select " + field + " from elasticsearch." + schema + "." + table;
+    final String idTypeOrUid = elasticVersion == 7 ? " \"_id\", \"_type\"\n " : "  \"_uid\"\n  ";
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -1331,7 +1346,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  },\n" +
         "  \"_source\" : {\n" +
         "    \"includes\" : [\n" +
-        "      \"_uid\"\n" +
+              idTypeOrUid  +
         "    ],\n" +
         "    \"excludes\" : [ ]\n" +
         "  }\n" +
@@ -1342,7 +1357,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void runTestProjectWithNestedField() throws Exception {
-    String sqlQuery = "select location_field, review_count from elasticsearch." + schema + "." + table;
+    final String sqlQuery = "select location_field, review_count from elasticsearch." + schema + "." + table;
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -1444,8 +1459,8 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void testMultipleFilters() throws Exception {
-    String disableCoordOrBlank = elastic.getMinVersionInCluster().getMajor() == 7 ? "" : "      \"disable_coord\" : false,\n";
-    String sqlQuery = "select * from "
+    final String disableCoordOrBlank = getDisableCoord();
+    final String sqlQuery = "select * from "
       + "(select state, city, review_count from elasticsearch." + schema + "." + table
       + " where char_length(trim(concat(city, '  '))) = 9) t"
       + " where t.review_count <> 11";

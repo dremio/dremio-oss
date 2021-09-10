@@ -572,12 +572,12 @@ public class ElasticsearchCluster implements Closeable {
 
     json.endObject().endObject().endObject();
     putMapping.setMapping(json.string());
-    boolean ESVersionFlag = elasticVersionBehaviorProvider.isEnable7vFeatures() || elasticVersionBehaviorProvider.isEs68Version() ? true : false;
-    if (ESVersionFlag) {
-      connection.execute(putMapping, ESVersionFlag);
-    } else {
-      connection.execute(putMapping);
+     try {
+      connection.execute(putMapping, elasticVersionBehaviorProvider.isEnable7vFeatures() || elasticVersionBehaviorProvider.isEs68Version());
+    } catch (Exception e) {
+      throw new IOException();
     }
+
     int max = 0;
     for (ColumnData datum : data) {
       if (datum.rows != null) {
@@ -1103,11 +1103,11 @@ public class ElasticsearchCluster implements Closeable {
       .setQuery(String.format("{\"query\": %s }", newQuery))
       .setResource(String.format("%s/%s", schema, table))
       .setParameter("size", "1000")
-    );
+    , false);
 
     JsonObject hits = asJsonObject(response).get("hits").getAsJsonObject();
-    int total_value = elasticVersionBehaviorProvider.getSearchResults(hits);
-    return new SearchResults(total_value, hits.get("hits").toString());
+    final int totalHits = elasticVersionBehaviorProvider.getSearchResults(hits);
+    return new SearchResults(totalHits, hits.get("hits").toString());
   }
 
   public static JsonObject asJsonObject(byte[] bytes) throws IOException {

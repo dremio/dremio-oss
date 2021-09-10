@@ -17,6 +17,7 @@ package com.dremio.exec.store.metadatarefresh.dirlisting;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -24,6 +25,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -47,29 +49,53 @@ public class DirListingScanPrel extends ScanPrelBase {
     .map(SchemaPath::getSimplePath)
     .collect(Collectors.toList());
 
+  private boolean allowRecursiveListing = false;
+
+  //Assume very large row count if not specified. Useful for deciding parallelism in first refresh.
+  private Function<RelMetadataQuery, Double> estimateRowCountFn;
+
+
   public DirListingScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata tableMetadata, double observedRowcountAdjustment) {
+                            TableMetadata tableMetadata, double observedRowcountAdjustment, boolean allowRecursiveListing,  Function<RelMetadataQuery, Double> estimateRowCountFn) {
     super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment);
+    this.allowRecursiveListing = allowRecursiveListing;
+    this.estimateRowCountFn = estimateRowCountFn;
   }
 
   @Override
   public DirListingScanPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment);
+    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment);
+    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn);
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     return new DirListingGroupScan(
       creator.props(this, tableMetadata.getUser(), tableMetadata.getSchema(), RESERVE, LIMIT),
-      tableMetadata, tableMetadata.getSchema(), projectedColumns, pluginId);
+      tableMetadata, tableMetadata.getSchema(), projectedColumns, pluginId, allowRecursiveListing);
   }
 
   public double getObservedRowcountAdjustment() {
     return 1.0;
+  }
+
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    if(estimateRowCountFn == null) {
+      return defaultRowCountEstimates();
+    }
+
+    return estimateRowCountFn.apply(mq);
+  }
+
+  private double defaultRowCountEstimates() {
+    if(tableMetadata.getReadDefinition().getManifestScanStats() != null) {
+      return tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount();
+    }
+    return 1000_000;
   }
 }

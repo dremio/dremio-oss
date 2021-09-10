@@ -265,44 +265,59 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  /**
-   * Allows child classes to write additional attributes for the SdkConnection by overriding this method
-   *
-   * @param xmlStreamWriter XML writer used by writeSdkConnection
-   */
-  protected void writeSdkConnectionAdditional(XMLStreamWriter xmlStreamWriter) throws XMLStreamException {
-    // Nothing here
+  protected String getSdkProduct() {
+    return TableauSDKConstants.SOFTWARE;
   }
 
-  private void writeSdkConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
-    final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
+  protected Map<String, String> getSdkCustomProperties() {
+    return ImmutableMap.of(
+            TableauSDKConstants.QUEUE, "",
+            TableauSDKConstants.TAG, "",
+            TableauSDKConstants.ENGINE, "");
+  }
 
-    xmlStreamWriter.writeStartElement("connection");
+  protected Map<String, String> getSdkAuthenticationMethods() {
+    return ImmutableMap.of(TableauSDKConstants.AUTHENTICATION, TableauSDKConstants.BASIC);
+  }
 
-    xmlStreamWriter.writeAttribute("class", "dremio");
-    xmlStreamWriter.writeAttribute("dbname", InfoSchemaConstants.IS_CATALOG_NAME);
-
-    // It has to match what is returned by the driver/Tableau
-    xmlStreamWriter.writeAttribute("schema", dataset.toParentPath());
-    xmlStreamWriter.writeAttribute("port", String.valueOf(getPort()));
-    xmlStreamWriter.writeAttribute("server", hostname);
-    xmlStreamWriter.writeAttribute("username", "");
-
+  protected String getSdkSSL() {
+    // TODO(DX-34480): We only check for ssl=true and ignore any other option
     String customExtraProperties = getOptionManager().getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES);
     customExtraProperties = customExtraProperties.replace(" ", "").toLowerCase(Locale.ROOT);
 
     // The "parsing" here is rudimentary, and is not meant to be advanced. We simply need a flag to determine if SSL
     // is enabled to allow Tableau to do the right thing. As more options are added, this may need to be more complex.
     if (customExtraProperties.contains("ssl=true") || (config.hasPath(USER_SSL) && config.getBoolean(USER_SSL))) {
-      xmlStreamWriter.writeAttribute("sslmode", "required");
-    } else {
-      xmlStreamWriter.writeAttribute("sslmode", "");
+      return TableauSDKConstants.REQUIRE;
     }
+    return TableauSDKConstants.NOT_REQUIRE;
+  }
 
-    // TODO: Authentication will be user configurable in a future version and will need modification
-    xmlStreamWriter.writeAttribute("authentication", "basic");
+  private void writeAttributes(XMLStreamWriter xmlStreamWriter, Map<String, String> properties) throws XMLStreamException {
+    for (Map.Entry<String, String> property : properties.entrySet()) {
+      xmlStreamWriter.writeAttribute(property.getKey(), property.getValue());
+    }
+  }
 
-    writeSdkConnectionAdditional(xmlStreamWriter);
+  private void writeSdkConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
+    final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
+
+    xmlStreamWriter.writeStartElement(TableauSDKConstants.CONN_ATTR);
+
+    final Map<String, String> basicAttributes = new ImmutableMap.Builder<String, String>()
+            .put(TableauSDKConstants.CLASS, "dremio")
+            .put(TableauSDKConstants.DBNAME, InfoSchemaConstants.IS_CATALOG_NAME)
+            .put(TableauSDKConstants.SCHEMA, dataset.toParentPath())
+            .put(TableauSDKConstants.PORT, String.valueOf(getPort()))
+            .put(TableauSDKConstants.SERVER, hostname)
+            .put(TableauSDKConstants.USERNAME, "")
+            .put(TableauSDKConstants.PRODUCT, getSdkProduct())
+            .put(TableauSDKConstants.SSL, getSdkSSL())
+            .build();
+
+    writeAttributes(xmlStreamWriter, basicAttributes);
+    writeAttributes(xmlStreamWriter, getSdkAuthenticationMethods());
+    writeAttributes(xmlStreamWriter, getSdkCustomProperties());
 
     writeRelation(xmlStreamWriter, datasetConfig);
     xmlStreamWriter.writeEndElement();

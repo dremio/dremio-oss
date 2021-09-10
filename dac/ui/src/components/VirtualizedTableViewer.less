@@ -15,13 +15,12 @@
  */
 @import "~@app/uiTheme/less/color-schema.less";
 
-div.virtualized-row { // div + .virtualized-row adds an extra layer wrt specficity
-  min-height: auto;
-  display: flex;
-  flex-direction: row;
-}
-
 :global {
+  div.virtualized-row { // div + .virtualized-row adds an extra layer wrt specficity
+    min-height: auto;
+    display: flex;
+    flex-direction: row;
+  }
   .virtualizedTable {
     &__headerContent {
       display: inline-flex;
@@ -31,5 +30,19 @@ div.virtualized-row { // div + .virtualized-row adds an extra layer wrt specfici
     &__helpIcon {
       display: inline-flex;
     }
+  }
+  .draggableHeaderContent {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 14px;
+    &__pipe {
+      cursor: col-resize;
+      color: @lite-grey;
+    }
+  }
+  .ReactVirtualized__Table__sortableHeaderIcon{
+    height: 20px !important;
+    width: 28px !important;
   }
 }

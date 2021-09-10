@@ -39,6 +39,7 @@ import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.maestro.DefaultRoutingQueueManager;
 import com.dremio.exec.maestro.GlobalKeysService;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.RulesFactory;
@@ -58,6 +59,7 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
+import com.dremio.resource.common.RoutingQueueManager;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
@@ -130,6 +132,7 @@ public class SabotContext implements AutoCloseable {
   private final Provider<GlobalKeysService> globalCredentailsServiceProvider;
   private final Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider;
   private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
+  public static RoutingQueueManager routingQueueManager = DefaultRoutingQueueManager.INSTANCE;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -658,5 +661,9 @@ public class SabotContext implements AutoCloseable {
 
   public Provider<com.dremio.services.credentials.CredentialsService> getCredentialsServiceProvider() {
     return credentialsServiceProvider;
+  }
+
+  public RoutingQueueManager getRoutingQueueManager() {
+    return routingQueueManager;
   }
 }

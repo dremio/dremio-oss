@@ -103,6 +103,7 @@ message DatasetSplit {
   repeated Affinity affinities = 1;     // locality for this split
   optional int64 size = 2;              // size in bytes
   optional bytes split_extended_property = 3; // source specific information about this split
+  optional int64 recordCount = 4;
 }
 
 // Represents the multiple splits for a single partition, for the cases where that partition has more than one split

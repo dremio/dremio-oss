@@ -38,7 +38,7 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
    * Testing date formats:  "basic_date||year_month||year"
    */
   protected void populateDateFormatter() throws IOException {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "basic_date||year_month||year"), new Object[][]{
         {"20161209"},
         {"20171011"},
@@ -53,7 +53,7 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
    * Testing default formats:  "strict_date_optional_time||epoch_millis"
    */
   protected void populateDefaultFormatter() throws IOException {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, new Object[][]{
         {DATE_TIME_STRING},
         {DATE_TIME_STRING_2},
@@ -64,7 +64,7 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
   }
 
   protected void populateNullWithDefaultFormatter() throws IOException {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, new Object[][]{
         {DATE_TIME_STRING},
         {DATE_TIME_STRING_2},
@@ -75,7 +75,7 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
   }
 
   protected void populateCustomFormatter() throws IOException {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "MM-dd-yyyy||strict_date_optional_time"), new Object[][]{
         {DATE_TIME_STRING_2},
         {"10-12-2017"},
@@ -90,8 +90,30 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
    * Testing formats with mix of default/date/timestamp:  "strict_date_optional_time||year||epoch_millis"
    */
   protected void populateComplexFormatter() throws IOException {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"), new Object[][]{
+    final ElasticsearchCluster.ColumnData[] data;
+    if (elastic.getMinVersionInCluster().getMajor() == 7) {
+      data = new ElasticsearchCluster.ColumnData[] {
+        new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"), new Object[][]{
+          {DATE_TIME_STRING_2},
+          {"2017"}
+        })
+      };
+    } else {
+      data = new ElasticsearchCluster.ColumnData[] {
+        new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||year||epoch_millis"), new Object[][]{
+          {DATE_TIME_STRING},
+          {DATE_TIME_STRING_2},
+          {DATE_TIME_LONG},
+          {"2017"}
+        })
+      };
+    }
+    elastic.load(schema, table, data);
+  }
+
+  protected void populateComplexFormatterStrict() throws IOException {
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "strict_date_optional_time||strict_year||epoch_millis"), new Object[][]{
         {DATE_TIME_STRING},
         {DATE_TIME_STRING_2},
         {DATE_TIME_LONG},
@@ -107,7 +129,7 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
    * basic_t_time vs basic_t_Time between ES 5 and 6, so this format is not tested
    */
   protected void populateTimeFormatter() throws IOException {
-    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+    final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[] {
       new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "basic_time||time_no_millis"), new Object[][]{
         {"010203.123Z"},
         {"01:01:15Z"},

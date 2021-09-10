@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.daemon;
 
+import static org.junit.Assume.assumeTrue;
+
 import java.util.List;
 import java.util.concurrent.Future;
 
@@ -34,9 +36,11 @@ public class TestExprCachePrewarmService extends BaseTestServer {
 
   @BeforeClass
   public static void init() throws Exception {
+    // ignore the tests if not multinode.
+    assumeTrue(isMultinode());
     System.setProperty(ExecConstants.CODE_CACHE_LOCATION_PROP, Resources.getResource("prewarmfiles/").getPath());
     System.setProperty(ExecConstants.CODE_CACHE_PREWARM_PROP, "true");
-    BaseTestServer.init(true);
+    BaseTestServer.init();
     System.clearProperty(ExecConstants.CODE_CACHE_LOCATION_PROP);
     System.clearProperty(ExecConstants.CODE_CACHE_PREWARM_PROP);
     exprCachePrewarmService = getExecutorDaemon().getBindingProvider().lookup(ExprCachePrewarmService.class);

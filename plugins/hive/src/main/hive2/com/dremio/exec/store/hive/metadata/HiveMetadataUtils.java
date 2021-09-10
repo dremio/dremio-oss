@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.metadata;
 
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.DIR_LIST_INPUT_SPLIT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.INPUT_SPLIT;
+import static java.lang.Math.toIntExact;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
@@ -86,6 +88,7 @@ import com.dremio.connector.metadata.options.DirListInputSplitType;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
+import com.dremio.connector.metadata.options.RefreshTableFilterOption;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
@@ -93,6 +96,7 @@ import com.dremio.exec.store.dfs.implicit.DecimalTools;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
+import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.exec.apache.PathUtils;
@@ -103,7 +107,9 @@ import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
+import com.dremio.hive.thrift.TException;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
@@ -180,6 +186,44 @@ public class HiveMetadataUtils {
       job.setInputFormat(inputFormatClazz);
       return job.getInputFormat();
     }
+  }
+
+  public static boolean isTransactionalTable(Table table) {
+    return (table != null && table.getParameters() != null && AcidUtils.isTablePropertyTransactional(table.getParameters()));
+  }
+
+  public static boolean isValidInputFormatForIcebergExecution(Table table, HiveConf conf) {
+    final InputFormat<?, ?> format = HiveMetadataUtils.getInputFormat(table, conf);
+    return (isParquetFormat(format) && !shouldUseFileSplitsFromInputFormat(format))
+      || isAvroFormat(format)
+      || (isOrcFormat(format) && !isTransactionalTable(table));
+  }
+
+  public static boolean isInputFormatSameForAllPartitions(HiveClient client,
+                                                        HiveMetadataUtils.SchemaComponents schemaComponents,
+                                                        HiveSettings hiveSettings,
+                                                        HiveConf hiveConf,
+                                                        Table table) throws TException {
+    PartitionIterator partitionIterator = PartitionIterator.newBuilder()
+      .client(client)
+      .dbName(schemaComponents.getDbName())
+      .tableName(schemaComponents.getTableName())
+      .partitionBatchSize(toIntExact(hiveSettings.getPartitionBatchSize()))
+      .build();
+
+    Class<? extends InputFormat> partitionFormat = null;
+    while (partitionIterator.hasNext()) {
+      Partition partition = partitionIterator.next();
+      final JobConf job = new JobConf(hiveConf);
+      Class<? extends InputFormat> format = HiveMetadataUtils.getInputFormatClass(job, table, partition);
+      if (partitionFormat == null) {
+        partitionFormat = format;
+      }
+      else if (format != partitionFormat) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf, boolean includeComplexParquetCols) {
@@ -486,6 +530,12 @@ public class HiveMetadataUtils {
     return currentStatus && MapredParquetInputFormat.class.isAssignableFrom(clazz);
   }
 
+  public static boolean isInputFormatEqual(boolean currentStatus,
+                                           Class<? extends InputFormat> clazz1,
+                                           Class<? extends InputFormat> clazz2) {
+    return currentStatus && (clazz1.isAssignableFrom(clazz2) || clazz2.isAssignableFrom(clazz1));
+  }
+
   public static boolean isRecursive(Properties properties) {
     return "true".equalsIgnoreCase(properties.getProperty("mapred.input.dir.recursive", "false")) &&
       "true".equalsIgnoreCase(properties.getProperty("hive.mapred.supports.subdirectories", "false"));
@@ -539,7 +589,7 @@ public class HiveMetadataUtils {
     }
 
     final DirListInputSplitProto.DirListInputSplit dirListInputSplit = partitionMetadata.getDirListInputSplit();
-    return Collections.singletonList(DatasetSplit.of(Collections.emptyList(), 0, 1, dirListInputSplit::writeTo));
+    return Collections.singletonList(DatasetSplit.of(Collections.emptyList(), 1, 1, dirListInputSplit::writeTo));
   }
 
   public static List<DatasetSplit> getDatasetSplitsFromInputSplits(TableMetadata tableMetadata,
@@ -720,8 +770,10 @@ public class HiveMetadataUtils {
   }
 
   public static HiveStorageCapabilities getHiveStorageCapabilities(final StorageDescriptor storageDescriptor) {
-    final String location = storageDescriptor.getLocation();
+    return getHiveStorageCapabilities(storageDescriptor.getLocation());
+  }
 
+  public static HiveStorageCapabilities getHiveStorageCapabilities(final String location) {
     if (null != location) {
       final URI uri;
       try {
@@ -843,6 +895,7 @@ public class HiveMetadataUtils {
       boolean trimStats = trimStats(splitType);
       HiveDatasetStats metastoreStats = null;
       InputFormat<?, ?> format = null;
+      metadataAccumulator.setTableLocation(table.getSd().getLocation());
 
       if (null == partition) {
         partitionXattr = getPartitionXattr(table, fromProperties(tableMetadata.getTableProperties()));
@@ -854,15 +907,16 @@ public class HiveMetadataUtils {
         format = job.getInputFormat();
 
         final StorageDescriptor storageDescriptor = table.getSd();
-        if (inputPathExists(storageDescriptor, job)) {
-          configureJob(job, table, tableProperties, null, storageDescriptor);
-          if (splitType == INPUT_SPLIT) {
+        if (splitType == DIR_LIST_INPUT_SPLIT) {
+          dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
+                  .setRootPath(storageDescriptor.getLocation())
+                  .setOperatingPath(storageDescriptor.getLocation())
+                  .setReadSignature(Long.MAX_VALUE)
+                  .build();
+        } else if (splitType == INPUT_SPLIT) {
+          if (inputPathExists(storageDescriptor, job)) {
+            configureJob(job, table, tableProperties, null, storageDescriptor);
             inputSplits = getInputSplits(format, job);
-          } else if (splitType == DIR_LIST_INPUT_SPLIT) {
-            dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
-              .setPath(storageDescriptor.getLocation())
-              .setReadSignature(Long.MAX_VALUE)
-              .build();
           }
         }
 
@@ -889,15 +943,16 @@ public class HiveMetadataUtils {
         format = job.getInputFormat();
 
         final StorageDescriptor storageDescriptor = partition.getSd();
-        if (inputPathExists(storageDescriptor, job)) {
-          configureJob(job, table, tableProperties, partitionProperties, storageDescriptor);
-          if (splitType == INPUT_SPLIT) {
+        if (splitType == DIR_LIST_INPUT_SPLIT) {
+          dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
+                  .setRootPath(storageDescriptor.getLocation())
+                  .setOperatingPath(storageDescriptor.getLocation())
+                  .setReadSignature(Long.MAX_VALUE)
+                  .build();
+        } else if (splitType == INPUT_SPLIT) {
+          if (inputPathExists(storageDescriptor, job)) {
+            configureJob(job, table, tableProperties, partitionProperties, storageDescriptor);
             inputSplits = getInputSplits(format, job);
-          } else if (splitType == DIR_LIST_INPUT_SPLIT) {
-            dirListInputSplit = DirListInputSplitProto.DirListInputSplit.newBuilder()
-              .setPath(storageDescriptor.getLocation())
-              .setReadSignature(Long.MAX_VALUE)
-              .build();
           }
         }
 
@@ -976,6 +1031,28 @@ public class HiveMetadataUtils {
     return MapredParquetInputFormat.class.isAssignableFrom(format.getClass());
   }
 
+  private static boolean isOrcFormat(InputFormat<?, ?> format) {
+    return OrcInputFormat.class.isAssignableFrom(format.getClass());
+  }
+
+  private static boolean isAvroFormat(InputFormat<?, ?> format) {
+    return AvroContainerInputFormat.class.isAssignableFrom(format.getClass());
+  }
+
+  public static FileType getFileTypeFromInputFormat(Class<? extends InputFormat> inputFormat) {
+    if (MapredParquetInputFormat.class.isAssignableFrom(inputFormat)) {
+      return FileType.PARQUET;
+    } else if (OrcInputFormat.class.isAssignableFrom(inputFormat)) {
+      return FileType.ORC;
+    } else if (AvroContainerInputFormat.class.isAssignableFrom(inputFormat)) {
+      return FileType.AVRO;
+    } else {
+      throw UserException
+        .unsupportedError()
+        .message("File Format Type not support. Input File Format is {}", inputFormat.toString())
+        .buildSilently();
+    }
+  }
   /**
    * Find the rowcount based on stats in Hive metastore or estimate using filesize/filetype/recordSize/split size
    *
@@ -1380,6 +1457,39 @@ public class HiveMetadataUtils {
       }
     }
     return false;
+  }
+
+  /**
+   * Helper method which returns a list of partition names from a map of partition values
+   * if the MetadataOption is RefreshTableFilterOption, else null
+   *
+   * Ex. ["year"=>"2020", "month"=>"Feb"] -> "year=2020/month=Feb"
+   */
+  public static List<String> getFilteredPartitionNames(List<FieldSchema> partitionKeys, MetadataOption... options) {
+    if (null != options) {
+      for (MetadataOption option : options) {
+        if (option instanceof RefreshTableFilterOption) {
+
+          List<String> partitionStringList = new ArrayList<>();
+          Map<String, String> filteredPartitionsMap = ((RefreshTableFilterOption) option).getPartition();
+          for (FieldSchema fieldSchema : partitionKeys) {
+            String partiionColName = fieldSchema.getName();
+            String partitionColValue = filteredPartitionsMap.get(partiionColName);
+            TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(fieldSchema.getType());
+            if (typeInfo.getCategory() == Category.PRIMITIVE &&
+                    ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.CHAR) {
+              int extra = ((CharTypeInfo) typeInfo).getLength();
+              if (extra > 0) {
+                partitionColValue = String.format("%" + (-extra) + "s", partitionColValue);
+              }
+            }
+            partitionStringList.add(partiionColName + "=" + partitionColValue);
+          }
+          return Collections.singletonList(partitionStringList.stream().collect(Collectors.joining("/")));
+        }
+      }
+    }
+    return null;
   }
 
   public static String getPartitionValueLogString(Partition partition) {

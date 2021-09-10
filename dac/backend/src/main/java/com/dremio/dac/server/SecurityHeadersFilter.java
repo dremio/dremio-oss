@@ -15,9 +15,13 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.dac.server.UIOptions.CSP_HEADER_VALUE;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -26,15 +30,20 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 
+import com.dremio.options.OptionManager;
+
 /**
  * Filter that adds several security related HTTP headers
  */
 public class SecurityHeadersFilter implements Filter {
   private static final long STS_MAX_AGE = TimeUnit.SECONDS.toDays(356);
-  private static final String CSP_DEFAULT_HEADER = "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    + " blob: ws: *.dremio.com *.bm4u.net *.mktoresp.com *.cloudfront.net *.marketo.com *.sentry.io *.intercom.io"
-    + " *.walkme.com *.intercomcdn.com *.io *.marketo.net *.bootstrapcdn.com *.googletagmanager.com; img-src 'self'"
-    + " blob: data: *.cloudfront.net *.amazonaws.com; font-src 'self' data: *.bootstrapcdn.com;";
+
+  private final String cspCache;
+
+  @Inject
+  public SecurityHeadersFilter(Provider<OptionManager> optionManager) {
+    this.cspCache = optionManager.get().getOption(CSP_HEADER_VALUE.getOptionName()).getStringVal();
+  }
 
   @Override
   public void init(FilterConfig filterConfig) {
@@ -47,7 +56,7 @@ public class SecurityHeadersFilter implements Filter {
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "SAMEORIGIN");
     response.setHeader("x-xss-protection", "1; mode=block");
-    response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", CSP_DEFAULT_HEADER));
+    response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", cspCache));
 
     if (servletRequest.isSecure()) {
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security

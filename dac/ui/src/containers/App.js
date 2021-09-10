@@ -23,14 +23,14 @@ import { replace } from 'react-router-redux';
 import DocumentTitle from 'react-document-title';
 import urlParse from 'url-parse';
 
-import {showAppError} from '@app/actions/prodError';
+import { showAppError } from '@app/actions/prodError';
 import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
 import { ErrorBoundary } from '@app/components/ErrorBoundary';
 import { Suspense } from '@app/components/Lazy';
 
 import socket from '@inject/utils/socket';
 import sentryUtil from '@app/utils/sentryUtil';
-import {formatMessage} from '@app/utils/locale';
+import { formatMessage } from '@app/utils/locale';
 
 import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
 import config from 'dyn-load/utils/config';
@@ -42,7 +42,7 @@ import NotificationContainer from '@app/containers/Notification';
 import ConfirmationContainer from '@app/containers/Confirmation';
 import ProdErrorContainer from '@app/containers/ProdError';
 import DevErrorContainer from '@app/containers/DevError';
-import {LocationProvider} from '@app/containers/dremioLocation';
+import { LocationProvider } from '@app/containers/dremioLocation';
 import { withHookProvider } from '@app/containers/RouteLeave';
 
 import { themeStyles } from 'dremio-ui-lib';
@@ -225,9 +225,6 @@ App.propTypes = {
 
 function mapStateToProps(state) {
   const user = state.account ? state.account.get('user').toJS() : {};
-
-  // quick workaround pending server moving this value to window.config
-  config.showUserAndUserProperties = user.showUserAndUserProperties;
 
   return {
     user,

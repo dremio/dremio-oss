@@ -17,13 +17,18 @@
 package com.dremio.sabot.op.writer;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -34,6 +39,8 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
 import com.dremio.exec.store.RecordWriter.WriteStatsListener;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -65,6 +72,7 @@ public class WriterOperator implements SingleInputOperator {
   private VarBinaryVector icebergMetadataVector;
   private IntVector partitionNumberVector;
   private VarBinaryVector schemaVector;
+  private ListVector partitionDataVector;
 
   private PartitionWriteManager partitionManager;
 
@@ -117,6 +125,7 @@ public class WriterOperator implements SingleInputOperator {
     partitionNumberVector = output.addOrGet(RecordWriter.PARTITION);
     icebergMetadataVector = output.addOrGet(RecordWriter.ICEBERG_METADATA);
     schemaVector = output.addOrGet(RecordWriter.FILE_SCHEMA);
+    partitionDataVector  = output.addOrGet(RecordWriter.PARTITION_DATA);
     output.buildSchema();
     output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
@@ -207,6 +216,24 @@ public class WriterOperator implements SingleInputOperator {
         schemaVector.setSafe(i, e.schema, 0, e.schema.length);
       }
 
+      if (CollectionUtils.isNotEmpty(e.partitions)) {
+        UnionListWriter listWriter = partitionDataVector.getWriter();
+        listWriter.setPosition(i);
+        listWriter.startList();
+        for (IcebergPartitionData partitionData : e.partitions) {
+          byte[] bytes = IcebergSerDe.serializeToByteArray(partitionData);
+          ArrowBuf buffer = null;
+          try {
+            buffer = context.getAllocator().buffer(bytes.length);
+            buffer.setBytes(0, bytes);
+            listWriter.varBinary().writeVarBinary(0, bytes.length, buffer);
+          } finally {
+            AutoCloseables.close(buffer);
+          }
+        }
+        listWriter.endList();
+      }
+
       fileSizeVector.setSafe(i, e.fileSize);
 
       i++;
@@ -257,8 +284,8 @@ public class WriterOperator implements SingleInputOperator {
     private final List<OutputEntry> entries = new ArrayList<>();
 
     @Override
-    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata, byte[] schema) {
-      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema));
+    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partitions) {
+      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema, partitions));
     }
 
   }
@@ -278,8 +305,9 @@ public class WriterOperator implements SingleInputOperator {
     private final byte[] icebergMetadata;
     private final byte[] schema;
     private final Integer partitionNumber;
+    private final Collection<IcebergPartitionData> partitions;
 
-    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, byte[] icebergMetadata, Integer partitionNumber, byte[] schema) {
+    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, byte[] icebergMetadata, Integer partitionNumber, byte[] schema, Collection<IcebergPartitionData> partitions) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
@@ -287,6 +315,7 @@ public class WriterOperator implements SingleInputOperator {
       this.icebergMetadata = icebergMetadata;
       this.partitionNumber = partitionNumber;
       this.schema = schema;
+      this.partitions = partitions;
     }
 
   }

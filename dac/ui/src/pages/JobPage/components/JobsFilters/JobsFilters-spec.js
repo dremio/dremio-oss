@@ -15,7 +15,6 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-
 import JobsFilters from './JobsFilters';
 import * as IntervalTypes from './StartTimeSelect/IntervalTypes';
 
@@ -33,30 +32,30 @@ describe('JobsFilters', () => {
     commonProps = {
       ...minimalProps,
       queryState: Immutable.fromJS({
-        filters: {qt: ['UI', 'EXTERNAL']}
+        filters: { qt: ['UI', 'EXTERNAL'] }
       })
     };
     context = {
-      loggedInUser: {admin: true}
+      loggedInUser: { admin: true }
     };
   });
 
   it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<JobsFilters {...minimalProps}/>, {context});
+    const wrapper = shallow(<JobsFilters {...minimalProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ContainsText, SelectMenu', () => {
-    const wrapper = shallow(<JobsFilters {...commonProps}/>, {context});
-    expect(wrapper.find('ContainsText')).to.have.length(1);
-    expect(wrapper.find('Select')).to.have.length(1);
+  it('should render ShowHideColumn component', () => {
+    const wrapper = shallow(<JobsFilters {...minimalProps} isQVJobs />, { context });
+    const ShowHideColumnElement = wrapper.find('ShowHideColumn');
+    expect(ShowHideColumnElement).to.have.length(1);
   });
 
   describe('handlers -', () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<JobsFilters {...commonProps}/>, {context});
+      wrapper = shallow(<JobsFilters {...commonProps} />, { context });
       instance = wrapper.instance();
     });
 
@@ -90,7 +89,7 @@ describe('JobsFilters', () => {
         const result = commonProps.queryState.set('order', 'ASCENDING');
         expect(commonProps.onUpdateQueryState.getCall(0).args[0].toJS()).to.eql(result.toJS());
 
-        wrapper.setProps({queryState: result});
+        wrapper.setProps({ queryState: result });
         instance.toggleSortDirection();
         const result2 = commonProps.queryState.set('order', 'DESCENDING');
         expect(commonProps.onUpdateQueryState.getCall(1).args[0].toJS()).to.eql(result2.toJS());
@@ -128,11 +127,11 @@ describe('JobsFilters', () => {
 
   describe('#getAllFilters', () => {
     it('should return false for User Filter if user is non-admin', () => {
-      const wrapper =  shallow(<JobsFilters {...commonProps}/>, {context: { loggedInUser: {admin: true}}});
+      const wrapper = shallow(<JobsFilters {...commonProps} />, { context: { loggedInUser: { admin: true } } });
       const instance = wrapper.instance();
       expect(instance.getAllFilters().filter(filter => filter.value === 'usr')).to.have.length(1);
 
-      wrapper.setContext({ loggedInUser: {admin: false} });
+      wrapper.setContext({ loggedInUser: { admin: false } });
       expect(instance.getAllFilters().filter(filter => filter.value === 'usr')).to.have.length(0);
     });
   });

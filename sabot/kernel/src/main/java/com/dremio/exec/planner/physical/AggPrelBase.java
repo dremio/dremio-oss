@@ -28,17 +28,20 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.expr.fn.tdigest.TDigest;
 import com.dremio.exec.planner.common.AggregateRelBase;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -61,6 +64,7 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
                         List<AggregateCall> aggCalls,
                         OperatorPhase phase) throws InvalidRelException {
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    Preconditions.checkArgument(groupSets == null || groupSets.size() < 2);
     this.operPhase = phase;
     this.keys = RexToExpr.groupSetToExpr(child, groupSet);
     this.aggExprs = RexToExpr.aggsToExpr(getRowType(), child, groupSet, aggCalls);
@@ -106,7 +110,51 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
               aggCall.e.getType(),
               aggCall.e.getName());
           phase2AggCallList.add(newAggCall);
-        } else {
+        } else if (aggCall.e.getAggregation().getName().equalsIgnoreCase(ItemsSketchFunctions.FUNCTION_NAME)) {
+          int fieldInd = aggCall.e.getArgList().get(0);
+          RelDataType type = input.getRowType().getFieldList().get(fieldInd).getType();
+          SqlAggFunction function;
+          switch (type.getSqlTypeName()) {
+            case BOOLEAN:
+              function = new ItemsSketchFunctions.SqlItemsSketchMergeBooleanAggFunction(aggCall.e.getType());
+              break;
+            case DOUBLE:
+            case DECIMAL:
+              function = new ItemsSketchFunctions.SqlItemsSketchMergeDoubleAggFunction(aggCall.e.getType());
+              break;
+            case VARCHAR:
+              function = new ItemsSketchFunctions.SqlItemsSketchMergeVarCharAggFunction(aggCall.e.getType());
+              break;
+            case FLOAT:
+            case INTEGER:
+            case SMALLINT:
+            case TINYINT:
+            case TIME:
+            case INTERVAL_YEAR:
+            case INTERVAL_DAY:
+            case INTERVAL_DAY_SECOND:
+            case INTERVAL_YEAR_MONTH:
+              function = new ItemsSketchFunctions.SqlItemsSketchMergeNumbersAggFunction(aggCall.e.getType());
+              break;
+            case BIGINT:
+            case DATE:
+            case TIMESTAMP:
+              function = new ItemsSketchFunctions.SqlItemsSketchMergeLongAggFunction(aggCall.e.getType());
+              break;
+            default:
+              throw new UnsupportedOperationException(String.format("Cannot merge items_sketch functions for dataType, %s.", type.getSqlTypeName().getName()));
+          }
+          AggregateCall newAggCall =
+            AggregateCall.create(
+              function,
+              aggCall.e.isDistinct(),
+              true,
+              Collections.singletonList(aggExprOrdinal),
+              -1,
+              aggCall.e.getType(),
+              aggCall.e.getName());
+          phase2AggCallList.add(newAggCall);
+        }else {
           AggregateCall newAggCall =
             AggregateCall.create(
               aggCall.e.getAggregation(),

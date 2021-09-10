@@ -22,7 +22,8 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 import {createReflectionFormValues} from 'utils/accelerationUtils';
 import AccelerationRawMixin from '@inject/components/Acceleration/Advanced/AccelerationRawMixin.js';
 
-import { commonStyles } from '../commonStyles';
+import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import { commonThemes } from '../commonThemes';
 import AccelerationGridController from './AccelerationGridController';
 
 @AccelerationRawMixin
@@ -67,16 +68,17 @@ export default class AccelerationRaw extends Component {
 
   renderHeader = () => {
     return (
-      <div style={commonStyles.header}>
-        <h3 style={commonStyles.toggleLabel}>
-          <FontIcon type='RawMode' theme={commonStyles.iconTheme}/>
+      <div className={'AccelerationRaw__header'}>
+        <h3 className={'AccelerationRaw__toggleLabel'}>
+          <FontIcon type='RawMode' theme={commonThemes.rawIconTheme}/>
           {la('Raw Reflections')}
         </h3>
         <SimpleButton
           onClick={this.addNewLayout}
           buttonStyle='secondary'
           children={la('New Reflection')}
-          style={this.checkIfButtonShouldBeRendered() ? null : {display: 'none'}}
+          // DX-34369
+          style={this.checkIfButtonShouldBeRendered() ? {minWidth: '110px', marginRight: '8px'} : {display: 'none'}}
           type='button'/>
       </div>
     );
@@ -85,7 +87,7 @@ export default class AccelerationRaw extends Component {
   render() {
     const {dataset, reflections, fields: {rawReflections}, canAlter} = this.props;
     return (
-      <div style={styles.base}>
+      <div className={'AccelerationRaw'}>
         {this.renderHeader()}
         <AccelerationGridController
           canAlter={canAlter}
@@ -98,11 +100,3 @@ export default class AccelerationRaw extends Component {
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1
-  }
-};

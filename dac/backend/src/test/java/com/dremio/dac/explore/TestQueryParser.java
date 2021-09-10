@@ -95,4 +95,37 @@ public class TestQueryParser extends BaseTestServer {
         "cp.json/nested.json", "cp.tpch/supplier.parquet");
   }
 
+  @Test
+  public void testUnicodeCharacters() {
+    // Unicode Equality
+    validateAncestors("select * from " + table + " where s_name = 'インターコンチネンタル'", "cp.tpch/supplier.parquet");
+
+    // Unicode LIKE
+    validateAncestors("select * from " + table + " where s_name LIKE 'インターコンチネンタル'", "cp.tpch/supplier.parquet");
+
+    // Source: https://github.com/danielmiessler/SecLists/blob/master/Fuzzing/big-list-of-naughty-strings.txt
+    String[] unicodeStrings = new String[] {
+      // Strings which contain two-byte characters: can cause rendering issues or character-length issues
+      "찦차를 타고 온 펲시맨과 쑛다리 똠방각하",
+
+      // Strings which consists of Japanese-style emoticons which are popular on the web
+      "(╯°□°）╯︵ ┻━┻)",
+
+      // Emoji
+      "\uD83D\uDCA9 ❤️ \uD83D\uDC94 \uD83D\uDC8C \uD83D\uDC95 \uD83D\uDC9E \uD83D\uDC93 \uD83D\uDC97 \uD83D\uDC96 \uD83D\uDC98 \uD83D\uDC9D \uD83D\uDC9F \uD83D\uDC9C \uD83D\uDC9B \uD83D\uDC9A \uD83D\uDC99",
+
+      // Strings which contain "corrupted" text. The corruption will not appear in non-HTML text, however. (via http://www.eeemo.net)
+      "Ṱ̺̺̕o͞ ̷i̲̬͇̪͙n̝̗͕v̟̜̘̦͟o̶̙̰̠kè͚̮̺̪̹̱̤ ̖t̝͕̳̣̻̪͞h̼͓̲̦̳̘̲e͇̣̰̦̬͎ ̢̼̻̱̘h͚͎͙̜̣̲ͅi̦̲̣̰̤v̻͍e̺̭̳̪̰-m̢iͅn̖̺̞̲̯̰d̵̼̟͙̩̼̘̳ ̞̥̱̳̭r̛̗̘e͙p͠r̼̞̻̭̗e̺̠̣͟s̘͇̳͍̝͉e͉̥̯̞̲͚̬͜ǹ̬͎͎̟̖͇̤t͍̬̤͓̼̭͘ͅi̪̱n͠g̴͉ ͏͉ͅc̬̟h͡a̫̻̯͘o̫̟̖͍̙̝͉s̗̦̲.̨̹͈̣",
+
+      // Strings which contain unicode with an "upsidedown" effect (via http://www.upsidedowntext.com)
+      "˙ɐnbᴉlɐ ɐuƃɐɯ ǝɹolop ʇǝ ǝɹoqɐl ʇn ʇunpᴉpᴉɔuᴉ ɹodɯǝʇ poɯsnᴉǝ op pǝs ʇᴉlǝ ƃuᴉɔsᴉdᴉpɐ ɹnʇǝʇɔǝsuoɔ ʇǝɯɐ ʇᴉs ɹolop ɯnsdᴉ ɯǝɹo˥00˙Ɩ$-",
+
+      // Strings which contain bold/italic/etc. versions of normal characters
+      "\uD835\uDCE3\uD835\uDCF1\uD835\uDCEE \uD835\uDCFA\uD835\uDCFE\uD835\uDCF2\uD835\uDCEC\uD835\uDCF4 \uD835\uDCEB\uD835\uDCFB\uD835\uDCF8\uD835\uDD00\uD835\uDCF7 \uD835\uDCEF\uD835\uDCF8\uD835\uDD01 \uD835\uDCF3\uD835\uDCFE\uD835\uDCF6\uD835\uDCF9\uD835\uDCFC \uD835\uDCF8\uD835\uDCFF\uD835\uDCEE\uD835\uDCFB \uD835\uDCFD\uD835\uDCF1\uD835\uDCEE \uD835\uDCF5\uD835\uDCEA\uD835\uDD03\uD835\uDD02 \uD835\uDCED\uD835\uDCF8\uD835\uDCF0",
+    };
+
+    for (String unicodeString : unicodeStrings){
+      validateAncestors("select * from " + table + " where s_name = '" + unicodeString + "'", "cp.tpch/supplier.parquet");
+    }
+  }
 }

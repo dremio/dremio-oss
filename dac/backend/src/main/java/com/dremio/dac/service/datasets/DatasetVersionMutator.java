@@ -55,6 +55,7 @@ import com.dremio.datastore.format.Format;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.job.JobCountsRequest;
@@ -81,13 +82,13 @@ import com.google.common.collect.Maps;
 public class DatasetVersionMutator {
   private static final Logger logger = LoggerFactory.getLogger(DatasetVersionMutator.class);
 
-  private final NamespaceService namespaceService;
+  protected final NamespaceService namespaceService;
   private final InitializerRegistry init;
-  private final JobsService jobsService;
-  private final CatalogService catalogService;
+  protected final JobsService jobsService;
+  protected final CatalogService catalogService;
 
   private final LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
-  private final OptionManager optionManager;
+  protected final OptionManager optionManager;
 
   @Inject
   public DatasetVersionMutator(
@@ -349,9 +350,11 @@ public class DatasetVersionMutator {
     return jobCount;
   }
 
-  public DownloadDataResponse downloadData(DownloadInfo downloadInfo, String userName) throws IOException {
+  public DownloadDataResponse downloadData(DownloadInfo downloadInfo,
+                                           List<ArrowFileMetadata> resultMetadataList,
+                                           String userName) throws IOException {
     // TODO check if user can access this dataset.
-    return downloadManager().getDownloadData(downloadInfo);
+    return downloadManager().getDownloadData(downloadInfo, resultMetadataList);
   }
 
   /**

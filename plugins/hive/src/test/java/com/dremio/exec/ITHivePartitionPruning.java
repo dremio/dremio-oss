@@ -21,29 +21,32 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 
-import com.dremio.common.util.TestTools;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class ITHivePartitionPruning extends HiveTestBase {
+  protected static String queryPlanKeyword;
 
-  @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
+  protected static Boolean usesV2Flow = false;
 
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
     test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+  }
+
+  // enable decimal data type
+  @BeforeClass
+  public static void initialiseV2Details() {
+    usesV2Flow = false;
+    queryPlanKeyword = "mode=[NATIVE_PARQUET]";
   }
 
   //Currently we do not have a good way to test plans so using a crude string comparison
@@ -132,11 +135,13 @@ public class ITHivePartitionPruning extends HiveTestBase {
 
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
 
-    // Check and make sure that Filter is not present in the plan
-    assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
+    if (!usesV2Flow) {
+      // Check and make sure that Filter is not present in the plan
+      assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
+    }
 
     // Make sure the plan contains the Hive scan utilizing native parquet reader
-    assertTrue(plan, plan.contains("mode=[NATIVE_PARQUET]"));
+    assertTrue(plan, plan.contains(queryPlanKeyword));
   }
 
   @Test // DRILL-3579
@@ -201,8 +206,10 @@ public class ITHivePartitionPruning extends HiveTestBase {
         "WHERE col2 IS NULL";
     final String plan = getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);
 
-    // Check and make sure that Filter is not present in the plan
-    assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
+    if (!usesV2Flow) {
+      // Check and make sure that Filter is not present in the plan
+      assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
+    }
 
     testBuilder()
         .sqlQuery(query)

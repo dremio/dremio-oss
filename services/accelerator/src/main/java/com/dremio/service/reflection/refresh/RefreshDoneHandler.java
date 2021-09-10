@@ -247,7 +247,8 @@ public class RefreshDoneHandler {
     final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(JobsProtoUtil.getLastAttempt(job).getInfo());
     final List<String> refreshPath = ReflectionUtils.getRefreshPath(jobId, accelerationBasePath, jobsService, allocator);
     final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
-    final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(materialization, refreshPath, isIcebergRefresh);
+    final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(refreshPath, isIcebergRefresh);
+    Preconditions.checkArgument(!isIcebergRefresh || decision.getInitialRefresh() || icebergBasePath.equals(materialization.getBasePath()));
     final Refresh refresh = ReflectionUtils.createRefresh(reflection.getId(), refreshPath, decision.getSeriesId(),
       decision.getSeriesOrdinal(), updateId, details, metrics, dataPartitions, isIcebergRefresh, icebergBasePath);
 

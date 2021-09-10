@@ -16,6 +16,9 @@
 package com.dremio.exec.store.iceberg;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,12 +55,20 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.collect.Lists;
 
 public class TestIcebergPartitionData extends BaseTestQuery {
 
   private Schema schema;
+  private OperatorStats operatorStats;
+
+  public TestIcebergPartitionData() {
+    this.operatorStats = mock(OperatorStats.class);
+    doNothing().when(operatorStats).addLongStat(any(), anyLong());
+  }
 
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
@@ -223,17 +234,18 @@ public class TestIcebergPartitionData extends BaseTestQuery {
       FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
       IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+      SchemaConverter schemaConverter = new SchemaConverter(tableName);
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
         icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
-        SchemaConverter.fromIceberg(schema), Lists.newArrayList(columnName));
+        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null);
       committer.commit();
 
-      committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()));
+      committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()), operatorStats);
       ManifestFile m1 = writeManifest("manifest1", Arrays.asList(d1), tableFolder);
       committer.consumeManifestFile(m1);
       committer.commit();
 
-      Table table = getIcebergTable(tableFolder);
+      Table table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       for (FileScanTask fileScanTask : table.newScan().planFiles()) {
         StructLike structLike = fileScanTask.file().partition();
         if (expectedClass == ByteBuffer.class) {
@@ -258,7 +270,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
     File metadataFolder = new File(tableFolder, "metadata");
     metadataFolder.mkdir();
     File manifestFile =  new File(metadataFolder, fileName + ".avro");
-    Table table = getIcebergTable(tableFolder);
+    Table table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
     OutputFile outputFile = table.io().newOutputFile(manifestFile.getCanonicalPath());
 
     ManifestWriter<DataFile> writer = ManifestFiles.write(1, table.spec(), outputFile, snapshotId);

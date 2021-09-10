@@ -85,6 +85,7 @@ import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.common.util.Closeable;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.common.utils.PathUtils;
@@ -109,6 +110,7 @@ import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.RootSchemaFinder;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
@@ -170,7 +172,10 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Service;
 import com.dremio.service.commandpool.CommandPool;
+import com.dremio.service.commandpool.ReleasableCommandPool;
 import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.job.ActiveJobSummary;
+import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.JobCounts;
@@ -798,58 +803,69 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     submitJob(jobRequest, eventObserver, PlanTransformationListener.NO_OP);
   }
 
-  static class QueryAsJobStreamObserver implements StreamObserver<JobEvent> {
-    private final CountDownLatch latch;
-    private Throwable exception;
+  JobSubmissionHelper getJobSubmissionHelper(SubmitJobRequest jobRequest, StreamObserver<JobEvent> eventObserver, PlanTransformationListener planTransformationListener) {
+    CommandPool commandPool = commandPoolService.get();
 
-    public QueryAsJobStreamObserver() {
-      this.latch = new CountDownLatch(1);
+    if (commandPool instanceof ReleasableCommandPool) {
+      ReleasableCommandPool releasableCommandPool = (ReleasableCommandPool) commandPool;
+      // Protecting this code from callers who do not hold the command pool slot
+      // check if the caller holds the command pool slot before releasing it
+      if (releasableCommandPool.amHoldingSlot()) {
+        SubmitJobRequest newJobRequest = SubmitJobRequest.newBuilder(jobRequest)
+          .setRunInSameThread(false)
+          .build();
+
+        logger.debug("The SQL query {} will be submitted to the releasable command pool", jobRequest.getSqlQuery().getSql());
+        return new SubmitJobToReleasableCommandPool(newJobRequest, eventObserver, planTransformationListener, releasableCommandPool);
+      }
     }
 
-    @Override
-    public void onNext(JobEvent jobEvent) {
-      // Ignore
-    }
-
-    @Override
-    public void onError(Throwable throwable) {
-      exception = throwable;
-      latch.countDown();
-    }
-
-    @Override
-    public void onCompleted() {
-      latch.countDown();
-    }
-
-    public void waitForCompletion() throws InterruptedException {
-      latch.await();
-    }
-
-    public Throwable getException() {
-      return exception;
-    }
+    logger.info("The SQL query {} will be submitted on the same thread", jobRequest.getSqlQuery().getSql());
+    return new JobSubmissionHelper(jobRequest, eventObserver, planTransformationListener);
   }
 
   @Override
-  public void runQueryAsJob(String query, String userName) {
+  public void runQueryAsJob(String query, String userName, String queryType) throws Exception {
     final SubmitJobRequest jobRequest = SubmitJobRequest.newBuilder()
-      .setQueryType(com.dremio.service.job.QueryType.UNKNOWN)
+      .setQueryType(com.dremio.service.job.QueryType.valueOf(queryType))
       .setSqlQuery(SqlQuery.newBuilder().setSql(query))
       .setUsername(userName)
       .setRunInSameThread(true)
       .build();
 
-    final QueryAsJobStreamObserver streamObserver = new QueryAsJobStreamObserver();
-    submitJob(jobRequest, streamObserver, PlanTransformationListener.NO_OP);
+    final CompletionListener completionListener = new CompletionListener(false);
+    final JobStatusListenerAdapter streamObserver = new JobStatusListenerAdapter(completionListener);
+    final JobSubmissionHelper jobSubmissionHelper = getJobSubmissionHelper(jobRequest, streamObserver, PlanTransformationListener.NO_OP);
 
-    try {
-      streamObserver.waitForCompletion();
-      if (streamObserver.getException() != null) {
-        throw new IllegalStateException(streamObserver.getException());
+    // release the slot in the releasable command pool; submit the job and wait before re-acquiring
+    try (Closeable closeable = jobSubmissionHelper.releaseAndReacquireCommandPool()) {
+      // submit the job to the command pool
+      JobId submittedJobId = jobSubmissionHelper.submitJobToCommandPool();
+
+      logger.info("New job submitted. Job Id: {} - Type: {} - Query: {}", submittedJobId, jobRequest.getQueryType(), jobRequest.getSqlQuery().getSql());
+      // Renames the current thread to indicate the JobId of the new triggered job
+      final String originalThreadName = Thread.currentThread().getName();
+      Thread.currentThread().setName(originalThreadName + ":" + submittedJobId);
+
+      try {
+        completionListener.await();
+        if (completionListener.getException() != null) {
+          logger.info("Submitted job (JobID {}) has failed", submittedJobId);
+          throw new IllegalStateException(completionListener.getException());
+        }
+        if (!completionListener.isCompleted()) {
+          logger.info("Submitted job (JobID {}) was cancelled", submittedJobId);
+          throw new IllegalStateException(String.format("Submitted job (JobID %s) was cancelled", submittedJobId));
+        } else {
+          logger.info("Submitted job (JobID {}) has completed successfully", submittedJobId);
+        }
+      } catch (Exception e) {
+        logger.info("Submitted job (JobID {}) has failed", submittedJobId);
+        throw e;
+      } finally {
+        // Reverts the thread renaming once the submitted job is completed (passed or failed).
+        Thread.currentThread().setName(originalThreadName);
       }
-    } catch (InterruptedException e) {
-      throw new IllegalStateException(e);
     }
   }
 
@@ -1098,6 +1114,25 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   Iterable<JobSummary> searchJobs(SearchJobsRequest request) {
     LegacyFindByCondition condition = createCondition(request);
     return searchJobs(condition);
+  }
+
+  LegacyFindByCondition createActiveJobCondition(ActiveJobsRequest searchJobsRequest) {
+    String filterString = "(jst==RUNNING,jst==QUEUED,jst==ENQUEUED,jst==PLANNING,jst==STARTING,jst==PENDING,jst==METADATA_RETRIEVAL,jst==ENGINE_START,jst==EXECUTION_PLANNING)";
+    final LegacyFindByCondition condition = new LegacyFindByCondition();
+    condition.setCondition(filterString, JobIndexKeys.MAPPING);
+    return condition;
+  }
+
+  Iterable<ActiveJobSummary> getActiveJobs(LegacyFindByCondition condition) {
+    final Iterable<Job> jobs =  toJobs(store.find(condition));
+    return FluentIterable.from(jobs)
+      .filter(job -> job.getJobAttempt() != null)
+      .transform(job -> JobsServiceUtil.toActiveJobSummary(job));
+  }
+
+  Iterable<ActiveJobSummary> getActiveJobs(ActiveJobsRequest request) {
+    LegacyFindByCondition condition = createActiveJobCondition(request);
+    return getActiveJobs(condition);
   }
 
   Iterable<com.dremio.service.job.JobDetails> getJobsForParent(JobsWithParentDatasetRequest jobsWithParentDatasetRequest) {
@@ -1660,6 +1695,18 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     @Override
     public void substitutionFailures(Iterable<String> errors) {
       detailsPopulator.substitutionFailures(errors);
+    }
+
+    @Override
+    public void applyAccelDetails(final CachedAccelDetails accelDetails) {
+      List<RelNode> dummy = new ArrayList<>();
+      dummy.add(null);
+      for (Map.Entry<DremioMaterialization, RelNode> entry : accelDetails.getMaterializationStore().entrySet()) {
+        detailsPopulator.planSubstituted(
+          entry.getKey(), dummy,
+          entry.getValue(), 0, accelDetails.getLmvProfile(entry.getKey().getReflectionId()).getDefaultReflection());
+      }
+      planAccelerated(accelDetails.getSubstitutionInfo());
     }
 
     @Override
@@ -2550,5 +2597,40 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   @VisibleForTesting
   public LocalAbandonedJobsHandler getLocalAbandonedJobsHandler() {
     return localAbandonedJobsHandler;
+  }
+
+  private class JobSubmissionHelper {
+    private final SubmitJobRequest jobRequest;
+    private final StreamObserver<JobEvent> eventObserver;
+    private final PlanTransformationListener planTransformationListener;
+
+    JobSubmissionHelper(SubmitJobRequest jobRequest, StreamObserver<JobEvent> eventObserver, PlanTransformationListener planTransformationListener) {
+      this.jobRequest = jobRequest;
+      this.eventObserver = eventObserver;
+      this.planTransformationListener = planTransformationListener;
+    }
+
+    JobId submitJobToCommandPool() {
+      return submitJob(this.jobRequest, this.eventObserver, this.planTransformationListener);
+    }
+
+    Closeable releaseAndReacquireCommandPool() {
+      // return a no-op closeable
+      return () -> {};
+    }
+  }
+
+  private class SubmitJobToReleasableCommandPool extends JobSubmissionHelper {
+    private final ReleasableCommandPool releasableCommandPool;
+
+    SubmitJobToReleasableCommandPool(SubmitJobRequest jobRequest, StreamObserver<JobEvent> eventObserver, PlanTransformationListener planTransformationListener, ReleasableCommandPool releasableCommandPool) {
+      super(jobRequest, eventObserver, planTransformationListener);
+      this.releasableCommandPool = releasableCommandPool;
+    }
+
+    @Override
+    Closeable releaseAndReacquireCommandPool() {
+      return releasableCommandPool.releaseAndReacquireSlot();
+    }
   }
 }

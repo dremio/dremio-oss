@@ -299,7 +299,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
       final String schema = datasetPath.getComponents().get(1);
       final String type = datasetPath.getComponents().get(2);
       final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata()
-          .setIndex(datasetPath.getComponents().get(1)));
+          .setIndex(datasetPath.getComponents().get(1)), false);
       final List<ElasticIndex> indices = clusterMetadata.getIndices();
       if (indices.isEmpty()) {
         return Optional.empty();
@@ -342,7 +342,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
   @Override
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
     final ElasticConnection connection = this.connectionPool.getRandomConnection();
-    final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata());
+    final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata(), false);
     final ImmutableList.Builder<DatasetHandle> builder = ImmutableList.builder();
     boolean failures = false;
 
@@ -444,7 +444,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     try {
       final String schema = datasetPath.getPathComponents().get(1);
       final String type = datasetPath.getPathComponents().get(2);
-      ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata().setIndex(datasetPath.getPathComponents().get(1)));
+      ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata().setIndex(datasetPath.getPathComponents().get(1)), false);
       List<ElasticIndex> indices = clusterMetadata.getIndices();
       if(indices.isEmpty()){
         return null;

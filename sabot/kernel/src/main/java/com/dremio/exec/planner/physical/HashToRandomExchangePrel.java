@@ -17,6 +17,7 @@ package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Function;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -50,27 +51,34 @@ public class HashToRandomExchangePrel extends ExchangePrel {
   private final List<DistributionField> fields;
   private final String hashFunctionName;
 
-  // If true we will use a tableFunction op before a sender to get the corresponding receiver fragment
-  // else will use a project op to hash the expression
-  private final boolean assignFromTableFunction;
+  // function to create a tableFunction op before a sender to get the corresponding receiver fragment
+  // if null a project op will be used to hash the expr
+  private final Function<Prel, TableFunctionPrel> tableFunctionCreator;
+  private final boolean windowPushedDown;
 
 
   public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,
-                                  String hashFunctionName, boolean assignFromTableFunction) {
+                                  String hashFunctionName, Function<Prel, TableFunctionPrel> tableFunctionCreator, boolean windowPushedDown) {
     super(cluster, traitSet, input);
     this.fields = fields;
     assert input.getConvention() == Prel.PHYSICAL;
     this.hashFunctionName = hashFunctionName;
-    this.assignFromTableFunction = assignFromTableFunction;
+    this.tableFunctionCreator = tableFunctionCreator;
+    this.windowPushedDown = windowPushedDown;
   }
 
   public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,
-                                  boolean assignFromTableFunction) {
-    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME, assignFromTableFunction);
+                                  String hashFunctionName, Function<Prel, TableFunctionPrel> tableFunctionCreator) {
+    this(cluster, traitSet, input, fields, hashFunctionName, tableFunctionCreator, false);
+  }
+
+  public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,
+                                  Function<Prel, TableFunctionPrel> tableFunctionCreator) {
+    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME, tableFunctionCreator);
   }
 
   public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields) {
-    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME, false);
+    this(cluster, traitSet, input, fields, HashPrelUtil.HASH32_FUNCTION_NAME, null);
   }
 
   /**
@@ -107,7 +115,11 @@ public class HashToRandomExchangePrel extends ExchangePrel {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName, assignFromTableFunction);
+    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName, tableFunctionCreator, windowPushedDown);
+  }
+
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs, boolean windowPushedDown) {
+    return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName, tableFunctionCreator, windowPushedDown);
   }
 
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
@@ -148,11 +160,15 @@ public class HashToRandomExchangePrel extends ExchangePrel {
     return SelectionVectorMode.NONE;
   }
 
+  public boolean isWindowPushedDown() {
+    return windowPushedDown;
+  }
+
   public String getHashFunctionName() {
     return this.hashFunctionName;
   }
 
-  public boolean assignFromTableFunction() {
-    return assignFromTableFunction;
+  public Function<Prel, TableFunctionPrel> getTableFunctionCreator() {
+    return tableFunctionCreator;
   }
 }

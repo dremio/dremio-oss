@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.physical;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -46,7 +45,6 @@ import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.util.ImmutableBitSet;
 
 import com.carrotsearch.hppc.IntIntHashMap;
 import com.dremio.common.expression.FieldReference;
@@ -60,26 +58,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class PrelUtil {
-
-  public static RelNode addPartialProjectOnJoin(JoinPrel join, ImmutableBitSet projected) {
-    if ((projected != null) && ((projected.cardinality() != 0) || (projected.cardinality() != join.getRowType().getFieldCount()))) {
-      List<RelDataTypeField> fields = join.getRowType().getFieldList();
-      List<RelDataType> dataTypes = new ArrayList<>();
-      List<String> fieldNames = new ArrayList<>();
-      List<RexNode> exprs = new ArrayList<>();
-      for (int i = 0; i < fields.size(); i++) {
-        if (projected.get(i)) {
-          RelDataTypeField field = fields.get(i);
-          dataTypes.add(field.getType());
-          fieldNames.add(field.getName());
-          exprs.add(join.getCluster().getRexBuilder().makeInputRef(field.getType(), i));
-        }
-      }
-      RelDataType rowType = join.getCluster().getTypeFactory().createStructType(dataTypes, fieldNames);
-      return ProjectPrel.create(join.getCluster(), join.getTraitSet(), join, exprs, rowType);
-    }
-    return join;
-  }
 
   public static List<Ordering> getOrdering(RelCollation collation, RelDataType rowType) {
     List<Ordering> orderExpr = Lists.newArrayList();

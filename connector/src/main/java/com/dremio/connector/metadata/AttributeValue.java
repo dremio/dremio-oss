@@ -25,10 +25,16 @@ import java.util.List;
  */
 public interface AttributeValue {
 
+  Object getValueAsObject();
+
   /**
    * Boolean primitive value.
    */
   interface BooleanValue extends AttributeValue {
+    @Override
+    default Object getValueAsObject() {
+      return getValue();
+    }
 
     /**
      * Get the boolean value.
@@ -43,6 +49,10 @@ public interface AttributeValue {
    * Long primitive value.
    */
   interface LongValue extends AttributeValue {
+    @Override
+    default Object getValueAsObject() {
+      return getValue();
+    }
 
     /**
      * Get the long value.
@@ -57,6 +67,10 @@ public interface AttributeValue {
    * Double primitive value.
    */
   interface DoubleValue extends AttributeValue {
+    @Override
+    default Object getValueAsObject() {
+      return getValue();
+    }
 
     /**
      * Get the double value.
@@ -71,6 +85,10 @@ public interface AttributeValue {
    * String primitive value.
    */
   interface StringValue extends AttributeValue {
+    @Override
+    default Object getValueAsObject() {
+      return getValue();
+    }
 
     /**
      * Get the string value.
@@ -87,6 +105,10 @@ public interface AttributeValue {
    * Identifier primitive value
    */
   interface IdentifierValue extends AttributeValue {
+    @Override
+    default Object getValueAsObject() {
+      return getComponents();
+    }
 
     /**
      * Get components

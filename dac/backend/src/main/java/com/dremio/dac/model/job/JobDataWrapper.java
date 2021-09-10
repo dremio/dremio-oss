@@ -20,17 +20,19 @@ import java.util.Optional;
 
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
+import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
-import com.dremio.service.jobs.JobsFlightTicket;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsRpcUtils;
 import com.dremio.service.jobs.JobsService;
@@ -96,8 +98,11 @@ public class JobDataWrapper implements JobData {
   }
 
   public static JobDataFragmentWrapper getJobData(JobsService jobsService, BufferAllocator allocator, JobId jobId, int offset, int limit) {
+    final Ticket ticket = new Ticket(CoordinatorFlightTicket.newBuilder()
+      .setJobsFlightTicket(JobsFlightTicket.newBuilder().setJobId(jobId.getId()).setOffset(offset).setLimit(limit).build())
+      .build().toByteArray());
     try (final FlightStream stream = jobsService.getJobsClient().getFlightClient()
-      .getStream(new JobsFlightTicket(jobId.getId(), offset, limit).toTicket())) {
+      .getStream(ticket)) {
       List<RecordBatchHolder> batches = JobDataClientUtils.getData(stream, allocator, limit);
       return new JobDataFragmentWrapper(offset, ReleasingData.from(new RecordBatches(batches), jobId));
     } catch (FlightRuntimeException fre) {

@@ -15,7 +15,12 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static com.dremio.plugins.s3.store.S3StoragePlugin.*;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
@@ -83,6 +88,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -518,10 +524,12 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     }
   }
 
-  private <T extends AwsClientBuilder<?,?>> T configClientBuilder(T builder, String bucket) {
+  private <T extends SdkSyncClientBuilder<T,?> & AwsClientBuilder<T,?>> T configClientBuilder(T builder, String bucket) {
     final Configuration conf = getConf();
+
     // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
-    builder.credentialsProvider(getAsync2Provider(conf));
+    builder.credentialsProvider(getAsync2Provider(conf))
+            .httpClientBuilder(ApacheHttpConnectionUtil.initConnectionSettings(conf));
     Optional<String> endpoint = getEndpoint(conf);
 
     endpoint.ifPresent(e -> {

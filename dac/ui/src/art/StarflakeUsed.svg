@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.9036 3C11.4989 3 11.1713 3.30868 11.1328 3.69453L10.651 8.92283L6.56531 5.72026C6.43041 5.6045 6.25696 5.56592 6.08351 5.56592C5.87152 5.56592 5.6788 5.64309 5.52463 5.79743C5.25482 6.08682 5.25482 6.53055 5.50535 6.81994L8.76231 10.717L3.67452 11.3537C3.28908 11.4116 3 11.7395 3 12.1254C3 12.5113 3.30835 12.8392 3.69379 12.8778L8.93576 13.3601L5.69807 17.5466C5.44754 17.8553 5.48608 18.299 5.77516 18.5691C5.92934 18.7042 6.12206 18.7814 6.31478 18.7814C6.48822 18.7814 6.66167 18.7235 6.81585 18.6077L10.7859 15.2894L11.4218 20.3248C11.4797 20.7106 11.8073 21 12.1927 21C12.1927 21 12.1927 21 12.212 21C12.5974 21 12.9251 20.6913 12.9636 20.3055L13.4261 15.2508L17.4732 18.3955C17.6081 18.5113 17.7816 18.5498 17.955 18.5498C18.167 18.5498 18.3597 18.4727 18.5139 18.3183C18.7837 18.0289 18.803 17.5852 18.5525 17.2958L15.1606 13.283L20.3255 12.627C20.7109 12.5691 21 12.2412 21 11.8553C21 11.4695 20.6917 11.1415 20.3062 11.1029L15.2762 10.6399L18.3597 6.66559C18.4754 6.53055 18.5332 6.35691 18.5332 6.18328C18.5332 5.75884 18.1863 5.41158 17.7623 5.41158H17.743C17.5696 5.41158 17.3961 5.48875 17.2612 5.58521L13.3105 8.86495L12.6552 3.65595C12.6167 3.28939 12.2891 3 11.9036 3Z" fill="url(#paint0_linear)"/>
+<defs>
+<linearGradient id="paint0_linear" x1="12" y1="3" x2="12" y2="21" gradientUnits="userSpaceOnUse">
+<stop stop-color="#56A2FD"/>
+<stop offset="0.989583" stop-color="#C94DCA"/>
+</linearGradient>
+</defs>
+</svg>

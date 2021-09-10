@@ -15,6 +15,9 @@
  */
 package com.dremio.service.statistics;
 
+import static com.dremio.service.statistics.StatisticsUtil.createRowCountStatisticId;
+import static com.dremio.service.statistics.StatisticsUtil.createStatisticId;
+
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -32,7 +35,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.service.job.JobDetails;
@@ -68,26 +73,28 @@ public class StatisticsServiceImpl implements StatisticsService {
   public static final String ROW_COUNT_IDENTIFIER = "null";
   private final Provider<JobsService> jobsService;
   private final Provider<SchedulerService> schedulerService;
-  private final StatisticStore statisticStore;
-  private final StatisticEntriesStore statisticEntriesStore;
   private final Provider<BufferAllocator> allocator;
   private final Provider<NamespaceService> namespaceService;
-  private final Map<String, JobId> entries;
+  private final Provider<LegacyKVStoreProvider> storeProvider;
+  private final Provider<SabotContext> sabotContext;
+  private StatisticStore statisticStore;
+  private StatisticEntriesStore statisticEntriesStore;
+  private Map<String, JobId> entries;
 
   public StatisticsServiceImpl(
     Provider<LegacyKVStoreProvider> storeProvider,
     Provider<SchedulerService> schedulerService,
     Provider<JobsService> jobsService,
     Provider<NamespaceService> namespaceService,
-    Provider<BufferAllocator> allocator
+    Provider<BufferAllocator> allocator,
+    Provider<SabotContext> sabotContext
   ) {
     this.schedulerService = Preconditions.checkNotNull(schedulerService, "scheduler service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.allocator = Preconditions.checkNotNull(allocator, "buffer allocator required");
-    this.statisticStore = new StatisticStore(storeProvider);
-    this.statisticEntriesStore = new StatisticEntriesStore(storeProvider);
-    this.entries = new HashMap<>();
+    this.storeProvider = Preconditions.checkNotNull(storeProvider, "store provider required");
+    this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabot context required");
   }
 
   public void validateDataset(NamespaceKey key) {
@@ -148,9 +155,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     for (String column : columns) {
-      String normalizedColumn = column.toLowerCase();
-      if (!deleteStatistic(normalizedColumn, key)) {
-        fail.add(normalizedColumn);
+      if (!deleteStatistic(column, key)) {
+        fail.add(column);
       }
     }
     return fail;
@@ -168,20 +174,19 @@ public class StatisticsServiceImpl implements StatisticsService {
     if (entries.containsKey(key.toString())) {
       throw new ConcurrentModificationException(String.format("Cannot delete statistics for dataset, %s, as compute statistics job is currently running", key));
     }
-    final StatisticId statisticId = new StatisticId().setColumn(column).setTablePath(key.toString().toLowerCase());
+    final StatisticId statisticId = createStatisticId(column, key);
     if (statisticStore.get(statisticId) == null) {
       return false;
     } else {
-      statisticStore.delete(new StatisticId().setColumn(column).setTablePath(key.toString().toLowerCase()));
+      statisticStore.delete(createStatisticId(column, key));
     }
     return true;
   }
 
   @Override
   public Long getNDV(String column, NamespaceKey key) {
-    String normalizedColumn = column.toLowerCase();
     validateDataset(key);
-    StatisticId statisticId = new StatisticId().setTablePath(key.toString().toLowerCase()).setColumn(normalizedColumn);
+    StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
       return null;
@@ -192,11 +197,11 @@ public class StatisticsServiceImpl implements StatisticsService {
   @Override
   public Long getRowCount(NamespaceKey key) {
     validateDataset(key);
-    return getRowCount(key.toString().toLowerCase());
+    return getRowCount(key.toString());
   }
 
   private Long getRowCount(String key) {
-    StatisticId statisticId = new StatisticId().setTablePath(key).setColumn(ROW_COUNT_IDENTIFIER);
+    StatisticId statisticId = createRowCountStatisticId(key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
       return null;
@@ -206,11 +211,10 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public Long getNullCount(String column, NamespaceKey key) {
-    String normalizedColumn = column.toLowerCase();
     validateDataset(key);
-    StatisticId statisticId = new StatisticId().setTablePath(key.toString()).setColumn(normalizedColumn);
+    StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
-    Statistic rowCountStatistic = statisticStore.get(new StatisticId().setTablePath(key.toString()).setColumn(ROW_COUNT_IDENTIFIER));
+    Statistic rowCountStatistic = statisticStore.get(createRowCountStatisticId(key));
     if (statistic == null || rowCountStatistic == null) {
       return null;
     }
@@ -219,9 +223,8 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public Histogram getHistogram(String column, NamespaceKey key) {
-    String normalizedColumn = column.toLowerCase();
     validateDataset(key);
-    StatisticId statisticId = new StatisticId().setTablePath(key.toString()).setColumn(normalizedColumn);
+    StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
       return null;
@@ -245,9 +248,8 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public void setNdv(String column, Long val, NamespaceKey key) {
-    String normalizedColumn = column.toLowerCase();
     validateDataset(key);
-    updateStatistic(key.toString(), normalizedColumn, Statistic.StatisticType.NDV, val);
+    updateStatistic(key.toString(), column, Statistic.StatisticType.NDV, val);
   }
 
   @Override
@@ -280,7 +282,7 @@ public class StatisticsServiceImpl implements StatisticsService {
   private void populateNdvSql(StringBuilder stringBuilder, List<String> columns) {
     for (int i = 0; i < columns.size(); i++) {
       String column = columns.get(i);
-      stringBuilder.append(String.format("ndv(%s) as %s", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.NDV, column)));
+      stringBuilder.append(String.format("ndv(%s) as \"%s\"", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.NDV, column)));
       if (i == columns.size() - 1) {
         stringBuilder.append(" ");
       } else {
@@ -290,13 +292,13 @@ public class StatisticsServiceImpl implements StatisticsService {
   }
 
   private void populateCountStarSql(StringBuilder stringBuilder) {
-    stringBuilder.append(String.format("count(*) as %s ", getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
+    stringBuilder.append(String.format("count(*) as \"%s\" ", getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
   }
 
   private void populateCountColumnSql(StringBuilder stringBuilder, List<String> columns) {
     for (int i = 0; i < columns.size(); i++) {
       String column = columns.get(i);
-      stringBuilder.append(String.format("count(%s) as %s", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
+      stringBuilder.append(String.format("count(%s) as \"%s\"", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
       if (i == columns.size() - 1) {
         stringBuilder.append(" ");
       } else {
@@ -308,7 +310,7 @@ public class StatisticsServiceImpl implements StatisticsService {
   private void populateTDigestSql(StringBuilder stringBuilder, List<String> columns) {
     for (int i = 0; i < columns.size(); i++) {
       String column = columns.get(i);
-      stringBuilder.append(String.format("tdigest(%s) as %s", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
+      stringBuilder.append(String.format("tdigest(%s) as \"%s\"", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
       if (i == columns.size() - 1) {
         stringBuilder.append(" ");
       } else {
@@ -319,6 +321,10 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public void start() throws Exception {
+    final DremioConfig dremioConfig = sabotContext.get().getDremioConfig();
+    this.statisticStore = new StatisticStore(storeProvider, dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_MAX_ENTRIES), dremioConfig.getLong(DremioConfig.STATISTICS_CACHE_TIMEOUT_MINUTES));
+    this.statisticEntriesStore = new StatisticEntriesStore(storeProvider);
+    this.entries = new HashMap<>();
     for (Map.Entry<String, JobId> entry : statisticEntriesStore.getAll()) {
       entries.put(entry.getKey(), entry.getValue());
     }
@@ -326,9 +332,7 @@ public class StatisticsServiceImpl implements StatisticsService {
   }
 
   private void updateStatistic(String table, String column, Statistic.StatisticType type, Object value) {
-    String normalizedTable = table.toLowerCase();
-    String normalizedColumn = column.toLowerCase();
-    StatisticId statisticId = new StatisticId().setColumn(normalizedColumn).setTablePath(normalizedTable);
+    StatisticId statisticId = createStatisticId(column, table);
     Statistic statistic = (statisticStore.get(statisticId) != null) ? statisticStore.get(statisticId) : new Statistic();
     Statistic.StatisticBuilder statisticBuilder = new Statistic.StatisticBuilder(statistic);
     statisticBuilder.update(type, value);
@@ -362,14 +366,13 @@ public class StatisticsServiceImpl implements StatisticsService {
                   List<Field> fields = data.getSchema().getFields();
                   Preconditions.checkArgument(fields.get(0).getName().equals(TABLE_COLUMN_NAME));
                   String table = data.extractValue(fields.get(0).getName(), 0).toString();
-                  StatisticsInputBuilder statisticsInputBuilder = new StatisticsInputBuilder(table.toLowerCase());
+                  StatisticsInputBuilder statisticsInputBuilder = new StatisticsInputBuilder(table);
                   for (int i = 1; i < fields.size(); i++) {
                     String name = fields.get(i).getName();
                     Object value = data.extractValue(name, 0);
                     String[] names = name.split("_", 2);
                     Statistic.StatisticType type = Statistic.StatisticType.valueOf(names[0]);
                     String columnName = names[1];
-                    columnName = columnName.toLowerCase();
                     statisticsInputBuilder.updateStatistic(columnName, type, value);
                   }
                   Map<StatisticId, Statistic> statisticIdStatisticHashMap = statisticsInputBuilder.build();
@@ -414,7 +417,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     public void updateStatistic(String column, Statistic.StatisticType type, Object value) {
-      StatisticId statisticId = new StatisticId().setColumn(column).setTablePath(table);
+      StatisticId statisticId = createStatisticId(column, table);
       if (!builderMap.containsKey(statisticId)) {
         builderMap.put(statisticId, new Statistic.StatisticBuilder());
       }

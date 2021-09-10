@@ -67,6 +67,8 @@ public class ParquetToMinorTypeConverter {
           case TIMESTAMP_MILLIS:
           case TIMESTAMP_MICROS:
             return TypeProtos.MinorType.TIMESTAMP;
+          case TIME_MICROS:
+            return TypeProtos.MinorType.TIME;
           default:
             throw new UnsupportedOperationException(String.format("unsupported type: %s %s", primitiveTypeName, convertedType));
         }

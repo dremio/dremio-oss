@@ -19,16 +19,14 @@ import java.io.File;
 import java.math.BigDecimal;
 
 import org.apache.commons.io.FileUtils;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 
 public class TestIcebergSchemaEvolution extends BaseTestQuery {
@@ -53,133 +51,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
     test(alterTableCmd);
   }
 
-  private void testColumnRenamePrimitive(String primitive_column_rename_test) throws Exception {
+  private void testColumnRenameComplex(String complex_column_rename_test, String testSchema, IcebergCatalogType catalogType) throws Exception {
     try {
-      DateTimeFormatter dateFormatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").withZone(DateTimeZone.UTC);
-      DateTimeFormatter dateTimeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS").withZone(DateTimeZone.UTC);
-      DateTimeFormatter timeFormatter = DateFunctionsUtils.getISOFormatterForFormatString("HH24:MI:SS").withZone(DateTimeZone.UTC);
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + primitive_column_rename_test +
-        " (col1 boolean, col2 int, col3 bigint, col4 float, col5 double, " +
-        "col6 decimal(15,3), col7 date, col8 time, col9 timestamp, col10 varchar)";
-      String insert1 = "insert into " + TEMP_SCHEMA + "." + primitive_column_rename_test +
-        " select * from (values(true, 1, 1, cast(1.0 as float), cast(1.0 as double), " +
-        "cast(1.0 as decimal(15,3)), cast('2019-12-25' as date), cast('12:00:00' as time), " +
-        "cast('2019-12-25 12:00:00' as timestamp), 'abc'))";
-      String insert2 = "insert into " + TEMP_SCHEMA + "." + primitive_column_rename_test +
-        " select * from (values(false, 2, 2, cast(2.0 as float), cast(2.0 as double), " +
-        "cast(2.0 as decimal(15,3)), cast('2019-12-26' as date), cast('13:00:00' as time), " +
-        "cast('2019-12-26 13:00:00' as timestamp), 'def'))";
-      String insert3 = "insert into " + TEMP_SCHEMA + "." + primitive_column_rename_test +
-        " select * from (values(false, 2, 2, cast(2.0 as float), cast(2.0 as double), " +
-        "cast(2.0 as decimal(15,3)), cast('2019-12-26' as date), cast('13:00:00' as time), " +
-        "cast('2019-12-26 13:00:00' as timestamp), 'def'))";
-      String insert4 = "insert into " + TEMP_SCHEMA + "." + primitive_column_rename_test +
-        " select * from (values(false, 3, 3, cast(3.0 as float), cast(3.0 as double), " +
-        "cast(3.0 as decimal(15,3)), cast('2019-12-27' as date), cast('14:00:00' as time), " +
-        "cast('2019-12-27 14:00:00' as timestamp), 'ghi'))";
-      String select1 = "select * from " +  TEMP_SCHEMA + "." + primitive_column_rename_test;
-      test(createCommandSql);
-      Thread.sleep(1001);
-      test(insert1);
-      Thread.sleep(1001);
-      test(insert2);
-      Thread.sleep(1001);
-      testBuilder()
-        .sqlQuery(select1)
-        .unOrdered()
-        .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10")
-        .baselineValues(true, new Integer(1), new Long(1),
-          new Float("1.0"), new Double("1.0"), new BigDecimal("1.000"),
-          dateFormatter.parseLocalDateTime("2019-12-25"),
-          timeFormatter.parseLocalDateTime("12:00:00"),
-          dateTimeFormatter.parseLocalDateTime("2019-12-25 12:00:00"),
-          "abc")
-        .baselineValues(false, new Integer(2), new Long(2),
-          new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          dateFormatter.parseLocalDateTime("2019-12-26"),
-          timeFormatter.parseLocalDateTime("13:00:00"),
-          dateTimeFormatter.parseLocalDateTime("2019-12-26 13:00:00"),
-          "def")
-        .build()
-        .run();
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col10", "col11", "varchar");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col1", "col10", "boolean");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col2", "col1", "int");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col3", "col2", "bigint");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col4", "col3", "float");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col5", "col4", "double");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col6", "col5", "decimal(15,3)");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col7", "col6", "date");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col8", "col7", "time");
-      Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + primitive_column_rename_test, "col9", "col8", "timestamp");
-      Thread.sleep(1001);
-      test(insert3);
-      Thread.sleep(1001);
-      test(insert4);
-      Thread.sleep(1001);
-      testBuilder()
-        .sqlQuery(select1)
-        .unOrdered()
-        .baselineColumns("col10", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col11")
-        .baselineValues(true, new Integer(1), new Long(1),
-          new Float("1.0"), new Double("1.0"), new BigDecimal("1.000"),
-          dateFormatter.parseLocalDateTime("2019-12-25"),
-          timeFormatter.parseLocalDateTime("12:00:00"),
-          dateTimeFormatter.parseLocalDateTime("2019-12-25 12:00:00"),
-          "abc")
-        .baselineValues(false, new Integer(2), new Long(2),
-          new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          dateFormatter.parseLocalDateTime("2019-12-26"),
-          timeFormatter.parseLocalDateTime("13:00:00"),
-          dateTimeFormatter.parseLocalDateTime("2019-12-26 13:00:00"),
-          "def")
-        .baselineValues(false, new Integer(2), new Long(2),
-          new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          dateFormatter.parseLocalDateTime("2019-12-26"),
-          timeFormatter.parseLocalDateTime("13:00:00"),
-          dateTimeFormatter.parseLocalDateTime("2019-12-26 13:00:00"),
-          "def")
-        .baselineValues(false, new Integer(3), new Long(3),
-          new Float("3.0"), new Double("3.0"), new BigDecimal("3.000"),
-          dateFormatter.parseLocalDateTime("2019-12-27"),
-          timeFormatter.parseLocalDateTime("14:00:00"),
-          dateTimeFormatter.parseLocalDateTime("2019-12-27 14:00:00"),
-          "ghi")
-        .build()
-        .run();
-    }
-    finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), primitive_column_rename_test));
-    }
-  }
-
-  @Test
-  public void testColumnRenamePrimitive() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testColumnRenamePrimitive("primitive_column_rename_test");
-    }
-  }
-
-  @Test
-  public void testColumnRenamePrimitiveWithV2() throws Exception {
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testColumnRenamePrimitive("primitive_column_rename_test_v2");
-    }
-  }
-
-  private void testColumnRenameComplex(String complex_column_rename_test) throws Exception {
-    try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + complex_column_rename_test +
+      String createCommandSql = "create table " + testSchema + "." + complex_column_rename_test +
         " as select * from cp.\"/parquet/very_complex.parquet\"";
 
       String selectQuery1 = "SELECT col2, " +
@@ -187,17 +61,17 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         "col1[0][0][0].\"f2\".\"sub_f1\"[0][0][0] sub_f1, " +
         "col1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f1\" sub_sub_f1, " +
         "col1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f2\" sub_sub_f2 " +
-        "FROM " + TEMP_SCHEMA + "." + complex_column_rename_test;
+        "FROM " + testSchema + "." + complex_column_rename_test;
 
       String selectQuery2 = "SELECT c2, " +
         "c1[0][0][0].\"f1\"[0][0][0] f1, " +
         "c1[0][0][0].\"f2\".\"sub_f1\"[0][0][0] sub_f1, " +
         "c1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f1\" sub_sub_f1, " +
         "c1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f2\" sub_sub_f2 " +
-        "FROM " + TEMP_SCHEMA + "." + complex_column_rename_test;
+        "FROM " + testSchema + "." + complex_column_rename_test;
 
       String selectQuery3 = "SELECT * " +
-        "FROM " + TEMP_SCHEMA + "." + complex_column_rename_test;
+        "FROM " + testSchema + "." + complex_column_rename_test;
 
       test(createCommandSql);
       Thread.sleep(1001);
@@ -210,11 +84,11 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .build()
         .run();
 
-      changeColumn(TEMP_SCHEMA + "." + complex_column_rename_test, "col2", "c2", "int");
+      changeColumn(testSchema + "." + complex_column_rename_test, "col2", "c2", "int");
       Thread.sleep(1001);
 
       File rootFolder = new File(getDfsTestTmpSchemaLocation(), complex_column_rename_test);
-      IcebergModel icebergModel = getIcebergModel(rootFolder);
+      IcebergModel icebergModel = getIcebergModel(rootFolder, catalogType);
       icebergModel.renameColumn(
               icebergModel.getTableIdentifier(
                       rootFolder.getPath()),
@@ -222,7 +96,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
               "c1");
       Thread.sleep(1001);
 
-      String metadataRefresh = "alter table " + TEMP_SCHEMA + "." + complex_column_rename_test +
+      String metadataRefresh = "alter table " + testSchema + "." + complex_column_rename_test +
         " refresh metadata force update";
       test(metadataRefresh);
 
@@ -234,9 +108,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .build()
         .run();
 
-      dropColumn(TEMP_SCHEMA + "." + complex_column_rename_test, "c1");
+      dropColumn(testSchema + "." + complex_column_rename_test, "c1");
       Thread.sleep(1001);
-      String insertQuery = "insert into " + TEMP_SCHEMA + "." + complex_column_rename_test +
+      String insertQuery = "insert into " + testSchema + "." + complex_column_rename_test +
         " select * from (values(4))";
       test(insertQuery);
 
@@ -256,21 +130,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testColumnRenameComplex() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testColumnRenameComplex("complex_column_rename_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testColumnRenameComplex("complex_column_rename_test_v2");
+      testColumnRenameComplex("complex_column_rename_test", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
+      testColumnRenameComplex("complex_column_rename_test_v2", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
     }
   }
 
-  private void testDropColumn(String drop_column_test) throws Exception {
+  private void testDropColumn(String drop_column_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + drop_column_test +
+      String createCommandSql = "create table " + testSchema + "." + drop_column_test +
         " (col1 int, col2 int) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + drop_column_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + drop_column_test +
         " select * from ( values (1, 1))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + drop_column_test;
+      String selectCommand = "select * from " +  testSchema + "." + drop_column_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -282,9 +153,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1, 1)
         .build()
         .run();
-      dropColumn(TEMP_SCHEMA + "." + drop_column_test, "col1");
+      dropColumn(testSchema + "." + drop_column_test, "col1");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + drop_column_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + drop_column_test +
         " select * from ( values (2))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -305,21 +176,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testDropColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testDropColumn("drop_column_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testDropColumn("drop_column_test_v2");
+      testDropColumn("drop_column_test", TEMP_SCHEMA_HADOOP);
+      testDropColumn("drop_column_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testAddColumn(String add_column_test) throws Exception {
+  private void testAddColumn(String add_column_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + add_column_test +
+      String createCommandSql = "create table " + testSchema + "." + add_column_test +
         " (col1 int) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + add_column_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + add_column_test +
         " select * from ( values (1))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + add_column_test;
+      String selectCommand = "select * from " +  testSchema + "." + add_column_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -331,9 +199,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1)
         .build()
         .run();
-      addColumn(TEMP_SCHEMA + "." + add_column_test, "col2", "int");
+      addColumn(testSchema + "." + add_column_test, "col2", "int");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + add_column_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + add_column_test +
         " select * from ( values (2, 2))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -354,21 +222,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testAddColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testAddColumn("add_column_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testAddColumn("add_column_test_v2");
+      testAddColumn("add_column_test", TEMP_SCHEMA_HADOOP);
+      testAddColumn("add_column_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testDropAndAddColumn(String drop_and_add_test) throws Exception {
+  private void testDropAndAddColumn(String drop_and_add_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + drop_and_add_test +
+      String createCommandSql = "create table " + testSchema + "." + drop_and_add_test +
         " (col1 int, col2 int) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + drop_and_add_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + drop_and_add_test +
         " select * from ( values (1, 1))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + drop_and_add_test;
+      String selectCommand = "select * from " +  testSchema + "." + drop_and_add_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -380,7 +245,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1, 1)
         .build()
         .run();
-      dropColumn(TEMP_SCHEMA + "." + drop_and_add_test, "col1");
+      dropColumn(testSchema + "." + drop_and_add_test, "col1");
       Thread.sleep(1001);
       testBuilder()
         .sqlQuery(selectCommand)
@@ -389,9 +254,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1)
         .build()
         .run();
-      addColumn(TEMP_SCHEMA + "." + drop_and_add_test, "col3", "int");
+      addColumn(testSchema + "." + drop_and_add_test, "col3", "int");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + drop_and_add_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + drop_and_add_test +
         " select * from ( values (2, 2))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -412,21 +277,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testDropAndAddColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testDropAndAddColumn("drop_and_add_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testDropAndAddColumn("drop_and_add_test_v2");
+      testDropAndAddColumn("drop_and_add_test", TEMP_SCHEMA_HADOOP);
+      testDropAndAddColumn("drop_and_add_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testDropAndAddSameColumn(String drop_and_add_same_column_test) throws Exception {
+  private void testDropAndAddSameColumn(String drop_and_add_same_column_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + drop_and_add_same_column_test +
+      String createCommandSql = "create table " + testSchema + "." + drop_and_add_same_column_test +
         " (col1 int, col2 int) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + drop_and_add_same_column_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + drop_and_add_same_column_test +
         " select * from ( values (1, 1))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + drop_and_add_same_column_test;
+      String selectCommand = "select * from " +  testSchema + "." + drop_and_add_same_column_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -438,7 +300,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1, 1)
         .build()
         .run();
-      dropColumn(TEMP_SCHEMA + "." + drop_and_add_same_column_test, "col1");
+      dropColumn(testSchema + "." + drop_and_add_same_column_test, "col1");
       Thread.sleep(1001);
       testBuilder()
         .sqlQuery(selectCommand)
@@ -447,9 +309,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1)
         .build()
         .run();
-      addColumn(TEMP_SCHEMA + "." + drop_and_add_same_column_test, "col1", "int");
+      addColumn(testSchema + "." + drop_and_add_same_column_test, "col1", "int");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + drop_and_add_same_column_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + drop_and_add_same_column_test +
         " select * from ( values (2, 2))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -470,21 +332,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testDropAndAddSameColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testDropAndAddSameColumn("drop_and_add_same_column_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testDropAndAddSameColumn("drop_and_add_same_column_test_v2");
+      testDropAndAddSameColumn("drop_and_add_same_column_test", TEMP_SCHEMA_HADOOP);
+      testDropAndAddSameColumn("drop_and_add_same_column_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testSimplePushDownWithRename(String simple_pushdown_test) throws Exception {
+  private void testSimplePushDownWithRename(String simple_pushdown_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + simple_pushdown_test +
+      String createCommandSql = "create table " + testSchema + "." + simple_pushdown_test +
         " (col1 int, col2 int) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + simple_pushdown_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + simple_pushdown_test +
         " select * from ( values (1, 1))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + simple_pushdown_test;
+      String selectCommand = "select * from " +  testSchema + "." + simple_pushdown_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -496,7 +355,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1, 1)
         .build()
         .run();
-      dropColumn(TEMP_SCHEMA + "." + simple_pushdown_test, "col1");
+      dropColumn(testSchema + "." + simple_pushdown_test, "col1");
       Thread.sleep(1001);
       testBuilder()
         .sqlQuery(selectCommand)
@@ -505,9 +364,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1)
         .build()
         .run();
-      addColumn(TEMP_SCHEMA + "." + simple_pushdown_test, "col1", "int");
+      addColumn(testSchema + "." + simple_pushdown_test, "col1", "int");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + simple_pushdown_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + simple_pushdown_test +
         " select * from ( values (2, 2))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -519,10 +378,10 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(2, 2)
         .build()
         .run();
-      changeColumn(TEMP_SCHEMA + "." + simple_pushdown_test, "col2", "c2", "int");
+      changeColumn(testSchema + "." + simple_pushdown_test, "col2", "c2", "int");
       Thread.sleep(1001);
       testBuilder()
-        .sqlQuery("select col1, c2 from " + TEMP_SCHEMA + "." + simple_pushdown_test + " where c2 = 1")
+        .sqlQuery("select col1, c2 from " + testSchema + "." + simple_pushdown_test + " where c2 = 1")
         .unOrdered()
         .baselineColumns("col1", "c2")
         .baselineValues(null, 1)
@@ -537,21 +396,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testSimplePushDownWithRename() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testSimplePushDownWithRename("simple_pushdown_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testSimplePushDownWithRename("simple_pushdown_test_v2");
+      testSimplePushDownWithRename("simple_pushdown_test", TEMP_SCHEMA_HADOOP);
+      testSimplePushDownWithRename("simple_pushdown_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testUpPromote(String up_promote_test) throws Exception {
+  private void testUpPromote(String up_promote_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + up_promote_test +
+      String createCommandSql = "create table " + testSchema + "." + up_promote_test +
         " (col1 int, col2 float, col3 decimal(4, 3)) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + up_promote_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + up_promote_test +
         " select * from ( values (1, cast(1.0 as float), cast(1.0 as decimal(4,3))))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + up_promote_test;
+      String selectCommand = "select * from " +  testSchema + "." + up_promote_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -563,13 +419,13 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1, new Float("1.0"), new BigDecimal("1.000"))
         .build()
         .run();
-      changeColumn(TEMP_SCHEMA + "." + up_promote_test, "col1", "c1", "bigint");
+      changeColumn(testSchema + "." + up_promote_test, "col1", "c1", "bigint");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + up_promote_test, "col2", "c2", "double");
+      changeColumn(testSchema + "." + up_promote_test, "col2", "c2", "double");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + up_promote_test, "col3", "c3", "decimal(5,3)");
+      changeColumn(testSchema + "." + up_promote_test, "col3", "c3", "decimal(5,3)");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + up_promote_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + up_promote_test +
         " select * from ( values (2, cast(2.0 as double), cast(22.0 as decimal(5,3))))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -590,21 +446,18 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testUpPromote() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testUpPromote("up_promote_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testUpPromote("up_promote_test_v2");
+      testUpPromote("up_promote_test", TEMP_SCHEMA_HADOOP);
+      testUpPromote("up_promote_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testUpPromoteAndRename(String up_promote_and_rename_test) throws Exception {
+  private void testUpPromoteAndRename(String up_promote_and_rename_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + up_promote_and_rename_test +
+      String createCommandSql = "create table " + testSchema + "." + up_promote_and_rename_test +
         " (col1 int, col2 float, col3 decimal(4, 3)) ";
-      String insertCommand1 = "insert into " +  TEMP_SCHEMA + "." + up_promote_and_rename_test +
+      String insertCommand1 = "insert into " +  testSchema + "." + up_promote_and_rename_test +
         " select * from ( values (1, cast(1.0 as float), cast(1.0 as decimal(4,3))))";
-      String selectCommand = "select * from " +  TEMP_SCHEMA + "." + up_promote_and_rename_test;
+      String selectCommand = "select * from " +  testSchema + "." + up_promote_and_rename_test;
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommand1);
@@ -616,13 +469,13 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1, new Float("1.0"), new BigDecimal("1.000"))
         .build()
         .run();
-      changeColumn(TEMP_SCHEMA + "." + up_promote_and_rename_test, "col1", "temp", "int");
+      changeColumn(testSchema + "." + up_promote_and_rename_test, "col1", "temp", "int");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + up_promote_and_rename_test, "col2", "col1", "float");
+      changeColumn(testSchema + "." + up_promote_and_rename_test, "col2", "col1", "float");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + up_promote_and_rename_test, "temp", "col2", "int");
+      changeColumn(testSchema + "." + up_promote_and_rename_test, "temp", "col2", "int");
       Thread.sleep(1001);
-      String insertCommand2 = "insert into " +  TEMP_SCHEMA + "." + up_promote_and_rename_test +
+      String insertCommand2 = "insert into " +  testSchema + "." + up_promote_and_rename_test +
         " select * from ( values (2, cast(2.0 as float), cast(2.0 as decimal(4,3))))";
       test(insertCommand2);
       Thread.sleep(1001);
@@ -635,13 +488,13 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .build()
         .run();
 
-      changeColumn(TEMP_SCHEMA + "." + up_promote_and_rename_test, "col2", "col2", "bigint");
+      changeColumn(testSchema + "." + up_promote_and_rename_test, "col2", "col2", "bigint");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + up_promote_and_rename_test, "col1", "col1", "double");
+      changeColumn(testSchema + "." + up_promote_and_rename_test, "col1", "col1", "double");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + up_promote_and_rename_test, "col3", "col3", "decimal(5,3)");
+      changeColumn(testSchema + "." + up_promote_and_rename_test, "col3", "col3", "decimal(5,3)");
       Thread.sleep(1001);
-      String insertCommand3 = "insert into " +  TEMP_SCHEMA + "." + up_promote_and_rename_test +
+      String insertCommand3 = "insert into " +  testSchema + "." + up_promote_and_rename_test +
         " select * from ( values (3, cast(3.0 as double), cast(33.0 as decimal(5,3))))";
       test(insertCommand3);
       Thread.sleep(1001);
@@ -663,31 +516,28 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testUpPromoteAndRename() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testUpPromoteAndRename("up_promote_and_rename_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testUpPromoteAndRename("up_promote_and_rename_test_v2");
+      testUpPromoteAndRename("up_promote_and_rename_test", TEMP_SCHEMA_HADOOP);
+      testUpPromoteAndRename("up_promote_and_rename_test_v2", TEMP_SCHEMA);
     }
   }
 
-  private void testCaseSensitiveRename(String case_sensitive_test) throws Exception {
+  private void testCaseSensitiveRename(String case_sensitive_test, String testSchema) throws Exception {
     try {
-      String createCommandSql = "create table " + TEMP_SCHEMA + "." + case_sensitive_test +
+      String createCommandSql = "create table " + testSchema + "." + case_sensitive_test +
         " (col1 int, col2 int) ";
-      String insertCommandSql = "insert into  " + TEMP_SCHEMA + "." + case_sensitive_test +
+      String insertCommandSql = "insert into  " + testSchema + "." + case_sensitive_test +
         " values (1, 2) ";
       test(createCommandSql);
       Thread.sleep(1001);
       test(insertCommandSql);
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + case_sensitive_test, "col1", "COL1", "int");
+      changeColumn(testSchema + "." + case_sensitive_test, "col1", "COL1", "int");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + case_sensitive_test, "col2", "COL2", "int");
+      changeColumn(testSchema + "." + case_sensitive_test, "col2", "COL2", "int");
       Thread.sleep(1001);
       test(insertCommandSql);
       Thread.sleep(1001);
-      String selectCommand = "select * from " + TEMP_SCHEMA + "." + case_sensitive_test;
+      String selectCommand = "select * from " + testSchema + "." + case_sensitive_test;
       testBuilder()
         .sqlQuery(selectCommand)
         .unOrdered()
@@ -696,11 +546,11 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineValues(1,2)
         .build()
         .run();
-      changeColumn(TEMP_SCHEMA + "." + case_sensitive_test, "COL1", "temp", "int");
+      changeColumn(testSchema + "." + case_sensitive_test, "COL1", "temp", "int");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + case_sensitive_test, "COL2", "Col1", "int");
+      changeColumn(testSchema + "." + case_sensitive_test, "COL2", "Col1", "int");
       Thread.sleep(1001);
-      changeColumn(TEMP_SCHEMA + "." + case_sensitive_test, "temp", "Col2", "int");
+      changeColumn(testSchema + "." + case_sensitive_test, "temp", "Col2", "int");
       Thread.sleep(1001);
       testBuilder()
         .sqlQuery(selectCommand)
@@ -719,11 +569,8 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testCaseSensitiveRename() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testCaseSensitiveRename("case_sensitive_test");
-    }
-    try (AutoCloseable c1 = enableIcebergTables();
-         AutoCloseable c2 = enableV2Execution()) {
-      testCaseSensitiveRename("case_sensitive_test_v2");
+      testCaseSensitiveRename("case_sensitive_test", TEMP_SCHEMA_HADOOP);
+      testCaseSensitiveRename("case_sensitive_test_v2", TEMP_SCHEMA);
     }
   }
 }

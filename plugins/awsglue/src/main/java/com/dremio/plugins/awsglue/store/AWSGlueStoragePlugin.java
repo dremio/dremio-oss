@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import javax.inject.Provider;
 
@@ -45,19 +46,36 @@ import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.refresh.AbstractRefreshPlanBuilder;
+import com.dremio.exec.planner.sql.handlers.refresh.UnlimitedSplitsMetadataProvider;
+import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
+import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
+import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
+import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
+import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
+import com.dremio.exec.store.parquet.ScanTableFunction;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.google.common.base.Strings;
+import com.google.protobuf.ByteString;
 
 /**
  * This plugin is a wrapper over Hive2 Storage plugin
@@ -197,6 +215,61 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   }
 
   @Override
+  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createSplitCreator(context, extendedBytes);
+  }
+
+  @Override
+  public ScanTableFunction createScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createScanTableFunction(fec, context, props, functionConfig);
+  }
+
+  @Override
+  public DirListingRecordReader createDirListRecordReader(OperatorContext context,
+                                                          FileSystem fs,
+                                                          DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+                                                          boolean isRecursive,
+                                                          BatchSchema tableSchema,
+                                                          List<PartitionProtobuf.PartitionValue> partitionValues) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createDirListRecordReader(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues);
+  }
+
+  @Override
+  public boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).allowUnlimitedSplits(handle, datasetConfig, user);
+  }
+
+  @Override
+  public void runRefreshQuery(String refreshQuery, String user) throws Exception {
+    ((SupportsInternalIcebergTable) hiveStoragePlugin).runRefreshQuery(refreshQuery, user);
+  }
+
+  @Override
+  public FooterReadTableFunction getFooterReaderTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).getFooterReaderTableFunction(fec, context, props, functionConfig);
+  }
+
+  @Override
+  public AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset, UnlimitedSplitsMetadataProvider metadataProvider, boolean isFullRefresh) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createRefreshDatasetPlanBuilder(config, sqlRefreshDataset, metadataProvider, isFullRefresh);
+  }
+
+  @Override
+  public ReadSignatureProvider createReadSignatureProvider(ByteString existingReadSignature,
+                                                            final String dataTableRoot,
+                                                            final long queryStartTime,
+                                                            List<String> partitionPaths,
+                                                            Predicate<String> partitionExists,
+                                                            boolean isFullRefresh, boolean isPartialRefresh) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionPaths, partitionExists, isFullRefresh, isPartialRefresh);
+  }
+
+  @Override
+  public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).supportReadSignature(metadata, isFileDataset);
+  }
+
+  @Override
   public boolean hasAccessPermission(String user,
                                      NamespaceKey key,
                                      DatasetConfig datasetConfig) {
@@ -299,5 +372,10 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   @Override
   public boolean isAWSGlue() {
     return true;
+  }
+
+  @Override
+  public boolean validatePartitions(PartitionChunkListing chunkListing) {
+    return ((SupportsUnlimitedSplits)hiveStoragePlugin).validatePartitions(chunkListing);
   }
 }

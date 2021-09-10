@@ -25,7 +25,7 @@ export default function notification(state = {}, action) {
       if (!action.error) {
         return state;
       }
-      return actionUtils.humanizeNotificationMessage()(action.payload);
+      return actionUtils.humanizeNotificationMessage()(action.payload, action.meta.showDefaultMoreInfo);
     }
     if (typeof action.meta.notification === 'function') {
       return action.meta.notification(action.payload);

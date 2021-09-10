@@ -21,6 +21,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -34,10 +35,12 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecTest;
@@ -59,6 +62,9 @@ import com.dremio.test.AllocatorRule;
 public class TestSpoolingBuffer extends ExecTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);
 
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+
   // Test constants.
   private static final int batchAllocateSize = 1024;
   private static final int numIterations = 3;
@@ -69,7 +75,7 @@ public class TestSpoolingBuffer extends ExecTest {
   @Rule
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
-  @Test
+  @Test(timeout = 50000)
   public void testWriteThenRead() throws Exception {
     SharedResource resource = mock(SharedResource.class);
     QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
@@ -154,10 +160,24 @@ public class TestSpoolingBuffer extends ExecTest {
           }
         }
 
-        while (executorService.getQueue().size() != 0) {
-          // Wait for active items in ExecutorService to go to zero so that we are sure that all enqueued buffers
-          // have been able to finish spooling and sendOk().
-          Thread.sleep(100);
+        try {
+          while (executorService.getQueue().size() != 0) {
+            // Wait for active items in ExecutorService to go to zero so that we are sure that all enqueued buffers
+            // have been able to finish spooling and sendOk().
+            Thread.sleep(100);
+          }
+        }
+        catch (Exception e)
+        {
+          Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
+          System.out.println("Number of threads: " + threads.size());
+          for (Map.Entry<Thread, StackTraceElement[]> thread : threads.entrySet()) {
+            System.out.println("\nThread Name: " + thread.getKey().getName());
+            for (StackTraceElement element : thread.getValue()) {
+              System.out.println(element.toString());
+            }
+          }
+          throw e;
         }
 
         readCount = 0;
@@ -222,9 +242,27 @@ public class TestSpoolingBuffer extends ExecTest {
           }
         }
       }
-      executorService.shutdown();
-      if (!executorService.awaitTermination(45, TimeUnit.SECONDS)) {
+      try {
+        executorService.shutdown();
+        if (!executorService.awaitTermination(160, TimeUnit.SECONDS)) {
+          // Throw an exception for the case when this test has not timed out, but awaitTermination has timed out
+          throw new Exception();
+        }
+      }
+      catch(Exception e) {
+        // Exception is caught for:
+        // 1. test timed out but awaitTermination has not timed out
+        // 2. test not timed out, but awaitTermination has timed out
+        Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
+        System.out.println("Number of threads: " + threads.size());
+        for (Map.Entry<Thread, StackTraceElement[]> thread : threads.entrySet()) {
+          System.out.println("\nThread Name: " + thread.getKey().getName());
+          for (StackTraceElement element : thread.getValue()) {
+            System.out.println(element.toString());
+          }
+        }
         Assert.fail("Timed out while waiting for executor termination");
+        throw e;
       }
     }
 

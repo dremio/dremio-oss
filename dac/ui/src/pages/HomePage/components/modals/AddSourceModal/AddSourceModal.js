@@ -84,7 +84,7 @@ export class AddSourceModal extends Component {
     this.setStateWithSourceTypeListFromServer();
     this.fetchData();
     if (isCME && !isCME()) {
-      this.props.loadGrant({name: 'PUBLIC', type: 'ROLE'}, {viewId: VIEW_ID});
+      this.props.loadGrant({name: 'PUBLIC', type: 'ROLE'}, {viewId: VIEW_ID, entityClears: ['grant']});
     }
   }
 
@@ -99,7 +99,6 @@ export class AddSourceModal extends Component {
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
     ApiUtils.fetchJson(`source/type/${typeCode}`, json => {
-      this.modifyFormJson(typeCode, json);
       const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(json));
       const isFileSystemSource = combinedConfig.metadataRefresh;
       this.setState({isTypeSelected: true, selectedFormType: combinedConfig, isFileSystemSource: isFileSystemSource.isFileSystemSource, isExternalQueryAllowed: json.externalQueryAllowed});

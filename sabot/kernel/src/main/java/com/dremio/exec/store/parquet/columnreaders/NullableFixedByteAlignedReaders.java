@@ -46,6 +46,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 
 public class NullableFixedByteAlignedReaders {
+  public static long MICROS_PER_MILLI_LONG = 1_000L;
 
   static class NullableFixedByteAlignedReader<V extends ValueVector> extends NullableColumnReader<V> {
     protected ArrowBuf bytebuf;
@@ -211,6 +212,30 @@ public class NullableFixedByteAlignedReaders {
       } else {
         for (int i = 0; i < recordsToReadInThisPass; i++){
           valueVec.setSafe(valuesReadInCurrentPass + i, pageReader.valueReader.readInteger());
+        }
+      }
+    }
+  }
+
+  static class NullableDictionaryTimeMicrosReader extends NullableColumnReader<TimeMilliVector> {
+
+
+    NullableDictionaryTimeMicrosReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
+                                            ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeMilliVector v,
+                                            SchemaElement schemaElement) throws ExecutionSetupException {
+      super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
+    }
+
+    // this method is called by its superclass during a read loop
+    @Override
+    protected void readField(long recordsToReadInThisPass) {
+      if (usingDictionary) {
+        for (int i = 0; i < recordsToReadInThisPass; i++){
+          valueVec.setSafe(valuesReadInCurrentPass + i, (int)(pageReader.dictionaryValueReader.readLong() / MICROS_PER_MILLI_LONG));
+        }
+      } else {
+        for (int i = 0; i < recordsToReadInThisPass; i++){
+          valueVec.setSafe(valuesReadInCurrentPass + i, (int)(pageReader.valueReader.readLong() / MICROS_PER_MILLI_LONG));
         }
       }
     }

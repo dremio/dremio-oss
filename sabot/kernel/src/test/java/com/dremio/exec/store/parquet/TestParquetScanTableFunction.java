@@ -122,9 +122,9 @@ public class TestParquetScanTableFunction {
             m2Vlf2.buf().retain(2); // re-used by msg4, msg5
             // END
             ParquetScanTableFunction scanOp = spy(new ParquetScanTableFunction(mock(FragmentExecutionContext.class), getMockContext(), getProps(), getTableFunctionConfig()));
-            ParquetSplitReaderCreatorIterator mockedSplitReaderCreatorIterator = mock(ParquetSplitReaderCreatorIterator.class);
-            doNothing().when(mockedSplitReaderCreatorIterator).addRuntimeFilter(any(RuntimeFilter.class));
-            when(scanOp.getSplitReaderCreatorIterator()).thenReturn(mockedSplitReaderCreatorIterator);
+            RecordReaderIterator mockedReaderIterator = mock(RecordReaderIterator.class);
+            doNothing().when(mockedReaderIterator).addRuntimeFilter(any(RuntimeFilter.class));
+            when(scanOp.getRecordReaderIterator()).thenReturn(mockedReaderIterator);
 
             OutOfBandMessage msg1 = utils.newOOB(sendingMajorFragment1, sendingOp1, sendingMinorFragment1, m1PtCols, bloomFilterBuf, m1Vlf1, m1Vlf2);
             scanOp.workOnOOB(msg1);
@@ -158,7 +158,7 @@ public class TestParquetScanTableFunction {
             Arrays.stream(msg6.getBuffers()).forEach(ArrowBuf::release);
             assertEquals(5, scanOp.getRuntimeFilters().size());
 
-            verify(mockedSplitReaderCreatorIterator, times(5)).addRuntimeFilter(addedFilter.capture());
+            verify(mockedReaderIterator, times(5)).addRuntimeFilter(addedFilter.capture());
             com.dremio.exec.store.RuntimeFilter filter1 = addedFilter.getAllValues().get(0);
             assertEquals(Lists.newArrayList("pCol1", "pCol2"), filter1.getPartitionColumnFilter().getColumnsList());
             assertEquals("BLOOM_FILTER", filter1.getPartitionColumnFilter().getFilterType().name());

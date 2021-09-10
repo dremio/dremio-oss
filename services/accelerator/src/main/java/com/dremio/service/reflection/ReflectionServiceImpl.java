@@ -17,7 +17,11 @@ package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
-import static com.dremio.service.reflection.ReflectionOptions.*;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
+import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_ENABLE_SUBSTITUTION;
+import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_DELAY_MILLIS;
+import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODIC_WAKEUP_ONLY;
 import static com.dremio.service.reflection.ReflectionUtils.computeDatasetHash;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
@@ -64,9 +68,12 @@ import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationExpander;
+import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
+import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.serialization.kryo.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
@@ -105,9 +112,11 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshRequest;
+import com.dremio.service.reflection.refresh.ReflectionPlanGenerator;
 import com.dremio.service.reflection.refresh.RefreshHelper;
 import com.dremio.service.reflection.refresh.RefreshStartHandler;
 import com.dremio.service.reflection.store.DependenciesStore;
@@ -130,6 +139,8 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+
+import io.protostuff.ByteString;
 
 /**
  * {@link ReflectionService} implementation
@@ -389,6 +400,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       this::wakeupManager,
       expansionHelper,
       allocator,
+      accelerationPlugin,
       accelerationPlugin.getConfig().getPath(),
       ReflectionGoalChecker.Instance,
       new RefreshStartHandler(
@@ -1111,6 +1123,13 @@ public class ReflectionServiceImpl extends BaseReflectionService {
           return null;
         }
 
+        if (getOptionManager().getOption(ReflectionOptions.AUTO_REBUILD_PLAN)) {
+          logger.debug("failed to expand materialization descriptor {}/{}. Attempting to autorebuild Logical plan",
+            descriptor.getLayoutId(), descriptor.getMaterializationId(), e);
+          rebuildPlan(userStore.get(rId), getEntry(rId).get(), materializationStore.get(new MaterializationId(descriptor.getMaterializationId())));
+          return null;
+        }
+
         if (!rePlanIfNecessary) {
           // replan not allowed, just rethrow the exception
           throw e;
@@ -1128,11 +1147,29 @@ public class ReflectionServiceImpl extends BaseReflectionService {
           descriptor.getLayoutId(), descriptor.getMaterializationId(), e);
       }
 
-      // mark reflection for update
-      reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));
-      wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
-      return null;
+      if (getOptionManager().getOption(ReflectionOptions.REFRESH_AFTER_DESERIALIZATION_FAILURE)) {
+        // mark reflection for update
+        reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));
+        wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
+        return null;
+      } else {
+        internalStore.save(internalStore.get(rId).setState(ReflectionState.FAILED));
+        logger.debug("failed to expand materialization descriptor {}/{}. Auto updates disabled. Marking as failed",
+          descriptor.getLayoutId(), descriptor.getMaterializationId());
+        return null;
+      }
     }
+  }
+
+  private void rebuildPlan(ReflectionGoal goal, ReflectionEntry entry, Materialization materialization) {
+    ExpansionHelper helper = expansionHelper.get();
+    SqlHandlerConfig config = new SqlHandlerConfig(queryContext.get(), helper.getConverter(), AttemptObservers.of(), null);
+    ReflectionPlanGenerator generator = new ReflectionPlanGenerator(config, namespaceService.get(), sabotContext.get().getConfig(), goal,
+      entry, materialization, reflectionSettings, materializationStore, false, Optional.fromNullable(materialization.getStripVersion()).or(StrippingFactory.NO_STRIP_VERSION));
+    generator.generateNormalizedPlan();
+    ByteString logicalPlanBytes = generator.getRefreshDecision().getLogicalPlan();
+    materialization.setLogicalPlan(logicalPlanBytes);
+    materializationStore.save(materialization);
   }
 
   public void resetCache() {

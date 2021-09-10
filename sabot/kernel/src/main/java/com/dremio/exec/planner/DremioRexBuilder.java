@@ -15,17 +15,24 @@
  */
 package com.dremio.exec.planner;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.runtime.CalciteException;
+import org.apache.calcite.sql.SqlCollation;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.apache.calcite.util.NlsString;
 
 public class DremioRexBuilder extends RexBuilder {
 
+  private final static SqlCollation Utf8SqlCollation = new SqlCollation("UTF-8$en_US$primary", SqlCollation.Coercibility.IMPLICIT);
   /**
    * Creates a RexBuilder.
    *
@@ -67,5 +74,29 @@ public class DremioRexBuilder extends RexBuilder {
     }
 
     return castRexNode;
+  }
+
+  @Override
+  protected RexLiteral makeLiteral(
+    Comparable o,
+    RelDataType type,
+    SqlTypeName typeName) {
+    // By default calcite encodes strings as Latin-1
+    // We don't want to change the default, since that will impact previous users and the baselines
+    // So we try to encode as Latin-1 and if there is an exception then we try as UTF-8
+    try {
+      return super.makeLiteral(o, type, typeName);
+    } catch (CalciteException ce) {
+      if(typeName != SqlTypeName.CHAR) {
+        throw ce;
+      }
+
+      NlsString nlsString = (NlsString) o;
+
+      NlsString utf8NlsString = new NlsString(nlsString.getValue(), "UTF-8", Utf8SqlCollation);
+      RelDataType utf8RelDataType = this.typeFactory.createTypeWithCharsetAndCollation(type, StandardCharsets.UTF_8, Utf8SqlCollation);
+
+      return super.makeLiteral(utf8NlsString, utf8RelDataType, typeName);
+    }
   }
 }

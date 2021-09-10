@@ -123,7 +123,7 @@ public class ScanOperator implements ProducerOperator {
     NUM_CACHE_HITS,       // Number of C3 hits
     NUM_CACHE_MISSES,     // Number of C3 misses
     BLOCK_AFFINITY_CACHE_HITS, // Number of block affinity cache hits
-    BLOCK_AFFINITY_CACHE_MISSES, // Number of block affinity cache hits
+    BLOCK_AFFINITY_CACHE_MISSES, // Number of block affinity cache misses
     AVG_PROCESSING_TIME_NS,   // Average processing time of request by C3
     JAVA_BUILD_TIME_NS,   // time taken by Java (setup+evaluation) for type conversions in CoercionReader
     JAVA_EXECUTE_TIME_NS,

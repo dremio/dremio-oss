@@ -108,6 +108,7 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             assertEquals(3, outgoingSplits.getValueCount());
             assertSplit(extractSplit(outgoingSplits, 1), "/test/file2.parquet", 0L,2054L, 2054L, currentTime);
             assertSplit(extractSplit(outgoingSplits, 2), "/test/file3.parquet", 0L,211L, 211L, currentTime);
+            tableFunction.close();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -116,7 +117,7 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
 
     @Test
     public void testSplitsLargerThanMaxRecords() {
-        final long blockSize = getOpCtx().getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE).getNumVal();
+        final long blockSize = getOpCtx().getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
         final int batchSize = 5;
         try (VarCharVector pathVector = new VarCharVector(DeltaConstants.SCHEMA_ADD_PATH, allocator);
              BigIntVector sizeVector = new BigIntVector(DeltaConstants.SCHEMA_ADD_SIZE, allocator);
@@ -165,6 +166,7 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             assertEquals(1, tableFunction.processRow(10, 5));
             assertEquals(11, outgoingSplits.getValueCount());
             assertSplit(extractSplit(outgoingSplits, 10), "/test/file2.parquet", 0L, 2054L, 2054L, currentTime);
+            tableFunction.close();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -209,6 +211,6 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
 
     private OperatorContext getOpCtx() {
         SabotContext sabotContext = getSabotContext();
-        return new OperatorContextImpl(sabotContext.getConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+        return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
     }
 }

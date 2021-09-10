@@ -108,8 +108,8 @@ export class ProvisioningPage extends Component {
     const { intl: { formatMessage } } = this.props;
     const textId = getRemoveConfirmationMsgId(entity);
     const text = formatMessage({ id: textId });
-    const title = formatMessage({id: 'Admin.Engine.Remove.Title'});
-    const confirmText = formatMessage({id: 'Admin.Engine.Remove'});
+    const title = formatMessage({id: 'Admin.Engine.Delete.Title'});
+    const confirmText = formatMessage({id: 'Common.Delete'});
     this.props.showConfirmationDialog({
       title,
       text,

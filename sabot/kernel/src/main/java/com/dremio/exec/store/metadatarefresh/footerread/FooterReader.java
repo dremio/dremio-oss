@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.metadatarefresh.footerread;
 
+import java.io.IOException;
+
 public interface FooterReader {
-  Footer getFooter(String path, long fileSize) throws Exception;
+  Footer getFooter(String path, long fileSize) throws IOException;
 }

@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
+import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobProtobuf;
 
@@ -68,7 +70,7 @@ public class JobsFlightProducer implements FlightProducer, AutoCloseable {
      * duplicate records. We may want to trim the record batches if this presents a problem.
      */
     try {
-      final JobsFlightTicket jobsFlightTicket = JobsFlightTicket.from(ticket);
+      final JobsFlightTicket jobsFlightTicket = CoordinatorFlightTicket.parseFrom(ticket.getBytes()).getJobsFlightTicket();
       final JobProtobuf.JobId jobId = JobProtobuf.JobId.newBuilder().setId(jobsFlightTicket.getJobId()).build();
       final int offset = jobsFlightTicket.getOffset();
       final int limit = jobsFlightTicket.getLimit();

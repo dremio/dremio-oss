@@ -25,8 +25,8 @@ public interface SimpleJobRunner {
    * complete.
    * @param query query to run as a job
    * @param userName username of user to use for running the job
-   * @throws IllegalStateException when the job failed. cause is set to the Throwable
-   *                               that was received when the job failed.
+   * @throws Exception when the job failed. The exception caught is rethrown as is.
+   * @throws IllegalStateException when the job is canceled.
    */
-  void runQueryAsJob(String query, String userName);
+  void runQueryAsJob(String query, String userName, String queryType) throws Exception;
 }

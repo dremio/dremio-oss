@@ -145,6 +145,31 @@ public class FileSelection {
     return Iterables.tryFind(fileAttributesList, FileAttributes::isRegularFile);
   }
 
+  public static Optional<FileAttributes> getFirstFileIteratively(FileSystem fs, final List<String> fullPath) throws IOException {
+    return getFirstFileIteratively(fs,getPathBasedOnFullPath(fullPath));
+  }
+
+  public static Optional<FileAttributes> getFirstFileIteratively(FileSystem fs, Path path) throws IOException {
+    if (fs.isFile(path)) {
+      FileAttributes fileAttribute = fs.getFileAttributes(path);
+      if (fileAttribute.isRegularAndNoHiddenFile()) {
+        return Optional.of(fileAttribute);
+      } else {
+        return Optional.absent();
+      }
+    } else {
+      if (!fs.exists(path)) {
+        return Optional.absent();
+      }
+    }
+
+    try(DirectoryStream<FileAttributes> stream = fs.listFiles(path, true)) {
+      return Iterables.tryFind(stream, FileAttributes::isRegularAndNoHiddenFile);
+    } catch (DirectoryIteratorException e) {
+      throw e.getCause();
+    }
+  }
+
   public boolean isExpanded() {
     return dirStatus == StatusType.EXPANDED;
   }

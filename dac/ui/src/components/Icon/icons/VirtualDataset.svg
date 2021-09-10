@@ -16,23 +16,9 @@
     limitations under the License.
 
 -->
-<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <!-- Generator: Sketch 41.2 (35397) - http://www.bohemiancoding.com/sketch -->
-    <title>Icon/VirtualDataset</title>
-    <desc>Created with Sketch.</desc>
-    <defs></defs>
-    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <g id="Icon/VirtualDataset">
-            <g>
-                <g id="icon-box-24-copy-6">
-                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
-                </g>
-                <g id="Group-2" transform="translate(4.000000, 4.000000)">
-                    <rect id="Rectangle" fill="#3ACBAC" x="0" y="0" width="17" height="17"></rect>
-                    <rect id="Rectangle-2" fill="#FFFFFF" x="2" y="2" width="13" height="13"></rect>
-                    <path d="M3,9 L6,9 L6,11 L3,11 L3,9 Z M7,9 L10,9 L10,11 L7,11 L7,9 Z M11,9 L14,9 L14,11 L11,11 L11,9 Z M3,6 L6,6 L6,8 L3,8 L3,6 Z M7,6 L10,6 L10,8 L7,8 L7,6 Z M3,3 L6,3 L6,5 L3,5 L3,3 Z M7,3 L10,3 L10,5 L7,5 L7,3 Z M11,3 L14,3 L14,5 L11,5 L11,3 Z M11,6 L14,6 L14,8 L11,8 L11,6 Z M3,12 L6,12 L6,14 L3,14 L3,12 Z M7,12 L10,12 L10,14 L7,14 L7,12 Z M11,12 L14,12 L14,14 L11,14 L11,12 Z" id="Rectangle-125" fill="#3ACBAC"></path>
-                </g>
-            </g>
-        </g>
-    </g>
+<svg width="20px" height="20px" viewBox="0 0 24 20" version="1.1" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="20" height="20" rx="2" fill="#3ACBAC"/>
+<rect x="2.27274" y="2.27271" width="15.4545" height="15.4545" rx="0.5" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M6.81819 3.18176H9.54546V5.90904H6.81819V3.18176ZM3.18182 3.18177H5.9091V5.90904H3.18182V3.18177ZM13.1818 3.18176H10.4545V5.90904H13.1818V3.18176ZM14.0909 3.18176H16.8182V5.90904H14.0909V3.18176ZM3.18182 6.81812H5.90909V9.54539H3.18182V6.81812ZM6.81818 6.81813H9.54546V9.5454H6.81818V6.81813ZM13.1818 6.81813H10.4545V9.5454H13.1818V6.81813ZM14.0909 6.81813H16.8182V9.5454H14.0909V6.81813ZM5.90909 10.4545H3.18182V13.1818H5.90909V10.4545ZM9.54546 10.4545H6.81818V13.1818H9.54546V10.4545ZM10.4545 10.4545H13.1818V13.1818H10.4545V10.4545ZM16.8182 10.4545H14.0909V13.1818H16.8182V10.4545ZM6.81818 14.0908H9.54546V16.8181H6.81818V14.0908ZM3.18182 14.0909H5.90909V16.8181H3.18182V14.0909ZM13.1818 14.0908H10.4545V16.8181H13.1818V14.0908ZM14.0909 14.0908H16.8182V16.8181H14.0909V14.0908Z" fill="#3ACBAC"/>
 </svg>
+

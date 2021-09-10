@@ -20,6 +20,7 @@ import java.util.List;
 
 import javax.inject.Provider;
 
+import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
@@ -98,5 +99,9 @@ public class AzureDataLakeStoragePlugin extends FileSystemPlugin<AzureDataLakeCo
   @Override
   protected boolean isAsyncEnabledForQuery(OperatorContext context) {
     return context != null && context.getOptions().getOption(AzureDataLakeOptions.ASYNC_READS);
+  }
+
+  public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
+    return false;
   }
 }

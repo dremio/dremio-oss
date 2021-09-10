@@ -16,8 +16,12 @@
 
 package com.dremio.exec.store.parquet;
 
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.CloseableIterator;
@@ -38,9 +42,22 @@ public interface RecordReaderIterator extends CloseableIterator<RecordReader> {
      */
     void addRuntimeFilter(RuntimeFilter runtimeFilter);
 
+    /**
+     * Return all the runtime filters added to the iterator.
+     * Might be required to add these filters to the next iterator
+     * @return
+     */
+    List<RuntimeFilter> getRuntimeFilters();
+
     default ParquetProtobuf.ParquetDatasetSplitScanXAttr getCurrentSplitXAttr() {
       return null;
     }
+
+    /**
+     * Mark the iterator to start producing from buffered readers
+     * @param toProduce
+     */
+    void produceFromBuffered(boolean toProduce);
 
     /**
      * Returns singleton iterator
@@ -79,6 +96,15 @@ public interface RecordReaderIterator extends CloseableIterator<RecordReader> {
 
             @Override
             public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+            }
+
+            @Override
+            public List<RuntimeFilter> getRuntimeFilters() {
+               return Collections.emptyList();
+            }
+
+          @Override
+            public void produceFromBuffered(boolean toProduce) {
             }
         };
     }
@@ -128,6 +154,20 @@ public interface RecordReaderIterator extends CloseableIterator<RecordReader> {
                 it1.addRuntimeFilter(runtimeFilter);
                 it2.addRuntimeFilter(runtimeFilter);
             }
+
+            @Override
+            public List<RuntimeFilter> getRuntimeFilters() {
+                return Stream.concat(it1.getRuntimeFilters().stream(), it2.getRuntimeFilters().stream())
+                  .collect(Collectors.toList());
+            }
+
+          @Override
+          public void produceFromBuffered(boolean toProduce) {
+              it1.produceFromBuffered(toProduce);
+              it2.produceFromBuffered(toProduce);
+          }
         };
     }
+
+    RecordReaderIterator EMPTY_RECORD_ITERATOR = from(Collections.emptyIterator());
 }

@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>17.0.0-202107060524010627-31b5222b</version>
+  <version>18.0.0-202109101536100970-a32fc9f4</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -41,26 +41,26 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>4.0.0-20210421034456-b2e0cc9343-dremio</arrow.version>
+    <arrow.version>4.0.0-20210722102535-bda216e83f-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202107011821040879-02da13d</calcite.version>
+    <calcite.version>1.16.0-202108042226350839-779444f</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
     <simpleclient.version>0.7.0</simpleclient.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
-    <fmpp.version>0.9.15</fmpp.version>
-    <freemarker.version>2.3.28</freemarker.version>
+    <fmpp.version>0.9.16</fmpp.version>
+    <freemarker.version>2.3.29</freemarker.version>
 
     <hibernate-validator.version>6.1.5.Final</hibernate-validator.version>
 
-    <hadoop.version>3.2.1-dremio-202101121111520916-3f79071</hadoop.version>
+    <hadoop.version>3.2.1-dremio-202107061151520241-a2c072f</hadoop.version>
     <avro.version>1.9.2</avro.version>
-    <iceberg.version>0.12-aba898b-20210614113000-ca59e2d</iceberg.version>
+    <iceberg.version>0.12-aba898b-20210716185948-115a822</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
-    <plugin.hive2.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive2.azure-datalake.version>
-    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-d65ae5d215c7b9d342ccd1edfb8f42ead358feb9</plugin.hive2.hadoop-azure.version>
+    <plugin.hive2.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive2.azure-datalake.version>
+    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202106241733540604-acdda22</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
@@ -81,9 +81,9 @@
     -->
     <plugin.hive2.hbase.version>1.1.13</plugin.hive2.hbase.version>
 
-    <plugin.hive3.hadoop.version>3.2.1-dremio-202101121111520916-3f79071</plugin.hive3.hadoop.version>
+    <plugin.hive3.hadoop.version>3.2.1-dremio-202107061151520241-a2c072f</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
-    <plugin.hive3.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive3.azure-datalake.version>
+    <plugin.hive3.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
@@ -132,11 +132,12 @@
     <fbs.version>1.9.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
     <opencensus.version>0.24.0</opencensus.version>
-    <grpc.version>1.30.2</grpc.version>
+    <grpc.version>1.32.2</grpc.version>
     <guava.version>28.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
     <redis.clients.jedis.version>3.4.1</redis.clients.jedis.version>
     <opentelemetry.version>1.0.1</opentelemetry.version>
+    <scim2-sdk.version>2.3.5</scim2-sdk.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>5.5.3</elasticsearch.version>
@@ -1507,6 +1508,11 @@ limitations under the License.
         <artifactId>dremio-services-users</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-sysflight</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>com.dremio</groupId>
@@ -3127,7 +3133,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2-d65ae5d215c7b9d342ccd1edfb8f42ead358feb9</version>
+        <version>2.8.5-dremio-r2-202106241733540604-acdda22</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -3153,7 +3159,7 @@ limitations under the License.
       <dependency>
         <groupId>com.microsoft.azure</groupId>
         <artifactId>azure-data-lake-store-sdk</artifactId>
-        <version>2.3.3-202004281751280881-379c12c</version>
+        <version>2.3.3-202107080930050113-179a837</version>
         <exclusions>
           <exclusion>
             <groupId>org.wildfly.openssl</groupId>

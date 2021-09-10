@@ -62,6 +62,10 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.yahoo.memory.Memory;
+import com.yahoo.sketches.ArrayOfItemsSerDe;
+import com.yahoo.sketches.frequencies.ErrorType;
+import com.yahoo.sketches.frequencies.ItemsSketch;
 
 /**
  * An object to encapsulate the options for a Dremio unit test, as well as the execution methods to perform the tests and
@@ -118,6 +122,7 @@ public class DremioTestWrapper {
   private List<Map<String, Object>> baselineRecords;
 
   private static Map<String, BaselineValuesForTDigest> baselineValuesForTDigestMap;
+  private static Map<String, BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap;
 
   private int expectedNumBatches;
 
@@ -126,7 +131,9 @@ public class DremioTestWrapper {
   public DremioTestWrapper(TestBuilder testBuilder, BufferAllocator allocator, Object query, QueryType queryType,
                            String baselineOptionSettingQueries, String testOptionSettingQueries,
                            QueryType baselineQueryType, boolean ordered, boolean highPerformanceComparison,
-                           List<Map<String, Object>> baselineRecords, int expectedNumBatches, Map<String, BaselineValuesForTDigest> baselineValuesForTDigestMap) {
+                           List<Map<String, Object>> baselineRecords, int expectedNumBatches,
+                           Map<String, BaselineValuesForTDigest> baselineValuesForTDigestMap,
+                           Map<String, BaselineValuesForItemsSketch> baselineValuesForItemsSketchMap) {
     this.testBuilder = testBuilder;
     this.allocator = allocator;
     this.query = query;
@@ -139,6 +146,7 @@ public class DremioTestWrapper {
     this.baselineRecords = baselineRecords;
     this.expectedNumBatches = expectedNumBatches;
     this.baselineValuesForTDigestMap = baselineValuesForTDigestMap;
+    this.baselineValuesForItemsSketchMap = baselineValuesForItemsSketchMap;
   }
 
   public TestResult run() throws Exception {
@@ -724,6 +732,16 @@ public class DremioTestWrapper {
       }
       return true;
     }
+    if (baselineValuesForItemsSketchMap != null && baselineValuesForItemsSketchMap.get(column) != null) {
+      if (!verifyItemsSketchValues(actual, baselineValuesForItemsSketchMap.get(column))) {
+        return false;
+      } else {
+        if (VERBOSE_DEBUG) {
+          logger.debug("at position " + counter + " column '" + column + "' matched value:  " + expected);
+        }
+      }
+      return true;
+    }
     if (actual instanceof byte[]) {
       if (!Arrays.equals((byte[]) expected, (byte[]) actual)) {
         return false;
@@ -789,6 +807,37 @@ public class DremioTestWrapper {
       return Math.abs(((Double) expected - (Double) out) / (Double) expected) <= value.tolerance;
     }
     return false;
+  }
+
+  private static boolean verifyItemsSketchValues(Object actual, BaselineValuesForItemsSketch value) {
+    if (!(actual instanceof byte[])) {
+      return false;
+    }
+
+    final ItemsSketch sketch = ItemsSketch.getInstance(Memory.wrap((byte[]) actual), value.serde);
+    if (value.heavyHitters != null) {
+      int size = value.heavyHitters.size();
+      ItemsSketch.Row[] rows1 = sketch.getFrequentItems(5, ErrorType.NO_FALSE_NEGATIVES);
+      for (int i = 0; i < rows1.length; i++) {
+        if(!rows1[i].getItem().equals(value.heavyHitters.get(i))) {
+          return false;
+        }
+      }
+      ItemsSketch.Row[] rows2 = sketch.getFrequentItems(size, ErrorType.NO_FALSE_NEGATIVES);
+      for (int i = 0; i < rows2.length; i++) {
+        if(!rows2[i].getItem().equals(value.heavyHitters.get(i))) {
+          return false;
+        }
+      }
+    }
+    if (value.counts != null) {
+      for (Pair<Object, Long> count : value.counts) {
+        Object key = count.getLeft();
+        Long val = count.getRight();
+        return ((double) Math.abs(sketch.getEstimate(key) - val)) / ((double) val) <= 0.01;
+      }
+    }
+    return true;
   }
 
   /**
@@ -881,6 +930,19 @@ public class DremioTestWrapper {
     public BaselineValuesForTDigest(double tolerance, double quartile) {
       this.tolerance = tolerance;
       this.quartile = quartile;
+    }
+
+  }
+
+  public static class BaselineValuesForItemsSketch {
+    public List<Pair<Object, Long>> counts = null;
+    public List<Object> heavyHitters = null;
+    public ArrayOfItemsSerDe serde;
+
+    public BaselineValuesForItemsSketch(List<Pair<Object, Long>> counts, List<Object> heavyHitters, ArrayOfItemsSerDe serde) {
+      this.counts = counts;
+      this.heavyHitters = heavyHitters;
+      this.serde = serde;
     }
 
   }

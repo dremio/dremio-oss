@@ -17,7 +17,7 @@ import { formDescription } from 'uiTheme/radium/typography';
 
 export const borderDottedGreen = '1px dotted #92E2D0';
 export const borderSolidGray = '1px solid rgba(0,0,0,0.10)';
-export const greenBackground = '#EBF9F6';
+export const greenBackground = '#F5FCFF';
 export const whiteBackground = '#FFFFFF';
 export const fieldAreaWidth = '240px';
 
@@ -34,7 +34,6 @@ export const fieldBox = {
   height: '25px'
 };
 
-const greenBorderColor = '#92E2D0';
 const defaultBorderWidth = {
   borderLeftWidth: '1px',
   borderRightWidth: '1px',
@@ -68,9 +67,7 @@ const dragArea = {
   },
   empty: {
     background: whiteBackground,
-    ...defaultBorderWidth,
-    borderColor: greenBorderColor,
-    borderStyle: 'dotted'
+    ...defaultBorderWidth
   },
   notEmpty: {
     alignItems: 'flex-start',
@@ -79,10 +76,7 @@ const dragArea = {
   grabbed: {
     alignItems: 'top',
     background: greenBackground,
-    ...defaultBorderWidth,
-    borderStyle: 'dotted',
-    borderColor: greenBorderColor,
-    borderRadius: '1px'
+    ...defaultBorderWidth
   }
 };
 

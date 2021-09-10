@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
@@ -182,9 +183,9 @@ public class FormatTools {
     try {
       attributes = fs.getFileAttributes(path);
       if (attributes.isDirectory()) {
-        FileFormat fileFormat = plugin.findLayeredFormatMatch(fs, FileSelection.createNotExpanded(fs, path));
-        if (fileFormat != null) {
-          return asLayerFormat(key, fileFormat);
+        Optional<FileFormat> fileFormat = plugin.findLayeredFormatMatch(fs, FileSelection.createNotExpanded(fs, path));
+        if (fileFormat.isPresent()) {
+          return asLayerFormat(key, fileFormat.get());
         }
       }
     } catch(IOException ex) {
@@ -201,9 +202,9 @@ public class FormatTools {
       }
 
       try {
-        fileFormat = plugin.findFileFormatMatch(fs, attributes);
-        if (fileFormat != null) {
-          return asFormat(key, path,false, fileFormat);
+        Optional<FileFormat> nullableFileFormat = plugin.findFileFormatMatch(fs, attributes);
+        if (nullableFileFormat.isPresent()) {
+          return asFormat(key, path,false, nullableFileFormat.get());
         }
       } catch(IOException ex) {
         // we could return unknown but if there no files, what's the point.
@@ -356,6 +357,7 @@ public class FormatTools {
       final OperatorContextImpl opCtxt = cls.add(
           new OperatorContextImpl(
               context.getConfig(),
+              context.getDremioConfig(),
               allocator.newChildAllocator("job-serialize", 0, Long.MAX_VALUE),
               context.getOptionManager(), batchSize));
       final BufferAllocator readerAllocator = opCtxt.getAllocator();

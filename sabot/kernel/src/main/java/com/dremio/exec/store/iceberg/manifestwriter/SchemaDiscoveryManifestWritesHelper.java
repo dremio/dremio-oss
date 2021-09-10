@@ -29,11 +29,13 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 
@@ -48,10 +50,12 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
 
     private List<DataFile> dataFiles = new ArrayList<>();
     private VarBinaryVector schemaVector;
+    private int columnLimit;
 
-    public SchemaDiscoveryManifestWritesHelper(EasyWriter writer, IcebergFormatConfig formatConfig) {
+  public SchemaDiscoveryManifestWritesHelper(EasyWriter writer, IcebergFormatConfig formatConfig, int columnLimit) {
         super(writer, formatConfig);
-    }
+        this.columnLimit = columnLimit;
+  }
 
     @Override
     public void setIncoming(VectorAccessible incoming) {
@@ -76,7 +80,10 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
                 }
 
                 hasSchemaChanged = true;
-                currentSchema = currentSchema.merge(newSchema);
+                currentSchema = currentSchema.mergeWithUpPromotion(newSchema);
+                if (currentSchema.getTotalFieldCount() > columnLimit) {
+                  throw new ColumnCountTooLargeException(columnLimit);
+                }
             }
         } catch (IOException ioe) {
             throw ioe;
@@ -106,9 +113,11 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
 
     @Override
     public Optional<ManifestFile> write() throws IOException {
+        addPartitionData();
         if (hasSchemaChanged) {
             deleteRunningManifestFile();
             super.startNewWriter(); // using currentSchema
+            addPartitionData();
             dataFiles.stream().forEach(manifestWriter::add);
             hasSchemaChanged = false;
             currentNumDataFileAdded = dataFiles.size();
@@ -118,16 +127,25 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
         return super.write();
     }
 
+  private void addPartitionData() {
+    if (writer.getOptions().isReadSignatureSupport()) {
+      dataFiles.stream()
+              .map(DataFile::partition)
+              .map(partition -> IcebergPartitionData.fromStructLike(getPartitionSpec(writer.getOptions()), partition))
+              .forEach(ipd -> partitionDataInCurrentManifest().add(ipd));
+    }
+  }
+
     @Override
     public byte[] getWrittenSchema() {
         return (currentSchema.getFieldCount() == 0) ? null : currentSchema.serialize();
     }
 
     @Override
-    protected PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
+    PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
         Schema icebergSchema = null;
         if (writerOptions.getExtendedProperty()!=null) {
-            icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema);
+            icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema, writerOptions.getIcebergTableProps().getTableName());
         }
 
         return IcebergUtils.getIcebergPartitionSpec(currentSchema, partitionColumns, icebergSchema);

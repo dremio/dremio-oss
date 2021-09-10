@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.service.support;
 
+import static org.junit.Assume.assumeTrue;
+
 import java.io.File;
 
 import org.junit.Assert;
@@ -44,13 +46,14 @@ public class TestMultiNodeSupportService extends BaseTestServer {
 
   @BeforeClass // same signature to shadow parent's #init
   public static void init() throws Exception {
+    // ignore the tests if not multinode.
+    assumeTrue(isMultinode());
+
     // set the log path so we can read logs and confirm that is working.
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
     Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
     System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, temp.getRoot().toString());
-    System.setProperty("dremio_multinode", "true");
-    System.setProperty("dremio.service.jobs.over_socket", "true");
 
     // now start server.
     BaseTestServer.init();

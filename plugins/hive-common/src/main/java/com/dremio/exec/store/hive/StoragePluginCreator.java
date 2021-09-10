@@ -25,7 +25,6 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
@@ -59,11 +58,6 @@ public interface StoragePluginCreator extends ExtensionPoint {
      * Creates the plugin-specific scan batch creator.
      */
     HiveProxiedScanBatchCreator createScanBatchCreator(FragmentExecutionContext fragmentExecContext, OperatorContext context, OpProps opProps, TableFunctionConfig config) throws ExecutionSetupException;
-
-    /**
-     * Creates the plugin-specific split creator.
-     */
-    BlockBasedSplitGenerator.SplitCreator createSplitCreator();
 
     /**
      * Gets the class definition for the HiveProxiedOrcScanFilter implementation that is used

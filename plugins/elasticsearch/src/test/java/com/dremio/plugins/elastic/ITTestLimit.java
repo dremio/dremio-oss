@@ -25,13 +25,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
+import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -57,10 +61,13 @@ import com.google.common.collect.ImmutableList;
 
 public class ITTestLimit extends ElasticBaseTestQuery {
 
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+
   @Before
-  public void loadTable() throws IOException, ParseException {
+  public void loadTable() throws IOException, ParseException, InterruptedException {
     ColumnData[] data = getBusinessData();
-    load(schema, table, data);
+    loadWithRetry(schema, table, data);
   }
 
   String AGG_LIMIT = "="

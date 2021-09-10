@@ -18,9 +18,12 @@ package com.dremio.exec.store;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -30,6 +33,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetTypeCoercion;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
  * FilteringCoercionReader for files
@@ -49,77 +53,62 @@ public class EasyCoercionReader extends HiveParquetCoercionReader {
   }
 
   @Override
-  public int next() {
-    switch (nextMethodState) {
-      case FIRST_CALL_BY_FILTERING_READER:
-        // called by this.filteringReader. we just need to return number of records written by projector
-        nextMethodState = NextMethodState.REPEATED_CALL_BY_FILTERING_READER;
-        break;
-      case NOT_CALLED_BY_FILTERING_READER:
-        outgoingMutator = this.outputMutator;
-        recordCount = inner.next();
-        if (recordCount == 0) {
-          return 0;
-        }
-        if (needsFilteringAfterCoercion) {
-          projectorOutput = filteringReaderInputMutator.getContainer();
-          this.outgoingMutator = filteringReaderInputMutator;
-        }
+  public void setup(OutputMutator output) throws ExecutionSetupException {
+    this.outputMutator = output;
+    inner.setup(mutator); // this will modify filters in schema mismatch case
+    incoming.buildSchema();
+    // reset the schema change callback
+    mutator.getAndResetSchemaChanged();
 
-        if (mutator.getSchemaChanged()) {
-          incoming.buildSchema();
-          // reset the schema change callback
-          mutator.getAndResetSchemaChanged();
-
-          BatchSchema outingSchema = outgoing.getSchema();
-          BatchSchema finalSchema = getFinalSchema(incoming.getSchema(), outingSchema);
-          if (!finalSchema.equalsTypesWithoutPositions(outingSchema)) {
-            // schema of field after merge is not same as original schema, remove old schema and add new one
-            outingSchema.getFields().forEach(field -> outputMutator.removeField(field));
-            finalSchema.getFields().forEach(field -> outputMutator.addField(field, CompleteType.fromField(field).getValueVectorClass()));
-            outputMutator.getContainer().buildSchema();
-            if (outputMutator.getCallBack() != null) {
-              // set schema change flag
-              outputMutator.getCallBack().doWork();
-            }
-            return 1;
-          }
-
-          setupProjector(this.outgoingMutator, projectorOutput);
-        } else if (!initialProjectorSetUpDone) {
-          setupProjector(this.outgoingMutator, projectorOutput);
-        }
-        initialProjectorSetUpDone = true;
-        incoming.setAllCount(recordCount);
-
-        runProjector(recordCount);
-        projectorOutput.setAllCount(recordCount);
-
-        if (needsFilteringAfterCoercion) {
-          nextMethodState = NextMethodState.FIRST_CALL_BY_FILTERING_READER;
-          recordCount = filteringReader.next();
-          outgoing.setAllCount(recordCount);
-          int recordCountCopy = recordCount;
-          resetReaderState();
-          return recordCountCopy;
-        }
-        break;
-      case REPEATED_CALL_BY_FILTERING_READER:
-        recordCount = inner.next();
-        if (recordCount == 0) {
-          return 0;
-        }
-
-        if (mutator.getSchemaChanged()) {
-          incoming.buildSchema();
-          // reset the schema change callback
-          mutator.getAndResetSchemaChanged();
-          setupProjector(this.outgoingMutator, projectorOutput);
-        }
-        incoming.setAllCount(recordCount);
-
-        runProjector(recordCount);
+    final BatchSchema resolvedSchema = getFinalSchema(incoming.getSchema(), originalSchema);
+    if (!resolvedSchema.equalsTypesWithoutPositions(originalSchema)) {
+      notifySchemaChange(resolvedSchema, tableSchemaPath);
     }
+
+    for (Field field : originalSchema.getFields()) {
+      ValueVector vector = outputMutator.getVector(field.getName());
+      if (vector == null) {
+        continue;
+      }
+      outgoing.add(vector);
+    }
+    outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
+  }
+
+  @Override
+  public int next() {
+    recordCount = inner.next();
+    if (recordCount == 0) {
+      return 0;
+    }
+    if (mutator.getSchemaChanged()) {
+      incoming.buildSchema();
+      // reset the schema change callback
+      mutator.getAndResetSchemaChanged();
+      BatchSchema outgoingSchema = outgoing.getSchema();
+      BatchSchema finalSchema = getFinalSchema(incoming.getSchema(), outgoingSchema);
+      if (!finalSchema.equalsTypesWithoutPositions(outgoingSchema)) {
+        notifySchemaChange(finalSchema, tableSchemaPath);
+
+        // schema of field after merge is not same as original schema, remove old schema and add new one
+        outgoingSchema.getFields().forEach(field -> outputMutator.removeField(field));
+        finalSchema.getFields().forEach(field -> outputMutator.addField(field, CompleteType.fromField(field).getValueVectorClass()));
+        outputMutator.getContainer().buildSchema();
+        if (outputMutator.getCallBack() != null) {
+          // set schema change flag
+          outputMutator.getCallBack().doWork();
+        }
+        return 1;
+      }
+      resetProjector();
+      setupProjector(this.outputMutator, projectorOutput);
+    } else if (!initialProjectorSetUpDone) {
+      setupProjector(this.outputMutator, projectorOutput);
+    }
+    initialProjectorSetUpDone = true;
+    incoming.setAllCount(recordCount);
+    runProjector(recordCount);
+    projectorOutput.setAllCount(recordCount);
     return recordCount;
   }
 
@@ -138,5 +127,11 @@ public class EasyCoercionReader extends HiveParquetCoercionReader {
 
   private static ParquetTypeCoercion getParquetTypeCoercion(BatchSchema targetSchema) {
     return new ParquetTypeCoercion(targetSchema.getFields().stream().collect(Collectors.toMap(field -> field.getName(), field -> field)));
+  }
+
+  /**
+   * Callback to run if the schema from a new batch or the schema that was evaluated differs from the original schema.
+   */
+  protected void notifySchemaChange(BatchSchema newSchema, List<String> tableSchemaPath) {
   }
 }

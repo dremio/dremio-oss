@@ -19,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -139,12 +140,19 @@ public interface AsyncByteReader extends AutoCloseable {
     Path getPath();
     String getVersion();
     FileType getFileType();
+    default Optional<String> getPluginUID() {
+      return Optional.empty();
+    }
 
     static FileKey of(Path path, String version, FileType fileType) {
       return of(path, version, fileType, null);
     }
 
     static FileKey of(Path path, String version, FileType fileType, List<String> dataset) {
+      return of(path, version, fileType, dataset, null);
+    }
+
+    static FileKey of(Path path, String version, FileType fileType, List<String> dataset, String pluginUID) {
       Objects.requireNonNull(path, "path is required");
       Objects.requireNonNull(version, "version is required");
       Objects.requireNonNull(fileType, "file type is required");
@@ -170,6 +178,11 @@ public interface AsyncByteReader extends AutoCloseable {
         @Override
         public List<String> getDatasetKey() {
           return datasetKey;
+        }
+
+        @Override
+        public Optional<String> getPluginUID() {
+          return Optional.ofNullable(pluginUID);
         }
       };
     }

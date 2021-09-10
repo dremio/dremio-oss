@@ -17,10 +17,9 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { AutoSizer, Column, Table } from 'react-virtualized';
+import Draggable from 'react-draggable';
 import classNames from 'classnames';
 import Immutable, { List } from 'immutable';
-
-import Tooltip from '@material-ui/core/Tooltip';
 
 import { humanSorter, getSortValue } from '@app/utils/sort';
 import { virtualizedRow } from './VirtualizedTableViewer.less';
@@ -28,7 +27,7 @@ import { virtualizedRow } from './VirtualizedTableViewer.less';
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 30;
 const TABLE_BOTTOM_CUSHION = 10;
-
+const MIN_COLUMN_WIDTH = 130;
 export const SortDirection = {
   ASC: 'ASC',
   DESC: 'DESC'
@@ -49,27 +48,55 @@ export default class VirtualizedTableViewer extends Component {
     defaultSortBy: PropTypes.string,
     defaultSortDirection: PropTypes.string,
     style: PropTypes.object,
-    resetScrollTop: PropTypes.bool
+    resetScrollTop: PropTypes.bool,
+    onClick: PropTypes.func,
+    enableHorizontalScroll: PropTypes.bool,
+    tableWidth: PropTypes.number,
+    resizableColumn: PropTypes.bool,
+    loadNextRecords: PropTypes.func,
+    scrollToIndex: PropTypes.number,
+    sortRecords: PropTypes.func,
+    disableSort: PropTypes.bool
     // other props passed into react-virtualized Table
   };
 
   static defaultProps = {
-    tableData: Immutable.List()
+    tableData: Immutable.List(),
+    tableWidth: window.screen.width
   };
 
   state = {
     sortBy: this.props.defaultSortBy,
-    sortDirection: this.props.defaultSortDirection
+    sortDirection: this.props.defaultSortDirection,
+    tableColumns: []
   };
+
+  setColumns = () => {
+    this.setState({
+      tableColumns: this.props.columns
+    });
+  }
+
+  componentDidMount() {
+    this.setColumns();
+  }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.columns !== this.props.columns) {
+      this.setColumns();
+    }
+  }
 
   lastScrollTop = 0;
   lastScrollTime = Date.now();
   lastSpeed = 0;
 
   sort = ({ sortBy, sortDirection }) => {
+    const { sortRecords } = this.props;
+    const sortRecordsDirection = sortRecords && sortRecords(sortBy);
     this.setState({
       sortBy,
-      sortDirection
+      sortDirection: sortRecordsDirection || sortDirection
     });
   };
 
@@ -77,7 +104,7 @@ export default class VirtualizedTableViewer extends Component {
     return classNames(((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even'), virtualizedRow, 'virtualized-row'); // Adding virtualizedRow for keeping the Row styles stable wrt another class
   }
 
-  handleScroll = ({scrollTop}) => {
+  handleScroll = ({ scrollTop }) => {
     const speed = Math.abs(scrollTop - this.lastScrollTop) / (Date.now() - this.lastScrollTime);
 
     if (speed < DEFERRED_SPEED_THRESHOLD) {
@@ -113,7 +140,7 @@ export default class VirtualizedTableViewer extends Component {
   }
 
   renderHeader = ({ label, dataKey, sortBy, sortDirection },
-    /* column */ { style, infoContent, headerStyle, helpContent }) => {
+    /* column */ { style, infoContent, headerStyle }) => {
     const isSorted = sortBy === dataKey;
     const headerClassName = classNames(
       'virtualizedTable__headerContent',
@@ -127,79 +154,134 @@ export default class VirtualizedTableViewer extends Component {
       // sort icon with - 4px to put infoContent closer to sort icon. See .sort-icon() mixin
       infoContentStyle.marginLeft = 20;
     }
-    const helperTooltipClass = classNames(
-      'dremioIcon-HeaderHelp',
-      'iconType',
-      'virtualizedTable__helpIcon',
-      'margin-left',
-      'margin-right--half',
-      'text-small'
-    );
     return (
-      <div style={{ display: 'flex', alignItems: 'center', ...style, ...headerStyle }}>
-        <div className={headerClassName}>
-          { label === undefined ? dataKey : label}
-          {helpContent && <Tooltip title={helpContent} arrow placement='top'>
-            <span className={helperTooltipClass}/>
-          </Tooltip>}
-        </div>
-        {infoContent && <span style={infoContentStyle}>
-          {infoContent}
-        </span>}
+      <div style={{ display: 'flex', alignItems: 'center', cursor: 'default', ...style, ...headerStyle }}>
+        <div className={headerClassName} > {label === undefined ? dataKey : label} </div>
+        {infoContent ?
+          <span style={infoContentStyle}>
+            {infoContent}
+          </span>
+          : null}
       </div>
     );
   };
 
-  renderCell({rowData, isScrolling}, column) {
+  renderCell({ rowData, isScrolling }, column) {
     // NOTE: factoring in this.lastSpeed here is too slow
-    return <DeferredRenderer defer={isScrolling} render={() => rowData.data[column].node()}/>;
+    return <DeferredRenderer defer={isScrolling} render={() => rowData.data[column].node()} />;
   }
 
   getRow = (sortedTableData, index) => {
+    this.props.loadNextRecords && this.props.loadNextRecords(index);
     return List.isList(sortedTableData) ? sortedTableData.get(index) : sortedTableData[index];
   }
 
+  draggableHeaderRenderer = (rowData, item) => {
+    return (
+      <div className='draggableHeaderContent' >
+        <div>{this.renderHeader(rowData, item)}</div>
+        <Draggable
+          axis='x'
+          defaultClassName='DragHandle'
+          defaultClassNameDragging='DragHandleActive'
+          onStop={(event, data) =>
+            this.resizeColumn(
+              rowData.dataKey,
+              data.x
+            )
+          }
+          position={{
+            x: 0,
+            y: 0
+          }}
+          zIndex={999}
+        >
+          <div className='draggableHeaderContent__pipe' >{rowData.label ? '|' : ''}</div>
+        </Draggable>
+      </div>
+
+    );
+  }
+
+  resizeColumn = (dataKey, deltaX) => {
+    const { tableColumns } = this.state;
+    const thisColumn = tableColumns.find(obj => {
+      return obj.key === dataKey;
+    });
+    thisColumn.width = Math.max(MIN_COLUMN_WIDTH, thisColumn.width + deltaX);
+    thisColumn.flexGrow = 0;
+    thisColumn.flexShrink = 0;
+    this.setState({
+      tableColumns
+    });
+  }
+
   render() {
-    const { tableData, columns, style, resetScrollTop, ...tableProps } = this.props;
-    const { sortBy, sortDirection } = this.state;
+    const {
+      tableData, style, resetScrollTop, scrollToIndex, sortRecords,
+      onClick, enableHorizontalScroll, tableWidth, resizableColumn, disableSort, ...tableProps
+    } = this.props;
+    const {
+      sortBy,
+      sortDirection,
+      tableColumns
+    } = this.state;
     const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
-    const sortedTableData = this.getSortedTableData();
+    const sortedTableData = sortRecords ? tableData : this.getSortedTableData();
     const isEmpty = tableSize === 0;
     const baseStyle = isEmpty ? { height: HEADER_HEIGHT } : { height: '100%' };
+    const scrollStyle = enableHorizontalScroll ? { overflowX: 'auto' } : {};
+    const tableColumnsWidth = tableWidth > window.screen.width && !isEmpty;
     return (
-      <div style={[styles.base, baseStyle, style]}>
+      <div style={[styles.base, baseStyle, style, scrollStyle]}>
         <AutoSizer>
-          {({width, height}) => {
+          {({ width, height }) => {
             const tableHeight = height - TABLE_BOTTOM_CUSHION;
             return (
               <Table
                 scrollTop={resetScrollTop ? 0 : undefined} // it's needed for https://dremio.atlassian.net/browse/DX-7140
                 onScroll={this.handleScroll}
+                scrollToIndex={scrollToIndex}
                 headerHeight={HEADER_HEIGHT}
                 rowCount={tableSize}
-                rowClassName={({index}) => this.rowClassName(this.getRow(sortedTableData, index), index)}
+                rowClassName={({ index }) => this.rowClassName(this.getRow(sortedTableData, index), index)}
                 rowHeight={ROW_HEIGHT}
-                rowGetter={({index}) => this.getRow(sortedTableData, index)}
+                rowGetter={({ index }) => this.getRow(sortedTableData, index)}
                 sortDirection={sortDirection}
                 sortBy={sortBy}
                 height={tableHeight}
-                width={width}
+                width={tableColumnsWidth ? tableWidth : width}
                 sort={this.sort}
                 {...tableProps}
               >
-                {columns.map((item) =>
+                {tableColumns.map((item) =>
                   <Column
-                    key={item.key}
+                    key={item.key || item.dataKey}
                     dataKey={item.key}
                     className={item.className || 'column-' + item.key}
                     headerClassName={item.headerClassName}
                     label={item.label}
                     style={item.style}
-                    headerRenderer={(options) => this.renderHeader(options, item)}
-                    width={item.width || 100}
-                    flexGrow={item.flexGrow}
-                    disableSort={item.disableSort}
-                    cellRenderer={(opts) => this.renderCell(opts, item.key)}
+                    headerRenderer={
+                      !resizableColumn ?
+                        (options) => this.renderHeader(options, item)
+                        :
+                        (data) => this.draggableHeaderRenderer(data, item)
+                    }
+                    width={item.isFixedWidth ? item.width : width || 100}
+                    minWidth={item.width || 100}
+                    flexGrow={enableHorizontalScroll ? 0 : item.flexGrow}
+                    disableSort={item.disableSort || disableSort}
+                    cellRenderer={(opts) => {
+                      return (
+                        <div onClick={() => onClick && onClick(opts)} >
+                          {
+                            this.renderCell(opts, item.key)
+                          }
+                        </div>
+                      );
+                    }
+                    }
                   />
                 )}
               </Table>
@@ -224,7 +306,7 @@ export class DeferredRenderer extends Component {
   static _deferredRendererId = 0;
   static _flush() {
     for (const comp of this._deferredRendererSet) {
-      comp.setState({initial: false});
+      comp.setState({ initial: false });
     }
     this._deferredRendererSet = new Set();
   }

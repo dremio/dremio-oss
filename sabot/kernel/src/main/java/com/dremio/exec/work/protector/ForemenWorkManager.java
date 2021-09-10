@@ -57,6 +57,7 @@ import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.work.SafeExit;
@@ -217,7 +218,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     // cache for physical plans.
     cachedPlans = CacheBuilder.newBuilder()
       .maximumWeight(dbContext.get().getDremioConfig().getLong(DremioConfig.PLAN_CACHE_MAX_ENTRIES))
-      .weigher((Weigher<Long, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEsitimatedSize())
+      .weigher((Weigher<Long, CachedPlan>) (key, cachedPlan) -> cachedPlan.getEstimatedSize())
       // plan caches are memory intensive. If there is memory pressure,
       // let GC release them as last resort before running OOM.
       .softValues()
@@ -416,7 +417,12 @@ public class ForemenWorkManager implements Service, SafeExit {
         forwarder.get().dataArrived(request, sender);
 
       } else {
-        logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
+        logger.warn("User data arrived post query termination, dropping. Data was from QueryId: {}.",
+          QueryIdHelper.getQueryId(header.getQueryId()));
+        //  Return a Failure in this case, the query is already terminated and it will be cancelled
+        // on the Executor, either response will unblock the caller.
+        sender.sendFailure(new UserRpcException(dbContext.get().getEndpoint(),
+          "Query Already Terminated", new Throwable("Query Already Terminated")));
       }
     }
   }
@@ -651,5 +657,28 @@ public class ForemenWorkManager implements Service, SafeExit {
     } catch (final Exception ex) {
       logger.info("Failure while sending profile to JobTelemetryService", ex);
     }
+  }
+
+  @VisibleForTesting
+
+  /**
+   * DX-27692: In some cases, when the client connection closes abruptly,
+   *     the query gets canceled and before the cancel processing completes,
+   *     it switches to the FAILED state (ScreenShuttle::failed).
+   *     At this point, the screen operator on executor may still have
+   *     outstanding messages.  Once the FAILED state processing is complete,
+   *     the foreman is removed from the externalIdToForeman map.
+   *     Any new msgs to the coordinator for this query get dropped without an ack,
+   *     and so, the fragment is stuck forever.
+   *     The fix is to ack the message from screen operator with a failure in this case.
+   *
+   *     Simulate the scenario by removing externalId from the map.
+   */
+  public void testMarkQueryFailed(ExternalId externalId) {
+    final ManagedForeman managed = externalIdToForeman.remove(externalId);
+    if (managed == null) {
+      logger.warn("Couldn't find retiring Foreman for query " + externalId);
+    }
+
   }
 }

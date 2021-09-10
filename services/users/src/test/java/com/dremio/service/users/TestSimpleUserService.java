@@ -16,15 +16,31 @@
 package com.dremio.service.users;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.service.users.SimpleUserService.UserGroupStoreBuilder;
+import com.dremio.service.users.StatusUserLoginException.Status;
+import com.dremio.service.users.proto.UID;
+import com.dremio.service.users.proto.UserConfig;
+import com.dremio.service.users.proto.UserInfo;
+import com.dremio.service.users.proto.UserType;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
 
@@ -72,7 +88,7 @@ public class TestSimpleUserService {
       initUserStore(kvstore, userGroupService);
       User db = SimpleUser.newBuilder().setUserName("DavidBrown").setCreatedAt(System.currentTimeMillis()).
         setEmail("david.brown@dremio.test").setFirstName("David").setLastName("Brown").build();
-      userGroupService.createUser(db, db.getUserName() + "1");
+      User createdUser = userGroupService.createUser(db, db.getUserName() + "1");
       assertEquals(4, Iterables.size(userGroupService.getAllUsers(null)));
       assertEquals(4, Iterables.size(userGroupService.searchUsers(null, null, null, null)));
       assertEquals(3, Iterables.size(userGroupService.searchUsers(null, null, null, 3)));
@@ -81,7 +97,12 @@ public class TestSimpleUserService {
       assertEquals(1, Iterables.size(userGroupService.searchUsers("Johnson", null, null, null)));
       assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null)));
 
-      // update user
+      // update user by userId
+      User updatedUserWithId = SimpleUser.newBuilder(db).setUID(createdUser.getUID()).setEmail("db_id").build();
+      updatedUserWithId = userGroupService.updateUserById(updatedUserWithId, null);
+      assertEquals("db_id", userGroupService.getUser(updatedUserWithId.getUserName()).getEmail());
+
+      // update user by userName
       db = SimpleUser.newBuilder(db).setEmail("db").build();
 
       // Try to update the user with invalid credentials -- expect a failure
@@ -153,6 +174,98 @@ public class TestSimpleUserService {
     }
   }
 
+  @Test
+  public void testUpdateUser() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      LegacyIndexedStore<UID, UserInfo> userGroupStore = kvstore.getStore(UserGroupStoreBuilder.class);
+      // save an remote user
+      final UID uid = new UID(UUID.randomUUID().toString());
+      final UserConfig userConfig = new UserConfig()
+        .setUid(uid)
+        .setUserName("DavidBrown")
+        .setCreatedAt(System.currentTimeMillis())
+        .setType(UserType.REMOTE)
+        .setEmail("david.brown@dremio.test")
+        .setFirstName("David")
+        .setLastName("Brown");
+      userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
+
+      // verify update doesn't set the user type to local
+      User updatedUserWithId = SimpleUser.newBuilder().setUID(uid).setEmail("newemail@test.com").build();
+      userGroupService.updateUserById(updatedUserWithId, null);
+      UserConfig updatedUserConfig = userGroupStore.get(uid).getConfig();
+      // fields that cannot be updated
+      assertEquals(userConfig.getUid(), updatedUserConfig.getUid());
+      assertEquals(userConfig.getUserName(), updatedUserConfig.getUserName());
+      assertEquals(userConfig.getType(), updatedUserConfig.getType());
+      assertEquals(userConfig.getCreatedAt(), updatedUserConfig.getCreatedAt());
+      // fields that must be updated
+      assertEquals("newemail@test.com", updatedUserConfig.getEmail());
+      // fields that should be intact
+      assertEquals(userConfig.getFirstName(), updatedUserConfig.getFirstName());
+      assertEquals(userConfig.getLastName(), updatedUserConfig.getLastName());
+      assertTrue(updatedUserConfig.getModifiedAt() > updatedUserConfig.getCreatedAt());
+
+      // cleanup
+      userGroupService.deleteUser(uid);
+    }
+  }
+
+  @Test
+  public void testUsersDeactivation() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      initUserStore(kvstore, userGroupService);
+
+      // setup: create an active user
+      User user = SimpleUser.newBuilder().setUserName("DavidBrown").setCreatedAt(System.currentTimeMillis()).
+        setEmail("david.brown@dremio.test").setFirstName("David").setLastName("Brown").build(); // `active` default to true
+      String password = "password123!";
+      assertEquals(3, StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
+        .filter(User::isActive).count());
+      User activeUser = userGroupService.createUser(user, password);
+      assertEquals(4, StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
+        .filter(User::isActive).count());
+
+      // deactivate the user
+      User inactiveUser = SimpleUser.newBuilder(activeUser).setActive(false).build();
+      User updatedUser = userGroupService.updateUser(inactiveUser, null);
+      assertFalse(userGroupService.getUser(updatedUser.getUID()).isActive());
+
+      // inactive users should appear in listing
+      Iterable<User> listAllUsers = (Iterable<User>) userGroupService.getAllUsers(null);
+      assertEquals(4, StreamSupport.stream(listAllUsers.spliterator(), false).count());
+      assertEquals(1, StreamSupport.stream(listAllUsers.spliterator(), false)
+        .filter(userGroup -> !userGroup.isActive()).count());
+
+      // login as an inactive user should fail
+      try {
+        userGroupService.authenticate(updatedUser.getUserName(), password);
+        fail("Login as an inactive user should fail with StatusUserLoginException");
+      } catch (StatusUserLoginException e) {
+        assertEquals(Status.INACTIVE, e.getErrorStatus());
+        assertTrue(e.getMessage().contains("Inactive user"));
+      } catch (Exception e) {
+        fail("Login as an inactive user should fail with StatusUserLoginException");
+      }
+
+      // activate the inactive user
+      User activateInactiveUser = SimpleUser.newBuilder(updatedUser).setActive(true).build();
+      User updatedUser2 = userGroupService.updateUser(activateInactiveUser, null);
+      assertTrue(userGroupService.getUser(updatedUser2.getUID()).isActive());
+      assertEquals(0, StreamSupport.stream(userGroupService.getAllUsers(null).spliterator(), false)
+        .filter(userGroup -> !userGroup.isActive()).count());
+
+      // login as an active user should pass
+      userGroupService.authenticate(updatedUser2.getUserName(), password);
+    }
+  }
+
   /**
    * write now we support a case sensitive search but direct match is not required. So we could search using a substring
    * See {@code initUserStore} for initial data
@@ -203,5 +316,68 @@ public class TestSimpleUserService {
     userGroupService.createUser(mj, mj.getUserName() + "1");
 
     assertEquals(3, Iterables.size(userGroupService.getAllUsers(null)));
+  }
+
+  @Test
+  public void testSearchQueryFilter() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      initUserStore(kvstore, userGroupService);
+
+      Iterable<? extends User> users = userGroupService.searchUsers(
+        SearchQueryUtils.newTermQuery("USERNAME", "MarkDavid"),
+        null,
+        null,
+        null,
+        null);
+      assertEquals(1, Iterables.size(users));
+    }
+  }
+
+  @Test
+  public void testSearchQuerySort() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      initUserStore(kvstore, userGroupService);
+
+      Iterable<? extends User> users = userGroupService.searchUsers(
+        SearchQueryUtils.newMatchAllQuery(),
+        "name",
+        SearchTypes.SortOrder.DESCENDING,
+        null,
+        null);
+      List<String> names = StreamSupport.stream(users.spliterator(), false)
+        .map(User::getUserName)
+        .collect(Collectors.toList());
+      assertEquals(Arrays.asList("MarkJohnson", "MarkDavid", "DavidWilson"), names);
+    }
+  }
+
+  @Test
+  public void testUserNameCaseSensitivity() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      initUserStore(kvstore, userGroupService);
+      User testUser = SimpleUser.newBuilder().setUserName("testUser").setCreatedAt(System.currentTimeMillis()).
+        setEmail("testUser@dremio.test").setFirstName("test").setLastName("user").build();
+      userGroupService.createUser(testUser, testUser.getUserName() + "1");
+
+      User testUser2 = SimpleUser.newBuilder().setUserName("testuseR").setCreatedAt(System.currentTimeMillis()).
+        setEmail("testUser@dremio.test").setFirstName("test").setLastName("user").build();
+
+      // Try to update the user with invalid credentials -- expect a failure
+      try {
+        userGroupService.createUser(testUser2, testUser2.getUserName() + "1");
+        fail("expected the above call to fail");
+      } catch (Exception ex) {
+        assertTrue(ex instanceof UserAlreadyExistException);
+      }
+    }
   }
 }

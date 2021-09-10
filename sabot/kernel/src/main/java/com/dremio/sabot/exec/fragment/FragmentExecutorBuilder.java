@@ -34,6 +34,7 @@ import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
@@ -101,6 +102,7 @@ public class FragmentExecutorBuilder {
   private final CoordinationProtos.NodeEndpoint nodeEndpoint;
   private final MaestroProxy maestroProxy;
   private final SabotConfig config;
+  private final DremioConfig dremioConfig;
   private final ClusterCoordinator coord;
   private final ExecutorService executorService;
   private final OptionManager optionManager;
@@ -126,6 +128,7 @@ public class FragmentExecutorBuilder {
     CoordinationProtos.NodeEndpoint nodeEndpoint,
     MaestroProxy maestroProxy,
     SabotConfig config,
+    DremioConfig dremioConfig,
     ClusterCoordinator coord,
     ExecutorService executorService,
     OptionManager optionManager,
@@ -148,6 +151,7 @@ public class FragmentExecutorBuilder {
     this.nodeEndpoint = nodeEndpoint;
     this.maestroProxy = maestroProxy;
     this.config = config;
+    this.dremioConfig = dremioConfig;
     this.coord = coord;
     this.executorService = executorService;
     this.optionManager = optionManager;
@@ -277,7 +281,7 @@ public class FragmentExecutorBuilder {
 
         // create rpc connections
         final JobResultsTunnel jobResultsTunnel = jobResultsClientFactoryProvider.get()
-            .getJobResultsClient(major.getForeman(), allocator, QueryIdHelper.getFragmentId(fragment.getHandle())).getTunnel();
+            .getJobResultsClient(major.getForeman(), allocator, QueryIdHelper.getFragmentId(fragment.getHandle()), QueryIdHelper.getQueryIdentifier(fragment.getHandle())).getTunnel();
         final DeferredException exception = new DeferredException();
         final StatusHandler handler = new StatusHandler(exception);
         final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
@@ -287,6 +291,7 @@ public class FragmentExecutorBuilder {
             allocator,
             compiler,
             config,
+            dremioConfig,
             handle,
             controls,
             funcRegistry,

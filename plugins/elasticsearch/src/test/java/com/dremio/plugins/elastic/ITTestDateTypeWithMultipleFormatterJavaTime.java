@@ -16,11 +16,19 @@
 package com.dremio.plugins.elastic;
 
 import java.sql.Timestamp;
+import java.util.concurrent.TimeUnit;
 
 import org.joda.time.LocalDateTime;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+
+import com.dremio.common.util.TestTools;
 
 public class ITTestDateTypeWithMultipleFormatterJavaTime extends BaseTestDateTypeWithMultipleFormatter {
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public final void runTestWithDefaultFormatter() throws Exception {

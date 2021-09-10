@@ -15,8 +15,11 @@
  */
 import { PureComponent } from 'react';
 import Radium from 'radium';
+import Art from '@app/components/Art';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import { injectIntl } from 'react-intl';
+import './ContainsText.less';
 
 @injectIntl
 @Radium
@@ -26,7 +29,9 @@ export default class ContainsText extends PureComponent {
     onEnterText: PropTypes.func.isRequired,
     defaultValue: PropTypes.string,
     placeholderId: PropTypes.string,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    className: PropTypes.string,
+    searchIconClass: PropTypes.string
   };
 
   constructor(props) {
@@ -49,18 +54,22 @@ export default class ContainsText extends PureComponent {
   }
 
   render() {
-    const { defaultValue, intl, placeholderId = 'Job.ContainsText' } = this.props;
+    const { defaultValue, intl, className, searchIconClass, placeholderId = 'Job.SearchJobs' } = this.props;
     const placeholderText = intl.formatMessage({ id: placeholderId });
 
     return (
-      <div className='contains-text'>
+      <div className={classNames('containsText', className)}>
+        <Art
+          src='Search.svg'
+          alt='search'
+          className={classNames('containsText__searchIcon', searchIconClass)} />
         <input
           className='form-placeholder'
           defaultValue={defaultValue}
           type='text'
           placeholder={placeholderText}
           style={styles.searchInput}
-          onInput={this.handleContainsEnterText.bind(this)}/>
+          onInput={this.handleContainsEnterText.bind(this)} />
       </div>
     );
   }
@@ -70,12 +79,13 @@ export default class ContainsText extends PureComponent {
 const styles = {
   searchInput: {
     display: 'block',
-    border: '1px solid rgba(0,0,0, .1)',
-    padding: '5px 10px',
-    margin: '0',
-    outline: 0,
-    borderRadius: 2,
-    height: 24,
-    width: 300
+    padding: '4px',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: 14,
+    lineHeight: 20,
+    width: '300px',
+    fontWeight: 'normal',
+    outline: 'none'
   }
 };

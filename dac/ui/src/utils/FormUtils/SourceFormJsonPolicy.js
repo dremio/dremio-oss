@@ -33,7 +33,7 @@ import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
 import { isCME } from 'dyn-load/utils/versionUtils';
 import { PASSWORD_FIELD, SECRET_RESOURCE_URL_FIELD, USER_NAME_FIELD, KERBEROS_FIELD, PROFILE_NAME_FIELD, DB_USER_FIELD } from '@app/components/Forms/Credentials';
-import addAlwaysPresent from 'dyn-load/utils/FormUtils/globalSourceConfigUtil';
+import addAlwaysPresent, { LOOSE_ELEMENT_IGNORE_LIST } from '@inject/utils/FormUtils/globalSourceConfigUtil';
 
 export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
@@ -194,7 +194,7 @@ export default class SourceFormJsonPolicy {
       elementJson.label = functionalElement.label;
     }
     if (functionalElement.defaultValue) {
-      elementJson.value = functionalElement.defaultValue;
+      elementJson.value = elementJson.defaultValue ? elementJson.defaultValue : functionalElement.defaultValue;
     }
     if (functionalElement.secret) {
       elementJson.secure = true;
@@ -207,10 +207,10 @@ export default class SourceFormJsonPolicy {
   static joinOptions(uiOptions, functionalOptions) {
     if (!uiOptions || !uiOptions.length) return functionalOptions;
     if (!functionalOptions || !functionalOptions.length) return uiOptions;
-    //merge based on option value;
+    //merge based on option value - make sure uiOptions wins any overrides
     let map = uiOptions.reduce((accum, option) => ({...accum, ...{[option.value]: option}}), {});
     map = functionalOptions.reduce((accum, option) => {
-      accum[option.value] = {...accum[option.value], ...option};
+      accum[option.value] = {...option, ...accum[option.value]};
       return accum;
     }, map);
     return Object.values(map);
@@ -365,6 +365,13 @@ export default class SourceFormJsonPolicy {
     // if we have credentials, remove username/password/secretUrl/kerberos from loose elements
     const hasCredentials = functionalElements.find((elem) => {
       return elem.type === 'credentials';
+    });
+
+    // Filtering out fields which are only rendered when there is a mapping for it in the uiConfig
+    looseElements = looseElements.filter((elem) => {
+      const propName = elem.getConfig().propertyName;
+
+      return LOOSE_ELEMENT_IGNORE_LIST.indexOf(propName) === -1;
     });
 
     if (hasCredentials) {

@@ -26,7 +26,8 @@ export default class CopyButtonIcon extends PureComponent {
     onClick: PropTypes.func,
     disabled: PropTypes.bool,
     showSpinner: PropTypes.bool,
-    version: PropTypes.number
+    version: PropTypes.number,
+    iconStyle: PropTypes.object
   };
 
   static defaultProps = {
@@ -34,7 +35,7 @@ export default class CopyButtonIcon extends PureComponent {
   };
 
   render() {
-    const { title, style, onClick, disabled, showSpinner, version } = this.props;
+    const { title, style, onClick, disabled, showSpinner, version, iconStyle } = this.props;
     const clickHandler = disabled ? undefined : onClick;
     const iconSrc = version === 2 ? 'copy.svg' : 'Clipboard.svg';
     return (
@@ -44,7 +45,8 @@ export default class CopyButtonIcon extends PureComponent {
           onClick={clickHandler}
           alt={title}
           className='copy-button'
-          style={{...styles.icon, ...(disabled && styles.disabled)}} />
+          data-qa='copy-icon'
+          style={{...styles.icon, ...(disabled && styles.disabled), ...iconStyle}} />
         {showSpinner && <Spinner style={styles.spinner} iconStyle={styles.spinnerIcon}/>}
       </span>
     );

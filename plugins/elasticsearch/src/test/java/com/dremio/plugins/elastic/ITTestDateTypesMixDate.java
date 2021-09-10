@@ -16,6 +16,7 @@
 package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
+import static org.junit.Assume.assumeFalse;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,6 +61,8 @@ public class ITTestDateTypesMixDate extends ElasticBaseTestQuery {
     data.add(new Object[]{"yyyyMMdd"});
     data.add(new Object[]{"yyyy-MM-dd"});
     data.add(new Object[]{"yyyy/MM/dd"});
+    data.add(new Object[]{"8yyyy-MM-dd"});
+    data.add(new Object[]{"8yyyy/MM/dd"});
     return data;
   }
   /*
@@ -67,6 +70,8 @@ public class ITTestDateTypesMixDate extends ElasticBaseTestQuery {
    */
   @Test
   public void runTestDate() throws Exception {
+    // Format with prefix 8 are applicable for ES 6.8 and ES 7 only.
+    assumeFalse( format.startsWith("8") && !(enable7vFeatures || enable68vFeatures));
     final LocalDateTime dt1 = LocalDateTime.of(LocalDate.now(), LocalTime.now(ZoneOffset.UTC));
     final LocalDateTime dt2 = dt1.plusYears(1);
     final String value1 = dt1.atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(getActualFormat(format)));
@@ -101,16 +106,5 @@ public class ITTestDateTypesMixDate extends ElasticBaseTestQuery {
         .baselineValues(formatter.parse(value2 , formatterToBaselineJD).toString().replace("T", " "))
         .go();
     }
-  }
-
-  private String getActualFormat(String format) {
-    final String actualFormat;
-    if(format.startsWith("8")) {
-      actualFormat = format.substring(1);
-    }
-    else {
-      actualFormat = format;
-    }
-    return actualFormat;
   }
 }

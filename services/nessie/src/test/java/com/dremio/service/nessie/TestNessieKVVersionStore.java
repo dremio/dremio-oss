@@ -489,7 +489,7 @@ public class TestNessieKVVersionStore {
     assertThat(store().toHash(branch), is(secondCommit));
   }
 
-  @Test(expected = ConcurrentModificationException.class)
+  @Test(expected = ReferenceConflictException.class)
   public void commitConcurrentConflictingOperationsAllRetriesFail() throws Exception {
     this.store = buildMockVersionStore();
     final BranchName branch = BranchName.of("foo");

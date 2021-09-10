@@ -39,6 +39,7 @@ import com.dremio.dac.service.datasets.DatasetDownloadManager;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
@@ -136,8 +137,10 @@ public class DownloadUtil {
         checkJobCompletionState(downloadJobDetails);
       }
 
+      final JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(downloadJobDetails);
       final DatasetDownloadManager.DownloadDataResponse downloadDataResponse =
-        datasetService.downloadData(JobsProtoUtil.getLastAttempt(downloadJobDetails).getInfo().getDownloadInfo(), currentUser);
+        datasetService.downloadData(lastAttempt.getInfo().getDownloadInfo(),
+          lastAttempt.getInfo().getResultMetadataList(), currentUser);
 
       try (InputStream input = downloadDataResponse.getInput(); ChunkedOutput toClose = output) {
         byte[] buf = new byte[4096];
@@ -151,7 +154,15 @@ public class DownloadUtil {
           bytesRead = input.read(buf);
         }
       }
-    } catch (JobNotFoundException | IOException e) {
+    } catch (Exception e) {
+      try {
+        // TODO : https://dremio.atlassian.net/browse/DX-34302
+        // no error propagation on failures.
+        logger.error("Failed downloading the file", e);
+        output.close();
+      } catch (IOException ex) {
+        logger.warn("Failure closing the output.");
+      }
       throw new WebApplicationException(e);
     }
   }

@@ -63,7 +63,7 @@ public interface ReflectionOptions {
   BooleanValidator CLOUD_CACHING_ENABLED = new BooleanValidator("reflection.cloud.cache.enabled", true);
   // If disabled, only vds schema and expanded sql definition will be considered when deciding to do an incremental refresh
   BooleanValidator STRICT_INCREMENTAL_REFRESH = new BooleanValidator("reflection.manager.strict_incremental_refresh.enabled", false);
-  // If enabled, uses Iceberg format for reflection datasets
-  BooleanValidator REFLECTION_USE_ICEBERG_DATASET = new BooleanValidator("reflection.manager.use_iceberg_dataset.enabled", false);
   StringValidator NESSIE_REFLECTIONS_NAMESPACE = new StringValidator("reflection.manager.nessie_iceberg_namespace", "dremio.reflections");
+  BooleanValidator AUTO_REBUILD_PLAN = new BooleanValidator("reflection.manager.auto_plan_rebuild", true);
+  BooleanValidator REFRESH_AFTER_DESERIALIZATION_FAILURE = new BooleanValidator("reflection.manager.auto_refresh_failed", false);
 }

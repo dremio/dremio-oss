@@ -20,14 +20,9 @@ import java.security.KeyStore;
 import javax.inject.Provider;
 
 import com.dremio.dac.daemon.DremioBinder;
-import com.dremio.dac.daemon.ServerHealthMonitor;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.Service;
 import com.dremio.service.SingletonRegistry;
 import com.google.common.annotations.VisibleForTesting;
-
-import io.opentracing.Tracer;
 
 /**
  * Dremio web server.
@@ -100,38 +95,29 @@ public class WebServer implements Service {
   private final SingletonRegistry registry;
   private final Provider<RestServerV2> restServerProvider;
   private final Provider<APIServer> apiServerProvider;
+  private final Provider<ScimServer> scimServerProvider;
   private final DremioServer server;
-  private final Provider<ServerHealthMonitor> serverHealthMonitor;
   private final DACConfig config;
-  private final Provider<NodeEndpoint> endpointProvider;
-  private final Provider<SabotContext> context;
   private final DremioBinder dremioBinder;
-  private final Tracer tracer;
   private final String uiType;
   private final boolean isInternalUS;
 
   public WebServer(
       SingletonRegistry registry,
       DACConfig config,
-      Provider<ServerHealthMonitor> serverHealthMonitor,
-      Provider<NodeEndpoint> endpointProvider,
-      Provider<SabotContext> context,
       Provider<RestServerV2> restServer,
       Provider<APIServer> apiServer,
       Provider<DremioServer> server,
+      Provider<ScimServer> scimServer,
       DremioBinder dremioBinder,
-      Tracer tracer,
       String uiType,
       boolean isInternalUS) {
     this.config = config;
-    this.endpointProvider = endpointProvider;
     this.registry = registry;
-    this.serverHealthMonitor = serverHealthMonitor;
-    this.context = context;
     this.restServerProvider = restServer;
     this.apiServerProvider = apiServer;
+    this.scimServerProvider = scimServer;
     this.dremioBinder = dremioBinder;
-    this.tracer = tracer;
     this.uiType = uiType;
     this.isInternalUS = isInternalUS;
     this.server = server.get();
@@ -146,13 +132,10 @@ public class WebServer implements Service {
     server.startDremioServer(
       registry,
       config,
-      serverHealthMonitor,
-      endpointProvider,
-      context,
       restServerProvider,
       apiServerProvider,
+      scimServerProvider,
       dremioBinder,
-      tracer,
       uiType,
       isInternalUS
     );

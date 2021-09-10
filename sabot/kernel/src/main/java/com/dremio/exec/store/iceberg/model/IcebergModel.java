@@ -22,6 +22,9 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
  * This interface is the entry point to Iceberg tables
@@ -29,46 +32,61 @@ import com.dremio.exec.record.BatchSchema;
 public interface IcebergModel {
     IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
                                                BatchSchema batchSchema,
-                                               List<String> partitionColumnNames);
+                                               List<String> partitionColumnNames, OperatorStats operatorStats);
 
   /**
      * Get Iceberg Op committer for Insert command
      * @param tableIdentifier Table identifier
-     * @return Insert committer
+     * @param operatorStats
+   * @return Insert committer
      */
-    IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier);
+    IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier, OperatorStats operatorStats);
 
   /**
    * Get committer for Full metadata refresh
    * @param tableName
+   * @param datasetPath
    * @param tableLocation
    * @param tableIdentifier
    * @param batchSchema
    * @param partitionColumnNames
+   * @param operatorStats
    * @return
    */
-  IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, String tableLocation, IcebergTableIdentifier tableIdentifier,
-                                                     BatchSchema batchSchema, List<String> partitionColumnNames);
+  IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
+                                                     String tableUuid, IcebergTableIdentifier tableIdentifier,
+                                                     BatchSchema batchSchema, List<String> partitionColumnNames,
+                                                     DatasetConfig datasetConfig, OperatorStats operatorStats);
 
   /**
    * Get Iceberg Op committer for Metadata Incremental Refresh command
+   * @param opContext
    * @param tableName
+   * @param datasetPath
    * @param tableLocation
+   * @param tableUuid
    * @param tableIdentifier
    * @param batchSchema
    * @param partitionColumnNames
+   * @param forFileSystem
+   * @param datasetConfig
    * @return
    */
-  IcebergOpCommitter getIncrementalMetadataRefreshCommitter(String tableName, String tableLocation, IcebergTableIdentifier tableIdentifier,
-                                                            BatchSchema batchSchema, List<String> partitionColumnNames);
-
+  IcebergOpCommitter getIncrementalMetadataRefreshCommitter(OperatorContext opContext, String tableName, List<String> datasetPath, String tableLocation,
+                                                            String tableUuid, IcebergTableIdentifier tableIdentifier,
+                                                            BatchSchema batchSchema, List<String> partitionColumnNames,
+                                                            boolean forFileSystem, DatasetConfig datasetConfig);
     /**
      * Truncate a table
      * @param tableIdentifier table identifier
      */
     void truncateTable(IcebergTableIdentifier tableIdentifier);
 
-    /**
+
+    void deleteTable(IcebergTableIdentifier tableIdentifier);
+
+
+  /**
      * Add columns to a table
      * @param tableIdentifier table identifier
      * @param columnsToAdd list of columns to add
@@ -112,4 +130,11 @@ public interface IcebergModel {
      * @return table identifier
      */
     IcebergTableIdentifier getTableIdentifier(String rootFolder);
+
+  /**
+   * Returns an instance of Iceberg table loader
+   * @param tableIdentifier table identifier
+   * @return An instance of Iceberg table loader
+   */
+    IcebergTableLoader getIcebergTableLoader(IcebergTableIdentifier tableIdentifier);
 }

@@ -37,6 +37,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import com.dremio.exec.planner.sql.handlers.RefreshDatasetHandler;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+
 /**
  * SQL node tree for the internal <code>REFRESH DATASET table_identifier</code> command.
  */
@@ -68,6 +69,7 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
   private SqlLiteral partitionRefresh;
   private SqlNodeList filesList;
   private SqlNodeList partitionList;
+  private Map<String, String> partitionKVMap;
 
   /**
    * Creates a SqlRefreshDataset.
@@ -94,6 +96,7 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
     this.partitionRefresh = partitionRefresh;
     this.filesList = filesList;
     this.partitionList = partitionList;
+    setPartitionKVMap();
   }
 
   @Override
@@ -130,12 +133,11 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
         writer.keyword("PARTITIONS");
         if (partitionList.size() > 0) {
           writer.keyword("(");
-          partitionList.forEach(node -> {
-            final SqlNodeList pair = (SqlNodeList) node;
-            pair.get(0).unparse(writer, leftPrec, rightPrec);
-            writer.keyword("=");
-            pair.get(1).unparse(writer, leftPrec, rightPrec);
-          });
+          unparseKeyValuePair((SqlNodeList) partitionList.get(0), writer, leftPrec, rightPrec);
+          for (int i = 1; i < partitionList.size(); i++) {
+            writer.keyword(",");
+            unparseKeyValuePair((SqlNodeList) partitionList.get(i), writer, leftPrec, rightPrec);
+          }
           writer.keyword(")");
         }
       }
@@ -166,6 +168,13 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
       writer.keyword("PROMOTION");
     }
   }
+
+  private void unparseKeyValuePair(SqlNodeList pair, SqlWriter writer, int leftPrec, int rightPrec) {
+    pair.get(0).unparse(writer, leftPrec, rightPrec);
+    writer.keyword("=");
+    pair.get(1).unparse(writer, leftPrec, rightPrec);
+  }
+
 
   @Override
   public void setOperand(int i, SqlNode operand) {
@@ -199,6 +208,7 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
         break;
       case 9:
         partitionList = (SqlNodeList) operand;
+        setPartitionKVMap();
         break;
       default:
         throw new AssertionError(i);
@@ -232,20 +242,22 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
   }
 
   public Map<String, String> getPartition() {
-    final Map<String, String> partition = new LinkedHashMap<>();
+    return partitionKVMap;
+  }
+
+  private void setPartitionKVMap() {
+    partitionKVMap = new LinkedHashMap<>();
     partitionList.forEach(node -> {
       final SqlNodeList pair = (SqlNodeList) node;
       final SqlIdentifier name = (SqlIdentifier) pair.get(0);
       final SqlLiteral value = (SqlLiteral) pair.get(1);
 
       if (value.getTypeName().equals(SqlTypeName.NULL)) {
-        partition.put(name.getSimple(), null);
+        partitionKVMap.put(name.getSimple(), null);
       } else {
-        partition.put(name.getSimple(), value.getValueAs(String.class));
+        partitionKVMap.put(name.getSimple(), value.getValueAs(String.class));
       }
     });
-
-    return partition;
   }
 
   public boolean isPartialRefresh() {
