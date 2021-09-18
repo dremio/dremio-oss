@@ -343,4 +343,14 @@ public class TestStringFunctions extends BaseTestFunction {
     });
   }
 
+  @Test
+  public void concatws(){
+    testFunctions(new Object[][]{
+      {"concat_ws(c0, c1)", "hello,world", "-", "hello-world"},
+      {"concat_ws(c0, c1)", "hi,yeah,wow,good", "#", "hi#yeah#wow#good"},
+      {"concat_ws(c0, c1)", "awesome,candy,data", "", "awesomecandydata"},
+      {"concat_ws(c0, c1)", "", "-", ""},
+
+    });
+  }
 }
