@@ -18,6 +18,7 @@ package com.dremio.exec.expr.fn.impl;
 import static com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import javax.inject.Inject;
 
@@ -40,10 +41,11 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 import io.netty.buffer.ByteBuf;
 
-public class StringFunctions{
+public class StringFunctions {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StringFunctions.class);
 
-  private StringFunctions() {}
+  private StringFunctions() {
+  }
 
   /*
    * String Function Implementation.
@@ -52,20 +54,26 @@ public class StringFunctions{
   @FunctionTemplate(name = "like", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Like implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Output BitHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Output
+    BitHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer), errCtx),
-          java.util.regex.Pattern.DOTALL,
-          errCtx
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer), errCtx),
+        java.util.regex.Pattern.DOTALL,
+        errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -73,29 +81,36 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.matches() ? 1 : 0;
     }
   }
 
   @FunctionTemplate(name = "like", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class LikeWithEscape implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Param(constant=true) VarCharHolder escape;
-    @Output BitHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Param(constant = true)
+    VarCharHolder escape;
+    @Output
+    BitHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer), errCtx),
-          java.util.regex.Pattern.DOTALL,
-          errCtx
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start, escape.end, escape.buffer), errCtx),
+        java.util.regex.Pattern.DOTALL,
+        errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -103,27 +118,33 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.matches() ? 1 : 0;
     }
   }
 
   @FunctionTemplate(name = "ilike", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ILike implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Output BitHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Output
+    BitHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer), errCtx),
-          java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL,
-          errCtx
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer), errCtx),
+        java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL,
+        errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -131,29 +152,36 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.matches() ? 1 : 0;
     }
   }
 
   @FunctionTemplate(name = "ilike", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ILikeWithEscape implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Param(constant=true) VarCharHolder escape;
-    @Output BitHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Param(constant = true)
+    VarCharHolder escape;
+    @Output
+    BitHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike( //
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer), errCtx),
-          java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL,
-          errCtx
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start, escape.end, escape.buffer), errCtx),
+        java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE | java.util.regex.Pattern.DOTALL,
+        errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -161,27 +189,33 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.matches() ? 1 : 0;
     }
   }
 
   @FunctionTemplate(names = {"similar", "similar_to"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Similar implements SimpleFunction {
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Output BitHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Output
+    BitHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
-          com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexSimilar(
-              com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer), errCtx),
-          java.util.regex.Pattern.DOTALL,
-          errCtx
+        com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexSimilar(
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer), errCtx),
+        java.util.regex.Pattern.DOTALL,
+        errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -189,34 +223,41 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.matches() ? 1 : 0;
     }
   }
 
   @FunctionTemplate(names = {"similar", "similar_to"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class SimilarWithEscape implements SimpleFunction {
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Param(constant=true) VarCharHolder escape;
-    @Output BitHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Param(constant = true)
+    VarCharHolder escape;
+    @Output
+    BitHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexSimilar(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start,  escape.end,  escape.buffer), errCtx),
-          java.util.regex.Pattern.DOTALL, errCtx).matcher(charSequenceWrapper);
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(escape.start, escape.end, escape.buffer), errCtx),
+        java.util.regex.Pattern.DOTALL, errCtx).matcher(charSequenceWrapper);
     }
 
     @Override
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.matches() ? 1 : 0;
     }
   }
 
@@ -226,14 +267,22 @@ public class StringFunctions{
   @FunctionTemplate(name = "regexp_replace", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class RegexpReplace implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Param VarCharHolder replacement;
-    @Inject ArrowBuf buffer;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Param
+    VarCharHolder replacement;
+    @Inject
+    ArrowBuf buffer;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -274,12 +323,11 @@ public class StringFunctions{
           result = matcher.find();
         } while (result);
         matcher.appendTail(sb);
-        final byte [] bytea = sb.toString().getBytes(java.nio.charset.Charset.forName("UTF-8"));
+        final byte[] bytea = sb.toString().getBytes(java.nio.charset.Charset.forName("UTF-8"));
         out.buffer = buffer = buffer.reallocIfNeeded(bytea.length);
         out.buffer.setBytes(out.start, bytea);
         out.end = bytea.length;
-      }
-      else {
+      } else {
         // There is no matches, copy the input bytes into the output buffer
         out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
         out.buffer.setBytes(0, input.buffer, input.start, input.end - input.start);
@@ -296,21 +344,28 @@ public class StringFunctions{
   @FunctionTemplate(names = {"regexp_like", "regexp_matches"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class RegexpMatches implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Param(constant=true) VarCharHolder pattern;
-    @Inject ArrowBuf buffer;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Output BitHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Param(constant = true)
+    VarCharHolder pattern;
+    @Inject
+    ArrowBuf buffer;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Output
+    BitHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          java.util.regex.Pattern.DOTALL,
-          errCtx
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+        java.util.regex.Pattern.DOTALL,
+        errCtx
       ).matcher(charSequenceWrapper);
     }
 
@@ -318,18 +373,22 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.find()? 1:0;
+      out.value = matcher.find() ? 1 : 0;
     }
   }
 
   @FunctionTemplate(names = {"char_length", "character_length", "length"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class CharLength implements SimpleFunction {
-    @Param  VarCharHolder input;
-    @Output IntHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder input;
+    @Output
+    IntHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -340,12 +399,16 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "lengthUtf8", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ByteLength implements SimpleFunction {
-    @Param  VarBinaryHolder input;
-    @Output IntHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarBinaryHolder input;
+    @Output
+    IntHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -356,11 +419,14 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "octet_length", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class OctetLength implements SimpleFunction {
-    @Param  VarCharHolder input;
-    @Output IntHolder out;
+    @Param
+    VarCharHolder input;
+    @Output
+    IntHolder out;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -370,11 +436,14 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "bit_length", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class BitLength implements SimpleFunction {
-    @Param  VarCharHolder input;
-    @Output IntHolder out;
+    @Param
+    VarCharHolder input;
+    @Output
+    IntHolder out;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -387,61 +456,72 @@ public class StringFunctions{
    */
   @FunctionTemplate(names = {"position", "locate"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Position implements SimpleFunction {
-    @Param  VarCharHolder substr;
-    @Param  VarCharHolder str;
+    @Param
+    VarCharHolder substr;
+    @Param
+    VarCharHolder str;
 
-    @Output IntHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    IntHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
       // do string match
       final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
-          io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, str.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(substr.buffer), substr.start, substr
+        io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, str.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(substr.buffer), substr.start, substr
           .end);
       if (pos < 0) {
         out.value = 0; // indicate not found a matched substr
       } else {
         // count the # of characters (one char could have 1-4 bytes)
         out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, pos, errCtx) + 1;
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, pos, errCtx) + 1;
       }
     }
   }
 
   @FunctionTemplate(names = {"position", "locate"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Position3 implements SimpleFunction {
-    @Param  VarCharHolder substr;
-    @Param  VarCharHolder str;
-    @Param  IntHolder start; // 1-indexed
+    @Param
+    VarCharHolder substr;
+    @Param
+    VarCharHolder str;
+    @Param
+    IntHolder start; // 1-indexed
 
-    @Output IntHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    IntHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
       if (start.value < 1) {
         throw errCtx.error()
-            .message("Start index (%d) must be greater than 0", start.value)
-            .build();
+          .message("Start index (%d) must be greater than 0", start.value)
+          .build();
       } else {
-        int bytePos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, str.end, start.value - 1 ,errCtx) - str.start;
+        int bytePos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, str.end, start.value - 1, errCtx) - str.start;
         // do string match
         final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, str.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(substr.buffer), substr.start, substr
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, str.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(substr.buffer), substr.start, substr
             .end, bytePos);
         if (pos < 0) {
           out.value = 0; // indicate not found a matched substr
         } else {
           // count the # of characters (one char could have 1-4 bytes)
           out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
-              io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, pos, errCtx) + 1;
+            io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), str.start, pos, errCtx) + 1;
         }
       }
     }
@@ -451,15 +531,21 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "split_part", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class SplitPart implements SimpleFunction {
-    @Param  VarCharHolder str;
-    @Param  VarCharHolder splitter;
-    @Param  IntHolder index;
+    @Param
+    VarCharHolder str;
+    @Param
+    VarCharHolder splitter;
+    @Param
+    IntHolder index;
 
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -475,8 +561,8 @@ public class StringFunctions{
       for (int i = 1; i < index.value + 1; i++) {
         //Do string match.
         final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer),bufPos, str.end,
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(splitter.buffer), splitter.start, splitter.end, 0);
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer), bufPos, str.end,
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(splitter.buffer), splitter.start, splitter.end, 0);
         if (pos < 0) {
           // this is the last iteration, it is okay to hit the end of the string
           if (i == index.value) {
@@ -517,14 +603,19 @@ public class StringFunctions{
   // same as function "position(substr, str) ", except the reverse order of argument.
   @FunctionTemplate(name = "strpos", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Strpos implements SimpleFunction {
-    @Param  VarCharHolder str;
-    @Param  VarCharHolder substr;
+    @Param
+    VarCharHolder str;
+    @Param
+    VarCharHolder substr;
 
-    @Output IntHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    IntHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -546,9 +637,12 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "lower", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class LowerCase implements SimpleFunction {
-    @Param VarCharHolder input;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder input;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -556,19 +650,19 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(input.end- input.start);
+      out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
       out.start = 0;
       out.end = input.end - input.start;
 
       for (int id = input.start; id < input.end; id++) {
-        byte  currentByte = input.buffer.getByte(id);
+        byte currentByte = input.buffer.getByte(id);
 
         // 'A - Z' : 0x41 - 0x5A
         // 'a - z' : 0x61 - 0x7A
         if (currentByte >= 0x41 && currentByte <= 0x5A) {
           currentByte += 0x20;
         }
-        out.buffer.setByte(id - input.start, currentByte) ;
+        out.buffer.setByte(id - input.start, currentByte);
       }
     }
   }
@@ -579,9 +673,12 @@ public class StringFunctions{
   @FunctionTemplate(name = "upper", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class UpperCase implements SimpleFunction {
 
-    @Param VarCharHolder input;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder input;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -589,7 +686,7 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(input.end- input.start);
+      out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
       out.start = 0;
       out.end = input.end - input.start;
 
@@ -601,7 +698,7 @@ public class StringFunctions{
         if (currentByte >= 0x61 && currentByte <= 0x7A) {
           currentByte -= 0x20;
         }
-        out.buffer.setByte(id - input.start, currentByte) ;
+        out.buffer.setByte(id - input.start, currentByte);
       }
     }
   }
@@ -612,13 +709,19 @@ public class StringFunctions{
   //  -- Valid "length": [1, up to string_length - offset + 1], if length > string_length - offset +1, get the substr up to the string_lengt.
   @FunctionTemplate(names = {"substring", "substr"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Substring implements SimpleFunction {
-    @Param VarCharHolder string;
-    @Param BigIntHolder offset;
-    @Param BigIntHolder length;
+    @Param
+    VarCharHolder string;
+    @Param
+    BigIntHolder offset;
+    @Param
+    BigIntHolder length;
 
-    @Output VarCharHolder out;
-    @Workspace ByteBuf buffer;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    ByteBuf buffer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -641,17 +744,17 @@ public class StringFunctions{
         } else if (offset.value == 0) {
           fromCharIdx = 1; // Consider start 0 as 1 (Same as Oracle substr behavior)
         } else {
-          fromCharIdx = (int)offset.value;
+          fromCharIdx = (int) offset.value;
         }
 
-        if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
+        if (fromCharIdx <= 0 || fromCharIdx > charCount) { // invalid offset, return empty string.
           out.start = out.end = 0;
         } else {
           out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx-1, errCtx);
+            io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx - 1, errCtx);
 
           // Bounded length by charCount - fromCharIdx + 1. substring("abc", 1, 5) --> "abc"
-          int charLen = Math.min((int)length.value, charCount - fromCharIdx + 1);
+          int charLen = Math.min((int) length.value, charCount - fromCharIdx + 1);
 
           out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
             io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), out.start, string.end, charLen, errCtx);
@@ -662,12 +765,17 @@ public class StringFunctions{
 
   @FunctionTemplate(names = {"substring", "substr"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class SubstringOffset implements SimpleFunction {
-    @Param VarCharHolder string;
-    @Param BigIntHolder offset;
+    @Param
+    VarCharHolder string;
+    @Param
+    BigIntHolder offset;
 
-    @Output VarCharHolder out;
-    @Workspace ByteBuf buffer;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    ByteBuf buffer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -686,38 +794,44 @@ public class StringFunctions{
 
         final int fromCharIdx; //the start position of char  (inclusive)
         if (offset.value < 0) {
-          fromCharIdx = charCount - (- (int)offset.value) + 1;
+          fromCharIdx = charCount - (-(int) offset.value) + 1;
         } else if (offset.value == 0) {
           fromCharIdx = 1; // Consider start 0 as 1 (Same as Oracle substr behavior)
         } else {
-          fromCharIdx = (int)offset.value;
+          fromCharIdx = (int) offset.value;
         }
 
-        if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
+        if (fromCharIdx <= 0 || fromCharIdx > charCount) { // invalid offset, return empty string.
           out.start = out.end = 0;
         } else {
           out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx-1, errCtx);
+            io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx - 1, errCtx);
           out.end = string.end;
         }
       }
     }
   }
 
-  @FunctionTemplate(names = {"substring", "substr" }, scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  @FunctionTemplate(names = {"substring", "substr"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
   public static class SubstringRegexNullable implements SimpleFunction {
-    @Param NullableVarCharHolder input;
-    @Param(constant=true) NullableVarCharHolder pattern;
-    @Output NullableVarCharHolder out;
-    @Workspace java.util.regex.Matcher matcher;
-    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    NullableVarCharHolder input;
+    @Param(constant = true)
+    NullableVarCharHolder pattern;
+    @Output
+    NullableVarCharHolder out;
+    @Workspace
+    java.util.regex.Matcher matcher;
+    @Workspace
+    com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
       matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
-          com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer),
-          errCtx
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+        errCtx
       ).matcher("");
       charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
       matcher.reset(charSequenceWrapper);
@@ -752,12 +866,17 @@ public class StringFunctions{
   // If length < 0, and |length| > total charcounts, return empty.
   @FunctionTemplate(name = "left", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Left implements SimpleFunction {
-    @Param VarCharHolder string;
-    @Param BigIntHolder length;
+    @Param
+    VarCharHolder string;
+    @Param
+    BigIntHolder length;
 
-    @Output VarCharHolder out;
-    @Workspace ByteBuf buffer;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    ByteBuf buffer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -775,9 +894,9 @@ public class StringFunctions{
           (io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, errCtx);
         final int charLen;
         if (length.value > 0) {
-          charLen = Math.min((int)length.value, charCount);  //left('abc', 5) -> 'abc'
+          charLen = Math.min((int) length.value, charCount);  //left('abc', 5) -> 'abc'
         } else if (length.value < 0) {
-          charLen = Math.max(0, charCount + (int)length.value) ; // left('abc', -5) ==> ''
+          charLen = Math.max(0, charCount + (int) length.value); // left('abc', -5) ==> ''
         } else {
           charLen = 0;
         }
@@ -792,12 +911,17 @@ public class StringFunctions{
   //Return last 'length' characters in the string. When 'length' is negative, return all but first |length| characters.
   @FunctionTemplate(name = "right", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Right implements SimpleFunction {
-    @Param VarCharHolder string;
-    @Param BigIntHolder length;
+    @Param
+    VarCharHolder string;
+    @Param
+    BigIntHolder length;
 
-    @Output VarCharHolder out;
-    @Workspace ByteBuf buffer;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    ByteBuf buffer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -820,7 +944,7 @@ public class StringFunctions{
           charLen = charCount - fromCharIdx + 1;
         } else { // length.value < 0
           fromCharIdx = Math.abs((int) length.value) + 1;
-          charLen = charCount - fromCharIdx +1;
+          charLen = charCount - fromCharIdx + 1;
         }
 
         // invalid length :  right('abc', -5) -> ''
@@ -829,7 +953,7 @@ public class StringFunctions{
         } else {
           //Do 2nd scan of string. Get bytes corresponding chars in range.
           out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-            io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx-1, errCtx);
+            io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx - 1, errCtx);
           out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
             io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), out.start, string.end, charLen, errCtx);
         }
@@ -840,9 +964,12 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "initcap", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class InitCap implements SimpleFunction {
-    @Param VarCharHolder input;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder input;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -861,11 +988,16 @@ public class StringFunctions{
   //Replace all occurrences in 'text' of substring 'from' with substring 'to'
   @FunctionTemplate(name = "replace", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Replace implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  VarCharHolder from;
-    @Param  VarCharHolder to;
-    @Inject ArrowBuf buffer;
-    @Output VarCharHolder out;
+    @Param
+    VarCharHolder text;
+    @Param
+    VarCharHolder from;
+    @Param
+    VarCharHolder to;
+    @Inject
+    ArrowBuf buffer;
+    @Output
+    VarCharHolder out;
 
     @Override
     public void setup() {
@@ -891,9 +1023,9 @@ public class StringFunctions{
             }
           }
 
-          if (j == from.end ) {
+          if (j == from.end) {
             //find a true match ("from" is not empty), copy entire "to" string to out buffer
-            for (int k = to.start ; k < to.end; k++) {
+            for (int k = to.start; k < to.end; k++) {
               out.buffer.setByte(out.end++, to.buffer.getByte(k));
             }
 
@@ -925,13 +1057,19 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "lpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Lpad implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
-    @Param  VarCharHolder fill;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder text;
+    @Param
+    BigIntHolder length;
+    @Param
+    VarCharHolder fill;
+    @Inject
+    ArrowBuf buffer;
 
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -956,7 +1094,7 @@ public class StringFunctions{
         //case 1: target length is <=0, then return an empty string.
         out.buffer = buffer;
         out.start = out.end = 0;
-      } else if (theLength == textCharCount || (theLength > textCharCount  && fillCharCount == 0) ) {
+      } else if (theLength == textCharCount || (theLength > textCharCount && fillCharCount == 0)) {
         //case 2: target length is same as text's length, or need fill into text but "fill" is empty, then return text directly.
         out.buffer = text.buffer;
         out.start = text.start;
@@ -980,11 +1118,11 @@ public class StringFunctions{
             }
 
             currentByte = fill.buffer.getByte(id);
-            if (currentByte < 0x128  ||           // 1-byte char. First byte is 0xxxxxxx.
-                (currentByte & 0xE0) == 0xC0 ||   // 2-byte char. First byte is 110xxxxx
-                (currentByte & 0xF0) == 0xE0 ||   // 3-byte char. First byte is 1110xxxx
-                (currentByte & 0xF8) == 0xF0) {   //4-byte char. First byte is 11110xxx
-              count ++;  //Advance the counter, since we find one char.
+            if (currentByte < 0x128 ||           // 1-byte char. First byte is 0xxxxxxx.
+              (currentByte & 0xE0) == 0xC0 ||   // 2-byte char. First byte is 110xxxxx
+              (currentByte & 0xF0) == 0xE0 ||   // 3-byte char. First byte is 1110xxxx
+              (currentByte & 0xF8) == 0xF0) {   //4-byte char. First byte is 11110xxx
+              count++;  //Advance the counter, since we find one char.
             }
             out.buffer.setByte(out.end++, currentByte);
           }
@@ -1004,13 +1142,19 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "lpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class LpadTwoArg implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder text;
+    @Param
+    BigIntHolder length;
+    @Inject
+    ArrowBuf buffer;
 
-    @Output VarCharHolder out;
-    @Workspace byte spaceInByte;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    byte spaceInByte;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1066,13 +1210,19 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "rpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Rpad implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
-    @Param  VarCharHolder fill;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder text;
+    @Param
+    BigIntHolder length;
+    @Param
+    VarCharHolder fill;
+    @Inject
+    ArrowBuf buffer;
 
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1098,7 +1248,7 @@ public class StringFunctions{
         //case 1: target length is <=0, then return an empty string.
         out.buffer = buffer;
         out.start = out.end = 0;
-      } else if (theLength == textCharCount || (theLength > textCharCount  && fillCharCount == 0) ) {
+      } else if (theLength == textCharCount || (theLength > textCharCount && fillCharCount == 0)) {
         //case 2: target length is same as text's length, or need fill into text but "fill" is empty, then return text directly.
         out.buffer = text.buffer;
         out.start = text.start;
@@ -1128,11 +1278,11 @@ public class StringFunctions{
             }
 
             currentByte = fill.buffer.getByte(id);
-            if (currentByte < 0x128  ||           // 1-byte char. First byte is 0xxxxxxx.
-                (currentByte & 0xE0) == 0xC0 ||   // 2-byte char. First byte is 110xxxxx
-                (currentByte & 0xF0) == 0xE0 ||   // 3-byte char. First byte is 1110xxxx
-                (currentByte & 0xF8) == 0xF0) {   //4-byte char. First byte is 11110xxx
-              count ++;  //Advance the counter, since we find one char.
+            if (currentByte < 0x128 ||           // 1-byte char. First byte is 0xxxxxxx.
+              (currentByte & 0xE0) == 0xC0 ||   // 2-byte char. First byte is 110xxxxx
+              (currentByte & 0xF0) == 0xE0 ||   // 3-byte char. First byte is 1110xxxx
+              (currentByte & 0xF8) == 0xF0) {   //4-byte char. First byte is 11110xxx
+              count++;  //Advance the counter, since we find one char.
             }
             out.buffer.setByte(out.end++, currentByte);
           }
@@ -1148,13 +1298,19 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "rpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class RpadTwoArg implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder text;
+    @Param
+    BigIntHolder length;
+    @Inject
+    ArrowBuf buffer;
 
-    @Output VarCharHolder out;
-    @Workspace byte spaceInByte;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    byte spaceInByte;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1212,11 +1368,15 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "ltrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Ltrim implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  VarCharHolder from;
+    @Param
+    VarCharHolder text;
+    @Param
+    VarCharHolder from;
 
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1247,10 +1407,13 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "ltrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class LtrimOneArg implements SimpleFunction {
-    @Param  VarCharHolder text;
+    @Param
+    VarCharHolder text;
 
-    @Output VarCharHolder out;
-    @Workspace byte spaceInByte;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    byte spaceInByte;
 
     @Override
     public void setup() {
@@ -1264,7 +1427,7 @@ public class StringFunctions{
 
       //Scan from left of "text", stop until find a char not " "
       for (int id = text.start; id < text.end; ++id) {
-      if (text.buffer.getByte(id) != spaceInByte) { // Found the 1st char not " ", stop
+        if (text.buffer.getByte(id) != spaceInByte) { // Found the 1st char not " ", stop
           out.start = id;
           break;
         }
@@ -1277,11 +1440,15 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "rtrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Rtrim implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  VarCharHolder from;
+    @Param
+    VarCharHolder text;
+    @Param
+    VarCharHolder from;
 
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1301,9 +1468,9 @@ public class StringFunctions{
         bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer),
           id, errCtx);
         int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(io.netty.buffer.NettyArrowBuf.unwrapBuffer(from.buffer),
-            from.start, from.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), id, id + bytePerChar, 0);
+          from.start, from.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
-          out.end = id+ bytePerChar;
+          out.end = id + bytePerChar;
           break;
         }
       }
@@ -1315,10 +1482,13 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "rtrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class RtrimOneArg implements SimpleFunction {
-    @Param  VarCharHolder text;
+    @Param
+    VarCharHolder text;
 
-    @Output VarCharHolder out;
-    @Workspace byte spaceInByte;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    byte spaceInByte;
 
     @Override
     public void setup() {
@@ -1348,11 +1518,15 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "btrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Btrim implements SimpleFunction {
-    @Param  VarCharHolder text;
-    @Param  VarCharHolder from;
+    @Param
+    VarCharHolder text;
+    @Param
+    VarCharHolder from;
 
-    @Output VarCharHolder out;
-    @Inject FunctionErrorContext errCtx;
+    @Output
+    VarCharHolder out;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1369,7 +1543,7 @@ public class StringFunctions{
         bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer),
           id, errCtx);
         int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(io.netty.buffer.NettyArrowBuf.unwrapBuffer(from.buffer),
-            from.start, from.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), id, id + bytePerChar, 0);
+          from.start, from.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
           out.start = id;
           break;
@@ -1384,7 +1558,7 @@ public class StringFunctions{
         bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer),
           id, errCtx);
         final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(io.netty.buffer.NettyArrowBuf.unwrapBuffer(from.buffer),
-            from.start, from.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), id, id + bytePerChar, 0);
+          from.start, from.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
           out.end = id + bytePerChar;
           break;
@@ -1398,10 +1572,13 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "btrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class BtrimOneArg implements SimpleFunction {
-    @Param  VarCharHolder text;
+    @Param
+    VarCharHolder text;
 
-    @Output VarCharHolder out;
-    @Workspace byte spaceInByte;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    byte spaceInByte;
 
     @Override
     public void setup() {
@@ -1436,10 +1613,14 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "concatOperator", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ConcatOperator implements SimpleFunction {
-    @Param  VarCharHolder left;
-    @Param  VarCharHolder right;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder left;
+    @Param
+    VarCharHolder right;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -1447,7 +1628,7 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded( (left.end - left.start) + (right.end - right.start));
+      out.buffer = buffer = buffer.reallocIfNeeded((left.end - left.start) + (right.end - right.start));
       out.start = out.end = 0;
 
       int id = 0;
@@ -1460,16 +1641,21 @@ public class StringFunctions{
       }
     }
   }
+
   // Converts a hex encoded string into a varbinary type.
   // "\xca\xfe\xba\xbe" => (byte[]) {(byte)0xca, (byte)0xfe, (byte)0xba, (byte)0xbe}
   @FunctionTemplate(name = "binary_string", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class BinaryString implements SimpleFunction {
-    @Param  VarCharHolder in;
-    @Output VarBinaryHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder in;
+    @Output
+    VarBinaryHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -1483,13 +1669,18 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "from_hex", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class FromHex implements SimpleFunction {
-    @Param  VarCharHolder in;
-    @Output VarBinaryHolder out;
-    @Inject ArrowBuf buffer;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder in;
+    @Output
+    VarBinaryHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -1503,10 +1694,14 @@ public class StringFunctions{
 
   @FunctionTemplate(name = "to_hex", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ToHex implements SimpleFunction {
-    @Param  VarBinaryHolder in;
-    @Output VarCharHolder   out;
-    @Workspace Charset charset;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarBinaryHolder in;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    Charset charset;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -1531,10 +1726,14 @@ public class StringFunctions{
   // (byte[]) {(byte)0xca, (byte)0xfe, (byte)0xba, (byte)0xbe}  => "\xca\xfe\xba\xbe"
   @FunctionTemplate(name = "string_binary", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class StringBinary implements SimpleFunction {
-    @Param  VarBinaryHolder in;
-    @Output VarCharHolder   out;
-    @Workspace Charset charset;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarBinaryHolder in;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    Charset charset;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -1555,15 +1754,18 @@ public class StringFunctions{
   }
 
   /**
-  * Returns the ASCII code of the first character of input string
-  */
+   * Returns the ASCII code of the first character of input string
+   */
   @FunctionTemplate(name = "ascii", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class AsciiString implements SimpleFunction {
-    @Param  VarCharHolder in;
-    @Output IntHolder out;
+    @Param
+    VarCharHolder in;
+    @Output
+    IntHolder out;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -1572,13 +1774,16 @@ public class StringFunctions{
   }
 
   /**
-  * Returns the char corresponding to ASCII code input.
-  */
+   * Returns the char corresponding to ASCII code input.
+   */
   @FunctionTemplate(name = "chr", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class AsciiToChar implements SimpleFunction {
-    @Param  IntHolder in;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buf;
+    @Param
+    IntHolder in;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buf;
 
     @Override
     public void setup() {
@@ -1595,15 +1800,19 @@ public class StringFunctions{
   }
 
   /**
-  * Returns the input char sequences repeated nTimes.
-  */
+   * Returns the input char sequences repeated nTimes.
+   */
   @FunctionTemplate(names = {"repeat", "repeatstr"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class RepeatString implements SimpleFunction {
 
-    @Param  VarCharHolder in;
-    @Param IntHolder nTimes;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder in;
+    @Param
+    IntHolder nTimes;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -1614,8 +1823,8 @@ public class StringFunctions{
       final int len = in.end - in.start;
       final int num = nTimes.value;
       out.start = 0;
-      out.buffer = buffer = buffer.reallocIfNeeded( len * num );
-      for (int i =0; i < num; i++) {
+      out.buffer = buffer = buffer.reallocIfNeeded(len * num);
+      for (int i = 0; i < num; i++) {
         in.buffer.getBytes(in.start, out.buffer, i * len, len);
       }
       out.end = len * num;
@@ -1623,15 +1832,20 @@ public class StringFunctions{
   }
 
   /**
-  * Convert string to ASCII from another encoding input.
-  */
+   * Convert string to ASCII from another encoding input.
+   */
   @FunctionTemplate(name = "toascii", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class AsciiEndode implements SimpleFunction {
-    @Param  VarCharHolder in;
-    @Param  VarCharHolder enc;
-    @Output VarCharHolder out;
-    @Workspace Charset inCharset;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder in;
+    @Param
+    VarCharHolder enc;
+    @Output
+    VarCharHolder out;
+    @Workspace
+    Charset inCharset;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
     public void setup() {
@@ -1654,14 +1868,18 @@ public class StringFunctions{
   }
 
   /**
-  * Returns the reverse string for given input.
-  */
+   * Returns the reverse string for given input.
+   */
   @FunctionTemplate(name = "reverse", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ReverseString implements SimpleFunction {
-    @Param  VarCharHolder in;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
-    @Inject FunctionErrorContext errCtx;
+    @Param
+    VarCharHolder in;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
@@ -1685,7 +1903,7 @@ public class StringFunctions{
         // retain byte order of multibyte characters
         while (innerindex > 0) {
           out.buffer.setByte(index - innerindex, in.buffer.getByte(id + (charlen - innerindex)));
-          innerindex-- ;
+          innerindex--;
         }
 
         index -= charlen;
@@ -1698,14 +1916,20 @@ public class StringFunctions{
    */
   @FunctionTemplate(name = "translate3", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Translate3 implements SimpleFunction {
-    @Param  VarCharHolder in;
-    @Param  VarCharHolder searchChars;
-    @Param  VarCharHolder replaceChars;
-    @Output VarCharHolder out;
-    @Inject ArrowBuf buffer;
+    @Param
+    VarCharHolder in;
+    @Param
+    VarCharHolder searchChars;
+    @Param
+    VarCharHolder replaceChars;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
 
     @Override
-    public void setup() {}
+    public void setup() {
+    }
 
     @Override
     public void eval() {
@@ -1715,6 +1939,43 @@ public class StringFunctions{
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
       out.end = outBytea.length;
+    }
+  }
+
+  /**
+   * Returns the string resulting from concatenating the stringses passed in as parameters in order with a custom separator.
+   */
+  @FunctionTemplate(name = "concat_ws", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ConcatWs implements SimpleFunction {
+    @Param
+    VarCharHolder data;
+    @Param
+    VarCharHolder separator;
+    @Output
+    VarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+
+      final String words = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(data.start, data.end, data.buffer);
+      final String sep = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(separator.start, separator.end, separator.buffer);
+
+      final String[] wordsList = words.split(",", -1);
+
+      final String concat = String.join(sep, wordsList);
+
+      final byte[] outBytea = concat.getBytes(com.google.common.base.Charsets.UTF_8);
+      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer.setBytes(0, outBytea);
+      out.start = 0;
+      out.end = outBytea.length;
+
     }
   }
 }
