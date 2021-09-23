@@ -45,7 +45,7 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
   public final ExpectedException exception = ExpectedException.none();
 
   @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
+  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(600, TimeUnit.SECONDS);
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();

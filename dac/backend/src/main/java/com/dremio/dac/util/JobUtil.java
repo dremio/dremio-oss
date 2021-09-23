@@ -19,6 +19,7 @@ import static com.dremio.dac.util.JobsConstant.BYTES;
 import static com.dremio.dac.util.JobsConstant.DEFAULT;
 import static com.dremio.dac.util.JobsConstant.DEFAULT_DATASET_TYPE;
 import static com.dremio.dac.util.JobsConstant.EMPTY_DATASET_FIELD;
+import static com.dremio.dac.util.JobsConstant.EXTERNAL_QUERY;
 import static com.dremio.dac.util.JobsConstant.GIGABYTES;
 import static com.dremio.dac.util.JobsConstant.KILOBYTES;
 import static com.dremio.dac.util.JobsConstant.MEGABYTES;
@@ -43,10 +44,13 @@ import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RequestType;
 import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.DurationDetails;
-import com.dremio.service.job.proto.JobProtobuf;
+import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
@@ -54,11 +58,14 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
  */
 public class JobUtil {
 
-  public static List<DataSet> buildQueriedDatasets(JobProtobuf.JobInfo jobInfo) {
+  public static List<DataSet> getQueriedDatasets(JobInfo jobInfo, RequestType requestType) {
+   return buildQueriedDatasets(jobInfo.getParentsList(),requestType);
+  }
+
+  public static List<DataSet> buildQueriedDatasets(List<ParentDatasetInfo> parents, RequestType requestType) {
     List<DataSet> queriedDatasets = new ArrayList<>();
-    List<JobProtobuf.ParentDatasetInfo> parents = jobInfo.getParentsList();
-    if (parents.size() > 0) {
-      jobInfo.getParentsList().stream().forEach(
+    if (parents != null && parents.size() > 0) {
+      parents.stream().forEach(
         parent -> {
           String datasetName = DEFAULT;
           String datasetType = DEFAULT_DATASET_TYPE;
@@ -66,13 +73,18 @@ public class JobUtil {
           datasetName = datasetPathList.get(datasetPathList.size() - 1);
           String datasetPath = StringUtils.join(datasetPathList, ".");
           if (!queriedDatasets.stream().anyMatch(dataSet -> dataSet.getDatasetPath().equals(datasetPath))) {
-            if (parent.hasType()) {
-              datasetType = parent.getType().name();
+            if (!parent.getDatasetPathList().contains(EXTERNAL_QUERY)) {
+              try {
+                datasetType = parent.getType().name();
+              } catch (NullPointerException ex) {
+                datasetType = com.dremio.service.namespace.dataset.proto.DatasetType.values()[0].toString();
+              }
             }
             queriedDatasets.add(new DataSet());
             queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(datasetName);
             queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPath(datasetPath);
             queriedDatasets.get(queriedDatasets.size() - 1).setDatasetType(datasetType);
+            queriedDatasets.get(queriedDatasets.size() -1).setDatasetPathsList(parent.getDatasetPathList());
           }
         }
       );
@@ -81,7 +93,8 @@ public class JobUtil {
       queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(UNAVAILABLE);
       queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPath(EMPTY_DATASET_FIELD);
       queriedDatasets.get(queriedDatasets.size() - 1).setDatasetType(EMPTY_DATASET_FIELD);
-      switch (jobInfo.getRequestType()) {
+      queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPathsList(new ArrayList<>());
+      switch (requestType) {
         case GET_CATALOGS:
         case GET_COLUMNS:
         case GET_SCHEMAS:
@@ -172,6 +185,15 @@ public class JobUtil {
     return datasetConfig.getFullPathList().get(datasetConfig.getFullPathList().size()-1);
   }
 
+
+  public static long getTotalDuration(JobSummary summary,boolean isFinalState) {
+    long finishTime = summary.getEndTime();
+    long currentMillisecond = System.currentTimeMillis();
+    if (!isFinalState) {
+      finishTime = currentMillisecond;
+    }
+    return finishTime - summary.getStartTime();
+  }
 
   public static long getTotalDuration(JobDetails jobDetails, int lastAttemptIndex) {
     long startTime = jobDetails.getAttempts(0).getInfo().getStartTime() != 0 ? jobDetails.getAttempts(0).getInfo().getStartTime() : 0;

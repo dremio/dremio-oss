@@ -24,9 +24,14 @@ export default function(input) {
 
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     getAvailablePageTypes() {
+      const { dataset } = this.props;
+      const isNewQuery = dataset.get('isNewQuery') || !dataset.getIn(['apiLinks', 'namespaceEntity']);
+
       const pageTypeList = originalFn.call(this);
 
-      pageTypeList.push(PageTypes.reflections);
+      if (!isNewQuery) {
+        pageTypeList.push(PageTypes.reflections);
+      }
 
       return pageTypeList;
     }

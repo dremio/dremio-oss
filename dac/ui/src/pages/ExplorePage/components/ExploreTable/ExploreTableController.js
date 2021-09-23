@@ -80,7 +80,8 @@ export class ExploreTableController extends PureComponent {
     transformHistoryCheck: PropTypes.func,
     performTransform: PropTypes.func,
     confirmTransform: PropTypes.func,
-    accessEntity: PropTypes.func.isRequired
+    accessEntity: PropTypes.func.isRequired,
+    canSelect: PropTypes.any
   };
 
   static contextTypes = {
@@ -338,6 +339,7 @@ export class ExploreTableController extends PureComponent {
     const tableData = this.decorateTable(this.props.tableData);
     const rows = tableData.get('rows');
     const columns =  exploreUtils.getFilteredColumns(tableData.get('columns'), this.props.columnFilter);
+    const { canSelect } = this.props;
 
     return (
       <div style={styles.base}>
@@ -369,6 +371,7 @@ export class ExploreTableController extends PureComponent {
           getTableHeight={this.props.getTableHeight}
           isGrayed={this.state.isGrayed}
           shouldRenderInvisibles={this.props.shouldRenderInvisibles}
+          canSelect={canSelect}
         />
         {this.renderExploreCellLargeOverlay()}
         {this.state.activeTextSelect &&

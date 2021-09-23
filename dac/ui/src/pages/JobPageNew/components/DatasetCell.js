@@ -16,7 +16,6 @@
 import { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-import Art from '@app/components/Art';
 import { Tooltip } from '@app/components/Tooltip';
 import FontIcon from 'components/Icon/FontIcon';
 import { getIconByEntityType } from 'utils/iconUtils';
@@ -49,8 +48,6 @@ const DatasetCell = ({ job }) => {
 
   const datasetRef = useRef(null);
   const datasetArray = job.get('queriedDatasets');
-  const isAcceleration = job.get('accelerated');
-  const isStarFlakeAccelerated = job.get('starFlakeAccelerated');
   const isInternalQuery = job.get('queryType') && job.get('queryType') === 'UI_INITIAL_PREVIEW';
 
   return (
@@ -61,20 +58,7 @@ const DatasetCell = ({ job }) => {
       onMouseLeave={handleMouseLeave}
       data-qa='dataSetCell'
     >
-      <span className='jobsContent-dataset__accelerationIconWrapper'>
-        {isStarFlakeAccelerated && <Art
-          src='StarFlakeAccelerated.svg'
-          alt='icon'
-          title='icon'
-          className='jobsContent-dataset__accelerationIcon'
-        /> ||
-        isAcceleration && <Art
-          src='Reflection.svg'
-          alt='icon'
-          title='icon'
-          className='jobsContent-dataset__accelerationIcon'
-        />}
-      </span>
+
       <span className='jobsContent-dataset__dataset'>
         <FontIcon
           type={getIconByEntityType(isInternalQuery ? 'OTHER' : datasetArray.getIn([0, 'datasetType']))}
@@ -103,10 +87,11 @@ const DatasetCell = ({ job }) => {
           const description = job.get('description');
           const datasetDescription = !queryText || queryText === 'NA'
             ? description : datasetPath;
+            const datasetType = dataset.get('datasetType');
           return (
             <div key={`datasetCell-${index}`} className='jobsContent-dataset__tooltipWrapper'>
               <FontIcon
-                type={getIconByEntityType(datasetArray.getIn([0, 'datasetType']))}
+                type={getIconByEntityType(datasetType)}
                 iconStyle={{
                   verticalAlign: 'middle',
                   flexShrink: 0

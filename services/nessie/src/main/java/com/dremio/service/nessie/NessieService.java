@@ -30,16 +30,28 @@ import org.projectnessie.versioned.VersionStore;
 import org.projectnessie.versioned.memory.InMemoryVersionStore;
 
 import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.Service;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 
 import io.grpc.BindableService;
 
 /**
  * Class that embeds Nessie into Dremio coordinator.
  */
+@Options
 public class NessieService implements Service {
+  private static final long NO_RETRY_LIMIT_OVERRIDE = 0L;
+
+  // An support option to override the maximum number of retries at run time when using NessieKVVerssionStore.
+  // If this is set to NO_RETRY_LIMIT_OVERRIDE, use the limit supplied in the constructor.
+  public static final TypeValidators.PositiveLongValidator RETRY_LIMIT =
+    new TypeValidators.PositiveLongValidator("nessie.kvversionstore.max_retries", Integer.MAX_VALUE, NO_RETRY_LIMIT_OVERRIDE);
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NessieService.class);
 
   private final Provider<KVStoreProvider> kvStoreProvider;
@@ -48,14 +60,18 @@ public class NessieService implements Service {
   private final TreeApiService treeApiService;
   private final ContentsApiService contentsApiService;
   private final ConfigApiService configApiService;
-  private final int kvStoreMaxCommitRetries;
+  private final Supplier<Integer> kvStoreMaxCommitRetriesSupplier;
 
   public NessieService(Provider<KVStoreProvider> kvStoreProvider,
+                       Provider<OptionManager> optionManagerProvider,
                        boolean inMemoryBackend,
-                       int kvStoreMaxCommitRetries) {
+                       int defaultKvStoreMaxCommitRetries) {
     this.kvStoreProvider = kvStoreProvider;
     this.serverConfig = new NessieConfig();
-    this.kvStoreMaxCommitRetries = kvStoreMaxCommitRetries;
+    this.kvStoreMaxCommitRetriesSupplier = () ->  {
+      final int overriddenLimit = Ints.saturatedCast(optionManagerProvider.get().getOption(RETRY_LIMIT));
+      return overriddenLimit != 0 ? overriddenLimit : defaultKvStoreMaxCommitRetries;
+    };
 
     this.versionStoreSupplier = Suppliers.memoize(() -> getVersionStore(inMemoryBackend));
     this.treeApiService = new TreeApiService(Suppliers.memoize(() -> new TreeResource(serverConfig, null, versionStoreSupplier.get())));
@@ -101,7 +117,7 @@ public class NessieService implements Service {
       .namedReferences(kvStoreProvider.get().getStore(NessieRefKVStoreBuilder.class))
       .commits(kvStoreProvider.get().getStore(NessieCommitKVStoreBuilder.class))
       .defaultBranchName(serverConfig.getDefaultBranch())
-      .maxCommitRetries(kvStoreMaxCommitRetries)
+      .maxCommitRetriesSupplier(kvStoreMaxCommitRetriesSupplier)
       .build();
   }
 

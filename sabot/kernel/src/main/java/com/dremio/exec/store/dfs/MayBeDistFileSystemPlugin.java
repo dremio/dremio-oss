@@ -22,6 +22,7 @@ import java.util.List;
 import javax.inject.Provider;
 
 import com.dremio.common.FSConstants;
+import com.dremio.common.util.S3ConnectionConstants;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
@@ -48,6 +49,8 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
       props.add(new Property(FSConstants.FS_S3A_ACCESS_KEY, getConfig().getAccessKey()));
       props.add(new Property(FSConstants.FS_S3A_SECRET_KEY, getConfig().getSecretKey()));
     }
+    props.add(new Property(FSConstants.MAXIMUM_CONNECTIONS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
+    props.add(new Property(FSConstants.MAX_THREADS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_THREADS)));
     return props;
   }
 

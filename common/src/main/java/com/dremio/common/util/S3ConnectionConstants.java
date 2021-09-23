@@ -13,25 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.common;
+package com.dremio.common.util;
 
 /**
- * Common Constants
+ * To Manage default values of S3 Connections for plugins
  */
-public interface FSConstants {
-  // AWS S3 access key
-  String FS_S3A_ACCESS_KEY = "fs.s3a.access.key";
+public class S3ConnectionConstants {
 
-  // AWS S3 secret key
-  String FS_S3A_SECRET_KEY = "fs.s3a.secret.key";
+  private S3ConnectionConstants() {
+  }
 
-  // AWS Region
-  String FS_S3A_REGION = "aws.region";
+  /**
+   * Controls how many parallel connections HttpClient spawns.
+   * Hadoop configuration property {@link org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
+   */
+  public static final int DEFAULT_MAX_CONNECTIONS = 1000;
+  public static final int DEFAULT_MAX_THREADS = 24;
 
-  String FS_S3A_FILE_STATUS_CHECK = "fs.s3a.create.file-status-check";
-
-  // number of simultaneous connections to s3
-  String MAXIMUM_CONNECTIONS = "fs.s3a.connection.maximum";
-  // the maximum number of threads to allow in the pool used by TransferManager
-  String MAX_THREADS = "fs.s3a.threads.max";
 }

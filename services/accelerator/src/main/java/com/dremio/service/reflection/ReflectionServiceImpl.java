@@ -107,6 +107,7 @@ import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
+import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
@@ -485,7 +486,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return Iterables.filter(materializationStore.getAllDoneWhen(now), new Predicate<Materialization>() {
       @Override
       public boolean apply(Materialization m) {
-        return !Iterables.isEmpty(materializationStore.getRefreshes(m));
+        return internalStore.get(m.getReflectionId()).getState() != ReflectionState.FAILED && !Iterables.isEmpty(materializationStore.getRefreshes(m));
       }
     });
   }
@@ -1153,7 +1154,15 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
         return null;
       } else {
-        internalStore.save(internalStore.get(rId).setState(ReflectionState.FAILED));
+        // instead of refreshing reflection directly,
+        // set the materialization in failed state so that it will be handled based on refresh policy
+        try {
+          Materialization materialization = materializationStore.get(new MaterializationId(descriptor.getMaterializationId()));
+          materialization.setState(MaterializationState.FAILED);
+          materializationStore.save(materialization);
+        } catch (Exception ex) {
+          internalStore.save(internalStore.get(rId).setState(ReflectionState.FAILED));
+        }
         logger.debug("failed to expand materialization descriptor {}/{}. Auto updates disabled. Marking as failed",
           descriptor.getLayoutId(), descriptor.getMaterializationId());
         return null;

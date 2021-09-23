@@ -34,11 +34,12 @@ export default class JoinColumnMenu extends PureComponent {
     columns: PropTypes.object,
     disabledColumnNames: PropTypes.instanceOf(Immutable.Set),
     type: PropTypes.string,
-    nameForDisplay: PropTypes.string
+    nameForDisplay: PropTypes.string,
+    canSelect: PropTypes.any
   };
 
   render() {
-    const { columns, disabledColumnNames, handleDragStart, onDragEnd, type } = this.props;
+    const { columns, disabledColumnNames, handleDragStart, onDragEnd, type, canSelect } = this.props;
     return ( // todo: loc
       <div style={[styles.base]}>
         <div style={{...styles.titleWrap, ...formLabel}}>
@@ -53,7 +54,9 @@ export default class JoinColumnMenu extends PureComponent {
           handleDragStart={handleDragStart && handleDragStart.bind(this, this.props.type)}
           onDragEnd={onDragEnd}
           dragType={this.props.dragType}
-          name={this.props.nameForDisplay + ' <current>'}/>
+          name={this.props.nameForDisplay + ' <current>'}
+          canAlter={canSelect}
+        />
       </div>
     );
   }

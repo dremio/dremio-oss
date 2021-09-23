@@ -17,13 +17,12 @@ package com.dremio.dac.model.job;
 
 import java.util.List;
 
-import com.dremio.proto.model.attempts.Attempts.RequestType;
 import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RequestType;
 import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.DurationDetails;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -67,7 +66,7 @@ public class JobListingItem extends PartialJobListingItem {
       input, output, spilled,totalAttempts ,isStarFlakeAccelerated,requestType,description);
   }
 
-  public JobListingItem(JobSummary input, JobsService jobsService) {
-    super(input, jobsService);
+  public JobListingItem(JobSummary input) {
+    super(input);
   }
 }

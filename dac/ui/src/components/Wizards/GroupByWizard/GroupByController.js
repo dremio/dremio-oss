@@ -27,7 +27,8 @@ export default class GroupByController extends PureComponent {
     columns: PropTypes.instanceOf(Immutable.List),
     changeFormType: PropTypes.func.isRequired,
     submit: PropTypes.func,
-    cancel: PropTypes.func
+    cancel: PropTypes.func,
+    canSelect: PropTypes.any
   }
 
   static contextTypes = {
@@ -35,15 +36,25 @@ export default class GroupByController extends PureComponent {
   }
 
   render() {
+    const {
+      canSelect,
+      dataset,
+      columns,
+      submit,
+      cancel,
+      changeFormType
+    } = this.props;
+
     return (
       <div className='group-by'>
         <GroupBy
-          dataset={this.props.dataset}
-          columns={this.props.columns}
+          dataset={dataset}
+          columns={columns}
           location={this.context.location}
-          submit={this.props.submit}
-          onCancel={this.props.cancel}
-          changeFormType={this.props.changeFormType}
+          submit={submit}
+          onCancel={cancel}
+          changeFormType={changeFormType}
+          canSelect={canSelect}
         />
       </div>
     );

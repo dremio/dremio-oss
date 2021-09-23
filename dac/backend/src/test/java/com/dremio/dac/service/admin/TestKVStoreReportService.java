@@ -255,7 +255,7 @@ public class TestKVStoreReportService extends BaseTestServer {
   }
 
   private Dataset createPDS(String id, List<String> path, FileFormat format) {
-    RefreshSettings refreshPolicy = new RefreshSettings("someField", 3600000L, 10800000L, RefreshMethod.FULL);
+    RefreshSettings refreshPolicy = new RefreshSettings("someField", 3600000L, 10800000L, RefreshMethod.FULL, false, false);
     return new Dataset(id, Dataset.DatasetType.PHYSICAL_DATASET, path, null, System.currentTimeMillis(), null, refreshPolicy, null, null, format,
       null);
   }

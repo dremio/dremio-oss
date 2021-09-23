@@ -15,21 +15,18 @@
  */
 package com.dremio.exec.maestro;
 
-import static java.lang.Thread.sleep;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InOrder;
@@ -39,7 +36,6 @@ import org.mockito.MockitoAnnotations;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.util.Retryer;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.MetadataStatsCollector;
 import com.dremio.exec.ops.QueryContext;
@@ -47,6 +43,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -69,9 +66,9 @@ import com.dremio.service.coordinator.ServiceSet;
 import com.dremio.service.executor.ExecutorServiceClient;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.collect.ImmutableSet;
+import com.google.protobuf.Empty;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 
 public class TestFragmentTracker {
   private final QueryId queryId = QueryId
@@ -146,73 +143,103 @@ public class TestFragmentTracker {
     closeableSchedulerThreadPool.close();
   }
 
-  /**
-   * Check that retrier calls only the maximum number of times initialised and
-   * if it succeeds before maximum number of retries, it should stop
-   */
   @Test
   public void testCancelFragmentsHelper() throws Exception {
-    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener, queryCloser, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
-                                  DirectProvider.wrap(optionManager)),
-      closeableSchedulerThreadPool);
-
-    ExecutorServiceClient mockExecutorServiceClient = Mockito.mock(ExecutorServiceClient.class);
-    doNothing().when(mockExecutorServiceClient).cancelFragments(any(), any());
-
+    int maxErrorCount = 1;
+    ExecutorServiceClient mockExecutorServiceClient = getExecutorServiceClient(maxErrorCount);
     ExecutorServiceClientFactory executorServiceClientFactory = Mockito.mock(ExecutorServiceClientFactory.class);
     doReturn(mockExecutorServiceClient).when(executorServiceClientFactory).getClientForEndpoint(any());
+    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener, queryCloser,
+      executorServiceClientFactory, new LocalExecutorSetService(DirectProvider.wrap(coordinator),
+      DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
+    final NodeEndpoint nodeEndpoint = NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build();
+    PlanFragmentFull fragment = new PlanFragmentFull(
+      PlanFragmentMajor.newBuilder()
+        .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
+        .build(),
+      PlanFragmentMinor.newBuilder()
+        .setAssignment(nodeEndpoint)
+        .build());
+    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections
+      .singletonList(fragment), null);
+    observer.planCompleted(executionPlan);
+    fragmentTracker.populate(executionPlan.getFragments(), new ResourceSchedulingDecisionInfo());
+    CoordExecRPC.CancelFragments fragments = CoordExecRPC.CancelFragments.newBuilder().setQueryId(queryId).build();
+    FragmentTracker.SignalListener listener = fragmentTracker.getResponseObserver(nodeEndpoint,
+      fragments);
+    fragmentTracker.cancelFragmentsHelper(fragments, nodeEndpoint, listener);
+    Thread.sleep(3000);
+    Assert.assertTrue("Should have completed", listener.isCompleted());
+    Assert.assertTrue("Should have retried once", listener.getRetryAttempt() == 1);
+  }
 
-    Set<NodeEndpoint> pendingNodes = new HashSet<>();
-    pendingNodes.add(NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build());
+  @Test
+  public void testCancelFragmentsHelperExceedsMaxRetries() throws Exception {
+    int maxErrorCount = 10;
+    CountDownLatch latch = new CountDownLatch(1);
+    ExecutorServiceClient mockExecutorServiceClient = getExecutorServiceClient(maxErrorCount);
+    ExecutorServiceClientFactory executorServiceClientFactory = Mockito.mock(ExecutorServiceClientFactory.class);
+    doReturn(mockExecutorServiceClient).when(executorServiceClientFactory).getClientForEndpoint(any());
+    FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,() -> {
+      latch.countDown();
+    }, executorServiceClientFactory, new LocalExecutorSetService(DirectProvider.wrap(coordinator),
+      DirectProvider.wrap(optionManager)), closeableSchedulerThreadPool);
+    final NodeEndpoint nodeEndpoint = NodeEndpoint.newBuilder().setAddress("host").setFabricPort(0).build();
+    PlanFragmentFull fragment = new PlanFragmentFull(
+      PlanFragmentMajor.newBuilder()
+        .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
+        .build(),
+      PlanFragmentMinor.newBuilder()
+        .setAssignment(nodeEndpoint)
+        .build());
+    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections
+      .singletonList(fragment), null);
+    observer.planCompleted(executionPlan);
+    fragmentTracker.populate(executionPlan.getFragments(), new ResourceSchedulingDecisionInfo());
+    CoordExecRPC.CancelFragments fragments = CoordExecRPC.CancelFragments.newBuilder().setQueryId(queryId).build();
+    FragmentTracker.SignalListener listener = fragmentTracker.getResponseObserver(nodeEndpoint,
+      fragments);
+    fragmentTracker.cancelFragmentsHelper(fragments, nodeEndpoint, listener);
+    boolean completed  = latch.await(10, TimeUnit.SECONDS);
+    Assert.assertTrue("Query should be closed.", completed);
+    Assert.assertTrue("Should have errored out", !listener.isCompleted());
+    Assert.assertTrue("Should have retried twice and stopped.", listener.getRetryAttempt() == 2);
+  }
 
-    int MAX_RETRIES = 4;
-    int baseMillis = 100;
-    Retryer retryer = new Retryer.Builder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, baseMillis, baseMillis)
-      .retryIfExceptionOfType(StatusRuntimeException.class)
-      .setMaxRetries(MAX_RETRIES)
-      .build();
+  @NotNull
+  private ExecutorServiceClient getExecutorServiceClient(int maxErrorCount) {
+    return new ExecutorServiceClient() {
+        int errorCount = 0;
+        @Override
+        public void startFragments(CoordExecRPC.InitializeFragments initializeFragments, StreamObserver<Empty> responseObserver) {
 
-    FragmentTracker.SignalListener errorResponse = Mockito.mock(FragmentTracker.SignalListener.class);
-    doReturn(new StatusRuntimeException(Status.INTERNAL)).when(errorResponse).getException();
+        }
 
-    FragmentTracker.SignalListener successResponse = Mockito.mock(FragmentTracker.SignalListener.class);
-    doReturn(null).when(successResponse).getException();
+        @Override
+        public void activateFragments(CoordExecRPC.ActivateFragments activateFragments, StreamObserver<Empty> responseObserver) {
 
-    fragmentTracker = spy(fragmentTracker);
+        }
 
-    // Fail for timesFailures times and next time - return success
-    int timesFailures = 2;
-    int timesSuccess = 1;
-    doReturn(errorResponse)
-      .doReturn(errorResponse)
-      .doReturn(successResponse)
-      .when(fragmentTracker)
-      .getResponseObserver(any(), any());
+        @Override
+        public void cancelFragments(CoordExecRPC.CancelFragments cancelFragments, StreamObserver<Empty> responseObserver) {
+          if (errorCount == maxErrorCount) {
+            responseObserver.onCompleted();
+          } else {
+            errorCount++;
+            responseObserver.onError(new RuntimeException());
+          }
+        }
 
-    fragmentTracker.cancelExecutingFragmentsInternalHelper(queryId, pendingNodes, executorServiceClientFactory, retryer, closeableSchedulerThreadPool);
+        @Override
+        public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver) {
 
-    sleep(1000 + baseMillis * (timesFailures + timesSuccess)); // plus 1000 is done to have extra sleep.
+        }
 
-    //To verify retry stops after success, when cancelFragments fails for timesFailures and then succeeds.
-    Mockito.verify(mockExecutorServiceClient, Mockito.times(timesFailures + timesSuccess))
-      .cancelFragments(Mockito.any(), Mockito.any());
+        @Override
+        public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList, StreamObserver<Empty> emptyStreamObserver) {
 
-    reset(fragmentTracker, mockExecutorServiceClient);
-    doNothing().when(mockExecutorServiceClient).cancelFragments(any(), any());
-
-    //To verify retry happened not more than MAX_RETRIES, when cancelFragments always fails.
-    timesFailures = MAX_RETRIES;
-    timesSuccess = 0;
-    doReturn(errorResponse) // always return errorResponse
-      .when(fragmentTracker)
-      .getResponseObserver(any(), any());
-
-    fragmentTracker.cancelExecutingFragmentsInternalHelper(queryId, pendingNodes, executorServiceClientFactory, retryer, closeableSchedulerThreadPool);
-    sleep(1000 + baseMillis * (timesFailures + timesSuccess)); // plus 1000 is done to have extra sleep.
-    Mockito.verify(mockExecutorServiceClient, Mockito.times(timesFailures + timesSuccess))
-      .cancelFragments(Mockito.any(), Mockito.any());
+        }
+      };
   }
 
   /**

@@ -687,6 +687,11 @@ public class CatalogServiceHelper {
 
       catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(namespaceKey.getRoot()),
         new PhysicalDatasetPath(path).toNamespaceKey(), toDatasetConfig(physicalDatasetConfig, null), getNamespaceAttributes(dataset));
+
+      if (dataset.getAccelerationRefreshPolicy() != null) {
+        reflectionServiceHelper.getReflectionSettings()
+          .setReflectionSettings(namespaceKey, dataset.getAccelerationRefreshPolicy().toAccelerationSettings());
+      }
     } else {
       throw new UnsupportedOperationException(String.format("Can only promote a folder or a file but found [%s]", catalogItem.get().getType()));
     }

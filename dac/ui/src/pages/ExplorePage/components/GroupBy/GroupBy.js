@@ -34,50 +34,35 @@ export class GroupBy extends PureComponent {
     fields: PropTypes.object,
     columns: PropTypes.instanceOf(Immutable.List),
     location: PropTypes.object,
-    error: PropTypes.object
+    error: PropTypes.object,
+    canSelect: PropTypes.any
   };
 
   render() {
+    const { canSelect, submit } = this.props;
     return (
       <div
         className='group-by'
-        style={[styles.base]}
       >
         <InnerComplexForm
           {...this.props}
-          onSubmit={this.props.submit}
+          onSubmit={submit}
         >
           <AggregateForm
             {...this.props}
             type='groupBy'
-            footerStyle={styles.footer}
-            contentStyle={styles.content}
-            headerStyle={styles.header}
+            canAlter={canSelect}
           />
           <DefaultWizardFooter
             style={{marginTop: 10}}
             {...this.props}
-            onFormSubmit={this.props.submit}
+            onFormSubmit={submit}
           />
         </InnerComplexForm>
       </div>
     );
   }
 }
-
-const styles = {
-  base: {},
-  footer: {
-    margin: '5px 15px'
-  },
-  content: {
-    margin: '0 15px',
-    maxHeight: 180
-  },
-  header: {
-    margin: '10px 15px 0'
-  }
-};
 
 const mapStateToProps = (state, ownProps) => {
   const { location } = ownProps;

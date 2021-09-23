@@ -375,6 +375,7 @@ message DataSet {
   optional string datasetPath = 4;
   optional int32 datasetSizeRows = 5;
   repeated Reflection reflectionsDefined = 6;
+  repeated string datasetPaths = 7;
 }
 
 message ScannedDataset {

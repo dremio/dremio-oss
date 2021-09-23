@@ -214,9 +214,8 @@ public class JobInfoDetailsUI {
       jobAttempt.getStats().getOutputRecords() + " Records";
     duration = JobUtil.getTotalDuration(jobDetails, attemptIndex);
     durationDetails = JobUtil.buildDurationDetails(jobAttempt.getStateListList());
-    queriedDatasets = JobUtil.buildQueriedDatasets(jobAttempt.getInfo());
+    queriedDatasets = JobUtil.getQueriedDatasets(JobsProtoUtil.toStuff(jobAttempt.getInfo()),summary.getRequestType());
     final AccelerationDetails accelerationDetails = deserialize(jobAttempt.getAccelerationDetails());
-    isStarFlakeAccelerated = this.isAccelerated && JobUtil.isSnowflakeAccelerated(accelerationDetails);
     attemptDetails = AttemptsUIHelper.fromAttempts(jobId, attempts);
     attemptsSummary = AttemptsUIHelper.constructSummary(attempts);
     requestType = jobInfo.getRequestType();
@@ -244,6 +243,7 @@ public class JobInfoDetailsUI {
     nrReflectionsMatched = reflectionsMatched.size();
     nrReflectionsUsed = reflectionsUsed.size();
     isAccelerated = summary != null ? summary.getAccelerated() : (reflectionsUsed.size() > 0 ? Boolean.TRUE : Boolean.FALSE);
+    isStarFlakeAccelerated = this.isAccelerated && JobUtil.isSnowflakeAccelerated(accelerationDetails);
     spilledJobDetails = jobInfo.getSpillJobDetails().getAllFields();
     spilled = summary != null ? summary.getSpilled() : (spilledJobDetails.isEmpty() ? Boolean.FALSE : Boolean.TRUE);
     final JobAttempt lastJobAttempt = Util.last(attempts);

@@ -22,7 +22,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
 import { loadJobDetails, JOB_DETAILS_VIEW_ID } from 'actions/joblist/jobList';
-import { showJobProfile } from 'actions/jobs/jobs';
+import { showJobProfile, cancelJobAndShowNotification } from 'actions/jobs/jobs';
 import { updateViewState } from 'actions/resources';
 import { getViewState } from 'selectors/resources';
 import ViewStateWrapper from 'components/ViewStateWrapper';
@@ -47,6 +47,7 @@ const JobDetailsPage = (props) => {
     viewState,
     getJobDetails,
     showJobIdProfile,
+    cancelJob,
     totalAttempts,
     getViewStateDetails
   } = props;
@@ -111,6 +112,7 @@ const JobDetailsPage = (props) => {
               jobStatus={jobDetails.get('jobStatus')}
               jobDetails={jobDetails}
               showJobProfile={showJobIdProfile}
+              cancelJob={cancelJob}
             />
           </div>
           <div className='gutter-left--double'>
@@ -131,7 +133,8 @@ JobDetailsPage.propTypes = {
   getJobDetails: PropTypes.func,
   showJobIdProfile: PropTypes.func,
   totalAttempts: PropTypes.number,
-  getViewStateDetails: PropTypes.func
+  getViewStateDetails: PropTypes.func,
+  cancelJob: PropTypes.func
 };
 
 
@@ -144,7 +147,8 @@ function mapStateToProps(state) {
 const mapDispatchToProps = dispatch => ({
   getJobDetails: (jobId, viewId, totalAttempts) => dispatch(loadJobDetails(jobId, viewId, totalAttempts)),
   showJobIdProfile: (profileUrl) => dispatch(showJobProfile(profileUrl)),
-  getViewStateDetails:(viewId, errObj) => dispatch(updateViewState(viewId, errObj))
+  getViewStateDetails:(viewId, errObj) => dispatch(updateViewState(viewId, errObj)),
+  cancelJob: (jobId) => dispatch(cancelJobAndShowNotification(jobId))
 });
 
 export default compose(

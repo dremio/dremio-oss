@@ -29,7 +29,8 @@ export class InnerJoinController extends Component {
     leftColumns: PropTypes.instanceOf(Immutable.List),
     rightColumns: PropTypes.instanceOf(Immutable.List),
     fields: PropTypes.object.isRequired,
-    recommendation: PropTypes.object
+    recommendation: PropTypes.object,
+    canSelect: PropTypes.any
   };
 
   static getDefaultDragAreaColumns(props) {
@@ -173,6 +174,7 @@ export class InnerJoinController extends Component {
     const dpathArray = (activeDataset.value || activeDataset.initialValue || []);
     const customNameForDisplay = dpathArray && dpathArray[dpathArray.length - 1];
     const defaultNameForDisplay = ExploreInfoHeader.getNameForDisplay(this.props.dataset);
+    const { canSelect } = this.props;
 
     return (
       <InnerJoin
@@ -193,6 +195,7 @@ export class InnerJoinController extends Component {
         addEmptyColumnToInnerJoin={this.addEmptyColumnToInnerJoin}
         columnsInDragArea={this.state.columnsInDragArea}
         dragType='groupBy'
+        canSelect={canSelect}
       />
     );
   }

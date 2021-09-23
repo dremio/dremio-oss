@@ -23,7 +23,7 @@
     height: 197px;
     margin-right: 10px;
     margin-bottom: 10px;
-    @button-width: 120px;
+    @button-width: 50%;
     @button-margin: 10px;
     padding-top: 8px;
     padding-left: 8px;
@@ -41,6 +41,7 @@
     button {
       margin: 15px @button-margin 0 0 !important; // todo: SimpleButton needs to get off of inline styles
       width: @button-width;
+      line-height: 12px !important;
       vertical-align: text-bottom; // workaround spinner button not aligning
 
       &:last-of-type {

@@ -29,7 +29,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -58,6 +60,7 @@ import com.dremio.common.util.Retryer;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.VersionOption;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MoreCollectors;
@@ -67,14 +70,14 @@ import com.google.common.collect.Streams;
  * KVStore implementation of the Nessie VersionStore
  */
 public final class NessieKVVersionStore implements VersionStore<Contents, CommitMeta> {
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NessieKVVersionStore.class);
 
   private final KVStore<Hash, NessieCommit> commits;
   private final KVStore<NamedRef, Hash> namedReferences;
   private final Serializer<Contents> valueSerializer;
   private final Serializer<CommitMeta> metadataSerializer;
-
-  private final Retryer retryer;
+  private final Supplier<Retryer<Void>> retrySupplier;
 
   /**
    * Builder class for a KVStoreVersionStore
@@ -85,7 +88,7 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
     private Serializer<Contents> valueSerializer = null;
     private Serializer<CommitMeta> metadataSerializer = null;
     private String defaultBranchName = null;
-    private int maxCommitRetries = 0;
+    private Supplier<Integer> maxCommitRetriesSupplier = null;
 
     public NessieKVVersionStore.Builder commits(KVStore<Hash, NessieCommit> commits) {
       this.commits = commits;
@@ -112,8 +115,8 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
       return this;
     }
 
-    public NessieKVVersionStore.Builder maxCommitRetries(int maxCommitRetries) {
-      this.maxCommitRetries = maxCommitRetries;
+    public NessieKVVersionStore.Builder maxCommitRetriesSupplier(Supplier<Integer> maxCommitRetriesSupplier) {
+      this.maxCommitRetriesSupplier = maxCommitRetriesSupplier;
       return this;
     }
 
@@ -127,7 +130,7 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
       checkState(this.commits != null, "Commits KVStore hasn't been set");
       checkState(this.namedReferences != null, "NamedRefs KVStore hasn't been set");
       checkState(this.defaultBranchName != null, "Default branch name hasn't been set");
-      checkState(this.maxCommitRetries > 0, "Max commit retries name hasn't been set");
+      checkState(this.maxCommitRetriesSupplier != null, "Max commit retries name hasn't been set");
       return new NessieKVVersionStore(this);
     }
   }
@@ -138,8 +141,8 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
     this.valueSerializer = builder.valueSerializer;
     this.metadataSerializer = builder.metadataSerializer;
 
-    this.retryer = new Retryer.Builder()
-      .setMaxRetries(builder.maxCommitRetries)
+    this.retrySupplier = () -> new Retryer.Builder()
+      .setMaxRetries(builder.maxCommitRetriesSupplier.get())
       .retryIfExceptionOfType(ConcurrentModificationException.class)
       .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
       .build();
@@ -218,10 +221,13 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
                      CommitMeta metadata, List<Operation<Contents>> operations) throws ReferenceNotFoundException, ReferenceConflictException {
     final List<Key> keys = operations.stream().map(Operation::getKey).distinct().collect(Collectors.toList());
     logger.debug("commit (branch: {}, referenceHash: {}, keys: {})", branch, referenceHash, keys);
+    final long overallStartTime = System.currentTimeMillis();
 
     // Retrying this block in case it fails due to a concurrent modification exception
+    final Retryer<Void> newRetryer = retrySupplier.get();
+    final AtomicInteger iteration = new AtomicInteger(1);
     try {
-      this.retryer.call(() -> {
+      newRetryer.call(() -> {
         // Validating commit hash
         final Hash currentHash = toHash(branch);
         checkConcurrentModification(branch, currentHash, referenceHash, keys);
@@ -237,17 +243,27 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
           // Duplicates are very unlikely and also okay to ignore
           final Hash commitHash = commit.getHash();
           final Document<Hash, ? extends Commit<Contents, CommitMeta>> commitEntry = commits.get(commitHash);
+          final long startTime = System.currentTimeMillis();
           if (commitEntry != null) {
             commits.put(commitHash, commit, VersionOption.from(commitEntry));
           } else {
             commits.put(commitHash, commit, KVStore.PutOption.CREATE);
           }
+          final long endTime = System.currentTimeMillis();
+          logger.debug("commit (branch: {}, referenceHash: {}, keys: {}) succeeded. Took {}ms and {} attempts.",
+            branch, referenceHash, keys, endTime - startTime, iteration.getAndIncrement());
           return commitHash;
         });
+        final long overallTime = System.currentTimeMillis() - overallStartTime;
+        logger.debug("NessieKVVersionStore commit() took {}ms total", overallTime);
+        if (overallTime > 1000L) {
+          logger.info("NessieKVVersionStore commit() took longer than 1s: {}ms total", overallTime);
+        }
         return null;
       });
     } catch (Retryer.OperationFailedAfterRetriesException e) {
-      logger.error("commit operation failed after reaching max retries.");
+      logger.error("commit operation failed after reaching max retries ({}) and took {}ms total to try all attempts.",
+        newRetryer.getMaxRetries(), System.currentTimeMillis() - overallStartTime);
       if (e.getCause() instanceof ReferenceNotFoundException) {
         throw (ReferenceNotFoundException) e.getCause();
       } else if (e.getCause() instanceof ReferenceConflictException) {
@@ -423,6 +439,11 @@ public final class NessieKVVersionStore implements VersionStore<Contents, Commit
   @Override
   public Collector collectGarbage() {
     throw new UnsupportedOperationException("Not yet implemented");
+  }
+
+  @VisibleForTesting
+  Supplier<Retryer<Void>> getRetrySupplier() {
+    return retrySupplier;
   }
 
   private void checkValidReferenceHash(BranchName branch, Hash currentBranchHash, Hash referenceHash)

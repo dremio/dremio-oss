@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.client</groupId>
     <artifactId>dremio-client-parent</artifactId>
-    <version>18.0.0-202109101536100970-a32fc9f4</version>
+    <version>18.1.0-202109222258120166-963adceb</version>
   </parent>
 
   <artifactId>dremio-client-base</artifactId>

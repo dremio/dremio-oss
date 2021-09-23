@@ -32,8 +32,10 @@ import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubstitutionSettings;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
+import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
@@ -119,6 +121,21 @@ public final class JobsProtoUtil {
   }
 
   /**
+   * Convert JobInfo Protostuff to Protobuf
+   */
+  public static JobProtobuf.JobInfo toBuf(JobInfo jobInfo) {
+    return JobsProtoUtil.toBuf(JobProtobuf.JobInfo.getDefaultInstance().getParserForType(), jobInfo);
+  }
+
+  public static JobProtobuf.JobDetails toBuf(JobDetails jobDetails) {
+    return JobsProtoUtil.toBuf(JobProtobuf.JobDetails.getDefaultInstance().getParserForType(), jobDetails);
+  }
+
+  public static JobDetails toStuff(JobProtobuf.JobDetails jobDetails) {
+    return JobsProtoUtil.toStuff(JobDetails.getDefaultInstance().cachedSchema(), jobDetails);
+  }
+
+  /**
    * Convert JobAttempt Protobuf to Protostuff
    */
   public static JobAttempt toStuff(JobProtobuf.JobAttempt attempt) {
@@ -149,6 +166,15 @@ public final class JobsProtoUtil {
   }
 
   /**
+   * Convert List of ViewFieldType Protostuff to Protobuf
+   */
+  public static List<JobProtobuf.ParentDatasetInfo> toBufParentDatasetInfoList(List<ParentDatasetInfo> parentDatasetInfoList) {
+    return parentDatasetInfoList.stream()
+      .map(JobsProtoUtil::toBuf)
+      .collect(Collectors.toList());
+  }
+
+  /**
    * Convert ViewFieldType to Protostuff
    */
   public static ViewFieldType toStuff(DatasetCommonProtobuf.ViewFieldType viewFieldType) {
@@ -165,11 +191,36 @@ public final class JobsProtoUtil {
   }
 
   /**
+   * Convert ParentDatasetInfo to Protostuff
+   */
+  public static ParentDatasetInfo toStuff(JobProtobuf.ParentDatasetInfo parentDatasetInfo) {
+    return toStuff(ParentDatasetInfo.getSchema(), parentDatasetInfo);
+  }
+
+  /**
+   * Convert List of ParentDatasetInfo to Protostuff
+   */
+
+  public static List<ParentDatasetInfo> toStuffParentDatasetInfoList(List<JobProtobuf.ParentDatasetInfo> parentDatasetInfoList) {
+    return parentDatasetInfoList.stream()
+      .map(JobsProtoUtil::toStuff)
+      .collect(Collectors.toList());
+  }
+
+  /**
    * Convert JobId Protobuf to Protostuff
    */
   public static JobId toStuff(JobProtobuf.JobId jobId) {
     return JobsProtoUtil.toStuff(JobId.getDefaultInstance().cachedSchema(), jobId);
   }
+
+  /**
+   * Convert JobId Protobuf to Protostuff
+   */
+  public static JobInfo toStuff(JobProtobuf.JobInfo jobInfo) {
+    return JobsProtoUtil.toStuff(JobInfo.getDefaultInstance().cachedSchema(), jobInfo);
+  }
+
 
   public static JobProtobuf.JobFailureInfo toBuf(JobFailureInfo jobFailureInfo) {
     if (jobFailureInfo == null) {

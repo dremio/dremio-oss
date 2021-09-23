@@ -76,6 +76,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -1457,6 +1458,61 @@ public class TestCatalogResource extends BaseTestServer {
     assertEquals(0, result.getChildren().size());
   }
 
+  @Test
+  public void testPromotingReflectionSettings() throws Exception {
+    Source source = createSource();
+
+    // browse to the json directory
+    String id = getFolderIdByName(source.getChildren(), "json");
+    assertNotNull(id, "Failed to find json directory");
+
+    // load the json dir
+    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    assertEquals(folder.getChildren().size(), 19);
+
+    // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
+    String folderId = getFolderIdByName(source.getChildren(), "datasets");
+    assertNotNull(folderId, "Failed to find datasets directory");
+
+    Folder dsFolder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderId))).buildGet(), new GenericType<Folder>() {});
+
+    String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "folderdataset");
+    assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
+
+    // we want to use the path that the backend gives us so fetch the full folder
+    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
+
+    TextFileConfig textFileConfig = new TextFileConfig();
+    textFileConfig.setLineDelimiter("\n");
+    Dataset.RefreshSettings refreshSettings = new Dataset.RefreshSettings(null, 5000L, 5000L, RefreshMethod.INCREMENTAL, false, false);
+
+    Dataset dataset = createPDS(folder.getPath(), textFileConfig, refreshSettings);
+
+    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
+
+    // load the promoted dataset
+    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(), new GenericType<Dataset>() {});
+    assertEquals(RefreshMethod.INCREMENTAL, dataset.getAccelerationRefreshPolicy().getMethod());
+    assertFalse(dataset.getAccelerationRefreshPolicy().getNeverRefresh());
+    assertFalse(dataset.getAccelerationRefreshPolicy().getNeverExpire());
+
+    // update reflection settings
+    refreshSettings = new Dataset.RefreshSettings(null, 500L, 500L, RefreshMethod.FULL, true, true);
+    Dataset newPDS = createPDS(dataset, refreshSettings);
+    dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildPut(Entity.json(newPDS)), new GenericType<Dataset>() {});
+    assertEquals(RefreshMethod.FULL, dataset.getAccelerationRefreshPolicy().getMethod());
+    assertTrue(dataset.getAccelerationRefreshPolicy().getNeverRefresh());
+    assertTrue(dataset.getAccelerationRefreshPolicy().getNeverExpire());
+    assertEquals(refreshSettings.getRefreshPeriodMs(), dataset.getAccelerationRefreshPolicy().getRefreshPeriodMs());
+    assertEquals(refreshSettings.getGracePeriodMs(), dataset.getAccelerationRefreshPolicy().getGracePeriodMs());
+
+    // unpromote the folder
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
+
+    // dataset should no longer exist
+    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+  }
+
   public static String getFolderIdByName(List<CatalogItem> items, String nameToFind) {
     for (CatalogItem item : items) {
       List<String> path = item.getPath();
@@ -1483,6 +1539,38 @@ public class TestCatalogResource extends BaseTestServer {
       null
     );
   }
+
+  private Dataset createPDS(List<String> path, FileFormat format, Dataset.RefreshSettings refreshSettings) {
+    return new Dataset(
+      null,
+      Dataset.DatasetType.PHYSICAL_DATASET,
+      path,
+      null,
+      null,
+      null,
+      refreshSettings,
+      null,
+      null,
+      format,
+      null
+    );
+  }
+
+  private Dataset createPDS(Dataset dataset, Dataset.RefreshSettings refreshSettings) {
+    return new Dataset(
+      dataset.getId(),
+      dataset.getType(),
+      dataset.getPath(),
+      dataset.getCreatedAt(),
+      dataset.getTag(),
+      refreshSettings,
+      dataset.getSql(),
+      dataset.getSqlContext(),
+      dataset.getFormat(),
+      dataset.getApproximateStatisticsAllowed()
+    );
+  }
+
 
   private Dataset getVDSConfig(List<String> path, String sql) {
     return new Dataset(

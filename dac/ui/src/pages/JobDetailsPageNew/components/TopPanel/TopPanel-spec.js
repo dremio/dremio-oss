@@ -23,7 +23,13 @@ describe('TopPanel', () => {
     minimalProps = {
       changePages: sinon.spy(),
       jobId: '',
-      jobStatus:''
+      jobStatus:'',
+      jobDetails: Immutable.fromJS({
+        attemptDetails: [{
+          profileUrl: ''
+        }],
+        queriedDatasets: [{datasetPathsList: []}]
+      })
     };
   });
 

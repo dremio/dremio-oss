@@ -22,6 +22,8 @@ import java.time.Duration;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
@@ -34,6 +36,7 @@ import software.amazon.awssdk.http.apache.ProxyConfiguration;
  * Apache HTTP Connection Utility that supports aws sdk 2.X
  */
 final class ApacheHttpConnectionUtil {
+  private static final Logger logger = LoggerFactory.getLogger(ApacheHttpConnectionUtil.class);
 
   private ApacheHttpConnectionUtil() {
   }
@@ -91,6 +94,7 @@ final class ApacheHttpConnectionUtil {
 
   private static int intOption(Configuration conf, String key, int defVal, int min) {
     final int v = conf.getInt(key, defVal);
+    logger.debug("For key {} -> configured value is {} and default value is {} ", key, v, defVal);
     Preconditions.checkArgument(v >= min, "Value of %s: %s is below the minimum value %s", key, v, min);
     return v;
   }

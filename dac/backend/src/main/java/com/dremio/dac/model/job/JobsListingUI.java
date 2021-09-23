@@ -42,7 +42,7 @@ public class JobsListingUI {
       .transform(new Function<JobSummary, JobListingItem>() {
         @Override
         public JobListingItem apply(JobSummary input) {
-          jobListingItem = new JobListingItem(input, jobsService);
+          jobListingItem = new JobListingItem(input);
           return jobListingItem;
         }
       }).toList();

@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.S3ConnectionConstants;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
@@ -75,11 +76,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
 
   private static final Logger logger = LoggerFactory.getLogger(S3StoragePlugin.class);
 
-  /**
-   * Controls how many parallel connections HttpClient spawns.
-   * Hadoop configuration property {@link org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
-   */
-  public static final int DEFAULT_MAX_CONNECTIONS = 1000;
   public static final String EXTERNAL_BUCKETS = "dremio.s3.external.buckets";
   public static final String WHITELISTED_BUCKETS = "dremio.s3.whitelisted.buckets";
 
@@ -103,11 +99,11 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     final List<Property> finalProperties = new ArrayList<>();
     finalProperties.add(new Property(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
     finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
-    finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS)));
+    finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
     finalProperties.add(new Property(FAST_UPLOAD, "true"));
     finalProperties.add(new Property(Constants.FAST_UPLOAD_BUFFER, "disk"));
     finalProperties.add(new Property(Constants.FAST_UPLOAD_ACTIVE_BLOCKS, "4")); // 256mb (so a single parquet file should be able to flush at once).
-    finalProperties.add(new Property(MAX_THREADS, "24"));
+    finalProperties.add(new Property(MAX_THREADS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_THREADS)));
     finalProperties.add(new Property(MULTIPART_SIZE, "67108864")); // 64mb
     finalProperties.add(new Property(MAX_TOTAL_TASKS, "30"));
 

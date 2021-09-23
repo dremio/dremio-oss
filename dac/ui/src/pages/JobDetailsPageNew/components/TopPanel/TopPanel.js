@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { injectIntl } from 'react-intl';
+import datasetPathUtils from '@app/utils/resourcePathUtils/dataset';
+import JobsUtils, { JobState } from '@app/utils/jobsUtils';
+import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
+import Button from '@app/components/Buttons/Button';
+import { constructFullPathAndEncode, constructResourcePath } from '@app/utils/pathUtils';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import JobStateIcon from '@app/pages/JobPage/components/JobStateIcon';
@@ -40,8 +46,54 @@ export const TopPanel = (props) => {
     setComponent,
     jobStatus,
     showJobProfile,
+    cancelJob,
     jobDetails
   } = props;
+
+  const renderOpenResults = () => {
+
+    if (JobsUtils.getRunning(jobStatus) || jobStatus === JobState.ENQUEUED
+      || jobStatus === JobState.PLANNING) {
+      return (
+        <Button
+          type={ButtonTypes.CUSTOM}
+          text={formatMessage({ id: 'Common.Cancel' })}
+          onClick={() => cancelJob(jobId)}
+        />);
+    }
+
+    const queryType = jobDetails.get('queryType');
+    if (!jobDetails.get('resultsAvailable') || jobStatus !== JobState.COMPLETED
+      || (queryType !== 'UI_PREVIEW' && queryType !== 'UI_RUN')) {
+      return null;
+    }
+
+    const QueriedDataset = jobDetails.get('queriedDatasets');
+    const datasetFullPath = QueriedDataset.get(0).get('datasetPathsList');
+    let fullPath;
+
+    if (datasetFullPath && datasetFullPath.size > 0) {
+      fullPath = `${datasetFullPath.get(0)}.${constructFullPathAndEncode(datasetFullPath.slice(1))}`;
+    } else {
+      fullPath = constructFullPathAndEncode(datasetFullPath);
+    }
+    const resourcePath = constructResourcePath(fullPath);
+    const nextLocation = {
+      pathname: datasetFullPath ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
+      query: { jobId, version: jobDetails.get('datasetVersion')}
+    };
+
+    if (QueriedDataset.get('datasetPathsList')) {
+      nextLocation.query.mode = 'edit';
+    }
+
+    return <>
+      {renderIcon('VirtualDataset.svg', 'topPanel__openResults__virtualDatasetIcon')}
+      <Link data-qa='open-results-link' to={nextLocation}>
+        {formatMessage({ id: 'Job.OpenResults' })} »
+      </Link>
+    </>;
+  };
 
   const [selectedTab, setSelectedTab] = useState('Overview');
 
@@ -135,6 +187,9 @@ export const TopPanel = (props) => {
           </div>
         </div>
       </div>
+      <span className='topPanel__openResults'>
+        {renderOpenResults()}
+      </span>
     </div>
   );
 };
@@ -146,7 +201,8 @@ TopPanel.propTypes = {
   setComponent: PropTypes.func,
   jobDetails: PropTypes.object,
   showJobProfile: PropTypes.func,
-  jobStatus: PropTypes.string
+  jobStatus: PropTypes.string,
+  cancelJob: PropTypes.func
 };
 
 export default injectIntl(TopPanel);

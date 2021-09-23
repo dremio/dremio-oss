@@ -13,25 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.common;
 
-/**
- * Common Constants
- */
-public interface FSConstants {
-  // AWS S3 access key
-  String FS_S3A_ACCESS_KEY = "fs.s3a.access.key";
+import ColumnCell from './components/ColumnCell';
 
-  // AWS S3 secret key
-  String FS_S3A_SECRET_KEY = "fs.s3a.secret.key";
+export const additionalColumns = [
+  { key: 'qn', id: 'qn', label: 'Queue', disableSort: false, isSelected: true, width: 95, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth:false, isDraggable: true, headerClassName: '' }
+];
 
-  // AWS Region
-  String FS_S3A_REGION = "aws.region";
+const renderColumn = (data, isNumeric) => <ColumnCell data={data} isNumeric={isNumeric} />;
 
-  String FS_S3A_FILE_STATUS_CHECK = "fs.s3a.create.file-status-check";
-
-  // number of simultaneous connections to s3
-  String MAXIMUM_CONNECTIONS = "fs.s3a.connection.maximum";
-  // the maximum number of threads to allow in the pool used by TransferManager
-  String MAX_THREADS = "fs.s3a.threads.max";
-}
+export const additionalColumnName = (job) => [
+  { qn: { node: () => renderColumn(job.get('wlmQueue')), value: job.get('wlmQueue') } }
+];

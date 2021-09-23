@@ -55,7 +55,8 @@ export class InnerJoin extends Component {
     customNameForDisplay: PropTypes.string,
     isDragInProgress: PropTypes.bool,
     columnDragName: PropTypes.string,
-    columnsInDragArea: PropTypes.instanceOf(Immutable.List)
+    columnsInDragArea: PropTypes.instanceOf(Immutable.List),
+    canSelect: PropTypes.any
   };
 
   leftDisabledColumnNames = undefined;
@@ -167,6 +168,7 @@ export class InnerJoin extends Component {
 
   render() {
     const joinType = this.props.fields.joinType;
+    const { canSelect } = this.props;
     return (
       <div className='inner-join' style={[styles.base]} onMouseUp={this.props.stopDrag}>
         <div style={styles.wrap}>
@@ -194,7 +196,9 @@ export class InnerJoin extends Component {
             onDragEnd={this.props.stopDrag}
             handleDragStart={this.props.onDragStart}
             dragType={this.props.dragType}
-            nameForDisplay={this.props.defaultNameForDisplay}/>
+            nameForDisplay={this.props.defaultNameForDisplay}
+            canSelect={canSelect}
+          />
           {this.getDragPart()}
           <JoinColumnMenu
             type='custom'
@@ -203,7 +207,9 @@ export class InnerJoin extends Component {
             onDragEnd={this.props.stopDrag}
             handleDragStart={this.props.onDragStart}
             dragType={this.props.dragType}
-            nameForDisplay={this.props.customNameForDisplay}/>
+            nameForDisplay={this.props.customNameForDisplay}
+            canSelect={canSelect}
+          />
         </div>
         <div style={styles.center}>
           <div style={[styles.add]} onClick={this.props.addEmptyColumnToInnerJoin}> {/* todo: ax, consistency: button */}

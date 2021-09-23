@@ -56,7 +56,8 @@ export default class VirtualizedTableViewer extends Component {
     loadNextRecords: PropTypes.func,
     scrollToIndex: PropTypes.number,
     sortRecords: PropTypes.func,
-    disableSort: PropTypes.bool
+    disableSort: PropTypes.bool,
+    showIconHeaders: PropTypes.object
     // other props passed into react-virtualized Table
   };
 
@@ -177,9 +178,11 @@ export default class VirtualizedTableViewer extends Component {
   }
 
   draggableHeaderRenderer = (rowData, item) => {
+    const { showIconHeaders } = this.props;
+    const key = showIconHeaders[rowData.dataKey] ? showIconHeaders[rowData.dataKey].node() : rowData;
     return (
       <div className='draggableHeaderContent' >
-        <div>{this.renderHeader(rowData, item)}</div>
+        <div>{this.renderHeader(key, item)}</div>
         <Draggable
           axis='x'
           defaultClassName='DragHandle'
@@ -196,7 +199,7 @@ export default class VirtualizedTableViewer extends Component {
           }}
           zIndex={999}
         >
-          <div className='draggableHeaderContent__pipe' >{rowData.label ? '|' : ''}</div>
+          <div className='draggableHeaderContent__pipe' >{item.isDraggable ? '|' : ''}</div>
         </Draggable>
       </div>
 

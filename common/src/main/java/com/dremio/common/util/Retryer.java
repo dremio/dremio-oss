@@ -21,11 +21,11 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.io.ExponentialBackoff;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 /**
@@ -100,6 +100,11 @@ public class Retryer<T> implements ExponentialBackoff {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
+  }
+
+  @VisibleForTesting
+  public int getMaxRetries() {
+    return maxRetries;
   }
 
   public static class Builder<T> {

@@ -16,29 +16,21 @@
 package com.dremio.dac.model.job;
 
 import static com.dremio.dac.util.JobsConstant.ERROR_JOB_STATE_NOT_SET;
-import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.dac.util.JobUtil;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.proto.model.attempts.Attempts.RequestType;
-import com.dremio.service.accelerator.proto.AccelerationDetails;
-import com.dremio.service.job.JobDetails;
-import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RequestType;
 import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.DurationDetails;
-import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsProtoUtil;
-import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -137,42 +129,37 @@ public class PartialJobListingItem {
     this.description = description;
   }
 
-  public PartialJobListingItem(JobSummary input, JobsService jobsService) {
-    final JobDetails jobDetails;
+  public PartialJobListingItem(JobSummary input) {
     this.id = input.getJobId().getId();
     this.queryUser = input.getUser();
     int totalAttempts = (int) input.getNumAttempts();
-    int lastAttemptIndex = totalAttempts - 1;
     this.totalAttempts = totalAttempts;
-    jobDetails = getJobDetails(jobsService);
-    JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttemptsList().get(lastAttemptIndex);
     this.state = JobsProtoUtil.toStuff(input.getJobState());
     this.startTime = input.getStartTime() != 0 ? input.getStartTime() : 0;
     this.endTime = input.getEndTime() != 0 ? input.getEndTime() : 0;
-    this.duration = JobUtil.getTotalDuration(jobDetails,lastAttemptIndex);
-    this.durationDetails = JobUtil.buildDurationDetails(jobAttempt.getStateListList());
-    this.rowsScanned = jobAttempt.getStats().getInputRecords();
+    this.isFinalState = getIsFinalState(state);
+    this.duration = JobUtil.getTotalDuration(input,isFinalState);
+    this.durationDetails = JobUtil.buildDurationDetails(input.getStateListList());
+    this.rowsScanned = input.getInputRecords();
     this.rowsReturned = input.getOutputRecords();
-    this.wlmQueue = jobAttempt.getInfo().getResourceSchedulingInfo().getQueueName();
-    this.queryText = jobDetails.getAttempts(lastAttemptIndex).getInfo().getSql();
+    this.wlmQueue = input.getQueueName();
+     this.queryText = input.getSql();
     this.isAccelerated = input.getAccelerated();
     this.queryType = JobsProtoUtil.toStuff(input.getQueryType());
-    this.isFinalState = getIsFinalState(state);
-    this.plannerEstimatedCost = jobAttempt.getInfo().getOriginalCost();
-    this.engine = jobAttempt.getInfo().getResourceSchedulingInfo().getEngineName();
-    this.subEngine = jobAttempt.getInfo().getResourceSchedulingInfo().getSubEngine();
-    this.queriedDatasets = JobUtil.buildQueriedDatasets(jobAttempt.getInfo());
+    this.plannerEstimatedCost = input.getOriginalCost();
+    this.engine = input.getEngine();
+    this.subEngine = input.getSubEngine();
+    this.queriedDatasets = JobUtil.buildQueriedDatasets(JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()), input.getRequestType());
     this.durationDetails.stream().filter(d -> d.getPhaseName().equalsIgnoreCase("QUEUED")).forEach(mp -> enqueuedTime = mp.getPhaseDuration());
-    this.waitInClient = jobAttempt.getDetails().getWaitInClient();
-    this.input = JobUtil.getConvertedBytes(jobAttempt.getStats().getInputBytes()) + " / " +
-      jobAttempt.getStats().getInputRecords() + " Records";
-    this.output = JobUtil.getConvertedBytes(jobAttempt.getStats().getOutputBytes()) + " / " +
-      jobAttempt.getStats().getOutputRecords() + " Records";
+    this.waitInClient = input.getWaitInclient();
+    this.input = JobUtil.getConvertedBytes(input.getInputBytes()) + " / " +
+      input.getInputRecords() + " Records";
+    this.output = JobUtil.getConvertedBytes(input.getOutputBytes()) + " / " +
+      input.getOutputRecords() + " Records";
     this.spilled = input.getSpilled();
-    final AccelerationDetails accelerationDetails = deserialize(jobDetails.getAttempts(lastAttemptIndex).getAccelerationDetails());
-    this.isStarFlakeAccelerated = this.isAccelerated && JobUtil.isSnowflakeAccelerated(accelerationDetails);
-    this.description = jobAttempt.getInfo().getDescription();
-    this.requestType = jobAttempt.getInfo().getRequestType();
+    this.isStarFlakeAccelerated = input.getSnowflakeAccelerated();
+    this.description = input.getDescription();
+    this.requestType = input.getRequestType();
   }
 
   public RequestType getRequestType() {
@@ -282,21 +269,6 @@ public class PartialJobListingItem {
 
   public boolean isSpilled() {
     return spilled;
-  }
-
-  private JobDetails getJobDetails(JobsService jobsService) {
-    final JobDetails jobDetails;
-    try {
-      JobDetailsRequest request = JobDetailsRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder().setId(this.id).build())
-        .setUserName(this.queryUser)
-        .setProvideResultInfo(true)
-        .build();
-      jobDetails = jobsService.getJobDetails(request);
-    } catch (JobNotFoundException e) {
-      throw JobResourceNotFoundException.fromJobNotFoundException(e);
-    }
-    return jobDetails;
   }
 
   private boolean getIsFinalState(JobState state) {

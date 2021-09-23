@@ -203,16 +203,18 @@ class MaterializationCache {
         }
       }
     } catch (Exception e) {
-      logger.warn("couldn't expand materialization {}", entry.getId(), e);
+      logger.debug("couldn't expand materialization {}", entry.getId(), e);
     }
   }
 
   private void safeUpdateEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) {
     try {
       updateEntry(cache, entry);
-    } catch (Exception | AssertionError e) {
+    } catch (AssertionError e) {
       // Calcite can throw assertion errors even when assertions are disabled :( that's why we need to make sure we catch them here
-      logger.warn("couldn't expand materialization {}", entry.getId().getId(), e);
+      logger.debug("couldn't expand materialization {}", entry.getId(), e);
+    } catch (Exception ignored) {
+      // Other exceptions are already logged through updateEntry function.
     }
   }
 

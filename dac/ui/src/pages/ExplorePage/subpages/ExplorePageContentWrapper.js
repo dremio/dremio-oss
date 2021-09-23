@@ -65,7 +65,8 @@ class ExplorePageContentWrapper extends PureComponent {
     // connected
     entityId: PropTypes.string,
     runDatasetSql: PropTypes.func,
-    previewDatasetSql: PropTypes.func
+    previewDatasetSql: PropTypes.func,
+    canSelect: PropTypes.any
   };
 
   static contextTypes = {
@@ -102,7 +103,7 @@ class ExplorePageContentWrapper extends PureComponent {
 
 
   getBottomContent() {
-    const {dataset, pageType, location, entityId} = this.props;
+    const {dataset, pageType, location, entityId, canSelect} = this.props;
     const locationQuery = location.query;
 
     if (locationQuery.type === 'JOIN' && locationQuery.joinTab !== RECOMMENDED_JOIN) {
@@ -153,6 +154,7 @@ class ExplorePageContentWrapper extends PureComponent {
         sqlState={this.props.sqlState}
         rightTreeVisible={this.props.rightTreeVisible}
         exploreViewState={this.props.exploreViewState}
+        canSelect={canSelect}
       />);
     default:
       throw new Error(`Not supported page type: '${pageType}'`);
@@ -186,17 +188,28 @@ class ExplorePageContentWrapper extends PureComponent {
   }
 
   getUpperContent() {
-    const { props } = this;
-    const { pageType } = props;
+    const {
+      pageType,
+      canSelect,
+      exploreViewState,
+      dataset,
+      location,
+      startDrag,
+      rightTreeVisible,
+      sqlSize,
+      sqlState,
+      toggleRightTree
+    } = this.props;
 
     switch (pageType) {
     case PageTypes.details:
       return <DetailsWizard
-        dataset={props.dataset}
-        location={props.location}
-        startDrag={props.startDrag}
+        dataset={dataset}
+        location={location}
+        startDrag={startDrag}
         dragType={EXPLORE_DRAG_TYPE}
-        exploreViewState={props.exploreViewState}
+        exploreViewState={exploreViewState}
+        canSelect={canSelect}
       />;
     case PageTypes.default:
     case PageTypes.reflections:
@@ -204,15 +217,15 @@ class ExplorePageContentWrapper extends PureComponent {
     case PageTypes.wiki:
       return (
         <ExplorePageUpperContent
-          dataset={props.dataset}
-          pageType={props.pageType}
-          rightTreeVisible={props.rightTreeVisible}
-          sqlSize={props.sqlSize}
-          sqlState={props.sqlState}
+          dataset={dataset}
+          pageType={pageType}
+          rightTreeVisible={rightTreeVisible}
+          sqlSize={sqlSize}
+          sqlState={sqlState}
           dragType={EXPLORE_DRAG_TYPE}
-          toggleRightTree={props.toggleRightTree}
-          startDrag={props.startDrag}
-          exploreViewState={this.props.exploreViewState}
+          toggleRightTree={toggleRightTree}
+          startDrag={startDrag}
+          exploreViewState={exploreViewState}
         />
       );
     default:
@@ -241,10 +254,17 @@ class ExplorePageContentWrapper extends PureComponent {
   }
 }
 
-export default connect((state, { location }) => ({
-  entityId: getDatasetEntityId(state, location),
-  exploreViewState: getExploreViewState(state)
-}), {
+export default connect((state, { location }) => {
+  // RBAC needs the permissions sent to the Acceleration components and passed down, in case any component along the way needs to be able to alter reflections
+  const permissions = state.resources.entities.get('datasetUI')
+  && state.resources.entities.get('datasetUI').first()
+  && state.resources.entities.get('datasetUI').first().get('permissions');
+  return ({
+    canSelect: permissions && permissions.get('canSelect'),
+    entityId: getDatasetEntityId(state, location),
+    exploreViewState: getExploreViewState(state)
+  });
+}, {
   runDatasetSql,
   previewDatasetSql
 })(ExplorePageContentWrapper);

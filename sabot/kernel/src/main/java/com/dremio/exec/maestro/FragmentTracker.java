@@ -19,18 +19,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
-import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.nodes.EndpointHelper;
@@ -41,7 +37,6 @@ import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.work.foreman.CompletionListener;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
@@ -53,12 +48,11 @@ import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Empty;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 class FragmentTracker implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentTracker.class);
+  public static final int MAX_CANCEL_RETRIES = 2;
   private final QueryId queryId;
   private final CompletionListener completionListener;
   private final Runnable queryCloser;
@@ -254,14 +248,8 @@ class FragmentTracker implements AutoCloseable {
    * Cancel all fragments. Only one rpc is sent per executor.
    */
   void cancelExecutingFragmentsInternal() {
-    Retryer retryer = new Retryer.Builder()
-      .setWaitStrategy(Retryer.WaitStrategy.FLAT, 5000, 5000)
-      .retryIfExceptionOfType(StatusRuntimeException.class)
-      .retryIfExceptionOfType(TimeoutException.class)
-      .setMaxRetries(12)
-      .build();
-
-    cancelExecutingFragmentsInternalHelper(queryId, pendingNodes, executorServiceClientFactory, retryer, closeableSchedulerThreadPool);
+    // can be best effort. query sync will anyway cancel non active queries.
+    cancelExecutingFragmentsInternalHelper(queryId, pendingNodes);
     checkAndNotifyCompletionListener();
   }
 
@@ -270,62 +258,44 @@ class FragmentTracker implements AutoCloseable {
    */
   @VisibleForTesting
   void cancelExecutingFragmentsInternalHelper(QueryId queryId,
-                                              Set<NodeEndpoint> pendingNodes,
-                                              ExecutorServiceClientFactory executorServiceClientFactory,
-                                              Retryer retryer,
-                                              CloseableSchedulerThreadPool closeableSchedulerThreadPool) {
+                                              Set<NodeEndpoint> pendingNodes) {
     CancelFragments fragments = CancelFragments
       .newBuilder()
       .setQueryId(queryId)
       .build();
     for (NodeEndpoint endpoint : pendingNodes) {
-      Retryer retryerPerEndpoint = retryer.copy();
       logger.debug("sending cancellation for query {} to node {}:{}",
         QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort());
-
-      ExecutorServiceClient executorServiceClient = executorServiceClientFactory.getClientForEndpoint(endpoint);
-      CompletableFuture.runAsync(() ->
-      { cancelFragmentsHelper(executorServiceClient, fragments, endpoint, retryerPerEndpoint); },
-      closeableSchedulerThreadPool);
+      FragmentTracker.SignalListener responseObserver = getResponseObserver(endpoint, fragments);
+      cancelFragmentsHelper(fragments, endpoint, responseObserver);
     }
   }
 
   @VisibleForTesting
   SignalListener getResponseObserver(NodeEndpoint endpoint,
                                      CancelFragments fragments) {
-    return new SignalListener(endpoint, fragments, SignalListener.Signal.CANCEL);
+    return new SignalListener(endpoint, fragments);
   }
 
-  private void cancelFragmentsHelper(ExecutorServiceClient executorServiceClient,
-                             CancelFragments fragments,
+  void cancelFragmentsHelper(CancelFragments fragments,
                              NodeEndpoint endpoint,
-                             Retryer retryer) {
-    try {
-      retryer.call(() -> {
-        SignalListener responseObserver = getResponseObserver(endpoint, fragments);
-        executorServiceClient.cancelFragments(fragments, responseObserver);
-        responseObserver.await(); // wait until we get a response, before checking for exception.
-        if (responseObserver.getException() != null) {
-          throw responseObserver.getException();
-        }
-        return null;
-      });
-    }
-    catch(Retryer.OperationFailedAfterRetriesException e) {
+                             SignalListener listener) {
+    if (listener.getRetryAttempt() >= MAX_CANCEL_RETRIES) {
+      /* The query cancel is called in two places - when screen is complete due to a limit or
+         user cancels the query. In both cases we record the query as either being complete or
+         cancelled. which leads to active query sync removing it from any executor tht missed the
+         cancel request.*/
       logger.error("Retrying cancelling fragments failed for queryId:{}. Max retries reached. No more retry done.",
-        queryId, e);
-
-      // To avoid query being un-cancellable, marking query as cancelled on coordinator side.
-      // The query might still be running on executor side, which will be killed by ActiveQueryList setup.
-
-      UserBitShared.DremioPBError error = UserBitShared.DremioPBError.newBuilder()
-        .setErrorType(UserBitShared.DremioPBError.ErrorType.SYSTEM)
-        .setErrorId(UUID.randomUUID().toString())
-        .setMessage("Query cancelled because cancelling fragments failed.")
-        .setException(ErrorHelper.getWrapper(e))
-        .build();
-
-      checkAndUpdateFirstError(UserRemoteException.create(error));
+        queryId);
+      markNodeDone(endpoint);
+    } else if (!pendingNodes.contains(endpoint)) {
+      logger.info("Retrying cancelling fragments for queryId{} endpoint {} not required. Endpoint" +
+          " is not active", queryId, endpoint);
+    } else {
+      CompletableFuture.runAsync(() -> {
+        ExecutorServiceClient executorServiceClient = executorServiceClientFactory.getClientForEndpoint(endpoint);
+        executorServiceClient.cancelFragments(fragments, listener);
+      }, closeableSchedulerThreadPool);
     }
   }
 
@@ -342,7 +312,7 @@ class FragmentTracker implements AutoCloseable {
 
   // notify the completion listener on success exactly once, if there are no pending
   // nodes.
-  private void checkAndNotifyCompletionListener() {
+  private synchronized void checkAndNotifyCompletionListener() {
     if (pendingNodes.isEmpty() && !completionSuccessNotified.getAndSet(true)) {
       completionListener.succeeded();
     }
@@ -397,11 +367,11 @@ class FragmentTracker implements AutoCloseable {
   }
 
   /*
-   * This assumes that the FragmentStatusListener implementation takes action when it hears
-   * that the target fragment has acknowledged the signal. As a result, this listener doesn't do anything
-   * but log messages.
+   * Cancel fragment specific observer. Reschedules cancels on error.
+   * Caller decides the maximum number of retries and any compensating
+   * action further.
    */
-  static class SignalListener implements StreamObserver<Empty> {
+  class SignalListener implements StreamObserver<Empty> {
     @Override
     public void onNext(Empty empty) {
 
@@ -411,57 +381,44 @@ class FragmentTracker implements AutoCloseable {
     public void onError(Throwable throwable) {
       final String endpointIdentity = endpoint != null ?
               endpoint.getAddress() + ":" + endpoint.getUserPort() : "<null>";
-
       String errorMessage = new StringBuilder()
-        .append("Failure while attempting to ")
-        .append(signal)
-        .append(" fragments of query ")
+        .append("Failure while attempting to cancel fragments of query ")
         .append(QueryIdHelper.getQueryId(value.getQueryId()))
         .append(" on endpoint ")
-        .append(endpointIdentity)
-        .append(" with exception:")
+        .append(endpointIdentity + ".")
         .toString();
 
-      logger.error(errorMessage, throwable);
-      exception = Status.INTERNAL.withDescription(errorMessage + throwable.getMessage())
-                                 .asRuntimeException();
-      latch.countDown();
+      logger.warn(errorMessage, throwable);
+      // if rendezvous has already retried the cancel rpc; ignore;
+      if (!(throwable instanceof Retryer.OperationFailedAfterRetriesException)) {
+        retryAttempt++;
+        closeableSchedulerThreadPool.schedule( () -> cancelFragmentsHelper(value, endpoint, this),
+          retryAttempt, TimeUnit.SECONDS);
+      }
     }
 
     @Override
     public void onCompleted() {
-      latch.countDown();
+      completed.set(true);
     }
 
-    /**
-     * An enum of possible signals that {@link SignalListener} listens to.
-     */
-    public enum Signal {
-      CANCEL, UNPAUSE
-    }
-
-    private final Signal signal;
     private final NodeEndpoint endpoint;
     private final CancelFragments value;
-    private final CountDownLatch latch;
-    private StatusRuntimeException exception;
+    private AtomicBoolean completed = new AtomicBoolean(false);
+    private int retryAttempt;
 
-    SignalListener(final NodeEndpoint endpoint, CancelFragments fragments, final Signal signal) {
-      this.signal = signal;
+    public int getRetryAttempt() {
+      return retryAttempt;
+    }
+
+    public boolean isCompleted() {
+      return completed.get();
+    }
+
+    SignalListener(final NodeEndpoint endpoint, CancelFragments fragments) {
       this.endpoint = endpoint;
       this.value = fragments;
-      this.latch = new CountDownLatch(1);
-    }
-
-    public StatusRuntimeException getException() {
-      return exception;
-    }
-
-    public void await() throws InterruptedException, TimeoutException {
-      boolean done = latch.await(5, TimeUnit.SECONDS);
-      if (!done) {
-        throw new TimeoutException("Timed out waiting for cancel to complete.");
-      }
+      this.retryAttempt = 0;
     }
   }
 }

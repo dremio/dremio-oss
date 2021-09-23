@@ -506,6 +506,7 @@ public class SabotNode implements AutoCloseable {
 
         final NessieService nessieService = new NessieService(
           registry.provider(KVStoreProvider.class),
+          registry.provider(OptionManager.class),
           config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN),
           config.getInt(DremioConfig.NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES)
         );

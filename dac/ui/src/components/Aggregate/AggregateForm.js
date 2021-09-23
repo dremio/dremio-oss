@@ -151,7 +151,7 @@ class AggregateForm extends Component {
   };
 
   render() {
-    const {style, dataset, fields, values, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure, contentStyle, columns, canAlter, className } = this.props;
+    const {style, dataset, fields, values, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure, columns, canAlter, className } = this.props;
     return (
       <div className={classNames('aggregate-form', base, className)} style={style}>
         <AggregateHeader
@@ -164,7 +164,6 @@ class AggregateForm extends Component {
           values={values}
           canSelectMeasure={canSelectMeasure}
           canUseFieldAsBothDimensionAndMeasure={canUseFieldAsBothDimensionAndMeasure}
-          style={contentStyle}
           handleDragStart={this.onDragStart}
           onDragEnd={this.stopDrag}
           onDrop={this.handleDrop}

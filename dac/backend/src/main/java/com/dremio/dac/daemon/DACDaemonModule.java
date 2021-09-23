@@ -1211,12 +1211,13 @@ public class DACDaemonModule implements DACModule {
 
     if (isMaster && config.getBoolean(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN)) {
       final boolean inMemoryBackend = config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN);
-      final int kvStoreMaxCommitRetries = config.getInt(DremioConfig.NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES);
+      final int defaultKvStoreMaxCommitRetries = config.getInt(DremioConfig.NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES);
 
       final NessieService nessieService = new NessieService(
         registry.provider(KVStoreProvider.class),
+        registry.provider(OptionManager.class),
         inMemoryBackend,
-        kvStoreMaxCommitRetries
+        defaultKvStoreMaxCommitRetries
       );
       nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
       registry.bindSelf(nessieService);

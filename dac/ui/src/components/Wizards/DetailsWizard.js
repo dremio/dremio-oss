@@ -64,7 +64,8 @@ export class DetailsWizard extends PureComponent {
     recommendedJoinsViewState: PropTypes.instanceOf(Immutable.Map),
     joinTableViewState: PropTypes.instanceOf(Immutable.Map),
     dragType: PropTypes.string,
-    exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired
+    exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
+    canSelect: PropTypes.any
   };
 
   static contextTypes = {
@@ -203,6 +204,7 @@ export class DetailsWizard extends PureComponent {
 
   renderContent() {
     const { columnName, columnType, props } = this.props.location.state || {};
+    const { canSelect } = this.props;
     const defaultProps = {
       submit: this.submit,
       changeFormType: this.handleFormTypeChange,
@@ -222,6 +224,7 @@ export class DetailsWizard extends PureComponent {
         recommendedJoins={this.props.recommendedJoins}
         activeRecommendedJoin={this.props.activeRecommendedJoin}
         location={location}
+        canSelect={canSelect}
         {...defaultProps}/>;
     case 'CONVERT_CASE':
       return <ConvertTrimContent
@@ -260,6 +263,7 @@ export class DetailsWizard extends PureComponent {
       return <GroupByController
         dataset={this.props.dataset}
         columns={this.props.tableData.get('columns')}
+        canSelect={canSelect}
         {...defaultProps}/>;
     case 'transform':
       return <TransformContent

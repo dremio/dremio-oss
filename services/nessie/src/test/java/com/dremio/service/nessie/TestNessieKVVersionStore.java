@@ -20,7 +20,9 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -29,6 +31,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.hamcrest.Matchers;
@@ -64,6 +68,7 @@ import org.projectnessie.versioned.VersionStoreException;
 import org.projectnessie.versioned.WithHash;
 import org.projectnessie.versioned.tests.CommitBuilder;
 
+import com.dremio.common.util.Retryer;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.ImmutableDocument;
@@ -100,7 +105,7 @@ public class TestNessieKVVersionStore {
       .valueSerializer(storeWorker.getValueSerializer())
       .metadataSerializer(storeWorker.getMetadataSerializer())
       .defaultBranchName(NessieConfig.NESSIE_DEFAULT_BRANCH)
-      .maxCommitRetries(4)
+      .maxCommitRetriesSupplier(() -> 4)
       .build();
   }
 
@@ -120,7 +125,7 @@ public class TestNessieKVVersionStore {
       .valueSerializer(storeWorker.getValueSerializer())
       .metadataSerializer(storeWorker.getMetadataSerializer())
       .defaultBranchName(NessieConfig.NESSIE_DEFAULT_BRANCH)
-      .maxCommitRetries(4)
+      .maxCommitRetriesSupplier(() -> 4)
       .build();
   }
 
@@ -710,6 +715,32 @@ public class TestNessieKVVersionStore {
     //assertThat(store().toRef(initialCommit.asString()), is(WithHash.of(initialCommit, initialCommit)));
     assertThrows(ReferenceNotFoundException.class, () -> store().toRef("unknown-ref"));
     assertThrows(ReferenceNotFoundException.class, () -> store().toRef("1234567890abcdef"));
+  }
+
+  @Test
+  public void dynamicMaxRetries() {
+    final KVStore<Hash, NessieCommit> commitStore = localKVStoreProvider.getStore(NessieCommitKVStoreBuilder.class);
+    final KVStore<NamedRef, Hash> namedRefStore = localKVStoreProvider.getStore(NessieRefKVStoreBuilder.class);
+
+    final AtomicInteger mutableLimit = new AtomicInteger(1);
+    final Supplier<Integer> dummyRetryLimitSupplier = () -> mutableLimit.get();
+    final NessieKVVersionStore testStore = NessieKVVersionStore.builder()
+      .commits(commitStore)
+      .namedReferences(namedRefStore)
+      .valueSerializer(storeWorker.getValueSerializer())
+      .metadataSerializer(storeWorker.getMetadataSerializer())
+      .defaultBranchName(NessieConfig.NESSIE_DEFAULT_BRANCH)
+      .maxCommitRetriesSupplier(dummyRetryLimitSupplier)
+      .build();
+
+    final Retryer<Void> firstRetryer = testStore.getRetrySupplier().get();
+    assertEquals(1, firstRetryer.getMaxRetries());
+
+    mutableLimit.set(2);
+    final Retryer<Void> secondRetryer = testStore.getRetrySupplier().get();
+    assertTrue(firstRetryer != secondRetryer);
+    assertEquals(2, secondRetryer.getMaxRetries());
+    assertEquals(1, firstRetryer.getMaxRetries());
   }
 
   protected CommitBuilder<Contents, CommitMeta> forceCommit(String message) {

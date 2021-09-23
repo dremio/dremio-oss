@@ -152,18 +152,24 @@ public class Dataset implements CatalogEntity {
     private final Long refreshPeriodMs;
     private final Long gracePeriodMs;
     private final RefreshMethod method;
+    private final Boolean neverExpire;
+    private final Boolean neverRefresh;
 
     @JsonCreator
     public RefreshSettings(
       @JsonProperty("refreshField") String refreshField,
       @JsonProperty("refreshPeriodMs") Long refreshPeriodMs,
       @JsonProperty("gracePeriodMs") Long gracePeriodMs,
-      @JsonProperty("method") RefreshMethod method
+      @JsonProperty("method") RefreshMethod method,
+      @JsonProperty("neverExpire") Boolean neverExpire,
+      @JsonProperty("neverRefresh") Boolean neverRefresh
     ) {
       this.refreshField = refreshField;
       this.refreshPeriodMs = refreshPeriodMs;
       this.gracePeriodMs = gracePeriodMs;
       this.method = method;
+      this.neverExpire = neverExpire;
+      this.neverRefresh = neverRefresh;
     }
 
     public RefreshSettings(AccelerationSettings settings) {
@@ -171,6 +177,8 @@ public class Dataset implements CatalogEntity {
       method = settings.getMethod();
       refreshPeriodMs = settings.getRefreshPeriod();
       gracePeriodMs = settings.getGracePeriod();
+      neverExpire = settings.getNeverExpire();
+      neverRefresh = settings.getNeverRefresh();
     }
 
     public String getRefreshField() {
@@ -189,6 +197,14 @@ public class Dataset implements CatalogEntity {
       return method;
     }
 
+    public Boolean getNeverExpire() {
+      return neverExpire;
+    }
+
+    public Boolean getNeverRefresh() {
+      return neverRefresh;
+    }
+
     public AccelerationSettings toAccelerationSettings() {
       AccelerationSettings settings = new AccelerationSettings();
 
@@ -196,6 +212,8 @@ public class Dataset implements CatalogEntity {
       settings.setGracePeriod(getGracePeriodMs());
       settings.setMethod(getMethod());
       settings.setRefreshField(getRefreshField());
+      settings.setNeverRefresh(getNeverRefresh());
+      settings.setNeverExpire(getNeverExpire());
 
       return settings;
     }

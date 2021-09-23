@@ -28,31 +28,28 @@ import { add, base, center, left, right } from '@app/uiTheme/less/Aggregate/Aggr
 @AggregateFooterMixin
 class AggregateFooter extends PureComponent {
   static propTypes = {
-    addAnother: PropTypes.func,
-    style: PropTypes.object
+    addAnother: PropTypes.func
   };
 
   render() {
     const conditionalRenderingOfButton = this.checkToRenderFooter();
     return (
-      <div>
-        <div className={classNames('aggregate-Footer', base)}>
-          <div className={left}></div>
-          <div className={center}>
-            <div className={conditionalRenderingOfButton ? add : displayNone}
-              data-qa='add-dimension'
-              onClick={this.props.addAnother.bind(this, 'dimensions')}> {/* todo: ax, consistency: button */}
-              <FontIcon type='Add' hoverType='AddHover'/>
-              <span>{la('Add a Dimension')}</span>
-            </div>
+      <div className={classNames('aggregate-Footer', base)}>
+        <div className={left}></div>
+        <div className={center}>
+          <div className={conditionalRenderingOfButton ? add : displayNone}
+            data-qa='add-dimension'
+            onClick={this.props.addAnother.bind(this, 'dimensions')}> {/* todo: ax, consistency: button */}
+            <FontIcon type='Add' hoverType='AddHover'/>
+            <span>{la('Add a Dimension')}</span>
           </div>
-          <div className={right}>
-            <div className={conditionalRenderingOfButton ? add : displayNone}
-              data-qa='add-measure'
-              onClick={this.props.addAnother.bind(this, 'measures')}> {/* todo: ax, consistency: button */}
-              <FontIcon type='Add' hoverType='AddHover'/>
-              <span>{la('Add a Measure')}</span>
-            </div>
+        </div>
+        <div className={right}>
+          <div className={conditionalRenderingOfButton ? add : displayNone}
+            data-qa='add-measure'
+            onClick={this.props.addAnother.bind(this, 'measures')}> {/* todo: ax, consistency: button */}
+            <FontIcon type='Add' hoverType='AddHover'/>
+            <span>{la('Add a Measure')}</span>
           </div>
         </div>
       </div>

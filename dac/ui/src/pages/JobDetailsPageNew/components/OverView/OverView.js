@@ -117,6 +117,7 @@ const OverView = (props) => {
         <HelpSection
           jobId={jobId}
           downloadFile={() => downloadJobProfile(VIEW_ID, jobId)}
+          className='helpSectionQvlogo'
         />
       </div>
       <div className='overview__righSidePanel'>
@@ -137,7 +138,6 @@ const OverView = (props) => {
           reflectionsUsed={jobDetails.get('reflectionsUsed')}
           reflectionsNotUsed={jobDetails.get('reflectionsMatched')}
           isAcceleration={jobDetails.get('accelerated')}
-          isStarFlakeAccelerated={jobDetails.get('starFlakeAccelerated')}
         />
       </div>
     </div>

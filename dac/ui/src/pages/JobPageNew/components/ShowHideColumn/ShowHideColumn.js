@@ -54,7 +54,7 @@ const ShowHideColumn = ({
   const filterColumnUnSelect = (item) => {
     const unSelectedColumn = localStorageUtils.getJobColumns()
       .map(column => {
-        if (column.key === item) {
+        if (column.key === item && item !== 'reflection') {
           column.isSelected = false;
           return column;
         }
@@ -82,6 +82,7 @@ const ShowHideColumn = ({
   };
 
   const getColumnFilterData = () => {
+    //for 18.1.0 release only need to be changed in the next update Ticket Number DX-37189
     const filteredColumnsData = localStorageUtils.getJobColumns()
       ?
       localStorageUtils.getJobColumns().filter(item => item.key !== 'jobStatus')

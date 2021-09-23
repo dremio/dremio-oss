@@ -80,6 +80,9 @@ const JobPage = (props) => {
       }
       setSelectedJobId(null);
     }
+    if (!(location.query.order && location.query.sort)) {
+      setSelectedJobId(null);
+    }
   }, [location]);
 
   const handleCluster = async () => {

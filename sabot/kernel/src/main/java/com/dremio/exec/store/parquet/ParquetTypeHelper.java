@@ -224,7 +224,7 @@ public class ParquetTypeHelper {
         Type type = complexField.getType(0);
         Optional<Field> subField = toField(type, schemaHelper);
         if (complexField.isRepetition(REPEATED)) {
-          subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
+          subField = subField.map(sf -> new Field("$data$", true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
           return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
         } else {
           return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
@@ -246,9 +246,16 @@ public class ParquetTypeHelper {
       }
 
       Optional<Field> subField = toField(repeatedField, schemaHelper,true);
-      subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
-      subField = subField.map(sf -> new Field(repeatedField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
-      return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+      if (complexField.isRepetition(REPEATED)) {
+        subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
+        subField = subField.map(sf -> new Field(repeatedField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+        subField = subField.map(sf -> new Field("$data$", true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+        return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+      } else {
+        subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
+        subField = subField.map(sf -> new Field(repeatedField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+        return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+      }
     }
 
     final boolean isStructType = complexField.getOriginalType() == null || convertToStruct;
@@ -276,7 +283,8 @@ public class ParquetTypeHelper {
       && OriginalType.MAP_KEY_VALUE != complexField.getOriginalType()
       && OriginalType.MAP != complexField.getOriginalType()
       && OriginalType.LIST != complexField.getOriginalType()) {
-      return Optional.of(new Field(field.getName(), false, new ArrowType.List(), Arrays.asList(field)));
+      Field listChild = new Field("$data$", true, field.getType(), field.getChildren());
+      return Optional.of(new Field(field.getName(), true, new ArrowType.List(), Arrays.asList(listChild)));
     }
     return Optional.of(field);
   }

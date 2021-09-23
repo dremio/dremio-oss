@@ -86,9 +86,10 @@ export const SQL = ({
       </div>
       <div className={sqlClass}>
         <SqlEditor
+          height={190}
           readOnly
           value={sqlString}
-          fitHeightToContent
+          fitHeightToContent={false}
           maxHeight={190}
           contextMenu={false}
           customTheme

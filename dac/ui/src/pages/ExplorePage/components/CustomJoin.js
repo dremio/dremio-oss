@@ -35,7 +35,8 @@ export default class CustomJoin extends Component {
     leftColumns: PropTypes.object,
     rightColumns: PropTypes.object,
     style: PropTypes.object,
-    clearJoinDataset: PropTypes.func
+    clearJoinDataset: PropTypes.func,
+    canSelect: PropTypes.any
   };
 
   static contextTypes = {
@@ -76,15 +77,26 @@ export default class CustomJoin extends Component {
   }
 
   renderJoinCustomTable() {
+    const {
+      dataset,
+      location,
+      fields,
+      rightColumns,
+      leftColumns,
+      style,
+      canSelect
+    } = this.props;
+
     return (
-      this.props.rightColumns.size !== 0 && (
+      rightColumns.size !== 0 && (
         <InnerJoinController
-          dataset={this.props.dataset}
-          location={this.props.location}
-          fields={this.props.fields}
-          rightColumns={this.props.rightColumns}
-          leftColumns={this.props.leftColumns}
-          style={this.props.style}
+          dataset={dataset}
+          location={location}
+          fields={fields}
+          rightColumns={rightColumns}
+          leftColumns={leftColumns}
+          style={style}
+          canSelect={canSelect}
         />
       )
     );

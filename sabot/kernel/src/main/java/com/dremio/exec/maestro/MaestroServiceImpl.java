@@ -117,7 +117,8 @@ public class MaestroServiceImpl implements MaestroService {
     this.jobTelemetryClient = jobTelemetryClient;
     this.forwarder = forwarder;
 
-    this.closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-",1);
+    this.closeableSchedulerThreadPool = new CloseableSchedulerThreadPool("cancel-fragment-retry-"
+      ,Runtime.getRuntime().availableProcessors() * 2);
   }
 
   @Override

@@ -91,6 +91,7 @@ export default class DragColumnMenu extends PureComponent {
   renderColumn = ({ index, key, style }) => {
     const column = this.filteredSortedColumns.get(index);
     const isUserAnAdmin = localStorageUtils.isUserAnAdmin();
+    const { canAlter } = this.props;
     return <div key={key} style={style}>
       <ColumnMenuItem
         item={column}
@@ -101,7 +102,7 @@ export default class DragColumnMenu extends PureComponent {
         onDragEnd={this.props.onDragEnd}
         name={this.props.name}
         dragType={this.props.dragType}
-        preventDrag={!(isUserAnAdmin || this.props.canAlter)}
+        preventDrag={!(isUserAnAdmin || canAlter)}
         className={rowMargin}
       />
     </div>;

@@ -33,14 +33,13 @@ const Reflection = (props) => {
     intl: {
       formatMessage
     },
-    isAcceleration,
-    isStarFlakeAccelerated
+    isAcceleration
   } = props;
 
   const getReflectionIcon = (isStarFlake, reflectionType, isReflectionUsed) => {
-    if (isStarFlakeAccelerated) {
-      const starflakeIcon = isStarFlake ? 'StarflakeUsed.svg' : 'StarflakeNotUsed.svg';
-      const starflakeClassName = isStarFlake ? 'reflectionIcon' : 'starflakeNotUsed';
+    if (isStarFlake) {
+      const starflakeIcon = isReflectionUsed ? 'StarflakeUsed.svg' : 'StarflakeNotUsed.svg';
+      const starflakeClassName = isReflectionUsed ? 'starflakeUsed' : 'starflakeNotUsed';
       return renderIcon(starflakeIcon, starflakeClassName);
     } else if (isReflectionUsed) {
       const reflectionUsedIcon = reflectionType === 'RAW'
@@ -160,7 +159,6 @@ Reflection.propTypes = {
   intl: PropTypes.object.isRequired,
   reflectionsUsed: PropTypes.instanceOf(Immutable.List),
   reflectionsNotUsed: PropTypes.instanceOf(Immutable.List),
-  isAcceleration: PropTypes.bool,
-  isStarFlakeAccelerated: PropTypes.bool
+  isAcceleration: PropTypes.bool
 };
 export default injectIntl(Reflection);

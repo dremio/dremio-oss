@@ -413,6 +413,7 @@ public final class JobsServiceUtil {
       .setAttemptsList(getAttempts(request))
       .setCompleted(request.getJobState() == com.dremio.service.job.JobState.COMPLETED);
   }
+
   static JobSummary toJobSummary(Job job) {
 
     final JobAttempt firstJobAttempt = job.getAttempts().get(0);
@@ -425,6 +426,14 @@ public final class JobsServiceUtil {
         stateList = new ArrayList<>();
       } else {
         stateList = new ArrayList<>(lastJobAttempt.getStateListList());
+      }
+    }
+    final List<com.dremio.service.job.proto.JobProtobuf.ParentDatasetInfo> parentsList;
+    synchronized (lastJobAttemptInfo) {
+      if (lastJobAttemptInfo.getParentsList() == null) {
+        parentsList = new ArrayList<>();
+      } else {
+        parentsList = JobsProtoUtil.toBufParentDatasetInfoList(lastJobAttemptInfo.getParentsList());
       }
     }
 
@@ -443,6 +452,42 @@ public final class JobsServiceUtil {
       .setSql(lastJobAttemptInfo.getSql())
       .setNumAttempts(job.getAttempts().size())
       .setRecordCount(job.getRecordCount());
+
+    if(lastJobAttemptInfo.getParentsList() != null && lastJobAttemptInfo.getParentsList().size() > 0) {
+      jobSummaryBuilder.addAllParents(parentsList);
+    }
+
+    if (lastJobAttempt.getStats() != null && lastJobAttempt.getStats().getInputRecords() != null) {
+      jobSummaryBuilder.setInputRecords(lastJobAttempt.getStats().getInputRecords());
+    }
+
+    if (lastJobAttemptInfo.getResourceSchedulingInfo() != null && lastJobAttemptInfo.getResourceSchedulingInfo().getQueueName() != null) {
+      jobSummaryBuilder.setQueueName(lastJobAttemptInfo.getResourceSchedulingInfo().getQueueName());
+    }
+
+    if (lastJobAttemptInfo.getOriginalCost() != null) {
+      jobSummaryBuilder.setOriginalCost(lastJobAttemptInfo.getOriginalCost());
+    }
+
+    if (lastJobAttemptInfo.getResourceSchedulingInfo() != null && lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName() != null) {
+      jobSummaryBuilder.setEngine(lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName());
+    }
+
+    if (lastJobAttemptInfo.getResourceSchedulingInfo() != null && lastJobAttemptInfo.getResourceSchedulingInfo().getSubEngine() != null) {
+      jobSummaryBuilder.setSubEngine(lastJobAttemptInfo.getResourceSchedulingInfo().getSubEngine());
+    }
+
+    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getWaitInClient() != null) {
+      jobSummaryBuilder.setWaitInclient(lastJobAttempt.getDetails().getWaitInClient());
+    }
+
+    if (lastJobAttempt.getStats() != null && lastJobAttempt.getStats().getInputBytes() != null) {
+      jobSummaryBuilder.setInputBytes(lastJobAttempt.getStats().getInputBytes());
+    }
+
+    if (lastJobAttempt.getStats() != null && lastJobAttempt.getStats().getOutputBytes() != null) {
+      jobSummaryBuilder.setOutputBytes(lastJobAttempt.getStats().getOutputBytes());
+    }
 
     if (lastJobAttempt.getStats() != null && lastJobAttempt.getStats().getIsOutputLimited() != null) {
       jobSummaryBuilder.setOutputLimited(lastJobAttempt.getStats().getIsOutputLimited());

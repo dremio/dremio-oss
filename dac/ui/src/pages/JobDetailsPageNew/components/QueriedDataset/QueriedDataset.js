@@ -16,13 +16,24 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
-import FontIcon from 'components/Icon/FontIcon';
+import DatasetItemLabel from '@app/components/Dataset/DatasetItemLabel';
 import { Label } from 'dremio-ui-lib';
 import Immutable from 'immutable';
 import Art from '@app/components/Art';
 import { getIconByEntityType } from 'utils/iconUtils';
 import './QueriedDataset.less';
 
+const ShowOverlay = (datasetType) => {
+  switch (datasetType) {
+  case 'OTHERS':
+  case 'Unavailable':
+  case 'Catalog':
+  case 'INVALID_DATASET_TYPE':
+    return false;
+  default:
+    return true;
+  }
+};
 const MAX_ITEMS = 3;
 const QueriedDataset = ({ queriedDataSet, intl }) => {
   const [showMore, setShowMore] = useState(false);
@@ -40,10 +51,12 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
       <div className='queriedDataset-dataWrapper'>
         {getRenderedItems().map((dataset, index) => {
           return (<div className='queriedDataset-dataWrapper__wrapper' key={`queriedDataset-${index}`}>
-            <FontIcon
-              type={getIconByEntityType(dataset.get('datasetType'))}
-              iconClassName='queriedDataset-dataWrapper__wrapper__datasetType'
-              iconStyle={{ height: '28px', width: '26px' }}
+            <DatasetItemLabel
+              name=' '
+              typeIcon={getIconByEntityType(dataset.get('datasetType'))}
+              style={{ width: '4%' }}
+              fullPath={dataset.get('datasetPathsList')}
+              shouldShowOverlay={ShowOverlay(dataset.get('datasetType'))}
             />
             <span className='queriedDataset-dataWrapper__wrapper__dataHeader'>
               <Label

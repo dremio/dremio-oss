@@ -62,7 +62,8 @@ export class HelpSection extends PureComponent {
     downloadViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     clusterType: PropTypes.string,
     addNotification: PropTypes.func,
-    isSupport: PropTypes.bool
+    isSupport: PropTypes.bool,
+    className: PropTypes.string
   };
 
   static contextTypes = {
@@ -133,7 +134,7 @@ export class HelpSection extends PureComponent {
 
   render() {
     const buttons = this.getButtons();
-    const { intl } = this.props;
+    const { intl, className } = this.props;
     if (!buttons.size) return null;
     let message = MESSAGES.download;
     if (buttons.has('chat') && buttons.has('email')) {
@@ -154,7 +155,7 @@ export class HelpSection extends PureComponent {
           <div className='helpSection__quoteMessage'>{message}</div>
           <div children={buttons.toArray()} className='helpSection__buttons' />
         </div>
-        <div className={classNames('helpSection__dremioLogo')}>
+        <div className={classNames('helpSection__dremioLogo', className)}>
           <Art src='GnarlySeaCloud.svg' alt='icon' title='icon' />
         </div>
       </div>

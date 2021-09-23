@@ -79,7 +79,10 @@ export class JoinController extends Component {
     loadRecommendedJoin: PropTypes.func,
     setJoinTab: PropTypes.func,
     resetJoins: PropTypes.func,
-    setJoinStep: PropTypes.func
+    setJoinStep: PropTypes.func,
+
+    // permissions
+    canSelect: PropTypes.any
   };
 
   static contextTypes = {
@@ -220,7 +223,7 @@ export class JoinController extends Component {
   }
 
   renderTab() {
-    const { dataset, joinTab } = this.props;
+    const { dataset, joinTab, canSelect } = this.props;
     const datasetName = dataset && dataset.get('displayFullPath').last();
     const viewStateWrapperStyle = this.props.viewState.get('isInProgress')
       ? { position: 'relative' } : {};
@@ -246,6 +249,7 @@ export class JoinController extends Component {
           rightColumns={this.props.rightColumns}
           leftColumns={this.props.leftColumns}
           style={{flex: 1}}
+          canSelect={canSelect}
         />}
       </ViewStateWrapper>
     );

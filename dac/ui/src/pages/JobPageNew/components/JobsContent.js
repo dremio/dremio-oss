@@ -27,6 +27,7 @@ import JobsContentMixin, {
   MIN_LEFT_PANEL_WIDTH,
   SEPARATOR_WIDTH
 } from '@app/pages/JobPage/components/JobsContentMixin';
+import { additionalColumnName } from '@inject/pages/JobPageNew/AdditionalJobPageColumns';
 // import JobTable from '@app/pages/JobPage/components/JobsTable/JobTable';
 import JobsFilters from '@app/pages/JobPage/components/JobsFilters/JobsFilters';
 import JobStateIcon from '@app/pages/JobPage/components/JobStateIcon';
@@ -39,6 +40,7 @@ import DatasetCell from './DatasetCell';
 import SQLCell from './SQLCell';
 import DurationCell from './DurationCell';
 import ColumnCell from './ColumnCell';
+import ReflectionIcon, { getReflectionIcon } from './ReflectionIcon';
 import 'react-virtualized/styles.css';
 
 // export this for calculate min width of table tr in JobTable.js
@@ -103,6 +105,12 @@ export default class JobsContent extends PureComponent {
     TableColumns.forEach(item => columnsObject[item.key] = columnsObject[item.key] ? columnsObject[item.key] + 1 : 1);
     const existingColumns = Object.keys(columnsObject).filter((col) => columnsObject[col] > 1);
     if (existingColumns.length === TableColumns.length) {
+      //for 18.1.0 release only need to be changed in the next update Ticket Number DX-37189
+      const reflectionIndex = localStorageColumns.findIndex(item => item.key === 'reflection');
+      if (reflectionIndex >= 0) {
+        localStorageColumns[reflectionIndex].isSelected = true;
+        localStorageUtils.setJobColumns(localStorageColumns);
+      }
       selectedColumnsData = localStorageUtils.getJobColumns()
         ?
         localStorageUtils.getJobColumns().filter(item => columnsObject[item.key] > 1 && item.isSelected)
@@ -200,6 +208,7 @@ export default class JobsContent extends PureComponent {
     const renderJobStatus = (jobState) => <JobStateIcon state={jobState} />;
     const renderSQL = (sql) => <SQLCell sql={sql} />;
     const renderDataset = (job) => <DatasetCell job={job} />;
+    const renderIcon = (isAcceleration) => <ReflectionIcon isAcceleration={isAcceleration} />;
     const renderDuration = (
       duration,
       durationDetails,
@@ -222,16 +231,17 @@ export default class JobsContent extends PureComponent {
         const formattedCost = jobsUtils.getFormattedNumber(job.get('plannerEstimatedCost'));
         const formattedRowsScanned = jobsUtils.getFormattedNumber(job.get('rowsScanned'));
         const formattedRowsReturned = jobsUtils.getFormattedNumber(job.get('rowsReturned'));
+        const getColumnName = additionalColumnName(job);
 
         return {
           data: {
             jobStatus: { node: () => renderJobStatus(job.get('state')), value: job.get('state') },
             job: { node: () => renderColumn(job.get('id')), value: job.get('id') },
             usr: { node: () => renderColumn(job.get('queryUser')), value: job.get('queryUser') },
+            reflection: { node: () => renderIcon(job.get('accelerated')), value: renderIcon(job.get('accelerated')) },
             ds: { node: () => renderDataset(job, index), value: job },
             qt: { node: () => renderColumn(intl.formatMessage({ id: getFormatMessageIdForQueryType(job) })), value: job.get('queryType') },
-            // engine: { node: () => renderColumn(job.get('engine')), value: job.get('engine') },
-            qn: { node: () => renderColumn(job.get('wlmQueue')), value: job.get('wlmQueue') },
+            ...(getColumnName[0]),
             st: { node: () => renderColumn(timeUtils.formatTime(job.get('startTime')), false), value: timeUtils.formatTime(job.get('startTime')) },
             dur: {
               node: () => renderDuration(jobDuration, durationDetails, job.get('accelerated'), job.get('spilled')),
@@ -279,6 +289,7 @@ export default class JobsContent extends PureComponent {
           loadNextRecords={loadNextJobs}
           sortRecords={this.sortJobsByColumn}
           noDataText={intl.formatMessage({ id: 'Job.NoJobs' })}
+          showIconHeaders={{ reflection: { node: getReflectionIcon } }}
         />
       </div>
     );
