@@ -325,8 +325,8 @@ public class ConditionalFieldBufferCopier6 {
         if(batchIndex != SKIP){
           final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
           transfer[batchIndex].copyValueSafe(batchOffset, target);
-          target++;
         }
+        target++;
       }
     }
 
