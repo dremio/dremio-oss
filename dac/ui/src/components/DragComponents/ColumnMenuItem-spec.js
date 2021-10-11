@@ -36,7 +36,7 @@ describe('ColumnMenuItem', () => {
   it('should render DragSource with preventDrag undefined, .column-draggable-icon if preventDrag is undefined', () => {
     const wrapper = shallow(<ColumnMenuItem {...minimalProps}/>);
     expect(wrapper.find(DragSource).prop('preventDrag')).to.be.undefined;
-    expect(wrapper.find({ class: 'column-draggable-icon' })).to.have.length(1);
+    expect(wrapper.find({ class: 'column-draggable-icon' })).to.have.length(0); // DX-37793: This currently built with wrong icon. Correct icon has not been designed yet.
   });
 
   it('should render DragSource with preventDrag true and not render .column-draggable-icon if preventDrag is true', () => {

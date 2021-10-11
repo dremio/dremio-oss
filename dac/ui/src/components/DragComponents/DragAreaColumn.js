@@ -226,11 +226,11 @@ export class DragAreaColumn extends Component {
       <div className={preventDrag ? disabledContent : content} key='custom-content'>
         <FontIcon type={typeToIconType[selectedColumn.get('type')]} key='custom-type' theme={styles.type}/>
         <EllipsedText style={styles.name} text={field.value} title={preventDrag ? formatMessage({ id: 'Read.Only'}) : field.value} />
-        {
+        {/* {
           !preventDrag ?
             <FontIcon type={'DropdownEnabled'} key='draggable' theme={styles.type}/>
             : null
-        }
+        } */}
       </div>
     );
   }

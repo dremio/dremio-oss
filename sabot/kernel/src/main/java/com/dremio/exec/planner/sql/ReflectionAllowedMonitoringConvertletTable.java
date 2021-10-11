@@ -54,7 +54,7 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
     if(operator.isDynamicFunction() || !operator.isDeterministic()) {
       planCacheable = false;
     }
-    if (operator.isDynamicFunction() && !WHITELIST.contains(operator)) {
+    if (operator.isDynamicFunction() && (!WHITELIST.contains(operator) && !operator.getName().equals("NOW"))) {
         contextSensitive = true;
     }
     return delegate.get(call);

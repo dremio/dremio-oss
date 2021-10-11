@@ -23,7 +23,7 @@
   <!-- This file doesn't use dremio parent to avoid circular dependencies -->
   <groupId>com.dremio.tools</groupId>
   <artifactId>dremio-build-tools</artifactId>
-  <version>18.1.0-202109222258120166-963adceb</version>
+  <version>18.2.0-202110081842420694-7e500f14</version>
   <packaging>jar</packaging>
   <name>Tools - Build tools</name>
 </project>

@@ -59,7 +59,7 @@ class ColumnMenuItem extends PureComponent {
     }
   }
 
-  renderDraggableIcon() {
+  renderDraggableIcon() { // DX-37793: This currently built with wrong icon. Correct icon has not been designed yet.
     return !this.props.preventDrag && !this.props.disabled ?
       (
         <div style={{position: 'relative', width: 0, height: 0}}>
@@ -132,7 +132,7 @@ class ColumnMenuItem extends PureComponent {
               // need to add a empty placeholder for partition icon to keep alignment
               item.get('isSorted') && !item.get('isPartitioned') && <div className={iconCls}></div>
             }
-            {this.renderDraggableIcon()}
+            {/* {this.renderDraggableIcon()} */} {/* DX-37793: This currently built with wrong icon. Correct icon has not been designed yet. */}
           </div>
         </DragSource>
       </div>

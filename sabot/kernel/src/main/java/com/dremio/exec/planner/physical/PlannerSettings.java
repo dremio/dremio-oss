@@ -141,7 +141,8 @@ public class PlannerSettings implements Context{
   // if num of records for the fragment is greater than this.
   public static final Long MIN_RECORDS_PER_FRAGMENT  = 500L;
 
-  public static final int MAX_CNF_NODE_COUNT  = 18;
+  // -1 is unlimited
+  public static final LongValidator MAX_CNF_NODE_COUNT = new PositiveLongValidator("planner.max_cnf_node_count", Integer.MAX_VALUE, 25);
 
   public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
 
@@ -586,6 +587,10 @@ public class PlannerSettings implements Context{
 
   public long getBroadcastThreshold() {
     return options.getOption(BROADCAST_THRESHOLD);
+  }
+
+  public long getMaxCnfNodeCount() {
+    return options.getOption(MAX_CNF_NODE_COUNT);
   }
 
   public void setMinimumSampleSize(long sampleSize) {

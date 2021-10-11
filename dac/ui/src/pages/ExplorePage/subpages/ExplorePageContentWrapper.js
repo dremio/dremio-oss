@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent } from 'react';
-import Immutable from 'immutable';
+import Immutable, { Map } from 'immutable';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
@@ -258,7 +258,7 @@ export default connect((state, { location }) => {
   // RBAC needs the permissions sent to the Acceleration components and passed down, in case any component along the way needs to be able to alter reflections
   const permissions = state.resources.entities.get('datasetUI')
   && state.resources.entities.get('datasetUI').first()
-  && state.resources.entities.get('datasetUI').first().get('permissions');
+  && (Map.isMap(state.resources.entities.get('datasetUI').first()) && state.resources.entities.get('datasetUI').first().get('permissions'));
   return ({
     canSelect: permissions && permissions.get('canSelect'),
     entityId: getDatasetEntityId(state, location),

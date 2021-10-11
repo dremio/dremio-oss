@@ -82,13 +82,15 @@ public class AddFilterWindowBelowExchangeRule extends RelOptRule {
     return plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_SORT_ROUND_ROBIN)
       && !exchange.isWindowPushedDown()
       && checkWindow(window)
-      && checkFilter(filter, sort.getRowType().getFieldCount(), window.getRowType().getFieldCount());
+      && checkFilter(filter, sort.getRowType().getFieldCount(),
+      window.getRowType().getFieldCount(), (int) plannerSettings.getMaxCnfNodeCount());
   }
 
-  private boolean checkFilter(FilterPrel filterPrel, int incomingFieldCount, int windowFieldCount) {
+  private boolean checkFilter(FilterPrel filterPrel, int incomingFieldCount,
+      int windowFieldCount, int maxCnfNodeCount) {
     final RexNode cnfCondition = RexUtil.toCnf(
       filterPrel.getCluster().getRexBuilder(),
-      PlannerSettings.MAX_CNF_NODE_COUNT,
+      maxCnfNodeCount,
       filterPrel.getCondition());
 
     for (RexNode condition : conjunctions(cnfCondition)) {

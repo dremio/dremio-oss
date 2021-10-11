@@ -1151,8 +1151,16 @@ public class CompleteType {
   private static ArrowType convertToSupportedArrowType(ArrowType arrowType) {
     switch (arrowType.getTypeID()) {
       case Int:
-        ArrowType.Int arrowInt = (ArrowType.Int)arrowType;
-        return (arrowInt.getBitWidth() < 32) ? CompleteType.INT.getType() : arrowType;
+        ArrowType.Int arrowInt = (ArrowType.Int) arrowType;
+        if (arrowInt.getBitWidth() < 32) {
+          return CompleteType.INT.getType();
+        } else if (arrowInt.getBitWidth() == 32 && !arrowInt.getIsSigned()) {
+          return CompleteType.BIGINT.getType();
+        } else if (arrowInt.getBitWidth() == 64 && !arrowInt.getIsSigned()) {
+          return CompleteType.DOUBLE.getType();
+        } else {
+          return arrowInt;
+        }
       case Date:
         // We don't support DateDay, so we should convert it to DataMilli.
         return CompleteType.DATE.getType();

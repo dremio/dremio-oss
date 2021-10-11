@@ -837,7 +837,12 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         final List<TimedRunnable<Boolean>> permissionCheckTasks = Lists.newArrayList();
 
         permissionCheckTasks.addAll(getUpdateKeyPermissionTasks(datasetConfig, userFs));
-        permissionCheckTasks.addAll(getSplitPermissionTasks(datasetConfig, userFs, user));
+        //Permission check is not required here
+        Boolean isIcebergMetaData = datasetConfig.getPhysicalDataset() != null ? datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled():null;
+        logger.debug("Checking iceberg enabled or not for this physical dataset with value: {} . ", isIcebergMetaData);
+        if (isIcebergMetaData == null || !isIcebergMetaData) {
+          permissionCheckTasks.addAll(getSplitPermissionTasks(datasetConfig, userFs, user));
+        }
 
         try {
           Stopwatch stopwatch = Stopwatch.createStarted();

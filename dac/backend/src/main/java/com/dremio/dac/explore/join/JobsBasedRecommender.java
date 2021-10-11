@@ -77,91 +77,96 @@ public class JobsBasedRecommender implements JoinRecommender {
 
   @Override
   public JoinRecommendations recommendJoins(Dataset dataset) {
-    final List<FieldOrigin> fieldOriginsList = listNotNull(dataset.getDatasetConfig().getFieldOriginsList());
-    if (fieldOriginsList.isEmpty()) {
-      // we can't help at this point
-      logger.warn("Could not find field origins in the provided dataset: " + dataset);
-      return new JoinRecommendations();
-    }
+    try {
+      final List<FieldOrigin> fieldOriginsList = listNotNull(dataset.getDatasetConfig().getFieldOriginsList());
+      if (fieldOriginsList.isEmpty()) {
+        // we can't help at this point
+        logger.warn("Could not find field origins in the provided dataset: " + dataset);
+        return new JoinRecommendations();
+      }
 
-    Set<List<String>> parents = new HashSet<>();
-    // index origin columns by their names
-    Map<Origin, String> refs = new HashMap<>();
-    indexOrigins(fieldOriginsList, parents, refs);
+      Set<List<String>> parents = new HashSet<>();
+      // index origin columns by their names
+      Map<Origin, String> refs = new HashMap<>();
+      indexOrigins(fieldOriginsList, parents, refs);
 
-    final long now = System.currentTimeMillis();
-    final List<JoinRecoForScoring> recommendations = new ArrayList<>();
-    // we cache namespace checks since we are very likely to see repeated datasets
-    final Map<NamespaceKey, Boolean> existsMap = new HashMap<>();
+      final long now = System.currentTimeMillis();
+      final List<JoinRecoForScoring> recommendations = new ArrayList<>();
+      // we cache namespace checks since we are very likely to see repeated datasets
+      final Map<NamespaceKey, Boolean> existsMap = new HashMap<>();
 
-    // 2nd step: for each parent table we look for existing joins.
-    for (List<String> parentDataset : parents) {
+      // 2nd step: for each parent table we look for existing joins.
+      for (List<String> parentDataset : parents) {
 
-      // find all jobs that refer to this parent
-      Iterable<JobDetails> jobsForParent = parentJobsProvider.getJobsForParent(parentDataset);
-      for (JobDetails jobDetails : jobsForParent) {
-        JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
-        Long startTime = jobAttempt.getInfo().getStartTime();
-        //startTime of 0 means startTime was initially null
-        if (startTime == 0 || jobAttempt.getState() != COMPLETED) {
-          continue;
-        }
-        long recency = now - startTime;
-        JoinAnalysis joinAnalysis = jobAttempt.getInfo().getJoinAnalysis();
+        // find all jobs that refer to this parent
+        Iterable<JobDetails> jobsForParent = parentJobsProvider.getJobsForParent(parentDataset);
+        for (JobDetails jobDetails : jobsForParent) {
+          JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
+          Long startTime = jobAttempt.getInfo().getStartTime();
+          //startTime of 0 means startTime was initially null
+          if (startTime == 0 || jobAttempt.getState() != COMPLETED) {
+            continue;
+          }
+          long recency = now - startTime;
+          JoinAnalysis joinAnalysis = jobAttempt.getInfo().getJoinAnalysis();
 
-        if (joinAnalysis != null && joinAnalysis.getJoinStatsList() != null && joinAnalysis.getJoinTablesList() != null) {
-          Map<Integer,JoinTable> joinTables = FluentIterable.from(joinAnalysis.getJoinTablesList())
-            .uniqueIndex(new Function<JoinTable, Integer>() {
-              @Override
-              public Integer apply(JoinTable joinTable) {
-                return joinTable.getTableId();
+          if (joinAnalysis != null && joinAnalysis.getJoinStatsList() != null && joinAnalysis.getJoinTablesList() != null) {
+            Map<Integer, JoinTable> joinTables = FluentIterable.from(joinAnalysis.getJoinTablesList())
+              .uniqueIndex(new Function<JoinTable, Integer>() {
+                @Override
+                public Integer apply(JoinTable joinTable) {
+                  return joinTable.getTableId();
+                }
+              });
+
+            for (final JoinStats join : joinAnalysis.getJoinStatsList()) {
+              // ignore if join analysis is missing join conditions
+              if (join.getJoinConditionsList() == null || join.getJoinConditionsList().isEmpty()) {
+                continue;
               }
-            });
+              final List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
+              final List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
 
-          for (final JoinStats join : joinAnalysis.getJoinStatsList()) {
-            // ignore if join analysis is missing join conditions
-            if (join.getJoinConditionsList() == null || join.getJoinConditionsList().isEmpty()) {
-              continue;
-            }
-            final List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
-            final List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
+              // if any of the join sides no longer exists in namespace, skip it
+              if (!checkIfExists(existsMap, leftTablePathList) || !checkIfExists(existsMap, rightTablePathList)) {
+                continue;
+              }
 
-            // if any of the join sides no longer exists in namespace, skip it
-            if (!checkIfExists(existsMap, leftTablePathList) || !checkIfExists(existsMap, rightTablePathList)) {
-              continue;
-            }
-
-            if (parents.contains(leftTablePathList)) {
-              addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList, joinTables);
-            }
-            // we can add it both ways if both tables are there
-            if (parents.contains(rightTablePathList)) {
-              addJoinReco(refs, recommendations, recency, join, leftTablePathList, rightTablePathList, joinTables);
+              if (parents.contains(leftTablePathList)) {
+                addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList, joinTables);
+              }
+              // we can add it both ways if both tables are there
+              if (parents.contains(rightTablePathList)) {
+                addJoinReco(refs, recommendations, recency, join, leftTablePathList, rightTablePathList, joinTables);
+              }
             }
           }
         }
       }
-    }
-    // sum up
+      // sum up
 
-    Builder<JoinRecommendation, JoinRecoForScoring> builder = ImmutableListMultimap.builder();
-    for (JoinRecoForScoring joinReco : recommendations) {
-      builder.put(joinReco.joinReco, joinReco);
-    }
-    ImmutableListMultimap<JoinRecommendation, JoinRecoForScoring> index = builder.build();
-    List<JoinRecoForScoring> mergedRecommendations = new ArrayList<>();
-    for (Entry<JoinRecommendation, Collection<JoinRecoForScoring>> recos : index.asMap().entrySet()) {
-      JoinRecommendation key = recos.getKey();
-      long recency = Long.MAX_VALUE;
-      int jobCount = 0;
-      for (JoinRecoForScoring joinReco : recos.getValue()) {
-        recency = Math.min(recency, joinReco.recency);
-        jobCount += joinReco.jobCount;
+      Builder<JoinRecommendation, JoinRecoForScoring> builder = ImmutableListMultimap.builder();
+      for (JoinRecoForScoring joinReco : recommendations) {
+        builder.put(joinReco.joinReco, joinReco);
       }
-      mergedRecommendations.add(new JoinRecoForScoring(key, jobCount, recency));
+      ImmutableListMultimap<JoinRecommendation, JoinRecoForScoring> index = builder.build();
+      List<JoinRecoForScoring> mergedRecommendations = new ArrayList<>();
+      for (Entry<JoinRecommendation, Collection<JoinRecoForScoring>> recos : index.asMap().entrySet()) {
+        JoinRecommendation key = recos.getKey();
+        long recency = Long.MAX_VALUE;
+        int jobCount = 0;
+        for (JoinRecoForScoring joinReco : recos.getValue()) {
+          recency = Math.min(recency, joinReco.recency);
+          jobCount += joinReco.jobCount;
+        }
+        mergedRecommendations.add(new JoinRecoForScoring(key, jobCount, recency));
+      }
+      Collections.sort(mergedRecommendations);
+      return recos(mergedRecommendations);
+    } catch (Exception e) {
+      logger.warn("Caught exception", e);
+      return new JoinRecommendations();
     }
-    Collections.sort(mergedRecommendations);
-    return recos(mergedRecommendations);
   }
 
   private boolean checkIfExists(final Map<NamespaceKey, Boolean> existsMap, List<String> path) {
